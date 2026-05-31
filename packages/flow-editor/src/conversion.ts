@@ -103,7 +103,7 @@ export function stepsToGraph(
   let prevIds = ["reader"];
 
   // --- Source-transform stage (leading, before main steps) ---
-  for (const step of spec.sourceTransforms ?? []) {
+  (spec.sourceTransforms ?? []).forEach((step, stIndex) => {
     // Source-transforms are always sequential (no parallel fan-out in this stage).
     const id = `tool-${toolCounter++}`;
 
@@ -111,7 +111,9 @@ export function stepsToGraph(
       id,
       type: "tool",
       position: pos(primary, CENTER),
-      data: makeToolNodeData(step, toolMap, { stage: "source-transform" }),
+      // `stIndex` records the position of this step in `spec.sourceTransforms`
+      // so selection/edit/delete can resolve it by identity, not by tool name.
+      data: makeToolNodeData(step, toolMap, { stage: "source-transform", stIndex }),
     });
 
     for (const prev of prevIds) {
@@ -121,10 +123,10 @@ export function stepsToGraph(
 
     prevIds = [id];
     primary += NODE_SIZE + NODE_GAP;
-  }
+  });
 
   // --- Main stage ---
-  for (const step of spec.steps) {
+  spec.steps.forEach((step, stepIndex) => {
     if (step.parallel && step.parallel.length > 0) {
       // Fan-out: create parallel branch nodes spread along cross-axis
       const branchIds: string[] = [];
@@ -155,6 +157,11 @@ export function stepsToGraph(
             isSourceTransform: info?.isSourceTransform,
             valid: toolMap ? !!info : true,
             parallel: true,
+            // `stepIndex` points at the parallel wrapper in `spec.steps`;
+            // `branchIndex` points at this branch within `step.parallel`. Both
+            // are needed so config edits land on the branch, not the wrapper.
+            stepIndex,
+            branchIndex: b,
           },
         });
 
@@ -176,7 +183,8 @@ export function stepsToGraph(
         id,
         type: "tool",
         position: pos(primary, CENTER),
-        data: makeToolNodeData(step, toolMap),
+        // `stepIndex` records the position of this step in `spec.steps`.
+        data: makeToolNodeData(step, toolMap, { stepIndex }),
       });
 
       for (const prev of prevIds) {
@@ -187,7 +195,7 @@ export function stepsToGraph(
       prevIds = [id];
       primary += NODE_SIZE + NODE_GAP;
     }
-  }
+  });
 
   // Writer node
   nodes.push({

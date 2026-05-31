@@ -33,6 +33,14 @@ import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
 import { stepsToGraph, graphToSteps, type LayoutDirection } from "./conversion";
+import {
+  resolveStepLocation,
+  stepAtLocation,
+  updateStepAtLocation,
+  removeStepAtLocation,
+  type NodeStepData,
+} from "./stepResolve";
+import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
@@ -163,7 +171,8 @@ interface StepConfigPanelProps {
   onRemove?: () => void;
 }
 
-function StepConfigPanel({
+// Exported for colocated tests (not re-exported from the package index).
+export function StepConfigPanel({
   step,
   toolInfo,
   schema,
@@ -183,29 +192,37 @@ function StepConfigPanel({
   const canBeSourceTransform = !!toolInfo?.isSourceTransform;
 
   // Local config state -- owns the values to prevent parent re-renders from
-  // resetting inputs. Syncs to parent via debounced onConfigChange.
+  // resetting inputs. Syncs to parent via a debounced controller.
   const [localConfig, setLocalConfig] = useState(config);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Keep the controller's emit target pointing at the latest onConfigChange
+  // without re-creating the controller (which would drop a pending timer).
+  const onConfigChangeRef = useRef(onConfigChange);
+  onConfigChangeRef.current = onConfigChange;
+  const syncRef = useRef<DebouncedSync<Record<string, unknown>>>(undefined);
+  if (!syncRef.current) {
+    syncRef.current = createDebouncedSync((cfg) => onConfigChangeRef.current(cfg), 300);
+  }
 
   // Re-initialize when the selected tool changes (not on every config update).
+  // (The panel is also keyed on the selected node id, so it normally remounts.)
   const toolRef = useRef(step.tool);
   if (step.tool !== toolRef.current) {
     toolRef.current = step.tool;
     setLocalConfig(config);
   }
 
-  const handleLocalChange = useCallback(
-    (newConfig: Record<string, unknown>) => {
-      setLocalConfig(newConfig);
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => onConfigChange(newConfig), 300);
-    },
-    [onConfigChange],
-  );
+  const handleLocalChange = useCallback((newConfig: Record<string, unknown>) => {
+    setLocalConfig(newConfig);
+    syncRef.current!.schedule(newConfig);
+  }, []);
 
-  // Flush on unmount.
+  // Flush any pending debounced edit on unmount / close so the last sub-300ms
+  // edit is not dropped. With `key={selectedNodeId}` on the panel, switching
+  // selection remounts it, which flushes the previous selection's pending edit.
   useEffect(() => {
-    return () => clearTimeout(syncTimerRef.current);
+    const sync = syncRef.current!;
+    return () => sync.flush();
   }, []);
 
   return (
@@ -619,29 +636,14 @@ export function FlowEditor({
   const handleRemoveNode = useCallback(
     (nodeId: string) => {
       if (readOnly) return;
-      // Look up the toolName from the current nodes list so we can find it in
-      // either sourceTransforms or steps (node index alone is ambiguous).
+      // Resolve the node by IDENTITY (its position in the FlowSpec, carried on
+      // node.data) so deleting one node never drops siblings that share the
+      // same tool name, and removing a parallel branch keeps the others.
       const node = nodes.find((n) => n.id === nodeId);
-      const toolName = node?.data?.toolName as string | undefined;
-      if (!toolName) return;
+      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
+      if (!loc) return;
 
-      const isInST = flow.sourceTransforms?.some((s) => s.tool === toolName);
-      let updated: FlowSpec;
-      if (isInST) {
-        updated = {
-          ...flow,
-          sourceTransforms: flow.sourceTransforms!.filter((s) => s.tool !== toolName),
-        };
-        if (updated.sourceTransforms!.length === 0) delete updated.sourceTransforms;
-      } else {
-        updated = {
-          ...flow,
-          steps: flow.steps.filter(
-            (s) => s.tool !== toolName && !s.parallel?.some((p) => p.tool === toolName),
-          ),
-        };
-      }
-      onChange(updated);
+      onChange(removeStepAtLocation(flow, loc));
       if (selectedNodeId === nodeId) setSelectedNodeId(null);
     },
     [flow, nodes, onChange, readOnly, selectedNodeId],
@@ -739,30 +741,21 @@ export function FlowEditor({
     [nodes],
   );
 
-  // Config panel state -- resolve from node data, searching both sourceTransforms and steps.
+  // Config panel state -- resolve the selected node by IDENTITY (its position in
+  // the FlowSpec, carried on node.data), never by tool name. This keeps
+  // duplicate-tool nodes and parallel branches distinct.
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const selectedToolName = selectedNode?.data?.toolName as string | undefined;
   const selectedIsSTStage = selectedNode?.data?.stage === "source-transform";
 
-  // Find the step in either list.
-  const selectedStep = useMemo(() => {
-    if (!selectedToolName) return null;
-    const stHit = findStepByTool(flow.sourceTransforms ?? [], selectedToolName);
-    if (stHit) return stHit;
-    return findStepByTool(flow.steps, selectedToolName);
-  }, [selectedToolName, flow.sourceTransforms, flow.steps]);
-
-  const selectedSTIndex = useMemo(
-    () =>
-      selectedIsSTStage && selectedToolName
-        ? findStepIndex(flow.sourceTransforms ?? [], selectedToolName)
-        : NaN,
-    [selectedIsSTStage, selectedToolName, flow.sourceTransforms],
+  const selectedLocation = useMemo(
+    () => resolveStepLocation(selectedNode?.data as NodeStepData | undefined),
+    [selectedNode],
   );
-  const selectedStepIndex = useMemo(
-    () =>
-      !selectedIsSTStage && selectedToolName ? findStepIndex(flow.steps, selectedToolName) : NaN,
-    [selectedIsSTStage, selectedToolName, flow.steps],
+
+  const selectedStep = useMemo(
+    () => (selectedLocation ? stepAtLocation(flow, selectedLocation) : null),
+    [selectedLocation, flow],
   );
 
   const selectedToolInfo = selectedToolName ? toolMap.get(selectedToolName) : null;
@@ -771,54 +764,44 @@ export function FlowEditor({
 
   const handleConfigChange = useCallback(
     (config: Record<string, unknown>) => {
-      if (readOnly) return;
-      if (selectedIsSTStage && !isNaN(selectedSTIndex)) {
-        const updated: FlowSpec = {
-          ...flow,
-          sourceTransforms: (flow.sourceTransforms ?? []).map((s, i) =>
-            i === selectedSTIndex ? { ...s, config } : s,
-          ),
-        };
-        onChange(updated);
-      } else if (!isNaN(selectedStepIndex)) {
-        const updated: FlowSpec = {
-          ...flow,
-          steps: flow.steps.map((s, i) => (i === selectedStepIndex ? { ...s, config } : s)),
-        };
-        onChange(updated);
-      }
+      if (readOnly || !selectedLocation) return;
+      onChange(updateStepAtLocation(flow, selectedLocation, (s) => ({ ...s, config })));
     },
-    [selectedIsSTStage, selectedSTIndex, selectedStepIndex, flow, onChange, readOnly],
+    [selectedLocation, flow, onChange, readOnly],
   );
 
-  // Toggle a tool between the source-transform stage and the main stage.
+  // Toggle a tool between the source-transform stage and the main stage,
+  // resolving the exact step by identity (not tool name).
   const handleStageToggle = useCallback(
     (asSourceTransform: boolean) => {
-      if (readOnly || !selectedToolName) return;
-      if (asSourceTransform) {
+      if (readOnly || !selectedLocation) return;
+      const step = stepAtLocation(flow, selectedLocation);
+      if (!step) return;
+      // Parallel branches can't move stages (the toggle is disabled for them).
+      if (selectedLocation.branchIndex !== undefined) return;
+
+      if (asSourceTransform && !selectedLocation.isSourceTransform) {
         // Move from steps → sourceTransforms
-        const step = findStepByTool(flow.steps, selectedToolName);
-        if (!step) return;
         const updated: FlowSpec = {
           ...flow,
           sourceTransforms: [...(flow.sourceTransforms ?? []), { ...step }],
-          steps: flow.steps.filter((s) => s.tool !== selectedToolName),
+          steps: flow.steps.filter((_, i) => i !== selectedLocation.index),
         };
         onChange(updated);
-      } else {
+        setSelectedNodeId(null);
+      } else if (!asSourceTransform && selectedLocation.isSourceTransform) {
         // Move from sourceTransforms → steps
-        const step = findStepByTool(flow.sourceTransforms ?? [], selectedToolName);
-        if (!step) return;
-        const newST = (flow.sourceTransforms ?? []).filter((s) => s.tool !== selectedToolName);
+        const newST = (flow.sourceTransforms ?? []).filter((_, i) => i !== selectedLocation.index);
         const updated: FlowSpec = {
           ...flow,
           sourceTransforms: newST.length > 0 ? newST : undefined,
           steps: [{ ...step }, ...flow.steps],
         };
         onChange(updated);
+        setSelectedNodeId(null);
       }
     },
-    [readOnly, selectedToolName, flow, onChange],
+    [readOnly, selectedLocation, flow, onChange],
   );
 
   // Template library covers the full editor when shown.
@@ -950,6 +933,7 @@ export function FlowEditor({
       {/* Config Panel (right) */}
       {selectedStep && (
         <StepConfigPanel
+          key={selectedNodeId}
           step={selectedStep}
           toolInfo={selectedToolInfo}
           schema={selectedSchema}
@@ -964,32 +948,6 @@ export function FlowEditor({
       )}
     </div>
   );
-}
-
-/** Find a step by tool name, searching into parallel branches. */
-function findStepByTool(steps: FlowStep[], toolName: string): FlowStep | null {
-  for (const s of steps) {
-    if (s.tool === toolName) return s;
-    if (s.parallel) {
-      for (const p of s.parallel) {
-        if (p.tool === toolName) return p;
-      }
-    }
-  }
-  return null;
-}
-
-/** Find the flat index of a step (or its parent parallel group) by tool name. */
-function findStepIndex(steps: FlowStep[], toolName: string): number {
-  for (let i = 0; i < steps.length; i++) {
-    if (steps[i].tool === toolName) return i;
-    if (steps[i].parallel) {
-      for (const p of steps[i].parallel!) {
-        if (p.tool === toolName) return i;
-      }
-    }
-  }
-  return NaN;
 }
 
 // ---------------------------------------------------------------------------
