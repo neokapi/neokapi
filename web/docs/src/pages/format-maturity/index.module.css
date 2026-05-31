@@ -1,0 +1,199 @@
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.header h1 {
+  margin-bottom: 0.25rem;
+}
+.subtitle {
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.5rem;
+}
+.meta {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 1.5rem;
+}
+
+/* ── level distribution bar ───────────────────────────── */
+.distBar {
+  display: flex;
+  width: 100%;
+  height: 2.4rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.distSeg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  min-width: 0;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+.distSeg:hover {
+  filter: brightness(1.08);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0.75rem 0 1.75rem;
+  font-size: 0.85rem;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* level colors */
+.lvlL0 { background: #d64545; }
+.lvlL1 { background: #e08a2b; }
+.lvlL2 { background: #d6b83a; color: #222; }
+.lvlL3 { background: #3fa05a; }
+.lvlL4 { background: #2b8fb3; }
+
+.levelBadge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #fff;
+}
+.levelBadge.lvlL2 { color: #222; }
+
+/* ── trend ───────────────────────────── */
+.trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 120px;
+  margin: 0.5rem 0 2rem;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+.trendCol {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 38px;
+  height: 100%;
+  position: relative;
+}
+.trendCell { width: 100%; }
+.trendDate {
+  position: absolute;
+  bottom: -1.3rem;
+  left: 50%;
+  transform: translateX(-50%) rotate(0deg);
+  font-size: 0.65rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}
+
+/* ── controls ───────────────────────────── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1.5rem 0 1rem;
+}
+.search {
+  flex: 1 1 220px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+}
+.chip {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.chipActive {
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border-color: var(--ifm-color-primary);
+}
+
+/* ── table ───────────────────────────── */
+.tableWrap { overflow-x: auto; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.table th,
+.table td {
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  vertical-align: middle;
+}
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--ifm-background-color);
+  z-index: 1;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-emphasis-700);
+}
+.dimHead {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  height: 84px;
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 600;
+}
+.fmtId { font-family: var(--ifm-font-family-monospace); font-weight: 600; }
+.typeTag {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+}
+.dot {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+}
+.dotComplete { background: #3fa05a; }
+.dotPartial { background: #e0b32b; }
+.dotNone { background: #d64545; }
+.dotNa {
+  background: transparent;
+  border: 1px dashed var(--ifm-color-emphasis-400);
+}
+.gapCell {
+  max-width: 360px;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-800);
+}
+.rowExpand { cursor: pointer; }
+.detail {
+  background: var(--ifm-color-emphasis-100);
+  font-size: 0.82rem;
+}
+.detail ul { margin: 0.4rem 0 0.4rem 1rem; }
+.riskText { color: var(--ifm-color-emphasis-800); }

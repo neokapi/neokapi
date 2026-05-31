@@ -1,0 +1,1249 @@
+{
+ "generated_at": "2026-05-31",
+ "target_level": "L4",
+ "source": "format-triage workflow (agent assessment)",
+ "summary": {
+  "total": 49,
+  "by_level": {
+   "L0": 1,
+   "L1": 28,
+   "L2": 7,
+   "L3": 13,
+   "L4": 0
+  }
+ },
+ "dimensions": [
+  "reader",
+  "writer",
+  "config",
+  "spec",
+  "parity",
+  "malformed",
+  "corpus",
+  "detection",
+  "docs"
+ ],
+ "dimension_labels": {
+  "reader": "Reader",
+  "writer": "Writer / round-trip",
+  "config": "Config + Schema",
+  "spec": "spec.yaml",
+  "parity": "Parity",
+  "malformed": "Malformed / robustness",
+  "corpus": "Corpus breadth",
+  "detection": "Detection",
+  "docs": "Docs + wiring"
+ },
+ "formats": [
+  {
+   "id": "androidxml",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "L4: add schema_test.go asserting Schema() property set == config.ApplyMap keys (1:1, no drift) \u2014 rubric flags this explicitly; only html/json have it today.",
+    "L4: extend the round-trip edge-case matrix beyond UTF-8/LF \u2014 add fixtures/tests for CRLF line endings, a UTF-8 BOM, UTF-16 / non-UTF-8 declared encoding, and an all-Unicode value, asserting byte-faithful round-trip. All current fixtures are UTF-8/LF only."
+   ],
+   "top_risk": "Encoding/line-ending blind spot: the writer round-trips by splicing original bytes (good), but resolveValue/renderRunsToXML produce UTF-8 entity-encoded inner content. No test covers a non-UTF-8-declared file, a UTF-8 BOM, or CRLF; the reader stores raw bytes via unsafe.String and never re-encodes, so a translated value in a UTF-16 doc could mix encodings undetected \u2014 untested.",
+   "confidence": "high"
+  },
+  {
+   "id": "applestrings",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "schema_test.go: add a test asserting Schema() property set == Config ApplyMap accepted keys (extractComments, protectPlaceholders) so schema and config can't drift \u2014 required for L4.",
+    "Edge-case encoding matrix: TestUTF16RoundTrip only covers UTF-16LE+BOM; the writer/encoding.go claim UTF-16BE support but no test asserts a UTF-16BE byte-faithful round-trip. Add UTF-16BE (and a no-BOM UTF-8) round-trip case for the L4 encoding matrix.",
+    "Line-ending / CRLF edge case: no test proves a CRLF-delimited .strings table round-trips byte-exact; add one to the L4 edge-case matrix."
+   ],
+   "top_risk": "UTF-16BE is a documented capability (encoding.go / writer comment / nativedocs) but is NOT covered by any round-trip assertion \u2014 only UTF-16LE is tested (roundtrip_test.go:314 TestUTF16RoundTrip). A BE encode/decode regression would pass CI silently.",
+   "confidence": "high"
+  },
+  {
+   "id": "arb",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "schema_test asserting schema==config (L4): no test pins Config.Schema() property/key set to the ApplyMap-accepted keys (descriptionNotes), so schema/config drift would go uncaught.",
+    "Edge-case round-trip matrix (L4): add fixtures exercising the scanner's BOM and CRLF code paths (skipWhitespace handles 0xEF 0xBB 0xBF and \\r\\n) plus surrogate-pair \\uXXXX escapes and mixed encodings; currently no test feeds a BOM/CRLF/astral-escape file through byte-faithful round-trip.",
+    "From-scratch writer fidelity test or hardening (L4): buildCanonical drops all @<id> attributes except description and re-sorts keys alphabetically \u2014 no test asserts/limits this loss, and it is a silent non-byte-faithful path for synthetic pipelines."
+   ],
+   "top_risk": "Lossy from-scratch path: writer.writeFromScratch -> buildCanonical (encode.go) discards every @<id> attribute except description and alphabetically re-sorts keys (loses source order). A synthetic pipeline that produces ARB blocks without an arb.original Layer property will emit a structurally-degraded file. Documented as 'out of scope' but untested and silent.",
+   "confidence": "high"
+  },
+  {
+   "id": "csv",
+   "type": "parity",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "okf_table (filters/table \u2014 csv subfilter okf_commaseparatedvalues)",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "partial",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/broken-quote/binary-garbage and header-only input to Read and assert require.NotPanics + a clean PartResult.Error on the channel (dimension 6, high weight \u2014 the single biggest L4 blocker).",
+    "Add a test exercising the useCodeFinder/codeFinderRules path: configure CodeFinderRules, read a cell, assert applyCodeFinder produced Ph runs (SourceRuns with PlaceholderRun) with verbatim Data and that they round-trip (closes the Reader inline-span gap).",
+    "Add useCodeFinder + codeFinderRules to spec.yaml as documented ConfigKeys so spec keys are 1:1 with ApplyMap (dimension 4)."
+   ],
+   "top_risk": "Embedded newline inside a quoted field is NOT byte-stable on round-trip \u2014 test2cols.csv is explicitly excluded from the upstream corpus test (upstream_test.go L122-123) for this reason, and TestRoundTrip_EmbeddedNewlines exists but splitRawLines tracks quotes only via a bare '\"' toggle that LazyQuotes-recovered/malformed quoting can desync, so the skeleton may mis-segment lines on real-world dirty CSV.",
+   "confidence": "high"
+  },
+  {
+   "id": "designtokens",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "L4: add an edge-case round-trip matrix \u2014 encodings (non-UTF-8 / BOM), CRLF vs LF line endings, and unicode/escape edge cases \u2014 currently round-trip fixtures are all UTF-8/LF",
+    "L4: add a schema_test that asserts the schema properties match the Config fields (schema==config) so the single extractDescriptions toggle cannot drift from schema.go",
+    "L4: assert Open(nil-doc) rejection in a test (the code rejects it at reader.go:112 but no test exercises the nil path)"
+   ],
+   "top_risk": "Fidelity depends entirely on the delegated json.Writer's original-bytes-retokenize replay (json.original/json.keypath); a regression in core/formats/json could silently weaken designtokens round-trip \u2014 the corpus is only a single upstream file (style-dictionary-demo), so breadth of real-world DTCG variety is thin (one source repo).",
+   "confidence": "high"
+  },
+  {
+   "id": "doxygen",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_doxygen",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "partial",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH): feed truncated/broken Doxygen source (e.g. unterminated /** with no */, lone /*! at EOF, binary garbage, CRLF-mangled) and assert require.NotPanics + a clean PartResult.Error or graceful empty extraction on the channel \u2014 required for L2 and currently absent.",
+    "Harden Detection (MEDIUM): add a Sniff to the doxygen FormatSignature (or drop the bare generic .c/.cpp/.h/.java/.m/.py extensions) so a plain source file with no /// or /** doc comment is not claimed by doxygen over a more generic handler."
+   ],
+   "top_risk": "No malformed/robustness test: reader.go reads the whole file with io.ReadAll then line-splits and indexes lines[i]; an adversarial or truncated comment (unterminated /** ... with no closing */ at EOF, lone /*!< etc.) is never exercised for NotPanics, so a slice/index or parser edge-panic could ship undetected.",
+   "confidence": "high"
+  },
+  {
+   "id": "dtd",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_dtd",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "partial",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add core/formats/dtd/malformed_test.go: feed truncated/broken DTD (unclosed <!ENTITY ..., unclosed <!--, unclosed <?, garbage bytes, invalid UTF-8) and assert NotPanics + that the reader either emits a clean PartResult.Error or terminates cleanly; explicitly assert nil-doc Open rejection. (high weight; this is the single strictest unmet L2 item)",
+    "Add core/formats/dtd/schema.go implementing a SchemaProvider for useCodeFinder/codeFinderRules and register via registerSchemaAndDecoder so the config surface is exposed to CLI/UI/reference. (high)",
+    "Fix spec.yaml drift: add a `keys:` section mapping useCodeFinder + codeFinderRules 1:1 to ApplyMap with okapi_param (USECODEFINDER, codeFinderRules), and delete the stale header comment claiming ApplyMap rejects all input / has no configurable knobs. (high)"
+   ],
+   "top_risk": "Malformed input is silently swallowed, not surfaced: an unclosed <!ENTITY, unclosed comment, unclosed <!...> declaration, or unclosed <?...?> hits a bare `break` in readContent (reader.go lines 176, 248, 266) and the loop just stops \u2014 no PartResult.Error is emitted, so trailing content is silently dropped with no signal. There is zero test coverage proving this is panic-safe or that callers can detect the truncation.",
+   "confidence": "high"
+  },
+  {
+   "id": "epub",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_epub",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "partial",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH): truncated/corrupt ZIP, missing META-INF/container.xml, malformed OPF, empty/non-zip bytes \u2014 assert require.NotPanics AND a clean PartResult.Error on the channel; also assert Open(nil) (already covered) \u2014 required for L2.",
+    "Add schema.go (HIGH): even a parameterless schema for CLI/UI/reference; the rubric requires schema.go present for L2 (Config has no params so a schema_test asserting schema==config is trivial and would also satisfy part of L4)."
+   ],
+   "top_risk": "No byte-fidelity round-trip test against the ORIGINAL archive. sourcepath_test.go (TestSourcePath_ByteEqualToOriginalContent) only proves the SourcePath writer and the OriginalContent writer agree byte-for-byte with EACH OTHER \u2014 it does NOT prove either equals the input EPUB. TestRoundTrip/TestSkeletonRoundTrip assert text Contains / block-count / re-read text equality (semantic), so XHTML re-serialization drift (attribute ordering, whitespace, self-closing form via Go's xml encoder in replaceXHTMLText) is undetected.",
+   "confidence": "high"
+  },
+  {
+   "id": "fixedwidth",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_table (table/fwc \u2014 FixedWidthColumnsFilter, mapped as okf_fixedwidthcolumns)",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/garbage/lone-CR/invalid-UTF8 input and assert NotPanics + a clean PartResult.Error (or graceful empty stream) on the channel \u2014 this is the L2 robustness requirement and the single item gating the jump from L1 to its earned L3.",
+    "Add schema.go (CLI/UI/reference) + schema_test asserting schema==config; the nativedocs sidecar currently admits 'no JSON schema is published', leaving the high-weight Config+Schema dimension only half-met."
+   ],
+   "top_risk": "No malformed/truncated-input test at all: a lone '\\r', invalid UTF-8, or io.ReadAll error path (reader.go:110-114) is unproven against panic. The rune-slicing in extractColumn (reader.go:321-329) and skeleton gap logic (reader.go:169-179) are untested on degenerate lines beyond the happy short-line case.",
+   "confidence": "high"
+  },
+  {
+   "id": "html",
+   "type": "parity",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "okf_html",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add a dedicated malformed_test.go asserting NotPanics + clean behavior on truncated/binary-garbage/empty input (and confirm the PartResult.Error path is reachable), to satisfy L4 robustness across an edge-case matrix.",
+    "Make ApplyMap reject unknown keys (replace both 'default: // ignore' branches with an error, or switch to ApplyMapViaJSON with DisallowUnknownFields) \u2014 currently a typo'd config key is silently dropped, which is the one concrete L4-blocking correctness hole.",
+    "Formalize the encoding/line-ending/unicode edge-case matrix as explicit byte-faithful roundtrip assertions (BOM, CRLF, UTF-16) \u2014 currently BOM/encoding tests only assert content extraction, not byte-exact retarget."
+   ],
+   "top_risk": "ApplyMap silently ignores unknown keys (config.go:111, applyParserSettings:127 'default: // Ignore for forward compatibility') \u2014 a mistyped preset key or a removed param is dropped with no error, so the schema_test's schema==ApplyMap guarantee does not extend to runtime rejection of bad input.",
+   "confidence": "high"
+  },
+  {
+   "id": "i18next",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "schema_test asserting schema.go Properties == config.go ApplyMap keys (catch drift) \u2014 required for L4 'schema_test asserts schema==config'",
+    "Byte-faithful edge-case matrix: non-UTF-8 encodings, BOM, CRLF line endings, and unicode-escape preservation exercised at the i18next layer (currently only default UTF-8 fixtures)",
+    "Round-trip / recovery assertion for the opt-in _html HTML-subfilter branch (currently the only non-byte-faithful, documented-normalization path and it has no fidelity guarantee, only TestHTMLSubfilterOptIn checks a child layer appears)"
+   ],
+   "top_risk": "schema.go and config.go list the 3 keys independently with no test asserting they stay in sync \u2014 silent drift possible (e.g. adding a config key without a schema property, or vice versa).",
+   "confidence": "high"
+  },
+  {
+   "id": "icml",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_icml",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH): feed truncated/broken/non-XML and nil-reader input; assert a clean PartResult.Error on the channel under NotPanics. Currently the reader breaks its decode loop on any token error and emits NO error part, so malformed input silently yields partial output \u2014 both undetected and untested. Required for L2.",
+    "Add schema.go (HIGH): make Config implement SchemaProvider so the format exposes a JSON schema for CLI/UI/reference (the nativedocs sidecar explicitly notes its absence); ideally back it with a schema_test asserting schema==config. Required for the L2 'schema.go present' criterion."
+   ],
+   "top_risk": "Inline codes are LOST, not preserved (dimension 1): the reader concatenates Content text across CharacterStyleRange runs and ignores <Br/> (soft-break path) and footnote/inline anchors, producing a single plain-text Block with no Ph/Pc runs. Byte-exactness survives ONLY because the unchanged spans are copied verbatim from the skeleton; the moment a translated Block re-spans multiple original <Content> elements, the writer's replaceSequential collapses them into one replacement span (writer.go 305-347), which can shift inline formatting boundaries. A translation tool sees flattened text and cannot honor original code placement.",
+   "confidence": "high"
+  },
+  {
+   "id": "idml",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_idml",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "schema.go: add a SchemaProvider implementation (config.go Schema()) exposing the 6 boolean keys for CLI/UI/reference + a schema_test asserting schema==config \u2014 required L2 high-weight item, currently absent (nativedocs sidecar explicitly notes no JSON Schema).",
+    "malformed_test.go: add tests feeding a truncated ZIP byte-prefix and a corrupt/unbalanced story XML, asserting NotPanics AND a clean PartResult.Error on the channel \u2014 required L2 high-weight item; current coverage only handles non-ZIP garbage and nil doc, not truncation/recoverable corruption."
+   ],
+   "top_risk": "spec<->config key drift: spec.yaml declares container keys extraction/formatting/inlineCodes that ApplyMap would REJECT as unknown, and OMITS extractHyperlinkTextSourcesInline which ApplyMap accepts. Keys are not 1:1; a consumer feeding the spec's container keys through ApplyMap would get an error.",
+   "confidence": "high"
+  },
+  {
+   "id": "json",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_json",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed a matrix of broken/truncated inputs (unterminated string, unterminated object/array, lone surrogate, garbage bytes, deeply-truncated nesting) and assert assert.NotPanics + a clean PartResult.Error on the channel for each \u2014 current invalid-JSON tests only check 'an error appeared', no NotPanics, no truncation matrix (L2 gate).",
+    "Reconcile the spec.yaml default drift: spec.yaml documents escapeForwardSlashes and useLeadingSlashOnKeyPath as 'Default off/false', but Config.Reset() and schema.go both set them true (Okapi escapeForwardSlashes defaults true). Fix spec.yaml (or the code) so all three agree (L2 spec-quality).",
+    "Run the head-to-head parity suite (cli/parity/formats/json_spec_test.go) against okapi-bridge and confirm zero unattributed/pure-default-diff xfails; add bridge_config where param shapes differ (L3)."
+   ],
+   "top_risk": "Default drift across three sources: Config.Reset() sets EscapeForwardSlashes=true & UseLeadingSlashOnKeyPath=true; schema.go declares both Default:true; spec.yaml documents both as default false ('Default off'). schema_test.go only checks key-set parity, NOT default equality, so the drift is uncaught. A consumer reading spec.yaml will get the opposite escaping/slash behavior than the engine produces.",
+   "confidence": "high"
+  },
+  {
+   "id": "markdown",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_markdown",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add a malformed_test (high weight, L2): feed truncated/unclosed/garbage markdown (e.g. unterminated front matter, mid-byte UTF-8, very large nesting) and assert require.NotPanics + a clean PartResult.Error or graceful Block emission on the channel \u2014 currently zero NotPanics in the package.",
+    "Add a corpus/upstream test (high weight, L3): wire at least one real-world markdown file via spec.yaml input_file: okapi:... or a corpus_test reading upstream fixtures, instead of only authored inline snippets."
+   ],
+   "top_risk": "No malformed-input coverage: goldmark + the hand-rolled handleFrontMatter byte scanner (reader.go:225-279, manual index arithmetic on content[i:i+3]) and the trailSpaceTrimmer are untested against truncated/adversarial input \u2014 a panic-on-malformed regression would not be caught.",
+   "confidence": "high"
+  },
+  {
+   "id": "mdx",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "schema_test.go asserting schema.go output matches config.go fields/types/defaults (the one missing L4 harvest item; only html/json have this today)",
+    "Optional: an explicit Open(nil)/Read robustness unit test for the nil-doc path (currently only the message string exists in code; malformed_test covers content-level robustness but not the nil-doc rejection assertion)"
+   ],
+   "top_risk": "v1 scope limitation (not a bug, but a fidelity ceiling): JSX children prose, JSX attribute string values, ESM, expressions, AND GFM tables are ALL preserved opaque and NEVER translated. Real docs carry user-facing copy inside <Callout>\u2026</Callout> children and table cells; that text is silently untranslatable. The corpus 'translated MDX compiles' acceptance only proves prose-only translation is valid MDX, not that all translatable content is reached.",
+   "confidence": "high"
+  },
+  {
+   "id": "messageformat",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_messageformat",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "partial",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "partial",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/broken patterns and assert NotPanics + a clean error path (high-weight, hard L2 requirement, currently entirely absent)",
+    "Move parse errors off Open() and onto the channel as PartResult.Error per the Reader dimension contract; broken input currently fails in Open() not as a channel Error (taints the critical Reader dimension and the malformed-robustness shape)",
+    "Make the non-skeleton writer path faithful: render via RenderRunsWithData (or equivalent) so Ph placeholder runs ({0}/{name}/#) are not dropped when no skeleton store is attached \u2014 currently getBlockText()->SourceText() loses them"
+   ],
+   "top_risk": "Parse errors are returned from Open() (reader.go:93-95, :151-153) instead of emitted as PartResult.Error on the channel \u2014 contradicts the Reader dimension's stated contract; consumers that only inspect channel results would never see the error during Read.",
+   "confidence": "high"
+  },
+  {
+   "id": "mif",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_mif",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add a malformed_test.go (HIGH): feed truncated/garbage/unbalanced-brace MIF and assert require.NotPanics + a clean PartResult.Error on the channel (currently only nil-doc Open and clean inputs are covered) \u2014 required L2 gate.",
+    "Add schema.go implementing SchemaProvider (HIGH): the 12 ApplyMap keys are documented in spec.yaml + nativedocs but Config exposes no JSON Schema for CLI/UI/reference; nativedocs/formats/mif.yaml explicitly notes the absence \u2014 required L2 'schema.go present' gate.",
+    "Add a schema_test (MEDIUM, for L4 later) asserting schema == config keys once schema.go exists, so the two cannot drift."
+   ],
+   "top_risk": "tab_between_strings expected_fail attribution is imprecise: the reason blames the bridge (#509), but the has_block_with_text:\"\\t\" assertion ALSO fails the native side in the parity run (native log: 'has_block_with_text: \"\\t\" not found'). The native reader DOES decode the tab as a Ph (proven by TestReadMIFSpecialCharacters), but the spec assertion checks text-only SourceText, so it can never see Ph data \u2014 the divergence is partly an assertion-shape mismatch, not a pure engine divergence. Not a clean bridge-only xfail.",
+   "confidence": "high"
+  },
+  {
+   "id": "mo",
+   "type": "harvest",
+   "level": "L0",
+   "next_level": "L1",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "na",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "none",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Config.ApplyMap (core/formats/mo/config.go) must REJECT unknown keys \u2014 replace the no-op `for key := range values { _ = key }` loop with a default branch that returns an error on any unrecognized key (or switch to ApplyMapViaJSON with DisallowUnknownFields). This is the L1 config-validation requirement and the single criterion blocking L1.",
+    "Add okapi_skip_test.go documenting WHY there is no Okapi counterpart (gettext MO is not an Okapi filter) \u2014 the required marker for a harvest format and a prerequisite the rubric ties to L2.",
+    "Add a malformed/robustness test asserting NotPanics + clean error on degenerate inputs (nil Output already guarded; cover empty-source blocks, nil Properties, duplicate (ctxt,msgid) keys, empty stream) \u2014 required for L2."
+   ],
+   "top_risk": "Config silently swallows unknown keys: a typo'd writer option in a .kapi recipe (e.g. `endianness: big`) is accepted and ignored, with no error \u2014 the only true correctness defect found.",
+   "confidence": "high"
+  },
+  {
+   "id": "mosestext",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_mosestext",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (the named L2 requirement, weight high): feed truncated/binary/invalid-UTF-8 input through reader and assert assert.NotPanics + a clean result (no panic, no error since the format tolerates all bytes; or PartResult.Error if a decode failure mode is introduced). This is the single gap holding the format below L2 despite spec/parity/schema-doc all being in place.",
+    "Add a schema.go (or have Config implement format.SchemaProvider) so the format surfaces a JSON Schema for CLI/UI/reference \u2014 currently intentionally absent and documented, but a real Config+Schema dimension shortfall for the high-weight tier."
+   ],
+   "top_risk": "No malformed/robustness test at all: nothing asserts NotPanics on truncated/binary/invalid-UTF-8 input. scanRawLines does io.ReadAll(string(data)) and string indexing into regex match offsets (parseCodes/applyCodeFinder slice text[loc[0]:loc[1]]) \u2014 on adversarial multibyte or pathological inline-markup input a panic or silent mis-slice is unverified.",
+   "confidence": "high"
+  },
+  {
+   "id": "odf",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_openoffice",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "partial",
+    "parity": "partial",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "partial",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add schema.go implementing SchemaProvider for the two config keys (CLI/UI/reference) plus a schema_test \u2014 required for L2; peer ZIP format epub already has it.",
+    "Add malformed_test.go that feeds truncated/corrupt ODF (bad ZIP, and crucially malformed inner content.xml) and asserts NotPanics + a clean PartResult.Error \u2014 required for L2. Also fix reader.go:421-423 to emit the d.Token() error on the channel instead of silently break-ing.",
+    "Give spec.yaml at least one synthetic (non-okapi:) example so TestSpec actually executes and is provably green in a checkout without okapi-testdata; today the entire spec_test + all corpus/parity tests SKIP locally (17 of 36 tests skip)."
+   ],
+   "top_risk": "Malformed inner XML is silently swallowed: parseODFContent breaks on ANY d.Token() error (reader.go:421-423) without emitting PartResult.Error, so a truncated/corrupt content.xml yields silent partial extraction rather than a clean error \u2014 and there is no malformed_test to catch this.",
+   "confidence": "high"
+  },
+  {
+   "id": "openxml",
+   "type": "parity",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "okf_openxml",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated ZIP, garbage bytes, and corrupt-but-recoverable OOXML; assert NotPanics + a single clean PartResult.Error on the channel (high weight; this is the only HIGH-weight L2/L3 gap still open \u2014 the absence is a real robustness gap per the rubric).",
+    "Add a schema_test asserting schema.go properties == config.go ApplyMap keys (L4 requirement; today only html/json have schema_test).",
+    "Add an explicit edge-case round-trip matrix test (encodings, CRLF/LF line endings, unicode/CJK, BOM, line-separator U+2028 replacement path) with byte-faithful assertions, beyond the current per-corpus untouched-part check."
+   ],
+   "top_risk": "No malformed/panic-safety test: truncated or adversarial ZIP/OOXML input is unverified for NotPanics. zip.NewReader and the XML decoders look safe by inspection but a crafted central-directory or deeply nested part could panic without a regression guard.",
+   "confidence": "high"
+  },
+  {
+   "id": "paraplaintext",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_paraplaintext (okapi/filters/plaintext \u2014 net.sf.okapi.filters.plaintext.paragraphs.ParaPlainTextFilter)",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "partial",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed a failing/erroring io.Reader (and ideally a non-UTF8 byte stream) and assert NotPanics + a clean PartResult.Error on the channel \u2014 required for L2 robustness.",
+    "Add schema.go exposing the format schema for CLI/UI/reference \u2014 L2 requires schema.go present (even an empty-params schema, since Config has no knobs).",
+    "Make the DEFAULT (no-skeleton) writer path faithful or remove it: it hardcodes '\\n\\n' (writer.go:140) so it loses CRLF and triple-blank separators; either route round-trip exclusively through the skeleton path or render via RenderRunsWithData with a byte-exact assertion, so there is ONE declared round-trip strategy actually proven."
+   ],
+   "top_risk": "Dual round-trip paths with divergent fidelity: only the skeleton path is byte-exact. Any caller using the writer without a SkeletonStore gets a lossy rebuild (every separator collapses to '\\n\\n', CRLF and 3+ blank-line runs are lost). The no-skeleton TestRoundTrip masks this by asserting only Contains(...), so the regression net does NOT protect default-path fidelity.",
+   "confidence": "high"
+  },
+  {
+   "id": "pdf",
+   "type": "read-only",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_pdf",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "na",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Add core/formats/pdf/malformed_test.go: feed truncated/garbage PDFs (no %%EOF, 'stream' with no 'endstream', unbalanced '(' literal, raw non-PDF bytes) through Open+Read and assert NotPanics + that read errors arrive as PartResult.Error on the channel (or that no block is produced) \u2014 the one high-weight item blocking L2/L3 (code is empirically panic-free but untested).",
+    "Add an invariants/acceptance test pinning the read-only contract (HasWriter false at the format level is in register_test, but a per-format invariants_test would harden the L2 set).",
+    "Optional: add a reference-data sidecar entry for pdf to match the convention used by other formats (nativedocs sidecar already exists)."
+   ],
+   "top_risk": "No malformed_test: robustness against truncated/corrupt PDFs is unverified in CI. extractStreams does header[headerStart-lookback:headerStart] slicing and unbounded bytes.Index scans on attacker-controlled offsets; a future refactor could introduce a slice-bounds panic with no regression test to catch it (I confirmed current code does not panic, but nothing locks that in).",
+   "confidence": "high"
+  },
+  {
+   "id": "phpcontent",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_php",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (high): feed truncated/garbage PHP (unterminated single/double quote, unterminated heredoc, lone <?php, binary noise) and assert NotPanics + a clean PartResult.Error on the channel; assert Open(nil doc) rejected. Today the reader CANNOT surface parse errors at all \u2014 likely requires reader changes to emit PartResult.Error, not just a test.",
+    "Decide intended robustness contract: tolerant-best-effort (then assert deterministic non-panicking degradation) vs error-surfacing (then make the lexer detect+report malformations). Currently undefined.",
+    "These two satisfy the L2 'malformed_test asserts clean errors no panic' requirement; spec.yaml + spec_test + schema.go are already in place, so malformed is the sole L2 blocker."
+   ],
+   "top_risk": "Reader never emits PartResult.Error (no 'Error:' anywhere in reader.go). Unterminated single/double-quoted strings and heredocs silently produce a best-effort token (parseDoubleQuoted/parseHeredoc return what they have up to EOF). Malformed input is wholly untested \u2014 a panic or silent data loss on adversarial input would not be caught.",
+   "confidence": "high"
+  },
+  {
+   "id": "plaintext",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_plaintext (okapi/filters/plaintext, net.sf.okapi.filters.plaintext.PlainTextFilter)",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH, robustness): feed broken/truncated input and an erroring Reader; assert NotPanics + a clean PartResult.Error arrives on the channel (exercises reader.go:98 io.ReadAll error and reader.go:103 ToUTF8 transcode-failure paths, currently untested). This is the single item separating L1 from L2.",
+    "Optional for solidifying L2: add an invariants_test or dedicated corpus_test (MEDIUM) \u2014 current real-file coverage is only synthetic testdata via TestRoundTrip_TestFiles + spec input_file."
+   ],
+   "top_risk": "Non-skeleton writer path drops CRLF: writeBlock/writeData use fmt.Fprintln (writer.go:133,148) which always emits LF, so a roundtrip WITHOUT a skeleton store (the default registry-constructed writer when no skeleton is wired) silently normalizes CRLF/bare-CR to LF and collapses multi-blank-line spacing. Byte-fidelity is only guaranteed on the skeleton path; the fallback path is lossy and has no test asserting its (non-)fidelity.",
+   "confidence": "high"
+  },
+  {
+   "id": "po",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_po",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/garbage/orphan-msgstr/binary input and assert NotPanics + (where applicable) a clean PartResult.Error on the channel; this is the L2 robustness requirement currently blocking L3 (high weight).",
+    "Add a corpus_test/upstream_test on real upstream .po files OR add input_file: okapi:... examples to spec.yaml \u2014 currently only one synthetic testdata/simple.po and one okapi-fixture origin (high weight, L3 requirement).",
+    "Once malformed + corpus land, the format is parity-wired and ready for L3; for L4 add a schema_test (schema==config), an explicit encoding/line-ending edge-case matrix test, and confirm zero native-bug xfails in the live parity dashboard."
+   ],
+   "top_risk": "Reader is an infallible best-effort parser: no input ever produces a PartResult.Error and malformed PO (unterminated quotes, stray msgstr[, orphan msgstr, binary bytes) is silently swallowed into whatever blocks parse \u2014 corruption could pass undetected with no diagnostic. Not covered by any committed test.",
+   "confidence": "high"
+  },
+  {
+   "id": "properties",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_properties",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH): feed truncated input, a dangling trailing backslash continuation at EOF, a lone '\\u' / short-hex escape, and an empty/whitespace-only file; assert assert.NotPanics and a clean channel (LayerStart/LayerEnd emitted, no Error). This is the single strictest unmet L2 criterion \u2014 everything else for L2 (spec.yaml + green spec_test, schema.go) is already present.",
+    "Add an invariants/acceptance angle (MEDIUM, supports L2 for a parity-mapped format): there is no invariants_test; the double-extraction stability test lives in okapi_stubs_test.go (TestRoundTrip_DoubleExtraction) which covers re-extraction equality but not structural invariants per se."
+   ],
+   "top_risk": "No malformed/robustness test at all: parseHexRune failure, EOF-mid-continuation (readLogicalLines' trailing inContinuation branch), and lone trailing backslash are all coded but untested \u2014 a regression there would pass CI silently.",
+   "confidence": "high"
+  },
+  {
+   "id": "regex",
+   "type": "parity",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "okf_regex",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add core/formats/regex/malformed_test.go: feed an uncompilable pattern and assert the reader emits a clean PartResult.Error on the channel with NotPanics; feed truncated/garbage input and assert no panic and a usable error/Data stream (HIGH weight \u2014 currently the sole hard miss vs L4-readiness, and the error path is wholly untested).",
+    "Add an edge-case round-trip matrix (encodings, CRLF vs LF line endings, multi-byte UTF-8 in captured values, BOM, malformed-but-recoverable input) asserting byte-exact reconstruction \u2014 required for L4 'rock-solid'.",
+    "Add a real-world / upstream corpus test (corpus_test or spec.yaml input_file: okapi:...) beyond the small authored snippets and synthetic fixtures."
+   ],
+   "top_risk": "No robustness test at all: the invalid-regex-compile and io.ReadAll error branches (reader.go ln 124-128, 103-107) emit on the channel but are never exercised \u2014 a regression that turned an emitError into a panic or an Open-return-error would pass CI silently.",
+   "confidence": "high"
+  },
+  {
+   "id": "resx",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "L4: add a dedicated edge-case-matrix round-trip test (encodings incl. non-UTF8/declared charsets, CRLF vs LF line endings, full Unicode incl. surrogate-pair/astral chars, malformed-but-recoverable variants) beyond the current 3 fixtures + 4-file corpus",
+    "L4: add schema_test.go asserting schema.go Properties == config.go ApplyMap keys 1:1 (currently schema.go has no test, so schema/config drift is uncaught)",
+    "L4: make the resgen/xmllint acceptance checks a standing guarantee rather than build-tagged + exec.LookPath-skipped (today they are inert in the normal/CI pass)"
+   ],
+   "top_risk": "buildValueRuns placeholder lifting uses strings.IndexByte for the closing '}' and assumes .NET placeholders never nest; a value containing a literal '{' followed later by an unrelated '}' (not a real composite-format token) would be mis-lifted into a Ph run. SourceText() then drops it (TestPlaceholderProtection shows 'You have  items' with the {0} elided), so a tool reading SourceText loses content \u2014 round-trip is still byte-safe because Ph.Data is verbatim, but the segmentation is heuristic, not spec-grounded against .NET's actual FormatString grammar.",
+   "confidence": "high"
+  },
+  {
+   "id": "rtf",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_rtf",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "partial",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add a malformed_test.go (HIGH): feed truncated/unbalanced RTF (dangling braces, truncated \\uN/\\'HH, unterminated groups, nested fallback groups) and assert require.NotPanics + a clean PartResult.Error on the channel; assert Open(nil) rejection already covered. Absence currently blocks L2.",
+    "Make the native spec_test actually verify the native side (HIGH/correctness): every spec.yaml example is tagged expected_fail, which in core/format/spec/runner.go demotes native EvalAssertions failures from t.Errorf to t.Logf (lines 88-96). The spec's assertions describe NATIVE behavior yet are silently unverified. Either (a) split the spec so native examples are NOT expected_fail (and only the bridge cross-check carries the xfail), or (b) introduce a divergence_kind that keeps native assertions hard while marking only bridge divergence soft.",
+    "Preserve inline codes as runs (HIGH for true L1 fidelity): reader flattens \\b/\\b0 and other inline formatting out of block text instead of emitting Ph/PcOpen/PcClose runs with verbatim Data; writer should then render via RenderRunsWithData. Until then non-trivial RTF is not run-faithful and the byte-exact skeleton path only holds for code-free blocks."
+   ],
+   "top_risk": "Spec_test is effectively a no-op verifier for native correctness: because all 6 features' examples carry expected_fail, core/format/spec/runner.go logs (never fails) native assertion mismatches. The spec's native block_text/block_count assertions could silently rot and the always-on test would stay green. Real native verification lives ONLY in hand-written reader_test.go.",
+   "confidence": "high"
+  },
+  {
+   "id": "splicedlines",
+   "type": "harvest",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "L2: add schema.go + malformed_test.go (has spec.yaml+spec_test+parity)"
+   ],
+   "top_risk": "Internal line-splicing helper; no schema.go, no malformed_test; gap-analysis agent did not return structured output.",
+   "confidence": "medium"
+  },
+  {
+   "id": "srt",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_regex (srt.fprm rule pack)",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "partial",
+    "parity": "none",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/garbage cues (missing timecode, half cue at EOF, non-numeric sequence) and assert require.NotPanics + a clean PartResult.Error on the channel \u2014 and add the Error-on-channel path to the reader (currently no parse error is ever emitted).",
+    "Model inline SubRip styling tags (<i>\u2026</i>, <b>, {\\an8}) as Ph/PcOpen/PcClose runs with verbatim Data instead of dropping them into plain block text, matching Okapi srt.fprm's codeFinder; add a reader_test assertion on SourceRuns()/code preservation.",
+    "Add an invariants_test (or strengthen corpus_test) over a real .srt corpus rather than the single authored simple.srt \u2014 Okapi's srt.fprm ships a realistic sample to seed it."
+   ],
+   "top_risk": "Inline codes are silently flattened: <i>Italic</i> survives ONLY because the skeleton path replays original bytes verbatim; the moment a tool edits/translates such a block, the tags live inside the translated string with no code protection, so a translator/MT can corrupt or drop them \u2014 and TestSkeletonStore_ByteExact_FormattingTags gives false confidence because it never translates the tagged cue.",
+   "confidence": "high"
+  },
+  {
+   "id": "tex",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_tex",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/broken TeX (unterminated \\begin, runaway brace, invalid UTF-8, empty input) and assert NotPanics + that any error surfaces as a clean PartResult.Error on the channel; also assert Open(ctx, nil) is rejected (already true). This is the single highest-weight blocker to L2.",
+    "Add schema.go (even an empty/no-param schema) so CLI/UI/reference can introspect the format; rubric requires schema.go present for L2.",
+    "Add an invariants_test or corpus_test that exercises real-world / upstream .tex files (e.g. spec.yaml input_file: okapi:... or a corpus harness) rather than only synthetic snippets."
+   ],
+   "top_risk": "Round-trip byte-fidelity leans on block.Properties[\"tex.rawSource\"] plus extractLeadingWhitespace/extractTrailingWhitespace heuristics in writer.go (blockTextForSkeleton); the trailing-whitespace restore is explicitly a 1-byte-drift workaround for paragraphs adjacent to TeX commands. Edge cases (mixed CRLF, multiple trailing blank lines, tabs) are untested and could drift.",
+   "confidence": "high"
+  },
+  {
+   "id": "tmx",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_tmx",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "partial",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Malformed/robustness (high): convert the non-asserting TestInvalidXml/TestOpenInvalidContent/TestOpenEmptyContent into real assertions (assert.NotPanics around Read + assert a clean PartResult.Error or a well-formed empty result), or add a dedicated malformed_test.go covering truncated/garbled/binary input like arb/resx/xcstrings.",
+    "spec.yaml keys 1:1 with ApplyMap (high): either implement the documented-but-unhonored keys (segType, consolidateDpSkeleton, propValueSep, inlineCodes parent map) in ApplyMap, or remove them from the config: block so the spec keys map exactly to native ApplyMap params + okapi_param. The rubric requires keys 1:1.",
+    "Real-world corpus (medium, needed for L3): add an upstream_test/corpus_test or a spec example with input_file: okapi:... pointing at real Trados/Okapi TMX fixtures (UTF-16+BOM, large multilingual TMs) rather than the single 643-byte synthetic simple.tmx."
+   ],
+   "top_risk": "Robustness tests are theatrical: TestInvalidXml, TestOpenInvalidContent, TestOpenEmptyContent read the channel then discard the error ('_ = err') with no assert.NotPanics and no Error assertion \u2014 malformed input could start panicking or silently dropping content and these tests would still pass. This is the rubric's exact 'absence is a real gap' case.",
+   "confidence": "high"
+  },
+  {
+   "id": "transtable",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_transtable",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "partial",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "partial",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go asserting clean Error on the channel + NotPanics for truncated input, binary/non-UTF8 bytes, a data row with a crumb missing the okpCtx:tu= prefix, and a header-only-but-malformed-cells file (high-weight L2 robustness requirement; today only TestInvalidSignature + nil-doc exist, no NotPanics)",
+    "Add schema.go publishing the allowSegments parameter for CLI/UI/reference (high-weight L2 Config+Schema requirement; currently absent)",
+    "Strengthen the skeleton/round-trip test to actually prove fidelity: assert full-document semantic equality (or a documented+justified normalization such as always-quoted-cells / re-rendered header), not just assert.Contains substrings \u2014 and decide whether byte-exact replay of the verbatim header the reader buffers is the contract or document why it is re-rendered"
+   ],
+   "top_risk": "Round-trip fidelity is unproven: skeleton_test.go and TestRoundTripWithTargetLocale use only assert.Contains, never full-output or byte equality. The writer re-renders the header from writer locale (writer.go lines 150-151,157) instead of replaying the verbatim header bytes the reader stored (reader.go line 152), and always emits quoted cells even when input was unquoted \u2014 so an unquoted-input document does NOT round-trip byte-exact, and no test would catch a regression there.",
+   "confidence": "high"
+  },
+  {
+   "id": "ts",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_ts",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (HIGH): feed truncated/broken-XML and a non-TS payload; assert reader.Read emits a PartResult.Error on the channel under assert.NotPanics, and that Open rejects nil (extend beyond the current nil-only test). Required for L2.",
+    "Add schema.go (HIGH): a CLI/UI/reference JSON schema for the format. Required for L2 ('schema.go present'). Note html/json are the cited exemplars.",
+    "Reconcile Config keys with spec.yaml (HIGH): either implement decodeByteValues / escapeGT / inlineCodes in Config.ApplyMap so keys are 1:1, or formally mark them as parity-only in a schema_test/spec note that the drift detector accepts \u2014 today ApplyMap rejects every documented key, so keys are not 1:1."
+   ],
+   "top_risk": "Config/spec drift: spec.yaml advertises 3 real Okapi params (decodeByteValues, escapeGT, inlineCodes) that the native reader silently ignores \u2014 a user setting decodeByteValues=true gets an 'unknown parameter' error from ApplyMap, while the spec implies the knob exists. The behavior is documented but is a real UX/parity hazard.",
+   "confidence": "high"
+  },
+  {
+   "id": "ttml",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okapi/filters/subtitles (okf_ttml \u2014 net.sf.okapi.filters.ttml.TTMLFilter)",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/broken <body> XML and a malformed-but-present <p>, assert require.NotPanics and that a PartResult.Error reaches the channel (today parseCaptions/findPTextRanges silently `break` on decoder errors -> silent partial extraction, no surfaced error). This is the strictest unmet L2 item.",
+    "Preserve inline codes per the rubric's L1/Reader contract OR formally bless the unwrap-to-text behavior: <span>/<br/> should become Ph/PcOpen/PcClose runs with verbatim Data so a <p> containing inline markup round-trips byte-exact. Today spans/br are flattened, so the byte-exact fidelity claim does not cover captions with inline markup.",
+    "Add an invariants/corpus assertion exercising a real upstream TTML file (or a span-inside-<p> byte-exact skeleton case) \u2014 current byte-exact skeleton_test cases all use <p> with plain text only, so the strongest fidelity scenario (markup inside a caption) is untested."
+   ],
+   "top_risk": "Byte-exact round-trip is only proven for <p> elements whose inner content is plain text. The skeleton ref for a <p> writes block.SourceText() (the UNWRAPPED text); a <p> containing a <span> or <br/> would have that inline markup replaced by flattened text on write, breaking byte-exactness. skeleton_test.go has no span-inside-<p> case, so this hole is unguarded (TestSkeletonStore_ByteExact_WithStyling only puts tts:* on the <p> tag itself, not inline children).",
+   "confidence": "high"
+  },
+  {
+   "id": "ttx",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_ttx",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "partial",
+    "parity": "partial",
+    "malformed": "none",
+    "corpus": "none",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add core/formats/ttx/malformed_test.go: feed truncated <TRADOStag, broken UTF-16/BOM bytes, and a <Tu> missing </Tuv>; assert NotPanics and that a clean PartResult.Error lands on the channel (and nil-doc already rejected by Open). [high \u2014 primary L2 blocker]",
+    "Re-author spec.yaml fixtures to the real TTX shape (text directly in <Tuv>, no <Seg> wrapper) so the spec represents the format the reader actually targets and matches the Okapi fixtures. [high \u2014 spec fidelity]",
+    "Add schema.go implementing SchemaProvider for ttx (segmentMode enum, escapeGT bool) so the Config+Schema dimension is satisfied for CLI/UI/reference and a schema_test can assert schema==config. [high]"
+   ],
+   "top_risk": "Hollow parity: 100% of cli/parity ttx examples are expected_fail with the bridge producing 0 blocks \u2014 there is no single example where native and okapi-bridge agree. The 'bridge bug #486' attribution masks the real cause (the spec's <Seg> fixtures are not valid TTX), so the parity test proves nothing about native\u2194Okapi fidelity. Effectively whole-happy-path default-diff xfails.",
+   "confidence": "high"
+  },
+  {
+   "id": "txml",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_txml",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "partial"
+   },
+   "blocking_gaps": [
+    "Add schema.go implementing format.SchemaProvider on the txml Config (Schema() returning the allowEmptyOutputTarget + inlineCodes JSON schema) so registerSchemaAndDecoder wires CLI/UI/reference; add schema_test asserting schema keys == ApplyMap keys (high weight, L2 requirement).",
+    "Add malformed_test.go: feed truncated/broken TXML (unclosed <translatable>, dangling <ut>, garbage bytes, partial <txml root) and assert require.NotPanics + a clean PartResult.Error on the channel; assert Open(nil) rejection already covered (high weight, L2 requirement).",
+    "Verify (and keep green) the parity head-to-head: run cli/parity/formats/txml_spec_test.go with -tags parity against okapi-bridge 1.47.0 + checked-out okapi-testdata, confirming the 3 native-more-correct divergences are the ONLY ones (needed to actually attain L3, not just be wired for it)."
+   ],
+   "top_risk": "No malformed/robustness test at all: a truncated <ut>/<segment>/<translatable> or non-XML bytes is handled only implicitly (decoder.Strict=false + EOF->channel error). Nothing asserts NotPanics or a clean error, so a parser panic or silent partial-block emission on malformed input would go undetected.",
+   "confidence": "high"
+  },
+  {
+   "id": "versifiedtext",
+   "type": "harvest",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "na",
+    "malformed": "partial",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go (high): feed truncated/binary/huge-line/invalid-UTF-8 input and assert require.NotPanics + a clean PartResult.Error on the channel; also assert Open(nil) error path stays clean. This high-weight robustness test is entirely absent.",
+    "Add schema.go (high): even though Config has no parameters, L2 requires a schema.go for CLI/UI/reference; pair with a schema_test (or document why an empty schema is correct).",
+    "Add okapi_skip_test.go + invariants_test.go + corpus_test.go (high): for a native-only/harvest format the rubric expects an explicit okapi_skip_test attesting the no-bridge-counterpart decision, an invariants test (e.g. read->write byte-exact over a generated matrix), and a corpus test over real verse files."
+   ],
+   "top_risk": "No malformed/robustness test: nothing proves the reader does not panic on binary, invalid-UTF-8, or pathological input. bufio.Scanner has a default 64KB line limit (bufio.MaxScanTokenSize) in the non-skeleton path (readContentSimple), so a single very long line would surface as scanner.Err -> emitted as Error, but this is untested; the skeleton path uses bufio.Reader.ReadString and has no such limit (asymmetry between the two paths is untested).",
+   "confidence": "high"
+  },
+  {
+   "id": "vignette",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_vignette",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "partial",
+    "malformed": "none",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add schema.go for the package (CLI/UI/reference surface) \u2014 required for L2; today only config.go exists.",
+    "Add malformed_test.go: feed truncated/broken/non-XML input and assert NotPanics + a single clean PartResult.Error on the channel; also pin Open(nil) rejection there.",
+    "Make the spec_test actually enforce the contract: remove the expected_fail suppression on the native side for the four content examples (simple_doc_one_pair, complex_doc_two_pairs, real_world_test01, plain_payload_extracts_once) so block_count/first_block_text/block_texts assertions are enforced (t.Errorf), not logged."
+   ],
+   "top_risk": "SUPPRESSED SPEC CONTRACT: every content-bearing example carries expected_fail. In BOTH runners (core/format/spec/runner.go:88-96 native, cli/parity/spec/runner.go:212-225 parity) an expected_fail tag downgrades ALL assertion failures to t.Logf and returns early. So spec.yaml's block_count/first_block_text/block_texts are NOT enforced by spec_test.go for 4 of 6 examples \u2014 they 'pass' only because they are not checked. Native correctness IS independently and rigorously enforced by hand-written reader_test.go, so the format is not actually broken, but the spec is not a binding contract here.",
+   "confidence": "high"
+  },
+  {
+   "id": "vtt",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_vtt (okapi/filters/subtitles/src/main/java/net/sf/okapi/filters/vtt/)",
+   "dimensions": {
+    "reader": "partial",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "partial",
+    "parity": "partial",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "spec.yaml config keys must be 1:1 with ApplyMap: either add discardCues/cueSettings/keepTimecodes/timeFormat to the Config struct (and implement them in the writer) or remove them from spec.config \u2014 currently 4 of 8 declared keys would be rejected by DisallowUnknownFields (D4, high).",
+    "Add a malformed_test asserting NotPanics + a clean PartResult.Error on the channel for broken/truncated VTT (missing WEBVTT header, timecode-only, garbage bytes) and confirming Open rejects nil doc (D6, high).",
+    "Make the writer honor (or remove) the 4 real config keys (MaxCharsPerLine/MaxLinesPerCaption/CJKCharsPerLine/SplitWords) \u2014 they are read into Config but never consumed, so the schema/spec advertise behavior the writer does not implement (D3/D4, high)."
+   ],
+   "top_risk": "spec.yaml/config drift: spec.config declares 8 keys but ApplyMap (ApplyMapViaJSON + DisallowUnknownFields) accepts only 4. Supplying discardCues/cueSettings/keepTimecodes/timeFormat would error 'unknown field'. The spec_test only passes because no example sets config \u2014 the contract is silently false.",
+   "confidence": "high"
+  },
+  {
+   "id": "wiki",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_wiki",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "HIGH (Malformed/robustness): add malformed_test.go feeding broken/truncated/non-UTF8 wiki input that asserts require.NotPanics AND a clean PartResult.Error surfaces on the channel \u2014 currently the reader's error-on-channel paths (reader.go:1044,1084) are never test-exercised. This is the single L2 dimension item keeping it below a clean L3.",
+    "MEDIUM (spec/config integrity): the spec.yaml config key is snake_case preserve_whitespace with okapi_param: preserve_whitespace, but the native Config struct json tag is camelCase preserveWhitespace and uses ApplyMapViaJSON+DisallowUnknownFields with NO snake_case alias / UnmarshalJSON. The spec comment claims 'the native reader accepts both spellings' but config.go has no such alias \u2014 so keys are not truly 1:1 with native ApplyMap. Add a snake_case alias (or UnmarshalJSON) and a config-applying example to make the claim true.",
+    "MEDIUM (L4 byte-faithful corpus): TestRoundTrip_WikiFiles and TestRoundTrip_DokuWikiTxtFiles only assert require.NotEmpty(output) \u2014 they do NOT assert byte/semantic equality over the full upstream dokuwiki.txt. Add a skeleton-store byte-exact (or documented-normalization) round-trip assertion over the real corpus and an edge-case matrix (CRLF, BOM, unicode)."
+   ],
+   "top_risk": "spec/native config-key drift: spec key preserve_whitespace (snake_case, matching okapi_param) is silently never applied to the native reader \u2014 the parity runner only calls ApplyMap when an example sets config (none do), so the mismatch is masked. If any future example sets preserve_whitespace, runNative \u2192 ApplyMapViaJSON+DisallowUnknownFields would reject it as an unknown field, breaking parity. The spec's 'native accepts both spellings' comment is currently false (no alias in config.go).",
+   "confidence": "high"
+  },
+  {
+   "id": "xcstrings",
+   "type": "harvest",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "na",
+    "parity": "na",
+    "malformed": "complete",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "L4: add an edge-case round-trip matrix asserting BYTE fidelity (not just re-parse) on CHANGED non-ASCII/unicode values \u2014 encode.go emits literal UTF-8 and never \\uXXXX, so a changed value in a \\uXXXX-style catalog (xckit fixture) would normalize escaping; this divergence is currently untested for byte-equality (invariants only mutate with ASCII 'TR:'/'T:' prefixes and re-parse semantically)",
+    "L4: add edge-case coverage for line endings (CRLF) and BOM \u2014 current corpus/fixtures are all LF; the retokenize-splice should preserve them but it is not asserted",
+    "L4: add schema_test asserting Config.Schema() property set == ApplyMap key set (schema==config), as html/json have"
+   ],
+   "top_risk": "Encoding normalization on CHANGED values: rewrite.go emitReplacedString re-encodes via encode.go encodeJSONString, which emits non-ASCII as literal UTF-8 and never \\uXXXX. For a catalog authored with \\uXXXX escapes (the real xckit corpus file), translating a non-ASCII value would silently change the escaping style of that one value. Byte-faithfulness is only proven for UNCHANGED catalogs (locale=\"\") and for ASCII-only mutations; the non-ASCII-changed-value path has no byte-equality assertion.",
+   "confidence": "high"
+  },
+  {
+   "id": "xliff",
+   "type": "parity",
+   "level": "L3",
+   "next_level": "L4",
+   "okapi_counterpart": "okf_xliff",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add a malformed_test.go: feed truncated XLIFF, unclosed tags, garbage bytes, and a non-well-formed prolog; assert require.NotPanics around reader.Read and that a clean PartResult.Error lands on the channel (currently only nil-doc is covered by TestReadNilDocument). This is the gating L2 robustness item.",
+    "Add a schema_test.go that asserts schema.go Properties/field set stays in sync with config.go ApplyMap keys (schema==config), the L4 anti-drift guard the rubric calls out (only html/json have it today)."
+   ],
+   "top_risk": "No malformed/truncated-input test: the reader's tolerant transcoding (windows-1252 fallback, C0-control sanitization to U+FFFD, Strict=false decoder) is well-engineered but UNTESTED against deliberately broken input \u2014 a panic or a swallowed-error path could regress unnoticed. ABSENCE of malformed_test is a real robustness gap.",
+   "confidence": "high"
+  },
+  {
+   "id": "xliff2",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_xliff2",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "partial",
+    "config": "complete",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "partial",
+    "corpus": "complete",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Writer (critical): TestRoundTrip_ByteEqualUntouched is RED on 22 real upstream fixtures (simple.xlf, notes.xlf, update_target.xlf, test02.xlf, test_unit_37.xlf2, subfilter_html/icu/json) \u2014 either fix the DOM round-trip to pass these through byte-exact (XML decl encoding injection at writer.go:267, segment-id synthesis at :605, stripOkapiDefaults/propagateXMLSpace re-serialization) or expand notExpectedByteEqual() with attributed justifications (currently only 3 of 25 are documented).",
+    "Add a malformed_test (L2 gate): broken/truncated/non-XML input must yield a clean PartResult.Error on the channel under assert.NotPanics; the parsing-error path (reader.go:130) is currently untested.",
+    "Add explicit invariants/acceptance assertions distinguishing reader normalization (data loss) from cosmetic re-serialization for the 22 failing fixtures, so the byte-equal contract states what it actually guarantees."
+   ],
+   "top_risk": "TestRoundTrip_ByteEqualUntouched FAILS on 22 upstream fixtures while only 3 are in the documented notExpectedByteEqual() allow-list. The package test currently FAILS (go test ./core/formats/xliff2 -tags fts5 -> FAIL). This is the headline correctness risk: the writer's 'byte-equal on untouched round-trip' contract is broken on real-world inputs and the failures are largely unattributed.",
+   "confidence": "high"
+  },
+  {
+   "id": "xml",
+   "type": "parity",
+   "level": "L2",
+   "next_level": "L3",
+   "okapi_counterpart": "okf_xmlstream",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "partial",
+    "spec": "complete",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add malformed_test.go: feed truncated/unclosed/broken XML and a nil doc; assert NotPanics + a clean PartResult.Error on the channel and Open(nil) error \u2014 this is the L3-blocking high-weight gap (dim 6 currently 'none').",
+    "Make Config.ApplyMap reject unknown keys (replace the 'silently ignore for forward compat' default branches at config.go:504-505 and parser:500-501 with an error) \u2014 satisfies the L1/Config 'rejects unknown keys' contract; or document+justify the forward-compat choice if intentional.",
+    "Add a schema_test asserting schema.go property set == ApplyMap key set (prevents schema/config drift)."
+   ],
+   "top_risk": "ApplyMap silently swallows unknown/misspelled config keys (config.go:504-505) and unknown parser sub-keys (config.go:500-501): a typo'd rule (e.g. 'tranlatableElements') is a no-op with no error, so a misconfigured project extracts wrong content silently. The bridge_config side, by contrast, errors on unknown keys (xmlstream_bridge_config.go:170) \u2014 asymmetric strictness between native and parity paths.",
+   "confidence": "high"
+  },
+  {
+   "id": "yaml",
+   "type": "parity",
+   "level": "L1",
+   "next_level": "L2",
+   "okapi_counterpart": "okf_yaml",
+   "dimensions": {
+    "reader": "complete",
+    "writer": "complete",
+    "config": "complete",
+    "spec": "partial",
+    "parity": "complete",
+    "malformed": "none",
+    "corpus": "partial",
+    "detection": "complete",
+    "docs": "complete"
+   },
+   "blocking_gaps": [
+    "Add core/formats/yaml/malformed_test.go: feed truncated/broken YAML (bad indentation, unterminated quote, invalid tag, garbage bytes) and assert require.NotPanics + a clean PartResult.Error arrives on the channel (NOT returned from Open). This is the single required L2 item that is missing and the only thing keeping the format at L1 \u2014 everything else for L2 (spec.yaml + green spec_test, schema.go, config rejects unknowns) is already satisfied.",
+    "Add an invariants/acceptance assertion that the parse-error path is exercised end-to-end (Open succeeds, Read yields an Error part) so robustness is locked, not just panic-free."
+   ],
+   "top_risk": "No malformed-input test at all: yaml.v3 Decode errors are forwarded to the channel (reader.go:155,170) but there is no test proving NotPanics or that a clean Error actually surfaces for broken/truncated input \u2014 robustness is unverified.",
+   "confidence": "high"
+  }
+ ]
+}

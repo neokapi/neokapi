@@ -168,6 +168,7 @@ const config: Config = {
             { label: "Project file", to: "/reference/project-file" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
+            { label: "Format Maturity", to: "/format-maturity" },
             { label: "Benchmarks", to: "/pseudobench" },
             { label: "ML Benchmark", to: "/ml-benchmark" },
             { label: "Check Eval", to: "/check-eval" },
