@@ -11,7 +11,8 @@ func TestCompressDecompress(t *testing.T) {
 	pool := NewPool(nil)
 
 	original := []byte(`{"blocks":[{"id":"b1","text":"Hello world","translatable":true}]}`)
-	compressed := pool.Compress(original)
+	compressed, err := pool.Compress(original)
+	require.NoError(t, err)
 
 	// Compressed should be smaller (or at least not larger for small inputs).
 	assert.NotEmpty(t, compressed)
@@ -30,7 +31,8 @@ func TestCompressDecompress_Large(t *testing.T) {
 		original = append(original, []byte(`{"id":"block-id","source_text":"Click on last point or press Escape or Enter to finish","translatable":true,"properties":{"context":"toolbar"}},`)...)
 	}
 
-	compressed := pool.Compress(original)
+	compressed, err := pool.Compress(original)
+	require.NoError(t, err)
 
 	// Repetitive data should compress well.
 	ratio := float64(len(compressed)) / float64(len(original))
@@ -47,9 +49,24 @@ func TestPoolReuse(t *testing.T) {
 	// Multiple compress/decompress cycles should work (pool reuse).
 	for range 10 {
 		data := []byte("test data iteration")
-		compressed := pool.Compress(data)
+		compressed, err := pool.Compress(data)
+		require.NoError(t, err)
 		decompressed, err := pool.Decompress(compressed)
 		require.NoError(t, err)
 		assert.Equal(t, data, decompressed)
 	}
+}
+
+// TestCompressEmpty verifies the happy path holds for an empty input — a frame
+// is still produced and round-trips to an empty slice, with no error surfaced.
+func TestCompressEmpty(t *testing.T) {
+	pool := NewPool(nil)
+
+	compressed, err := pool.Compress(nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, compressed, "even empty input yields a valid zstd frame")
+
+	decompressed, err := pool.Decompress(compressed)
+	require.NoError(t, err)
+	assert.Empty(t, decompressed)
 }

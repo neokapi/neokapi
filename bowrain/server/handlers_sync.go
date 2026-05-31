@@ -399,7 +399,10 @@ func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 
 	// Compress with zstd if the client accepts it.
 	if strings.Contains(c.Request().Header.Get("Accept-Encoding"), "zstd") {
-		compressed := syncCompressorPool.Compress(data)
+		compressed, err := syncCompressorPool.Compress(data)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "compress response"})
+		}
 		c.Response().Header().Set("Content-Encoding", "zstd")
 		c.Response().Header().Set("Content-Type", "application/json")
 		return c.Blob(http.StatusOK, "application/json", compressed)

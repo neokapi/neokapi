@@ -4,6 +4,7 @@ package compression
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"sync"
 
@@ -49,16 +50,25 @@ func NewPool(dict []byte) *Pool {
 	return p
 }
 
-// Compress compresses data using zstd.
-func (p *Pool) Compress(data []byte) []byte {
+// Compress compresses data using zstd. It returns an error if the underlying
+// encoder fails to write or flush the compressed stream, so callers never hash
+// or transmit a silently truncated buffer.
+func (p *Pool) Compress(data []byte) ([]byte, error) {
 	enc := p.encoders.Get().(*zstd.Encoder)
 	defer p.encoders.Put(enc)
 
 	var buf bytes.Buffer
 	enc.Reset(&buf)
-	_, _ = enc.Write(data)
-	_ = enc.Close()
-	return buf.Bytes()
+	if _, err := enc.Write(data); err != nil {
+		// Close to release encoder state even on the error path; the encoder is
+		// reset before its next reuse from the pool.
+		_ = enc.Close()
+		return nil, fmt.Errorf("zstd compress write: %w", err)
+	}
+	if err := enc.Close(); err != nil {
+		return nil, fmt.Errorf("zstd compress close: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // Decompress decompresses zstd data.

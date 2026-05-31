@@ -312,7 +312,10 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 
 	// Compress with zstd.
 	if c.compressor != nil {
-		data = c.compressor.Compress(data)
+		data, err = c.compressor.Compress(data)
+		if err != nil {
+			return nil, fmt.Errorf("compress chunk: %w", err)
+		}
 	}
 
 	// Upload via proxy (local dev) — direct SAS upload can be added later.
