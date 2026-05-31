@@ -100,5 +100,7 @@ export const theme = new Proxy({} as Theme, {
 
 /** kapi brand orange-ish used sparingly for accents/marks. */
 export const KAPI = "#ff7a45";
+/** Bowrain brand indigo (matches the landing/docs --color-brand-500). */
+export const BOWRAIN = "#6366f1";
 /** Claude (Anthropic) coral — the ✻ logo + accent in the Claude Code CLI. */
 export const CLAUDE = "#d97757";

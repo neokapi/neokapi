@@ -40,8 +40,8 @@ export interface DemoManifest {
    *                        screencast inside the macOS window frame with per-beat zoom.
    */
   terminal?: "claude" | "shell" | "desktop";
-  /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → toolbox lockup; "desktop" → kapi · Desktop. */
-  brand?: "claude" | "kapi" | "desktop";
+  /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → toolbox lockup; "desktop" → kapi · Desktop; "bowrain" → Bowrain logo + wordmark. */
+  brand?: "claude" | "kapi" | "desktop" | "bowrain";
   /**
    * Recording target for `terminal: "desktop"` demos:
    *   "desktop" (default) — the kapi-desktop frontend via the wbridge.
@@ -195,7 +195,7 @@ export interface DemoCapture {
   prompt: string;
   /** "claude" (default), "shell", or "desktop" — selects the scene renderer + card branding. */
   terminal?: "claude" | "shell" | "desktop";
-  brand?: "claude" | "kapi" | "desktop";
+  brand?: "claude" | "kapi" | "desktop" | "bowrain";
   /** Working-directory label shown in the terminal title bar (shell demos). */
   cwd?: string;
   events: TimelineEvent[];

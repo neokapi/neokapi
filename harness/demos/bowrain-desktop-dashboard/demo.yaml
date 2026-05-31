@@ -6,7 +6,7 @@ kind: use-case
 publishAs: bowrain-desktop-dashboard
 terminal: desktop
 target: bowrain-desktop
-brand: desktop
+brand: bowrain
 needsAi: false
 oneshot: true
 aspects:

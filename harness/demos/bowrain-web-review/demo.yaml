@@ -6,7 +6,7 @@ kind: use-case
 publishAs: bowrain-web-review
 terminal: desktop
 target: web
-brand: desktop
+brand: bowrain
 needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true

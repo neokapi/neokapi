@@ -1,30 +1,41 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { theme, KAPI } from "./theme.ts";
+import { theme, KAPI, BOWRAIN } from "./theme.ts";
 
-/** The neokapi mascot (transparent PNG), centered on a white rounded badge. */
-const Mascot: React.FC<{ size?: number }> = ({ size = 128 }) => (
-  <div
-    style={{
-      width: size,
-      height: size,
-      borderRadius: size,
-      background: "#fff",
-      display: "grid",
-      placeItems: "center",
-      overflow: "hidden",
-      boxShadow: "0 18px 44px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.12)",
-    }}
-  >
-    <Img src={staticFile("mascot.png")} style={{ width: "84%", height: "84%", objectFit: "contain" }} />
-  </div>
-);
+/** The product badge: the bowrain logo for bowrain demos, else the neokapi mascot,
+ *  each centered on a white rounded badge. */
+const Badge: React.FC<{ size?: number; brand?: Brand }> = ({ size = 128, brand = "claude" }) => {
+  const isBowrain = brand === "bowrain";
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size,
+        background: "#fff",
+        display: "grid",
+        placeItems: "center",
+        overflow: "hidden",
+        boxShadow: "0 18px 44px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.12)",
+      }}
+    >
+      <Img
+        src={staticFile(isBowrain ? "bowrain-logo.png" : "mascot.png")}
+        style={isBowrain ? { width: "100%", height: "100%", objectFit: "cover" } : { width: "84%", height: "84%", objectFit: "contain" }}
+      />
+    </div>
+  );
+};
 
-type Brand = "claude" | "kapi" | "desktop";
+type Brand = "claude" | "kapi" | "desktop" | "bowrain";
 
 const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = "claude" }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 16 * size, fontSize: 30 * size, fontWeight: 700, letterSpacing: 0.4 }}>
-    <span style={{ color: KAPI }}>kapi</span>
+    {brand === "bowrain" ? (
+      <span style={{ color: BOWRAIN }}>Bowrain</span>
+    ) : (
+      <span style={{ color: KAPI }}>kapi</span>
+    )}
     {brand === "claude" ? (
       <>
         <span style={{ color: theme.faint, fontWeight: 400 }}>×</span>
@@ -35,7 +46,7 @@ const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = 
         <span style={{ color: theme.faint, fontWeight: 400 }}>·</span>
         <span style={{ color: theme.text, fontWeight: 600 }}>Desktop</span>
       </>
-    ) : (
+    ) : brand === "bowrain" ? null : (
       <>
         <span style={{ color: theme.faint, fontWeight: 400 }}>·</span>
         <span style={{ color: theme.text, fontWeight: 600 }}>toolbox</span>
@@ -69,7 +80,7 @@ export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: st
   return (
     <AbsoluteFill style={{ background: theme.bgGrad, fontFamily: theme.fontSans, justifyContent: "center", alignItems: "center", padding: 120, textAlign: "center" }}>
       <div style={{ opacity: intro, transform: `translateY(${interpolate(intro, [0, 1], [16, 0])}px)`, marginBottom: 28 }}>
-        <Mascot size={132} />
+        <Badge size={132} brand={brand} />
       </div>
       <div style={{ opacity: spring({ frame: frame - 2, fps, config: { damping: 200 } }), marginBottom: 40 }}>
         <Lockup size={1.15} brand={brand} />
@@ -105,11 +116,11 @@ export const OutroCard: React.FC<{ title: string; tagline?: string; aspects: str
       </div>
       {tagline ? <div style={{ fontSize: 30, color: theme.accent2, marginTop: 52, opacity: spring({ frame: frame - 24, fps, config: { damping: 200 } }), maxWidth: 1200, lineHeight: 1.4 }}>{tagline}</div> : null}
       <div style={{ marginTop: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 18, opacity: spring({ frame: frame - 30, fps, config: { damping: 200 } }) }}>
-        <Mascot size={104} />
+        <Badge size={104} brand={brand} />
         <Lockup brand={brand} />
       </div>
       <div style={{ marginTop: 16, color: theme.faint, fontSize: 22, opacity: spring({ frame: frame - 34, fps, config: { damping: 200 } }) }}>
-        the open localization engine · neokapi.github.io
+        {brand === "bowrain" ? "the team localization platform · bowrain.cloud" : "the open localization engine · neokapi.github.io"}
       </div>
     </AbsoluteFill>
   );
