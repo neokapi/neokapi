@@ -133,6 +133,18 @@ type Config struct {
 	AdminOIDCClientID     string
 	AdminOIDCClientSecret string
 
+	// AllowInsecureAdminAuth opts the /api/admin/* control plane into the
+	// plain user-JWT fallback when no admin OIDC verifier is configured.
+	//
+	// SECURITY: with this enabled and no AdminVerifier, ANY valid user JWT or
+	// session is accepted by admin routes — there is no admin-role check. This
+	// is intended only for local development. It is deliberately NOT the
+	// default: in production the admin API must be gated by AdminGuard (an
+	// admin-realm OIDC verifier), and absent that the routes are not mounted at
+	// all so a missing/failed admin-OIDC config can never silently fall back to
+	// accepting regular-user tokens (privilege escalation).
+	AllowInsecureAdminAuth bool
+
 	// Audit (Phase 2). AuditRetentionDays prunes audit_log rows older than the
 	// given number of days (0 = keep forever). AuditSIEMWebhookURL forwards
 	// every event as NDJSON to an external SIEM/log sink (empty = disabled).

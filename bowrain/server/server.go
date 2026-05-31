@@ -905,19 +905,40 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
 
 	// Admin routes (admin realm auth) (Bowrain AD-018).
-	// When no admin OIDC verifier is configured (dev/test), fall back to
-	// JWT auth so admin routes remain accessible for operational tasks.
-	if s.AdminVerifier != nil || s.Config.JWTSecret != "" {
-		var adminMiddleware echo.MiddlewareFunc
-		if s.AdminVerifier != nil {
-			accessVerifier := s.AdminAccessVerifier
-			if accessVerifier == nil {
-				accessVerifier = s.AdminVerifier
-			}
-			adminMiddleware = billing.AdminGuard(s.AdminVerifier, accessVerifier)
-		} else {
-			adminMiddleware = AuthMiddleware(s.Config.JWTSecret, s.AuthStore)
+	//
+	// Authorization model:
+	//   - When an admin-realm OIDC verifier is configured, gate every admin
+	//     route with AdminGuard (validates an admin-realm token).
+	//   - Otherwise the routes are NOT mounted. The plain user-JWT fallback is
+	//     only used when explicitly opted in via AllowInsecureAdminAuth (local
+	//     dev) — because that fallback performs NO admin-role check and would
+	//     otherwise let any regular-user JWT/session reach impersonation,
+	//     credit-grant, and plan-management handlers (privilege escalation).
+	//     Critically, AdminVerifier==nil && JWTSecret!="" is the normal
+	//     production state for user auth and also the state after a transient
+	//     admin-OIDC discovery failure, so failing open there is unacceptable.
+	mountAdmin := false
+	var adminMiddleware echo.MiddlewareFunc
+	switch {
+	case s.AdminVerifier != nil:
+		accessVerifier := s.AdminAccessVerifier
+		if accessVerifier == nil {
+			accessVerifier = s.AdminVerifier
 		}
+		adminMiddleware = billing.AdminGuard(s.AdminVerifier, accessVerifier)
+		mountAdmin = true
+	case s.Config.AllowInsecureAdminAuth && s.Config.JWTSecret != "":
+		slog.Warn("admin API mounted with INSECURE user-JWT auth (no admin-role check); " +
+			"set ADMIN_OIDC_ISSUER_URL to enable AdminGuard. Do NOT use in production.")
+		adminMiddleware = AuthMiddleware(s.Config.JWTSecret, s.AuthStore)
+		mountAdmin = true
+	default:
+		if s.Config.JWTSecret != "" {
+			slog.Info("admin API disabled: no admin OIDC verifier configured " +
+				"(set ADMIN_OIDC_ISSUER_URL, or AllowInsecureAdminAuth for local dev)")
+		}
+	}
+	if mountAdmin {
 		adminGroup := e.Group("/api/admin", adminMiddleware)
 		adminGroup.GET("/workspaces", s.HandleAdminListWorkspaces)
 		adminGroup.GET("/workspaces/:id", s.HandleAdminGetWorkspace)
@@ -1186,8 +1207,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/:id/tags/:tag", s.HandleGetStreamTag)
 	g.DELETE("/:id/tags/:tag", s.HandleDeleteStreamTag)
 
-	// Refs — Bowrain AD-011: /:ws/:id/refs (unified listing)
-	g.GET("/:id/refs", s.HandleListProjectTags) // TODO: implement unified ref listing
+	// Refs — Bowrain AD-011: /:ws/:id/refs (unified streams + tags listing)
+	g.GET("/:id/refs", s.HandleListProjectRefs)
 
 	// -----------------------------------------------------------------------
 	// Ref-scoped content routes: /:ws/:id/<resource>/:ref
