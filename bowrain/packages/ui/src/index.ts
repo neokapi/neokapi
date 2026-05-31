@@ -222,6 +222,8 @@ export type {
 } from "./components/ProjectFormDialog";
 export { AuditLogView } from "./components/AuditLogView";
 export type { AuditLogViewProps } from "./components/AuditLogView";
+export { BlockHistoryPanel } from "./components/BlockHistoryPanel";
+export type { BlockHistoryPanelProps } from "./components/BlockHistoryPanel";
 export { ActivityFeed } from "./components/ActivityFeed";
 export type { ActivityFeedProps } from "./components/ActivityFeed";
 export { TaskBoard } from "./components/TaskBoard";
@@ -443,6 +445,13 @@ export type {
   AuditEntry,
   AuditQuery,
   AuditChainVerification,
+  BlockWorkflowStatus,
+  SoDMode,
+  Group,
+  GroupRoleBinding,
+  DenyRule,
+  DenyRuleInput,
+  RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
   LocaleTranslationStats,

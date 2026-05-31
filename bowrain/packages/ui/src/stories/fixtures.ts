@@ -26,7 +26,12 @@ import type {
 // Spans (inline markup tags)
 // ---------------------------------------------------------------------------
 
-export const boldOpen: SpanInfo = { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" };
+export const boldOpen: SpanInfo = {
+  span_type: "opening",
+  type: "fmt:bold",
+  id: "1",
+  data: "<b>",
+};
 export const boldClose: SpanInfo = {
   span_type: "closing",
   type: "fmt:bold",
@@ -119,13 +124,48 @@ export const supClose: SpanInfo = {
 };
 
 // Markdown-style spans (semantic types, delimiter data)
-export const mdBoldOpen: SpanInfo = { span_type: "opening", type: "bold", id: "1", data: "**" };
-export const mdBoldClose: SpanInfo = { span_type: "closing", type: "bold", id: "1", data: "**" };
-export const mdItalicOpen: SpanInfo = { span_type: "opening", type: "italic", id: "2", data: "*" };
-export const mdItalicClose: SpanInfo = { span_type: "closing", type: "italic", id: "2", data: "*" };
-export const mdCodeOpen: SpanInfo = { span_type: "opening", type: "code", id: "3", data: "`" };
-export const mdCodeClose: SpanInfo = { span_type: "closing", type: "code", id: "3", data: "`" };
-export const mdLinkOpen: SpanInfo = { span_type: "opening", type: "link", id: "4", data: "[" };
+export const mdBoldOpen: SpanInfo = {
+  span_type: "opening",
+  type: "bold",
+  id: "1",
+  data: "**",
+};
+export const mdBoldClose: SpanInfo = {
+  span_type: "closing",
+  type: "bold",
+  id: "1",
+  data: "**",
+};
+export const mdItalicOpen: SpanInfo = {
+  span_type: "opening",
+  type: "italic",
+  id: "2",
+  data: "*",
+};
+export const mdItalicClose: SpanInfo = {
+  span_type: "closing",
+  type: "italic",
+  id: "2",
+  data: "*",
+};
+export const mdCodeOpen: SpanInfo = {
+  span_type: "opening",
+  type: "code",
+  id: "3",
+  data: "`",
+};
+export const mdCodeClose: SpanInfo = {
+  span_type: "closing",
+  type: "code",
+  id: "3",
+  data: "`",
+};
+export const mdLinkOpen: SpanInfo = {
+  span_type: "opening",
+  type: "link",
+  id: "4",
+  data: "[",
+};
 export const mdLinkClose: SpanInfo = {
   span_type: "closing",
   type: "link",
@@ -148,7 +188,12 @@ export const simpleBoldSpans: SpanInfo[] = [boldOpen, boldClose];
 
 /** "Visit <a>our website</a> for <i>more info</i>" */
 export const linkAndItalicCodedText = `Visit ${O}our website${C} for ${O}more info${C}`;
-export const linkAndItalicSpans: SpanInfo[] = [linkOpen, linkClose, italicOpen, italicClose];
+export const linkAndItalicSpans: SpanInfo[] = [
+  linkOpen,
+  linkClose,
+  italicOpen,
+  italicClose,
+];
 
 /** "Use <code>kapi init</code> to set up" */
 export const codeInlineCodedText = `Use ${O}kapi init${C} to set up`;
@@ -174,11 +219,21 @@ export const richSpans: SpanInfo[] = [
 
 /** Markdown: "Click **here** to *learn more*" */
 export const mdFormattingCodedText = `Click ${O}here${C} to ${O}learn more${C}`;
-export const mdFormattingSpans: SpanInfo[] = [mdBoldOpen, mdBoldClose, mdItalicOpen, mdItalicClose];
+export const mdFormattingSpans: SpanInfo[] = [
+  mdBoldOpen,
+  mdBoldClose,
+  mdItalicOpen,
+  mdItalicClose,
+];
 
 /** Markdown: "Run `kapi init` and visit [docs](url)" */
 export const mdRichCodedText = `Run ${O}kapi init${C} and visit ${O}docs${C}`;
-export const mdRichSpans: SpanInfo[] = [mdCodeOpen, mdCodeClose, mdLinkOpen, mdLinkClose];
+export const mdRichSpans: SpanInfo[] = [
+  mdCodeOpen,
+  mdCodeClose,
+  mdLinkOpen,
+  mdLinkClose,
+];
 
 // ---------------------------------------------------------------------------
 // Block samples
@@ -190,8 +245,14 @@ export const sampleBlocks: BlockInfo[] = [
     source: "Welcome to Neokapi",
     source_coded: "Welcome to Neokapi",
     source_spans: [],
-    targets: { "fr-FR": "Bienvenue sur Neokapi", "de-DE": "Willkommen bei Neokapi" },
-    targets_coded: { "fr-FR": "Bienvenue sur Neokapi", "de-DE": "Willkommen bei Neokapi" },
+    targets: {
+      "fr-FR": "Bienvenue sur Neokapi",
+      "de-DE": "Willkommen bei Neokapi",
+    },
+    targets_coded: {
+      "fr-FR": "Bienvenue sur Neokapi",
+      "de-DE": "Willkommen bei Neokapi",
+    },
     translatable: true,
     has_spans: false,
     properties: { state: "translated" },
@@ -202,7 +263,10 @@ export const sampleBlocks: BlockInfo[] = [
     source_coded: simpleBoldCodedText,
     source_spans: simpleBoldSpans,
     targets: { "fr-FR": `Cliquez ${O}ici${C} pour continuer`, "de-DE": "" },
-    targets_coded: { "fr-FR": `Cliquez ${O}ici${C} pour continuer`, "de-DE": "" },
+    targets_coded: {
+      "fr-FR": `Cliquez ${O}ici${C} pour continuer`,
+      "de-DE": "",
+    },
     translatable: true,
     has_spans: true,
     properties: { state: "draft" },
@@ -240,8 +304,14 @@ export const sampleBlocks: BlockInfo[] = [
     source: "Terms of Service",
     source_coded: "Terms of Service",
     source_spans: [],
-    targets: { "fr-FR": "Conditions d'utilisation", "de-DE": "Nutzungsbedingungen" },
-    targets_coded: { "fr-FR": "Conditions d'utilisation", "de-DE": "Nutzungsbedingungen" },
+    targets: {
+      "fr-FR": "Conditions d'utilisation",
+      "de-DE": "Nutzungsbedingungen",
+    },
+    targets_coded: {
+      "fr-FR": "Conditions d'utilisation",
+      "de-DE": "Nutzungsbedingungen",
+    },
     translatable: true,
     has_spans: false,
     properties: { state: "translated" },
@@ -333,7 +403,11 @@ export const deprecatedTermMatch: BlockTermMatch = {
 // ---------------------------------------------------------------------------
 
 export const sampleQAIssues: QAIssue[] = [
-  { type: "missing-tag", severity: "error", message: "Missing closing <b> tag in target" },
+  {
+    type: "missing-tag",
+    severity: "error",
+    message: "Missing closing <b> tag in target",
+  },
   {
     type: "terminology",
     severity: "warning",
@@ -350,7 +424,11 @@ export const sampleFileQAResults: FileQAResult[] = [
   {
     blockId: "blk-2",
     issues: [
-      { type: "missing-tag", severity: "error", message: "Missing closing <b> tag in target" },
+      {
+        type: "missing-tag",
+        severity: "error",
+        message: "Missing closing <b> tag in target",
+      },
       {
         type: "terminology",
         severity: "warning",
@@ -371,7 +449,11 @@ export const sampleFileQAResults: FileQAResult[] = [
   {
     blockId: "blk-6",
     issues: [
-      { type: "placeholder", severity: "error", message: "Missing placeholder {count} in target" },
+      {
+        type: "placeholder",
+        severity: "error",
+        message: "Missing placeholder {count} in target",
+      },
       {
         type: "punctuation",
         severity: "error",
@@ -409,29 +491,30 @@ export const sampleBlockNotes: BlockNote[] = [
 export const sampleBlockHistory: BlockHistoryEntry[] = [
   {
     seq: 3,
-    change_type: "update",
+    changeType: "target_modified",
     text: "Bienvenue sur Neokapi",
-    coded_text: "Bienvenue sur Neokapi",
+    codedText: "Bienvenue sur Neokapi",
     author: "translator@example.com",
+    actorRole: "member",
     origin: "human",
     timestamp: "2026-02-22T14:20:00Z",
   },
   {
     seq: 2,
-    change_type: "update",
+    changeType: "target_modified",
     text: "Bienvenue chez Neokapi",
-    coded_text: "Bienvenue chez Neokapi",
+    codedText: "Bienvenue chez Neokapi",
     author: "ai-translate",
-    origin: "machine",
+    origin: "ai",
     timestamp: "2026-02-21T09:00:00Z",
   },
   {
     seq: 1,
-    change_type: "create",
+    changeType: "target_added",
     text: "Bienvenue \u00e0 Neokapi",
-    coded_text: "Bienvenue \u00e0 Neokapi",
+    codedText: "Bienvenue \u00e0 Neokapi",
     author: "pseudo-translate",
-    origin: "pseudo",
+    origin: "mt",
     timestamp: "2026-02-20T08:00:00Z",
   },
 ];
@@ -542,8 +625,14 @@ export const navigationBlocks: BlockInfo[] = [
     source: "Getting Started with Neokapi",
     source_coded: "Getting Started with Neokapi",
     source_spans: [],
-    targets: { "fr-FR": "Premiers pas avec Neokapi", "de-DE": "Erste Schritte mit Neokapi" },
-    targets_coded: { "fr-FR": "Premiers pas avec Neokapi", "de-DE": "Erste Schritte mit Neokapi" },
+    targets: {
+      "fr-FR": "Premiers pas avec Neokapi",
+      "de-DE": "Erste Schritte mit Neokapi",
+    },
+    targets_coded: {
+      "fr-FR": "Premiers pas avec Neokapi",
+      "de-DE": "Erste Schritte mit Neokapi",
+    },
     translatable: true,
     has_spans: false,
     properties: { state: "translated" },
@@ -620,7 +709,10 @@ export const navigationBlocks: BlockInfo[] = [
     source_coded: "Quick Start",
     source_spans: [],
     targets: { "fr-FR": "D\u00e9marrage rapide", "de-DE": "Schnellstart" },
-    targets_coded: { "fr-FR": "D\u00e9marrage rapide", "de-DE": "Schnellstart" },
+    targets_coded: {
+      "fr-FR": "D\u00e9marrage rapide",
+      "de-DE": "Schnellstart",
+    },
     translatable: true,
     has_spans: false,
     properties: { state: "translated" },
@@ -700,8 +792,14 @@ export const navigationBlocks: BlockInfo[] = [
     source: "Translation Workflow",
     source_coded: "Translation Workflow",
     source_spans: [],
-    targets: { "fr-FR": "Flux de traduction", "de-DE": "\u00dcbersetzungs-Workflow" },
-    targets_coded: { "fr-FR": "Flux de traduction", "de-DE": "\u00dcbersetzungs-Workflow" },
+    targets: {
+      "fr-FR": "Flux de traduction",
+      "de-DE": "\u00dcbersetzungs-Workflow",
+    },
+    targets_coded: {
+      "fr-FR": "Flux de traduction",
+      "de-DE": "\u00dcbersetzungs-Workflow",
+    },
     translatable: true,
     has_spans: false,
     properties: { state: "reviewed" },
@@ -745,7 +843,12 @@ export const inlineCodeBlocks: BlockInfo[] = [
     source: "Click here to learn more about our features.",
     source_coded: `Click ${O}here${C} to learn more about our ${O}features${C}.`,
     source_spans: [
-      { span_type: "opening", type: "a", id: "1", data: '<a href="/features">' },
+      {
+        span_type: "opening",
+        type: "a",
+        id: "1",
+        data: '<a href="/features">',
+      },
       { span_type: "closing", type: "a", id: "1", data: "</a>" },
       { span_type: "opening", type: "b", id: "2", data: "<b>" },
       { span_type: "closing", type: "b", id: "2", data: "</b>" },
@@ -808,7 +911,10 @@ export const inlineCodeBlocks: BlockInfo[] = [
 export const sampleAutomationEvents: AutomationEvent[] = [
   { type: "file.uploaded", description: "A file is uploaded to the project" },
   { type: "file.updated", description: "A file is updated in the project" },
-  { type: "translation.completed", description: "All blocks in a file are translated" },
+  {
+    type: "translation.completed",
+    description: "All blocks in a file are translated",
+  },
   { type: "connector.sync", description: "A connector sync completes" },
   { type: "project.created", description: "A new project is created" },
 ];
@@ -820,7 +926,12 @@ export const sampleAutomationRules: AutomationRule[] = [
     name: "Auto-translate on upload",
     trigger: "file.uploaded",
     conditions: [{ Field: "file.format", Operator: "equals", Value: "json" }],
-    actions: [{ Type: "auto_translate", Config: { provider: "claude", target_locale: "fr" } }],
+    actions: [
+      {
+        Type: "auto_translate",
+        Config: { provider: "claude", target_locale: "fr" },
+      },
+    ],
     enabled: true,
     builtin: false,
     created_at: "2026-02-15T10:00:00Z",

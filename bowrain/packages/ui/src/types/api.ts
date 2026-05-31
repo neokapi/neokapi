@@ -304,6 +304,62 @@ export interface AuditQuery {
   offset?: number;
 }
 
+/** Block workflow status (ABAC). */
+export type BlockWorkflowStatus = "draft" | "in_review" | "published";
+
+/** Separation-of-duties mode for a workspace. */
+export type SoDMode = "off" | "warn" | "block";
+
+/** A team/group within a workspace. */
+export interface Group {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  member_count?: number;
+}
+
+/** Binds a group to a project role. */
+export interface GroupRoleBinding {
+  id: string;
+  group_id: string;
+  workspace_id: string;
+  project_id: string;
+  role_id: string;
+  languages: string[];
+  created_at: string;
+}
+
+/** A negative-permission rule. */
+export interface DenyRule {
+  id: string;
+  workspace_id: string;
+  subject_type: "user" | "role" | "group";
+  subject_id: string;
+  project_id: string;
+  denied_perms: number;
+  reason: string;
+  created_at: string;
+}
+
+/** Input for creating a deny rule. */
+export interface DenyRuleInput {
+  subject_type: "user" | "role" | "group";
+  subject_id: string;
+  project_id?: string;
+  permissions: string[];
+  reason?: string;
+}
+
+/** Options for restoring a stream to a past point. */
+export interface RestorePointOptions {
+  to_version?: string;
+  to_cursor?: number;
+  to_time?: string;
+  stream?: string;
+}
+
 /** Result of verifying the tamper-evidence of an audit chain */
 export interface AuditChainVerification {
   chain_key: string;
@@ -639,11 +695,14 @@ export interface BlockNote {
 /** A single block history entry */
 export interface BlockHistoryEntry {
   seq: number;
-  change_type: string;
+  changeType: string;
   text: string;
-  coded_text: string;
+  codedText: string;
   origin: string;
   author: string;
+  actorRole?: string;
+  editReason?: string;
+  correlationId?: string;
   timestamp: string;
 }
 

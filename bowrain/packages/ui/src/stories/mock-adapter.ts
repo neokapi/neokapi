@@ -413,6 +413,59 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     getBlockHistory: async (): Promise<BlockHistoryEntry[]> =>
       sampleBlockHistory,
 
+    // --- Rollback / restore (#778) ---------------------------------------
+    rollbackBlock: async () => {},
+    revertBatch: async () => ({ reverted: 0 }),
+    restoreToPoint: async () => ({ restored: 0 }),
+    setBlockStatus: async () => {},
+
+    // --- Governance (#778) -----------------------------------------------
+    listGroups: async () => [],
+    createGroup: async (_ws: string, name: string) => ({
+      id: "g1",
+      workspace_id: "ws",
+      name,
+      description: "",
+      created_at: new Date(0).toISOString(),
+    }),
+    deleteGroup: async () => {},
+    listGroupMembers: async () => [],
+    addGroupMember: async () => {},
+    removeGroupMember: async () => {},
+    listGroupBindings: async () => [],
+    addGroupBinding: async (
+      _ws: string,
+      groupId: string,
+      projectId: string,
+      roleId: string,
+    ) => ({
+      id: "b1",
+      group_id: groupId,
+      workspace_id: "ws",
+      project_id: projectId,
+      role_id: roleId,
+      languages: [],
+      created_at: new Date(0).toISOString(),
+    }),
+    removeGroupBinding: async () => {},
+    listDenyRules: async () => [],
+    createDenyRule: async (_ws: string, rule) => ({
+      id: "d1",
+      workspace_id: "ws",
+      subject_type: rule.subject_type,
+      subject_id: rule.subject_id,
+      project_id: rule.project_id ?? "",
+      denied_perms: 0,
+      reason: rule.reason ?? "",
+      created_at: new Date(0).toISOString(),
+    }),
+    deleteDenyRule: async () => {},
+    getSoDMode: async () => ({ mode: "warn" as const }),
+    setSoDMode: async () => {},
+    listRoleOverrides: async () => ({}),
+    setRoleOverride: async () => {},
+    demoteBrandRule: async () => {},
+
     // --- QA --------------------------------------------------------------
     runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
     runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,

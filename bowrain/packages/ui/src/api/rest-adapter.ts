@@ -56,6 +56,13 @@ import type {
   AuditEntry,
   AuditQuery,
   AuditChainVerification,
+  BlockWorkflowStatus,
+  SoDMode,
+  Group,
+  GroupRoleBinding,
+  DenyRule,
+  DenyRuleInput,
+  RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
@@ -1149,6 +1156,206 @@ export class RestApiAdapter implements ApiAdapter {
     if (limit) params.set("limit", String(limit));
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/history?${params}`,
+    );
+  }
+
+  // ── Rollback / restore (#778) ────────────────────────────────────────────
+
+  async rollbackBlock(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    toSeq: number,
+    locale: string,
+    stream?: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/rollback`,
+      { method: "POST", body: JSON.stringify({ locale, to_seq: toSeq }) },
+    );
+  }
+
+  async revertBatch(
+    workspaceSlug: string,
+    projectId: string,
+    correlationId: string,
+    stream?: string,
+  ): Promise<{ reverted: number }> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/revert`,
+      {
+        method: "POST",
+        body: JSON.stringify({ correlation_id: correlationId, stream }),
+      },
+    );
+  }
+
+  async restoreToPoint(
+    workspaceSlug: string,
+    projectId: string,
+    opts: RestorePointOptions,
+  ): Promise<{ restored: number }> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/restore`,
+      {
+        method: "POST",
+        body: JSON.stringify(opts),
+      },
+    );
+  }
+
+  async setBlockStatus(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    status: BlockWorkflowStatus,
+    reason?: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/status`,
+      { method: "PUT", body: JSON.stringify({ status, reason }) },
+    );
+  }
+
+  // ── Governance (#778) ─────────────────────────────────────────────────────
+
+  async listGroups(workspaceSlug: string): Promise<Group[]> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/groups`);
+  }
+  async createGroup(
+    workspaceSlug: string,
+    name: string,
+    description?: string,
+  ): Promise<Group> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/groups`, {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    });
+  }
+  async deleteGroup(workspaceSlug: string, groupId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}`, {
+      method: "DELETE",
+    });
+  }
+  async listGroupMembers(
+    workspaceSlug: string,
+    groupId: string,
+  ): Promise<string[]> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/members`);
+  }
+  async addGroupMember(
+    workspaceSlug: string,
+    groupId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
+  async removeGroupMember(
+    workspaceSlug: string,
+    groupId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `/api/v1/${workspaceSlug}/groups/${groupId}/members/${userId}`,
+      {
+        method: "DELETE",
+      },
+    );
+  }
+  async listGroupBindings(
+    workspaceSlug: string,
+    groupId: string,
+  ): Promise<GroupRoleBinding[]> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings`,
+    );
+  }
+  async addGroupBinding(
+    workspaceSlug: string,
+    groupId: string,
+    projectId: string,
+    roleId: string,
+    languages?: string[],
+  ): Promise<GroupRoleBinding> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          project_id: projectId,
+          role_id: roleId,
+          languages,
+        }),
+      },
+    );
+  }
+  async removeGroupBinding(
+    workspaceSlug: string,
+    groupId: string,
+    bindingId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings/${bindingId}`,
+      {
+        method: "DELETE",
+      },
+    );
+  }
+  async listDenyRules(workspaceSlug: string): Promise<DenyRule[]> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/deny-rules`);
+  }
+  async createDenyRule(
+    workspaceSlug: string,
+    rule: DenyRuleInput,
+  ): Promise<DenyRule> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/deny-rules`, {
+      method: "POST",
+      body: JSON.stringify(rule),
+    });
+  }
+  async deleteDenyRule(workspaceSlug: string, ruleId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/deny-rules/${ruleId}`, {
+      method: "DELETE",
+    });
+  }
+  async getSoDMode(workspaceSlug: string): Promise<{ mode: SoDMode }> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/sod`);
+  }
+  async setSoDMode(workspaceSlug: string, mode: SoDMode): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/sod`, {
+      method: "PUT",
+      body: JSON.stringify({ mode }),
+    });
+  }
+  async listRoleOverrides(
+    workspaceSlug: string,
+  ): Promise<Record<string, string[]>> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/role-overrides`);
+  }
+  async setRoleOverride(
+    workspaceSlug: string,
+    role: string,
+    permissions: string[],
+  ): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/role-overrides/${role}`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
+    });
+  }
+  async demoteBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    term: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `/api/v1/${workspaceSlug}/brand-profiles/${profileId}/demote-rule`,
+      {
+        method: "POST",
+        body: JSON.stringify({ term }),
+      },
     );
   }
 

@@ -47,6 +47,13 @@ import type {
   CollectionInfo,
   AuditEntry,
   AuditChainVerification,
+  BlockWorkflowStatus,
+  SoDMode,
+  Group,
+  GroupRoleBinding,
+  DenyRule,
+  DenyRuleInput,
+  RestorePointOptions,
   ArchivedProject,
   VoiceProfile,
   StoredScore,
@@ -724,6 +731,73 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<BlockHistoryEntry[]> {
     return [];
   }
+
+  // --- Rollback / restore + governance (#778): server-only, not in desktop ---
+  async rollbackBlock(): Promise<void> {}
+  async revertBatch(): Promise<{ reverted: number }> {
+    return { reverted: 0 };
+  }
+  async restoreToPoint(): Promise<{ restored: number }> {
+    return { restored: 0 };
+  }
+  async setBlockStatus(): Promise<void> {}
+  async listGroups(): Promise<Group[]> {
+    return [];
+  }
+  async createGroup(_ws: string, name: string): Promise<Group> {
+    return { id: "", workspace_id: "", name, description: "", created_at: "" };
+  }
+  async deleteGroup(): Promise<void> {}
+  async listGroupMembers(): Promise<string[]> {
+    return [];
+  }
+  async addGroupMember(): Promise<void> {}
+  async removeGroupMember(): Promise<void> {}
+  async listGroupBindings(): Promise<GroupRoleBinding[]> {
+    return [];
+  }
+  async addGroupBinding(
+    _ws: string,
+    groupId: string,
+    projectId: string,
+    roleId: string,
+  ): Promise<GroupRoleBinding> {
+    return {
+      id: "",
+      group_id: groupId,
+      workspace_id: "",
+      project_id: projectId,
+      role_id: roleId,
+      languages: [],
+      created_at: "",
+    };
+  }
+  async removeGroupBinding(): Promise<void> {}
+  async listDenyRules(): Promise<DenyRule[]> {
+    return [];
+  }
+  async createDenyRule(_ws: string, rule: DenyRuleInput): Promise<DenyRule> {
+    return {
+      id: "",
+      workspace_id: "",
+      subject_type: rule.subject_type,
+      subject_id: rule.subject_id,
+      project_id: rule.project_id ?? "",
+      denied_perms: 0,
+      reason: rule.reason ?? "",
+      created_at: "",
+    };
+  }
+  async deleteDenyRule(): Promise<void> {}
+  async getSoDMode(): Promise<{ mode: SoDMode }> {
+    return { mode: "warn" };
+  }
+  async setSoDMode(): Promise<void> {}
+  async listRoleOverrides(): Promise<Record<string, string[]>> {
+    return {};
+  }
+  async setRoleOverride(): Promise<void> {}
+  async demoteBrandRule(): Promise<void> {}
 
   // --- Block notes (desktop: not yet backed by Wails bindings) ---
   async addBlockNote(

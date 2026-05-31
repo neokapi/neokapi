@@ -55,6 +55,13 @@ import type {
   AuditEntry,
   AuditQuery,
   AuditChainVerification,
+  BlockWorkflowStatus,
+  SoDMode,
+  Group,
+  GroupRoleBinding,
+  DenyRule,
+  DenyRuleInput,
+  RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
@@ -461,6 +468,86 @@ export interface ApiAdapter {
     limit?: number,
     stream?: string,
   ): Promise<BlockHistoryEntry[]>;
+
+  // Rollback / restore (#778)
+  rollbackBlock(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    toSeq: number,
+    locale: string,
+    stream?: string,
+  ): Promise<void>;
+  revertBatch(
+    workspaceSlug: string,
+    projectId: string,
+    correlationId: string,
+    stream?: string,
+  ): Promise<{ reverted: number }>;
+  restoreToPoint(
+    workspaceSlug: string,
+    projectId: string,
+    opts: RestorePointOptions,
+  ): Promise<{ restored: number }>;
+  setBlockStatus(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    status: BlockWorkflowStatus,
+    reason?: string,
+  ): Promise<void>;
+
+  // Governance (#778): groups, deny rules, separation-of-duties, role overrides
+  listGroups(workspaceSlug: string): Promise<Group[]>;
+  createGroup(
+    workspaceSlug: string,
+    name: string,
+    description?: string,
+  ): Promise<Group>;
+  deleteGroup(workspaceSlug: string, groupId: string): Promise<void>;
+  listGroupMembers(workspaceSlug: string, groupId: string): Promise<string[]>;
+  addGroupMember(
+    workspaceSlug: string,
+    groupId: string,
+    userId: string,
+  ): Promise<void>;
+  removeGroupMember(
+    workspaceSlug: string,
+    groupId: string,
+    userId: string,
+  ): Promise<void>;
+  listGroupBindings(
+    workspaceSlug: string,
+    groupId: string,
+  ): Promise<GroupRoleBinding[]>;
+  addGroupBinding(
+    workspaceSlug: string,
+    groupId: string,
+    projectId: string,
+    roleId: string,
+    languages?: string[],
+  ): Promise<GroupRoleBinding>;
+  removeGroupBinding(
+    workspaceSlug: string,
+    groupId: string,
+    bindingId: string,
+  ): Promise<void>;
+  listDenyRules(workspaceSlug: string): Promise<DenyRule[]>;
+  createDenyRule(workspaceSlug: string, rule: DenyRuleInput): Promise<DenyRule>;
+  deleteDenyRule(workspaceSlug: string, ruleId: string): Promise<void>;
+  getSoDMode(workspaceSlug: string): Promise<{ mode: SoDMode }>;
+  setSoDMode(workspaceSlug: string, mode: SoDMode): Promise<void>;
+  listRoleOverrides(workspaceSlug: string): Promise<Record<string, string[]>>;
+  setRoleOverride(
+    workspaceSlug: string,
+    role: string,
+    permissions: string[],
+  ): Promise<void>;
+  demoteBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    term: string,
+  ): Promise<void>;
 
   // QA
   runQACheck(
