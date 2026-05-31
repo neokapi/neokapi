@@ -53,6 +53,11 @@ func TestMain(m *testing.M) {
 		"KAPI_CONFIG_DIR=" + filepath.Join(iso, "config"),
 		"XDG_DATA_HOME=" + filepath.Join(iso, "data"),
 		"XDG_CACHE_HOME=" + filepath.Join(iso, "cache"),
+		// KAPI_PLUGINS_DIR_ONLY=1 confines plugin discovery to
+		// $KAPI_PLUGINS_DIR (empty here → none). XDG_DATA_HOME only
+		// redirects the user plugin root; without this flag the absolute
+		// system plugin roots (Homebrew, /usr/share) still leak in.
+		"KAPI_PLUGINS_DIR_ONLY=1",
 	}
 
 	code := m.Run()
@@ -237,10 +242,17 @@ func TestTMLookup(t *testing.T) {
 	assert.Contains(t, out, "Paramètres")
 }
 
+// TestTMSearch verifies `kapi tm search` resolves source terms against the
+// imported TM. This previously returned "No entries found." (#701) because
+// single-file `kapi tm import` did not rebuild the FTS5 search side-tables;
+// that was fixed by #38 (import now calls rebuildTMSearchIndexes), so the
+// search now finds the same entries `kapi tm lookup` resolves.
 func TestTMSearch(t *testing.T) {
-	t.Skip("`kapi tm search <term>` returns \"No entries found.\" for source terms " +
-		"that `kapi tm lookup` resolves (e.g. \"Settings\") — suspected tm-search bug, " +
-		"tracked separately from the dogfood-isolation work.")
+	tmFile := importedTM(t)
+
+	out := kapi(t, "tm", "search", "Settings", "--file", tmFile, "-s", "en", "-t", "fr")
+	assert.Contains(t, out, "Settings")
+	assert.Contains(t, out, "Paramètres")
 }
 
 func TestTMExport(t *testing.T) {
@@ -254,11 +266,39 @@ func TestTMExport(t *testing.T) {
 	assert.Contains(t, content, "Paramètres")
 }
 
+// TestTMLeverage exercises standalone `kapi tm-leverage` against an external
+// TM via --tm. The tool command runs end-to-end (it accepts --tm and a project
+// .kapi/tm.db, contrary to the earlier skip rationale), but it does NOT fill
+// targets from exact TM matches: see #700.
+//
+// Root cause (#700): the tm-leverage tool keys its TM lookup on
+// TMLeverageConfig.SourceLocale, but neither CLI path sets it from --source-lang.
+// The exact-match SQL filters by source locale (`v.locale = ?`), so an empty
+// SourceLocale matches nothing and every block passes through with its source
+// text unchanged. Confirmed against the probe binary: "Settings"/"File upload"
+// (both present in project.tmx) stay English in the fr output, and --make-tmx
+// emits no matches. Fixing this requires wiring --source-lang into the
+// tm-leverage tool config in cli/ (out of scope for the e2e suite).
+//
+// We still assert the command runs cleanly end-to-end and writes its output so
+// the CLI surface (flag parsing, --tm resolution, file processing) stays
+// covered; the leverage-fill assertion is gated behind #700.
 func TestTMLeverage(t *testing.T) {
-	t.Skip("standalone `kapi tm-leverage` has no external/project TM input on the " +
-		"current CLI: --tm lives only on `kapi run <flow>`, no tm-leverage flow is " +
-		"registered, and the tool does not resolve a project .kapi/tm.db. Needs a " +
-		"dedicated CLI fix before this can be exercised end-to-end.")
+	tmFile := importedTM(t)
+	tmp := t.TempDir()
+
+	out := filepath.Join(tmp, "leveraged.json")
+	kapi(t, "tm-leverage", filepath.Join(testdata, "messages_en.json"),
+		"--tm", tmFile,
+		"--source-lang", "en",
+		"--target-lang", "fr",
+		"-o", out)
+	assert.FileExists(t, out)
+
+	t.Skip("`kapi tm-leverage --tm <db>` runs but never fills targets from exact " +
+		"matches because the tool's SourceLocale is not wired from --source-lang " +
+		"(exact lookup filters by source locale, so an empty locale matches " +
+		"nothing). Tracked by #700; needs a CLI fix in tm-leverage config wiring.")
 }
 
 // ─── Full Pipeline: TM Leverage → Pseudo-Translate → QA + Termbase ──────────
