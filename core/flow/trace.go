@@ -279,25 +279,43 @@ func (t *TracingTool) SetConfig(c tool.ToolConfig) error { return t.inner.SetCon
 // channel — it simply returns when input is exhausted. Therefore:
 //  1. We close tracedOut after inner.Process returns so the output interceptor terminates.
 //  2. We do NOT close out — the executor handles that.
+//
+// The input interceptor must not block forever if the inner tool stops
+// reading early (mid-stream error or context cancellation): its forwarding
+// send selects on ctx.Done() and a stop channel that is closed once
+// inner.Process returns. Both interceptor goroutines are joined before
+// Process returns so neither leaks on the happy path or the cancel/error path.
 func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	tracedIn := make(chan *model.Part, cap(in))
 	tracedOut := make(chan *model.Part, cap(out))
 
+	// stop is closed once the inner tool returns, signalling the input
+	// interceptor to abandon any pending forward and exit.
+	stop := make(chan struct{})
+
+	var interceptors sync.WaitGroup
+	interceptors.Add(2)
+
 	// Input interceptor: record enter events, then forward to inner tool.
 	go func() {
+		defer interceptors.Done()
 		defer close(tracedIn)
 		for part := range in {
 			id := part.Resource.ResourceID()
 			t.recorder.Record(TraceEnter, t.nodeID, id, nil)
-			tracedIn <- part
+			select {
+			case tracedIn <- part:
+			case <-ctx.Done():
+				return
+			case <-stop:
+				return
+			}
 		}
 	}()
 
 	// Output interceptor: record exit events and snapshots, then forward.
-	var outDone sync.WaitGroup
-	outDone.Add(1)
 	go func() {
-		defer outDone.Done()
+		defer interceptors.Done()
 		for part := range tracedOut {
 			id := part.Resource.ResourceID()
 			t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
@@ -310,11 +328,14 @@ func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 	// but does not close its output channel.
 	err := t.inner.Process(ctx, tracedIn, tracedOut)
 
-	// Close tracedOut so the output interceptor goroutine terminates.
+	// Signal the input interceptor to stop forwarding (the inner tool is no
+	// longer reading tracedIn) and close tracedOut so the output interceptor
+	// goroutine terminates.
+	close(stop)
 	close(tracedOut)
 
-	// Wait for output interceptor to drain all remaining parts.
-	outDone.Wait()
+	// Join both interceptors so neither goroutine outlives Process.
+	interceptors.Wait()
 
 	return err
 }

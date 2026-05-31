@@ -1,9 +1,14 @@
 package flow_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
@@ -355,4 +360,151 @@ func TestTracingTool(t *testing.T) {
 		assert.Equal(t, flow.TraceExit, events[3].Type)
 		assert.Equal(t, "node-2", events[3].NodeID)
 	})
+}
+
+// traceEarlyStopTool reads exactly one part from its input then returns,
+// stopping mid-stream while parts remain queued — the case that previously
+// leaked the TracingTool input-interceptor goroutine.
+type traceEarlyStopTool struct {
+	tool.BaseTool
+	err error
+}
+
+func (t *traceEarlyStopTool) Process(_ context.Context, in <-chan *model.Part, _ chan<- *model.Part) error {
+	<-in
+	return t.err
+}
+
+// traceBlockUntilCancelTool reads one part then blocks until the context is
+// done, modelling an inner tool aborted by cancellation.
+type traceBlockUntilCancelTool struct {
+	tool.BaseTool
+}
+
+func (t *traceBlockUntilCancelTool) Process(ctx context.Context, in <-chan *model.Part, _ chan<- *model.Part) error {
+	<-in
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func traceWaitGoroutinesSettle(t *testing.T, baseline int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		runtime.GC()
+		if runtime.NumGoroutine() <= baseline {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	require.LessOrEqualf(t, runtime.NumGoroutine(), baseline,
+		"goroutine count did not return to baseline %d (leak)", baseline)
+}
+
+// TestTracingTool_NoInterceptorLeakOnEarlyInnerError verifies that when the
+// inner tool stops reading mid-stream the TracingTool's input-interceptor
+// goroutine exits and Process returns instead of blocking forever on a send.
+func TestTracingTool_NoInterceptorLeakOnEarlyInnerError(t *testing.T) {
+	runtime.GC()
+	baseline := runtime.NumGoroutine()
+
+	sentinel := errors.New("inner stopped early")
+	inner := &traceEarlyStopTool{err: sentinel}
+	inner.ToolName = "early"
+	traced := flow.NewTracingTool(inner, "node-early", flow.NewTraceRecorder())
+
+	// Unbuffered channels so the interceptor must block on its forwarding send
+	// once the inner tool stops reading.
+	in := make(chan *model.Part)
+	out := make(chan *model.Part)
+
+	feedStop := make(chan struct{})
+	var feeders sync.WaitGroup
+	feeders.Add(2)
+	go func() {
+		defer feeders.Done()
+		for i := 0; i < 100; i++ {
+			select {
+			case in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock(fmt.Sprintf("b%d", i), "x")}:
+			case <-feedStop:
+				return
+			}
+		}
+	}()
+	go func() {
+		defer feeders.Done()
+		for range out {
+		}
+	}()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- traced.Process(context.Background(), in, out)
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, sentinel)
+	case <-time.After(2 * time.Second):
+		t.Fatal("TracingTool.Process did not return after inner tool stopped early (interceptor leaked)")
+	}
+
+	close(feedStop)
+	close(out)
+	feeders.Wait()
+
+	traceWaitGoroutinesSettle(t, baseline)
+}
+
+// TestTracingTool_NoInterceptorLeakOnCancel verifies that cancelling the
+// context mid-stream unblocks the input interceptor's forwarding send.
+func TestTracingTool_NoInterceptorLeakOnCancel(t *testing.T) {
+	runtime.GC()
+	baseline := runtime.NumGoroutine()
+
+	inner := &traceBlockUntilCancelTool{}
+	inner.ToolName = "blocker"
+	traced := flow.NewTracingTool(inner, "node-cancel", flow.NewTraceRecorder())
+
+	in := make(chan *model.Part)
+	out := make(chan *model.Part)
+	feedStop := make(chan struct{})
+	var feeders sync.WaitGroup
+	feeders.Add(2)
+	go func() {
+		defer feeders.Done()
+		for i := 0; i < 100; i++ {
+			select {
+			case in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b", "x")}:
+			case <-feedStop:
+				return
+			}
+		}
+	}()
+	go func() {
+		defer feeders.Done()
+		for range out {
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- traced.Process(ctx, in, out)
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("TracingTool.Process did not return after cancel (interceptor leaked)")
+	}
+
+	close(feedStop)
+	close(out)
+	feeders.Wait()
+
+	traceWaitGoroutinesSettle(t, baseline)
 }

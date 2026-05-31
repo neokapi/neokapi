@@ -101,25 +101,43 @@ func (m *MetricsTool) SetConfig(c tool.ToolConfig) error { return m.inner.SetCon
 //
 // Channel ownership follows the same pattern as TracingTool.Process:
 // create intermediate channels, close after inner.Process returns,
-// WaitGroup to wait for output interceptor drain.
+// WaitGroup to wait for both interceptors to drain.
+//
+// The input interceptor must not block forever if the inner tool stops
+// reading early (mid-stream error or context cancellation): its forwarding
+// send selects on ctx.Done() and a stop channel that is closed once
+// inner.Process returns. Both interceptor goroutines are joined before
+// Process returns so neither leaks on the happy path or the cancel/error path.
 func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	metricsIn := make(chan *model.Part, cap(in))
 	metricsOut := make(chan *model.Part, cap(out))
 
+	// stop is closed once the inner tool returns, signalling the input
+	// interceptor to abandon any pending forward and exit.
+	stop := make(chan struct{})
+
+	var interceptors sync.WaitGroup
+	interceptors.Add(2)
+
 	// Input interceptor: count parts entering, forward to inner.
 	go func() {
+		defer interceptors.Done()
 		defer close(metricsIn)
 		for part := range in {
 			m.metrics.PartsIn.Add(1)
-			metricsIn <- part
+			select {
+			case metricsIn <- part:
+			case <-ctx.Done():
+				return
+			case <-stop:
+				return
+			}
 		}
 	}()
 
 	// Output interceptor: count parts exiting, forward to caller.
-	var outDone sync.WaitGroup
-	outDone.Add(1)
 	go func() {
-		defer outDone.Done()
+		defer interceptors.Done()
 		for part := range metricsOut {
 			m.metrics.PartsOut.Add(1)
 			out <- part
@@ -129,11 +147,14 @@ func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 	// Run the inner tool.
 	err := m.inner.Process(ctx, metricsIn, metricsOut)
 
-	// Close metricsOut so the output interceptor terminates.
+	// Signal the input interceptor to stop forwarding (the inner tool is no
+	// longer reading metricsIn) and close metricsOut so the output
+	// interceptor terminates.
+	close(stop)
 	close(metricsOut)
 
-	// Wait for output interceptor to drain.
-	outDone.Wait()
+	// Join both interceptors so neither goroutine outlives Process.
+	interceptors.Wait()
 
 	return err
 }
