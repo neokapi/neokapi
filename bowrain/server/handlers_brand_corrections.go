@@ -161,3 +161,47 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]any{"profile": profile, "promoted": changed})
 }
+
+// DemoteRuleRequest removes a previously promoted brand rule.
+type DemoteRuleRequest struct {
+	Term string `json:"term"`
+}
+
+// HandleDemoteSuggestedRule removes a previously promoted rule from a brand
+// profile (the inverse of promote — promoted rules are no longer append-only).
+// Requires PermManageBrand.
+//
+// POST /:ws/brand-profiles/:id/demote-rule  { "term": "utilize" }
+func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+	if s.BrandStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+	}
+
+	var req DemoteRuleRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.Term == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "term is required"})
+	}
+
+	profileID := c.Param("id")
+	profile, changed, err := corebrand.DemoteAndSave(c.Request().Context(), s.BrandStore, profileID, req.Term)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	if changed {
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventType("brand.rule.demoted"),
+			ResourceType: "brand_profile",
+			ResourceID:   profileID,
+			Data:         map[string]string{"term": req.Term, "version": strconv.Itoa(profile.Version)},
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"profile": profile, "demoted": changed})
+}

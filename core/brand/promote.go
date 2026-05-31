@@ -69,6 +69,51 @@ func ApplySuggestedRule(p *VoiceProfile, r SuggestedRule) bool {
 	return true
 }
 
+// RemoveRule removes a forbidden-term rule (matched by term) from the profile's
+// vocabulary. Reports whether the profile changed. The inverse of
+// ApplySuggestedRule.
+func RemoveRule(p *VoiceProfile, term string) bool {
+	if p == nil || strings.TrimSpace(term) == "" {
+		return false
+	}
+	kept := make([]TermRule, 0, len(p.Vocabulary.ForbiddenTerms))
+	removed := false
+	for _, t := range p.Vocabulary.ForbiddenTerms {
+		if strings.EqualFold(t.Term, term) {
+			removed = true
+			continue
+		}
+		kept = append(kept, t)
+	}
+	if removed {
+		p.Vocabulary.ForbiddenTerms = kept
+	}
+	return removed
+}
+
+// DemoteAndSave removes a previously promoted rule from a profile and bumps its
+// version. The inverse of PromoteAndSave — a promoted brand rule is no longer
+// append-only.
+func DemoteAndSave(ctx context.Context, store BrandStore, profileID, term string) (*VoiceProfile, bool, error) {
+	p, err := store.GetProfile(ctx, profileID)
+	if err != nil {
+		return nil, false, err
+	}
+	if p == nil {
+		return nil, false, fmt.Errorf("brand: profile %q not found", profileID)
+	}
+	if !RemoveRule(p, term) {
+		return p, false, nil
+	}
+	p.Version++
+	p.UpdatedAt = time.Now().UTC()
+	p.VersionNote = fmt.Sprintf("demoted rule: %q", term)
+	if err := store.UpdateProfile(ctx, p); err != nil {
+		return nil, false, err
+	}
+	return p, true, nil
+}
+
 // PromoteRules applies several suggested rules to a profile and returns how
 // many of them changed it.
 func PromoteRules(p *VoiceProfile, rules []SuggestedRule) int {

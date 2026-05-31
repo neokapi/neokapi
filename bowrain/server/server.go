@@ -1058,6 +1058,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
 	g.GET("/brand-profiles/:id/candidates", s.HandleListCandidates)
 	g.POST("/brand-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)
+	g.POST("/brand-profiles/:id/demote-rule", s.HandleDemoteSuggestedRule)
 	g.POST("/brand-profiles/:id/reject-rule", s.HandleRejectSuggestedRule)
 	g.POST("/brand-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)

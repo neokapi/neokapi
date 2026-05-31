@@ -158,6 +158,36 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	assert.True(t, d.Auto, "autonomy-promoted decision should be marked auto")
 }
 
+// TestPhase4_BrandRuleDemote proves a promoted brand rule can be demoted
+// (removed) — promoted rules are no longer append-only.
+func TestPhase4_BrandRuleDemote(t *testing.T) {
+	srv := setupBrandLoopServer(t)
+	e := srv.GetEcho()
+	ctx := context.Background()
+	profile := &corebrand.VoiceProfile{ID: "p-demote", WorkspaceID: "ws-d", Name: "D"}
+	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+
+	_, changed, err := corebrand.PromoteAndSave(ctx, srv.BrandStore, profile.ID,
+		corebrand.SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
+	require.NoError(t, err)
+	require.True(t, changed)
+	got, _ := srv.BrandStore.GetProfile(ctx, profile.ID)
+	require.Len(t, got.Vocabulary.ForbiddenTerms, 1)
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"term":"utilize"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("project_permissions", platauth.PermAll)
+	c.SetParamNames("id")
+	c.SetParamValues(profile.ID)
+	require.NoError(t, srv.HandleDemoteSuggestedRule(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	got, _ = srv.BrandStore.GetProfile(ctx, profile.ID)
+	assert.Empty(t, got.Vocabulary.ForbiddenTerms, "demote should remove the promoted rule")
+}
+
 // TestBrandLoop_EvaluateBlastRadius proves the blast-radius preview endpoint runs
 // the candidate rule over real stored content and reports the impact before the
 // rule is promoted.
