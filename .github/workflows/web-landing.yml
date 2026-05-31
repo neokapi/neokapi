@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: "22"
           cache: true
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
         run: vp install
@@ -57,13 +57,13 @@ jobs:
         working-directory: web/landing
         env:
           VITE_BASE: ${{ steps.base.outputs.neokapi_base }}
-        run: npm run build
+        run: vp run build
 
       - name: Build bowrain-web-landing
         working-directory: bowrain/web/landing
         env:
           VITE_BASE: ${{ steps.base.outputs.bowrain_base }}
-        run: npm run build
+        run: vp run build
 
       - name: Upload neokapi-web artifact
         uses: actions/upload-artifact@v7

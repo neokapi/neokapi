@@ -54,7 +54,7 @@ jobs:
 
       - name: Build kapi-react (storybook-config imports from dist)
         working-directory: packages/kapi-react
-        run: npm run build
+        run: vp run build
 
       - name: Determine base paths
         id: base

@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: "22"
           cache: true
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
         run: vp install
@@ -89,14 +89,8 @@ jobs:
             echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > web/docs/static/data/test-comparison.json
           fi
 
-      # website/ is a standalone Docusaurus app (not in the npm workspace,
-      # by design — see PR #425). Install its deps locally and invoke the
-      # build script via npm directly so vp doesn't try to resolve a
-      # non-existent `neokapi-docs#build` workspace task.
-      - name: Install kapi docs site dependencies
-        run: npm install --no-audit --no-fund
-        working-directory: web/docs
-
+      # web/docs is a pnpm workspace member; its deps (and the @neokapi/*
+      # workspace packages it consumes) are installed by the `vp install` above.
       - name: Determine base URL (production vs PR preview)
         id: base
         env:
@@ -109,7 +103,7 @@ jobs:
           fi
 
       - name: Build kapi Docusaurus site
-        run: npm run build
+        run: vp run build
         working-directory: web/docs
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
