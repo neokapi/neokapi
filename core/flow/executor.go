@@ -3,7 +3,9 @@ package flow
 import (
 	"context"
 	"fmt"
+	"iter"
 	"runtime"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -190,10 +192,13 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 	// supports concurrent sessions. Tools that implement SessionTool
 	// receive the session for random access; stream-only tools are
 	// unaffected. Commit on success, Rollback on any tool error.
-	session, err := e.config.Store.Begin(ctx)
+	rawSession, err := e.config.Store.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("open blockstore session: %w", err)
 	}
+	// All tools share this one session and run in their own goroutines, so
+	// guard it against concurrent use (see syncSession).
+	session := newSyncSession(rawSession)
 
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -217,10 +222,10 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 		})
 	}
 
-	// Collect output parts from the final channel.
+	// Collect output parts from the final channel. The collector only
+	// drains a channel and cannot fail, so it has no error path.
 	outCh := channels[len(channels)-1]
 	var parts []*model.Part
-	var collectErr error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -241,15 +246,120 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 		_ = session.Rollback()
 		return nil, fmt.Errorf("execute tool chain: %w", err)
 	}
-	if collectErr != nil {
-		_ = session.Rollback()
-		return nil, fmt.Errorf("collect output: %w", collectErr)
-	}
 	if err := session.Commit(); err != nil {
 		return nil, fmt.Errorf("commit session: %w", err)
 	}
 	return parts, nil
 }
+
+// syncSession wraps a blockstore.Session so that concurrent SessionTools
+// sharing one session don't race on its underlying transaction.
+//
+// The executor opens a single session per item (processItemCollect) or per
+// channel pipeline (ExecuteWithChannels) and hands it to every tool. Tools
+// run in their own goroutines, so when a persistent store is wired (e.g.
+// blockstore.NewCacheStore via WithBlockStore) two SessionTools can call
+// SessionProcess against the same session — and a persistent session is
+// backed by a single *sql.Tx, which database/sql does not allow to be used
+// concurrently (concurrent statements on one transaction corrupt the
+// connection). syncSession serializes every Session method behind a mutex so
+// that contract holds regardless of the provider.
+//
+// Iterator-returning methods (Blocks, ListOverlays) hold the lock for the
+// whole iteration, because the underlying provider keeps its *sql.Rows open
+// across yields; releasing the lock between rows would let another tool's
+// query interleave on the same transaction.
+//
+// Residual concern: this guard makes concurrent access *safe* (no torn
+// transaction state), not concurrent. A persistent SQLite-backed session
+// serializes its tools' store access; the throughput win from a persistent
+// store is cross-run caching, not intra-run parallelism, so this is the
+// intended trade-off. The deeper fix — per-tool transactions, or a session
+// type that fans out to independent connections — lives in core/blockstore
+// and is out of scope here (tracked by #609).
+type syncSession struct {
+	mu    *sync.Mutex
+	inner blockstore.Session
+}
+
+// newSyncSession wraps inner so all access serializes on a fresh mutex.
+func newSyncSession(inner blockstore.Session) *syncSession {
+	return &syncSession{mu: new(sync.Mutex), inner: inner}
+}
+
+func (s *syncSession) Capabilities() blockstore.Capabilities {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.Capabilities()
+}
+
+func (s *syncSession) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Block, error] {
+	return func(yield func(*blockstore.Block, error) bool) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for b, err := range s.inner.Blocks(filter) {
+			if !yield(b, err) {
+				return
+			}
+		}
+	}
+}
+
+func (s *syncSession) GetBlock(hash string) (*blockstore.Block, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.GetBlock(hash)
+}
+
+func (s *syncSession) PutBlock(collection string, b *blockstore.Block) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.PutBlock(collection, b)
+}
+
+func (s *syncSession) GetOverlay(kind, blockHash string) (blockstore.Overlay, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.GetOverlay(kind, blockHash)
+}
+
+func (s *syncSession) PutOverlay(o blockstore.Overlay) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.PutOverlay(o)
+}
+
+func (s *syncSession) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
+	return func(yield func(blockstore.Overlay, error) bool) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for o, err := range s.inner.ListOverlays(kind) {
+			if !yield(o, err) {
+				return
+			}
+		}
+	}
+}
+
+func (s *syncSession) Commit() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.Commit()
+}
+
+func (s *syncSession) Rollback() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.Rollback()
+}
+
+func (s *syncSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inner.Close()
+}
+
+var _ blockstore.Session = (*syncSession)(nil)
 
 // runTool dispatches a tool invocation through the right contract —
 // SessionTool.SessionProcess when the tool opts in AND the store is
@@ -318,13 +428,16 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	ctx, cancel := context.WithCancel(ctx)
 	g, ctx := errgroup.WithContext(ctx)
 
-	session, err := e.config.Store.Begin(ctx)
+	rawSession, err := e.config.Store.Begin(ctx)
 	if err != nil {
 		ch := make(chan *model.Part, e.config.ChannelSize)
 		close(ch)
 		cancel()
 		return ch, ch, func() error { return fmt.Errorf("open blockstore session: %w", err) }
 	}
+	// All tools share this one session and run concurrently in their own
+	// goroutines, so guard it against concurrent use (see syncSession).
+	session := newSyncSession(rawSession)
 
 	channels := make([]chan *model.Part, len(tools)+1)
 	for i := range channels {
