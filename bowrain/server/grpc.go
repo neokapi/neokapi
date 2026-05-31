@@ -313,19 +313,27 @@ func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.NeokapiServic
 		_ = stream.Send(resp)
 	}
 
-	var sub *platev.Subscription
+	// Collect every subscription so all of them are torn down on disconnect.
+	// Subscribing to N event types creates N independent subscriptions (each
+	// backed by a goroutine + buffered channel, and on distributed buses a
+	// consumer/receiver); dropping any handle leaks those resources for the
+	// life of the process. Reconnecting clients would accumulate leaks.
+	var subs []*platev.Subscription
 	if len(types) == 0 {
-		sub = g.srv.EventBus.SubscribeAll(handler)
+		subs = append(subs, g.srv.EventBus.SubscribeAll(handler))
 	} else {
-		sub = g.srv.EventBus.Subscribe(types[0], handler)
-		for _, t := range types[1:] {
-			g.srv.EventBus.Subscribe(t, handler)
+		for _, t := range types {
+			subs = append(subs, g.srv.EventBus.Subscribe(t, handler))
 		}
 	}
+	defer func() {
+		for _, sub := range subs {
+			g.srv.EventBus.Unsubscribe(sub)
+		}
+	}()
 
 	// Block until client disconnects.
 	<-stream.Context().Done()
-	g.srv.EventBus.Unsubscribe(sub)
 	return nil
 }
 
