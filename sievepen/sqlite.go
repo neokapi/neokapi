@@ -652,28 +652,55 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 	return nil
 }
 
-// Delete removes an entry by ID, cascading to variants, entities, and origins.
-// The two FTS5 side-tables are cleaned up explicitly.
+// Delete removes an entry by ID together with every child row it owns, in a
+// single transaction. All deletes — the indexed child tables (tm_variants,
+// tm_entry_entities, tm_entry_entity_values, tm_entry_origins), the two
+// manually-maintained FTS5 side-tables (tm_variant_search, tm_variant_trigram),
+// and the main tm_entries row — are issued explicitly so correctness does not
+// depend on ON DELETE CASCADE (and therefore on the foreign_keys pragma state).
+// On any error the whole transaction is rolled back, so a partial delete can
+// never leave orphaned child rows.
 func (tm *SQLiteTM) Delete(id string) error {
-	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_variant_search WHERE entry_id = ?", id); err != nil {
-		return fmt.Errorf("delete variant_search: %w", err)
-	}
-	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_variant_trigram WHERE entry_id = ?", id); err != nil {
-		return fmt.Errorf("delete variant_trigram: %w", err)
-	}
-	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entry_entity_values WHERE entry_id = ?", id); err != nil {
-		return fmt.Errorf("delete entity values: %w", err)
-	}
-	result, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entries WHERE id = ?", id)
+	tx, err := tm.db.BeginTx(context.Background(), nil)
 	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+
+	// Delete children first so the row is gone regardless of FK enforcement.
+	// tm_entry_entity_values is removed before tm_entry_entities so the delete
+	// is correct even when its composite-FK cascade is disabled.
+	childTables := []struct{ name, sql string }{
+		{"variant_search", "DELETE FROM tm_variant_search WHERE entry_id = ?"},
+		{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE entry_id = ?"},
+		{"variants", "DELETE FROM tm_variants WHERE entry_id = ?"},
+		{"entity values", "DELETE FROM tm_entry_entity_values WHERE entry_id = ?"},
+		{"entities", "DELETE FROM tm_entry_entities WHERE entry_id = ?"},
+		{"origins", "DELETE FROM tm_entry_origins WHERE entry_id = ?"},
+	}
+	for _, ct := range childTables {
+		if _, err := tx.ExecContext(context.Background(), ct.sql, id); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("delete %s: %w", ct.name, err)
+		}
+	}
+
+	result, err := tx.ExecContext(context.Background(), "DELETE FROM tm_entries WHERE id = ?", id)
+	if err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("delete entry: %w", err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("rows affected: %w", err)
 	}
 	if rows == 0 {
+		_ = tx.Rollback()
 		return fmt.Errorf("entry not found: %s", id)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	return nil
 }

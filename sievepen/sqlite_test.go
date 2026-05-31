@@ -1,6 +1,8 @@
 package sievepen_test
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -70,6 +72,122 @@ func TestSQLiteTM_DeleteCascades(t *testing.T) {
 	_, ok := tm.GetEntry("e1")
 	assert.False(t, ok)
 	assert.Equal(t, 0, tm.Count())
+}
+
+// fullEntry builds an entry that touches every child table that Delete must
+// clean up: variants (→ tm_variants + the two FTS5 side-tables), entities
+// (→ tm_entry_entities), entity values (→ tm_entry_entity_values), and
+// origins (→ tm_entry_origins).
+func fullEntry(id string) sievepen.TMEntry {
+	e := trilingual(id, "John works at Acme", "Jean travaille chez Acme", "Johann arbeitet bei Acme")
+	e.Entities = []sievepen.EntityMapping{
+		{
+			PlaceholderID: "p1",
+			Type:          "entity:person",
+			ConceptID:     "concept-john",
+			Values: map[model.LocaleID]sievepen.EntityValue{
+				"en": {Text: "John", Start: 0, End: 4},
+				"fr": {Text: "Jean", Start: 0, End: 4},
+			},
+		},
+	}
+	e.Origins = []sievepen.Origin{
+		{Source: "import", Key: "a.tmx"},
+		{Source: "manual"},
+	}
+	return e
+}
+
+// childTableCount returns the number of rows in tableName whose entry_id equals
+// id, querying the underlying connection directly so the assertion is
+// independent of any Go-side caching.
+func childTableCount(t *testing.T, db interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, tableName, id string,
+) int {
+	t.Helper()
+	var n int
+	q := "SELECT COUNT(*) FROM " + tableName + " WHERE entry_id = ?"
+	require.NoError(t, db.QueryRowContext(context.Background(), q, id).Scan(&n))
+	return n
+}
+
+// TestSQLiteTM_DeleteRemovesAllChildRows asserts that Delete removes every
+// child row across all owned tables — even when foreign_keys is OFF, proving
+// the delete no longer depends on ON DELETE CASCADE. Regression test for the
+// audit finding that Delete was non-transactional and leaned on cascade for
+// tm_variants / tm_entry_entities / tm_entry_origins, leaving orphan rows.
+func TestSQLiteTM_DeleteRemovesAllChildRows(t *testing.T) {
+	dir := t.TempDir()
+	tm, err := sievepen.NewSQLiteTM(dir + "/tm.db")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	// Pin the pool to a single connection and force foreign_keys OFF on it,
+	// so any reliance on ON DELETE CASCADE would leave orphan child rows.
+	db := tm.DB()
+	db.SetMaxOpenConns(1)
+	_, err = db.ExecContext(context.Background(), "PRAGMA foreign_keys=OFF")
+	require.NoError(t, err)
+	var fk int
+	require.NoError(t, db.QueryRowContext(context.Background(), "PRAGMA foreign_keys").Scan(&fk))
+	require.Equal(t, 0, fk, "foreign_keys must be OFF to prove independence from cascade")
+
+	require.NoError(t, tm.Add(fullEntry("e1")))
+	// A second entry that must remain untouched by the delete.
+	require.NoError(t, tm.Add(fullEntry("e2")))
+
+	childTables := []string{
+		"tm_variants",
+		"tm_variant_search",
+		"tm_variant_trigram",
+		"tm_entry_entities",
+		"tm_entry_entity_values",
+		"tm_entry_origins",
+	}
+
+	// Sanity: every child table has rows for e1 before the delete.
+	for _, tbl := range childTables {
+		require.Positivef(t, childTableCount(t, db, tbl, "e1"), "%s should have rows for e1 before delete", tbl)
+	}
+
+	require.NoError(t, tm.Delete("e1"))
+
+	// Main row gone.
+	_, ok := tm.GetEntry("e1")
+	assert.False(t, ok)
+
+	// Every child table is empty for e1, despite foreign_keys=OFF.
+	for _, tbl := range childTables {
+		assert.Zerof(t, childTableCount(t, db, tbl, "e1"), "%s still has orphan rows for e1 after delete", tbl)
+	}
+
+	// The untouched entry e2 keeps all of its child rows.
+	for _, tbl := range childTables {
+		assert.Positivef(t, childTableCount(t, db, tbl, "e2"), "%s lost rows for the unrelated entry e2", tbl)
+	}
+	got, ok := tm.GetEntry("e2")
+	require.True(t, ok)
+	assert.Equal(t, "John works at Acme", got.VariantText("en"))
+}
+
+// TestSQLiteTM_DeleteMissingEntry asserts that deleting an unknown ID reports
+// not-found and leaves unrelated data intact (the transaction rolls back its
+// no-op child deletes without disturbing other entries).
+func TestSQLiteTM_DeleteMissingEntry(t *testing.T) {
+	tm, err := sievepen.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	require.NoError(t, tm.Add(fullEntry("keep")))
+
+	err = tm.Delete("nope")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+
+	_, ok := tm.GetEntry("keep")
+	assert.True(t, ok)
+	assert.Equal(t, 1, tm.Count())
 }
 
 func TestSQLiteTM_NoVariantsError(t *testing.T) {
