@@ -78,8 +78,8 @@ function Trend() {
     <>
       <h2>Progress over time</h2>
       <p className={styles.subtitle}>
-        Each bar is one run of the <code>format-triage</code> workflow. Watch the
-        green (L3) and teal (L4) grow as formats are hardened.
+        Each bar is one run of the <code>format-triage</code> workflow. Watch the green (L3) and
+        teal (L4) grow as formats are hardened.
       </p>
       <div className={styles.trend}>
         {hist.map((h) => (
@@ -110,10 +110,7 @@ export default function FormatMaturity() {
   const [type, setType] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const types = useMemo(
-    () => Array.from(new Set(data.formats.map((f) => f.type))).sort(),
-    [],
-  );
+  const types = useMemo(() => Array.from(new Set(data.formats.map((f) => f.type))).sort(), []);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -143,8 +140,7 @@ export default function FormatMaturity() {
             </span>
           </p>
           <p className={styles.meta}>
-            {data.summary.total} formats · generated {data.generated_at} · source:{" "}
-            {data.source}
+            {data.summary.total} formats · generated {data.generated_at} · source: {data.source}
           </p>
         </div>
 
@@ -210,15 +206,7 @@ export default function FormatMaturity() {
   );
 }
 
-function RowGroup({
-  f,
-  open,
-  onToggle,
-}: {
-  f: FormatRow;
-  open: boolean;
-  onToggle: () => void;
-}) {
+function RowGroup({ f, open, onToggle }: { f: FormatRow; open: boolean; onToggle: () => void }) {
   const colSpan = 3 + data.dimensions.length;
   return (
     <>
@@ -231,9 +219,7 @@ function RowGroup({
           </div>
         </td>
         <td>
-          <span className={`${styles.levelBadge} ${lvlClass[f.level]}`}>
-            {f.level}
-          </span>
+          <span className={`${styles.levelBadge} ${lvlClass[f.level]}`}>{f.level}</span>
         </td>
         {data.dimensions.map((d) => {
           const s = (f.dimensions[d] ?? "none") as DimScore;

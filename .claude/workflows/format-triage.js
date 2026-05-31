@@ -125,7 +125,7 @@ function publishPrompt(json, today) {
 ${json}
 
 3. Update web/docs/static/data/format-maturity-history.json: Read it (a JSON array). Remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total from the dataset>, "by_level": <summary.by_level from the dataset>}. Keep it sorted by date ascending. Write it back.
-4. Verify both files are valid JSON (python3 -c "import json;json.load(open(...))"). Report the level distribution you published.`
+4. Both files MUST be written with 2-space indentation (the repo's formatter, \`vp check\`, requires it — the JSON above is already 2-space; match it for history). Verify both are valid JSON (python3 -c "import json;json.load(open(...))"). Report the level distribution you published.`
 }
 
 // ── dimension normalization + dataset builder (mirror of the seed transform) ──
@@ -222,7 +222,7 @@ if (MODE === 'remediate' && plan.length) {
 let dataset = buildDataset(scores)
 if (PUBLISH) {
   phase('Publish')
-  await agent(publishPrompt(JSON.stringify(dataset, null, 1), null), { label: 'publish', phase: 'Publish' })
+  await agent(publishPrompt(JSON.stringify(dataset, null, 2), null), { label: 'publish', phase: 'Publish' })
   log('Published web/docs/static/data/format-maturity{,-history}.json — rebuild the docs to see it.')
 }
 

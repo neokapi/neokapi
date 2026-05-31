@@ -1,9 +1,19 @@
 {
-  "extends": "@docusaurus/tsconfig",
+  // Inlined from @docusaurus/tsconfig MINUS compilerOptions.baseUrl. tsgolint
+  // (which powers `vp check`) rejects baseUrl, and a baseUrl inherited via
+  // `extends` cannot be removed by a child config — so we inline the Docusaurus
+  // recommended options here instead of extending. "@site/*" resolves through
+  // `paths` relative to this tsconfig's directory (no baseUrl needed in TS 5.x).
   "compilerOptions": {
-    // "@site/*" maps to the project root. Paths resolve relative to this
-    // tsconfig — no baseUrl, since tsgolint (which powers `vp check` type
-    // checking) does not support compilerOptions.baseUrl.
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "noEmit": true,
+    "skipLibCheck": true,
     "paths": {
       "@site/*": ["./*"]
     },

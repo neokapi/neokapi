@@ -60,11 +60,22 @@
 }
 
 /* level colors */
-.lvlL0 { background: #d64545; }
-.lvlL1 { background: #e08a2b; }
-.lvlL2 { background: #d6b83a; color: #222; }
-.lvlL3 { background: #3fa05a; }
-.lvlL4 { background: #2b8fb3; }
+.lvlL0 {
+  background: #d64545;
+}
+.lvlL1 {
+  background: #e08a2b;
+}
+.lvlL2 {
+  background: #d6b83a;
+  color: #222;
+}
+.lvlL3 {
+  background: #3fa05a;
+}
+.lvlL4 {
+  background: #2b8fb3;
+}
 
 .levelBadge {
   display: inline-block;
@@ -74,7 +85,9 @@
   font-size: 0.78rem;
   color: #fff;
 }
-.levelBadge.lvlL2 { color: #222; }
+.levelBadge.lvlL2 {
+  color: #222;
+}
 
 /* ── trend ───────────────────────────── */
 .trend {
@@ -93,7 +106,9 @@
   height: 100%;
   position: relative;
 }
-.trendCell { width: 100%; }
+.trendCell {
+  width: 100%;
+}
 .trendDate {
   position: absolute;
   bottom: -1.3rem;
@@ -136,7 +151,9 @@
 }
 
 /* ── table ───────────────────────────── */
-.tableWrap { overflow-x: auto; }
+.tableWrap {
+  overflow-x: auto;
+}
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -167,7 +184,10 @@
   text-align: right;
   font-weight: 600;
 }
-.fmtId { font-family: var(--ifm-font-family-monospace); font-weight: 600; }
+.fmtId {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+}
 .typeTag {
   font-size: 0.7rem;
   color: var(--ifm-color-emphasis-600);
@@ -178,9 +198,15 @@
   height: 0.85rem;
   border-radius: 50%;
 }
-.dotComplete { background: #3fa05a; }
-.dotPartial { background: #e0b32b; }
-.dotNone { background: #d64545; }
+.dotComplete {
+  background: #3fa05a;
+}
+.dotPartial {
+  background: #e0b32b;
+}
+.dotNone {
+  background: #d64545;
+}
 .dotNa {
   background: transparent;
   border: 1px dashed var(--ifm-color-emphasis-400);
@@ -190,10 +216,16 @@
   font-size: 0.8rem;
   color: var(--ifm-color-emphasis-800);
 }
-.rowExpand { cursor: pointer; }
+.rowExpand {
+  cursor: pointer;
+}
 .detail {
   background: var(--ifm-color-emphasis-100);
   font-size: 0.82rem;
 }
-.detail ul { margin: 0.4rem 0 0.4rem 1rem; }
-.riskText { color: var(--ifm-color-emphasis-800); }
+.detail ul {
+  margin: 0.4rem 0 0.4rem 1rem;
+}
+.riskText {
+  color: var(--ifm-color-emphasis-800);
+}
