@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -489,6 +490,52 @@ func TestOnMissTriggeredOnWriterMiss(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, w)
 	assert.True(t, called)
+}
+
+// TestOnMissSetConcurrentWithLookup exercises the data race between SetOnMiss
+// (which replaces the onMiss callback) and the lookup paths that fire it. Run
+// with -race; the failure mode of the previous sync.Once design was a race on
+// the reassigned Once value. The test only asserts that the invariants hold —
+// every registered callback fires at most once for its registration, and the
+// lookup path stays internally consistent under concurrency.
+func TestOnMissSetConcurrentWithLookup(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	const callbacks = 50
+	var counts [callbacks]int64
+
+	var wg sync.WaitGroup
+
+	// Writer: continuously install fresh onMiss callbacks. Each callback, when
+	// it fires, increments its own counter and registers a format.
+	wg.Go(func() {
+		for i := range callbacks {
+			reg.SetOnMiss(func() {
+				atomic.AddInt64(&counts[i], 1)
+				regStub(reg, "lazy-format")
+			})
+		}
+	})
+
+	// Readers: hammer the miss path (and the success path) concurrently.
+	for range 16 {
+		wg.Go(func() {
+			for range 100 {
+				_, _ = reg.NewReader("lazy-format")
+				_, _ = reg.NewWriter("never-registered")
+				_, _ = reg.DetectByExtension(".nope")
+			}
+		})
+	}
+
+	wg.Wait()
+
+	// Each callback must have fired at most once for its single registration.
+	for i := range counts {
+		got := atomic.LoadInt64(&counts[i])
+		assert.LessOrEqualf(t, got, int64(1),
+			"callback %d fired %d times; must fire at most once per registration", i, got)
+	}
 }
 
 func TestRegisterFormatInfoDetectableByExtension(t *testing.T) {

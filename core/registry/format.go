@@ -41,12 +41,20 @@ type FormatRegistry struct {
 	aliases  map[FormatID]FormatID // alias id → canonical id
 	detector *format.Detector
 
-	// onMiss is called once when NewReader/NewWriter fails to find a format.
-	// It allows lazy-loading of plugin formats (e.g., starting bridge processes)
-	// only when a non-built-in format is actually needed.
-	// Uses sync.Once to ensure concurrent callers block until loading completes.
-	onMiss     func()
-	onMissOnce sync.Once
+	// onMiss is called at most once per registered callback when
+	// NewReader/NewWriter fails to find a format. It allows lazy-loading of
+	// plugin formats (e.g., starting bridge processes) only when a non-built-in
+	// format is actually needed.
+	//
+	// onMissMu serializes triggerOnMiss so that concurrent callers block until
+	// the in-flight callback completes (the callback typically registers
+	// formats, so it must run without holding mu to avoid self-deadlock). The
+	// onMiss func itself is read under mu. onMissLoaded — guarded by onMissMu —
+	// records whether the current callback has already fired; SetOnMiss resets
+	// it under both locks so a freshly registered callback may fire once.
+	onMiss       func()
+	onMissMu     sync.Mutex
+	onMissLoaded bool
 }
 
 // NewFormatRegistry creates a new FormatRegistry.
@@ -64,16 +72,31 @@ func NewFormatRegistry() *FormatRegistry {
 // cannot find a format among currently registered factories. This is used
 // to lazily load bridge plugins only when a non-built-in format is needed.
 func (r *FormatRegistry) SetOnMiss(fn func()) {
+	// Take onMissMu before mu to match triggerOnMiss's lock order and avoid a
+	// deadlock with an in-flight callback.
+	r.onMissMu.Lock()
+	defer r.onMissMu.Unlock()
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.onMiss = fn
-	r.onMissOnce = sync.Once{}
+	r.mu.Unlock()
+	r.onMissLoaded = false
 }
 
-// triggerOnMiss calls the onMiss callback if set and not yet called.
-// All concurrent callers block until the callback completes, ensuring
-// lazy-loaded formats are available before any caller retries the lookup.
+// triggerOnMiss calls the onMiss callback if one is set and has not yet fired
+// for the current registration. It returns true when a callback is registered
+// (whether or not it fired this call), so callers know a lazy-load path exists
+// and a retry is worthwhile.
+//
+// onMissMu serializes the whole operation, so concurrent callers block until
+// any in-flight callback completes — guaranteeing lazy-loaded formats are
+// available before a caller retries the lookup, and that the callback fires at
+// most once per registered callback. The callback itself runs without holding
+// mu, because it typically calls back into RegisterReader/RegisterWriter (which
+// take mu) to register the newly loaded formats.
 func (r *FormatRegistry) triggerOnMiss() bool {
+	r.onMissMu.Lock()
+	defer r.onMissMu.Unlock()
+
 	r.mu.RLock()
 	fn := r.onMiss
 	r.mu.RUnlock()
@@ -81,7 +104,10 @@ func (r *FormatRegistry) triggerOnMiss() bool {
 	if fn == nil {
 		return false
 	}
-	r.onMissOnce.Do(fn)
+	if !r.onMissLoaded {
+		r.onMissLoaded = true
+		fn()
+	}
 	return true
 }
 
