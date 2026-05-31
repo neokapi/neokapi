@@ -117,3 +117,108 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 		"restored_seq": req.ToSeq,
 	})
 }
+
+// RevertBatchRequest reverts every target changed under a correlation id (one
+// push / import / batch operation) to its pre-batch value.
+type RevertBatchRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	Stream        string `json:"stream,omitempty"`
+}
+
+// HandleRevertBatch reverts a whole batch of content changes (grouped by
+// correlation id — e.g. a sync push, an AI-translate-file, or an import) back to
+// the state before the batch. Each affected target is restored from history (or
+// blanked if the batch first created it). Non-destructive (the revert is
+// recorded). Requires PermRollbackChanges.
+//
+// POST /:ws/:id/revert  { "correlation_id": "...", "stream": "main" }
+func (s *Server) HandleRevertBatch(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermRollbackChanges); err != nil {
+		return err
+	}
+	pg, ok := s.ContentStore.(*bstore.PostgresStore)
+	if !ok || pg == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "batch revert requires the PostgreSQL store"})
+	}
+
+	pid := projectParam(c)
+	var req RevertBatchRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.CorrelationID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "correlation_id is required"})
+	}
+	stream := req.Stream
+	if stream == "" {
+		stream = "main"
+	}
+
+	ctx := c.Request().Context()
+	reverts, err := pg.ComputeBatchReverts(ctx, pid, stream, req.CorrelationID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	if len(reverts) == 0 {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no changes found for this correlation id"})
+	}
+
+	// Group reverts by block, apply to a loaded block, then store.
+	byBlock := map[string][]bstore.TargetRevert{}
+	order := []string{}
+	for _, r := range reverts {
+		if _, seen := byBlock[r.BlockID]; !seen {
+			order = append(order, r.BlockID)
+		}
+		byBlock[r.BlockID] = append(byBlock[r.BlockID], r)
+	}
+
+	blocks := make([]*model.Block, 0, len(order))
+	for _, bid := range order {
+		sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
+		if err != nil {
+			continue // block gone; skip
+		}
+		for _, r := range byBlock[bid] {
+			locale := model.LocaleID(r.Locale)
+			switch {
+			case r.Clear:
+				sb.Block.SetTargetText(locale, "")
+			case r.Coded != "":
+				var runs []model.Run
+				if json.Unmarshal([]byte(r.Coded), &runs) == nil && len(runs) > 0 {
+					sb.Block.SetTargetRuns(locale, runs)
+				} else {
+					sb.Block.SetTargetText(locale, r.Text)
+				}
+			default:
+				sb.Block.SetTargetText(locale, r.Text)
+			}
+		}
+		blocks = append(blocks, sb.Block)
+	}
+
+	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: "revert_batch:" + req.CorrelationID})
+	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, blocks); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRollbackPerformed,
+		ProjectID:    pid,
+		ResourceType: "batch",
+		ResourceID:   req.CorrelationID,
+		Data: map[string]string{
+			"correlation_id": req.CorrelationID,
+			"stream":         stream,
+			"reverted":       strconv.Itoa(len(reverts)),
+		},
+	})
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"ok":            true,
+		"reverted":      len(reverts),
+		"blocks":        len(blocks),
+		"correlationId": req.CorrelationID,
+	})
+}
