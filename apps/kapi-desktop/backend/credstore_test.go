@@ -21,11 +21,12 @@ func TestUpsertAndList(t *testing.T) {
 	dir := t.TempDir()
 	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(credentials.ProviderConfig{
+	cfg, err := s.Upsert(credentials.ProviderConfig{
 		Name:         "My Anthropic",
 		ProviderType: "anthropic",
 		Model:        "claude-sonnet-4-5-20241022",
 	})
+	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.ID, "should auto-assign an ID")
 	assert.Equal(t, "My Anthropic", cfg.Name)
 
@@ -38,13 +39,15 @@ func TestUpsertUpdate(t *testing.T) {
 	dir := t.TempDir()
 	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(credentials.ProviderConfig{
+	cfg, err := s.Upsert(credentials.ProviderConfig{
 		Name:         "Original",
 		ProviderType: "openai",
 	})
+	require.NoError(t, err)
 
 	cfg.Name = "Updated"
-	s.Upsert(cfg)
+	_, err = s.Upsert(cfg)
+	require.NoError(t, err)
 
 	list := s.List()
 	require.Len(t, list, 1)
@@ -55,10 +58,11 @@ func TestGet(t *testing.T) {
 	dir := t.TempDir()
 	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(credentials.ProviderConfig{
+	cfg, err := s.Upsert(credentials.ProviderConfig{
 		Name:         "Test",
 		ProviderType: "anthropic",
 	})
+	require.NoError(t, err)
 
 	got, err := s.Get(cfg.ID)
 	require.NoError(t, err)
@@ -72,10 +76,11 @@ func TestRemove(t *testing.T) {
 	dir := t.TempDir()
 	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(credentials.ProviderConfig{
+	cfg, err := s.Upsert(credentials.ProviderConfig{
 		Name:         "To Delete",
 		ProviderType: "ollama",
 	})
+	require.NoError(t, err)
 
 	require.NoError(t, s.Remove(cfg.ID))
 	assert.Empty(t, s.List())
@@ -89,11 +94,12 @@ func TestPersistence(t *testing.T) {
 
 	// Create and save.
 	s1 := credentials.NewStore(path)
-	s1.Upsert(credentials.ProviderConfig{
+	_, err := s1.Upsert(credentials.ProviderConfig{
 		ID:           "test-id",
 		Name:         "Persisted",
 		ProviderType: "anthropic",
 	})
+	require.NoError(t, err)
 
 	// Reopen and verify.
 	s2 := credentials.NewStore(path)
@@ -122,9 +128,12 @@ func TestMultipleProviders(t *testing.T) {
 	dir := t.TempDir()
 	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	s.Upsert(credentials.ProviderConfig{Name: "A", ProviderType: "anthropic"})
-	s.Upsert(credentials.ProviderConfig{Name: "B", ProviderType: "openai"})
-	s.Upsert(credentials.ProviderConfig{Name: "C", ProviderType: "ollama"})
+	_, err := s.Upsert(credentials.ProviderConfig{Name: "A", ProviderType: "anthropic"})
+	require.NoError(t, err)
+	_, err = s.Upsert(credentials.ProviderConfig{Name: "B", ProviderType: "openai"})
+	require.NoError(t, err)
+	_, err = s.Upsert(credentials.ProviderConfig{Name: "C", ProviderType: "ollama"})
+	require.NoError(t, err)
 
 	assert.Len(t, s.List(), 3)
 }

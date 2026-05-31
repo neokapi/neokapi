@@ -51,7 +51,7 @@ func TestResolveCredentials_ExplicitAPIKey(t *testing.T) {
 func TestResolveCredentials_ByName(t *testing.T) {
 	clearProviderEnv(t)
 	store := newTestStore(t)
-	cfg := store.Upsert(ProviderConfig{
+	cfg := mustUpsert(t, store, ProviderConfig{
 		Name:         "my-openai",
 		ProviderType: "openai",
 		Model:        "gpt-4o",
@@ -90,8 +90,8 @@ func TestResolveCredentials_AutoDetectEmpty(t *testing.T) {
 func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 	clearProviderEnv(t)
 	store := newTestStore(t)
-	store.Upsert(ProviderConfig{Name: "A", ProviderType: "openai"})
-	store.Upsert(ProviderConfig{Name: "B", ProviderType: "openai"})
+	mustUpsert(t, store, ProviderConfig{Name: "A", ProviderType: "openai"})
+	mustUpsert(t, store, ProviderConfig{Name: "B", ProviderType: "openai"})
 
 	config := map[string]any{"provider": "openai"}
 
@@ -208,7 +208,7 @@ func TestProviderInferenceFromCredential(t *testing.T) {
 
 func TestGetByName(t *testing.T) {
 	store := newTestStore(t)
-	store.Upsert(ProviderConfig{Name: "My Key", ProviderType: "anthropic"})
+	mustUpsert(t, store, ProviderConfig{Name: "My Key", ProviderType: "anthropic"})
 
 	// Exact match.
 	cfg, err := store.GetByName("My Key")
@@ -227,9 +227,9 @@ func TestGetByName(t *testing.T) {
 
 func TestFindByType(t *testing.T) {
 	store := newTestStore(t)
-	store.Upsert(ProviderConfig{Name: "A", ProviderType: "anthropic"})
-	store.Upsert(ProviderConfig{Name: "B", ProviderType: "openai"})
-	store.Upsert(ProviderConfig{Name: "C", ProviderType: "anthropic"})
+	mustUpsert(t, store, ProviderConfig{Name: "A", ProviderType: "anthropic"})
+	mustUpsert(t, store, ProviderConfig{Name: "B", ProviderType: "openai"})
+	mustUpsert(t, store, ProviderConfig{Name: "C", ProviderType: "anthropic"})
 
 	// Filter by type.
 	anthropic := store.FindByType("anthropic")

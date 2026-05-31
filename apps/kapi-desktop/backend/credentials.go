@@ -44,13 +44,16 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 		return nil, fmt.Errorf("credential store not initialized")
 	}
 
-	cfg := a.credentials.Upsert(credentials.ProviderConfig{
+	cfg, err := a.credentials.Upsert(credentials.ProviderConfig{
 		ID:           req.ID,
 		Name:         req.Name,
 		ProviderType: req.ProviderType,
 		Model:        req.Model,
 		BaseURL:      req.BaseURL,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("save provider config: %w", err)
+	}
 
 	if req.APIKey != "" {
 		if err := a.credentials.SetAPIKey(cfg.ID, req.APIKey); err != nil {

@@ -52,7 +52,16 @@ func NewStore(filePath string) *Store {
 }
 
 // DefaultPath returns the default config file path (~/.config/kapi/providers.json).
+//
+// When KAPI_CONFIG_DIR is set it is used as the kapi config directory directly
+// (mirroring cli/config and cli/resource), so providers.json lands under it.
+// This keeps isolated (dogfood/test) kapi invocations from reading or writing
+// the developer's real ~/.config/kapi/providers.json. An empty KAPI_CONFIG_DIR
+// falls back to os.UserConfigDir()/kapi.
 func DefaultPath() string {
+	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "providers.json")
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
@@ -107,8 +116,12 @@ func (s *Store) FindByType(providerType string) []ProviderConfig {
 	return out
 }
 
-// Upsert inserts or updates a provider config. If cfg.ID is empty, a new ID is assigned.
-func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
+// Upsert inserts or updates a provider config, persisting the change to disk.
+// If cfg.ID is empty, a new ID is assigned. The returned config carries the
+// assigned ID. A non-nil error means the config was NOT persisted; callers must
+// surface it (and avoid writing an orphaned keychain secret) rather than report
+// success.
+func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -116,28 +129,47 @@ func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
 		cfg.ID = id.New()
 	}
 
+	// Persist config before the caller writes the keychain secret, so a failed
+	// write surfaces as an error instead of leaving an orphaned secret behind.
+	// On failure roll back to prev; build a fresh slice so the in-place update
+	// does not mutate prev's shared backing array.
+	prev := s.configs
 	for i, c := range s.configs {
 		if c.ID == cfg.ID {
-			s.configs[i] = cfg
-			s.save()
-			return cfg
+			updated := make([]ProviderConfig, len(s.configs))
+			copy(updated, s.configs)
+			updated[i] = cfg
+			s.configs = updated
+			if err := s.save(); err != nil {
+				s.configs = prev
+				return ProviderConfig{}, err
+			}
+			return cfg, nil
 		}
 	}
 
-	s.configs = append(s.configs, cfg)
-	s.save()
-	return cfg
+	s.configs = append(s.configs[:len(s.configs):len(s.configs)], cfg)
+	if err := s.save(); err != nil {
+		s.configs = prev
+		return ProviderConfig{}, err
+	}
+	return cfg, nil
 }
 
-// Remove deletes a provider config by ID.
+// Remove deletes a provider config by ID, persisting the change to disk.
+// A non-nil error means the change was NOT persisted.
 func (s *Store) Remove(configID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, c := range s.configs {
 		if c.ID == configID {
-			s.configs = append(s.configs[:i], s.configs[i+1:]...)
-			s.save()
+			prev := s.configs
+			s.configs = append(s.configs[:i:i], s.configs[i+1:]...)
+			if err := s.save(); err != nil {
+				s.configs = prev
+				return err
+			}
 			return nil
 		}
 	}
@@ -173,20 +205,23 @@ func (s *Store) load() {
 	s.configs = configs
 }
 
-func (s *Store) save() {
+func (s *Store) save() error {
 	data, err := json.MarshalIndent(s.configs, "", "  ")
 	if err != nil {
-		return
+		return fmt.Errorf("marshal provider configs: %w", err)
 	}
 
 	dir := filepath.Dir(s.filePath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return
+		return fmt.Errorf("create config dir %q: %w", dir, err)
 	}
 
 	tmp := s.filePath + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return
+		return fmt.Errorf("write provider configs: %w", err)
 	}
-	_ = os.Rename(tmp, s.filePath)
+	if err := os.Rename(tmp, s.filePath); err != nil {
+		return fmt.Errorf("persist provider configs to %q: %w", s.filePath, err)
+	}
+	return nil
 }

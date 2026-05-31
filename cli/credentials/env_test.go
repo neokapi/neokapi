@@ -334,7 +334,7 @@ func TestResolveCredentials_CredentialRefBeatsEnv(t *testing.T) {
 	clearProviderEnv(t)
 	t.Setenv("OPENAI_API_KEY", "sk-from-env")
 	store := newTestStore(t)
-	store.Upsert(ProviderConfig{Name: "my-openai", ProviderType: "openai"})
+	mustUpsert(t, store, ProviderConfig{Name: "my-openai", ProviderType: "openai"})
 
 	config := map[string]any{"credential": "my-openai"}
 	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
@@ -353,7 +353,7 @@ func TestResolveCredentials_EnvBeatsStoreAutoDetect(t *testing.T) {
 	store := newTestStore(t)
 	// A single matching store credential would be auto-detected (and fail at the
 	// keychain) if the env fallback did not run first.
-	store.Upsert(ProviderConfig{Name: "stored-openai", ProviderType: "openai"})
+	mustUpsert(t, store, ProviderConfig{Name: "stored-openai", ProviderType: "openai"})
 
 	config := map[string]any{"provider": "openai"}
 	result, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)

@@ -54,12 +54,15 @@ If only one credential is saved, tools will auto-detect it without --credential.
 				return fmt.Errorf("--api-key is required for %s provider", providerType)
 			}
 
-			cfg := a.Credentials.Upsert(credentials.ProviderConfig{
+			cfg, err := a.Credentials.Upsert(credentials.ProviderConfig{
 				Name:         name,
 				ProviderType: providerType,
 				Model:        model,
 				BaseURL:      baseURL,
 			})
+			if err != nil {
+				return fmt.Errorf("save provider config: %w", err)
+			}
 
 			if apiKey != "" {
 				if err := a.Credentials.SetAPIKey(cfg.ID, apiKey); err != nil {
