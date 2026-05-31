@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,4 +102,55 @@ func TestConfigLoadNoFile(t *testing.T) {
 	err := cfg.Load()
 	// No config file is fine — should not error.
 	assert.NoError(t, err)
+}
+
+// TestNewAppConfigHonorsConfigDir verifies that NewAppConfig adds
+// KAPI_CONFIG_DIR to its search path, so an isolated config dir takes
+// precedence over the developer's real ~/.config/kapi. This upholds the
+// dogfood isolation contract for the app-config layer.
+func TestNewAppConfigHonorsConfigDir(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "kapi.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("language: qps-ploc\n"), 0o644))
+
+	t.Setenv("KAPI_CONFIG_DIR", dir)
+	// Ensure the env-var prefix doesn't leak a real-home language value.
+	t.Setenv("KAPI_LANGUAGE", "")
+
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+
+	assert.Equal(t, "qps-ploc", cfg.Language(),
+		"NewAppConfig should read language from KAPI_CONFIG_DIR, not real home")
+}
+
+// TestNewAppConfigConfigDirPrecedence verifies the KAPI_CONFIG_DIR path is
+// searched before the cwd ("."), so an isolated dir wins over a stray
+// kapi.yaml in the working directory.
+func TestNewAppConfigConfigDirPrecedence(t *testing.T) {
+	// Config in the isolated dir.
+	isoDir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(isoDir, "kapi.yaml"),
+		[]byte("language: iso-lang\n"), 0o644))
+
+	// A competing config in the working directory.
+	cwdDir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(cwdDir, "kapi.yaml"),
+		[]byte("language: cwd-lang\n"), 0o644))
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(cwdDir))
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+
+	t.Setenv("KAPI_CONFIG_DIR", isoDir)
+	t.Setenv("KAPI_LANGUAGE", "")
+
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+
+	assert.Equal(t, "iso-lang", cfg.Language(),
+		"KAPI_CONFIG_DIR should take precedence over the working directory")
 }

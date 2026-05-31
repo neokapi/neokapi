@@ -20,6 +20,12 @@ func NewAppConfig() *AppConfig {
 	v := viper.New()
 	v.SetConfigName("kapi")
 	v.SetConfigType("yaml")
+	// Honor KAPI_CONFIG_DIR first, mirroring GlobalConfigFilePath. This keeps
+	// in-repo (dogfood) kapi invocations isolated from the developer's real
+	// ~/.config/kapi when KAPI_CONFIG_DIR points at a throwaway dir.
+	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+		v.AddConfigPath(dir)
+	}
 	v.AddConfigPath(".")
 	v.AddConfigPath("$HOME/.config/kapi")
 	v.AddConfigPath("/etc/kapi")
