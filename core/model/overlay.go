@@ -125,20 +125,61 @@ func (r RunRange) ExtractRuns(runs []Run) []Run {
 	return out
 }
 
+// runFlatLen returns the rune width a single run contributes to the text-only
+// flattening produced by [RunsText]: a TextRun contributes its rune count,
+// inline-code runs (Ph / PcOpen / PcClose / Sub) contribute nothing, and a
+// plural / select run contributes the width of its 'other' branch (or its first
+// branch when 'other' is absent) — recursively, since branch forms are
+// themselves run sequences. This mirrors runsTextTo's branch selection exactly
+// so overlay locators agree with RunsText on plural/select-bearing blocks.
+func runFlatLen(r Run) int {
+	switch {
+	case r.Text != nil:
+		return len([]rune(r.Text.Text))
+	case r.Plural != nil:
+		if form, ok := r.Plural.Forms[PluralOther]; ok {
+			return runsFlatLen(form)
+		}
+		for _, form := range r.Plural.Forms {
+			return runsFlatLen(form)
+		}
+	case r.Select != nil:
+		if form, ok := r.Select.Cases["other"]; ok {
+			return runsFlatLen(form)
+		}
+		for _, form := range r.Select.Cases {
+			return runsFlatLen(form)
+		}
+	}
+	return 0
+}
+
+// runsFlatLen returns the total rune width of a run sequence's text-only
+// flattening (the rune length of [RunsText]).
+func runsFlatLen(runs []Run) int {
+	n := 0
+	for _, r := range runs {
+		n += runFlatLen(r)
+	}
+	return n
+}
+
 // runPosition locates a rune offset within a run sequence's flattened text,
 // returning the run index and rune offset within that run's text. Inline-code
-// runs have zero text width; a boundary at the end of a text run is attributed
-// to the start of the following run, so leading codes attach to the next span.
+// runs have zero text width; plural / select runs contribute the width of their
+// flattened 'other' branch (matching [RunsText]). A boundary at the end of a
+// text-bearing run is attributed to the start of the following run, so leading
+// codes attach to the next span.
 func runPosition(runs []Run, runeOffset int) (int, int) {
 	if runeOffset <= 0 {
 		return 0, 0
 	}
 	pos := 0
 	for i, r := range runs {
-		if r.Text == nil {
+		l := runFlatLen(r)
+		if l == 0 {
 			continue
 		}
-		l := len([]rune(r.Text.Text))
 		if runeOffset < pos+l {
 			return i, runeOffset - pos
 		}
@@ -168,11 +209,9 @@ func (r RunRange) TextSpan(runs []Run) (start, end int) {
 func runTextOffset(runs []Run, runIdx, off int) int {
 	pos := 0
 	for i := 0; i < runIdx && i < len(runs); i++ {
-		if runs[i].Text != nil {
-			pos += len([]rune(runs[i].Text.Text))
-		}
+		pos += runFlatLen(runs[i])
 	}
-	if runIdx >= 0 && runIdx < len(runs) && runs[runIdx].Text != nil {
+	if runIdx >= 0 && runIdx < len(runs) && runFlatLen(runs[runIdx]) > 0 {
 		pos += off
 	}
 	return pos
