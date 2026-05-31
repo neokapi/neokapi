@@ -16,10 +16,19 @@ import (
 	"github.com/neokapi/neokapi/core/httputil"
 )
 
+// geminiStreamTimeout bounds a single streaming request. Gemini 3 models use
+// thinking by default, which can take well over 30s, so this is generous.
+const geminiStreamTimeout = 5 * time.Minute
+
 // GeminiProvider implements LLMProvider for the Google Gemini API.
 type GeminiProvider struct {
 	config Config
 	client *http.Client
+	// streamClient is a non-retrying client used for the SSE streaming
+	// endpoint. Retries make no sense once a stream has started (the body is
+	// consumed incrementally), so this client uses the plain base transport
+	// rather than the resilient client's retryTransport.
+	streamClient *http.Client
 }
 
 // NewGeminiProvider creates a new Gemini provider.
@@ -36,10 +45,19 @@ func NewGeminiProvider(cfg Config) *GeminiProvider {
 	// Gemini 3 models use thinking by default, which can take well over 30s.
 	// Use a longer timeout than the default resilient client.
 	client := httputil.NewResilientClient()
-	client.Timeout = 5 * time.Minute
+	client.Timeout = geminiStreamTimeout
+
+	// Streaming uses a separate, non-retrying client built on the plain base
+	// transport (httputil.NewClient, no retryTransport). Per-request deadlines
+	// are applied via context.WithTimeout in doStreamRequest, so leave this
+	// client's Timeout at zero to avoid double-bounding the stream.
+	streamClient := httputil.NewClient()
+	streamClient.Timeout = 0
+
 	return &GeminiProvider{
-		config: cfg,
-		client: client,
+		config:       cfg,
+		client:       client,
+		streamClient: streamClient,
 	}
 }
 
@@ -179,18 +197,28 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 		return nil, fmt.Errorf("gemini: parse URL: %w", err)
 	}
 	q := u.Query()
-	q.Set("key", p.config.APIKey)
 	q.Set("alt", "sse")
 	u.RawQuery = q.Encode()
+
+	// Apply an explicit deadline so the stream cannot hang indefinitely. The
+	// streamClient has no Timeout of its own (Client.Timeout would not bound a
+	// long-lived SSE body usefully), so the deadline lives on the context.
+	ctx, cancel := context.WithTimeout(ctx, geminiStreamTimeout)
+	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("gemini: create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	// Pass the API key in a header rather than the URL query string so it does
+	// not leak into transport-error messages (which include the request URL).
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
-	// Use the base transport directly — retries don't work with streaming.
-	httpResp, err := p.client.Transport.RoundTrip(httpReq)
+	// Use the non-retrying stream client: once a stream starts, replaying the
+	// request makes no sense, and the resilient client's retryTransport would
+	// otherwise back off and retry transient failures here.
+	httpResp, err := p.streamClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("gemini: stream request: %w", err)
 	}
@@ -209,6 +237,10 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 	)
 
 	scanner := bufio.NewScanner(httpResp.Body)
+	// A single SSE "data:" line can exceed bufio.Scanner's default 64KB cap
+	// (e.g. a large content or thinking chunk). Raise the max token size so the
+	// stream is not aborted with bufio.ErrTooLong.
+	scanner.Buffer(make([]byte, 0, 64*1024), 8<<20)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data: ") {
@@ -275,9 +307,6 @@ func (p *GeminiProvider) doRequest(ctx context.Context, body geminiRequest) (*ge
 	if err != nil {
 		return nil, fmt.Errorf("gemini: parse URL: %w", err)
 	}
-	q := u.Query()
-	q.Set("key", p.config.APIKey)
-	u.RawQuery = q.Encode()
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(jsonBody))
 	if err != nil {
@@ -285,6 +314,9 @@ func (p *GeminiProvider) doRequest(ctx context.Context, body geminiRequest) (*ge
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	// Pass the API key in a header rather than the URL query string so it does
+	// not leak into transport-error messages (which include the request URL).
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	httpResp, err := p.client.Do(httpReq)
 	if err != nil {

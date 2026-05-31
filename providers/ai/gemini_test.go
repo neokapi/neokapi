@@ -1,11 +1,15 @@
 package aiprovider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +33,9 @@ func TestGeminiProviderChat(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Contains(t, r.URL.Path, "/v1beta/models/gemini-3-flash-preview:generateContent")
-		assert.Equal(t, "test-key", r.URL.Query().Get("key"))
+		// API key travels in a header, not the URL query string.
+		assert.Equal(t, "test-key", r.Header.Get("x-goog-api-key"))
+		assert.Empty(t, r.URL.Query().Get("key"))
 
 		var req geminiRequest
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
@@ -259,6 +265,9 @@ func TestGeminiProviderChatStream(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Contains(t, r.URL.Path, "streamGenerateContent")
 		assert.Equal(t, "sse", r.URL.Query().Get("alt"))
+		// API key travels in a header, not the URL query string.
+		assert.Equal(t, "test-key", r.Header.Get("x-goog-api-key"))
+		assert.Empty(t, r.URL.Query().Get("key"))
 
 		var req geminiRequest
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
@@ -387,4 +396,115 @@ func TestGeminiProviderClose(t *testing.T) {
 	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
 	require.NoError(t, p.Close())
+}
+
+// TestGeminiProviderTransportErrorDoesNotLeakKey verifies that when a request
+// fails at the transport layer, the resulting error string never contains the
+// API key. The key now travels in the x-goog-api-key header, so it must not
+// appear in the request URL (which transport errors echo back). Covers both the
+// blocking (Chat) and streaming (ChatStream) paths.
+func TestGeminiProviderTransportErrorDoesNotLeakKey(t *testing.T) {
+	t.Parallel()
+
+	const secret = "super-secret-api-key-12345"
+
+	// Point at a port nothing is listening on so the transport fails to connect.
+	// Grab a free port, then close the listener immediately.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := ln.Addr().String()
+	require.NoError(t, ln.Close())
+	baseURL := "http://" + addr
+
+	t.Run("blocking", func(t *testing.T) {
+		t.Parallel()
+		p := NewGeminiProvider(Config{BaseURL: baseURL, APIKey: secret})
+		_, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), secret, "API key leaked into error: %v", err)
+	})
+
+	t.Run("streaming", func(t *testing.T) {
+		t.Parallel()
+		p := NewGeminiProvider(Config{BaseURL: baseURL, APIKey: secret})
+		_, err := p.ChatStream(t.Context(), []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), secret, "API key leaked into error: %v", err)
+	})
+}
+
+// TestGeminiProviderChatStreamLargeDataLine verifies that an SSE "data:" line
+// larger than bufio.Scanner's default 64KB cap is parsed without aborting the
+// stream with bufio.ErrTooLong.
+func TestGeminiProviderChatStreamLargeDataLine(t *testing.T) {
+	t.Parallel()
+
+	// Build a content chunk whose JSON-encoded "data:" line exceeds 64KB.
+	largeText := strings.Repeat("x", 200*1024)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+
+		chunk := geminiResponse{
+			Candidates: []geminiCandidate{{
+				Content: geminiContent{
+					Role:  "model",
+					Parts: []geminiPart{{Text: largeText}},
+				},
+			}},
+			ModelVersion: "gemini-3-flash-preview",
+			UsageMetadata: geminiUsageMetadata{
+				PromptTokenCount:     1,
+				CandidatesTokenCount: 1,
+				TotalTokenCount:      2,
+			},
+		}
+		data, _ := json.Marshal(chunk)
+		require.Greater(t, len(data), 64*1024, "test chunk must exceed the default scanner cap")
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}))
+	defer srv.Close()
+
+	p := NewGeminiProvider(Config{BaseURL: srv.URL, APIKey: "test-key"})
+
+	resp, err := p.ChatStream(t.Context(), []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+	require.NoError(t, err)
+	assert.Equal(t, largeText, resp.Content)
+}
+
+// TestGeminiProviderChatStreamRespectsContextDeadline verifies that the
+// streaming path honors a context deadline: a server that hangs without sending
+// a complete stream must not block forever — the request fails once the caller's
+// context is cancelled.
+func TestGeminiProviderChatStreamRespectsContextDeadline(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		// Hang until the test releases us (or the server shuts down), never
+		// completing the stream.
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	p := NewGeminiProvider(Config{BaseURL: srv.URL, APIKey: "test-key"})
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := p.ChatStream(ctx, []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(start), geminiStreamTimeout, "stream should honor the caller's deadline, not the 5m cap")
 }
