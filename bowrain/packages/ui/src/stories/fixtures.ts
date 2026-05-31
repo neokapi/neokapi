@@ -188,12 +188,7 @@ export const simpleBoldSpans: SpanInfo[] = [boldOpen, boldClose];
 
 /** "Visit <a>our website</a> for <i>more info</i>" */
 export const linkAndItalicCodedText = `Visit ${O}our website${C} for ${O}more info${C}`;
-export const linkAndItalicSpans: SpanInfo[] = [
-  linkOpen,
-  linkClose,
-  italicOpen,
-  italicClose,
-];
+export const linkAndItalicSpans: SpanInfo[] = [linkOpen, linkClose, italicOpen, italicClose];
 
 /** "Use <code>kapi init</code> to set up" */
 export const codeInlineCodedText = `Use ${O}kapi init${C} to set up`;
@@ -219,21 +214,11 @@ export const richSpans: SpanInfo[] = [
 
 /** Markdown: "Click **here** to *learn more*" */
 export const mdFormattingCodedText = `Click ${O}here${C} to ${O}learn more${C}`;
-export const mdFormattingSpans: SpanInfo[] = [
-  mdBoldOpen,
-  mdBoldClose,
-  mdItalicOpen,
-  mdItalicClose,
-];
+export const mdFormattingSpans: SpanInfo[] = [mdBoldOpen, mdBoldClose, mdItalicOpen, mdItalicClose];
 
 /** Markdown: "Run `kapi init` and visit [docs](url)" */
 export const mdRichCodedText = `Run ${O}kapi init${C} and visit ${O}docs${C}`;
-export const mdRichSpans: SpanInfo[] = [
-  mdCodeOpen,
-  mdCodeClose,
-  mdLinkOpen,
-  mdLinkClose,
-];
+export const mdRichSpans: SpanInfo[] = [mdCodeOpen, mdCodeClose, mdLinkOpen, mdLinkClose];
 
 // ---------------------------------------------------------------------------
 // Block samples

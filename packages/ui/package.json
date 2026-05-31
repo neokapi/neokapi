@@ -11,9 +11,9 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "typecheck": "vpx tsc --noEmit",
-    "test": "npx vitest run",
-    "test:watch": "npx vitest watch"
+    "typecheck": "vp check --no-fmt --no-lint",
+    "test": "vp test",
+    "test:watch": "vp test watch"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

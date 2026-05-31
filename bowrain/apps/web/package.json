@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev --host",
-    "build": "vpx tsc && vp build",
+    "build": "vp build",
     "preview": "vp preview",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "e2e:tests": "playwright test --config playwright.e2e.config.ts",
+    "e2e:tests": "vpx playwright test --config playwright.e2e.config.ts",
     "test": "vp test",
     "test:watch": "vp test watch"
   },

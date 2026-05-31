@@ -19,33 +19,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && chmod +x /usr/local/bin/vp \
     && printf '#!/bin/sh\nexec npx "$@"\n' > /usr/local/bin/vpx \
     && chmod +x /usr/local/bin/vpx \
+    && corepack enable \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace root (lock file + workspace config) and package.json files
-# for all workspaces to leverage Docker layer caching for npm ci.
-COPY package.json package-lock.json ./
+# Populate the pnpm store from the lockfile alone — this layer is cached until
+# pnpm-lock.yaml changes (the network-heavy step). The packageManager field in
+# package.json pins the exact pnpm version corepack runs.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack pnpm fetch
+
+# Workspace manifests for the web app's dependency closure. The glob workspace
+# members in pnpm-workspace.yaml resolve only from the dirs present here, so a
+# partial checkout is a valid (smaller) workspace.
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
 COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
-COPY bowrain/apps/bowrain/frontend/package.json bowrain/apps/bowrain/frontend/
-RUN npm ci
+RUN corepack pnpm install --offline --filter neokapi-web...
 
-# Build shared UI package — needs source from kapi-format too since
-# @neokapi/ui-primitives type-imports from `@neokapi/kapi-format` and
-# tsc follows those into the package's TS source. @neokapi/flow-editor is
-# consumed from source (its exports point at ./src), so the web app's tsc
-# follows into it the same way — copy the source, no separate build.
+# Source for the web app + its workspace deps. @neokapi/* packages are consumed
+# from source (their exports point at ./src), so there is no separate build
+# step — the Vite build follows the import graph into them.
 COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/ui/ packages/ui/
 COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
-RUN cd bowrain/packages/ui && npx tsc
-
-# Build web app
 COPY bowrain/apps/web/ bowrain/apps/web/
-RUN cd bowrain/apps/web && npm run build
+
+# Build the web app. Type safety is enforced by `vp check` in CI, not the build.
+RUN corepack pnpm --filter neokapi-web run build
 
 # ── Stage 2: Serve with nginx ──────────────────────────────────────────────
 FROM nginx:1-alpine

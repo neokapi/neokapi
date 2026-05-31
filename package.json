@@ -1,42 +1,9 @@
 {
   "private": true,
-  "workspaces": [
-    "packages/ui",
-    "packages/kapi-format",
-    "packages/kapi-react",
-    "packages/kapi-react-lint",
-    "packages/flow-editor",
-    "packages/storybook-config",
-    "packages/docs-shared",
-    "packages/kapi-playground",
-    "packages/kapi-lab",
-    "packages/reference-data",
-    "storybook",
-    "web/docs",
-    "apps/kapi-desktop/frontend",
-    "web/landing",
-    "bowrain/packages/ui",
-    "bowrain/storybook",
-    "bowrain/emails",
-    "bowrain/apps/web",
-    "bowrain/apps/ctrl",
-    "bowrain/apps/pulse",
-    "bowrain/apps/keycloak-theme",
-    "bowrain/apps/bowrain/frontend",
-    "bowrain/web/landing"
-  ],
   "devDependencies": {
     "jsdom": "^29.1.1",
     "storybook": "^10.3.6",
     "vite-plus": "^0.1.20"
   },
-  "overrides": {
-    "@tailwindcss/vite": {
-      "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
-    },
-    "@tanstack/react-query": "5.94.5",
-    "vite": "^8.0.0",
-    "webpackbar": "^7.0.0"
-  },
-  "packageManager": "npm@11.12.1"
+  "packageManager": "pnpm@11.5.0"
 }

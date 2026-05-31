@@ -45,17 +45,12 @@ export function useEditorApi() {
   );
 
   const aiTranslateFile = useCallback(
-    async (req: AITranslateFileRequest): Promise<TranslationStats> =>
-      api.aiTranslateFile(ws, req),
+    async (req: AITranslateFileRequest): Promise<TranslationStats> => api.aiTranslateFile(ws, req),
     [api, ws, activeStream],
   );
 
   const tmTranslateFile = useCallback(
-    async (
-      projectId: string,
-      fileName: string,
-      targetLocale: string,
-    ): Promise<TranslationStats> =>
+    async (projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> =>
       api.tmTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
     [api, ws, activeStream],
   );
@@ -67,18 +62,8 @@ export function useEditorApi() {
   );
 
   const exportTranslatedFile = useCallback(
-    async (
-      projectId: string,
-      fileName: string,
-      targetLocale: string,
-    ): Promise<Blob> =>
-      api.exportTranslatedFile(
-        ws,
-        projectId,
-        fileName,
-        targetLocale,
-        activeStream,
-      ),
+    async (projectId: string, fileName: string, targetLocale: string): Promise<Blob> =>
+      api.exportTranslatedFile(ws, projectId, fileName, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -89,14 +74,7 @@ export function useEditorApi() {
       blockId: string,
       targetLocale: string,
     ): Promise<TMMatchInfo[]> =>
-      api.lookupTMForBlock(
-        ws,
-        projectId,
-        itemName,
-        blockId,
-        targetLocale,
-        activeStream,
-      ),
+      api.lookupTMForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -107,14 +85,7 @@ export function useEditorApi() {
       blockId: string,
       targetLocale: string,
     ): Promise<BlockTermMatch[]> =>
-      api.lookupTermsForBlock(
-        ws,
-        projectId,
-        itemName,
-        blockId,
-        targetLocale,
-        activeStream,
-      ),
+      api.lookupTermsForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -130,22 +101,14 @@ export function useEditorApi() {
   );
 
   const rollbackBlock = useCallback(
-    async (
-      projectId: string,
-      blockId: string,
-      toSeq: number,
-      locale: string,
-    ): Promise<void> =>
+    async (projectId: string, blockId: string, toSeq: number, locale: string): Promise<void> =>
       api.rollbackBlock(ws, projectId, blockId, toSeq, locale, activeStream),
     [api, ws, activeStream],
   );
 
   const addBlockNote = useCallback(
-    async (
-      projectId: string,
-      blockId: string,
-      text: string,
-    ): Promise<BlockNote> => api.addBlockNote(ws, projectId, blockId, text),
+    async (projectId: string, blockId: string, text: string): Promise<BlockNote> =>
+      api.addBlockNote(ws, projectId, blockId, text),
     [api, ws],
   );
 
@@ -162,47 +125,25 @@ export function useEditorApi() {
   );
 
   const runQACheck = useCallback(
-    async (
-      projectId: string,
-      blockId: string,
-      locale: string,
-    ): Promise<QAIssue[]> =>
+    async (projectId: string, blockId: string, locale: string): Promise<QAIssue[]> =>
       api.runQACheck(ws, projectId, blockId, locale, activeStream),
     [api, ws, activeStream],
   );
 
   const runFileQACheck = useCallback(
-    async (
-      projectId: string,
-      fileName: string,
-      locale: string,
-    ): Promise<FileQAResult[]> =>
+    async (projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> =>
       api.runFileQACheck(ws, projectId, fileName, locale, activeStream),
     [api, ws, activeStream],
   );
 
   const renderDocumentPreview = useCallback(
-    async (
-      projectId: string,
-      fileName: string,
-      targetLocale: string,
-    ): Promise<string> =>
-      api.renderDocumentPreview(
-        ws,
-        projectId,
-        fileName,
-        targetLocale,
-        activeStream,
-      ),
+    async (projectId: string, fileName: string, targetLocale: string): Promise<string> =>
+      api.renderDocumentPreview(ws, projectId, fileName, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
   const renderBlockHTML = useCallback(
-    async (
-      projectId: string,
-      blockId: string,
-      targetLocale: string,
-    ): Promise<string> =>
+    async (projectId: string, blockId: string, targetLocale: string): Promise<string> =>
       api.renderBlockHTML(ws, projectId, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );

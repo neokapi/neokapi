@@ -42,13 +42,13 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "vpx tsc --noEmit",
+    "test": "vp test",
+    "test:watch": "vp test watch",
+    "typecheck": "vp check --no-fmt --no-lint",
     "lint": "vp lint",
-    "fmt": "vpx oxfmt --write src/ tests/",
-    "fmt:check": "vpx oxfmt --check src/ tests/",
-    "check": "npm run typecheck && npm run lint && npm run fmt:check && npm run test"
+    "fmt": "vp fmt --write src/ tests/",
+    "fmt:check": "vp fmt --check src/ tests/",
+    "check": "vp run typecheck && vp run lint && vp run fmt:check && vp run test"
   },
   "devDependencies": {
     "@oxlint/plugins": "^1.66.0",

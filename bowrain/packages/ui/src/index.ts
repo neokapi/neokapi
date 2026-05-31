@@ -163,10 +163,7 @@ export { ReviewSurface } from "./components/ReviewSurface";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { UnifiedTargetEditor } from "./components/UnifiedTargetEditor";
-export type {
-  UnifiedTargetEditorProps,
-  UnifiedSaveResult,
-} from "./components/UnifiedTargetEditor";
+export type { UnifiedTargetEditorProps, UnifiedSaveResult } from "./components/UnifiedTargetEditor";
 export { toKapiBlock } from "./components/blockAdapter";
 export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
@@ -186,10 +183,7 @@ export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationRunsPage } from "./components/AutomationRunsPage";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
-export {
-  ActivityIndicator,
-  TaskIndicator,
-} from "./components/ActivityTaskIndicators";
+export { ActivityIndicator, TaskIndicator } from "./components/ActivityTaskIndicators";
 export type {
   ActivityIndicatorProps,
   TaskIndicatorProps,
@@ -216,10 +210,7 @@ export type {
 export { ConfirmDialog } from "./components/ConfirmDialog";
 export type { ConfirmDialogProps } from "./components/ConfirmDialog";
 export { ProjectFormDialog } from "./components/ProjectFormDialog";
-export type {
-  ProjectFormDialogProps,
-  ProjectFormData,
-} from "./components/ProjectFormDialog";
+export type { ProjectFormDialogProps, ProjectFormData } from "./components/ProjectFormDialog";
 export { AuditLogView } from "./components/AuditLogView";
 export type { AuditLogViewProps } from "./components/AuditLogView";
 export { BlockHistoryPanel } from "./components/BlockHistoryPanel";
@@ -263,11 +254,7 @@ export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
 export { FormattedSourceDisplay } from "./components/editor/FormattedSourceDisplay";
 // Editor components — re-exported from shared @neokapi/ui-primitives
 export { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
-export {
-  TagChipNode,
-  $createTagChipNode,
-  $isTagChipNode,
-} from "@neokapi/ui-primitives";
+export { TagChipNode, $createTagChipNode, $isTagChipNode } from "@neokapi/ui-primitives";
 export { TagChipComponent } from "@neokapi/ui-primitives";
 export { TagPalette } from "@neokapi/ui-primitives";
 export { TagValidationBar } from "@neokapi/ui-primitives";
@@ -279,10 +266,7 @@ export { ContextPanel } from "./components/editor/ContextPanel";
 export { EditorSurfaceTabs } from "./components/editor/EditorSurfaceTabs";
 export type { EditorSurface } from "./components/editor/EditorSurfaceTabs";
 export { TableView } from "./components/editor/TableView";
-export {
-  CollapsedTargetCell,
-  RowTagWarning,
-} from "./components/editor/GridTargetRenderer";
+export { CollapsedTargetCell, RowTagWarning } from "./components/editor/GridTargetRenderer";
 export {
   getBlockStatus,
   statusLabel,
@@ -296,11 +280,7 @@ export {
 export type { BlockStatus } from "./components/editor/blockStatus";
 
 // Editor utilities — re-exported from shared @neokapi/ui-primitives
-export {
-  parseCodedSegments,
-  segmentsToCodedText,
-  spanLabel,
-} from "@neokapi/ui-primitives";
+export { parseCodedSegments, segmentsToCodedText, spanLabel } from "@neokapi/ui-primitives";
 export type { CodedSegment } from "@neokapi/ui-primitives";
 export {
   semanticCategory,
@@ -320,11 +300,7 @@ export type {
   TagValidationIssue,
 } from "@neokapi/ui-primitives";
 export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
-export type {
-  SpanTypeInfo,
-  ColorScheme,
-  SpanConstraints,
-} from "./vocabularies";
+export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
 
 // Context
 export { AuthProvider, useAuth } from "./context/AuthContext";
@@ -332,16 +308,9 @@ export { WorkspaceProvider, useWorkspace } from "./context/WorkspaceContext";
 export { ApiProvider, useApi } from "./context/ApiContext";
 export { ThemeProvider, useTheme } from "./context/ThemeContext";
 export type { Theme } from "./context/ThemeContext";
-export {
-  BreadcrumbProvider,
-  useBreadcrumb,
-  useSetBreadcrumb,
-} from "./context/BreadcrumbContext";
+export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
 export { StreamProvider, useStream } from "./context/StreamContext";
-export {
-  StreamActionsProvider,
-  useStreamActions,
-} from "./context/StreamActionsContext";
+export { StreamActionsProvider, useStreamActions } from "./context/StreamActionsContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";

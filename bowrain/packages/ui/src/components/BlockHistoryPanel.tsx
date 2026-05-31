@@ -68,10 +68,7 @@ export function BlockHistoryPanel({
         {entries.map((e, i) => {
           const isCurrent = i === 0;
           return (
-            <li
-              key={e.seq}
-              className="flex items-start gap-3 px-4 py-3 hover:bg-accent/20"
-            >
+            <li key={e.seq} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/20">
               <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/60">
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {entries.length - i}
@@ -80,27 +77,17 @@ export function BlockHistoryPanel({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   {e.author ? (
-                    <span className="text-sm font-medium text-primary">
-                      {e.author}
-                    </span>
+                    <span className="text-sm font-medium text-primary">{e.author}</span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">
-                      unknown
-                    </span>
+                    <span className="text-sm text-muted-foreground">unknown</span>
                   )}
                   {e.actorRole && (
-                    <Badge
-                      variant="secondary"
-                      className="px-1.5 py-0 text-[10px]"
-                    >
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
                       {e.actorRole}
                     </Badge>
                   )}
                   {isCurrent && (
-                    <Badge
-                      variant="outline"
-                      className="px-1.5 py-0 text-[10px]"
-                    >
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
                       current
                     </Badge>
                   )}
@@ -110,13 +97,8 @@ export function BlockHistoryPanel({
                     </span>
                   )}
                 </div>
-                <p
-                  className="mt-0.5 truncate text-sm text-foreground/80"
-                  title={e.text}
-                >
-                  {e.text || (
-                    <span className="italic text-muted-foreground">empty</span>
-                  )}
+                <p className="mt-0.5 truncate text-sm text-foreground/80" title={e.text}>
+                  {e.text || <span className="italic text-muted-foreground">empty</span>}
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground/60">
                   <span>{relTime(e.timestamp)}</span>

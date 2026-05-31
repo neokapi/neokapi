@@ -12,17 +12,17 @@ type WailsEventCallback = (data: unknown) => void;
 // Eagerly resolve the Wails Events module once at import time.
 // This avoids race conditions where fast backend events arrive before
 // the async import resolves.
-let eventsModule: { On: (name: string, cb: (e: { data: unknown }) => void) => () => void } | null =
-  null;
+type WailsEvents = { On: (name: string, cb: (e: { data: unknown }) => void) => () => void };
+let eventsModule: WailsEvents | null = null;
 
-const eventsReady: Promise<typeof eventsModule> = import("@wailsio/runtime")
+const eventsReady: Promise<WailsEvents | null> = import("@wailsio/runtime")
   .then((mod) => {
     eventsModule = mod.Events;
     return eventsModule;
   })
   .catch(() => null);
 
-function getEvents(): Promise<typeof eventsModule> {
+function getEvents(): Promise<WailsEvents | null> {
   if (eventsModule) return Promise.resolve(eventsModule);
   return eventsReady;
 }

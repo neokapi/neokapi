@@ -510,7 +510,7 @@ function InstalledPluginCard({
               size="xs"
               onClick={onUpdate}
               className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-              title={t("Update to v{version}", { version: updateAvailable.latest_version })}
+              title={t("Update to v{version}", { version: updateAvailable.latest_version ?? "" })}
             >
               <ArrowUpCircle size={11} />
               {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : t("Update")}

@@ -161,9 +161,7 @@ export class RestApiAdapter implements ApiAdapter {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify(
-          this.refreshToken ? { refresh_token: this.refreshToken } : {},
-        ),
+        body: JSON.stringify(this.refreshToken ? { refresh_token: this.refreshToken } : {}),
       });
       if (!resp.ok) return false;
       const data = await resp.json();
@@ -331,10 +329,7 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON("/api/v1/auth/me/onboarding");
   }
 
-  async completeOnboarding(
-    slug: string,
-    displayName?: string,
-  ): Promise<Workspace> {
+  async completeOnboarding(slug: string, displayName?: string): Promise<Workspace> {
     return this.fetchJSON("/api/v1/auth/me/onboarding", {
       method: "POST",
       body: JSON.stringify({ slug, display_name: displayName ?? "" }),
@@ -342,14 +337,10 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async checkSlug(slug: string): Promise<SlugCheckResponse> {
-    return this.fetchJSON(
-      `/api/v1/auth/check-slug?slug=${encodeURIComponent(slug)}`,
-    );
+    return this.fetchJSON(`/api/v1/auth/check-slug?slug=${encodeURIComponent(slug)}`);
   }
 
-  async requestEmailChange(
-    newEmail: string,
-  ): Promise<EmailChangeRequestResponse> {
+  async requestEmailChange(newEmail: string): Promise<EmailChangeRequestResponse> {
     return this.fetchJSON("/api/v1/auth/me/email", {
       method: "POST",
       body: JSON.stringify({ new_email: newEmail }),
@@ -391,10 +382,7 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`/api/v1/${slug}`);
   }
 
-  async updateWorkspace(
-    slug: string,
-    data: Partial<Workspace>,
-  ): Promise<Workspace> {
+  async updateWorkspace(slug: string, data: Partial<Workspace>): Promise<Workspace> {
     return this.fetchJSON(`/api/v1/${slug}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -411,22 +399,14 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/members`);
   }
 
-  async addMember(
-    workspaceSlug: string,
-    userId: string,
-    role: string,
-  ): Promise<void> {
+  async addMember(workspaceSlug: string, userId: string, role: string): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/members`, {
       method: "POST",
       body: JSON.stringify({ user_id: userId, role }),
     });
   }
 
-  async updateMemberRole(
-    workspaceSlug: string,
-    userId: string,
-    role: string,
-  ): Promise<void> {
+  async updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/members/${userId}/role`, {
       method: "PUT",
       body: JSON.stringify({ role }),
@@ -502,10 +482,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async deleteRoleTemplate(
-    workspaceSlug: string,
-    roleId: string,
-  ): Promise<void> {
+  async deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/roles/${roleId}`, {
       method: "DELETE",
     });
@@ -513,13 +490,8 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Project Members ─────────────────────────────────────────────────
 
-  async listProjectMembers(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<ProjectMembership[]> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members`,
-    );
+  async listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members`);
   }
 
   async addProjectMember(
@@ -531,13 +503,10 @@ export class RestApiAdapter implements ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members`,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   async updateProjectMember(
@@ -549,13 +518,10 @@ export class RestApiAdapter implements ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   async removeProjectMember(
@@ -563,12 +529,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     userId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members/${userId}`, {
+      method: "DELETE",
+    });
   }
 
   // ── API Tokens ─────────────────────────────────────────────────────────
@@ -616,10 +579,7 @@ export class RestApiAdapter implements ApiAdapter {
     return `${this.projectEp(ws, projectId)}/streams`;
   }
 
-  async listStreams(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<StreamInfo[]> {
+  async listStreams(workspaceSlug: string, projectId: string): Promise<StreamInfo[]> {
     return this.fetchJSON(this.streamEp(workspaceSlug, projectId));
   }
 
@@ -660,11 +620,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async deleteStream(
-    workspaceSlug: string,
-    projectId: string,
-    streamName: string,
-  ): Promise<void> {
+  async deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
     await this.fetchJSON(
       `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`,
       {
@@ -777,9 +733,7 @@ export class RestApiAdapter implements ApiAdapter {
     kind?: StreamTagKind,
   ): Promise<StreamTag[]> {
     const params = kind ? `?kind=${encodeURIComponent(kind)}` : "";
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/tags${params}`,
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/tags${params}`);
   }
 
   // ── Projects ─────────────────────────────────────────────────────────────
@@ -835,41 +789,23 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async restoreProject(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/restore`,
-      {
-        method: "POST",
-      },
-    );
+  async restoreProject(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/restore`, {
+      method: "POST",
+    });
   }
 
-  async permanentlyDeleteProject(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/permanent`,
-      {
-        method: "DELETE",
-      },
-    );
+  async permanentlyDeleteProject(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/permanent`, {
+      method: "DELETE",
+    });
   }
 
-  async listArchivedProjects(
-    workspaceSlug: string,
-  ): Promise<ArchivedProject[]> {
+  async listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/archived-projects`);
   }
 
-  async restoreStream(
-    workspaceSlug: string,
-    projectId: string,
-    streamName: string,
-  ): Promise<void> {
+  async restoreStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
     await this.fetchJSON(
       `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/restore`,
       { method: "POST" },
@@ -929,14 +865,11 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     req: CreateCollectionRequest,
   ): Promise<CollectionInfo> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/collections`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/collections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
   }
 
   async getCollection(
@@ -1014,10 +947,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async updateBlockTarget(
-    workspaceSlug: string,
-    req: UpdateBlockRequest,
-  ): Promise<void> {
+  async updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void> {
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}`,
       {
@@ -1181,13 +1111,10 @@ export class RestApiAdapter implements ApiAdapter {
     correlationId: string,
     stream?: string,
   ): Promise<{ reverted: number }> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/revert`,
-      {
-        method: "POST",
-        body: JSON.stringify({ correlation_id: correlationId, stream }),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/revert`, {
+      method: "POST",
+      body: JSON.stringify({ correlation_id: correlationId, stream }),
+    });
   }
 
   async restoreToPoint(
@@ -1195,13 +1122,10 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     opts: RestorePointOptions,
   ): Promise<{ restored: number }> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/restore`,
-      {
-        method: "POST",
-        body: JSON.stringify(opts),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/restore`, {
+      method: "POST",
+      body: JSON.stringify(opts),
+    });
   }
 
   async setBlockStatus(
@@ -1222,11 +1146,7 @@ export class RestApiAdapter implements ApiAdapter {
   async listGroups(workspaceSlug: string): Promise<Group[]> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/groups`);
   }
-  async createGroup(
-    workspaceSlug: string,
-    name: string,
-    description?: string,
-  ): Promise<Group> {
+  async createGroup(workspaceSlug: string, name: string, description?: string): Promise<Group> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/groups`, {
       method: "POST",
       body: JSON.stringify({ name, description }),
@@ -1237,41 +1157,22 @@ export class RestApiAdapter implements ApiAdapter {
       method: "DELETE",
     });
   }
-  async listGroupMembers(
-    workspaceSlug: string,
-    groupId: string,
-  ): Promise<string[]> {
+  async listGroupMembers(workspaceSlug: string, groupId: string): Promise<string[]> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/members`);
   }
-  async addGroupMember(
-    workspaceSlug: string,
-    groupId: string,
-    userId: string,
-  ): Promise<void> {
+  async addGroupMember(workspaceSlug: string, groupId: string, userId: string): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/members`, {
       method: "POST",
       body: JSON.stringify({ user_id: userId }),
     });
   }
-  async removeGroupMember(
-    workspaceSlug: string,
-    groupId: string,
-    userId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `/api/v1/${workspaceSlug}/groups/${groupId}/members/${userId}`,
-      {
-        method: "DELETE",
-      },
-    );
+  async removeGroupMember(workspaceSlug: string, groupId: string, userId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/members/${userId}`, {
+      method: "DELETE",
+    });
   }
-  async listGroupBindings(
-    workspaceSlug: string,
-    groupId: string,
-  ): Promise<GroupRoleBinding[]> {
-    return this.fetchJSON(
-      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings`,
-    );
+  async listGroupBindings(workspaceSlug: string, groupId: string): Promise<GroupRoleBinding[]> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/bindings`);
   }
   async addGroupBinding(
     workspaceSlug: string,
@@ -1280,37 +1181,28 @@ export class RestApiAdapter implements ApiAdapter {
     roleId: string,
     languages?: string[],
   ): Promise<GroupRoleBinding> {
-    return this.fetchJSON(
-      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          project_id: projectId,
-          role_id: roleId,
-          languages,
-        }),
-      },
-    );
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/bindings`, {
+      method: "POST",
+      body: JSON.stringify({
+        project_id: projectId,
+        role_id: roleId,
+        languages,
+      }),
+    });
   }
   async removeGroupBinding(
     workspaceSlug: string,
     groupId: string,
     bindingId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `/api/v1/${workspaceSlug}/groups/${groupId}/bindings/${bindingId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/groups/${groupId}/bindings/${bindingId}`, {
+      method: "DELETE",
+    });
   }
   async listDenyRules(workspaceSlug: string): Promise<DenyRule[]> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/deny-rules`);
   }
-  async createDenyRule(
-    workspaceSlug: string,
-    rule: DenyRuleInput,
-  ): Promise<DenyRule> {
+  async createDenyRule(workspaceSlug: string, rule: DenyRuleInput): Promise<DenyRule> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/deny-rules`, {
       method: "POST",
       body: JSON.stringify(rule),
@@ -1330,33 +1222,20 @@ export class RestApiAdapter implements ApiAdapter {
       body: JSON.stringify({ mode }),
     });
   }
-  async listRoleOverrides(
-    workspaceSlug: string,
-  ): Promise<Record<string, string[]>> {
+  async listRoleOverrides(workspaceSlug: string): Promise<Record<string, string[]>> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/role-overrides`);
   }
-  async setRoleOverride(
-    workspaceSlug: string,
-    role: string,
-    permissions: string[],
-  ): Promise<void> {
+  async setRoleOverride(workspaceSlug: string, role: string, permissions: string[]): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/role-overrides/${role}`, {
       method: "PUT",
       body: JSON.stringify({ permissions }),
     });
   }
-  async demoteBrandRule(
-    workspaceSlug: string,
-    profileId: string,
-    term: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `/api/v1/${workspaceSlug}/brand-profiles/${profileId}/demote-rule`,
-      {
-        method: "POST",
-        body: JSON.stringify({ term }),
-      },
-    );
+  async demoteBrandRule(workspaceSlug: string, profileId: string, term: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/brand-profiles/${profileId}/demote-rule`, {
+      method: "POST",
+      body: JSON.stringify({ term }),
+    });
   }
 
   // ── Block Notes ──────────────────────────────────────────────────────────
@@ -1386,11 +1265,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async deleteBlockNote(
-    workspaceSlug: string,
-    projectId: string,
-    noteId: string,
-  ): Promise<void> {
+  async deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void> {
     // Note: the route includes block ID in the path, but for deletion we use a
     // placeholder since the server only needs project ID and note ID.
     await this.fetchJSON(
@@ -1484,9 +1359,7 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async getTMCount(workspaceSlug: string): Promise<number> {
-    const resp: { count: number } = await this.fetchJSON(
-      `${this.tmEp(workspaceSlug)}/count`,
-    );
+    const resp: { count: number } = await this.fetchJSON(`${this.tmEp(workspaceSlug)}/count`);
     return resp.count;
   }
 
@@ -1508,10 +1381,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async updateTMEntry(
-    workspaceSlug: string,
-    req: TMUpdateRequest,
-  ): Promise<void> {
+  async updateTMEntry(workspaceSlug: string, req: TMUpdateRequest): Promise<void> {
     await this.fetchJSON(`${this.tmEp(workspaceSlug)}/${req.entry_id}`, {
       method: "PUT",
       body: JSON.stringify(req),
@@ -1549,26 +1419,18 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async getTermCount(workspaceSlug: string): Promise<number> {
-    const resp: { count: number } = await this.fetchJSON(
-      `${this.termsEp(workspaceSlug)}/count`,
-    );
+    const resp: { count: number } = await this.fetchJSON(`${this.termsEp(workspaceSlug)}/count`);
     return resp.count;
   }
 
-  async addConcept(
-    workspaceSlug: string,
-    req: AddConceptRequest,
-  ): Promise<ConceptInfo> {
+  async addConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo> {
     return this.fetchJSON(this.termsEp(workspaceSlug), {
       method: "POST",
       body: JSON.stringify(req),
     });
   }
 
-  async updateConcept(
-    workspaceSlug: string,
-    req: UpdateConceptRequest,
-  ): Promise<void> {
+  async updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void> {
     await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${req.concept_id}`, {
       method: "PUT",
       body: JSON.stringify(req),
@@ -1605,10 +1467,7 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.imported;
   }
 
-  async importTermsJSON(
-    workspaceSlug: string,
-    jsonContent: string,
-  ): Promise<number> {
+  async importTermsJSON(workspaceSlug: string, jsonContent: string): Promise<number> {
     const resp: { imported: number } = await this.fetchJSON(
       `${this.termsEp(workspaceSlug)}/import/json`,
       {
@@ -1647,10 +1506,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async testProviderConfig(
-    workspaceSlug: string,
-    cfg: ProviderConfigWithKey,
-  ): Promise<void> {
+  async testProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<void> {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/providers/test`, {
       method: "POST",
       body: JSON.stringify(cfg),
@@ -1663,10 +1519,7 @@ export class RestApiAdapter implements ApiAdapter {
     return `${this.projectEp(ws, projectId)}/automations`;
   }
 
-  async listAutomationRules(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<AutomationRule[]> {
+  async listAutomationRules(workspaceSlug: string, projectId: string): Promise<AutomationRule[]> {
     return this.fetchJSON(this.automationsEp(workspaceSlug, projectId));
   }
 
@@ -1722,22 +1575,15 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async listAutomationEvents(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<AutomationEvent[]> {
-    return this.fetchJSON(
-      `${this.automationsEp(workspaceSlug, projectId)}/events`,
-    );
+  async listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]> {
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/events`);
   }
 
   async listAutomationHistory(
     workspaceSlug: string,
     projectId: string,
   ): Promise<AutomationHistoryEntry[]> {
-    return this.fetchJSON(
-      `${this.automationsEp(workspaceSlug, projectId)}/history`,
-    );
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
   }
 
   // ── Automation Runs (Bowrain AD-013) ──────────────────────────────────────────
@@ -1761,9 +1607,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<{ run: AutomationRun; steps: AutomationStep[] }> {
-    return this.fetchJSON(
-      `${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}`,
-    );
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}`);
   }
 
   async listStepLogs(
@@ -1784,12 +1628,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}/cancel`,
-      {
-        method: "POST",
-      },
-    );
+    await this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}/cancel`, {
+      method: "POST",
+    });
   }
 
   // ── Flow definitions (Bowrain AD-013) ──────────────────────────────────
@@ -1888,22 +1729,17 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Digest Settings ──────────────────────────────────────────────────────
 
   async getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO> {
-    return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/${workspaceSlug}/digest-settings`,
-    );
+    return this.fetchJSON<DigestSettingsDTO>(`/api/v1/${workspaceSlug}/digest-settings`);
   }
 
   async updateDigestSettings(
     workspaceSlug: string,
     settings: DigestSettingsDTO,
   ): Promise<DigestSettingsDTO> {
-    return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/${workspaceSlug}/digest-settings`,
-      {
-        method: "PUT",
-        body: JSON.stringify(settings),
-      },
-    );
+    return this.fetchJSON<DigestSettingsDTO>(`/api/v1/${workspaceSlug}/digest-settings`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
   }
 
   // ── Entity Annotations ──────────────────────────────────────────────────
@@ -1977,13 +1813,8 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(this.brandEp(workspaceSlug));
   }
 
-  async getBrandProfile(
-    workspaceSlug: string,
-    profileId: string,
-  ): Promise<VoiceProfile> {
-    return this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`,
-    );
+  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
+    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`);
   }
 
   async createBrandProfile(
@@ -2000,40 +1831,25 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     data: UpdateVoiceProfileRequest,
   ): Promise<VoiceProfile> {
-    return this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(data.id)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(data.id)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
-  async deleteBrandProfile(
-    workspaceSlug: string,
-    profileId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`,
-      {
-        method: "DELETE",
-      },
-    );
+  async deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void> {
+    await this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`, {
+      method: "DELETE",
+    });
   }
 
-  async getBrandScores(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<StoredScore[]> {
+  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/scores`,
     );
   }
 
-  async getBrandTrends(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<ScoreTrend[]> {
+  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/trends`,
     );
@@ -2148,9 +1964,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
   }
 
   async markActivitiesSeen(workspaceSlug: string): Promise<void> {
@@ -2186,15 +2000,10 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
   }
 
-  async createTask(
-    workspaceSlug: string,
-    task: CreateTaskRequest,
-  ): Promise<TaskInfo> {
+  async createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo> {
     return this.fetchJSON(this.tasksEp(workspaceSlug), {
       method: "POST",
       body: JSON.stringify(task),
@@ -2202,9 +2011,7 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async getTask(workspaceSlug: string, taskId: string): Promise<TaskInfo> {
-    return this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`,
-    );
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`);
   }
 
   async updateTask(
@@ -2212,54 +2019,35 @@ export class RestApiAdapter implements ApiAdapter {
     taskId: string,
     updates: Partial<CreateTaskRequest>,
   ): Promise<TaskInfo> {
-    return this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      },
-    );
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
   }
 
   async deleteTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`,
-      {
-        method: "DELETE",
-      },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
   }
 
-  async assignTask(
-    workspaceSlug: string,
-    taskId: string,
-    assigneeId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/assign`,
-      {
-        method: "POST",
-        body: JSON.stringify({ assignee_id: assigneeId }),
-      },
-    );
+  async assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void> {
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ assignee_id: assigneeId }),
+    });
   }
 
   async completeTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/complete`,
-      {
-        method: "POST",
-      },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/complete`, {
+      method: "POST",
+    });
   }
 
   async cancelTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/cancel`,
-      {
-        method: "POST",
-      },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
   }
 
   async listMyTasks(
@@ -2271,9 +2059,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
   }
 
   // ── Notification Preferences (Bowrain AD-014) ─────────────────────────────────
@@ -2296,10 +2082,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Audit Log ───────────────────────────────────────────────────────────
 
-  async listWorkspaceAuditLog(
-    workspaceSlug: string,
-    query?: AuditQuery,
-  ): Promise<AuditEntry[]> {
+  async listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]> {
     const params = new URLSearchParams();
     if (query?.project) params.set("project", query.project);
     if (query?.type) params.set("type", query.type);
@@ -2310,14 +2093,10 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.limit) params.set("limit", String(query.limit));
     if (query?.offset) params.set("offset", String(query.offset));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
   }
 
-  async verifyWorkspaceAuditChain(
-    workspaceSlug: string,
-  ): Promise<AuditChainVerification> {
+  async verifyWorkspaceAuditChain(workspaceSlug: string): Promise<AuditChainVerification> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/audit-log/verify`);
   }
 
@@ -2347,9 +2126,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (limit) params.set("limit", String(limit));
     if (offset) params.set("offset", String(offset));
     const qs = params.toString();
-    return this.fetchJSON(
-      `${this.bravoEp(workspaceSlug)}/conversations${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations${qs ? `?${qs}` : ""}`);
   }
 
   async bravoGetConversation(
@@ -2361,10 +2138,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async bravoDeleteConversation(
-    workspaceSlug: string,
-    conversationId: string,
-  ): Promise<void> {
+  async bravoDeleteConversation(workspaceSlug: string, conversationId: string): Promise<void> {
     await this.fetchJSON(
       `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}`,
       { method: "DELETE" },
@@ -2422,10 +2196,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async bravoCancelConversation(
-    workspaceSlug: string,
-    conversationId: string,
-  ): Promise<void> {
+  async bravoCancelConversation(workspaceSlug: string, conversationId: string): Promise<void> {
     await this.fetchJSON(
       `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/cancel`,
       { method: "POST" },
@@ -2446,9 +2217,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async bravoListTools(
-    workspaceSlug: string,
-  ): Promise<{ tools: BravoToolInfo[] }> {
+  async bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }> {
     return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/tools`);
   }
 
@@ -2461,9 +2230,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    return this.fetchJSON(
-      `${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
   }
 
   async bravoUpdateMode(
@@ -2606,9 +2373,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    return this.fetchJSON(
-      `${this.billingEp(workspaceSlug)}/model-usage${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/model-usage${qs ? `?${qs}` : ""}`);
   }
 
   async billingCreateCheckout(
@@ -2627,10 +2392,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async billingCreatePortal(
-    workspaceSlug: string,
-    returnUrl: string,
-  ): Promise<{ url: string }> {
+  async billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }> {
     return this.fetchJSON(`${this.billingEp(workspaceSlug)}/portal`, {
       method: "POST",
       body: JSON.stringify({ return_url: returnUrl }),
@@ -2646,24 +2408,18 @@ export class RestApiAdapter implements ApiAdapter {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    return this.fetchJSON(
-      `${this.billingEp(workspaceSlug)}/ledger${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/ledger${qs ? `?${qs}` : ""}`);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────
 
   async getKnownLocales(): Promise<LocaleInfo[]> {
-    const info = await this.fetchJSON<{ locales: LocaleInfo[] }>(
-      "/api/v1/info",
-    );
+    const info = await this.fetchJSON<{ locales: LocaleInfo[] }>("/api/v1/info");
     return info.locales;
   }
 
   async listFormats(): Promise<FormatInfo[]> {
-    const info = await this.fetchJSON<{ formats: FormatInfo[] }>(
-      "/api/v1/info",
-    );
+    const info = await this.fetchJSON<{ formats: FormatInfo[] }>("/api/v1/info");
     return info.formats;
   }
 
