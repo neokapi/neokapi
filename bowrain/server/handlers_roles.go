@@ -57,12 +57,25 @@ func (s *Server) HandleCreateRoleTemplate(c echo.Context) error {
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
+	perms := platauth.ParsePermissions(req.Permissions)
+
+	// Privilege-escalation guard: an admin cannot mint a role granting
+	// permissions beyond their own effective workspace permissions.
+	wsRole, _ := c.Get("workspace_role").(platauth.Role)
+	creatorPerms := platauth.DefaultPermissionsForRole(wsRole).Permissions
+	if override, ok, _ := s.AuthStore.GetWorkspaceRoleOverride(c.Request().Context(), workspaceID, wsRole); ok {
+		creatorPerms = override
+	}
+	if !creatorPerms.Has(perms) {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "cannot grant permissions beyond your own"})
+	}
+
 	rt := &platauth.RoleTemplate{
 		WorkspaceID: workspaceID,
 		Name:        req.Name,
 		DisplayName: req.DisplayName,
 		Description: req.Description,
-		Permissions: platauth.ParsePermissions(req.Permissions),
+		Permissions: perms,
 		Position:    req.Position,
 	}
 

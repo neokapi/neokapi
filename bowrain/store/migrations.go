@@ -154,6 +154,23 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
 			CREATE INDEX idx_changelog_correlation ON change_log(project_id, correlation_id);
 
+			-- Compaction moves old change_log rows here rather than deleting them,
+			-- so the sync trail is retained (not destroyed) when the live feed is
+			-- trimmed.
+			CREATE TABLE change_log_archive (
+				seq            BIGINT PRIMARY KEY,
+				project_id     TEXT NOT NULL,
+				block_id       TEXT NOT NULL,
+				change_type    TEXT NOT NULL,
+				locale         TEXT,
+				content_hash   TEXT,
+				stream         TEXT NOT NULL DEFAULT 'main',
+				correlation_id TEXT NOT NULL DEFAULT '',
+				logged_at      TIMESTAMPTZ NOT NULL,
+				archived_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_changelog_archive_project ON change_log_archive(project_id, seq);
+
 			-- Block history: append-only prior content per (block, locale). The
 			-- attribution columns (actor_role/edit_reason/correlation_id) make it
 			-- audit-grade and let a whole push/merge be reverted as a unit.

@@ -92,24 +92,44 @@ func (s *PostgresStore) LatestCursor(ctx context.Context, projectID, stream stri
 	return cursor, nil
 }
 
-// CompactChangeLog removes old change log entries, keeping only the latest
-// entry per (project_id, block_id, locale) combination older than retainDays.
+// CompactChangeLog trims the live change_log, keeping only the latest entry per
+// (project_id, block_id, locale) older than retainDays. Trimmed rows are moved
+// to change_log_archive rather than deleted, so the historical sync trail is
+// preserved.
 func (s *PostgresStore) CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error) {
 	stream = defaultStream(stream)
 	cutoff := time.Now().AddDate(0, 0, -retainDays)
 
-	result, err := s.db.ExecContext(ctx, `
-		DELETE FROM change_log
-		WHERE project_id = $1 AND stream = $2 AND logged_at <= $3
+	const where = `project_id = $1 AND stream = $2 AND logged_at <= $3
 		  AND seq NOT IN (
 			SELECT MAX(seq) FROM change_log
 			WHERE project_id = $1 AND stream = $2
 			GROUP BY block_id, COALESCE(locale, '')
-		  )`, projectID, stream, cutoff)
+		  )`
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin compact tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO change_log_archive
+			(seq, project_id, block_id, change_type, locale, content_hash, stream, correlation_id, logged_at)
+		 SELECT seq, project_id, block_id, change_type, locale, content_hash, stream, correlation_id, logged_at
+		 FROM change_log WHERE `+where+`
+		 ON CONFLICT (seq) DO NOTHING`,
+		projectID, stream, cutoff); err != nil {
+		return 0, fmt.Errorf("archive change log: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM change_log WHERE `+where, projectID, stream, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("compact change log: %w", err)
 	}
-
 	deleted, _ := result.RowsAffected()
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit compact: %w", err)
+	}
 	return deleted, nil
 }
