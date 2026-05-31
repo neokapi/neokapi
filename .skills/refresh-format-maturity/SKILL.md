@@ -23,6 +23,13 @@ A periodic, per-format health check — not a build task. It produces: a level, 
 ranked gap list, divergence/xfail hygiene findings, and backport candidates. To
 *build* a new format use the `implement-format` skill instead.
 
+**For one format, use this skill. For all formats at once**, trigger the
+`format-triage` workflow (`.claude/workflows/format-triage.js`) — it scores every
+format, ranks the work toward a target level, optionally remediates, and
+refreshes the `/format-maturity` dashboard
+(`web/docs/static/data/format-maturity.json`). This skill is the interactive,
+single-format counterpart that also sweeps the Okapi tracker.
+
 ## Step 1 — First pass (deterministic)
 
 Run the bundled helper for a fast file-signal score and the Okapi tracker query:

@@ -12,6 +12,30 @@ Two questions this document answers:
 2. **Auditing** — given an existing format, what level is it, and what is the
    ranked list of gaps to the next level?
 
+## Dashboard & triage workflow
+
+Two tools operationalize this document:
+
+- **Dashboard** — [`/format-maturity`](https://neokapi.org/format-maturity) (in
+  the docs site's Reference menu) shows every format's level, a per-dimension
+  status grid, and a progress-over-time trend. Its data lives in
+  `web/docs/static/data/format-maturity{,-history}.json`.
+- **Triage workflow** — `.claude/workflows/format-triage.js`. Trigger it to
+  re-score all formats, rank the work toward a target level, optionally apply
+  the top fix per format, and refresh the dashboard:
+
+  ```
+  Workflow({ name: "format-triage" })                                  # score + triage + publish
+  Workflow({ name: "format-triage", args: { mode: "remediate", target: "L2", limit: 8 } })
+  Workflow({ name: "format-triage", args: { formats: ["json","yaml"], mode: "remediate" } })
+  ```
+
+  `mode:"remediate"` adds the highest-leverage missing artifact per format
+  (usually `malformed_test.go`) in parallel and verifies each compiles+passes;
+  review the diff before committing. Re-running both advances maturity and
+  appends a dashboard trend snapshot. (For a single format, the
+  `refresh-format-maturity` skill does the same audit interactively.)
+
 ## Maturity levels
 
 A format sits at exactly **one** level: the highest level whose criteria are
