@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
@@ -27,6 +28,16 @@ func init() {
 }
 
 const satPluginName = "sat"
+
+// satMaxLineBytes bounds a single protocol response line read from the plugin.
+// It must match the plugin's own cap (plugins/sat/satproto.MaxLineBytes = 64
+// MiB): a boundary list for a very large block can produce a response longer
+// than bufio's default 64 KiB cap, and any host scanner buffer smaller than the
+// plugin's write cap would silently truncate a valid response into a decode
+// error. The constant is duplicated here (rather than imported) for the same
+// reason the protocol structs are: the CLI must not depend on the plugin module
+// and inherit its native (onnxruntime/cgo) build requirements.
+const satMaxLineBytes = 64 << 20
 
 // satRequest / satResponse mirror the kapi-sat protocol (satproto-line-json-v1,
 // see plugins/sat/satproto). Duplicated intentionally so the CLI does not
@@ -55,13 +66,25 @@ type satTransport interface {
 }
 
 // satEngine implements segment.Segmenter by delegating boundary detection to
-// the kapi-sat plugin over satTransport. The transport (and its subprocess)
-// is created once, on first use, and reused so the model loads only once.
+// the kapi-sat plugin over satTransport. The transport (and its subprocess) is
+// created once, on first use, and reused so the model loads only once.
+//
+// The subprocess lifetime is deliberately decoupled from any per-call context.
+// A single engine (and therefore a single warm plugin process) is reused across
+// many blocks and, in the desktop runner, across many files — each with its own
+// cancellable per-run context. Binding the child to the first block's context
+// would let that run's completion cancel kill the process, leaving every later
+// call reading a dead pipe. Instead the child is started under an engine-scoped
+// context cancelled only by [satEngine.Close], and a finalizer reaps it if
+// Close is never called (the segment tool does not own the engine's lifecycle).
 type satEngine struct {
 	cfg       segment.Config
 	once      sync.Once
 	transport satTransport
 	initErr   error
+
+	cancel context.CancelFunc // cancels engCtx; tears the subprocess down
+	closer io.Closer          // the live process, if dialed; nil for fakes
 }
 
 func newSatEngine(cfg segment.Config) (segment.Segmenter, error) {
@@ -73,11 +96,14 @@ func (e *satEngine) Layer() string { return segment.LayerSentence }
 func (e *satEngine) Segment(ctx context.Context, runs []model.Run, loc model.LocaleID) ([]model.Span, error) {
 	e.once.Do(func() {
 		if e.transport == nil {
-			e.transport, e.initErr = e.dial(ctx)
+			e.transport, e.initErr = e.dial()
 		}
 	})
 	if e.initErr != nil {
 		return nil, e.initErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	fl := segment.Flatten(runs, e.cfg.Mask)
 	text := fl.Text()
@@ -92,9 +118,12 @@ func (e *satEngine) Segment(ctx context.Context, runs []model.Run, loc model.Loc
 }
 
 // dial locates the kapi-sat plugin (unless an explicit PluginPath is set) and
-// starts its serve loop. The process is bound to ctx — the pipeline context of
-// the first block — so cancelling the run tears the subprocess down.
-func (e *satEngine) dial(ctx context.Context) (satTransport, error) {
+// starts its serve loop under an engine-scoped context. The process lifetime is
+// bound to the engine — not to any single run's pipeline context — so a warm
+// plugin survives across files; [satEngine.Close] (or, as a backstop, the
+// finalizer) tears it down. A runtime cleanup reaps the child even when nothing
+// calls Close, since the segment tool that holds the engine has no Close hook.
+func (e *satEngine) dial() (satTransport, error) {
 	bin := e.cfg.PluginPath
 	if bin == "" {
 		p, err := findSatPlugin()
@@ -103,7 +132,36 @@ func (e *satEngine) dial(ctx context.Context) (satTransport, error) {
 		}
 		bin = p.BinaryPath
 	}
-	return startSatProcess(ctx, bin)
+	engCtx, cancel := context.WithCancel(context.Background())
+	proc, err := startSatProcess(engCtx, bin)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	e.cancel = cancel
+	e.closer = proc
+	// Backstop: if the engine is dropped without Close (the segment tool owns
+	// no Close hook), reap the child so it is not orphaned. AddCleanup avoids
+	// the resurrection pitfalls of SetFinalizer and must not capture e.
+	runtime.AddCleanup(e, func(p *satProcess) { p.close() }, proc)
+	return proc, nil
+}
+
+// Close tears down the warm kapi-sat subprocess: it cancels the engine context
+// and Kills + Waits the child, mirroring the kapi-check plugin's lifecycle. It
+// is safe to call more than once and on an engine that never dialed (e.g. one
+// backed by a fake transport in tests). Close satisfies io.Closer.
+func (e *satEngine) Close() error {
+	if e.cancel != nil {
+		e.cancel()
+		e.cancel = nil
+	}
+	if e.closer != nil {
+		err := e.closer.Close()
+		e.closer = nil
+		return err
+	}
+	return nil
 }
 
 // findSatPlugin discovers the installed kapi-sat plugin by name.
@@ -125,11 +183,15 @@ func findSatPlugin() (*pluginhost.Plugin, error) {
 // satProcess is the live kapi-sat subprocess and its line-delimited transport.
 // Round trips are serialized so a single warm process serves all blocks.
 type satProcess struct {
-	cmd *exec.Cmd
-	mu  sync.Mutex
-	enc *json.Encoder
-	sc  *bufio.Scanner
-	id  int64
+	cmd    *exec.Cmd
+	mu     sync.Mutex
+	enc    *json.Encoder
+	sc     *bufio.Scanner
+	id     int64
+	stdin  io.Closer
+	stdout io.Closer
+
+	closeOnce sync.Once
 }
 
 func startSatProcess(ctx context.Context, bin string) (*satProcess, error) {
@@ -147,9 +209,36 @@ func startSatProcess(ctx context.Context, bin string) (*satProcess, error) {
 		return nil, fmt.Errorf("start sat plugin %q: %w", bin, err)
 	}
 	sc := bufio.NewScanner(stdout)
-	// Boundary lists for large blocks can exceed bufio's default line cap.
-	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
-	return &satProcess{cmd: cmd, enc: json.NewEncoder(stdin), sc: sc}, nil
+	// Boundary lists for large blocks can exceed bufio's default 64 KiB line
+	// cap. Size the buffer to the plugin's own write cap (satMaxLineBytes) so a
+	// large but valid response is never truncated into a decode error.
+	sc.Buffer(make([]byte, 0, 64*1024), satMaxLineBytes)
+	return &satProcess{cmd: cmd, enc: json.NewEncoder(stdin), sc: sc, stdin: stdin, stdout: stdout}, nil
+}
+
+// close tears the subprocess down: Kill + Wait reaps the child (so it is never
+// left as a zombie), then the pipes are closed. It mirrors the kapi-check
+// plugin's checkProcess.close() and is idempotent — Close, the engine
+// finalizer, and a context-cancel-driven exit may all race to call it.
+func (s *satProcess) close() {
+	s.closeOnce.Do(func() {
+		if s.cmd != nil && s.cmd.Process != nil {
+			_ = s.cmd.Process.Kill()
+			_ = s.cmd.Wait()
+		}
+		if s.stdin != nil {
+			_ = s.stdin.Close()
+		}
+		if s.stdout != nil {
+			_ = s.stdout.Close()
+		}
+	})
+}
+
+// Close satisfies io.Closer so the engine can reap the child uniformly.
+func (s *satProcess) Close() error {
+	s.close()
+	return nil
 }
 
 func (s *satProcess) segment(text, modelName, lang string, threshold float64) ([]int, error) {
