@@ -66,12 +66,17 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	apiURL := fmt.Sprintf("%s/language/translate/v2?key=%s", p.cfg.baseURL(), p.cfg.APIKey)
+	// Send the API key via the X-Goog-Api-Key header rather than the ?key=
+	// query parameter. Keeping the key out of the URL prevents it from leaking
+	// into wrapped transport errors (*url.Error includes the full URL) and from
+	// being recorded by proxies, access logs, and APM tooling.
+	apiURL := fmt.Sprintf("%s/language/translate/v2", p.cfg.baseURL())
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Goog-Api-Key", p.cfg.APIKey)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {

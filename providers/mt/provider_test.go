@@ -44,7 +44,10 @@ func newTool(p mtprovider.MTProvider, source, target model.LocaleID) *mttools.MT
 func TestGoogleProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/language/translate/v2", r.URL.Path)
-		assert.Equal(t, "test-key", r.URL.Query().Get("key"))
+		// The API key must travel in the X-Goog-Api-Key header, never in the
+		// URL query string (avoids leaking the secret into wrapped errors/logs).
+		assert.Equal(t, "test-key", r.Header.Get("X-Goog-Api-Key"))
+		assert.Empty(t, r.URL.Query().Get("key"))
 		assert.Equal(t, http.MethodPost, r.Method)
 
 		var reqBody struct {
