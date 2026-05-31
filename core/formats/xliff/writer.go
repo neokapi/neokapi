@@ -186,7 +186,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
-func (w *Writer) writeFromSkeleton() error {
+// The return value is named so the deferred post-process flush can
+// surface a failed terminal Write (e.g. disk full / broken pipe)
+// instead of dropping it and reporting success on a truncated file.
+func (w *Writer) writeFromSkeleton() (retErr error) {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("xliff writer: flush skeleton: %w", err)
 	}
@@ -241,7 +244,11 @@ func (w *Writer) writeFromSkeleton() error {
 			if compat.StripApprovedWhenNoSourceTarget {
 				rewritten = stripApprovedFromTransUnits(rewritten, w.transUnitsWithoutSourceTarget())
 			}
-			_, _ = finalOut.Write(rewritten)
+			// Surface a failed terminal write. Don't clobber an earlier
+			// error returned by the body; only set retErr when it's nil.
+			if _, err := finalOut.Write(rewritten); err != nil && retErr == nil {
+				retErr = fmt.Errorf("xliff writer: flush output: %w", err)
+			}
 		}()
 	}
 
@@ -723,7 +730,7 @@ func baseAt(base []segView, i int) segView {
 	return base[i]
 }
 
-func (w *Writer) flush() error {
+func (w *Writer) flush() (retErr error) {
 	if w.Output == nil {
 		return nil
 	}
@@ -733,18 +740,23 @@ func (w *Writer) flush() error {
 		targetLang = w.Locale
 	}
 
-	fmt.Fprint(w.Output, xml.Header)
-	fmt.Fprintf(w.Output, `<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">`)
-	fmt.Fprintf(w.Output, "\n")
+	// ew tracks the first write error; once set, all subsequent
+	// Fprint/Fprintf calls are no-ops so a failed terminal write
+	// (disk full / broken pipe) surfaces instead of being swallowed.
+	ew := &errWriter{w: w.Output}
+
+	fmt.Fprint(ew, xml.Header)
+	fmt.Fprintf(ew, `<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">`)
+	fmt.Fprintf(ew, "\n")
 
 	// Write file envelope
-	fmt.Fprintf(w.Output, `  <file original="%s" source-language="%s"`,
+	fmt.Fprintf(ew, `  <file original="%s" source-language="%s"`,
 		xmlEscapeAttr(w.fileName), xmlEscapeAttr(string(w.sourceLang)))
 	if !targetLang.IsEmpty() {
-		fmt.Fprintf(w.Output, ` target-language="%s"`, xmlEscapeAttr(string(targetLang)))
+		fmt.Fprintf(ew, ` target-language="%s"`, xmlEscapeAttr(string(targetLang)))
 	}
-	fmt.Fprintf(w.Output, ` datatype="plaintext">`)
-	fmt.Fprintf(w.Output, "\n    <body>\n")
+	fmt.Fprintf(ew, ` datatype="plaintext">`)
+	fmt.Fprintf(ew, "\n    <body>\n")
 
 	// Write trans-units from collected blocks
 	for _, part := range w.parts {
@@ -756,43 +768,43 @@ func (w *Writer) flush() error {
 			continue
 		}
 
-		fmt.Fprintf(w.Output, `      <trans-unit id="%s"`, xmlEscapeAttr(block.ID))
+		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlEscapeAttr(block.ID))
 		if !block.Translatable {
-			fmt.Fprintf(w.Output, ` translate="no"`)
+			fmt.Fprintf(ew, ` translate="no"`)
 		}
 		if block.PreserveWhitespace {
-			fmt.Fprintf(w.Output, ` xml:space="preserve"`)
+			fmt.Fprintf(ew, ` xml:space="preserve"`)
 		}
 		if v, ok := block.Properties["approved"]; ok && v == "yes" {
-			fmt.Fprintf(w.Output, ` approved="yes"`)
+			fmt.Fprintf(ew, ` approved="yes"`)
 		}
-		fmt.Fprintf(w.Output, ">\n")
+		fmt.Fprintf(ew, ">\n")
 
 		// Source
 		sourceText := fragmentToXLIFF(block.Source)
-		fmt.Fprintf(w.Output, "        <source>%s</source>\n", sourceText)
+		fmt.Fprintf(ew, "        <source>%s</source>\n", sourceText)
 
 		// Target
 		if block.HasTarget(targetLang) {
 			targetText := fragmentToXLIFF(block.TargetRuns(targetLang))
-			fmt.Fprintf(w.Output, "        <target>%s</target>\n", targetText)
+			fmt.Fprintf(ew, "        <target>%s</target>\n", targetText)
 		}
 
 		// Notes
 		for key, ann := range block.Annotations {
 			if strings.HasPrefix(key, "note") {
 				if note, ok := ann.(*model.NoteAnnotation); ok {
-					fmt.Fprintf(w.Output, "        <note")
+					fmt.Fprintf(ew, "        <note")
 					if note.From != "" {
-						fmt.Fprintf(w.Output, ` from="%s"`, xmlEscapeAttr(note.From))
+						fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
 					}
 					if note.Priority > 0 {
-						fmt.Fprintf(w.Output, ` priority="%d"`, note.Priority)
+						fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
 					}
 					if note.Annotates != "" {
-						fmt.Fprintf(w.Output, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
+						fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
 					}
-					fmt.Fprintf(w.Output, ">%s</note>\n", xmlEscapeText(note.Text))
+					fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
 				}
 			}
 		}
@@ -801,31 +813,54 @@ func (w *Writer) flush() error {
 		for key, ann := range block.Annotations {
 			if strings.HasPrefix(key, "alt-translation") {
 				if alt, ok := ann.(*model.AltTranslation); ok {
-					fmt.Fprintf(w.Output, "        <alt-trans")
+					fmt.Fprintf(ew, "        <alt-trans")
 					if alt.CombinedScore > 0 {
-						fmt.Fprintf(w.Output, ` match-quality="%.0f"`, alt.CombinedScore)
+						fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
 					}
 					if alt.Origin != "" {
-						fmt.Fprintf(w.Output, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
+						fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
 					}
-					fmt.Fprintf(w.Output, ">\n")
+					fmt.Fprintf(ew, ">\n")
 					if len(alt.Source) > 0 {
-						fmt.Fprintf(w.Output, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
+						fmt.Fprintf(ew, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
 					}
 					if len(alt.Target) > 0 {
-						fmt.Fprintf(w.Output, `          <target xml:lang="%s">%s</target>`+"\n",
+						fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
 							xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
 					}
-					fmt.Fprintf(w.Output, "        </alt-trans>\n")
+					fmt.Fprintf(ew, "        </alt-trans>\n")
 				}
 			}
 		}
 
-		fmt.Fprintf(w.Output, "      </trans-unit>\n")
+		fmt.Fprintf(ew, "      </trans-unit>\n")
 	}
 
-	fmt.Fprintf(w.Output, "    </body>\n  </file>\n</xliff>")
-	return nil
+	fmt.Fprintf(ew, "    </body>\n  </file>\n</xliff>")
+	if ew.err != nil {
+		retErr = fmt.Errorf("xliff writer: flush output: %w", ew.err)
+	}
+	return retErr
+}
+
+// errWriter wraps an io.Writer and records the first error encountered.
+// Once an error is sticky, subsequent writes become no-ops so callers
+// can drive a sequence of fmt.Fprintf calls and check ew.err once at
+// the end without each call swallowing its own write error.
+type errWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (e *errWriter) Write(p []byte) (int, error) {
+	if e.err != nil {
+		return 0, e.err
+	}
+	n, err := e.w.Write(p)
+	if err != nil {
+		e.err = err
+	}
+	return n, err
 }
 
 // fragmentToXLIFF converts a Run sequence to XLIFF inline content. This
