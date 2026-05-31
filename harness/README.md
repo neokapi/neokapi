@@ -76,8 +76,12 @@ narration and render reproduce deterministically from `public/<id>/`.
 
 ## Narration backends (pluggable)
 
-Set in `.env` (see `.env.example`). Default is **Gemini TTS** (uses the same
-`GEMINI_API_KEY` as kapi), styled for a clear British-English narrator voice.
+Secrets live in the **shared** `~/.config/neokapi/harness.env` (honours
+`$XDG_CONFIG_HOME`) so every worktree reuses one `GEMINI_API_KEY`; a per-worktree
+`harness/.env` (see `.env.example`) can override for one-off local tweaks. Default
+is **Gemini TTS** (uses the same `GEMINI_API_KEY` as kapi), styled for a clear
+British-English narrator voice. Narration pace/tone are committed code constants,
+not env vars.
 
 | `NARRATION_BACKEND` | Needs | Notes |
 |---|---|---|
@@ -91,8 +95,9 @@ Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate -
 ## Usage
 
 ```bash
-# one-time: build kapi (with fts5+icu4c), regenerate the plugin bundle,
-# register the harness-gemini credential from .env, install Playwright Chromium
+# one-time: put GEMINI_API_KEY in ~/.config/neokapi/harness.env, then:
+# build kapi (with fts5+icu4c), regenerate the plugin bundle,
+# register the harness-gemini credential, install Playwright Chromium
 pnpm install
 pnpm run setup
 

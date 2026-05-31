@@ -72,7 +72,7 @@ async function regenPluginBundle(): Promise<void> {
 async function ensureCredential(): Promise<void> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    console.warn("! GEMINI_API_KEY not set in harness/.env — AI demos will fail. Offline demos still work.");
+    console.warn("! GEMINI_API_KEY not set (add it to ~/.config/neokapi/harness.env) — AI demos will fail. Offline demos still work.");
     return;
   }
   const list = await run(KAPI_BIN, ["credentials", "list", "--json"], { timeoutMs: 30_000 });

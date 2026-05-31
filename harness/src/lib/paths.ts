@@ -20,23 +20,21 @@ function isNeokapiCheckout(dir: string): boolean {
 
 /**
  * Path to a neokapi checkout (provides the kapi source to build, the kapi binary, and
- * the Claude Code plugin dir). Resolution order:
- *   1. `NEOKAPI_REPO` env var
- *   2. when embedded as `<checkout>/harness/`, the parent checkout (the normal case)
- *   3. `.env` NEOKAPI_REPO (for a standalone checkout outside the tree)
- *   4. default `~/src/neokapi/neokapi`
+ * the Claude Code plugin dir). The harness lives at `<checkout>/harness/`, so the
+ * enclosing checkout is the repo — this is the normal (and only expected) case.
+ * Resolution order:
+ *   1. `NEOKAPI_REPO` env var (escape hatch for a standalone harness checkout)
+ *   2. the enclosing `<checkout>/harness/` parent (the normal case)
+ *   3. default `~/src/neokapi/neokapi`
+ *
+ * Note: NEOKAPI_REPO is intentionally NOT read from `harness/.env` — the current
+ * tree IS the repo, and pinning a path in .env broke worktrees (every worktree got
+ * the same hard-coded checkout). Set the env var explicitly if you need the override.
  */
 function resolveRepoRoot(): string {
   if (process.env.NEOKAPI_REPO) return path.resolve(process.env.NEOKAPI_REPO);
   const parent = path.resolve(HARNESS_ROOT, "..");
   if (isNeokapiCheckout(parent)) return parent;
-  try {
-    // .env is loaded later by env.ts, but REPO_ROOT is needed at module-eval time.
-    const m = fs.readFileSync(path.join(HARNESS_ROOT, ".env"), "utf8").match(/^\s*NEOKAPI_REPO\s*=\s*(.+?)\s*$/m);
-    if (m) return path.resolve(m[1].replace(/^["']|["']$/g, "").replace(/^~/, os.homedir()));
-  } catch {
-    /* no .env */
-  }
   return path.join(os.homedir(), "src", "neokapi", "neokapi");
 }
 export const REPO_ROOT = resolveRepoRoot();
