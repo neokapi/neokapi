@@ -52,12 +52,12 @@ var tbMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "termbase schema with project/stream support and FTS5 indexes",
-		// tb_search uses storage.FTSWordTokenizer, which resolves to the ICU
-		// tokenizer under cgo builds and unicode61 under no-cgo builds (the ICU
-		// tokenizer is a cgo-only extension). A .db whose FTS table was created
-		// with one tokenizer cannot be FTS-word-queried by a binary built with
-		// the other; the trigram table below stays portable.
-		SQL: fmt.Sprintf(`
+		// The portable FTS path is the tb_terms_trigram contentless index
+		// below: it is populated by the tb_terms_trigram_a{i,d,u} triggers and
+		// queried via MATCH from the Search/Lookup paths. The trigram tokenizer
+		// is identical across cgo and no-cgo builds, so a .db created by one
+		// binary stays queryable by the other.
+		SQL: `
 		CREATE TABLE IF NOT EXISTS tb_concepts (
 			id          TEXT PRIMARY KEY,
 			project_id  TEXT NOT NULL DEFAULT '',
@@ -104,14 +104,7 @@ var tbMigrations = []storage.Migration{
 			VALUES ('delete', old.id, old.text_lower);
 			INSERT INTO tb_terms_trigram(rowid, text_lower) VALUES (new.id, new.text_lower);
 		END;
-
-		-- FTS5 word-based index for UI search with BM25 ranking.
-		CREATE VIRTUAL TABLE IF NOT EXISTS tb_search USING fts5(
-			term_text, definition, domain,
-			content='',
-			tokenize='%s'
-		);
-		`, storage.FTSWordTokenizer),
+		`,
 	},
 	{
 		Version:     2,

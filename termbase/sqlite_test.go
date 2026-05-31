@@ -148,6 +148,37 @@ func TestSQLiteTermBase_Search(t *testing.T) {
 	assert.Len(t, results, 1)
 }
 
+// TestSQLiteTermBase_NoDeadSearchTable guards against reintroducing the
+// previously-dead contentless tb_search FTS5 table (audit finding #39). The
+// portable FTS path is the trigram index, which must exist and back Search;
+// the never-populated/never-queried tb_search table must not.
+func TestSQLiteTermBase_NoDeadSearchTable(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	tableExists := func(name string) bool {
+		var n int
+		err := tb.DB().QueryRow(
+			"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", name,
+		).Scan(&n)
+		require.NoError(t, err)
+		return n > 0
+	}
+
+	assert.False(t, tableExists("tb_search"),
+		"dead tb_search FTS5 table must not be created")
+	assert.True(t, tableExists("tb_terms_trigram"),
+		"trigram FTS5 index backing Search must exist")
+
+	// The trigram path must still serve ranked search after the removal.
+	sqlitePopulateTB(t, tb)
+	results, total := tb.Search("repo", "", "", 0, 100)
+	assert.Equal(t, 1, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, "c3", results[0].ID)
+}
+
 func TestSQLiteTermBase_InterfaceCompliance(t *testing.T) {
 	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
