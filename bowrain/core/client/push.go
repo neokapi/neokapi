@@ -70,11 +70,56 @@ type ChunkRef struct {
 	ByteSize    int64  `json:"byte_size"`
 }
 
+const (
+	// maxChunkRecords caps the number of blocks per chunk regardless of size.
+	maxChunkRecords = 500
+
+	// maxChunkMarshaledBytes bounds the *marshaled* (uncompressed) size of a
+	// single chunk's blocks. The proxy upload path reads the request body with
+	// io.LimitReader(body, 2 MiB) and silently truncates anything larger, which
+	// would make the client-computed chunk hash diverge from the stored bytes
+	// and fail the commit's BlobStore.Exists check.
+	//
+	// The 2 MiB cap applies to the *compressed* chunk. zstd never expands
+	// real-world content, so a marshaled chunk kept under this threshold stays
+	// safely under the compressed cap even in the pathological no-compression
+	// case (incompressible payloads), with comfortable headroom for the proto
+	// chunk envelope. Sizing the boundary from proto.Size of each block (which
+	// accounts for source text, targets, annotations, skeleton, runs — the
+	// whole serialized block) — rather than from SourceText alone — is what
+	// prevents oversized chunks from slipping through.
+	maxChunkMarshaledBytes = 1536 * 1024 // 1.5 MiB
+)
+
 // Push performs a complete push: init → diff → upload chunks → commit.
-// blocks is a map of item_name → blocks for that item.
-// items is the item metadata.
+// blocksByItem maps item_name → blocks for that item; items is the item
+// metadata.
+//
+// WIRE CONTRACT — additive-only push (#43).
+//
+// blocksByItem carries ONLY the blocks the caller determined have changed (the
+// caller diffs against its local content-hash cache before calling Push, so an
+// unchanged item is absent from the map entirely and a changed item carries
+// only its changed blocks). The full per-item / per-project block set is NOT
+// available at this layer.
+//
+// Consequently the ItemHashes / RootHash sent in the init request are computed
+// over the changed subset, not the complete tree. They are therefore NOT
+// authoritative Merkle roots: an item absent from blocksByItem is not a
+// deletion, and an item hash computed from a partial block set will not match
+// the server's hash over the item's full block set. The server MUST treat this
+// push as additive — upsert the blocks it receives and never infer deletions
+// from the client's hashes. The client deliberately IGNORES every deletion the
+// server reports back (initResp.DeletedItems and diffResp.Deleted; see below),
+// preserving non-destructiveness regardless of server behavior.
+//
+// If destructive sync (server-side deletion of blocks/items the client no
+// longer has) is ever required, the caller must pass the FULL block set so
+// ItemHashes / RootHash become authoritative, and this comment + the
+// deletion-ignoring sites below must be revisited together.
 func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta) (*SyncPushResponse, error) {
-	// 1. Compute Merkle hashes.
+	// 1. Compute Merkle hashes over the changed subset only (additive-only
+	//    contract above): these are change indicators, not authoritative roots.
 	itemHashes := make(map[string]string)
 	blockHashesByItem := make(map[string]map[string]string)
 	for itemName, blocks := range blocksByItem {
@@ -101,6 +146,12 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 
 	// 3. For each changed/new item, send block-level diff and collect needed blocks.
+	//
+	// We act ONLY on ChangedItems + NewItems. initResp.DeletedItems is
+	// deliberately ignored: per the additive-only contract, ItemHashes covers
+	// only the changed subset, so an item the server flags "deleted" merely
+	// reflects items absent from this push, not items the user removed. Acting
+	// on it would be data loss.
 	allNeeded := map[string]map[string]bool{} // item → set of needed block IDs
 	diffItems := make([]string, 0, len(initResp.ChangedItems)+len(initResp.NewItems))
 	diffItems = append(diffItems, initResp.ChangedItems...)
@@ -124,6 +175,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		for _, id := range diffResp.Needed {
 			needed[id] = true
 		}
+		// diffResp.Deleted is deliberately ignored — same additive-only reason
+		// as initResp.DeletedItems above: BlockHashes covers only the changed
+		// subset, so a "deleted" block is just one not present in this push.
 		allNeeded[itemName] = needed
 		if diffResp.Transport != "" {
 			transport = diffResp.Transport
@@ -144,11 +198,29 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 				continue
 			}
 			sb := bowsync.BlockToProto(b, itemName)
-			chunkBlocks = append(chunkBlocks, sb)
-			chunkBytes += len(sb.SourceText) * 2 // rough estimate
+			// Estimate the boundary from the block's full marshaled proto size
+			// (source + targets + annotations + skeleton + runs), not from
+			// SourceText alone. Seal the current chunk *before* appending a block
+			// that would push the marshaled size over the safe threshold, so the
+			// chunk never exceeds the proxy upload's 2 MiB cap (#27). A single
+			// block larger than the threshold still rides in its own chunk.
+			sbSize := proto.Size(sb)
+			if len(chunkBlocks) > 0 && chunkBytes+sbSize > maxChunkMarshaledBytes {
+				ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)
+				if err != nil {
+					return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
+				}
+				chunks = append(chunks, *ref)
+				chunkIndex++
+				chunkBlocks = nil
+				chunkBytes = 0
+			}
 
-			// Seal chunk at ~1MB.
-			if chunkBytes >= 1024*1024 || len(chunkBlocks) >= 500 {
+			chunkBlocks = append(chunkBlocks, sb)
+			chunkBytes += sbSize
+
+			// Also cap by record count to keep chunks bounded for tiny blocks.
+			if len(chunkBlocks) >= maxChunkRecords {
 				ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)
 				if err != nil {
 					return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
