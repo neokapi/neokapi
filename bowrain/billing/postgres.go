@@ -97,6 +97,17 @@ var billingMigrations = []storage.Migration{
 				WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
 		`,
 	},
+	{
+		Version:     3,
+		Description: "track processed Stripe webhook events for idempotent delivery",
+		SQL: `
+			CREATE TABLE processed_stripe_events (
+				event_id     TEXT PRIMARY KEY,
+				event_type   TEXT NOT NULL,
+				processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`,
+	},
 }
 
 // PgBillingStore implements BillingStore using PostgreSQL.
@@ -570,6 +581,37 @@ func (s *PgBillingStore) RecordBillingEvent(ctx context.Context, event *BillingE
 		Scan(&event.ID)
 	if err != nil {
 		return fmt.Errorf("record billing event: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Webhook idempotency
+// ---------------------------------------------------------------------------
+
+func (s *PgBillingStore) MarkStripeEventProcessed(ctx context.Context, eventID, eventType string) (bool, error) {
+	// Insert-first with ON CONFLICT DO NOTHING: the first delivery inserts a row
+	// (one row affected, alreadyProcessed=false); duplicate deliveries conflict
+	// on the primary key and affect zero rows (alreadyProcessed=true).
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO processed_stripe_events (event_id, event_type)
+		 VALUES ($1, $2)
+		 ON CONFLICT (event_id) DO NOTHING`,
+		eventID, eventType)
+	if err != nil {
+		return false, fmt.Errorf("mark stripe event processed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("mark stripe event processed rows affected: %w", err)
+	}
+	return n == 0, nil
+}
+
+func (s *PgBillingStore) UnmarkStripeEvent(ctx context.Context, eventID string) error {
+	if _, err := s.db.ExecContext(ctx,
+		`DELETE FROM processed_stripe_events WHERE event_id = $1`, eventID); err != nil {
+		return fmt.Errorf("unmark stripe event: %w", err)
 	}
 	return nil
 }

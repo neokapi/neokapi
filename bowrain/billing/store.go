@@ -40,4 +40,19 @@ type BillingStore interface {
 	// Events
 	ListBillingEvents(ctx context.Context, limit, offset int, eventType string) ([]BillingEvent, error)
 	RecordBillingEvent(ctx context.Context, event *BillingEvent) error
+
+	// Webhook idempotency
+	//
+	// MarkStripeEventProcessed records that a Stripe webhook event has been
+	// processed. It returns alreadyProcessed=true when the event ID was already
+	// present (i.e. this is a duplicate delivery), allowing callers to
+	// short-circuit before re-applying side effects such as granting credits.
+	// The insert uses ON CONFLICT DO NOTHING so concurrent duplicate deliveries
+	// race to a single winner.
+	MarkStripeEventProcessed(ctx context.Context, eventID, eventType string) (alreadyProcessed bool, err error)
+
+	// UnmarkStripeEvent removes the processed marker for an event ID. It is used
+	// to roll back the idempotency claim when downstream processing fails, so a
+	// retried delivery is reprocessed instead of being silently skipped.
+	UnmarkStripeEvent(ctx context.Context, eventID string) error
 }

@@ -46,6 +46,12 @@ func (m *mockBillingStore) UpsertSubscription(_ context.Context, sub *billing.Su
 	m.upsertedSub = sub
 	return nil
 }
+func (m *mockBillingStore) MarkStripeEventProcessed(_ context.Context, _, _ string) (bool, error) {
+	return false, nil
+}
+func (m *mockBillingStore) UnmarkStripeEvent(_ context.Context, _ string) error {
+	return nil
+}
 func (m *mockBillingStore) ListSubscriptions(_ context.Context, _, _ int) ([]*billing.Subscription, error) {
 	return m.subs, nil
 }

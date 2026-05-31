@@ -67,6 +67,19 @@ func (h *WebhookHandler) syncPlan(ctx context.Context, workspaceID string, plan 
 }
 
 // HandleWebhook verifies the Stripe signature and processes the event.
+//
+// Stripe delivers webhooks at-least-once and retries on any non-2xx response,
+// so the handler must be idempotent: a duplicate delivery of the same event.ID
+// must not re-apply side effects (e.g. double-granting credits). Before
+// dispatching, the event ID is recorded in a processed-events table; a
+// duplicate ID short-circuits and returns nil (HTTP 200) so Stripe stops
+// retrying. If dispatch fails, the marker is rolled back so a subsequent retry
+// reprocesses the event.
+//
+// A nil return maps to HTTP 200 at the server. We return nil for handled
+// events, duplicate deliveries, and intentionally-ignored event types; we
+// return a non-nil error only for genuine processing failures that should be
+// retried.
 func (h *WebhookHandler) HandleWebhook(payload []byte, signature string) error {
 	event, err := webhook.ConstructEvent(payload, signature, h.webhookSecret)
 	if err != nil {
@@ -75,6 +88,35 @@ func (h *WebhookHandler) HandleWebhook(payload []byte, signature string) error {
 
 	ctx := context.Background()
 
+	// Idempotency: claim the event ID before applying any side effects. If it was
+	// already processed, this is a duplicate delivery — short-circuit with 200.
+	if event.ID != "" {
+		alreadyProcessed, err := h.store.MarkStripeEventProcessed(ctx, event.ID, string(event.Type))
+		if err != nil {
+			return fmt.Errorf("record stripe event: %w", err)
+		}
+		if alreadyProcessed {
+			slog.Info("skipping duplicate stripe event", "id", event.ID, "type", event.Type)
+			return nil
+		}
+	}
+
+	if err := h.dispatch(ctx, event); err != nil {
+		// Processing failed: release the idempotency claim so Stripe's retry is
+		// reprocessed instead of being silently skipped as a duplicate.
+		if event.ID != "" {
+			if uerr := h.store.UnmarkStripeEvent(ctx, event.ID); uerr != nil {
+				slog.Info("failed to roll back stripe event marker", "id", event.ID, "error", uerr)
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// dispatch routes a verified event to its type-specific handler. Returning nil
+// for unhandled types yields HTTP 200 so Stripe does not retry them forever.
+func (h *WebhookHandler) dispatch(ctx context.Context, event stripe.Event) error {
 	switch event.Type {
 	case "checkout.session.completed":
 		return h.handleCheckoutCompleted(ctx, event)

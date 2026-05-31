@@ -122,6 +122,10 @@ func (m *mockBillingStore) ListBillingEvents(context.Context, int, int, string) 
 	return nil, nil
 }
 func (m *mockBillingStore) RecordBillingEvent(context.Context, *BillingEvent) error { return nil }
+func (m *mockBillingStore) MarkStripeEventProcessed(context.Context, string, string) (bool, error) {
+	return false, nil
+}
+func (m *mockBillingStore) UnmarkStripeEvent(context.Context, string) error { return nil }
 
 func TestQuotaGuard(t *testing.T) {
 	tests := []struct {
