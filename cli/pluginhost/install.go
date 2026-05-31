@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/neokapi/neokapi/cli/pluginhost/registry"
@@ -243,6 +244,10 @@ func extractTarGz(body []byte, target, pluginName string) error {
 		return fmt.Errorf("gunzip: %w", err)
 	}
 	defer gz.Close()
+	// pluginRoot is the per-plugin extraction boundary (target/<plugin>).
+	// Symlink targets must resolve inside it — not merely inside the
+	// shared install root, which would allow cross-plugin escapes.
+	pluginRoot := filepath.Join(target, pluginName)
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
@@ -270,9 +275,11 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode)&0o777)
+			// O_NOFOLLOW: refuse to write through a symlink that a prior
+			// (malicious) entry may have planted at this path.
+			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|syscall.O_NOFOLLOW, os.FileMode(hdr.Mode)&0o777)
 			if err != nil {
-				return err
+				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
 			if _, err := io.Copy(f, tr); err != nil {
 				f.Close()
@@ -280,10 +287,16 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			}
 			f.Close()
 		case tar.TypeSymlink:
-			// Only allow relative symlinks within the plugin dir.
-			abs := filepath.Join(filepath.Dir(clean), hdr.Linkname)
-			if !strings.HasPrefix(abs, target) {
-				return fmt.Errorf("tarball symlink %q points outside plugin dir", hdr.Name)
+			// Resolve the link target relative to the entry's own
+			// directory and ensure the result stays inside the plugin
+			// dir. A filepath.Rel-based containment check (not a string
+			// prefix against the install root) rejects sibling dirs
+			// (e.g. plugins-evil), cross-plugin ../otherplugin/...
+			// targets, and absolute escapes.
+			linkDir := filepath.Dir(clean)
+			resolved := filepath.Join(linkDir, hdr.Linkname)
+			if !withinDir(pluginRoot, resolved) {
+				return fmt.Errorf("tarball symlink %q points outside plugin dir %q", hdr.Name, pluginRoot)
 			}
 			_ = os.Remove(clean)
 			if err := os.Symlink(hdr.Linkname, clean); err != nil {
@@ -343,10 +356,29 @@ func safeJoin(target, elem string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+	if !relWithin(rel) {
 		return "", fmt.Errorf("archive entry %q escapes target dir", elem)
 	}
 	return clean, nil
+}
+
+// withinDir reports whether the already-resolved absolute path candidate
+// is dir itself or lies inside it. Unlike safeJoin (which joins a
+// relative archive name onto a root), candidate is a fully-resolved path,
+// so an absolute symlink target like /etc/passwd is correctly rejected
+// rather than re-rooted under dir.
+func withinDir(dir, candidate string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(candidate))
+	if err != nil {
+		return false
+	}
+	return relWithin(rel)
+}
+
+// relWithin reports whether a filepath.Rel result stays within its base
+// (i.e. does not start with ".." and is not absolute).
+func relWithin(rel string) bool {
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 // Uninstall is owned by the plugin system: see (*Host).Remove, which deletes a
