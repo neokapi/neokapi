@@ -185,9 +185,18 @@ func (em *EncoderManager) registerDefaults() {
 	em.Register("euc-jp", japanese.EUCJP)
 	em.Register("iso-2022-jp", japanese.ISO2022JP)
 	em.Register("euc-kr", korean.EUCKR)
-	em.Register("gb2312", simplifiedchinese.HZGB2312)
+	// "gb2312" labels in the wild (HTTP charset, PO Content-Type) carry
+	// double-byte EUC-CN data, not the 7-bit HZ escape transport. GBK is a
+	// superset of GB2312 and is the correct interpretation for charset=gb2312,
+	// matching the WHATWG Encoding Standard and what browsers do.
+	em.Register("gb2312", simplifiedchinese.GBK)
+	em.Register("euc-cn", simplifiedchinese.GBK)
 	em.Register("gbk", simplifiedchinese.GBK)
 	em.Register("gb18030", simplifiedchinese.GB18030)
+	// HZ-GB-2312 (the 7-bit escape-based transport encoding) stays reachable
+	// under its own real name, never via the "gb2312" alias above.
+	em.Register("hz-gb-2312", simplifiedchinese.HZGB2312)
+	em.Register("hz", simplifiedchinese.HZGB2312)
 	em.Register("big5", traditionalchinese.Big5)
 
 	// Other

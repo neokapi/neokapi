@@ -97,6 +97,61 @@ func TestEncoderManager_NormalizeName(t *testing.T) {
 	}
 }
 
+func TestEncoderManager_GB2312_DecodesEUCCN(t *testing.T) {
+	em := NewEncoderManager()
+
+	// "中文" in EUC-CN / GB2312 double-byte encoding:
+	//   中 = 0xD6 0xD0, 文 = 0xCE 0xC4
+	// Files labelled charset=gb2312 (e.g. via the PO Content-Type header)
+	// carry this double-byte data, not the 7-bit HZ escape transport. The
+	// "gb2312" alias must therefore decode it correctly (regression: it
+	// previously mapped to HZGB2312 and produced U+FFFD).
+	euccn := []byte{0xD6, 0xD0, 0xCE, 0xC4}
+
+	for _, name := range []string{"gb2312", "euc-cn", "gbk", "gb18030"} {
+		t.Run(name, func(t *testing.T) {
+			decoded, err := em.Decode(euccn, name)
+			require.NoError(t, err)
+			assert.Equal(t, "中文", decoded)
+			assert.NotContains(t, decoded, "�", "decoding produced replacement chars")
+		})
+	}
+}
+
+func TestEncoderManager_GB2312_RoundTrip(t *testing.T) {
+	em := NewEncoderManager()
+
+	euccn := []byte{0xD6, 0xD0, 0xCE, 0xC4}
+	decoded, err := em.Decode(euccn, "gb2312")
+	require.NoError(t, err)
+	assert.Equal(t, "中文", decoded)
+
+	encoded, err := em.Encode(decoded, "gb2312")
+	require.NoError(t, err)
+	assert.Equal(t, euccn, encoded)
+}
+
+func TestEncoderManager_HZGB2312_StillReachable(t *testing.T) {
+	em := NewEncoderManager()
+
+	// HZ-GB-2312 remains available under its own real name and is distinct
+	// from the "gb2312" alias (which now means GBK/EUC-CN).
+	for _, name := range []string{"hz-gb-2312", "hz", "hz_gb_2312"} {
+		t.Run(name, func(t *testing.T) {
+			enc, err := em.Get(name)
+			require.NoError(t, err)
+			assert.NotNil(t, enc)
+		})
+	}
+
+	// HZ uses a 7-bit escape transport: "~{...~}" delimits GB-coded text.
+	// "~{<text>~}" with the same two characters as the EUC-CN test.
+	hz := []byte("~{VPND~}")
+	decoded, err := em.Decode(hz, "hz-gb-2312")
+	require.NoError(t, err)
+	assert.Equal(t, "中文", decoded)
+}
+
 func TestDetect(t *testing.T) {
 	tests := []struct {
 		name     string
