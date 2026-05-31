@@ -73,14 +73,23 @@ export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
 
 /**
  * Env vars that point kapi at the isolated state. Merge into PATH-augmented env.
- * Only XDG_DATA_HOME (→ <data>/kapi/plugins) + KAPI_CONFIG_DIR are set; we deliberately
- * do NOT set KAPI_PLUGINS_DIR — pointing it at the same dir makes kapi discover the
- * bridge twice and print a "declared in both" warning.
+ *
+ * XDG_DATA_HOME (→ <data>/kapi/plugins) + KAPI_CONFIG_DIR isolate the user-level
+ * data and config roots. But XDG_DATA_HOME alone does NOT stop kapi from also
+ * discovering plugins from the *system* roots (Homebrew, /usr/share), so a
+ * recording could surface host system-root plugins. To fully isolate plugin
+ * discovery — matching the desktop recorder (record-desktop.ts) — we set
+ * KAPI_PLUGINS_DIR to the isolated plugins dir and KAPI_PLUGINS_DIR_ONLY=1 so
+ * discovery is restricted to that one dir (no user XDG root, no system roots).
+ * Pointing KAPI_PLUGINS_DIR at the same dir XDG_DATA_HOME would resolve to
+ * (KAPI_ISO_PLUGINS) avoids double-discovery because _ONLY skips the XDG root.
  */
 export function kapiIsolationEnv(): Record<string, string> {
   return {
     XDG_DATA_HOME: KAPI_ISO_DATA,
     KAPI_CONFIG_DIR: KAPI_ISO_HOME,
+    KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
+    KAPI_PLUGINS_DIR_ONLY: "1",
   };
 }
 
