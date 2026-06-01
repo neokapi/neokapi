@@ -172,7 +172,7 @@ func TestSatEngine_CloseReapsChild(t *testing.T) {
 	require.NoError(t, eng.Close())
 	// After Kill + Wait the child is reaped: signalling the finished process
 	// errors with "process already finished".
-	assert.Error(t, proc.cmd.Process.Signal(syscall.Signal(0)),
+	require.Error(t, proc.cmd.Process.Signal(syscall.Signal(0)),
 		"child pid %d should be reaped after Close", pid)
 
 	// Idempotent: a second Close and the finalizer-equivalent close are safe.

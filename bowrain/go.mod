@@ -7,8 +7,10 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.10.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.7.0
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/coder/websocket v1.8.14
 	github.com/coreos/go-oidc/v3 v3.18.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/labstack/echo/v4 v4.15.2
@@ -80,7 +82,6 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-git/go-git/v5 v5.19.1 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -152,6 +153,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0 // indirect

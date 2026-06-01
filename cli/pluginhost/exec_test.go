@@ -75,7 +75,7 @@ func TestRunSubprocessContextCancellation(t *testing.T) {
 	case err := <-done:
 		elapsed := time.Since(start)
 		require.Error(t, err, "cancelled subprocess must return an error")
-		assert.ErrorIs(t, err, context.Canceled, "error must wrap the context cancellation")
+		require.ErrorIs(t, err, context.Canceled, "error must wrap the context cancellation")
 		assert.Less(t, elapsed, 10*time.Second,
 			"runSubprocess should return promptly after cancellation, not wait out the child's 60s sleep")
 	case <-time.After(15 * time.Second):

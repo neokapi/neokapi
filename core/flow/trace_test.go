@@ -423,7 +423,7 @@ func TestTracingTool_NoInterceptorLeakOnEarlyInnerError(t *testing.T) {
 	feeders.Add(2)
 	go func() {
 		defer feeders.Done()
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			select {
 			case in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock(fmt.Sprintf("b%d", i), "x")}:
 			case <-feedStop:
@@ -473,7 +473,7 @@ func TestTracingTool_NoInterceptorLeakOnCancel(t *testing.T) {
 	feeders.Add(2)
 	go func() {
 		defer feeders.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			select {
 			case in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b", "x")}:
 			case <-feedStop:

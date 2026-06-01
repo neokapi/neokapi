@@ -195,7 +195,7 @@ func TestMetricsTool_NoInterceptorLeakOnEarlyInnerError(t *testing.T) {
 	feeders.Add(2)
 	go func() {
 		defer feeders.Done()
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			select {
 			case in <- &model.Part{Type: model.PartData, Resource: &model.Data{ID: string(rune('a' + i%26))}}:
 			case <-feedStop:
@@ -253,7 +253,7 @@ func TestMetricsTool_NoInterceptorLeakOnCancel(t *testing.T) {
 	feeders.Add(2)
 	go func() {
 		defer feeders.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			select {
 			case in <- &model.Part{Type: model.PartData, Resource: &model.Data{ID: "x"}}:
 			case <-feedStop:

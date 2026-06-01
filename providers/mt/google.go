@@ -70,7 +70,7 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*
 	// query parameter. Keeping the key out of the URL prevents it from leaking
 	// into wrapped transport errors (*url.Error includes the full URL) and from
 	// being recorded by proxies, access logs, and APM tooling.
-	apiURL := fmt.Sprintf("%s/language/translate/v2", p.cfg.baseURL())
+	apiURL := p.cfg.baseURL() + "/language/translate/v2"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)

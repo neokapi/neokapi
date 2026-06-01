@@ -49,7 +49,6 @@ func TestFlush_SurfacesWriteError(t *testing.T) {
 	}
 
 	for _, failAfter := range []int{0, 1, 3} {
-		failAfter := failAfter
 		t.Run("failAfter="+string(rune('0'+failAfter)), func(t *testing.T) {
 			t.Parallel()
 			writer := xliff.NewWriter()

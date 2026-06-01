@@ -410,7 +410,8 @@ func TestGeminiProviderTransportErrorDoesNotLeakKey(t *testing.T) {
 
 	// Point at a port nothing is listening on so the transport fails to connect.
 	// Grab a free port, then close the listener immediately.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := ln.Addr().String()
 	require.NoError(t, ln.Close())
@@ -461,7 +462,7 @@ func TestGeminiProviderChatStreamLargeDataLine(t *testing.T) {
 			},
 		}
 		data, _ := json.Marshal(chunk)
-		require.Greater(t, len(data), 64*1024, "test chunk must exceed the default scanner cap")
+		assert.Greater(t, len(data), 64*1024, "test chunk must exceed the default scanner cap")
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
 	}))
@@ -505,6 +506,6 @@ func TestGeminiProviderChatStreamRespectsContextDeadline(t *testing.T) {
 	start := time.Now()
 	_, err := p.ChatStream(ctx, []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Less(t, time.Since(start), geminiStreamTimeout, "stream should honor the caller's deadline, not the 5m cap")
 }

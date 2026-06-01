@@ -50,7 +50,7 @@ func TestForeignKeys_AllPooledConnections(t *testing.T) {
 	)
 	ready.Add(conns)
 	ctx := t.Context()
-	for i := 0; i < conns; i++ {
+	for range conns {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

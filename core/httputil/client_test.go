@@ -67,7 +67,7 @@ func TestRetryTransport_ContextCancellationAbortsBackoff(t *testing.T) {
 				resp.Body.Close()
 			}
 			require.Error(t, err)
-			assert.ErrorIs(t, err, context.Canceled)
+			require.ErrorIs(t, err, context.Canceled)
 
 			// Must return promptly after cancel — well under the full backoff
 			// (>= 500ms) it would otherwise have slept for.
@@ -148,7 +148,7 @@ func TestRetryTransport_RetryAfterRespectedAndCapped(t *testing.T) {
 	}
 
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, int32(1), atomic.LoadInt32(&hits))
 	assert.Less(t, elapsed, MaxRetryAfter, "wait must be bounded, never the advertised 600s")
 }
@@ -183,7 +183,7 @@ func TestRetryTransport_NoRetryOnNilGetBody(t *testing.T) {
 
 			transport := newTestTransport(MaxRetries)
 
-			req, err := http.NewRequest(http.MethodPost, srv.URL, &nonReplayableBody{r: strings.NewReader("payload")})
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, &nonReplayableBody{r: strings.NewReader("payload")})
 			require.NoError(t, err)
 			// Force the non-replayable case: a body present but no GetBody.
 			req.GetBody = nil
@@ -217,7 +217,7 @@ func TestRetryTransport_RetriesReplayableBodyOn429(t *testing.T) {
 	transport := newTestTransport(MaxRetries)
 
 	// strings.NewReader bodies get an automatic GetBody, so retry is allowed.
-	req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader("payload"))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, strings.NewReader("payload"))
 	require.NoError(t, err)
 	require.NotNil(t, req.GetBody)
 
@@ -240,7 +240,7 @@ func TestRetryTransport_SucceedsWithoutRetry(t *testing.T) {
 
 	transport := newTestTransport(MaxRetries)
 
-	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
 	require.NoError(t, err)
 
 	resp, err := transport.RoundTrip(req)
@@ -254,7 +254,7 @@ func TestRetryTransport_SucceedsWithoutRetry(t *testing.T) {
 
 func TestBackoff_Increases(t *testing.T) {
 	// Sanity: backoff base grows with attempt and is always within [base, 1.5*base).
-	for attempt := 0; attempt < 4; attempt++ {
+	for attempt := range 4 {
 		base := time.Duration(1<<uint(attempt)) * 500 * time.Millisecond
 		got := backoff(attempt)
 		assert.GreaterOrEqual(t, got, base)
