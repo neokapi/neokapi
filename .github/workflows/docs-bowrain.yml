@@ -62,7 +62,10 @@ jobs:
       # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
       # workspace, by design — see PR #425); install it on its own.
       - name: Install bowrain docs site dependencies
-        run: corepack pnpm install --ignore-workspace
+        # strict-dep-builds=false: core-js' build is intentionally ignored
+        # (allowBuilds in pnpm-workspace.yaml); without it pnpm 11 exits non-zero
+        # with ERR_PNPM_IGNORED_BUILDS and fails the docs build.
+        run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
         working-directory: bowrain/web/docs
 
       - name: Stage walkthrough scene .webm into static/video/bowrain/
