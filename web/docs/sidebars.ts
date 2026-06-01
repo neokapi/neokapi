@@ -37,22 +37,13 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "doc", id: "kapi/cli", label: "Overview" },
-        "kapi/bilingual-workflow",
-      ],
-    },
-    {
-      type: "category",
-      label: "CLI Recipes",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
         { type: "doc", id: "kapi/recipes/index", label: "Overview" },
         "kapi/recipes/overview",
         "kapi/recipes/estimate-cost",
         "kapi/recipes/pseudo-translate",
         "kapi/recipes/terminology-qa",
         "kapi/recipes/pre-translate-with-tm",
+        "kapi/bilingual-workflow",
       ],
     },
     {
@@ -60,10 +51,7 @@ const sidebars: SidebarsConfig = {
       label: "Kapi Desktop",
       collapsible: false,
       className: "sidebar-section-heading",
-      items: [
-        { type: "doc", id: "kapi/desktop/overview", label: "Overview" },
-        "kapi/desktop/getting-started",
-      ],
+      items: [{ type: "doc", id: "kapi/desktop/overview", label: "Overview" }],
     },
   ],
 

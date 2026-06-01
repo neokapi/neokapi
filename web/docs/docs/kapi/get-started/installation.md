@@ -7,23 +7,33 @@ keywords: [kapi, install, homebrew, winget, binary download, macos, linux, windo
 
 # Installation
 
-Once you've [tried kapi in the browser](/kapi/get-started/quickstart), install the `kapi`
-CLI to run it locally and against your own files — a single self-contained
-binary that runs offline by default.
+neokapi ships two artifacts you can install independently:
 
-## Homebrew (macOS/Linux)
+- the **`kapi` CLI** — a single self-contained binary that runs offline by
+  default and operates directly on your files;
+- **Kapi Desktop** — the visual companion app, which bundles the CLI.
+
+The two sections below cover each. If you only want the command line, you need
+the first section alone.
+
+## Install the Kapi CLI
+
+Once you've [tried kapi in the browser](/kapi/get-started/quickstart), install
+the binary to run it locally against your own files.
+
+### Homebrew (macOS/Linux)
 
 ```bash
 brew install neokapi/tap/kapi
 ```
 
-## WinGet (Windows)
+### WinGet (Windows)
 
 ```powershell
 winget install Neokapi.Kapi
 ```
 
-## Binary Downloads
+### Binary Downloads
 
 Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:
 
@@ -31,7 +41,7 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 - macOS (amd64, arm64)
 - Windows (amd64, arm64)
 
-## From source (Go developers)
+### From source (Go developers)
 
 Install the latest with Go:
 
@@ -47,13 +57,13 @@ cd neokapi
 make build       # Build kapi CLI → bin/kapi
 ```
 
-## Verify Installation
+### Verify the install
 
 ```bash
 kapi version
 ```
 
-## Add a provider credential (optional)
+### Add a provider credential (optional)
 
 The rule-based commands — pseudo-translate, word-count, brand checks against a
 profile file — need no credential. For LLM-backed translation, QA, and review,
@@ -67,12 +77,30 @@ kapi credentials list       # see what's saved
 Credentials live in your OS keychain. See the
 [Quick Start](/kapi/get-started/quickstart) for what to run next.
 
-## Kapi Desktop
+## Install Kapi Desktop
 
-For a visual interface, install Kapi Desktop alongside the CLI:
+Kapi Desktop is the visual companion to the CLI. Each package below installs the
+`kapi` CLI as a dependency, so a single install covers both. See the
+[Kapi Desktop overview](/kapi/desktop/overview) for what it does.
+
+### macOS (Homebrew)
 
 ```bash
 brew install --cask neokapi/tap/kapi
 ```
 
-On Windows, download the signed installer (`kapi-desktop-X.Y.Z-windows-amd64-setup.exe` or `-arm64-setup.exe`); macOS DMG and Linux tarball builds are on [GitHub Releases](https://github.com/neokapi/neokapi/releases) as well. See the [Kapi Desktop overview](/kapi/desktop/overview) for details.
+### Windows (installer)
+
+Download and run the signed installer from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+
+- **amd64**: `kapi-desktop-X.Y.Z-windows-amd64-setup.exe`
+- **arm64**: `kapi-desktop-X.Y.Z-windows-arm64-setup.exe`
+
+The installer is Authenticode-signed and registers a Start-menu entry and uninstaller.
+
+### Manual download (macOS, Linux)
+
+Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+
+- **macOS**: `kapi-desktop-X.Y.Z-macOS-arm64.dmg` (Apple Silicon)
+- **Linux**: `kapi-desktop-X.Y.Z-linux-amd64.tar.gz` or `kapi-desktop-X.Y.Z-linux-arm64.tar.gz`

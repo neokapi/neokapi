@@ -28,15 +28,15 @@ the other: the flows and the project file are identical.
 
 Run tools and flows straight from the terminal — `kapi pseudo-translate`,
 `kapi ai-translate`, `kapi brand check`, `kapi run <flow>`. See the
-[Kapi CLI overview](/kapi/cli) for the command surface, and the
-[recipes](/kapi/recipes) for task-by-task walkthroughs you can run in the browser.
+[Kapi CLI overview](/kapi/cli) for the command surface and the task-by-task
+recipes you can run in the browser.
 
 ## Desktop app
 
 Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
 tools and flows in a native app with a flow editor, live runner, plugin manager,
-and credential vault. Start with
-[your first project](/kapi/desktop/getting-started).
+and credential vault. The [Kapi Desktop overview](/kapi/desktop/overview) walks
+through your first project.
 
 ## Projects vs. ad-hoc
 

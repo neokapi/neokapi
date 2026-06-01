@@ -88,41 +88,46 @@ Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi
 - **Credential vault** — Store AI provider API keys securely in your OS keychain.
 - **Project files** — Save workflows as portable Kapi project files you can share via git or open with double-click.
 
-## Installation
+## Install
 
-### macOS (Homebrew)
+On macOS, the cask installs the app and bundles the `kapi` CLI:
 
 ```bash
 brew install --cask neokapi/tap/kapi
 ```
 
-This also installs the `kapi` CLI as a dependency.
+For the Windows installer and the macOS DMG / Linux tarball builds, see
+[Installation](/kapi/get-started/installation#install-kapi-desktop).
 
-### Windows (installer)
+## Your first project
 
-Download and run the signed installer from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+The tour above shows each surface in motion; here is the path through them when
+you start from nothing. Everything is configured visually — there is no YAML to
+write by hand.
 
-- **amd64**: `kapi-desktop-X.Y.Z-windows-amd64-setup.exe`
-- **arm64**: `kapi-desktop-X.Y.Z-windows-arm64-setup.exe`
+1. **Create the project.** Launch Kapi Desktop and click **New Project**. Give
+   it a name, set the **source language** (e.g. `en-US`), and add the **target
+   languages** you translate into (e.g. `fr-FR`, `de-DE`). Naming it is the only
+   required step.
+2. **Add content.** In the **Content** view, add a pattern that points at your
+   source files — for example `src/locales/en/*.json`. Kapi lists the files it
+   matches and the format it detected for each, grouped into a named collection.
+3. **Add a provider key.** In **Settings → Providers** (or **Credentials**),
+   add an AI provider and paste your API key. Keys are stored in your OS
+   keychain, never in the project file.
+4. **Compose a flow.** In **Flows**, create a flow and add the steps you need —
+   an AI translation, optionally followed by a quality or terminology check.
+   Each flow is a named pipeline saved alongside the project.
+5. **Run it.** Select the flow, pick input files and a target language, and
+   click **Run**. You'll see per-file progress, node highlighting, timing, and
+   the output file locations.
+6. **Install plugins (optional).** In **Plugins**, browse the registry and
+   install the **Okapi Bridge** to add its document formats and filters; new
+   formats appear automatically.
 
-The installer is Authenticode-signed and registers a Start-menu entry and uninstaller.
-
-### Manual Download (macOS, Linux)
-
-Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
-
-- **macOS**: `kapi-desktop-X.Y.Z-macOS-arm64.dmg` (Apple Silicon)
-- **Linux**: `kapi-desktop-X.Y.Z-linux-amd64.tar.gz` or `kapi-desktop-X.Y.Z-linux-arm64.tar.gz`
-
-## Quick Start
-
-1. **Launch Kapi Desktop** and click **New Project**
-2. Set your source language (e.g., `en-US`) and target languages
-3. Go to **Flows** and create a flow with the tools you need
-4. Go to **Credentials** and add your AI provider API key
-5. Select your flow, pick input files, and click **Run**
-
-Your workflow is saved as a Kapi project file that you can reopen, share, or run from the CLI:
+Everything you configure is written to a portable `<name>.kapi` recipe file.
+Commit it to git to share with your team, reopen it in Kapi Desktop, or run it
+from the command line:
 
 ```bash
 kapi run translate -p myproject.kapi
@@ -131,5 +136,5 @@ kapi run translate -p myproject.kapi
 ## Next Steps
 
 - [Kapi Project Files](/reference/project-file) — Full format reference
-- [Your first project](/kapi/desktop/getting-started) — Step-by-step walkthrough
 - [Kapi CLI](/kapi/cli) — Command-line reference
+- [Installation](/kapi/get-started/installation) — all platforms and options

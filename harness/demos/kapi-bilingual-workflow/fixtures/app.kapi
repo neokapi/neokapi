@@ -1,0 +1,13 @@
+version: v1
+name: Bilingual Demo
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE]
+  merge:
+    conflict_policy: translator-wins
+  tm:
+    fuzzy_threshold: 75
+content:
+  - path: src/locales/en/*.json
+    format: json
+    target: src/locales/{lang}/*.json

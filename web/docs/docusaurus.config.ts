@@ -219,8 +219,8 @@ const config: Config = {
               to: "/framework/architecture",
             },
             {
-              label: "Recipes",
-              to: "/kapi/recipes",
+              label: "Kapi CLI",
+              to: "/kapi/cli",
             },
             {
               label: "CLI tools",

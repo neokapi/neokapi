@@ -1,16 +1,61 @@
 ---
 id: index
-slug: /kapi/recipes
-title: Recipes
+slug: /kapi/cli
+title: Kapi CLI
 sidebar_label: Overview
 sidebar_position: 0
-description: "Task-framed how-to recipes for common kapi workflows — each one a goal, the steps to reach it, and an interactive run you can follow along with in the browser."
+description: "kapi is a standalone, format-aware localization CLI — AI translation, TM leverage, pseudo-translation, and faithful round-trip across native and Okapi bridge formats — plus checks for terminology, QA, and brand voice that act like tests for AI output."
+keywords: [kapi, CLI, format-aware localization, AI translation, checks, tests for AI, formats, tools, recipes]
 hide_table_of_contents: true
 ---
 
 import Link from "@docusaurus/Link";
 
-# Recipes
+# Kapi CLI
+
+Kapi is a command-line tool for **format-aware localization** — it reads,
+translates, and ships content faithfully across native localization, document,
+data, subtitle, and office formats — and runs **checks** (terminology, QA,
+brand voice) that act like **tests for AI output**. It operates directly on
+files, needs no project or server, and runs offline by default.
+
+It does two jobs from one engine:
+
+- **Localize** — AI translation, MT, TM leverage, and pseudo-translation, with
+  automatic format detection and more formats through the okapi-bridge (see the
+  [format reference](/formats)).
+- **[Check](/framework/checks)** — verify content with terminology, QA, and
+  brand-voice checks. Each reports findings against a shared model, so you can
+  gate a build on them in CI or serve them to your AI assistant over
+  [MCP](/reference/mcp).
+
+## Key commands
+
+```bash
+# --- Localize ---
+kapi formats                                          # list supported formats
+kapi word-count messages.json                         # count source words
+kapi pseudo-translate messages.json                   # pseudo-translate for UI testing
+kapi ai-translate -i input.html --source-lang en --target-lang fr
+kapi run ai-translate-qa -i input.html --source-lang en --target-lang fr
+
+# --- Check (tests for AI) ---
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+kapi mcp                                              # serve checks + terminology over MCP
+
+# --- Terminology & translation memory ---
+kapi termbase import terms.csv --format csv -s en -t fr
+kapi tm import translations.tmx --name project-tm -s en -t fr
+
+# --- Discover ---
+kapi tools                                            # processing tools
+kapi flows                                            # composed flows
+kapi plugin list                                      # installed plugins
+```
+
+See the [command reference](/commands) for every flag.
+
+## Recipes
 
 Each recipe takes a single task — estimate a job, catch UI truncation, enforce a
 glossary — states the goal, walks the steps, and lets you run the commands
@@ -55,3 +100,39 @@ install, no server, no API key. Every command shown is the command that runs.
     </Link>
   </div>
 </div>
+
+## Output locations
+
+Tools that write files (translation, pseudo-translation, source transforms)
+choose an output path automatically, so most commands need no `-o`:
+
+- **Locale-additive formats** (KLF) are updated **in place** — the target locale
+  is added to the same file.
+- **Other formats** (JSON, XLIFF, …) write a new file in a **locale-aware**
+  location: the source locale in the input path is swapped for the target
+  (`locales/en/app.json → locales/fr/app.json`), or, when the path carries no
+  locale, the file lands under a `{lang}/` directory beside the input
+  (`messages.json → fr/messages.json`).
+
+Override the destination with `-o <path|template>` (placeholders: `{dir}`,
+`{name}`, `{lang}`, `{ext}`) or `--output-dir DIR` to root outputs at
+`DIR/{lang}/`.
+
+## Project files
+
+Kapi can optionally use a `.kapi` project file to save workflow defaults. Pass
+`-p` to reference one:
+
+```bash
+kapi run translate -p myproject.kapi
+kapi run translate -p myproject.kapi --target-lang de   # CLI flags override defaults
+```
+
+See [Kapi project files](/reference/project-file) for the full format reference.
+
+## Next steps
+
+- [Installation](/kapi/get-started/installation) — Homebrew, WinGet, and binary downloads
+- [Kapi Desktop](/kapi/desktop/overview) — the visual companion for building flows and running tools
+- [Using kapi with AI assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
+- [Brand voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement

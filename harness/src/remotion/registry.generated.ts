@@ -46,6 +46,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Review and approve"
   },
   {
+    "id": "kapi-bilingual-workflow",
+    "title": "The bilingual round-trip — extract, translate, merge"
+  },
+  {
     "id": "kapi-desktop-config",
     "title": "Configure Kapi Desktop"
   },
