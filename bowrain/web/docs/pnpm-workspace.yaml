@@ -3,6 +3,11 @@
 # here independently of the repo workspace.
 packages: []
 
-# core-js' install script only prints a funding banner — not needed.
+# core-js' install script only prints a funding banner — harmless, but pnpm 11
+# refuses to silently ignore a build script (ERR_PNPM_IGNORED_BUILDS) unless the
+# package is explicitly allowed (true) or the whole list is acknowledged. `false`
+# does NOT silence it, so allow the build — matching the root workspace's
+# allowBuilds entry. NOTE: this only takes effect when pnpm reads this file, i.e.
+# install must NOT pass --ignore-workspace.
 allowBuilds:
-  core-js: false
+  core-js: true
