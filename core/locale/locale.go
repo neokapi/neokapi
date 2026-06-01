@@ -44,6 +44,20 @@ func MustParse(s string) model.LocaleID {
 	return id
 }
 
+// Normalize returns the canonical BCP-47 form of id (e.g. "pt-br" → "pt-BR",
+// "EN" → "en"), falling back to id unchanged when it is empty or not a
+// parseable tag. Use it at storage and lookup boundaries so locales that differ
+// only in formatting compare and key equal.
+func Normalize(id model.LocaleID) model.LocaleID {
+	if id == "" {
+		return id
+	}
+	if norm, err := Parse(string(id)); err == nil {
+		return norm
+	}
+	return id
+}
+
 // DisplayName returns the English display name for a locale ID.
 // For example, "fr" returns "French", "de" returns "German".
 // Falls back to the raw code for unrecognized tags.

@@ -542,7 +542,7 @@ func (a *App) resolveBrandProfile(cmd *cobra.Command) (*brand.VoiceProfile, stri
 	}
 
 	if locale != "" || channel != "" {
-		profile = brand.ResolveProfile(profile, locale, channel)
+		profile = brand.ResolveProfile(profile, model.LocaleID(locale), channel)
 	}
 	return profile, src, nil
 }
@@ -603,7 +603,7 @@ func (a *App) resolveProjectBrandProfile(cmd *cobra.Command, locale, channel str
 	}
 
 	if locale != "" || channel != "" {
-		profile = brand.ResolveProfile(profile, locale, channel)
+		profile = brand.ResolveProfile(profile, model.LocaleID(locale), channel)
 	}
 	return profile, src, true, nil
 }

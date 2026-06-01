@@ -1,6 +1,11 @@
 package brand
 
-import "context"
+import (
+	"context"
+
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // ResolveProfileFromContext resolves the most specific brand voice profile
 // from the organizational hierarchy and applies locale + channel overrides.
@@ -58,7 +63,7 @@ func resolveChannel(rc ResolveContext) string {
 
 // ResolveProfile returns the most specific profile configuration for a given scope.
 // It applies locale and channel overrides to the base profile.
-func ResolveProfile(profile *VoiceProfile, locale string, channel string) *VoiceProfile {
+func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel string) *VoiceProfile {
 	if profile == nil {
 		return nil
 	}
@@ -66,8 +71,8 @@ func ResolveProfile(profile *VoiceProfile, locale string, channel string) *Voice
 	resolved := *profile
 
 	// Apply locale override
-	if locale != "" {
-		if override, ok := profile.Locales[locale]; ok {
+	if loc != "" {
+		if override, ok := matchLocaleOverride(profile.Locales, loc); ok {
 			if override.Formality != "" {
 				resolved.Tone.Formality = override.Formality
 			}
@@ -102,4 +107,24 @@ func ResolveProfile(profile *VoiceProfile, locale string, channel string) *Voice
 	}
 
 	return &resolved
+}
+
+// matchLocaleOverride finds the override whose key matches loc, tolerating
+// BCP-47 formatting differences between the profile's keys and the requested
+// locale. An exact key match wins first (cheap, and preserves any tag the
+// author wrote verbatim); otherwise keys are compared in canonical form, so a
+// profile keyed "pt-BR" still matches a "pt-br" lookup and "EN" matches "en".
+// Region specificity is preserved — "en" never matches "en-US" — because
+// canonicalization normalizes form, not granularity.
+func matchLocaleOverride(overrides map[model.LocaleID]LocaleOverride, loc model.LocaleID) (LocaleOverride, bool) {
+	if override, ok := overrides[loc]; ok {
+		return override, true
+	}
+	want := locale.Normalize(loc)
+	for key, override := range overrides {
+		if locale.Normalize(key) == want {
+			return override, true
+		}
+	}
+	return LocaleOverride{}, false
 }

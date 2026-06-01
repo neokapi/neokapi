@@ -11,6 +11,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // PostgresBrandStore implements brand.BrandStore using PostgreSQL.
@@ -222,18 +224,18 @@ func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *corebrand.St
 		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		score.ID, score.ProjectID, stream, score.BlockID, score.ProfileID,
-		score.ProfileVersion, score.Locale, score.Score, string(dims), string(findings), score.CheckedAt)
+		score.ProfileVersion, string(locale.Normalize(score.Locale)), score.Score, string(dims), string(findings), score.CheckedAt)
 	if err != nil {
 		return fmt.Errorf("insert brand voice score: %w", err)
 	}
 	return nil
 }
 
-func (s *PostgresBrandStore) GetScores(ctx context.Context, projectID, locale string) ([]*corebrand.StoredScore, error) {
+func (s *PostgresBrandStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*corebrand.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
 		 FROM brand_voice_scores WHERE project_id = $1 AND locale = $2
-		 ORDER BY checked_at DESC`, projectID, locale)
+		 ORDER BY checked_at DESC`, projectID, string(locale.Normalize(loc)))
 	if err != nil {
 		return nil, fmt.Errorf("get brand scores: %w", err)
 	}
@@ -568,7 +570,7 @@ func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 		return nil, fmt.Errorf("unmarshal examples: %w", err)
 	}
 	if err := json.Unmarshal([]byte(localesJSON), &p.Locales); err != nil {
-		p.Locales = map[string]corebrand.LocaleOverride{}
+		p.Locales = map[model.LocaleID]corebrand.LocaleOverride{}
 	}
 	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
 		p.Channels = map[string]corebrand.ChannelOverride{}

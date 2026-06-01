@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // bgCtx returns a background context. Used by resource handlers that don't
@@ -40,5 +41,5 @@ func extractParamBefore(uri, prefix, suffix string) string {
 // resolveProfile is a convenience wrapper around corebrand.ResolveProfile
 // that handles empty locale/channel gracefully.
 func resolveProfile(profile *corebrand.VoiceProfile, locale, channel string) *corebrand.VoiceProfile {
-	return corebrand.ResolveProfile(profile, locale, channel)
+	return corebrand.ResolveProfile(profile, model.LocaleID(locale), channel)
 }

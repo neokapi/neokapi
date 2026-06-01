@@ -3,6 +3,7 @@ package locale
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +51,30 @@ func TestMustParse(t *testing.T) {
 	assert.Panics(t, func() {
 		MustParse("")
 	})
+}
+
+func TestNormalize(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"pt-BR", "pt-BR"}, // already canonical
+		{"pt-br", "pt-BR"}, // region casing fixed
+		{"PT-br", "pt-BR"}, // language + region casing fixed
+		{"EN", "en"},       // language casing fixed
+		{"fr-fr", "fr-FR"}, // region casing fixed
+		{"", ""},           // empty passes through
+		{"!!!", "!!!"},     // unparseable falls back to input
+		{"en-US", "en-US"}, // region specificity preserved
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, string(Normalize(model.LocaleID(tt.input))))
+		})
+	}
 }
 
 func TestDisplayName(t *testing.T) {

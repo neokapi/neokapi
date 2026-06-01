@@ -1,5 +1,7 @@
 package brand
 
+import "github.com/neokapi/neokapi/core/model"
+
 // BrandVoiceEvaluation captures the results of comparing brand voice profiles
 // against content across two streams or profile versions.
 type BrandVoiceEvaluation struct {
@@ -68,11 +70,11 @@ type EvaluationFinding struct {
 
 // EvaluateRequest holds parameters for a brand voice evaluation.
 type EvaluateRequest struct {
-	Stream             string `json:"stream"`
-	BaselineStream     string `json:"baseline_stream"`
-	ProfileTag         string `json:"profile_tag,omitempty"`
-	BaselineProfileTag string `json:"baseline_profile_tag,omitempty"`
-	Locale             string `json:"locale,omitempty"`
-	Collection         string `json:"collection,omitempty"`
-	SampleSize         int    `json:"sample_size,omitempty"` // 0 = all blocks
+	Stream             string         `json:"stream"`
+	BaselineStream     string         `json:"baseline_stream"`
+	ProfileTag         string         `json:"profile_tag,omitempty"`
+	BaselineProfileTag string         `json:"baseline_profile_tag,omitempty"`
+	Locale             model.LocaleID `json:"locale,omitempty"`
+	Collection         string         `json:"collection,omitempty"`
+	SampleSize         int            `json:"sample_size,omitempty"` // 0 = all blocks
 }

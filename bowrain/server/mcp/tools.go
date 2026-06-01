@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Phase 1 tools: check_vocabulary, list_profiles, get_voice_guide.
@@ -53,7 +54,7 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 	}
 
 	if input.Locale != "" {
-		profile = corebrand.ResolveProfile(profile, input.Locale, "")
+		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
 	findings := checkVocab(input.Text, profile)
@@ -122,7 +123,7 @@ func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRe
 		return nil, getVoiceGuideOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
-	resolved := corebrand.ResolveProfile(profile, input.Locale, input.Channel)
+	resolved := corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel)
 	guide := formatVoiceGuide(resolved)
 
 	return nil, getVoiceGuideOutput{Guide: guide}, nil

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +39,7 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 		Examples: []corebrand.VoiceExample{
 			{Before: "We utilize this.", After: "We use this.", Explanation: "simpler"},
 		},
-		Locales:  map[string]corebrand.LocaleOverride{"de": {Formality: "formal"}},
+		Locales:  map[model.LocaleID]corebrand.LocaleOverride{"de": {Formality: "formal"}},
 		Channels: map[string]corebrand.ChannelOverride{},
 		Version:  1,
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +44,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 		Examples: []VoiceExample{
 			{Before: "Click here", After: "Select the option", Category: "style"},
 		},
-		Locales: map[string]LocaleOverride{
+		Locales: map[model.LocaleID]LocaleOverride{
 			"ja-JP": {Formality: "formal"},
 		},
 		Channels: map[string]ChannelOverride{
@@ -75,7 +76,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 	assert.Len(t, decoded.Vocabulary.ForbiddenTerms, 1)
 	assert.Equal(t, "API", firstKey(decoded.Vocabulary.Abbreviations))
 	assert.Len(t, decoded.Examples, 1)
-	assert.Contains(t, decoded.Locales, "ja-JP")
+	assert.Contains(t, decoded.Locales, model.LocaleID("ja-JP"))
 	assert.Contains(t, decoded.Channels, "support")
 	assert.Equal(t, profile.WorkspaceID, decoded.WorkspaceID)
 	assert.Equal(t, profile.Version, decoded.Version)

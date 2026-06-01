@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // A no-op / empty blast radius must serialize Collections as `[]`, never `null`:
@@ -138,7 +140,7 @@ func TestProfileClone_Independent(t *testing.T) {
 		Name:       "base",
 		Tone:       ToneProfile{Personality: []string{"warm"}},
 		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "utilize"}}, Abbreviations: map[string]string{"e.g.": "for example"}},
-		Locales:    map[string]LocaleOverride{"de": {Formality: "formal"}},
+		Locales:    map[model.LocaleID]LocaleOverride{"de": {Formality: "formal"}},
 	}
 	c := p.Clone()
 	c.Vocabulary.ForbiddenTerms = append(c.Vocabulary.ForbiddenTerms, TermRule{Term: "leverage"})

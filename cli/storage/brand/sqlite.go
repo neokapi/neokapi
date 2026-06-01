@@ -9,6 +9,8 @@ import (
 	"time"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
@@ -185,7 +187,7 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 		return nil, fmt.Errorf("unmarshal examples: %w", err)
 	}
 	if err := json.Unmarshal([]byte(localesJSON), &p.Locales); err != nil {
-		p.Locales = map[string]corebrand.LocaleOverride{}
+		p.Locales = map[model.LocaleID]corebrand.LocaleOverride{}
 	}
 	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
 		p.Channels = map[string]corebrand.ChannelOverride{}
@@ -293,7 +295,7 @@ func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *corebrand.Stor
 		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		score.ID, score.ProjectID, score.Stream, score.BlockID,
-		score.ProfileID, score.ProfileVersion, score.Locale, score.Score,
+		score.ProfileID, score.ProfileVersion, string(locale.Normalize(score.Locale)), score.Score,
 		string(dims), string(findings),
 		score.CheckedAt.Format(time.RFC3339))
 	if err != nil {
@@ -302,10 +304,10 @@ func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *corebrand.Stor
 	return nil
 }
 
-func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID, locale string) ([]*corebrand.StoredScore, error) {
+func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*corebrand.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`, projectID, locale)
+		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`, projectID, string(locale.Normalize(loc)))
 	if err != nil {
 		return nil, fmt.Errorf("query scores: %w", err)
 	}

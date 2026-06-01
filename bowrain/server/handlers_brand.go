@@ -11,18 +11,19 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // BrandProfileRequest is the request body for creating/updating a brand voice profile.
 type BrandProfileRequest struct {
-	Name        string                               `json:"name"`
-	Description string                               `json:"description,omitempty"`
-	Tone        corebrand.ToneProfile                `json:"tone"`
-	Style       corebrand.StyleRules                 `json:"style"`
-	Vocabulary  corebrand.VocabularyRules            `json:"vocabulary"`
-	Examples    []corebrand.VoiceExample             `json:"examples"`
-	Locales     map[string]corebrand.LocaleOverride  `json:"locales,omitempty"`
-	Channels    map[string]corebrand.ChannelOverride `json:"channels,omitempty"`
+	Name        string                                      `json:"name"`
+	Description string                                      `json:"description,omitempty"`
+	Tone        corebrand.ToneProfile                       `json:"tone"`
+	Style       corebrand.StyleRules                        `json:"style"`
+	Vocabulary  corebrand.VocabularyRules                   `json:"vocabulary"`
+	Examples    []corebrand.VoiceExample                    `json:"examples"`
+	Locales     map[model.LocaleID]corebrand.LocaleOverride `json:"locales,omitempty"`
+	Channels    map[string]corebrand.ChannelOverride        `json:"channels,omitempty"`
 }
 
 // BrandCheckRequest is the request body for checking text against a brand profile.
@@ -366,7 +367,7 @@ func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 	}
 
 	projectID := c.Param("id")
-	locale := c.Param("locale")
+	locale := model.LocaleID(c.Param("locale"))
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, locale)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

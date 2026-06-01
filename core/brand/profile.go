@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/neokapi/neokapi/core/model"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,22 +26,22 @@ func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
 
 // VoiceProfile defines a brand voice configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {
-	ID          string                     `json:"id" yaml:"id,omitempty"`
-	Name        string                     `json:"name" yaml:"name"`
-	Description string                     `json:"description,omitempty" yaml:"description,omitempty"`
-	Tone        ToneProfile                `json:"tone" yaml:"tone"`
-	Style       StyleRules                 `json:"style" yaml:"style"`
-	Vocabulary  VocabularyRules            `json:"vocabulary" yaml:"vocabulary"`
-	Examples    []VoiceExample             `json:"examples" yaml:"examples"`
-	Locales     map[string]LocaleOverride  `json:"locales,omitempty" yaml:"locales,omitempty"`
-	Channels    map[string]ChannelOverride `json:"channels,omitempty" yaml:"channels,omitempty"`
-	WorkspaceID string                     `json:"workspace_id" yaml:"workspace_id,omitempty"`
-	Autonomy    AutonomyConfig             `json:"autonomy,omitempty" yaml:"autonomy,omitempty"`
-	Version     int                        `json:"version" yaml:"version,omitempty"`
-	VersionNote string                     `json:"version_note,omitempty" yaml:"version_note,omitempty"`
-	CreatedAt   time.Time                  `json:"created_at" yaml:"created_at,omitempty"`
-	UpdatedAt   time.Time                  `json:"updated_at" yaml:"updated_at,omitempty"`
-	CreatedBy   string                     `json:"created_by,omitempty" yaml:"created_by,omitempty"`
+	ID          string                            `json:"id" yaml:"id,omitempty"`
+	Name        string                            `json:"name" yaml:"name"`
+	Description string                            `json:"description,omitempty" yaml:"description,omitempty"`
+	Tone        ToneProfile                       `json:"tone" yaml:"tone"`
+	Style       StyleRules                        `json:"style" yaml:"style"`
+	Vocabulary  VocabularyRules                   `json:"vocabulary" yaml:"vocabulary"`
+	Examples    []VoiceExample                    `json:"examples" yaml:"examples"`
+	Locales     map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
+	Channels    map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
+	WorkspaceID string                            `json:"workspace_id" yaml:"workspace_id,omitempty"`
+	Autonomy    AutonomyConfig                    `json:"autonomy,omitempty" yaml:"autonomy,omitempty"`
+	Version     int                               `json:"version" yaml:"version,omitempty"`
+	VersionNote string                            `json:"version_note,omitempty" yaml:"version_note,omitempty"`
+	CreatedAt   time.Time                         `json:"created_at" yaml:"created_at,omitempty"`
+	UpdatedAt   time.Time                         `json:"updated_at" yaml:"updated_at,omitempty"`
+	CreatedBy   string                            `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
 // Clone returns a deep copy of the profile across the collection-typed fields
@@ -66,7 +67,7 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	}
 	c.Examples = append([]VoiceExample(nil), p.Examples...)
 	if p.Locales != nil {
-		c.Locales = make(map[string]LocaleOverride, len(p.Locales))
+		c.Locales = make(map[model.LocaleID]LocaleOverride, len(p.Locales))
 		for k, v := range p.Locales {
 			c.Locales[k] = v
 		}

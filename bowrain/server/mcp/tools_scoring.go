@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Phase 2 tools: score_brand_compliance, suggest_corrections, rewrite_in_voice.
@@ -52,7 +53,7 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 	}
 
 	if input.Locale != "" {
-		profile = corebrand.ResolveProfile(profile, input.Locale, "")
+		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
 	findings := checkVocab(input.Text, profile)
@@ -89,7 +90,7 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 	}
 
 	if input.Locale != "" {
-		profile = corebrand.ResolveProfile(profile, input.Locale, "")
+		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
 	findings := checkVocab(input.Text, profile)
@@ -135,7 +136,7 @@ func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolR
 		return nil, rewriteInVoiceOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
-	resolved := corebrand.ResolveProfile(profile, input.Locale, input.Channel)
+	resolved := corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel)
 
 	// Apply vocabulary-based rewrites.
 	rewritten := input.Text

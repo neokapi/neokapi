@@ -3,6 +3,8 @@ package brand
 import (
 	"context"
 	"time"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // BrandStore defines the interface for brand voice profile storage.
@@ -26,7 +28,7 @@ type BrandStore interface {
 
 	// Score storage
 	StoreScore(ctx context.Context, score *StoredScore) error
-	GetScores(ctx context.Context, projectID, locale string) ([]*StoredScore, error)
+	GetScores(ctx context.Context, projectID string, locale model.LocaleID) ([]*StoredScore, error)
 	GetScoreTrends(ctx context.Context, projectID string, days int) ([]*ScoreTrend, error)
 	GetScoresByStream(ctx context.Context, projectID, stream string) ([]*StoredScore, error)
 
@@ -102,7 +104,7 @@ type StoredScore struct {
 	BlockID        string              `json:"block_id"`
 	ProfileID      string              `json:"profile_id"`
 	ProfileVersion int                 `json:"profile_version"`
-	Locale         string              `json:"locale"`
+	Locale         model.LocaleID      `json:"locale"`
 	Score          int                 `json:"score"`
 	Dimensions     []DimensionScore    `json:"dimensions"`
 	Findings       []BrandVoiceFinding `json:"findings"`

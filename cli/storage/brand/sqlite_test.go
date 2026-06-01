@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -164,6 +165,30 @@ func TestScoreStorage(t *testing.T) {
 	scores, err = store.GetScores(ctx, "proj1", "fr-FR")
 	require.NoError(t, err)
 	assert.Len(t, scores, 0)
+}
+
+// TestScoreLocaleNormalization verifies scores are stored and queried under the
+// canonical BCP-47 locale, so a score written as "pt-br" is found by a "pt-BR"
+// query and vice versa — no silent miss from a casing/format mismatch.
+func TestScoreLocaleNormalization(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+		ID: "s1", ProjectID: "proj1", Stream: "main", BlockID: "b1",
+		ProfileID: "p1", Locale: "pt-br", Score: 70, CheckedAt: time.Now(),
+	}))
+
+	// Canonical query finds the non-canonically-written score.
+	scores, err := store.GetScores(ctx, "proj1", "pt-BR")
+	require.NoError(t, err)
+	require.Len(t, scores, 1)
+	assert.Equal(t, model.LocaleID("pt-BR"), scores[0].Locale) // stored canonical
+
+	// Non-canonical query also finds it (query side normalizes too).
+	scores, err = store.GetScores(ctx, "proj1", "PT-br")
+	require.NoError(t, err)
+	assert.Len(t, scores, 1)
 }
 
 func TestScoreTrends(t *testing.T) {

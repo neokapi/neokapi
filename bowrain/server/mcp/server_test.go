@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // memBrandStore is a minimal in-memory BrandStore for testing.
@@ -47,7 +48,7 @@ func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*corebra
 	return result, nil
 }
 func (m *memBrandStore) StoreScore(_ context.Context, _ *corebrand.StoredScore) error { return nil }
-func (m *memBrandStore) GetScores(_ context.Context, _, _ string) ([]*corebrand.StoredScore, error) {
+func (m *memBrandStore) GetScores(_ context.Context, _ string, _ model.LocaleID) ([]*corebrand.StoredScore, error) {
 	return nil, nil
 }
 func (m *memBrandStore) GetScoreTrends(_ context.Context, _ string, _ int) ([]*corebrand.ScoreTrend, error) {

@@ -1,6 +1,10 @@
 package brand
 
-import "context"
+import (
+	"context"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // Well-known property keys for brand voice bindings on Project.Properties,
 // Stream.Properties, and Collection.ConnectorConfig maps.
@@ -34,7 +38,7 @@ type ResolveContext struct {
 	CollectionConfig map[string]string
 
 	// Locale is the target locale for locale-specific override resolution.
-	Locale string
+	Locale model.LocaleID
 }
 
 // ProfileResolver resolves the effective brand voice profile for a given context.

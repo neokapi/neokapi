@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +44,7 @@ func (m *mockBrandStore) ListProfileTags(context.Context, string) ([]*ProfileTag
 }
 func (m *mockBrandStore) DeleteProfileTag(context.Context, string, string) error { return nil }
 func (m *mockBrandStore) StoreScore(context.Context, *StoredScore) error         { return nil }
-func (m *mockBrandStore) GetScores(context.Context, string, string) ([]*StoredScore, error) {
+func (m *mockBrandStore) GetScores(context.Context, string, model.LocaleID) ([]*StoredScore, error) {
 	return nil, nil
 }
 func (m *mockBrandStore) GetScoreTrends(context.Context, string, int) ([]*ScoreTrend, error) {
@@ -92,7 +93,7 @@ func TestResolveProfile_LocaleOverride(t *testing.T) {
 		Vocabulary: VocabularyRules{
 			PreferredTerms: []TermRule{{Term: "app", Replacement: "application"}},
 		},
-		Locales: map[string]LocaleOverride{
+		Locales: map[model.LocaleID]LocaleOverride{
 			"ja-JP": {
 				Formality:           "formal",
 				Humor:               "none",
@@ -141,7 +142,7 @@ func TestResolveProfile_LocaleAndChannel(t *testing.T) {
 		ID:   "test",
 		Name: "Test Profile",
 		Tone: ToneProfile{Formality: "casual", Humor: "light"},
-		Locales: map[string]LocaleOverride{
+		Locales: map[model.LocaleID]LocaleOverride{
 			"de-DE": {Formality: "formal"},
 		},
 		Channels: map[string]ChannelOverride{
@@ -165,7 +166,7 @@ func TestResolveProfile_UnknownLocale(t *testing.T) {
 	profile := &VoiceProfile{
 		ID:   "test",
 		Tone: ToneProfile{Formality: "casual"},
-		Locales: map[string]LocaleOverride{
+		Locales: map[model.LocaleID]LocaleOverride{
 			"ja-JP": {Formality: "formal"},
 		},
 	}
@@ -174,6 +175,49 @@ func TestResolveProfile_UnknownLocale(t *testing.T) {
 
 	require.NotNil(t, resolved)
 	assert.Equal(t, "casual", resolved.Tone.Formality) // unchanged
+}
+
+// TestResolveProfile_LocaleNormalization verifies that override lookup tolerates
+// BCP-47 formatting differences between the profile's keys and the requested
+// locale, so a casing/format mismatch no longer silently drops the override.
+func TestResolveProfile_LocaleNormalization(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       model.LocaleID // how the profile stores the override
+		lookup    model.LocaleID // how the caller requests it
+		wantMatch bool
+	}{
+		{"region casing", "pt-BR", "pt-br", true},
+		{"lowercase request", "pt-BR", "PT-BR", true},
+		{"language casing", "en", "EN", true},
+		{"canonical request against odd key", "fr-fr", "fr-FR", true},
+		// Region specificity must be preserved — normalization fixes form, not granularity.
+		{"language does not match region", "en-US", "en", false},
+		{"different region", "pt-BR", "pt-PT", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := &VoiceProfile{
+				ID:   "test",
+				Tone: ToneProfile{Formality: "casual"},
+				Locales: map[model.LocaleID]LocaleOverride{
+					tt.key: {Formality: "formal"},
+				},
+			}
+
+			resolved := ResolveProfile(profile, tt.lookup, "")
+
+			require.NotNil(t, resolved)
+			if tt.wantMatch {
+				assert.Equal(t, "formal", resolved.Tone.Formality,
+					"expected override keyed %q to match lookup %q", tt.key, tt.lookup)
+			} else {
+				assert.Equal(t, "casual", resolved.Tone.Formality,
+					"expected override keyed %q NOT to match lookup %q", tt.key, tt.lookup)
+			}
+		})
+	}
 }
 
 func TestResolveProfileFromContext(t *testing.T) {
