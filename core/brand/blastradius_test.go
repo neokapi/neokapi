@@ -1,6 +1,31 @@
 package brand
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+// A no-op / empty blast radius must serialize Collections as `[]`, never `null`:
+// the web blast-radius preview indexes `.length`/`.map` on it and a null crashes
+// the whole page (full-screen error boundary).
+func TestEvaluateBlastRadius_CollectionsNeverNullJSON(t *testing.T) {
+	baseline := profileWith(nil, nil)
+	candidate := CandidateWithRule(baseline, SuggestedRule{Term: "nonexistentword"})
+
+	// No blocks at all — the case most likely to leave Collections nil.
+	br := EvaluateBlastRadius(nil, baseline, candidate)
+	if br.Collections == nil {
+		t.Fatal("Collections is nil; want non-nil empty slice")
+	}
+	out, err := json.Marshal(br)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `"collections":[]`) {
+		t.Errorf(`JSON should contain "collections":[], got %s`, out)
+	}
+}
 
 func blocks() []EvalBlock {
 	return []EvalBlock{

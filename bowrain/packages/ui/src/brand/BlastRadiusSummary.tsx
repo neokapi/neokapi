@@ -31,6 +31,8 @@ function Stat({
  * blocks it would newly flag, what it resolves, and the per-collection spread.
  */
 export function BlastRadiusSummary({ radius, className }: BlastRadiusSummaryProps) {
+  // Defensive: a response may omit `collections` (null) — never crash the render.
+  const collections = radius.collections ?? [];
   return (
     <div className={cn("space-y-3", className)}>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -58,11 +60,11 @@ export function BlastRadiusSummary({ radius, className }: BlastRadiusSummaryProp
         />
       </div>
 
-      {radius.collections.length > 0 && (
+      {collections.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">By collection</p>
           <ul className="space-y-1">
-            {radius.collections.map((c) => (
+            {collections.map((c) => (
               <li
                 key={c.collection_id}
                 className="flex items-center justify-between rounded border px-2 py-1 text-xs bg-card/50"

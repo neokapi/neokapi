@@ -29,7 +29,10 @@ type EvalBlock struct {
 // a promoted correction-rule changes — is scored here; subjective and ML-backed
 // checks are out of scope for a deterministic blast-radius preview.
 func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) BlastRadius {
-	br := BlastRadius{TotalBlocks: len(blocks)}
+	// Collections starts as a non-nil empty slice so it marshals to JSON `[]`,
+	// never `null` — clients (the web blast-radius preview) index `.length`/`.map`
+	// on it directly and a null crashes the render.
+	br := BlastRadius{TotalBlocks: len(blocks), Collections: []CollectionBlastRadius{}}
 
 	type colAcc struct {
 		cbr      *CollectionBlastRadius
