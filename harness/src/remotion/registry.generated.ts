@@ -2,6 +2,22 @@
 export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
+    "id": "02-nextjs-zero-to-i18n",
+    "title": "Zero to Japanese — i18n a Next.js app with kapi"
+  },
+  {
+    "id": "03-translate-docx",
+    "title": "Translate a document, structure intact"
+  },
+  {
+    "id": "05-ai-checks-guardrail",
+    "title": "Check AI output like you test code"
+  },
+  {
+    "id": "09-toolbox-find-replace",
+    "title": "grep, sed and cat — for any format"
+  },
+  {
     "id": "bowrain-desktop-dashboard",
     "title": "The desktop app, on your team's server"
   },
@@ -11,7 +27,11 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-collaboration",
-    "title": "Collaboration and streams"
+    "title": "Real-time collaboration"
+  },
+  {
+    "id": "bowrain-web-correction-loop",
+    "title": "Checks that learn from corrections"
   },
   {
     "id": "bowrain-web-editor",
