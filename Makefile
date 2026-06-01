@@ -281,6 +281,78 @@ ci-test-all: ## Run all module tests with full CI flags locally
 	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test bowrain-desktop-test
 	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain-plugin test-bowrain
 
+# ── CI job bodies (thin-CI) ─────────────────────────────────────────────────
+#
+# Each ci.yml job whose steps were bespoke inline shell now delegates to one of
+# these targets (`run: make ci-<job>`), so the Makefile is the single source of
+# truth a maintainer can run locally to reproduce a red CI job. The non-`run:`
+# steps (checkout, setup actions, artifact upload, test-reporter) stay in the
+# workflow; only the shell bodies live here. Commands mirror the YAML verbatim
+# (e.g. bare `go build`, no fts5 tag) so local == CI.
+#
+# The lint jobs are deliberately NOT mirrored: they run the pinned
+# golangci-lint-action WITHOUT the fts5 tag and post PR annotations, whereas
+# `make lint` adds `-tags fts5` by design — so they are not equivalent and must
+# not be conflated. gha-lint stays inline (it bootstraps actionlint).
+
+ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
+	cd bowrain/packages/ui && vp check
+	cd bowrain/packages/ui && vp test
+	cd bowrain/apps/web && vp check
+	cd bowrain/apps/web && vp test
+	cd bowrain/apps/web && vp build
+	cd bowrain/apps/bowrain/frontend && vp check
+	cd bowrain/apps/ctrl && vp check
+	cd bowrain/apps/pulse && vp check
+	cd bowrain/apps/keycloak-theme && vp check
+	cd bowrain/emails && vp check
+
+ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (Go backend test is a separate step)
+	cd packages/kapi-react && vp run build
+	cd packages/ui && vp check
+	cd packages/flow-editor && vp check
+	cd apps/kapi-desktop/frontend && vp check
+	cd packages/flow-editor && vp test
+	cd apps/kapi-desktop/frontend && vp test
+	cd storybook && vpx storybook build -o storybook-static
+
+ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend half (Go backend test is a separate step)
+	cd bowrain/apps/bowrain/frontend && vp test
+
+ci-kapi-react: ## Mirror the CI `kapi-react` job: typecheck/validate/test/build kapi-format + kapi-react
+	cd packages/kapi-format && vp run typecheck
+	cd packages/kapi-format && vp run validate
+	cd packages/kapi-format && vp run test
+	cd packages/kapi-react && vp run typecheck
+	cd packages/kapi-react && vp run test
+	cd packages/kapi-react && vp run build
+
+ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
+	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
+	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
+	cd kapi && go build -o ../bin/kapi ./cmd/kapi
+	cd bowrain/cli && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
+	cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+	GOWORK=off bash -c "go build ./..."
+	GOWORK=off bash -c "cd cli && go build ./..."
+	GOWORK=off bash -c "cd bowrain/core && go build ./..."
+	GOWORK=off bash -c "cd kapi && go build ./..."
+	GOWORK=off bash -c "cd bowrain/cli && go build ./..."
+	@# kapi must not depend on platform / bowrain / heavy deps
+	@if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then echo "kapi should not depend on platform"; exit 1; fi
+	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
+	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
+
+ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
+	@for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do \
+	  echo "Checking $$dir..."; \
+	  (cd "$$dir" && go mod tidy); \
+	done
+	@if ! git diff --exit-code -- '**go.mod' '**go.sum'; then \
+	  echo "::error::go.mod/go.sum files are not tidy. Run 'make deps' locally."; \
+	  exit 1; \
+	fi
+
 # ── Module Isolation ──────────────────────────────────────────────────────────
 
 verify-isolation: ## Verify all Go module isolation boundaries
@@ -1056,6 +1128,39 @@ docs-wasm:
 docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
 	node --experimental-strip-types scripts/verify-snippets/harness.ts
 
+# ── Pages publishing (local) ──────────────────────────────────────────────────
+#
+# Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +
+# pages-deploy.yml chain: build each site with the PRODUCTION base URL pinned,
+# then deploy via scripts/publish-pages.sh (clone neokapi.github.io, slot the
+# builds, push with rebase-retry). The production base MUST be pinned or the
+# live site 404s every asset (Vite/Docusaurus bake the base into the bundle).
+# These are a manual escape hatch; the normal path is push-to-main → workflows.
+# Pass PAGES_PUBLISH_YES=1 to skip the confirm prompt, DRY_RUN=1 to build-only.
+
+NEOKAPI_LANDING_BASE := /web/neokapi/
+BOWRAIN_LANDING_BASE := /web/bowrain/
+NEOKAPI_DOCS_BASE    := /web/neokapi/docs/
+BOWRAIN_DOCS_BASE    := /web/bowrain/docs/
+
+landing-build: ## Build both landing pages with production base URLs → web/landing/dist, bowrain/web/landing/dist
+	cd web/landing && VITE_BASE=$(NEOKAPI_LANDING_BASE) vp run build
+	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build
+
+docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs site with the production base (run fetch-docs-assets first to stage videos) → web/docs/build
+	cd web/docs && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
+
+bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
+	cd bowrain/web/docs && corepack pnpm install --ignore-workspace
+	cd bowrain/web/docs && bash scripts/stage-scenes.sh
+	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
+
+publish-landing: landing-build ## Build + deploy both landing pages to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)
+	@bash scripts/publish-pages.sh neokapi-landing bowrain-landing
+
+publish-website: fetch-docs-assets docs-build-prod fetch-bowrain-docs-assets bowrain-docs-build-prod ## Build + deploy the kapi & bowrain docs sites to neokapi.github.io
+	@bash scripts/publish-pages.sh neokapi-docs bowrain-docs
+
 # ── Tools ────────────────────────────────────────────────────────────────────
 
 tools: ## Install development tools
@@ -1152,6 +1257,7 @@ help: ## Show this help
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
+        ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-kapi-react ci-build ci-tidy \
         verify-isolation audit-modules \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
@@ -1165,11 +1271,12 @@ help: ## Show this help
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
-        bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
+        bench bench-build bench-run bench-run-full bench-stress \
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
-        docs-deps docs-dev docs-wasm docs-build docs-serve \
+        docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
+        landing-build docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update
