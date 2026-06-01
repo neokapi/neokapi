@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/neokapi/neokapi/cli/pluginhost/registry"
@@ -276,8 +275,10 @@ func extractTarGz(body []byte, target, pluginName string) error {
 				return err
 			}
 			// O_NOFOLLOW: refuse to write through a symlink that a prior
-			// (malicious) entry may have planted at this path.
-			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|syscall.O_NOFOLLOW, os.FileMode(hdr.Mode)&0o777)
+			// (malicious) entry may have planted at this path. The flag is
+			// platform-specific (oNoFollow); on js/wasm it is 0 — the wasm
+			// build has no filesystem symlink surface to harden against.
+			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&0o777)
 			if err != nil {
 				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
