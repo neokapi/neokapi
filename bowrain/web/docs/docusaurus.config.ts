@@ -63,6 +63,37 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    // @neokapi/docs-shared ships raw TS (main: src/index.ts). In this standalone
+    // (non-workspace) docs build it resolves under node_modules/.pnpm, which
+    // Docusaurus's babel-loader excludes by default — so its `export type {…}`
+    // failed webpack parsing. Transpile that package explicitly via Docusaurus's
+    // own JS loader. (The kapi docs build resolves docs-shared from packages/,
+    // outside node_modules, so it doesn't need this.)
+    function transpileDocsShared() {
+      return {
+        name: "transpile-docs-shared",
+        configureWebpack(
+          _config: unknown,
+          isServer: boolean,
+          { getJSLoader }: { getJSLoader: (opts: { isServer: boolean }) => unknown },
+        ) {
+          return {
+            module: {
+              rules: [
+                {
+                  test: /\.tsx?$/,
+                  include: [/[\\/]@neokapi[\\/]docs-shared[\\/]/, /[\\/]packages[\\/]docs-shared[\\/]/],
+                  use: [getJSLoader({ isServer })],
+                },
+              ],
+            },
+          };
+        },
+      };
+    },
+  ],
+
   themeConfig: {
     navbar: {
       title: "Bowrain",
