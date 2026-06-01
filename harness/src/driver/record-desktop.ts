@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import net from "node:net";
 import os from "node:os";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { injectCursor, moveTo, humanClick, humanType, idle } from "./cursor-helper.ts";
@@ -1221,9 +1221,32 @@ async function recordTheme(
   const raw = video ? await video.path() : "";
 
   const webm = path.join(outDir, `screencast-${theme}.webm`);
-  if (raw && fs.existsSync(raw)) fs.copyFileSync(raw, webm);
+  if (raw && fs.existsSync(raw)) reencodeDenseKeyframes(raw, webm);
   fs.rmSync(videoDir, { recursive: true, force: true });
   return { webm: path.basename(webm), beats };
+}
+
+/**
+ * Playwright records the screencast as a VP8 webm with sparse keyframes, so when
+ * Remotion's OffthreadVideo seeks to an arbitrary beat time it must decode a long
+ * run of inter-frames — under render concurrency this intermittently blows past
+ * the delayRender timeout and fails a frame. Re-encode to VP9 with a keyframe
+ * every ~0.4s (-g 12) so any seek decodes a bounded, short GOP. High quality
+ * (crf 18) since this is the source the final video is composited from.
+ */
+function reencodeDenseKeyframes(raw: string, webm: string): void {
+  try {
+    execFileSync(
+      "ffmpeg",
+      ["-y", "-i", raw, "-an", "-c:v", "libvpx-vp9", "-crf", "18", "-b:v", "0",
+       "-g", "12", "-keyint_min", "12", "-deadline", "good", "-cpu-used", "3",
+       "-row-mt", "1", "-pix_fmt", "yuv420p", webm],
+      { stdio: "ignore" },
+    );
+  } catch {
+    // ffmpeg unavailable or failed — fall back to the raw copy so capture still works.
+    fs.copyFileSync(raw, webm);
+  }
 }
 
 export interface RecordOptions {

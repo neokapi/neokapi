@@ -75,25 +75,46 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
   const composition = await selectComposition({ serveUrl, id, inputProps });
   console.log(`  · rendering ${id} (${themeMode}): ${composition.durationInFrames} frames (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);
 
-  let lastPct = -1;
-  await renderMedia({
-    serveUrl,
-    composition,
-    codec: "h264",
-    outputLocation: output,
-    inputProps,
-    crf: opts.quality === "draft" ? 28 : 18,
-    jpegQuality: opts.quality === "draft" ? 70 : 90,
-    concurrency: null,
-    onProgress: ({ progress }) => {
-      const pct = Math.floor(progress * 100);
-      if (pct >= lastPct + 10) {
-        lastPct = pct;
-        process.stdout.write(`\r    render ${id} (${themeMode}): ${pct}%   `);
-      }
-    },
-  });
-  process.stdout.write("\n");
-  console.log(`  ✓ rendered ${output}`);
+  // The headless render browser occasionally crashes mid-render ("Target closed")
+  // or a frame's OffthreadVideo seek stalls — both transient. Retry the whole
+  // render once before failing. Concurrency is capped (cores−2) so a fleet of
+  // video-decoding render tabs doesn't starve/crash each other.
+  const attempts = 2;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    let lastPct = -1;
+    try {
+      await renderMedia({
+        serveUrl,
+        composition,
+        codec: "h264",
+        outputLocation: output,
+        inputProps,
+        crf: opts.quality === "draft" ? 28 : 18,
+        jpegQuality: opts.quality === "draft" ? 70 : 90,
+        // Lower concurrency = fewer render tabs hammering Remotion's single
+        // video-proxy when seeking the screencast. Long demos (explorer) need a
+        // smaller value; tune via HARNESS_RENDER_CONCURRENCY (default 4).
+        concurrency: Math.max(1, Number(process.env.HARNESS_RENDER_CONCURRENCY) || 4),
+        // Desktop scenes embed a screencast .webm and seek into it per beat;
+        // decoding a seek can exceed Remotion's 30s default delayRender budget
+        // under render load, intermittently failing a frame. Generous headroom.
+        timeoutInMilliseconds: 180_000,
+        onProgress: ({ progress }) => {
+          const pct = Math.floor(progress * 100);
+          if (pct >= lastPct + 10) {
+            lastPct = pct;
+            process.stdout.write(`\r    render ${id} (${themeMode}): ${pct}%   `);
+          }
+        },
+      });
+      process.stdout.write("\n");
+      console.log(`  ✓ rendered ${output}`);
+      return output;
+    } catch (e) {
+      process.stdout.write("\n");
+      if (attempt === attempts) throw e;
+      console.warn(`  ! render ${id} (${themeMode}) attempt ${attempt} failed (${(e as Error)?.message?.slice(0, 80)}); retrying …`);
+    }
+  }
   return output;
 }

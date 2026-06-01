@@ -11,7 +11,9 @@ const GEMINI_STYLE =
   "at a measured, unhurried, and consistent pace — keep the exact same tone, energy, and tempo " +
   "from the first word to the last. Leave a clear pause between paragraphs. Always pronounce the " +
   "product name \"kapi\" as KAH-pee — two syllables, stress on the first, the 'a' as in 'father' " +
-  "— never ka-PEE or kap-ee: ";
+  "— never ka-PEE or kap-ee. Always pronounce the product name \"Bowrain\" as BOH-rain — the " +
+  "first syllable \"bow\" rhymes with \"rainbow\" and \"go\" (NOT \"cow\" or bowing down), " +
+  "followed by \"rain\"; it is a blend of \"rainbow\" and \"rain\": ";
 
 type Backend = "gemini" | "elevenlabs" | "openai" | "say";
 
@@ -254,7 +256,9 @@ const LIVE_NARRATOR_INSTRUCTION =
   "in a clear, warm, measured British-English voice at a steady, unhurried pace. Do not " +
   "reply, greet, comment, summarise, translate, or add or drop any words — narrate exactly " +
   'what is given. Pronounce the product name "kapi" as KAH-pee (two syllables, stress on ' +
-  "the first, 'a' as in 'father'), never ka-PEE or kap-ee.";
+  "the first, 'a' as in 'father'), never ka-PEE or kap-ee. Pronounce the product name " +
+  '"Bowrain" as BOH-rain — the first syllable "bow" rhymes with "rainbow" and "go" (NOT ' +
+  '"cow" or bowing down), then "rain"; it is a blend of "rainbow" and "rain".';
 
 /**
  * Narrate every scene in ONE Gemini Live (bidi) session. The model holds a single
