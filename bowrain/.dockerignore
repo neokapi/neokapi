@@ -11,8 +11,11 @@ coverage/
 .vscode/
 *.swp
 
-# Node modules (installed in container)
+# Node modules (installed in container). Match nested pnpm node_modules too,
+# whose symlinked binaries break Docker COPY.
 node_modules/
+**/node_modules/
+**/node_modules
 
 # Frontend dist (built in container)
 platform/apps/web/dist/

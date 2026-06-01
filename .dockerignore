@@ -11,8 +11,12 @@ coverage/
 .vscode/
 *.swp
 
-# Node modules (installed in container)
+# Node modules (installed in container). Match at EVERY level — pnpm creates
+# per-package node_modules with symlinked binaries (e.g. packages/kapi-format/
+# node_modules/esbuild) that break Docker's COPY ("cannot copy to non-directory").
 node_modules/
+**/node_modules/
+**/node_modules
 
 # Frontend dist (built in container)
 bowrain/apps/web/dist/
