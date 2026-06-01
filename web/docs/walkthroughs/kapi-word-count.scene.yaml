@@ -6,13 +6,6 @@ id: kapi-word-count
 scene: word-count
 mode: interactive
 
-tape:
-  width: 900
-  height: 400
-  theme: Dracula
-  padding: 20
-  fontSize: 16
-
 seed:
   - messages.json
 files: []

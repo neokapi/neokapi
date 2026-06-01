@@ -12,13 +12,6 @@ id: kapi-terminology-qa
 scene: termbase-qa
 mode: interactive
 
-tape:
-  width: 1000
-  height: 650
-  theme: Dracula
-  padding: 20
-  fontSize: 16
-
 seed: []
 files:
   - path: glossary.csv

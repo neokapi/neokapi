@@ -100,7 +100,11 @@ interface SceneSpec {
   id: string;
   scene: string;
   mode: "interactive" | "video";
-  tape: TapeSettings;
+  // Optional. When omitted on an interactive walkthrough the scene is
+  // "embed-only": the in-browser KapiEmbed is the sole artifact and no VHS
+  // `.tape` is emitted (kapi terminal scenes are retiring VHS in favour of the
+  // interactive embeds + narrated harness explainers).
+  tape?: TapeSettings;
   seed?: string[];
   files?: InlineFile[];
   steps: Step[];
@@ -152,7 +156,9 @@ function loadSpec(id: string): SceneSpec {
       `${id}: mode must be "interactive" or "video" (got ${JSON.stringify(spec.mode)})`,
     );
   }
-  if (!spec.tape) throw new Error(`${id}: missing "tape" settings`);
+  if (spec.mode === "video" && !spec.tape) {
+    throw new Error(`${id}: a "video" walkthrough needs "tape" settings`);
+  }
   if (!Array.isArray(spec.steps) || spec.steps.length === 0)
     throw new Error(`${id}: "steps" must be a non-empty list`);
   for (const s of spec.steps) {
@@ -196,6 +202,7 @@ function generateTape(spec: SceneSpec): string {
   const sceneNo = 1; // single-scene walkthroughs (matches current pipeline)
   const prefix = String(sceneNo).padStart(2, "0");
   const t = spec.tape;
+  if (!t) throw new Error(`${spec.id}: generateTape called without "tape" settings`);
   const lines: string[] = [];
   lines.push(`# VHS tape — generated from web/docs/walkthroughs/${spec.id}.scene.yaml`);
   lines.push(
@@ -440,7 +447,7 @@ function generate(id: string): void {
   // (a) tape — generated for interactive walkthroughs (bare-filename cwd model,
   // rendered against materialized scene fixtures). For video walkthroughs the
   // recording tape is hand-curated (cd/reset/translator setup); we preserve it.
-  if (spec.mode === "interactive") {
+  if (spec.mode === "interactive" && spec.tape) {
     const tapePath = join(SCENES_DIR, id, `${prefix}-${spec.scene}.tape`);
     const tapeChanged = writeOut(tapePath, generateTape(spec));
     console.log(`    ${tag(tapeChanged)}  ${tapePath.replace(REPO_ROOT + "/", "")}`);
@@ -449,6 +456,8 @@ function generate(id: string): void {
     for (const w of fx.written) {
       console.log(`    ${tag(fx.changed)}  ${w}`);
     }
+  } else if (spec.mode === "interactive") {
+    console.log(`    skip   tape (embed-only — no "tape:" block)`);
   } else {
     console.log(`    skip   tape (mode: video — curated recording preserved)`);
   }

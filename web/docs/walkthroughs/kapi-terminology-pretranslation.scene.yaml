@@ -11,13 +11,6 @@ id: kapi-terminology-pretranslation
 scene: termbase-pretranslation
 mode: interactive
 
-tape:
-  width: 1000
-  height: 650
-  theme: Dracula
-  padding: 20
-  fontSize: 16
-
 seed: []
 files:
   - path: project.tmx

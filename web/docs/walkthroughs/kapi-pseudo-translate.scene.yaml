@@ -6,13 +6,6 @@ id: kapi-pseudo-translate
 scene: pseudo-translate
 mode: interactive
 
-tape:
-  width: 900
-  height: 550
-  theme: Dracula
-  padding: 20
-  fontSize: 16
-
 seed:
   - messages.json
 files: []

@@ -33,13 +33,6 @@ id: kapi-overview
 scene: overview
 mode: interactive
 
-tape:
-  width: 1000
-  height: 600
-  theme: Dracula
-  padding: 20
-  fontSize: 16
-
 seed: []
 files: []
 
