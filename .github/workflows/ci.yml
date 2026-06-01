@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same PR; never cancel a push to main (each
+# main commit's run is the canonical record and must complete).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   checks: write
@@ -88,45 +94,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Check shared UI (oxlint + oxfmt)
-        working-directory: bowrain/packages/ui
-        run: vp check
-
-      - name: Run UI unit tests
-        working-directory: bowrain/packages/ui
-        run: vp test
-
-      - name: Check web app (oxlint + oxfmt)
-        working-directory: bowrain/apps/web
-        run: vp check
-
-      - name: Run web unit tests
-        working-directory: bowrain/apps/web
-        run: vp test
-
-      - name: Build SaaS web UI
-        working-directory: bowrain/apps/web
-        run: vp build
-
-      - name: Check Bowrain frontend (oxlint + oxfmt)
-        working-directory: bowrain/apps/bowrain/frontend
-        run: vp check
-
-      - name: Check control panel (ctrl)
-        working-directory: bowrain/apps/ctrl
-        run: vp check
-
-      - name: Check pulse dashboard
-        working-directory: bowrain/apps/pulse
-        run: vp check
-
-      - name: Check Keycloak theme
-        working-directory: bowrain/apps/keycloak-theme
-        run: vp check
-
-      - name: Check email templates
-        working-directory: bowrain/emails
-        run: vp check
+      # Job body lives in `make ci-frontend` (single source of truth, runnable
+      # locally). See the "CI job bodies (thin-CI)" section of the Makefile.
+      - name: Check + test + build the bowrain web frontends
+        run: make ci-frontend
 
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:
@@ -138,33 +109,11 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Build kapi-react (vite.config imports from dist)
-        working-directory: packages/kapi-react
-        run: vp run build
-
-      - name: Check shared UI primitives
-        working-directory: packages/ui
-        run: vp check
-
-      - name: Check flow-editor
-        working-directory: packages/flow-editor
-        run: vp check
-
-      - name: Check Kapi Desktop frontend
-        working-directory: apps/kapi-desktop/frontend
-        run: vp check
-
-      - name: Run flow-editor tests
-        working-directory: packages/flow-editor
-        run: vp test
-
-      - name: Run Kapi Desktop frontend tests
-        working-directory: apps/kapi-desktop/frontend
-        run: vp test
-
-      - name: Build Kapi Storybook
-        working-directory: storybook
-        run: vpx storybook build -o storybook-static
+      # Job body lives in `make ci-kapi-desktop-frontend` (single source of
+      # truth, runnable locally). The Go backend test stays a separate step
+      # below because it needs the Go + Wails toolchain set up in the workflow.
+      - name: Frontend checks, tests, and Storybook build
+        run: make ci-kapi-desktop-frontend
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -187,9 +136,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Run Bowrain Desktop frontend tests
-        working-directory: bowrain/apps/bowrain/frontend
-        run: vp test
+      # Job body lives in `make ci-bowrain-desktop-frontend`. The Go backend
+      # test stays a separate step below (needs the Go + Wails toolchain).
+      - name: Frontend tests
+        run: make ci-bowrain-desktop-frontend
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -214,29 +164,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Typecheck kapi-format
-        working-directory: packages/kapi-format
-        run: vp run typecheck
-
-      - name: Validate kapi-format golden fixtures
-        working-directory: packages/kapi-format
-        run: vp run validate
-
-      - name: Test kapi-format
-        working-directory: packages/kapi-format
-        run: vp run test
-
-      - name: Typecheck kapi-react
-        working-directory: packages/kapi-react
-        run: vp run typecheck
-
-      - name: Test kapi-react
-        working-directory: packages/kapi-react
-        run: vp run test
-
-      - name: Build kapi-react
-        working-directory: packages/kapi-react
-        run: vp run build
+      # Job body lives in `make ci-kapi-react` (single source of truth).
+      - name: Typecheck + validate + test + build kapi-format and kapi-react
+        run: make ci-kapi-react
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:
@@ -247,7 +177,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ["1.26.0", "stable"]
+        # On PRs, run only the pinned Go version. The `stable` leg is a
+        # forward-compat canary whose coverage/artifacts are discarded anyway
+        # (see the matrix.go-version == '1.26.0' guards below), so it runs only
+        # on push to main — halving this (the most-triggered) test job on PRs.
+        go-version: ${{ github.event_name == 'pull_request' && fromJSON('["1.26.0"]') || fromJSON('["1.26.0", "stable"]') }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
@@ -255,7 +189,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run framework tests
         id: run-tests
@@ -304,7 +238,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run platform tests
         id: run-tests
@@ -346,7 +280,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run cli tests
         id: run-tests
@@ -388,7 +322,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run kapi tests
         id: run-tests
@@ -430,7 +364,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run Bowrain CLI tests
         id: run-tests
@@ -479,7 +413,7 @@ jobs:
           cd schema && go mod download && go mod verify
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run Bowrain Plugin tests
         id: run-tests
@@ -527,7 +461,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@latest
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
 
       - name: Run bowrain tests
         id: run-tests
@@ -750,17 +684,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
 
+      # Job body lives in `make ci-tidy` (single source of truth).
       - name: Check go.mod tidiness
-        run: |
-          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do
-            echo "Checking $dir..."
-            (cd "$dir" && go mod tidy)
-          done
-          if ! git diff --exit-code -- '**go.mod' '**go.sum'; then
-            echo "::error::go.mod/go.sum files are not tidy. Run 'make deps' locally."
-            exit 1
-          fi
+        run: make ci-tidy
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:
@@ -771,57 +700,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
 
-      - name: Create embed placeholders
-        run: |
-          mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-          mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
-
-      - name: Build kapi CLI
-        run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
-
-      - name: Build kapi-bowrain plugin binary
-        run: cd bowrain/cli && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
-
-      - name: Build bowrain-server
-        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
-
-      - name: Verify framework module isolation
-        run: GOWORK=off bash -c "go build ./..."
-
-      - name: Verify cli module isolation
-        run: GOWORK=off bash -c "cd cli && go build ./..."
-
-      - name: Verify platform module isolation
-        run: GOWORK=off bash -c "cd bowrain/core && go build ./..."
-
-      - name: Verify kapi module isolation
-        run: GOWORK=off bash -c "cd kapi && go build ./..."
-
-      - name: Verify Bowrain CLI module isolation
-        run: GOWORK=off bash -c "cd bowrain/cli && go build ./..."
-
-      - name: Verify kapi has no platform dep
-        run: |
-          if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then
-            echo "kapi should not depend on platform"
-            exit 1
-          fi
-
-      - name: Verify bowrain has no cli dep
-        run: |
-          if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
-            echo "bowrain should not depend on cli"
-            exit 1
-          fi
-
-      - name: Verify kapi has no heavy deps
-        run: |
-          # wails / labstack-echo / keycloak are bowrain-side deps that
-          # must not leak into kapi. coreos/go-oidc / aws-sdk's ssooidc
-          # transitively reach kapi via sigstore-go (used for cosign
-          # signature verification of plugin tarballs); those are legit.
-          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then
-            exit 1
-          fi
+      # Job body lives in `make ci-build` (single source of truth, runnable
+      # locally): builds all three binaries with bare `go build` (no fts5,
+      # matching this job's historical behavior) and asserts the GOWORK=off
+      # module-isolation boundaries. wails / labstack-echo / keycloak are
+      # bowrain-side deps that must not leak into kapi; coreos/go-oidc and
+      # aws-sdk's ssooidc reach kapi legitimately via sigstore-go (cosign
+      # signature verification of plugin tarballs).
+      - name: Build binaries + verify module isolation
+        run: make ci-build
 

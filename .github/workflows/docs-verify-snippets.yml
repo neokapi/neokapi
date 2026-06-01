@@ -28,6 +28,11 @@ on:
       - "scripts/verify-snippets/**"
       - ".github/workflows/docs-verify-snippets.yml"
 
+# Cancel superseded PR runs; never cancel a push to main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

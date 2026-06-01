@@ -46,6 +46,11 @@ on:
         required: false
         default: "1.48.0"
 
+# Cancel superseded PR runs; never cancel a push to main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

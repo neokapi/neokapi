@@ -18,6 +18,11 @@ on:
       - "bowrain/web/landing/**"
       - ".github/workflows/web-landing.yml"
 
+# Cancel superseded PR runs; never cancel a push to main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

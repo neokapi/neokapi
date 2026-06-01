@@ -1,11 +1,30 @@
 name: Setup Go & Modules
-description: Install Go, download modules for all modules, and create embed placeholders
+description: >
+  Install Go, restore flavor-scoped module/build caches, download modules for
+  all modules, and create embed placeholders.
 
 inputs:
   go-version:
     description: Go version to install
     required: false
     default: "1.26.0"
+  cache-flavor:
+    description: >
+      Build-cache flavor. The Go build cache (GOCACHE) is keyed per flavor
+      because -race/instrumented test builds populate it with object hashes
+      that differ from plain `go build` output. Sharing one key across both
+      (as setup-go's built-in cache did) meant every job restored a blob that
+      rarely matched, so the framework recompiled near-cold in 7+ jobs. Use
+      "race" for `make test-*` jobs and "plain" for build/tidy jobs.
+    required: false
+    default: race
+  modules:
+    description: >
+      Space-separated module directories to `go mod download`, or "all" for the
+      full set. Downloads are cheap on a warm module cache; scope this only when
+      a job provably needs a subset.
+    required: false
+    default: all
 
 runs:
   using: composite
@@ -13,13 +32,35 @@ runs:
     - uses: actions/setup-go@v6
       with:
         go-version: ${{ inputs.go-version }}
-        cache-dependency-path: |
-          go.sum
-          cli/go.sum
-          kapi/go.sum
-          bowrain/go.sum
-          bowrain/core/go.sum
-          bowrain/cli/go.sum
+        # Caching is handled explicitly below so the build cache can be keyed
+        # per flavor (setup-go's built-in cache uses a single go.sum-derived key
+        # shared by every job, which thrashes the build cache — see cache-flavor).
+        cache: false
+
+    - name: Resolve Go cache paths
+      id: gocache
+      shell: bash
+      run: |
+        echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+        echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore module download cache (flavor-independent)
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.gocache.outputs.mod }}
+        key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum', 'cli/go.sum', 'kapi/go.sum', 'apps/kapi-desktop/go.sum', 'bowrain/go.sum', 'bowrain/core/go.sum', 'bowrain/cli/go.sum', 'bowrain/plugin/go.sum', 'bowrain/plugin/schema/go.sum') }}
+        restore-keys: |
+          go-mod-${{ runner.os }}-
+
+    - name: Restore build cache (flavor-scoped)
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.gocache.outputs.build }}
+        # SHA-suffixed key always saves a fresh post-build cache; restore-keys
+        # warms it from the most recent run of the same flavor + Go version.
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ inputs.cache-flavor }}-${{ github.sha }}
+        restore-keys: |
+          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ inputs.cache-flavor }}-
 
     - name: Install ICU development libraries
       if: runner.os == 'Linux'
@@ -29,13 +70,18 @@ runs:
     - name: Download modules
       shell: bash
       run: |
-        go mod download && go mod verify
-        cd cli && go mod download && go mod verify
-        cd ../kapi && go mod download && go mod verify
-        cd ../apps/kapi-desktop && go mod download && go mod verify
-        cd ../../bowrain/core && go mod download && go mod verify
-        cd ../cli && go mod download && go mod verify
-        cd .. && go mod download && go mod verify
+        set -euo pipefail
+        # go.sum already guarantees integrity, and the module cache is restored
+        # from a trusted GitHub-hosted cache, so `go mod verify` (a full
+        # cache-hash walk) is pure per-job overhead and is intentionally omitted.
+        if [ "${{ inputs.modules }}" = "all" ]; then
+          mods=". cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain"
+        else
+          mods="${{ inputs.modules }}"
+        fi
+        for m in $mods; do
+          ( cd "$m" && go mod download )
+        done
 
     - name: Create embed placeholders
       shell: bash
