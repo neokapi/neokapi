@@ -77,6 +77,40 @@ async function main() {
   });
   const projectId = project.id || project.project?.id;
 
+  // Upload a content file that actually USES the off-brand terms, so the
+  // candidate rules have real blocks to score against — otherwise "Preview
+  // impact" evaluates an empty project and every blast-radius stat is 0.
+  {
+    const MARKETING_HTML = `<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Acme — Marketing</title></head>
+  <body>
+    <h1>Utilize Acme to ship faster</h1>
+    <p>Teams utilize our platform to leverage their existing infrastructure and
+      utilize every hour of the day. We help you leverage automation.</p>
+    <section>
+      <h2>Best-in-class synergy</h2>
+      <p>Our best-in-class tooling drives synergy across your org. Leverage the
+        synergy of a best-in-class platform and utilize proven workflows.</p>
+    </section>
+    <section>
+      <h2>Why teams leverage Acme</h2>
+      <p>Utilize one dashboard. Leverage one pipeline. Best-in-class support,
+        real synergy, and a platform teams utilize daily.</p>
+    </section>
+  </body>
+</html>
+`;
+    const form = new FormData();
+    form.append("files", new Blob([MARKETING_HTML], { type: "text/html" }), "marketing.html");
+    const up = await fetch(`${API}/${wsSlug}/${projectId}/items/main`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!up.ok) console.error(`  (content upload skipped: ${up.status} ${(await up.text()).slice(0, 200)})`);
+  }
+
   // The correction stream: each (original → corrected) repeated past the
   // min-count threshold (3) so it surfaces as a candidate on the review page.
   const stream = [
