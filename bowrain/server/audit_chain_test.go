@@ -83,7 +83,7 @@ func TestPhase2_AuditChain_DetectsTampering(t *testing.T) {
 	defer al.Close()
 
 	ws := "ws-tamper"
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		s.EventBus.Publish(platev.Event{Type: platev.EventMemberAdded, WorkspaceID: ws, Actor: "a", Data: map[string]string{"n": string(rune('0' + i))}})
 	}
 	ctx := t.Context()

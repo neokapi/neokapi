@@ -42,7 +42,8 @@ func TestSanitizeDurable(t *testing.T) {
 
 func TestSanitizeDurableIsDeterministic(t *testing.T) {
 	in := "weird.name with*chars"
-	assert.Equal(t, sanitizeDurable(in), sanitizeDurable(in),
+	first, second := sanitizeDurable(in), sanitizeDurable(in)
+	assert.Equal(t, first, second,
 		"sanitizeDurable must be a pure function so durable names are stable across restarts")
 }
 

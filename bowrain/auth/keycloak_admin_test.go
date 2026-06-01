@@ -72,7 +72,7 @@ func newKeycloakTestServer(t *testing.T, tokenHits, putHits *int32) *httptest.Se
 
 	mux.HandleFunc("/realms/bowrain/protocol/openid-connect/token", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(tokenHits, 1)
-		require.NoError(t, r.ParseForm())
+		assert.NoError(t, r.ParseForm())
 		assert.Equal(t, "client_credentials", r.Form.Get("grant_type"))
 		assert.Equal(t, "admin-svc", r.Form.Get("client_id"))
 		assert.Equal(t, "secret", r.Form.Get("client_secret"))
@@ -88,7 +88,7 @@ func newKeycloakTestServer(t *testing.T, tokenHits, putHits *int32) *httptest.Se
 		assert.Equal(t, http.MethodPut, r.Method)
 		assert.Equal(t, "Bearer tok-abc", r.Header.Get("Authorization"))
 		var body kcUserRep
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.Equal(t, "new@example.com", body.Email)
 		assert.True(t, body.EmailVerified)
 		w.WriteHeader(http.StatusNoContent)
@@ -163,7 +163,7 @@ func TestKeycloakAdminClient_RetriesOn401(t *testing.T) {
 		// Retry: should carry the freshly fetched token and the same body.
 		assert.Equal(t, "Bearer fresh", r.Header.Get("Authorization"))
 		var body kcUserRep
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.Equal(t, "new@example.com", body.Email)
 		w.WriteHeader(http.StatusNoContent)
 	})

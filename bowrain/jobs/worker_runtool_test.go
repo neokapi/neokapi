@@ -21,7 +21,7 @@ type fanOutTool struct {
 
 func (f *fanOutTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	for p := range in {
-		for i := 0; i < f.factor; i++ {
+		for range f.factor {
 			select {
 			case out <- p:
 			case <-ctx.Done():
@@ -39,7 +39,7 @@ func TestRunToolOnParts_FanOutDoesNotDeadlock(t *testing.T) {
 	)
 
 	parts := make([]*model.Part, 0, inputParts)
-	for i := 0; i < inputParts; i++ {
+	for range inputParts {
 		parts = append(parts, &model.Part{Type: model.PartBlock})
 	}
 

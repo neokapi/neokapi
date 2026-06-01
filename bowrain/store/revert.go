@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -26,7 +27,7 @@ type TargetRevert struct {
 func (s *PostgresStore) ComputeBatchReverts(ctx context.Context, projectID, stream, correlationID string) ([]TargetRevert, error) {
 	stream = defaultStream(stream)
 	if correlationID == "" {
-		return nil, fmt.Errorf("correlation_id is required")
+		return nil, errors.New("correlation_id is required")
 	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT b.block_id, b.locale,

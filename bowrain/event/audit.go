@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -148,7 +149,7 @@ func (a *AuditLogger) insertChained(ctx context.Context, ev platev.Event, chainK
 	var prevHash string
 	err = tx.QueryRowContext(ctx,
 		`SELECT hash FROM audit_log WHERE chain_key = $1 ORDER BY id DESC LIMIT 1`, chainKey).Scan(&prevHash)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("read prev hash: %w", err)
 	}
 
