@@ -163,4 +163,52 @@ echo "live=$live local=$local"
   strict; Safari is lenient).
 - bowrain videos carry the **Bowrain** brand lockup (logo + indigo wordmark);
   this is the `brand: bowrain` card brand in `harness/src/remotion/components/Cards.tsx`.
+
+## Desktop/web render reliability (important)
+
+The framed desktop/web videos embed a Playwright screencast that Remotion's
+OffthreadVideo seeks into per beat. The rust compositor is fragile here:
+
+- **Separate capture from render for bowrain.** Capture needs the Docker stack
+  up (server + Playwright). Rendering needs *RAM* — Docker Desktop's VM holds
+  ~15 GB even when containers are only stopped, which starves Remotion's
+  compositor and causes intermittent `Could not extract frame from compositor:
+  Request closed` / `delayRender timeout` failures. Workflow that works:
+  1. Stack up → `--only=capture` every bowrain demo (web + desktop).
+  2. **Quit Docker Desktop entirely** (`osascript -e 'quit app "Docker"'`) — not
+     just `compose stop` — to free the VM RAM. Volumes persist on disk, so the
+     seed survives a Docker quit/restart (only `down -v` wipes it).
+  3. `--only=narrate,render,publish` every demo from cache.
+- **Render at concurrency 1 for the long/animated demos.** Set
+  `HARNESS_RENDER_CONCURRENCY=1`. Higher values multiply parallel video-proxy
+  seeks and crash the compositor. `render.ts` retries once and caps concurrency
+  (default 4); 1 is the reliable floor for 70 s+ screencasts.
+- The screencast is re-encoded to dense-keyframe VP9 at capture time
+  (`reencodeDenseKeyframes` in `record-desktop.ts`) so seeks decode a short GOP.
+- **`--only=capture` skips narration** — always include `narrate` in the render
+  pass (`--only=narrate,render,publish`) or the video ships silent with fallback
+  timing.
+
+## Auth / seeding for bowrain captures
+
+- Device-flow JWTs are short-lived. Re-mint before a capture session; a stale
+  token silently redirects the SPA to Keycloak and you capture a login page.
+  Verify by extracting a frame (`ffmpeg -ss 3 -i screencast-dark.webm -vframes 1`).
+- The session cookie (`bowrain_session`) is scoped to **`path: /api/`** — match
+  that in any Playwright auth helper, not `/`.
+- Workspace routes are AD-011 bare-slug (`/:ws/...`): invites `/:ws/invites`,
+  TM `/:ws/translation-memory`, terms `/:ws/terms`. The old `/workspaces/:ws/...`
+  forms 404. `harness/scripts/seed-collaboration.mjs` seeds project + file + TM +
+  terms + a second user and prints all the env the recorder needs.
+- The docs site's Playwright (`bowrain/web/docs`) uses its own browser cache;
+  run `vpx playwright install chromium` there once (or symlink the matching
+  `chromium_headless_shell-<rev>` if a download stalls).
+
+## Bowrain screenshots
+
+`bowrain/web/docs/scenes/bowrain-web-screenshots/01-shots.spec.ts` captures the
+web-app gallery (login + dashboard + workspace-rail + project-view + tm/term/
+settings, light + dark) into `static/img/web-app/{theme}/`. Run from
+`bowrain/web/docs` with `BOWRAIN_SESSION_TOKEN` + `BOWRAIN_WORKSPACE_SLUG` set
+to a seeded workspace. It waits for the workspace to render (no blank frames).
 </content>
