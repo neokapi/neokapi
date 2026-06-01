@@ -164,13 +164,76 @@ async function main() {
     console.error(`  (ai-translate skipped: ${e.message})`);
   }
 
+  // Seed the workspace TM + terminology so the editor's context panel and the
+  // governance walk (TM search "mission", multi-locale concepts) show real
+  // content. POST sequentially — concurrent writes to the workspace stores race.
+  const TM_ENTRIES = [
+    { source: "About Acme Inc.", target: "À propos d'Acme Inc.", source_locale: "en", target_locale: "fr" },
+    { source: "Our Mission", target: "Notre mission", source_locale: "en", target_locale: "fr" },
+    { source: "Our Team", target: "Notre équipe", source_locale: "en", target_locale: "fr" },
+    { source: "Our Values", target: "Nos valeurs", source_locale: "en", target_locale: "fr" },
+    { source: "Get in Touch", target: "Contactez-nous", source_locale: "en", target_locale: "fr" },
+    {
+      source: "We believe every developer deserves reliable, fast, and secure infrastructure.",
+      target: "Nous pensons que chaque développeur mérite une infrastructure fiable, rapide et sécurisée.",
+      source_locale: "en",
+      target_locale: "fr",
+    },
+    { source: "Our Mission", target: "Unsere Mission", source_locale: "en", target_locale: "de" },
+    { source: "Our Team", target: "Unser Team", source_locale: "en", target_locale: "de" },
+  ];
+  for (const e of TM_ENTRIES) {
+    try {
+      await jpost(`/${wsSlug}/translation-memory`, { ...e, project_id: projectId });
+    } catch (err) {
+      console.error(`  (TM seed skipped: ${err.message})`);
+    }
+  }
+  const CONCEPTS = [
+    {
+      domain: "cloud",
+      definition: "Managed, multi-tenant compute and storage delivered over the network.",
+      terms: [
+        { text: "cloud infrastructure", locale: "en", status: "preferred" },
+        { text: "infrastructure cloud", locale: "fr", status: "preferred" },
+        { text: "Cloud-Infrastruktur", locale: "de", status: "preferred" },
+      ],
+    },
+    {
+      domain: "reliability",
+      definition: "The proportion of time a service is operational and reachable.",
+      terms: [
+        { text: "uptime", locale: "en", status: "preferred" },
+        { text: "disponibilité", locale: "fr", status: "preferred" },
+        { text: "Verfügbarkeit", locale: "de", status: "preferred" },
+      ],
+    },
+    {
+      domain: "security",
+      definition: "Protecting data so only authorised parties can read it, end to end.",
+      terms: [
+        { text: "encryption", locale: "en", status: "preferred" },
+        { text: "chiffrement", locale: "fr", status: "preferred" },
+        { text: "cryptage", locale: "fr", status: "deprecated" },
+        { text: "Verschlüsselung", locale: "de", status: "preferred" },
+      ],
+    },
+  ];
+  for (const concept of CONCEPTS) {
+    try {
+      await jpost(`/${wsSlug}/terms`, { ...concept, project_id: projectId });
+    } catch (err) {
+      console.error(`  (term seed skipped: ${err.message})`);
+    }
+  }
+
   // Invite Bob as a member, then accept the invite AS Bob (a second user).
   // This is the genuine membership path — Bob is a real, distinct user who can
   // open the same file and whose presence the collab server relays to Alice.
   const bobToken = await deviceAuth(BOB_EMAIL, BOB_NAME);
   const HB = { Authorization: `Bearer ${bobToken}`, "Content-Type": "application/json" };
 
-  const invite = await jpost(`/workspaces/${wsSlug}/invites`, {
+  const invite = await jpost(`/${wsSlug}/invites`, {
     role: "member",
     email: BOB_EMAIL,
     max_uses: 1,

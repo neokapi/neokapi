@@ -1,6 +1,6 @@
 id: bowrain-desktop-flows
 title: Build flows visually
-subtitle: The desktop flow builder — pipelines as a node graph.
+subtitle: Compose localization pipelines as a node graph.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-flows
@@ -10,7 +10,7 @@ brand: bowrain
 needsAi: false
 oneshot: true
 aspects:
-  - Desktop-only flow builder
+  - Visual flow builder
   - Built-in pipelines
   - A visual node graph
   - The same flows kapi runs
@@ -25,8 +25,8 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      The desktop app adds a flow builder — a surface the browser editor does
-      not have.
+      The desktop composes flows on the same visual canvas the web app uses —
+      pipelines laid out as a node graph.
 
   - id: flows
     kind: desktop

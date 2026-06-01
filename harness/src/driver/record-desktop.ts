@@ -862,10 +862,16 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
   });
   // Approve — mark reviewed in the Review surface; progress advances to reviewed.
   await beatEls("review", ['[data-testid="review-surface"]'], async () => {
+    // The bulk action enables only once rows are selected — pick all/first rows
+    // so the approve action is live (and the click never blocks on a disabled
+    // button).
+    const selectAll = page.locator('[data-testid="review-select-all"], [data-testid^="review-row-select"], [data-testid="review-list"] input[type="checkbox"]').first();
+    if (await selectAll.count()) await humanClick(page, selectAll).catch(() => {});
+    await page.waitForTimeout(700);
     const mark = page.getByTestId("bulk-mark-reviewed");
     if (await mark.count()) {
       await cursorTo('[data-testid="bulk-mark-reviewed"]');
-      await humanClick(page, mark);
+      if (await mark.isEnabled().catch(() => false)) await humanClick(page, mark).catch(() => {});
     }
     await page.waitForTimeout(1600);
   });

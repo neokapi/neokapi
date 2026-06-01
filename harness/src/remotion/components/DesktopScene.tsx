@@ -207,6 +207,7 @@ export const DesktopScene: React.FC<{
           startFrom={startFrom}
           playbackRate={playbackRate}
           muted
+          toneMapped={false}
           style={{
             position: "absolute",
             inset: 0,
@@ -243,7 +244,7 @@ export const DesktopScene: React.FC<{
             boxShadow: "0 50px 120px rgba(0,0,0,0.65), 0 8px 28px rgba(0,0,0,0.45)",
           }}
         >
-          <OffthreadVideo src={videoSrc} startFrom={startFrom} playbackRate={playbackRate} muted style={{ position: "absolute", top: 0, left: 0, width: bw, height: bh }} />
+          <OffthreadVideo src={videoSrc} startFrom={startFrom} playbackRate={playbackRate} muted toneMapped={false} style={{ position: "absolute", top: 0, left: 0, width: bw, height: bh }} />
           {/* Inline macOS traffic lights on the app's own top bar — part of the card. */}
           <div style={{ position: "absolute", top: 17, left: 20, display: "flex", gap: 9 }}>
             <Light c="#ff5f57" />

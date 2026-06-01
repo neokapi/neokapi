@@ -1,6 +1,6 @@
 id: bowrain-desktop-dashboard
 title: The desktop app, on your team's server
-subtitle: A native workbench connected to the shared workspace.
+subtitle: An equal, real-time client of the shared workspace.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-dashboard
@@ -11,22 +11,24 @@ needsAi: false
 oneshot: true
 aspects:
   - Native desktop app
-  - Connected to bowrain-server
+  - An equal real-time client
   - The same shared workspace
-  - Connectors for content sources
+  - Works offline, syncs back
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain Desktop — a native workbench, connected to your team's server.
+      Bowrain Desktop — a native, real-time client of your team's server.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      Bowrain also ships as a native desktop app. It signs in to the same
-      bowrain-server, so it opens the very same workspace the web editor does.
+      Bowrain also ships as a native desktop app — an equal, real-time client of
+      the server. It opens the very same workspace the web editor does, with
+      presence and edits shared live, and it keeps working offline, syncing back
+      when you reconnect.
 
   - id: stats
     kind: desktop
@@ -47,10 +49,10 @@ narration:
   - id: connectors
     kind: desktop
     beat: connectors
-    caption: Connectors wire in content sources.
+    caption: Connect remote content sources.
     text: >-
-      And the desktop adds connectors — a place to wire in the content sources a
-      project pulls from, alongside the visual flow builder.
+      It also connects remote content sources — like a CMS or a design tool —
+      so the team can pull content in, alongside the visual flow builder.
 
   - id: outro
     kind: outro
