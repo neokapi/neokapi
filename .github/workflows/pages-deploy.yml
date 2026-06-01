@@ -143,10 +143,13 @@ jobs:
           path: artifacts
 
       - name: Slot neokapi-web Vite app at /web/neokapi/ root
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/neokapi-web/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_app_dest }}
         run: |
+          # Presence check in-step (not via hashFiles in `if:` — hashFiles returns
+          # empty for download-artifact outputs, which silently skipped every slot).
+          [ -d artifacts/neokapi-web ] && [ -n "$(ls -A artifacts/neokapi-web 2>/dev/null)" ] || { echo "no neokapi-web artifact — skipping"; exit 0; }
           # Replace only the app's own files; preserve any docs/ subdir
           # already present from a previous Docs — kapi run.
           mkdir -p "pages/${DEST}"
@@ -154,46 +157,51 @@ jobs:
           cp -r artifacts/neokapi-web/* "pages/${DEST}/"
 
       - name: Slot bowrain-web Vite app at /web/bowrain/ root
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-web/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_app_dest }}
         run: |
+          [ -d artifacts/bowrain-web ] && [ -n "$(ls -A artifacts/bowrain-web 2>/dev/null)" ] || { echo "no bowrain-web artifact — skipping"; exit 0; }
           mkdir -p "pages/${DEST}"
           (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
           cp -r artifacts/bowrain-web/* "pages/${DEST}/"
 
       - name: Slot kapi Docusaurus at /web/neokapi/docs/
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/kapi-site/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_docs_dest }}
         run: |
+          [ -d artifacts/kapi-site ] && [ -n "$(ls -A artifacts/kapi-site 2>/dev/null)" ] || { echo "no kapi-site artifact — skipping"; exit 0; }
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-site/* "pages/${DEST}/"
 
       - name: Slot bowrain Docusaurus at /web/bowrain/docs/
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-site/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_docs_dest }}
         run: |
+          [ -d artifacts/bowrain-site ] && [ -n "$(ls -A artifacts/bowrain-site 2>/dev/null)" ] || { echo "no bowrain-site artifact — skipping"; exit 0; }
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-site/* "pages/${DEST}/"
 
       - name: Slot kapi storybook
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/kapi-storybook/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_storybook_dest }}
         run: |
+          [ -d artifacts/kapi-storybook ] && [ -n "$(ls -A artifacts/kapi-storybook 2>/dev/null)" ] || { echo "no kapi-storybook artifact — skipping"; exit 0; }
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
 
       - name: Slot bowrain storybook
-        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-storybook/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_storybook_dest }}
         run: |
+          [ -d artifacts/bowrain-storybook ] && [ -n "$(ls -A artifacts/bowrain-storybook 2>/dev/null)" ] || { echo "no bowrain-storybook artifact — skipping"; exit 0; }
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-storybook/* "pages/${DEST}/"
