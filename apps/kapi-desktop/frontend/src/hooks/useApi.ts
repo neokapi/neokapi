@@ -36,11 +36,22 @@ async function getBackend(): Promise<Backend | null> {
   if (backendLoaded) return null; // Already tried and failed (Storybook/vitest).
 
   try {
-    const path = "../../bindings/github.com/neokapi/neokapi/kapi-desktop/backend/app.js";
-    backendModule = (await import(/* @vite-ignore */ path)) as Backend;
+    // Static literal path (no @vite-ignore): this lets Vite code-split the
+    // generated bindings into a real chunk that ships in dist/. The previous
+    // @vite-ignore + variable form left it as a bare runtime import that was
+    // NOT bundled, so in the production (embedded) build it 404'd — every
+    // call() silently returned null and all lists/data showed empty. It only
+    // worked under `wails3 dev`, where the dev server serves the source
+    // bindings. (Storybook/vitest still resolve the chunk; @wailsio/runtime is
+    // mocked in tests, and a missing Wails runtime is handled by callers.)
+    backendModule = (await import(
+      // @ts-expect-error -- generated JS bindings ship without a .d.ts (TS7016);
+      // the module is typed via the `as Backend` cast.
+      "../../bindings/github.com/neokapi/neokapi/kapi-desktop/backend/app.js"
+    )) as Backend;
     backendLoaded = true;
   } catch {
-    // In Storybook/vitest — mark as permanently failed.
+    // Bindings chunk unavailable — mark as permanently failed.
     backendLoaded = true;
     backendModule = null;
   }
