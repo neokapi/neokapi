@@ -6,13 +6,13 @@ title: Overview
 import ThemedImage from "@theme/ThemedImage";
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Web editor
+# Overview
 
-The Bowrain web editor is a browser-based translation workbench with the same editing experience as the [desktop app](/desktop/overview), reachable from any modern browser. It runs as part of `bowrain-server` for multi-user deployments.
+Bowrain is a governed, multi-user translation platform served from one place — the Bowrain server. A team reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, translation memory, presence, and reviews are shared across both. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
 
 ## A quick tour
 
-The editor works on content from any source — a CMS, a design tool, a git repository, or local files synced with [kapi](https://neokapi.github.io/web/neokapi/) — held on the server, shared across a team and governed over time. These short tours show the web editor running against a live workspace.
+The editor works on content from any source — a CMS, a design tool, a git repository, or local files synced with [kapi](https://neokapi.github.io/web/neokapi/) — held on the server, shared across a team and governed over time. These short tours run against a live workspace.
 
 ### The translation editor
 
@@ -73,7 +73,7 @@ A workspace is shared by a whole team. You invite teammates by email and give ea
 
 ### Login
 
-Server mode authenticates through your identity provider. Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
+Bowrain authenticates through your identity provider. Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
 
 <ThemedImage
   alt="Login page with identity provider options"
@@ -85,7 +85,7 @@ Server mode authenticates through your identity provider. Depending on configura
 
 ### Workspace Selector
 
-In server mode, the workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
+The workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
 
 <ThemedImage
   alt="Workspace rail with multiple workspaces"
@@ -172,23 +172,8 @@ View workspace information including name, slug, description, and your role.
 
 ## Deployment
 
-The web application is served by `bowrain-server`. Users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [Self-Hosting](./self-hosting.md) for deployment instructions.
+The platform is served by `bowrain-server`. Users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [For developers → Self-hosting](/server/self-hosting) for deployment instructions.
 
-## Comparison with Bowrain
+## Browser and desktop clients
 
-The web application and [Bowrain desktop app](/desktop/overview) share the same core components (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package. Key differences:
-
-Both connect to the same server and the same workspaces — they are equal clients, so multi-user presence, SSO, terminology, and translation memory are shared across them. The differences are about where and how you run, not what you can do:
-
-| Feature                              | Web App         | Bowrain Desktop                      |
-| ------------------------------------ | --------------- | ------------------------------------ |
-| Translation editor (Visual + Table)  | Yes             | Yes                                  |
-| TM & terminology explorers           | Yes             | Yes                                  |
-| Context panel (TM + terms)           | Yes             | Yes                                  |
-| AI/MT translation                    | Yes             | Yes                                  |
-| Flows & automations                  | Yes             | Project flows                        |
-| Real-time presence & live updates    | Yes             | Yes                                  |
-| Multi-user, workspaces, SSO          | Yes             | Yes                                  |
-| Install                              | Open a URL      | Native app (macOS / Linux / Windows) |
-| Works offline                        | No              | Yes — edits queue, sync on reconnect |
-| Local footprint                      | Browser session | Cache + offline queue (working copy) |
+The browser and the [desktop app](/server/desktop-app) share the same core surfaces (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package, and connect to the same server and workspaces — so multi-user presence, SSO, terminology, and translation memory are shared across them. The differences are about where and how you run, not what you can do: the desktop client adds offline editing and runs as a native app. See [The desktop app](/server/desktop-app) for the full comparison.

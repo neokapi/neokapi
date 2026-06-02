@@ -110,14 +110,8 @@ const config: Config = {
         },
         {
           type: "docSidebar",
-          sidebarId: "webSidebar",
-          label: "Web App",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
-          sidebarId: "desktopSidebar",
-          label: "Desktop",
+          sidebarId: "usingBowrainSidebar",
+          label: "Using Bowrain",
           position: "left",
         },
         {
@@ -128,8 +122,8 @@ const config: Config = {
         },
         {
           type: "docSidebar",
-          sidebarId: "selfHostingSidebar",
-          label: "Self-Hosting",
+          sidebarId: "forDevelopersSidebar",
+          label: "For Developers",
           position: "left",
         },
         {
@@ -151,7 +145,7 @@ const config: Config = {
           title: "Bowrain",
           items: [
             { label: "Getting Started", to: "/" },
-            { label: "Web app", to: "/server/web-overview" },
+            { label: "Using Bowrain", to: "/server/web-overview" },
             { label: "Connectors", to: "/server/connectors" },
             { label: "Connect (CLI)", to: "/cli/overview" },
           ],

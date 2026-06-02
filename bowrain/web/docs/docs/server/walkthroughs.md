@@ -5,7 +5,9 @@ title: Walkthroughs
 
 # Walkthroughs
 
-Step-by-step guides for common translation workflows in the web application.
+Step-by-step guides for common translation workflows. The steps are the same in
+the browser and the [desktop app](/server/desktop-app) — both are clients of the
+same server.
 
 ## Translate a Website from English to French
 
@@ -13,7 +15,7 @@ This walkthrough covers the complete workflow from project creation to file expo
 
 ### Steps
 
-1. Open the web application and navigate to the **Translate** view
+1. Open Bowrain and navigate to the **Translate** view
 2. Click **New Project** on the dashboard
 3. Enter "Website Translation" as the project name
 4. Select **English** as the source language

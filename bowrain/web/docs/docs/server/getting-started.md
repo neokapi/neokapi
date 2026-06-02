@@ -1,23 +1,21 @@
 ---
 sidebar_position: 2
-title: Getting Started
+title: First login and translation
+sidebar_label: First login and translation
 ---
 
-# Getting Started
+# First login and translation
 
-This guide walks you through first login, workspace creation, and translating your first file in the Bowrain web application.
+This guide walks you through first login, workspace creation, and translating
+your first file in Bowrain. The steps below use the browser; the
+[desktop app](/server/desktop-app) follows the same flow after its own
+[first sign-in](/server/desktop-app#first-sign-in).
 
 ## Prerequisites
 
-You need a running Bowrain Server, deployed with Docker Compose (see [Installation](./installation.md)).
-
-## Starting the Server
-
-```bash
-docker compose up -d
-```
-
-Open `http://localhost:8080` (or your configured domain) in your browser.
+You need a running Bowrain Server. If you are setting one up, see
+[For developers → Self-hosting](/server/installation); open
+`http://localhost:8080` (or your configured domain) once it is running.
 
 ## Logging In
 
