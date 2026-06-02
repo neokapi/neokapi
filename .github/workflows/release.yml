@@ -286,6 +286,9 @@ jobs:
       - name: Publish CLI archives to release
         uses: softprops/action-gh-release@v3
         with:
+          # Prerelease tags (vX.Y.Z-rcN) produce a GitHub *prerelease* with
+          # downloadable assets but skip every live-channel write below.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/kapi_*.tar.gz
             dist/kapi-bowrain_*.tar.gz
@@ -316,6 +319,7 @@ jobs:
             ```
 
       - name: Push brew formulae to homebrew-tap
+        if: ${{ !contains(github.ref_name, '-') }}
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -338,6 +342,7 @@ jobs:
       # Includes cosign signature URLs + cert-identity so kapi's verifier
       # can validate the install (signatures are mandatory unless --unsafe).
       - name: Update manifest plugin registry
+        if: ${{ !contains(github.ref_name, '-') }}
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
@@ -838,6 +843,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       # Windows: Create ZIP
@@ -866,6 +872,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
   build-kapi-desktop:
@@ -1161,6 +1168,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       - name: Create ZIP
@@ -1187,6 +1195,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
   # NOTE: the Windows kapi CLI binary is now produced by the `build-cli` matrix
@@ -1197,6 +1206,8 @@ jobs:
 
   update-casks:
     name: Update Homebrew Casks
+    # Stable releases only — prerelease (vX.Y.Z-rcN) tags don't move the casks.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     needs: [build-bowrain, build-kapi-desktop]
     steps:
@@ -1337,6 +1348,9 @@ jobs:
 
   update-actions:
     name: Update GitHub Actions
+    # Stable releases only — don't bump action default versions or tag the
+    # action repos for prerelease (vX.Y.Z-rcN) tags.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     needs: package-cli
     steps:
