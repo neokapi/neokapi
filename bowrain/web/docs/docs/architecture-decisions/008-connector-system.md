@@ -94,7 +94,7 @@ are the same word from opposite directions.
 
 ### Connector Categories
 
-Six categories cover the integration space:
+The category enum classifies the integration space:
 
 ```go
 type Category string
@@ -105,15 +105,23 @@ const (
     CategoryCMS       Category = "cms"       // Contentful, Strapi, WordPress
     CategoryDesign    Category = "design"    // Figma, Sketch
     CategoryMarketing Category = "marketing" // HubSpot, Marketo
-    CategoryTMS       Category = "tms"       // External TMS integrations
+    CategoryTMS       Category = "tms"       // External TMS integrations (reserved)
 )
 ```
 
-Each category has characteristic behaviors: CMS connectors paginate
-through entries and publish via content APIs; design connectors read
-text layers and write back translated overlays; code connectors commit
-to branches and open pull requests; marketing connectors sync campaigns
-and assets across locales.
+`CategoryTMS` is **reserved** — the constant is declared, but no
+connector currently registers under it. The connectors that ship today
+are file (`file`), git (`code`), WordPress (`cms`), Figma (`design`), and
+HubSpot (`marketing`); the category list names the integration space the
+registry classifies, not a set of shipping integrations. External TMS
+integration is a future slot in that space rather than an available
+connector.
+
+Each populated category has characteristic behaviors: CMS connectors
+paginate through entries and publish via content APIs; design connectors
+read text layers and write back translated overlays; code connectors
+commit to branches and open pull requests; marketing connectors sync
+campaigns and assets across locales.
 
 ### Options and Status
 

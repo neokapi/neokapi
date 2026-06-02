@@ -94,23 +94,34 @@ surface.
 | **Context**          | `LookupTMForBlock`, `LookupTermsForBlock`                                                                           |
 | **TM CRUD**          | `GetTMEntries`, `GetTMCount`, `AddTMEntry`, `UpdateTMEntry`, `DeleteTMEntry`                                       |
 | **Terminology**      | `GetTerms`, `GetTermCount`, `AddConcept`, `UpdateConcept`, `DeleteConcept`, `ImportTermsCSV`, `ImportTermsJSON`, `ExportTermsJSON` |
-| **Real-time**        | `WatchProject` (server-streaming), `UpdatePresence`                                                                |
+| **Change relay**     | `WatchProject` (server-streaming), `UpdatePresence` (legacy presence)                                              |
 
-**Real-time collaboration.**
+**Real-time co-editing (Yjs/CRDT over WebSocket).** Live co-editing of a
+block's target — multiple editors typing into the same content with
+character-level merge and presence — runs over a WebSocket, not gRPC. The
+server hosts a per-room relay (`HandleCollabWebSocket`,
+`GET /:ws/:id/collab/:ref?locale=…`) keyed by
+`workspace:project:file:locale`. It accepts the `yjs` subprotocol and
+fans out the binary Yjs messages — both document updates and awareness
+(cursor/selection presence) — to every other client in the room. The
+CRDT itself lives client-side; the server is a broadcast hub and does not
+interpret the payloads. Both the web editor and the desktop app layer
+presence co-editing on top of the same Yjs awareness channel.
 
-- `WatchProject` is a server-streaming RPC that opens when the user
-  navigates to a project. It delivers `BlockChangeEvent` (created /
-  updated / deleted with the editor's name) and `PresenceChangeEvent`
-  (user joined / moved to block / left), plus the broader change events
-  the server's [change relay](/server/collaboration) fans out —
-  `ProjectChangeEvent`, `ConnectorSyncEvent`, `FlowEventEvent`,
-  `MembershipChangeEvent`, and more — so no desktop view goes stale when
-  content changes from outside it. The frontend's `useBackendEvents` bus
-  translates these into targeted refetches, and re-runs every refreshable
-  listener after an offline gap on reconnect.
-- `UpdatePresence` is fire-and-forget unary — the client sends it when
-  focus moves between blocks; the server broadcasts to all watchers of
-  the same project.
+**Change relay (so no view goes stale).** Separately from co-editing,
+`WatchProject` is a server-streaming gRPC RPC that opens when the user
+navigates to a project. It delivers the broader change events the
+server's [change relay](/server/collaboration) fans out — block changes,
+`ProjectChangeEvent`, `ConnectorSyncEvent`, `FlowEventEvent`,
+`MembershipChangeEvent`, and more — so no desktop view goes stale when
+content changes from outside it (another user, a `kapi push`, a connector
+sync, an automation). The frontend's `useBackendEvents` bus translates
+these into targeted refetches, and re-runs every refreshable listener
+after an offline gap on reconnect.
+
+The gRPC `UpdatePresence` unary RPC and the `PresenceChangeEvent` it
+feeds are the **legacy** presence path, superseded by Yjs awareness for
+live co-editing and retained only while clients migrate.
 
 **Connection state machine.**
 

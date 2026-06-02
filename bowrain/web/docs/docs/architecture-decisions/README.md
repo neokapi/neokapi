@@ -68,3 +68,10 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | ------------------------------------- | ------------- | ------------------------------------------------------------------ |
 | [017](017-bowrain-apps.md)            | Bowrain Apps  | Desktop, collaborative editor, Pulse, Admin Control Plane          |
 | [018](018-billing-and-plans.md)       | Billing       | Stripe plans, weekly credits, feature matrix, middleware guards    |
+
+## Governance
+
+| AD                                          | Title                          | Scope                                                                       |
+| ------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------- |
+| [019](019-correction-learning-loop.md)      | The correction-learning loop   | Corrections promoted into versioned regression-test checks                  |
+| [020](020-governance-audit-rollback.md)     | Governance, audit, and rollback | Groups, deny rules, role overrides, status ABAC, separation of duties, tamper-evident audit log, rollback |

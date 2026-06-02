@@ -12,8 +12,9 @@ The sync protocol is Bowrain's single, extensible transport for project
 data — blocks, terms, TM entries, media, QA results, and automation
 outputs. It uses a two-level Merkle tree for minimal-transfer diff
 negotiation, a typed `SyncChunk` envelope for extensibility, zstd
-compression with a trained dictionary, byte-size chunking, and
-direct-to-storage uploads via pre-signed SAS URLs. Push is asynchronous:
+compression (with an optional, not-yet-shipped dictionary hook),
+byte-size chunking, and direct-to-storage uploads via pre-signed SAS
+URLs. Push is asynchronous:
 the client uploads chunks to object storage, the server enqueues a
 background worker, the worker ingests with bulk INSERT under a single
 transaction per item.
@@ -331,17 +332,23 @@ The client library handles both transparently.
 
 ### Compression
 
-zstd with a trained dictionary:
+zstd, applied per chunk:
 
-- Dictionary trained on representative sync payloads (blocks + terms +
-  TM).
-- 80-90% compression for translation data.
+- Standard zstd at the default speed level. Repetitive translation data
+  (the common case) compresses well — large repetitive payloads reach
+  better than 10x in the package's own tests.
 - Streaming — no full-payload buffering on client or worker.
-- Library: `github.com/klauspost/compress/zstd`.
-- Dictionary shipped with the CLI binary (~32-112KB).
-
-Small payloads benefit most from dictionary compression because they
-don't have enough data to build up shared context on the fly.
+- Library: `github.com/klauspost/compress/zstd`, wrapped by an
+  encoder/decoder pool (`core/storage/compression`) for zero-allocation
+  reuse across requests.
+- **Dictionary support is an optional hook, not yet wired.** The pool
+  accepts a trained dictionary (`zstd.WithEncoderDict` /
+  `WithDecoderDicts`), and the client's `EnableCompression(dict)` takes
+  one, but no dictionary is embedded in or shipped with the CLI — the
+  default path passes `nil`, so production uses standard zstd without a
+  shipped dictionary. A trained dictionary would most help small payloads,
+  which lack enough data to build shared context on the fly; training and
+  embedding one remains future work.
 
 ### Chunking
 
@@ -510,8 +517,8 @@ deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
 - The full Block model survives the sync boundary — annotations,
   properties, skeleton, display hints, and connector data all round-trip.
 - Terminology, TM, and binary assets sync through the same protocol.
-- 80-90% compression via zstd with a trained dictionary reduces
-  transfer and storage costs.
+- Per-chunk zstd reduces transfer and storage costs; an optional trained
+  dictionary is supported by the compression pool but not yet shipped.
 - Async ingestion keeps the API responsive under any push load; the
   worker batches with bulk INSERT for 10-100x faster DB writes.
 - Rate limiting and pagination bound resource usage per tenant.

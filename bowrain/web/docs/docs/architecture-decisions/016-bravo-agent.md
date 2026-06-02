@@ -72,6 +72,18 @@ workspace role. Events emitted by the agent use `actor: "bravo:<user_id>"`
 so the activity feed, audit log, and notification dispatcher attribute
 them correctly.
 
+**Real agent output requires SSE streaming plus a configured container
+pool (or a worker queue).** `AgentService.SendMessageStream` is the path
+that reaches a real ZeroClaw container — directly when a container pool is
+attached (`SetPool`), or via Service Bus and a Redis SSE relay when a
+queue is configured (`SetQueue`). With neither configured, it falls back
+to a local placeholder stream. The synchronous JSON `SendMessage` path
+(used by non-streaming clients) does not invoke the runtime at all: it
+persists the message and returns a canned echo reply that points the
+caller at SSE streaming. So a deployment that has only wired the
+synchronous path, or has no pool/queue, gets the placeholder — not model
+output.
+
 ### Modes
 
 | Mode           | Authority                                                                    | Typical use                                    |

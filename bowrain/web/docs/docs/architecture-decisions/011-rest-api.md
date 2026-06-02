@@ -46,9 +46,10 @@ recognize the shape before reading the docs.
 6. **All identifiers are slugs.** Workspaces, projects, streams, and
    tags use human-readable slugs in URLs. Slug-to-ID resolution happens
    once in middleware.
-7. **Standalone mode uses `_`.** In self-hosted single-user deployments,
-   clients address the virtual workspace `_`. Route registration stays
-   identical between modes.
+7. **Auth shapes the route table.** Whether multi-tenant identity and
+   workspace routes register at all is gated on a configured `JWTSecret`
+   (see [Standalone mode](#standalone-mode)), so a standalone deployment
+   exposes a narrower surface than a multi-tenant one.
 
 ### Reserved names
 
@@ -216,13 +217,27 @@ on REST requests, the same header in gRPC metadata.
 
 ### Standalone mode
 
-Self-hosted single-user deployments (bowrain-server with no `JWTSecret`)
-use the virtual workspace slug `_`:
+The configured `JWTSecret` selects the deployment mode at route-setup
+time. When it is empty, the server runs in **standalone** mode; when it
+is set, the server runs in multi-tenant **server** mode. `GET /info`
+reports the active mode (`standalone` when `JWTSecret == ""`, otherwise
+`server`).
 
-- `/api/v1/_/my-project/blocks/main` is a valid standalone request.
-- `AuthMiddleware` becomes a no-op that injects a synthetic user.
-- `WorkspaceAccessMiddleware` becomes a no-op.
-- Route registration is unchanged — no duplication between modes.
+In standalone mode the multi-tenant identity and workspace route blocks
+are not registered at all — `SetupRoutes` gates them behind
+`if Config.JWTSecret != ""`. That guarded block is where the auth
+endpoints, the workspace-scoped routes (`/:ws/…`), and the workspace
+content routes (`registerWorkspaceContentRoutes`) are mounted, so a
+standalone server simply does not expose them, rather than mounting them
+behind no-op middleware. There is no virtual `_` workspace and no
+synthetic-user injection; the `_` slug is merely on the reserved-slug
+list so it can never become a real workspace.
+
+What a standalone server does expose: the public endpoints (`/health`,
+`/ready`, `/info`, `/badges/:proj`, `/pulse`) and — when an auth store is
+present — the flat, anonymous-project sync routes under
+`/api/v1/projects/:id/sync/:ref/…`, which authenticate with a claim
+token instead of a JWT.
 
 ### Item path encoding
 
@@ -238,7 +253,10 @@ ref-scoped routing.
   asked.
 - Clients can construct URLs mechanically from `(workspace, project,
   ref, resource)` tuples.
-- Standalone and multi-tenant deployments share the same route table.
+- Standalone and multi-tenant deployments share the same route *shape*
+  (resource-first, ref-scoped), but not the same route *table* — the
+  multi-tenant identity and workspace routes are gated on a configured
+  `JWTSecret` and are absent in standalone mode.
 - Router match order (static segments before parameterized ones) makes
   the reserved-slug lists trivial to enforce.
 - gRPC and REST share a single port, which simplifies TLS termination,
