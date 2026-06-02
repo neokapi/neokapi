@@ -29,6 +29,7 @@ func (s *MCPServer) registerConnectorTools() {
 }
 
 type connectorPullInput struct {
+	WorkspaceID string `json:"workspace_id" jsonschema:"the workspace the connector belongs to"`
 	ProjectID   string `json:"project_id" jsonschema:"the project ID"`
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to pull from"`
 }
@@ -48,7 +49,7 @@ func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRe
 		return nil, connectorPullOutput{}, errors.New("project_id is required")
 	}
 
-	items, err := s.connResolver.Fetch(ctx, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
+	items, err := s.connResolver.Fetch(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
 	if err != nil {
 		return nil, connectorPullOutput{}, fmt.Errorf("connector pull: %w", err)
 	}
@@ -60,6 +61,7 @@ func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRe
 }
 
 type connectorPushInput struct {
+	WorkspaceID string `json:"workspace_id" jsonschema:"the workspace the connector belongs to"`
 	ProjectID   string `json:"project_id" jsonschema:"the project ID"`
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to push to"`
 }
@@ -78,7 +80,7 @@ func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRe
 		return nil, connectorPushOutput{}, errors.New("project_id is required")
 	}
 
-	if err := s.connResolver.Publish(ctx, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
+	if err := s.connResolver.Publish(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
 		return nil, connectorPushOutput{}, fmt.Errorf("connector push: %w", err)
 	}
 
@@ -86,6 +88,7 @@ func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRe
 }
 
 type connectorStatusInput struct {
+	WorkspaceID string `json:"workspace_id" jsonschema:"the workspace the connector belongs to"`
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to check"`
 }
 type connectorStatusOutput struct {
@@ -105,7 +108,7 @@ func (s *MCPServer) handleConnectorStatus(ctx context.Context, req *mcp.CallTool
 		return nil, connectorStatusOutput{}, errors.New("connector_id is required")
 	}
 
-	status, err := s.connResolver.ConnectorStatus(ctx, input.ConnectorID)
+	status, err := s.connResolver.ConnectorStatus(ctx, input.WorkspaceID, input.ConnectorID)
 	if err != nil {
 		return nil, connectorStatusOutput{}, fmt.Errorf("connector status: %w", err)
 	}

@@ -33,10 +33,10 @@ type TBResolver interface {
 
 // ConnectorResolver provides workspace-scoped connector access.
 type ConnectorResolver interface {
-	GetConnector(id string) (connector.IntegrationConnector, error)
-	Fetch(ctx context.Context, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error)
-	Publish(ctx context.Context, connectorID, projectID string, opts connector.PublishOptions) error
-	ConnectorStatus(ctx context.Context, connectorID string) (*connector.SyncStatus, error)
+	GetConnector(workspaceID, id string) (connector.IntegrationConnector, error)
+	Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error)
+	Publish(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.PublishOptions) error
+	ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*connector.SyncStatus, error)
 }
 
 // SandboxExecutor runs code in an isolated environment.

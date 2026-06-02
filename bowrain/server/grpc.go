@@ -205,11 +205,12 @@ func (g *GRPCServer) ListVersions(ctx context.Context, req *pb.ListVersionsReque
 }
 
 func (g *GRPCServer) PullContent(ctx context.Context, req *pb.PullContentRequest) (*pb.PullContentResponse, error) {
-	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+	p, err := g.authorizeProject(ctx, req.ProjectId)
+	if err != nil {
 		return nil, err
 	}
 	opts := connector.FetchOptions{}
-	items, err := g.srv.Services.Connector.Fetch(ctx, req.ConnectorId, req.ProjectId, opts)
+	items, err := g.srv.Services.Connector.Fetch(ctx, p.WorkspaceID, req.ConnectorId, req.ProjectId, opts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "pull content: %v", err)
 	}
@@ -221,7 +222,8 @@ func (g *GRPCServer) PullContent(ctx context.Context, req *pb.PullContentRequest
 }
 
 func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest) (*pb.PushContentResponse, error) {
-	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+	p, err := g.authorizeProject(ctx, req.ProjectId)
+	if err != nil {
 		return nil, err
 	}
 
@@ -232,7 +234,7 @@ func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest
 	}
 
 	opts := connector.PublishOptions{}
-	if err := g.srv.Services.Connector.Publish(ctx, req.ConnectorId, req.ProjectId, opts); err != nil {
+	if err := g.srv.Services.Connector.Publish(ctx, p.WorkspaceID, req.ConnectorId, req.ProjectId, opts); err != nil {
 		return nil, status.Errorf(codes.Internal, "push content: %v", err)
 	}
 	return &pb.PushContentResponse{PushedCount: int32(len(blocks))}, nil

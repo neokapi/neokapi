@@ -32,7 +32,8 @@ func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	active := s.Services.Connector.ListActive()
+	wsID, _ := c.Get("workspace_id").(string)
+	active := s.Services.Connector.ListActive(wsID)
 	type connectorInfo struct {
 		ID       string             `json:"id"`
 		Name     string             `json:"name"`
@@ -62,7 +63,8 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	conn, err := s.Services.Connector.AddConnector(req.Type, req.Config)
+	wsID, _ := c.Get("workspace_id").(string)
+	conn, err := s.Services.Connector.AddConnector(wsID, req.Type, req.Config)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -80,7 +82,8 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	if err := s.Services.Connector.RemoveConnector(c.Param("id")); err != nil {
+	wsID, _ := c.Get("workspace_id").(string)
+	if err := s.Services.Connector.RemoveConnector(wsID, c.Param("id")); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -99,7 +102,8 @@ func (s *Server) HandleFetch(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	items, err := s.Services.Connector.Fetch(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.FetchOptions{
+	wsID, _ := c.Get("workspace_id").(string)
+	items, err := s.Services.Connector.Fetch(c.Request().Context(), wsID, req.ConnectorID, req.ProjectID, connector.FetchOptions{
 		Paths: req.Paths,
 	})
 	if err != nil {
@@ -122,7 +126,8 @@ func (s *Server) HandlePublish(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	err := s.Services.Connector.Publish(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.PublishOptions{
+	wsID, _ := c.Get("workspace_id").(string)
+	err := s.Services.Connector.Publish(c.Request().Context(), wsID, req.ConnectorID, req.ProjectID, connector.PublishOptions{
 		Message: req.Message,
 	})
 	if err != nil {
@@ -136,7 +141,8 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), c.Param("id"))
+	wsID, _ := c.Get("workspace_id").(string)
+	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}

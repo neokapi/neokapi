@@ -44,19 +44,59 @@ func TestConnectorServiceAddRemove(t *testing.T) {
 
 	svc := NewConnectorService(s, reg)
 
-	c, err := svc.AddConnector("test", nil)
+	c, err := svc.AddConnector("ws-a", "test", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "test-1", c.ID())
 
-	active := svc.ListActive()
+	active := svc.ListActive("ws-a")
 	assert.Len(t, active, 1)
 
-	got, err := svc.GetConnector("test-1")
+	got, err := svc.GetConnector("ws-a", "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, "test-1", got.ID())
 
-	require.NoError(t, svc.RemoveConnector("test-1"))
-	assert.Len(t, svc.ListActive(), 0)
+	require.NoError(t, svc.RemoveConnector("ws-a", "test-1"))
+	assert.Len(t, svc.ListActive("ws-a"), 0)
+}
+
+// TestConnectorServiceWorkspaceScoping verifies a connector added in one
+// workspace cannot be addressed from another, even with a guessed connector ID.
+func TestConnectorServiceWorkspaceScoping(t *testing.T) {
+	s := newTestStore(t)
+	reg := connector.NewRegistry()
+	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+		return &testConnector{id: "wp-shared-id"}, nil
+	})
+	svc := NewConnectorService(s, reg)
+
+	// Workspace A adds a connector.
+	c, err := svc.AddConnector("ws-a", "test", nil)
+	require.NoError(t, err)
+	require.Equal(t, "wp-shared-id", c.ID())
+
+	// Workspace B cannot see, get, fetch, publish, status, or remove it — even
+	// though connector IDs are deterministic and thus guessable.
+	assert.Empty(t, svc.ListActive("ws-b"))
+
+	_, err = svc.GetConnector("ws-b", "wp-shared-id")
+	assert.ErrorIs(t, err, ErrConnectorNotFound)
+
+	_, err = svc.Fetch(context.Background(), "ws-b", "wp-shared-id", "proj-1", connector.FetchOptions{})
+	assert.ErrorIs(t, err, ErrConnectorNotFound)
+
+	err = svc.Publish(context.Background(), "ws-b", "wp-shared-id", "proj-1", connector.PublishOptions{})
+	assert.ErrorIs(t, err, ErrConnectorNotFound)
+
+	_, err = svc.ConnectorStatus(context.Background(), "ws-b", "wp-shared-id")
+	assert.ErrorIs(t, err, ErrConnectorNotFound)
+
+	assert.ErrorIs(t, svc.RemoveConnector("ws-b", "wp-shared-id"), ErrConnectorNotFound)
+
+	// Workspace A still owns it.
+	assert.Len(t, svc.ListActive("ws-a"), 1)
+	got, err := svc.GetConnector("ws-a", "wp-shared-id")
+	require.NoError(t, err)
+	assert.Equal(t, "wp-shared-id", got.ID())
 }
 
 func TestConnectorServiceFetch(t *testing.T) {
@@ -79,10 +119,10 @@ func TestConnectorServiceFetch(t *testing.T) {
 	})
 
 	svc := NewConnectorService(s, reg)
-	_, err := svc.AddConnector("test", nil)
+	_, err := svc.AddConnector("ws-a", "test", nil)
 	require.NoError(t, err)
 
-	items, err := svc.Fetch(ctx, "test-1", p.ID, connector.FetchOptions{})
+	items, err := svc.Fetch(ctx, "ws-a", "test-1", p.ID, connector.FetchOptions{})
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 
@@ -104,9 +144,9 @@ func TestConnectorServiceStatus(t *testing.T) {
 	})
 
 	svc := NewConnectorService(s, reg)
-	_, _ = svc.AddConnector("test", nil)
+	_, _ = svc.AddConnector("ws-a", "test", nil)
 
-	status, err := svc.ConnectorStatus(t.Context(), "test-1")
+	status, err := svc.ConnectorStatus(t.Context(), "ws-a", "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, 2, status.ItemCount)
 }
