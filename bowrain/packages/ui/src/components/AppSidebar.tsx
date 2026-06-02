@@ -469,7 +469,12 @@ export function AppSidebar<V extends string = string>({
   // Desktop: icon-only rail
   return (
     <Sidebar collapsible="none" className="!w-(--sidebar-width-icon)" {...props}>
-      <SidebarHeader>
+      {/* Reserve a top "safe area" so the workspace switcher clears the macOS
+          traffic lights — both the real desktop shell (html.bw-desktop-mac, set
+          by the Wails frontend on macOS) and the recorded web capture
+          (html.pw-recording-tl, set by the harness). Plain browser visits get
+          no class and no gutter. Mirrors kapi-desktop's traffic-light gutter. */}
+      <SidebarHeader className="[html.bw-desktop-mac_&]:mt-9 [html.pw-recording-tl_&]:mt-10">
         <WorkspaceSwitcher
           workspaces={workspaces}
           activeWorkspace={activeWorkspace}
