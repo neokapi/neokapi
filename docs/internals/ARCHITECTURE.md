@@ -2,7 +2,7 @@
 
 neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
 in Go. For the reasoning behind each major design choice, see the
-[Architecture Decisions](ad/README.md).
+[Architecture Decisions](../../web/docs/docs/contribute/architecture/README.md).
 
 ## Architecture Diagram
 
@@ -37,12 +37,12 @@ graph TB
     T4 -->|"chan Part"| DFW
     DFW --> OUT
 
-    subgraph "Plugin System (go-plugin + gRPC)"
+    subgraph "Plugin System (manifest discovery + gRPC daemons)"
         P1[Native Go Format]
         P2[Okapi Bridge Format]
         P3[Native Go Tool]
         P4[AI Tool]
-        P5[Remote Plugin]
+        P5[Subprocess Plugin]
     end
 
     subgraph "Format Registry"
@@ -60,96 +60,104 @@ graph TB
 
 Documents flow through a channel-based concurrent pipeline. Each tool runs in
 its own goroutine. Buffered channels provide backpressure. See
-[AD-004](ad/004-processing-engine.md).
+[AD-004: Processing engine](../../web/docs/docs/contribute/architecture/004-processing-engine.md).
 
 ## Package Layout
 
-The project is a **multi-module monorepo** with two Go modules coordinated by
-`go.work`: the **framework** (`github.com/neokapi/neokapi`) provides the
-localization engine, and the **platform** (`github.com/neokapi/neokapi/bowrain`)
-builds the full-stack application on top.
+The project is a **multi-module monorepo** with seven Go modules coordinated by
+`go.work`. The **framework** (`github.com/neokapi/neokapi`) at the repo root
+provides the localization engine and stays platform-agnostic. A shared **CLI**
+base (`cli/`) is reused by both the **kapi** binary and bowrain. The **kapi
+desktop** app and the four **bowrain** modules (`bowrain`, `bowrain/core`,
+`bowrain/cli`, `bowrain/plugin`) build on top. The bowrain modules are
+documented here as cross-module facts; their own architecture lives under
+`bowrain/docs/`.
 
 ```
-neokapi/                              ── Framework Module ──
-├── go.mod                           # module github.com/neokapi/neokapi
-├── go.work                          # workspace: use . and ./bowrain
+neokapi/
+├── go.work                          # workspace: framework + cli + kapi + kapi-desktop + bowrain modules
 │
-├── model/                           # Part, Block, Layer, Run, Target, Overlay, Data, Media
-├── format/                          # DataFormatReader/Writer interfaces, detection
-├── tool/                            # Tool interface, BaseTool dispatch
-├── flow/                            # Executor, Builder, FlowDefinition
-├── registry/                        # FormatRegistry, ToolRegistry
-├── encoding/                        # Text encoding utilities
-├── locale/                          # BCP-47 locale handling
-├── editor/                          # Block index serialization and preview generation
-├── version/                         # Build version info
+│   ── Framework Module (repo root) ──
+├── go.mod                           # module github.com/neokapi/neokapi (Apache-2.0)
+├── core/
+│   ├── model/                       # Part, Block, Layer, Run, Target, Overlay, Data, Media
+│   ├── format/                      # DataFormatReader/Writer interfaces, detection
+│   ├── tool/                        # Tool interface, BaseTool dispatch
+│   ├── flow/                        # Executor, Builder, pipeline orchestration
+│   ├── registry/                    # FormatRegistry, ToolRegistry
+│   ├── encoding/                    # Character encoding detection/conversion
+│   ├── locale/                      # BCP-47 locale utilities
+│   ├── editor/                      # Block index serialization and preview generation
+│   ├── version/                     # Build version info (set via ldflags)
+│   ├── formats/                     # Built-in format implementations (one package per format)
+│   ├── storage/                     # Shared SQLite DB infrastructure (Open, Migrate)
+│   ├── project/                     # .kapi project file format (Load, Save, Validate)
+│   ├── tools/                       # Built-in utility tools (word count, pseudo, etc.)
+│   ├── brand/                       # Brand-voice profiles + checks
+│   ├── check/                       # Unified content checks
+│   ├── plugin/                      # Plugin runtime support
+│   │   ├── manifest/                # manifest.json parsing + validation
+│   │   ├── protoconvert/            # Part ⇆ Okapi Event conversion
+│   │   └── proto/                   # gRPC protobuf (v1 connector, v2 BridgeService)
+│   └── internal/testutil/           # Shared test helpers (RawDocFromString, CollectBlocks, …)
+├── sievepen/                        # Translation memory (interface + in-memory + SQLite + matching)
+├── termbase/                        # Terminology (interface + in-memory + SQLite + import/export)
+├── providers/
+│   ├── ai/                          # package aiprovider — LLM providers + AI tools
+│   └── mt/                          # package mtprovider — MT providers + MT tools
+├── bench/                           # Benchmarks
+├── examples/                        # Plugin examples
 │
-├── formats/                         # 15 built-in format implementations
-│   ├── html/                        # Each has reader.go, writer.go, config.go
-│   ├── xml/
-│   ├── xliff/
-│   ├── xliff2/
-│   ├── json/
-│   ├── yaml/
-│   ├── po/
-│   ├── properties/
-│   ├── plaintext/
-│   ├── markdown/
-│   ├── csv/
-│   ├── srt/
-│   ├── vtt/
-│   ├── tmx/
-│   └── register.go                  # init() registration
+│   ── CLI Module ──
+├── cli/
+│   ├── go.mod                       # module github.com/neokapi/neokapi/cli (framework only)
+│   ├── config/                      # Viper-based app configuration (~/.config/kapi/)
+│   ├── pluginhost/                  # Manifest discovery + dispatch + Mode-C daemon pool
+│   ├── output/                      # Shared output formatting + types
+│   └── storage/                     # SQLite-backed termbase and TM for CLI workflows
 │
-├── ai/                              # AI/LLM integration
-│   ├── provider/                    # LLMProvider: Anthropic, OpenAI, Ollama
-│   ├── tools/                       # AI translate, QA, terminology, review
-│   └── prompt/                      # Prompt templates
+│   ── Kapi Module ──
+├── kapi/
+│   ├── go.mod                       # module github.com/neokapi/neokapi/kapi (framework + cli)
+│   ├── cmd/kapi/                    # Thin root cmd wiring shared CLI commands
+│   └── preset/                      # Built-in preset definitions
 │
-├── mt/                              # Machine translation
-│   ├── provider/                    # DeepL, Google, Microsoft, ModernMT, MyMemory
-│   └── tools/                       # MT translate tool
+│   ── Kapi Desktop Module ──
+├── apps/
+│   └── kapi-desktop/                # Wails v3 desktop app (Go + React/TS)
+│       ├── go.mod                   # module github.com/neokapi/neokapi/kapi-desktop
+│       ├── backend/                 # Go backend: project, flows, runner, credentials, plugins
+│       └── frontend/                # React + Vite + TailwindCSS
 │
-├── sievepen/                        # Translation memory (interface + in-memory)
-├── termbase/                        # Terminology management (interface + in-memory)
-├── tools/                           # Utility tools (wordcount, pseudo, segmentation, etc.)
-│
-├── plugin/                          # Plugin system
-│   ├── host/                        # PluginManager, gRPC clients
-│   ├── server/                      # gRPC server helpers (plugin side)
-│   ├── bridge/                      # Okapi bridge: gRPC protocol, pool, format adapters
-│   ├── loader/                      # Plugin discovery and loading
-│   ├── registry/                    # Multi-version plugin registry
-│   ├── shared/                      # DTO types shared between host and bridge
-│   └── proto/                       # Protobuf service definitions
-│
-├── testutil/                        # Shared test helpers
-│
-├── bowrain/                         ── Platform Module ──
+│   ── Bowrain Modules (cross-module) ──
+├── bowrain/
 │   ├── go.mod                       # module github.com/neokapi/neokapi/bowrain
-│   ├── config/                      # Viper-based AppConfig
-│   ├── store/                       # ContentStore + PostgreSQL implementation
-│   ├── auth/                        # OIDC, JWT, device flow authentication
-│   ├── connector/                   # System connectors (CMS, file, git)
-│   ├── project/                     # .kapi/ project model
-│   ├── event/                       # Event bus, webhooks, automation
-│   ├── service/                     # Auth, project, connector, flow services
-│   ├── credentials/                 # Credential management
-│   ├── server/                      # HTTP/gRPC server handlers
-│   ├── storage/                     # Database migration utilities
-│   ├── sievepen/                    # PostgreSQL TM implementation
-│   ├── termbase/                    # PostgreSQL TermBase implementation
-│   ├── proto/v1/                    # gRPC protobuf definitions
-│   ├── cmd/
-│   │   ├── kapi/                    # Cobra CLI
-│   │   └── bowrain-server/          # Echo v4 REST API server
-│   └── apps/
-│       ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
-│       └── web/                     # SaaS web UI
+│   ├── core/                        # module github.com/neokapi/neokapi/bowrain/core (framework only)
+│   ├── cli/                         # module github.com/neokapi/neokapi/bowrain/cli (kapi-bowrain plugin)
+│   ├── plugin/                      # module github.com/neokapi/neokapi/bowrain/plugin (schema/commands/connector/mcp)
+│   ├── auth/ store/ connector/ service/ event/ server/   # server-side packages
+│   ├── cmd/bowrain-server/          # Echo v4 REST API server
+│   ├── cmd/bowrain-worker/          # Background worker
+│   └── apps/                        # bowrain desktop, web, ctrl, pulse
 │
-├── docs/                            # Documentation, architecture decisions, notes
-└── web/docs/                         # Docusaurus 3 documentation site
+│   ── Shared Frontend ──
+├── package.json                     # Root npm workspace coordinating frontend packages
+├── packages/
+│   ├── ui/                          # @neokapi/ui-primitives — shadcn/ui primitives
+│   ├── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
+│   ├── kapi-react/                  # @neokapi/kapi-react — React component library
+│   └── …                            # docs-shared, kapi-playground, reference-data, …
+│
+│   ── Non-Go Assets ──
+├── docs/                            # Architecture notes, maintainer docs (this directory)
+└── web/docs/                        # Docusaurus documentation site (ADs + internal notes)
 ```
+
+The format packages live in the framework module under `core/formats/` — one
+package (reader.go, writer.go, config.go) per format, all registered via
+`init()`. They span localization, document, data, subtitle, and office
+families. For the current set and their configuration options, see the
+generated Format Reference rather than a hardcoded list.
 
 ## Content Model
 
@@ -229,7 +237,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[AD-002](ad/002-content-model.md).
+[AD-002: Content model](../../web/docs/docs/contribute/architecture/002-content-model.md).
 
 ### Inline Content as Runs
 
@@ -282,7 +290,7 @@ DataFormatReader.Read(ctx) -> chan PartResult
 | Segment (structural)       | Span in a segmentation Overlay |
 | StartSubDocument/SubFilter | Child Layer                |
 | Tikal                      | kapi (CLI)                 |
-| Rainbow                    | Bowrain (desktop app)      |
+| Rainbow                    | Kapi Desktop (GUI)         |
 
 ## Key Interfaces
 
@@ -306,24 +314,26 @@ type Tool interface {
 
 // Flow execution
 type Executor interface {
-    Execute(ctx context.Context, items []Item) error
+    Execute(ctx context.Context, f *Flow, items []*Item) error
 }
 
-// AI providers
+// AI providers (package aiprovider, providers/ai)
 type LLMProvider interface {
     Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
-    Chat(ctx context.Context, messages []Message) (*Message, error)
+    Chat(ctx context.Context, messages []Message) (*ChatResponse, error)
 }
 ```
 
 ## Build and Distribution
 
-| Channel          | Target              | Command                                                         |
-| ---------------- | ------------------- | --------------------------------------------------------------- |
-| Homebrew formula | kapi CLI            | `brew install neokapi/tap/kapi-cli`                                 |
-| Homebrew Cask    | Bowrain GUI (macOS) | `brew install --cask neokapi/tap/bowrain`                       |
-| GitHub Releases  | All platforms       | Direct download                                                 |
-| Go install       | Go developers       | `go install github.com/neokapi/neokapi/bowrain/cmd/kapi@latest` |
+The `kapi` CLI binary is built from `kapi/cmd/kapi`.
+
+| Channel          | Target                | Command                                                      |
+| ---------------- | --------------------- | ------------------------------------------------------------ |
+| Homebrew formula | kapi CLI              | `brew install neokapi/tap/kapi-cli`                          |
+| Homebrew cask    | Kapi Desktop (macOS)  | `brew install --cask neokapi/tap/kapi`                       |
+| GitHub Releases  | All platforms         | Direct download                                              |
+| Go install       | Go developers         | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (GoReleaser on tag push). See

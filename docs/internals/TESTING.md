@@ -26,86 +26,61 @@
 
 ## Test Structure
 
-The project has two Go modules. Framework tests run from the root, platform
-tests run from `bowrain/`. Both are exercised by `make test`.
+The project is a multi-module monorepo. Go test files colocate with the code
+they exercise (`*_test.go`), and each module runs from its own directory. The
+framework runs from the repo root; the shared CLI, kapi, kapi-desktop, and the
+bowrain modules run from their own roots. `make test` exercises them all.
 
 ```
-neokapi/                              ── Framework Module Tests ──
-├── model/
-│   ├── model_test.go                # Block creation, targets, overlays
-│   ├── run_test.go                  # Run sequence (canonical inline content)
-│   └── identity_test.go             # Block identity / content hashing
-├── flow/
-│   ├── executor_test.go             # Flow execution, goroutine wiring, error propagation
-│   └── builder_test.go              # Builder API
-├── tool/
-│   └── base_test.go                 # BaseTool dispatch, pass-through behavior
+neokapi/                              ── Framework Module Tests (repo root) ──
+├── core/
+│   ├── model/
+│   │   ├── model_test.go            # Block creation, targets, overlays
+│   │   ├── run_test.go              # Run sequence (canonical inline content)
+│   │   └── identity_test.go         # Block identity / content hashing
+│   ├── flow/
+│   │   └── executor_test.go         # Flow execution, goroutine wiring, error propagation
+│   ├── tool/
+│   │   └── base_test.go             # BaseTool dispatch, pass-through behavior
+│   ├── formats/
+│   │   ├── plaintext/
+│   │   │   ├── reader_test.go
+│   │   │   ├── writer_test.go
+│   │   │   └── testdata/            # simple.txt, multiline.txt, unicode.txt, empty.txt, …
+│   │   ├── html/
+│   │   │   ├── reader_test.go
+│   │   │   ├── writer_test.go
+│   │   │   └── testdata/            # simple.html, inline_codes.html, entities.html, …
+│   │   └── …                         # each format follows the same pattern
+│   ├── tools/                        # Built-in utility tools, with *_test.go + testdata/
+│   └── internal/testutil/            # Shared test helpers (INTERNAL to the framework module)
+│       └── helpers.go                # RawDocFromString, CollectParts, CollectBlocks, FindFirstBlock, …
+├── sievepen/                         # TM tests (in-memory + SQLite, matching)
+├── termbase/                         # Terminology tests (in-memory + SQLite, import/export)
+├── providers/
+│   ├── ai/                           # package aiprovider — provider + AI tool tests (demo provider for CI)
+│   └── mt/                           # package mtprovider — provider + MT tool tests
 │
-├── formats/
-│   ├── plaintext/
-│   │   ├── reader_test.go
-│   │   ├── writer_test.go
-│   │   └── testdata/
-│   │       ├── simple.txt
-│   │       ├── multiline.txt
-│   │       ├── unicode.txt
-│   │       └── empty.txt
-│   ├── html/
-│   │   ├── reader_test.go
-│   │   ├── writer_test.go
-│   │   └── testdata/
-│   │       ├── simple.html
-│   │       ├── inline_codes.html
-│   │       ├── nested_tags.html
-│   │       ├── attributes.html
-│   │       ├── entities.html
-│   │       └── utf8bom.html
-│   └── ... (each format follows the same pattern)
+├── cli/                              ── CLI Module Tests ──
+│   └── pluginhost/                   # Manifest discovery, dispatch, daemon-pool tests
+├── kapi/                             ── Kapi Module Tests ──
+│   ├── cmd/kapi/                     # Root command + MCP tool wiring tests
+│   └── e2e/                          # CLI end-to-end tests (isolated config/data/cache)
+├── apps/kapi-desktop/                ── Kapi Desktop Module Tests ──
+│   └── backend/                      # Go backend tests
 │
-├── tools/
-│   ├── segmentation/
-│   │   ├── tool_test.go
-│   │   └── testdata/
-│   │       ├── default.srx
-│   │       └── sample_text.txt
-│   └── ... (each tool follows the same pattern)
-│
-├── ai/
-│   ├── tools/
-│   │   ├── translate_test.go        # Uses mock provider
-│   │   └── qualitycheck_test.go     # Uses mock provider
-│   └── provider/
-│       ├── mock.go                  # Mock LLM provider for testing
-│       └── anthropic_test.go        # Integration test (requires API key)
-│
-├── plugin/
-│   ├── host/
-│   │   └── manager_test.go          # Plugin discovery, lifecycle
-│   └── integration_test.go          # End-to-end plugin roundtrip
-│
-├── testdata/                         # Shared test data files
-│   ├── html/
-│   ├── xml/
-│   ├── xliff/
-│   ├── json/
-│   ├── yaml/
-│   ├── po/
-│   ├── properties/
-│   └── docx/                         # For Java bridge tests
-│
-├── testutil/                         # Shared test helpers (exported)
-│   ├── helpers.go                    # Common test helpers
-│   ├── mock_tool.go                  # Mock Tool implementation
-│   ├── mock_reader.go                # Mock DataFormatReader
-│   └── assert_parts.go              # Custom Part assertion helpers
-│
-└── bowrain/                          ── Platform Module Tests ──
-    ├── store/                        # ContentStore + SQLite tests
-    ├── auth/                         # OIDC, JWT, device flow tests
-    ├── connector/                    # Connector integration tests
-    ├── server/                       # HTTP/gRPC handler tests
-    └── ...                           # Each platform package has *_test.go
+└── bowrain/                          ── Bowrain Module Tests ──
+    ├── core/                         # bowrain/core module
+    ├── cli/                          # bowrain/cli module (kapi-bowrain plugin)
+    ├── plugin/                       # bowrain/plugin module
+    ├── store/ auth/ connector/ server/   # server-side package tests
+    └── …                              # each package has *_test.go
 ```
+
+The Okapi Java bridge has no Go package in this repo. It lives in the separate
+[okapi-bridge](https://github.com/neokapi/okapi-bridge) repository, ships as a
+plugin binary, and is exercised through `cli/pluginhost` (see
+[Bridge protocol](../../web/docs/docs/contribute/notes-internal/plugin-bridge-protocol.md)).
 
 ---
 
@@ -117,8 +92,8 @@ The frontend spans three apps and a shared UI library. Testing is split into two
 
 | Layer    | Tool                           | Scope                                    | Speed              | Infrastructure               |
 | -------- | ------------------------------ | ---------------------------------------- | ------------------ | ---------------------------- |
-| **Unit** | Vitest + React Testing Library | Components, hooks, utilities             | ~2 s for 126 tests | None (jsdom)                 |
-| **E2E**  | Playwright                     | Full user flows, screenshots, recordings | 30–60 s per suite  | Dev server or Docker backend |
+| **Unit** | Vitest + React Testing Library | Components, hooks, utilities             | seconds            | None (jsdom)                 |
+| **E2E**  | Playwright                     | Full user flows, screenshots, recordings | tens of seconds    | Dev server or Docker backend |
 
 Unit tests are the primary fast feedback loop for developers. They run in-memory with no browser or backend. E2E tests verify integration across the full stack and produce visual artifacts for documentation.
 
@@ -136,7 +111,7 @@ vp test            # single run
 vp run test:watch  # watch mode
 ```
 
-**Configuration:** `bowrain/packages/ui/vitest.config.ts`
+**Configuration:** `bowrain/packages/ui/vite.config.ts`
 
 ```typescript
 export default defineConfig({
@@ -242,7 +217,10 @@ expect(localStorage.getItem("neokapi-theme")).toBe("dark");
 
 Each app has its own Playwright setup for integration-level testing against a running frontend (and optionally a backend).
 
-#### Bowrain Desktop (13 spec files)
+#### Bowrain Desktop
+
+Specs live under `bowrain/apps/bowrain/frontend/e2e/`, one `*.spec.ts` per
+user flow — for example:
 
 ```
 bowrain/apps/bowrain/frontend/e2e/
@@ -251,9 +229,7 @@ bowrain/apps/bowrain/frontend/e2e/
 ├── inline-codes.spec.ts        — Inline tag editing with coded text
 ├── project-dashboard.spec.ts   — Project creation and listing
 ├── project-view.spec.ts        — File management, upload, stats
-├── recordings.spec.ts          — Screencast recordings for docs
 ├── rich-editor.spec.ts         — Lexical editor behavior
-├── screenshots.spec.ts         — Static screenshots for docs
 ├── settings.spec.ts            — Settings page, theme toggle
 ├── term-explorer.spec.ts       — Terminology CRUD
 ├── tm-explorer.spec.ts         — Translation memory CRUD
@@ -291,35 +267,32 @@ vp run e2e:recordings    # requires Docker backend
 
 **Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
-#### kapi-web (`kapi/apps/kapi-web`)
+#### kapi-react (`packages/kapi-react`)
 
-```
-kapi/apps/kapi-web/e2e/
-├── screenshots.spec.ts   — Screenshots with mock API
-└── mock-api.ts           — In-memory API mock via page.route()
-```
+`@neokapi/kapi-react` is the React component library (the in-browser kapi
+engine wrapper). It is tested with Vitest, not Playwright; specs live under
+`packages/kapi-react/tests/` and exercise the engine directly (extract,
+transform, ICU plural roundtrip, hash parity, …).
 
 **Running:**
 
 ```bash
-cd kapi/apps/kapi-web
-vpx playwright test
+cd packages/kapi-react
+vp test
 ```
-
-**Configuration:** `playwright.config.ts` — auto-starts the Vite dev server. Uses `mock-api.ts` to intercept all `/api/v1/*` routes with in-memory stores. No backend required.
 
 ### Test Pyramid Summary
 
 ```
          ┌──────────────────────┐
          │   E2E (Playwright)   │  Full user flows, screenshots, recordings
-         │   ~30 specs across   │  Requires dev server / Docker backend
-         │   3 apps             │
+         │   one spec per flow  │  Requires dev server / Docker backend
+         │   across the apps    │
          ├──────────────────────┤
          │                      │
          │  Unit (Vitest + RTL) │  Components, hooks, contexts, utilities
-         │  126 tests in        │  No browser, no backend, ~2 seconds
-         │  bowrain/packages/ui  │
+         │  colocated in        │  No browser, no backend, seconds
+         │  packages/ui, …       │
          └──────────────────────┘
 ```
 
@@ -330,12 +303,10 @@ The unit tests in `bowrain/packages/ui` are designed to be the **primary fast fe
 ```bash
 # Unit tests (fast, no infrastructure)
 cd packages/ui && vp test
+cd packages/kapi-react && vp test
 
 # E2E — Bowrain (mock API, no backend)
 cd bowrain/apps/bowrain/frontend && vpx playwright test
-
-# E2E — kapi-web (mock API, no backend)
-cd kapi/apps/kapi-web && vpx playwright test
 
 # E2E — web (requires Docker backend)
 cd bowrain/apps/web && vp run e2e:screenshots
@@ -460,7 +431,8 @@ func TestRoundTrip(t *testing.T) {
 
             // Read
             reader := NewReader()
-            err = reader.Open(ctx, testutil.RawDocFromFile(tt.file, "en"))
+            err = reader.Open(ctx, testutil.RawDocFromReader(
+                bytes.NewReader(original), tt.file, "en"))
             require.NoError(t, err)
 
             parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -490,8 +462,12 @@ Verify specific Blocks are extracted with correct content.
 
 ```go
 func TestExtraction(t *testing.T) {
+    f, err := os.Open("testdata/sample.html")
+    require.NoError(t, err)
+    defer f.Close()
+
     reader := NewReader()
-    err := reader.Open(ctx, testutil.RawDocFromFile("testdata/sample.html", "en"))
+    err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/sample.html", "en"))
     require.NoError(t, err)
     defer reader.Close()
 
@@ -558,7 +534,7 @@ func TestFlowExecution(t *testing.T) {
         AddTool(uppercaseTool).
         Build()
 
-    executor := flow.NewExecutor(reg)
+    executor := flow.NewExecutor() // functional options; defaults to sequential
     items := []*flow.Item{{
         Input:        testutil.RawDocFromString("Hello world", "en"),
         OutputPath:   "/dev/null",
@@ -625,9 +601,13 @@ func TestEndToEndHTML(t *testing.T) {
         Build()
 
     // 3. Execute
-    executor := flow.NewExecutor(reg)
+    src, err := os.Open("testdata/sample.html")
+    require.NoError(t, err)
+    defer src.Close()
+
+    executor := flow.NewExecutor()
     err = executor.Execute(ctx, f, []*flow.Item{{
-        Input:        testutil.RawDocFromFile("testdata/sample.html", "en"),
+        Input:        testutil.RawDocFromReader(src, "testdata/sample.html", "en"),
         OutputPath:   "testdata/output/sample_en.html",
         TargetLocale: model.LocaleEnglish,
     }})
@@ -640,50 +620,50 @@ func TestEndToEndHTML(t *testing.T) {
 }
 ```
 
-### Plugin Integration
+### Plugin Discovery and Dispatch
+
+Plugins are out-of-process binaries discovered from on-disk `manifest.json`
+files; the host-side runtime lives in `cli/pluginhost`. `Discover` reads the
+manifests under each plugin root (no subprocess is launched to enumerate),
+and `NewHost` folds them into dispatch tables for commands, MCP tools,
+formats, and recipe-schema extensions. Tests point discovery at a temp root
+via `DiscoverOptions.EnvPluginsDir` and disable the user/system roots:
 
 ```go
-// //go:build integration
+func TestDiscover(t *testing.T) {
+    tmp := t.TempDir()
+    // write tmp/<plugin>/manifest.json …
 
-func TestPluginRoundTrip(t *testing.T) {
-    // Build example CSV plugin
-    exec.Command("go", "build", "-o", "testplugins/neokapi-format-csv",
-        "./examples/plugin-format-csv").Run()
+    plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
+        EnvPluginsDir: tmp, // $KAPI_PLUGINS_DIR
+        XDGDataHome:   "",  // disable per-user root
+        HomeDir:       "/nonexistent",
+        SystemDirs:    []string{}, // disable system roots
+    })
+    require.Len(t, plugins, 1)
+    assert.Equal(t, "demo", plugins[0].Manifest.Plugin)
 
-    // Load plugin
-    mgr := plugin.NewPluginManager("testplugins/", "")
-    mgr.DiscoverPlugins(reg, toolReg)
-
-    // Verify CSV format is registered
-    reader, err := reg.NewReader("csv")
-    require.NoError(t, err)
-    require.NotNil(t, reader)
+    host := pluginhost.NewHost(plugins, func(msg string) { t.Log(msg) })
+    _ = host // assert on the dispatch tables
 }
 ```
 
-### Java Bridge Integration
+See the [plugin model](../../web/docs/docs/contribute/notes-internal/plugin-model.md)
+note for the in-process registry contract and
+[AD-007: Plugin system](../../web/docs/docs/contribute/architecture/007-plugin-system.md)
+for discovery and the A/B/C transport modes.
 
-```go
-// //go:build integration && java
+### Okapi Java bridge
 
-func TestJavaBridgeDOCX(t *testing.T) {
-    // Requires: Java runtime, built bridge JAR
-    reader, err := bridge.NewJavaBridgeReader(
-        "net.sf.okapi.filters.openxml.OpenXMLFilter",
-    )
-    require.NoError(t, err)
-
-    err = reader.Open(ctx, testutil.RawDocFromFile("testdata/docx/sample.docx", "en"))
-    require.NoError(t, err)
-
-    blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-    require.NotEmpty(t, blocks)
-
-    // Verify blocks contain expected content
-    texts := testutil.BlockTexts(blocks)
-    assert.Contains(t, texts, "Hello World")
-}
-```
+The Okapi Java bridge is a Mode-C plugin daemon hosted in the separate
+[okapi-bridge](https://github.com/neokapi/okapi-bridge) repository — there is
+no `bridge.NewJavaBridgeReader` and no Java package in this repo. The host
+side (`cli/pluginhost`) spawns the daemon, connects over a Unix-socket gRPC
+`BridgeService`, and converts between neokapi Parts and Okapi Events via
+`core/plugin/protoconvert`. Bridge format tests exercise it through the same
+discovery/dispatch path as any other plugin; the wire protocol is documented
+in the [bridge protocol](../../web/docs/docs/contribute/notes-internal/plugin-bridge-protocol.md)
+note.
 
 ---
 
@@ -698,7 +678,8 @@ func BenchmarkHTMLRead(b *testing.B) {
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         reader := html.NewReader()
-        reader.Open(ctx, testutil.RawDocFromBytes(content, "en"))
+        reader.Open(ctx, testutil.RawDocFromReader(
+            bytes.NewReader(content), "large.html", "en"))
         for range reader.Read(ctx) {
             // consume
         }
@@ -716,7 +697,7 @@ func BenchmarkFlowThroughput(b *testing.B) {
         AddTool(tools.NewWordCountTool()).
         Build()
 
-    executor := flow.NewExecutor(reg)
+    executor := flow.NewExecutor()
 
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
@@ -725,18 +706,22 @@ func BenchmarkFlowThroughput(b *testing.B) {
 }
 ```
 
-### Native vs. Java Bridge
+### Native vs. Java bridge
+
+Compares a native Go reader against the same format served by the Okapi bridge
+plugin (a Mode-C daemon — the bridge path pays JVM/gRPC cost, amortized by the
+long-lived daemon pool).
 
 ```go
 func BenchmarkNativeVsBridge(b *testing.B) {
     b.Run("native-html", func(b *testing.B) {
         for i := 0; i < b.N; i++ {
-            // Read with native HTML reader
+            // Read with the native HTML reader
         }
     })
     b.Run("bridge-html", func(b *testing.B) {
         for i := 0; i < b.N; i++ {
-            // Read with Java bridge HTML reader
+            // Read with the Okapi bridge plugin (via cli/pluginhost daemon)
         }
     })
 }
@@ -748,67 +733,42 @@ func BenchmarkNativeVsBridge(b *testing.B) {
 
 ### GitHub Actions (`ci.yml`)
 
+The real `ci.yml` runs one test job per module (framework, cli, kapi,
+kapi-desktop, bowrain, bowrain/core, bowrain/cli, bowrain/plugin) plus
+frontend and lint jobs. It pins Go `1.26.0` and additionally tries `stable` on
+pushes. The shape below is illustrative:
+
 ```yaml
 name: CI
 on: [push, pull_request]
 
 jobs:
-  test:
+  test-framework:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.22", "1.23"]
+        go-version: ["1.26.0", "stable"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
-
-      - name: Lint framework
-        uses: golangci/golangci-lint-action@v4
-
-      - name: Lint platform
-        uses: golangci/golangci-lint-action@v4
-        with:
-          working-directory: bowrain
+          go-version: ${{ matrix.go-version }}
 
       - name: Framework tests
-        run: go test ./... -race -coverprofile=framework.out
+        run: go test ./... -race
 
-      - name: Platform tests
-        run: cd bowrain && go test ./... -race -coverprofile=platform.out
-
-      - name: Merge coverage
-        run: |
-          cat framework.out > coverage.out
-          tail -n +2 bowrain/platform.out >> coverage.out
-
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v4
-
-  integration:
+  test-bowrain:
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-      - uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Build Java Bridge
-        run: cd plugin/bridge/java && mvn package -q
-
-      - name: Framework integration tests
-        run: go test ./... -tags=integration -race
-
-      - name: Platform integration tests
-        run: cd bowrain && go test ./... -tags=integration -race
+          go-version: "1.26.0"
+      - name: Bowrain tests
+        run: cd bowrain && go test ./... -race
 
   build:
     runs-on: ubuntu-latest
-    needs: test
     strategy:
       matrix:
         goos: [linux, darwin, windows]
@@ -816,19 +776,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-      - name: Build
+        with:
+          go-version: "1.26.0"
+      - name: Build kapi
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: |
-          cd bowrain && go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
+        run: cd kapi && go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
 ```
+
+The Okapi Java bridge is **not** built in this CI — it is a separate repo
+([okapi-bridge](https://github.com/neokapi/okapi-bridge)) released as a plugin
+binary, so no `setup-java` / `mvn package` step exists here.
 
 ### Test Tags
 
-| Tag           | Purpose                         | Command                                                 |
-| ------------- | ------------------------------- | ------------------------------------------------------- |
-| (none)        | Unit tests only                 | `go test ./...` and `cd bowrain && go test ./...`       |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration` (both modules)        |
-| `java`        | + Java bridge tests             | `go test ./... -tags="integration java"` (both modules) |
-| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"` (both modules)   |
+| Tag           | Purpose                         | Command                                            |
+| ------------- | ------------------------------- | -------------------------------------------------- |
+| (none)        | Unit tests only                 | `go test ./...` (per module)                       |
+| `integration` | + plugin and format integration | `go test ./... -tags=integration`                  |
+| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"`             |
+
+Some packages need build tags for native dependencies — for example `fts5`
+for SQLite full-text search (used by the kapi e2e suite).

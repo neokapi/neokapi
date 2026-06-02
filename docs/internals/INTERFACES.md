@@ -9,7 +9,7 @@ This document defines the concrete Go interfaces and types that form the foundat
 - [Tool Interfaces](#tool-interfaces)
 - [Flow Interfaces](#flow-interfaces)
 - [Configuration](#configuration)
-- [Plugin Protocols](#plugin-protocols)
+- [Plugins](#plugins)
 - [Registry](#registry)
 
 ---
@@ -905,140 +905,66 @@ func (c *AppConfig) Load() error {
 
 ---
 
-## Plugin Protocols
+## Plugins
 
-### gRPC Service Definitions
+Plugins are out-of-process binaries, not in-process Go interfaces. A plugin
+ships as its own binary plus a `manifest.json` and is installed into a plugin
+directory; `kapi` itself links no vendor-plugin code. There is no go-plugin
+handshake, no `MagicCookieKey`, and no in-process `DataFormatReaderPlugin` /
+`DataFormatWriterPlugin` / `ToolPlugin` gRPC services — those belonged to a
+retired layer. Two documents own the plugin contract:
+
+- The **in-process registry contract** — how a plugin binary wires its
+  commands, MCP tools, formats, and recipe schema into the shared `cli.App`
+  via `init()` registration — is described in the
+  [plugin model](../../web/docs/docs/contribute/notes-internal/plugin-model.md)
+  note.
+- The **runtime transport** — manifest discovery, dispatch, and the A/B/C
+  transport modes — is described in
+  [AD-007: Plugin system](../../web/docs/docs/contribute/architecture/007-plugin-system.md).
+
+### Discovery and dispatch (`cli/pluginhost`)
+
+The host-side runtime lives in the shared CLI module under `cli/pluginhost`.
+`Discover` reads `manifest.json` from each plugin root (no subprocess is
+launched to enumerate), and `NewHost` folds the surviving plugins into
+dispatch tables for commands, MCP tools, formats, and recipe-schema
+extensions. A `manifest.json` declares the plugin name, version, binary, an
+optional `daemon` block, and a `capabilities` block.
+
+### Transport modes
+
+A plugin is invoked through one of three modes, chosen per capability:
+
+- **Mode A — one-shot command exec.** The plugin binary is run once per
+  command invocation (e.g. `kapi push` dispatched to `kapi-bowrain`).
+- **Mode B — MCP-over-stdio session.** The plugin serves MCP tools over a
+  stdio session.
+- **Mode C — gRPC daemon.** Long-lived format/tool/source-connector plugins
+  (including the Okapi Java bridge) are served by a `DaemonPool` that lazily
+  spawns one daemon subprocess per plugin and connects over a Unix-socket gRPC
+  `BridgeService`. The service (`core/plugin/proto/v2/neokapi_bridge.proto`,
+  package `neokapi.bridge.v2`) exposes three RPCs:
 
 ```protobuf
-syntax = "proto3";
-package neokapi.plugin.v1;
+service BridgeService {
+  // Process performs a complete document processing cycle (bidirectional stream).
+  rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
 
-// DataFormatReaderPlugin is served by format reader plugins.
-service DataFormatReaderPlugin {
-    // Open initializes the reader with a document.
-    rpc Open(OpenRequest) returns (OpenResponse);
+  // ProcessStep runs a single Okapi pipeline step over a stream of parts.
+  rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
 
-    // Read streams Parts from the document.
-    rpc Read(ReadRequest) returns (stream PartMessage);
-
-    // Close releases resources.
-    rpc Close(CloseRequest) returns (CloseResponse);
-
-    // Info returns metadata about the format.
-    rpc Info(InfoRequest) returns (FormatInfo);
-}
-
-// DataFormatWriterPlugin is served by format writer plugins.
-service DataFormatWriterPlugin {
-    // Open initializes the writer with output configuration.
-    rpc Open(WriterOpenRequest) returns (WriterOpenResponse);
-
-    // Write consumes a stream of Parts and writes the document.
-    rpc Write(stream PartMessage) returns (WriteResponse);
-
-    // Close flushes and closes.
-    rpc Close(CloseRequest) returns (CloseResponse);
-}
-
-// ToolPlugin is served by tool plugins.
-service ToolPlugin {
-    // Process is a bidirectional stream: Parts flow in and out.
-    rpc Process(stream PartMessage) returns (stream PartMessage);
-
-    // Info returns metadata about the tool.
-    rpc Info(InfoRequest) returns (ToolInfo);
-}
-
-// PartMessage is the wire format for a Part.
-message PartMessage {
-    int32 type = 1;
-    bytes resource_json = 2;  // JSON-serialized resource
-    string error = 3;         // Non-empty if this is an error
-}
-
-message FormatInfo {
-    string name = 1;
-    string display_name = 2;
-    string mime_type = 3;
-    repeated string extensions = 4;
-    string version = 5;
-}
-
-message ToolInfo {
-    string name = 1;
-    string description = 2;
-    string version = 3;
-    string category = 4; // e.g. "translation", "quality", "analysis", "text-processing"
-}
-
-message OpenRequest {
-    string uri = 1;
-    string encoding = 2;
-    string source_locale = 3;
-    string target_locale = 4;
-    bytes config_json = 5;
-}
-
-// ... remaining message types
-```
-
-### go-plugin Integration
-
-```go
-package plugin
-
-import (
-    "github.com/hashicorp/go-plugin"
-)
-
-// Handshake is shared between host and plugins.
-var Handshake = plugin.HandshakeConfig{
-    ProtocolVersion:  1,
-    MagicCookieKey:   "NEOKAPI_PLUGIN",
-    MagicCookieValue: "neokapi-v1",
-}
-
-// PluginMap defines the plugin types neokapi supports.
-var PluginMap = map[string]plugin.Plugin{
-    "format_reader": &DataFormatReaderGRPCPlugin{},
-    "format_writer": &DataFormatWriterGRPCPlugin{},
-    "tool":          &ToolGRPCPlugin{},
-}
-
-// DataFormatReaderGRPCPlugin implements go-plugin's Plugin and GRPCPlugin interfaces.
-type DataFormatReaderGRPCPlugin struct {
-    plugin.Plugin
-    Impl format.DataFormatReader // Set for server side
-}
-
-func (p *DataFormatReaderGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-    proto.RegisterDataFormatReaderPluginServer(s, &formatReaderGRPCServer{impl: p.Impl})
-    return nil
-}
-
-func (p *DataFormatReaderGRPCPlugin) GRPCClient(broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-    return &formatReaderGRPCClient{client: proto.NewDataFormatReaderPluginClient(c)}, nil
+  // Shutdown gracefully shuts down the bridge server.
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 ```
 
-### Java Bridge Plugin
-
-```go
-// JavaBridgeReader wraps an Okapi Java filter as a neokapi DataFormatReader plugin.
-// It runs a JVM subprocess communicating via gRPC.
-//
-// The Java side implements the DataFormatReaderPlugin gRPC service,
-// delegating to the original Okapi IFilter implementation.
-//
-// Usage: register as a go-plugin executable:
-//   neokapi-okapi-bridge --filter=net.sf.okapi.filters.openxml.OpenXMLFilter
-type JavaBridgeReader struct {
-    filterClass string
-    jvmPath     string
-    client      *plugin.Client
-    reader      format.DataFormatReader
-}
-```
+The host translates between neokapi Parts and Okapi Events via
+`core/plugin/protoconvert`. The Okapi Java bridge implementation lives in the
+separate [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository;
+its wire protocol, batching, and daemon lifecycle are documented in the
+[bridge protocol](../../web/docs/docs/contribute/notes-internal/plugin-bridge-protocol.md)
+note.
 
 ---
 
@@ -1111,30 +1037,12 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
     }
     return factory(), nil
 }
-
-// PluginManager discovers and loads external plugins from disk or remote registries.
-type PluginManager struct {
-    pluginDir string
-    registry  string // Remote registry URL
-    loaded    map[string]*plugin.Client
-}
-
-func NewPluginManager(pluginDir string, registryURL string) *PluginManager {
-    return &PluginManager{
-        pluginDir: pluginDir,
-        registry:  registryURL,
-        loaded:    make(map[string]*plugin.Client),
-    }
-}
-
-// DiscoverPlugins scans the plugin directory for executables and loads them.
-func (pm *PluginManager) DiscoverPlugins(formatReg *FormatRegistry, toolReg *ToolRegistry) error {
-    // Scan pluginDir for executables
-    // For each: connect via go-plugin, query Info(), register in appropriate registry
-}
-
-// FetchPlugin downloads a plugin from the remote registry.
-func (pm *PluginManager) FetchPlugin(name string, version string) error {
-    // Download from pm.registry, verify checksum, place in pluginDir
-}
 ```
+
+> The registries above are sketches; the live API (`core/registry`) uses typed
+> IDs (`FormatID`, `ToolID`) and carries schema/metadata. There is **no**
+> `PluginManager` in the registry — external plugins are out-of-process binaries
+> discovered and dispatched by `cli/pluginhost` (see [Plugins](#plugins) above),
+> not loaded into the registry. Plugin-contributed formats and tools are folded
+> into the dispatch tables by `pluginhost.NewHost`, not registered through a
+> registry-level plugin manager.
