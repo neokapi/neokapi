@@ -113,8 +113,8 @@ the source of truth. Specifics that have bitten us:
 - **Homebrew formula** is `neokapi/tap/kapi-cli` (CLI) and
   `neokapi/tap/kapi` (cask).
 - Format families: DOCX/XLSX/PPTX/ODF/EPUB/PDF/IDML are **native**, not
-  bridge-only. `TBX` is not a format (only `tmx`); `RESX` is an XML preset, not
-  a standalone format.
+  bridge-only. `TBX` is not a format (only `tmx`); `RESX` is a standalone
+  native format (`core/formats/resx/`), not just an XML preset.
 
 ## Product names
 
@@ -147,4 +147,4 @@ the source of truth. Specifics that have bitten us:
 
 > If machine enforcement is wanted later, this guideline can also be encoded as
 > a `core/brand` VoiceProfile (tone/style/vocabulary rules + examples) and run
-> through the `brand-voice-check` / `brand-vocab-filter` tools.
+> through the `brand-voice-check` / `brand-vocab-check` tools.

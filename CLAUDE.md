@@ -160,7 +160,7 @@ silently bind to (and act on) the dogfood project.
 
 ```
 neokapi/
-├── go.work                # Workspace: use . ./cli ./kapi ./apps/kapi-desktop ./bowrain/core ./bowrain/cli ./bowrain
+├── go.work                # Workspace: framework, cli, kapi, apps/kapi-desktop, the bowrain/* modules (incl. plugin & plugin/schema), and the scripts/* tooling modules
 ├── go.mod                 # module github.com/neokapi/neokapi (framework, Apache-2.0)
 │
 │   ── Framework Module (repo root) ──────
@@ -272,7 +272,7 @@ neokapi/
 
 ### Bowrain Project Model (`.kapi` Recipe + State Dir)
 
-Bowrain CLI uses the framework's unified `.kapi` project model — a `<dir-name>.kapi` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
+Bowrain CLI uses the framework's unified `.kapi` project model — a `<dir-name>.kapi` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/web/docs/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
 
 ```
 my-app/
@@ -329,7 +329,7 @@ kapi run translate -p myproject.kapi
 kapi run translate-and-qa -p myproject.kapi --target-lang de
 ```
 
-`.kapi` files are portable YAML documents — see [AD-008](docs/architecture-decisions/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
+`.kapi` files are portable YAML documents — see [AD-008](web/docs/docs/contribute/architecture/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
 
 **Role Separation:**
 
@@ -453,6 +453,6 @@ flag, import path, and flow name against the code before publishing.
 
 ## Architecture Decisions
 
-ADs live in `docs/ad/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
+ADs live in `web/docs/docs/contribute/architecture/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
 
-Implementation notes live in `docs/notes/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.
+Implementation notes live in `web/docs/docs/contribute/notes-internal/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.

@@ -96,7 +96,7 @@ Or add to your VS Code settings (`.vscode/settings.json`):
   "mcp": {
     "servers": {
       "bowrain": {
-        "command": "bowrain",
+        "command": "kapi",
         "args": ["mcp"]
       }
     }
@@ -135,7 +135,7 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 ```
 
 :::tip
-If `bowrain` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/local/bin/bowrain` or `$HOME/go/bin/bowrain`).
+If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/local/bin/kapi` or `$HOME/go/bin/kapi`).
 :::
 
 ## Available Tools

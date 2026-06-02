@@ -70,10 +70,11 @@ Every project is created with a set of built-in rules:
 
 | Rule                          | Trigger                       | Action                                           |
 | ----------------------------- | ----------------------------- | ------------------------------------------------ |
-| `auto-translate-on-push`      | `push.completed`              | Create translation jobs per (item, locale) pair  |
-| `auto-extract`                | `push.completed`              | Run entity/term extraction on changed blocks     |
-| `auto-translate-new-locale`   | `project.updated`             | Translate all items when a locale is added       |
-| `create-review-tasks`         | `push.automations.completed`  | Per-locale review tasks (see AD-014)             |
+| `auto-translate-on-push`                      | `push.completed`              | Create translation jobs per (item, locale) pair  |
+| `auto-extract-on-push`                        | `push.completed`              | Run entity/term extraction on changed blocks     |
+| `auto-translate-new-locale`                   | `project.updated`             | Translate all items when a locale is added       |
+| `create-review-tasks-on-automation-complete`  | `push.automations.completed`  | Per-locale review tasks (see AD-014)             |
+| `fan-out-after-source-review`                 | `source.review.completed`     | Fan out per-locale review tasks after source review (see AD-014) |
 
 Projects opt out by disabling individual rules or setting
 `auto_translate: false` in project properties.

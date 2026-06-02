@@ -20,7 +20,7 @@ With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
 By default, operates on the project recipe (`<dir-name>.kapi`).
-Use `--global` to read/write the global config file (`~/.config/kapi/kapi.yaml`).
+Use `--global` to read/write the global config file (`~/.config/bowrain/bowrain.yaml`).
 
 ## Examples
 
@@ -46,7 +46,7 @@ kapi config --global server.url https://bowrain.example.com
 
 | Flag       | Description                                                                   |
 | ---------- | ----------------------------------------------------------------------------- |
-| `--global` | Use global config file (`~/.config/kapi/kapi.yaml`) instead of project config |
+| `--global` | Use global config file (`~/.config/bowrain/bowrain.yaml`) instead of project config |
 
 ## Config Keys
 
@@ -60,12 +60,12 @@ kapi config --global server.url https://bowrain.example.com
 | `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://bowrain.example.com/my-team/proj_abc123`  |
 | `server.stream`              | Server stream (`$auto` for auto-detect)                    | `$auto`                                            |
 
-### Global Config (`~/.config/kapi/kapi.yaml`)
+### Global Config (`~/.config/bowrain/bowrain.yaml`)
 
 | Key                | Description                         | Example                       |
 | ------------------ | ----------------------------------- | ----------------------------- |
 | `server.url`       | Default server URL for all projects | `https://bowrain.example.com` |
-| `plugin_directory` | Plugin directory path               | `/home/user/.config/kapi/plugins` |
+| `plugin_directory` | Plugin directory path               | `/home/user/.config/bowrain/plugins` |
 
 ## Global vs Project Config
 

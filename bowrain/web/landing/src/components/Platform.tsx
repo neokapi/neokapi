@@ -17,7 +17,7 @@ export function Platform() {
         </p>
         <div className="mt-4 inline-block overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 px-4 py-2 font-mono text-sm">
           <span className="text-suggestion">$</span>{" "}
-          <span className="text-neutral-400">brew install bowrain</span>
+          <span className="text-neutral-400">brew install neokapi/tap/bowrain-cli</span>
         </div>
       </div>
 

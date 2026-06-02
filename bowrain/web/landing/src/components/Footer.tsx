@@ -27,7 +27,7 @@ export function Footer() {
             Contact
           </a>
         </div>
-        <div className="text-xs text-neutral-700">Apache 2.0</div>
+        <div className="text-xs text-neutral-700">AGPL-3.0 · open core on kapi (Apache-2.0)</div>
       </div>
     </footer>
   );

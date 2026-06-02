@@ -6,8 +6,8 @@ const MAPPINGS = [
   { okapi: "Step", neokapi: "Tool", desc: "Task unit" },
   { okapi: "Pipeline", neokapi: "Flow", desc: "Tool orchestration" },
   { okapi: "TextUnit", neokapi: "Block", desc: "Translatable content" },
-  { okapi: "TextFragment", neokapi: "Fragment", desc: "Text with spans" },
-  { okapi: "Code", neokapi: "Span", desc: "Inline markup" },
+  { okapi: "TextFragment", neokapi: "[]Run", desc: "Run sequence" },
+  { okapi: "Code", neokapi: "Run", desc: "Inline markup (Ph/Pc)" },
   { okapi: "Tikal", neokapi: "kapi", desc: "CLI tool" },
   { okapi: "Rainbow", neokapi: "Kapi (app)", desc: "Desktop app" },
 ];

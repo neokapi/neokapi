@@ -38,10 +38,8 @@ its results surface uniformly to the CLI, an editor, the MCP tools, or a
 downstream gate.
 
 Because the model is shared, a single finding list drives every surface: the
-`kapi check` exit code, the Kapi Desktop checks panel, and — on the Bowrain
-platform — the [correction-learning
-loop](https://neokapi.github.io/web/bowrain/) that turns repeated human
-corrections into new checks.
+`kapi check` exit code, the Kapi Desktop checks panel, and any downstream gate
+or editor that consumes the same finding stream.
 
 ## The check families
 

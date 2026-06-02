@@ -60,7 +60,7 @@ Effective = base_permissions ∩ token_scopes ∩ session_grants
 Each middleware in the request chain narrows the bitmask; handlers always
 check what's on the request context.
 
-### Permission Primitives (15-Bit Bitmask)
+### Permission Primitives (17-Bit Bitmask)
 
 | Permission          | Bit | Description                                   |
 | ------------------- | --- | --------------------------------------------- |
@@ -79,6 +79,8 @@ check what's on the request context.
 | `manage_project`    | 12  | Edit project settings, archive                |
 | `manage_brand`      | 13  | Edit brand voice profiles                     |
 | `manage_assets`     | 14  | Upload/delete media assets                    |
+| `audit_read`        | 15  | Read the audit log                            |
+| `rollback_changes`  | 16  | Roll back / restore content to a prior state  |
 
 Adding a new permission appends to the iota sequence. Existing bitmask values
 are stable.

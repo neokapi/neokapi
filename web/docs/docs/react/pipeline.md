@@ -194,14 +194,11 @@ content:
 #    streams NDJSON blocks into the collection's block store.
 kapi extract -p translation.kapi
 
-# 2. Status — read-only coverage report.
-kapi status -p translation.kapi
-
-# 3. Sync — top up every (archive, missing-locale) pair.
-kapi sync -p translation.kapi --tool ai-translate
+# 2. Translate — run a composed flow over the project for each target language.
+kapi run ai-translate-qa -p translation.kapi
 ```
 
-The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi sync` then runs the named translation tool against each archive for each incomplete locale.
+The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
 
 ### Standalone pipe (no `.kapi`)
 

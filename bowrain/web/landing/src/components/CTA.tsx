@@ -13,7 +13,7 @@ export function CTA() {
 
         <div className="mt-8 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 px-6 py-4 font-mono text-sm">
           <span className="text-suggestion">$</span>{" "}
-          <span className="text-neutral-400">brew install bowrain</span>
+          <span className="text-neutral-400">brew install neokapi/tap/bowrain-cli</span>
         </div>
       </div>
 

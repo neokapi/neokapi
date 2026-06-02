@@ -137,7 +137,7 @@ The server URL is resolved from (first match wins):
 
 1. `--server` flag
 2. `BOWRAIN_SERVER_URL` environment variable
-3. `server.url` in global config (`~/.config/kapi/kapi.yaml`)
+3. `server.url` in global config (`~/.config/bowrain/bowrain.yaml`)
 4. Existing auth state (from `kapi auth login`)
 5. Built-in default (`http://localhost:8080`)
 

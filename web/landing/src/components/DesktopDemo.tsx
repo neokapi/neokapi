@@ -85,9 +85,9 @@ function ProjectsScreen() {
         </div>
       </div>
       <div className="mt-1 rounded-lg border border-dashed border-surface-600 px-3 py-2 text-center">
-        <span className="text-xs text-neutral-500">Shared config via </span>
-        <code className="text-xs text-brand-400">kapi.yaml</code>
-        <span className="text-xs text-neutral-500"> — works in Desktop & CLI</span>
+        <span className="text-xs text-neutral-500">Shared project via the </span>
+        <code className="text-xs text-brand-400">.kapi</code>
+        <span className="text-xs text-neutral-500"> recipe — works in Desktop & CLI</span>
       </div>
     </div>
   );
