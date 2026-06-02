@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -21,9 +23,13 @@ type CollectionResponse struct {
 	IsDefault       bool              `json:"is_default"`
 	Stream          string            `json:"stream,omitempty"`
 	ConnectorConfig map[string]string `json:"connector_config,omitempty"`
-	ItemCount       int               `json:"item_count"`
-	CreatedAt       string            `json:"created_at"`
-	UpdatedAt       string            `json:"updated_at"`
+	// ConnectorSecretKeys names the connector_config keys whose values were
+	// redacted (credentials are never echoed back over the API). A client learns
+	// a secret is set from this list, not its value.
+	ConnectorSecretKeys []string `json:"connector_secret_keys,omitempty"`
+	ItemCount           int      `json:"item_count"`
+	CreatedAt           string   `json:"created_at"`
+	UpdatedAt           string   `json:"updated_at"`
 }
 
 // CreateCollectionRequest is the request body for creating a collection.
@@ -36,18 +42,79 @@ type CreateCollectionRequest struct {
 }
 
 func collectionToResponse(c *store.Collection) CollectionResponse {
+	cfg, secretKeys := redactConnectorConfig(c.ConnectorConfig)
 	return CollectionResponse{
-		ID:              c.ID,
-		ProjectID:       c.ProjectID,
-		Name:            c.Name,
-		Kind:            string(c.Kind),
-		ItemLabel:       c.ItemLabel,
-		IsDefault:       c.IsDefault,
-		Stream:          c.Stream,
-		ConnectorConfig: c.ConnectorConfig,
-		CreatedAt:       c.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:       c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:                  c.ID,
+		ProjectID:           c.ProjectID,
+		Name:                c.Name,
+		Kind:                string(c.Kind),
+		ItemLabel:           c.ItemLabel,
+		IsDefault:           c.IsDefault,
+		Stream:              c.Stream,
+		ConnectorConfig:     cfg,
+		ConnectorSecretKeys: secretKeys,
+		CreatedAt:           c.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:           c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
+}
+
+// isSecretConnectorKey reports whether a connector_config key holds a
+// credential that must never be returned over the API (passwords, tokens, API
+// keys, client/private secrets). Matching is on a separator-stripped,
+// lower-cased key so api_key / access-token / clientSecret all match.
+func isSecretConnectorKey(key string) bool {
+	k := strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(key))
+	for _, marker := range []string{
+		"password", "passwd", "secret", "token", "credential",
+		"apikey", "accesskey", "privatekey",
+	} {
+		if strings.Contains(k, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactConnectorConfig returns a copy of cfg with secret-valued keys removed,
+// plus the sorted names of the keys that were redacted. Connector credentials
+// must never be echoed back over the API.
+func redactConnectorConfig(cfg map[string]string) (map[string]string, []string) {
+	if len(cfg) == 0 {
+		return cfg, nil
+	}
+	redacted := make(map[string]string, len(cfg))
+	var secretKeys []string
+	for k, v := range cfg {
+		if isSecretConnectorKey(k) {
+			secretKeys = append(secretKeys, k)
+			continue
+		}
+		redacted[k] = v
+	}
+	sort.Strings(secretKeys)
+	return redacted, secretKeys
+}
+
+// mergeConnectorConfig folds an incoming connector_config (from an update
+// request) onto the stored one. Non-secret keys follow the request (so a key
+// can be changed or dropped); secret keys the request omits are carried forward
+// from the stored config, so a client that received a redacted config and PUTs
+// it back does not wipe stored credentials. A secret the client does resend
+// (a rotation) overwrites the stored value.
+func mergeConnectorConfig(existing, incoming map[string]string) map[string]string {
+	if incoming == nil {
+		return existing
+	}
+	merged := make(map[string]string, len(incoming))
+	for k, v := range incoming {
+		merged[k] = v
+	}
+	for k, v := range existing {
+		if _, present := merged[k]; !present && isSecretConnectorKey(k) {
+			merged[k] = v
+		}
+	}
+	return merged
 }
 
 // HandleListCollections returns all collections for a project, filtered by stream.
@@ -173,7 +240,7 @@ func (s *Server) HandleUpdateCollection(c echo.Context) error {
 		coll.ItemLabel = req.ItemLabel
 	}
 	if req.ConnectorConfig != nil {
-		coll.ConnectorConfig = req.ConnectorConfig
+		coll.ConnectorConfig = mergeConnectorConfig(coll.ConnectorConfig, req.ConnectorConfig)
 	}
 	// Stream is intentionally not updatable after creation.
 
