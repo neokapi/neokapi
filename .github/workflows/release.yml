@@ -83,7 +83,8 @@ jobs:
       matrix:
         target:
           - { goos: darwin, goarch: arm64, os: macos-latest, icu: brew }
-          - { goos: darwin, goarch: amd64, os: macos-13, icu: brew }
+          # macOS is Apple-Silicon only (matches the desktop apps); Intel mac is
+          # not a priority target.
           - { goos: linux, goarch: amd64, os: ubuntu-latest, icu: source }
           - { goos: linux, goarch: arm64, os: ubuntu-24.04-arm, icu: source }
           - { goos: windows, goarch: amd64, os: windows-2025, icu: msys2 }
@@ -372,7 +373,7 @@ jobs:
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
           declare -a ARGS
-          for plat in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+          for plat in darwin/arm64 linux/arm64 linux/amd64; do
             os=${plat%/*}
             arch=${plat#*/}
             file="kapi-bowrain_${VERSION}_${os}_${arch}.tar.gz"

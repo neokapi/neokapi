@@ -29,11 +29,11 @@ sha_for() {
 }
 
 # Emit an `on_macos/on_linux { on_arm/on_intel { url; sha256 } }` body for the
-# archive family $1 (e.g. "kapi" or "kapi-bowrain"), indented 2 spaces.
+# archive family $1 (e.g. "kapi" or "kapi-bowrain"), indented 2 spaces. macOS is
+# Apple-Silicon only (no on_intel); Linux covers both arches.
 platform_block() {
   local fam="$1" ext_darwin="tar.gz" ext_linux="tar.gz"
   local f_da="${fam}_${version}_darwin_arm64.${ext_darwin}"
-  local f_di="${fam}_${version}_darwin_amd64.${ext_darwin}"
   local f_la="${fam}_${version}_linux_arm64.${ext_linux}"
   local f_li="${fam}_${version}_linux_amd64.${ext_linux}"
   cat <<RUBY
@@ -41,10 +41,6 @@ platform_block() {
     on_arm do
       url "${base_url}/${f_da}", using: GitHubPrivateRepositoryReleaseDownloadStrategy
       sha256 "$(sha_for "$f_da")"
-    end
-    on_intel do
-      url "${base_url}/${f_di}", using: GitHubPrivateRepositoryReleaseDownloadStrategy
-      sha256 "$(sha_for "$f_di")"
     end
   end
 
