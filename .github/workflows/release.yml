@@ -376,14 +376,21 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config
-          # macOS ships ICU at /usr/lib/libicucore.dylib, but no headers.
-          # Install icu4c (keg-only) and expose its pkg-config files.
+          # macOS ships ICU at /usr/lib/libicucore.dylib, but no headers and no
+          # versioned symbols. Install icu4c (keg-only) for its headers + static
+          # archives.
           brew install icu4c
-          ICU_PREFIX=$(brew --prefix icu4c)
+          # Force STATIC ICU linking. A distributed/notarized .app must not
+          # depend on a Homebrew icu dylib: it is absent on users' machines, and
+          # even when present its code signature has a different Team ID than the
+          # notarized app, so dyld aborts at launch (SIGABRT before main). The
+          # override .pc files link libicu*.a by absolute path instead, leaving
+          # only the Apple-signed /usr/lib/libc++.1.dylib at runtime.
+          # See scripts/gen-icu-static-pc.sh.
+          PCDIR=$(bash scripts/gen-icu-static-pc.sh)
           {
-            echo "PKG_CONFIG_PATH=${ICU_PREFIX}/lib/pkgconfig"
-            echo "LDFLAGS=-L${ICU_PREFIX}/lib"
-            echo "CPPFLAGS=-I${ICU_PREFIX}/include"
+            echo "PKG_CONFIG_PATH=${PCDIR}"
+            echo "CPPFLAGS=-I$(brew --prefix icu4c)/include"
           } >> "$GITHUB_ENV"
 
       - name: Install wails3 CLI
@@ -402,7 +409,7 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           go mod tidy
-          wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+          wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
           # shellcheck disable=SC2016
           sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
           rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
@@ -428,7 +435,7 @@ jobs:
           GOOS: linux
           CGO_ENABLED: "1"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
-        run: go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
+        run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
       - name: Build Bowrain (Windows)
         if: runner.os == 'Windows'
@@ -440,7 +447,7 @@ jobs:
           CGO_ENABLED: "0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
+          go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 
       - name: Build Bowrain (macOS arm64)
@@ -453,7 +460,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
@@ -659,14 +666,21 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config
-          # macOS ships ICU at /usr/lib/libicucore.dylib, but no headers.
-          # Install icu4c (keg-only) and expose its pkg-config files.
+          # macOS ships ICU at /usr/lib/libicucore.dylib, but no headers and no
+          # versioned symbols. Install icu4c (keg-only) for its headers + static
+          # archives.
           brew install icu4c
-          ICU_PREFIX=$(brew --prefix icu4c)
+          # Force STATIC ICU linking. A distributed/notarized .app must not
+          # depend on a Homebrew icu dylib: it is absent on users' machines, and
+          # even when present its code signature has a different Team ID than the
+          # notarized app, so dyld aborts at launch (SIGABRT before main). The
+          # override .pc files link libicu*.a by absolute path instead, leaving
+          # only the Apple-signed /usr/lib/libc++.1.dylib at runtime.
+          # See scripts/gen-icu-static-pc.sh.
+          PCDIR=$(bash scripts/gen-icu-static-pc.sh)
           {
-            echo "PKG_CONFIG_PATH=${ICU_PREFIX}/lib/pkgconfig"
-            echo "LDFLAGS=-L${ICU_PREFIX}/lib"
-            echo "CPPFLAGS=-I${ICU_PREFIX}/include"
+            echo "PKG_CONFIG_PATH=${PCDIR}"
+            echo "CPPFLAGS=-I$(brew --prefix icu4c)/include"
           } >> "$GITHUB_ENV"
 
       - name: Install wails3 CLI
@@ -679,7 +693,7 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           go mod tidy
-          wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+          wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
 
       # The kapi-desktop frontend's vite.config.ts imports
       # @neokapi/kapi-react/vite, whose entry resolves to dist/plugin/vite.js.
@@ -709,7 +723,7 @@ jobs:
           GOOS: linux
           CGO_ENABLED: "1"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
-        run: go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+        run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
 
       - name: Build Kapi Desktop (Windows)
         if: runner.os == 'Windows'
@@ -721,7 +735,7 @@ jobs:
           CGO_ENABLED: "0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
+          go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
 
       - name: Build Kapi Desktop (macOS arm64)
@@ -734,7 +748,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
