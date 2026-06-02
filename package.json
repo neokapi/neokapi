@@ -2,8 +2,8 @@
   "private": true,
   "devDependencies": {
     "jsdom": "^29.1.1",
-    "storybook": "^10.3.6",
-    "vite-plus": "^0.1.20"
+    "storybook": "^10.4.2",
+    "vite-plus": "^0.1.24"
   },
   "packageManager": "pnpm@11.5.0"
 }
