@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "products": "商品",
+    "cart": "カート",
+    "checkout": "お支払い",
+    "account": "アカウント"
+  },
+  "hero": {
+    "headline": "",
+    "subhead": ""
+  },
+  "marketing": {
+    "about": ""
+  },
+  "products": {
+    "title": "商品",
+    "search_placeholder": "商品を検索",
+    "add_to_cart": "カートに追加",
+    "out_of_stock": "",
+    "price_each": "",
+    "empty": ""
+  },
+  "cart": {
+    "title": "カート",
+    "summary": "{count, plural, other {カートに# 点}}",
+    "remove": "",
+    "empty": "",
+    "subtotal": "",
+    "continue_shopping": ""
+  },
+  "checkout": {
+    "title": "お支払い",
+    "shipping_address": "",
+    "payment_method": "",
+    "place_order": "",
+    "order_confirmed": "",
+    "pay_with": ""
+  },
+  "account": {
+    "title": "アカウント",
+    "orders": "",
+    "addresses": "",
+    "sign_out": "",
+    "welcome_back": ""
+  },
+  "errors": {
+    "network": "",
+    "payment_failed": "",
+    "not_found": ""
+  },
+  "empty_states": {
+    "no_orders": "",
+    "no_addresses": ""
+  }
+}

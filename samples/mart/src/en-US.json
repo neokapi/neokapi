@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "cart": "Cart",
+    "checkout": "Checkout",
+    "account": "Account"
+  },
+  "hero": {
+    "headline": "Everything for your store, in one place",
+    "subhead": "KapiMart brings your catalog, orders, and customers together so you can spend less time switching tools and more time selling."
+  },
+  "marketing": {
+    "about": "KapiMart is a storefront and order platform for small retailers. Connect your products, take payments, and ship orders from a single dashboard. Your AI assistant drafts product descriptions and answers customer questions while you stay in control of every word."
+  },
+  "products": {
+    "title": "Products",
+    "search_placeholder": "Search products",
+    "add_to_cart": "Add to cart",
+    "out_of_stock": "Out of stock",
+    "price_each": "{price} each",
+    "empty": "No products match your search yet."
+  },
+  "cart": {
+    "title": "Your cart",
+    "summary": "{count, plural, one {# item in your cart} other {# items in your cart}}",
+    "remove": "Remove",
+    "empty": "Your cart is empty. Browse products to get started.",
+    "subtotal": "Subtotal",
+    "continue_shopping": "Continue shopping"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "shipping_address": "Shipping address",
+    "payment_method": "Payment method",
+    "place_order": "Place order",
+    "order_confirmed": "Your order is confirmed. A receipt is on its way to your inbox.",
+    "pay_with": "{provider, select, card {Pay with card} paypal {Pay with PayPal} applepay {Pay with Apple Pay} other {Choose a payment method}}"
+  },
+  "account": {
+    "title": "Account",
+    "orders": "Your orders",
+    "addresses": "Saved addresses",
+    "sign_out": "Sign out",
+    "welcome_back": "Welcome back to KapiMart"
+  },
+  "errors": {
+    "network": "We could not reach the server. Check your connection and try again.",
+    "payment_failed": "Your payment could not be processed. No charge was made.",
+    "not_found": "We could not find the page you were looking for."
+  },
+  "empty_states": {
+    "no_orders": "You have not placed any orders yet.",
+    "no_addresses": "You have not saved any addresses yet."
+  }
+}

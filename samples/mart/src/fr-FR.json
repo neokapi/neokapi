@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "products": "Produits",
+    "cart": "Panier",
+    "checkout": "Paiement",
+    "account": "Compte"
+  },
+  "hero": {
+    "headline": "Tout pour votre boutique, au même endroit",
+    "subhead": "KapiMart réunit votre catalogue, vos commandes et vos clients pour que vous passiez moins de temps à jongler entre les outils et plus de temps à vendre."
+  },
+  "marketing": {
+    "about": "KapiMart est une plateforme de boutique et de commandes pour les petits commerçants. Connectez vos produits, encaissez les paiements et expédiez vos commandes depuis un seul tableau de bord. Votre assistant IA rédige les descriptions de produits et répond aux questions des clients, tandis que vous gardez le contrôle de chaque mot."
+  },
+  "products": {
+    "title": "Produits",
+    "search_placeholder": "Rechercher des produits",
+    "add_to_cart": "Ajouter au panier",
+    "out_of_stock": "En rupture de stock",
+    "price_each": "{price} pièce",
+    "empty": "Aucun produit ne correspond encore à votre recherche."
+  },
+  "cart": {
+    "title": "Votre panier",
+    "summary": "{count, plural, one {# article dans votre panier} other {# articles dans votre panier}}",
+    "remove": "Retirer",
+    "empty": "Votre panier est vide. Parcourez les produits pour commencer.",
+    "subtotal": "Sous-total",
+    "continue_shopping": "Continuer mes achats"
+  },
+  "checkout": {
+    "title": "Paiement",
+    "shipping_address": "Adresse de livraison",
+    "payment_method": "Mode de paiement",
+    "place_order": "Passer la commande",
+    "order_confirmed": "Votre commande est confirmée. Un reçu arrive dans votre boîte de réception.",
+    "pay_with": "{provider, select, card {Payer par carte} paypal {Payer avec PayPal} applepay {Payer avec Apple Pay} other {Choisir un mode de paiement}}"
+  },
+  "account": {
+    "title": "Compte",
+    "orders": "Vos commandes",
+    "addresses": "Adresses enregistrées",
+    "sign_out": "Se déconnecter",
+    "welcome_back": "Bon retour sur KapiMart"
+  },
+  "errors": {
+    "network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+    "payment_failed": "Votre paiement n'a pas pu être traité. Aucun montant n'a été débité.",
+    "not_found": "Nous n'avons pas trouvé la page que vous recherchiez."
+  },
+  "empty_states": {
+    "no_orders": "Vous n'avez pas encore passé de commande.",
+    "no_addresses": "Vous n'avez pas encore enregistré d'adresse."
+  }
+}

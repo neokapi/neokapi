@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="mart-sample" adminlang="en" srclang="en-US" datatype="plaintext"/>
+  <body>
+    <tu tuid="mart-1">
+      <prop type="x-context">products.add_to_cart</prop>
+      <tuv xml:lang="en-US">
+        <seg>Add to cart</seg>
+      </tuv>
+      <tuv xml:lang="fr-FR">
+        <seg>Ajouter au panier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="mart-2">
+      <prop type="x-context">cart.subtotal</prop>
+      <tuv xml:lang="en-US">
+        <seg>Subtotal</seg>
+      </tuv>
+      <tuv xml:lang="fr-FR">
+        <seg>Sous-total</seg>
+      </tuv>
+    </tu>
+    <tu tuid="mart-3">
+      <prop type="x-context">account.sign_out</prop>
+      <tuv xml:lang="en-US">
+        <seg>Sign out</seg>
+      </tuv>
+      <tuv xml:lang="fr-FR">
+        <seg>Se déconnecter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="mart-4">
+      <prop type="x-note">fuzzy: source ends with "Browse products to get started."</prop>
+      <tuv xml:lang="en-US">
+        <seg>Your cart is empty.</seg>
+      </tuv>
+      <tuv xml:lang="fr-FR">
+        <seg>Votre panier est vide.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="mart-5">
+      <prop type="x-note">fuzzy: source is "Continue shopping"</prop>
+      <tuv xml:lang="en-US">
+        <seg>Continue shopping now</seg>
+      </tuv>
+      <tuv xml:lang="fr-FR">
+        <seg>Continuer mes achats maintenant</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

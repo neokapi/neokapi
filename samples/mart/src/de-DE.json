@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "products": "Produkte",
+    "cart": "Warenkorb",
+    "checkout": "Kasse",
+    "account": "Konto"
+  },
+  "hero": {
+    "headline": "Alles für Ihren Shop, an einem Ort",
+    "subhead": "KapiMart führt Ihren Katalog, Ihre Bestellungen und Ihre Kundschaft zusammen, damit Sie weniger Zeit mit dem Wechseln zwischen Tools und mehr Zeit mit dem Verkaufen verbringen."
+  },
+  "marketing": {
+    "about": ""
+  },
+  "products": {
+    "title": "Produkte",
+    "search_placeholder": "Produkte suchen",
+    "add_to_cart": "In den Warenkorb",
+    "out_of_stock": "Nicht auf Lager",
+    "price_each": "{price} pro Stück",
+    "empty": ""
+  },
+  "cart": {
+    "title": "Ihr Warenkorb",
+    "summary": "{count, plural, one {# Artikel in Ihrem Warenkorb} other {# Artikel in Ihrem Warenkorb}}",
+    "remove": "Entfernen",
+    "empty": "Ihr Warenkorb ist leer. Stöbern Sie in den Produkten, um zu beginnen.",
+    "subtotal": "Zwischensumme",
+    "continue_shopping": "Weiter einkaufen"
+  },
+  "checkout": {
+    "title": "Kasse",
+    "shipping_address": "Lieferadresse",
+    "payment_method": "Zahlungsart",
+    "place_order": "Bestellung aufgeben",
+    "order_confirmed": "",
+    "pay_with": ""
+  },
+  "account": {
+    "title": "Konto",
+    "orders": "Ihre Bestellungen",
+    "addresses": "",
+    "sign_out": "Abmelden",
+    "welcome_back": ""
+  },
+  "errors": {
+    "network": "",
+    "payment_failed": "",
+    "not_found": ""
+  },
+  "empty_states": {
+    "no_orders": "",
+    "no_addresses": ""
+  }
+}

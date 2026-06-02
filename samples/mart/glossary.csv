@@ -1,0 +1,14 @@
+term,fr-FR,de-DE,ja-JP,note
+KapiMart,KapiMart,KapiMart,KapiMart,DNT — product name; keep in Latin script
+OkapiMart,OkapiMart,OkapiMart,OkapiMart,DNT — product name (okapi-bridge instance)
+BowMart,BowMart,BowMart,BowMart,DNT — product name (bowrain instance)
+AI assistant,assistant IA,KI-Assistent,AIアシスタント,Preferred over "Copilot" or "bot"
+Cart,Panier,Warenkorb,カート,
+Checkout,Paiement,Kasse,お支払い,
+Dashboard,tableau de bord,Übersicht,ダッシュボード,
+Account,Compte,Konto,アカウント,
+Products,Produits,Produkte,商品,
+Order,Commande,Bestellung,注文,
+Subtotal,Sous-total,Zwischensumme,小計,
+PayPal,PayPal,PayPal,PayPal,DNT — third-party brand
+Apple Pay,Apple Pay,Apple Pay,Apple Pay,DNT — third-party brand
