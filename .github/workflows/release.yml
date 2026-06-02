@@ -575,7 +575,17 @@ jobs:
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev build-essential curl pkg-config
+          # Statically link our ICU usage (FTS5 tokenizer + UAX-29) so the
+          # distributed Linux binary doesn't bind to the build host's libicu
+          # major version. Built PIC + from source, same as the CLI. GTK/WebKit
+          # still load the system libicu at runtime — that's their own, separate,
+          # version-suffixed dependency and does not clash with our static copy.
+          ICU_PREFIX=$(bash scripts/build-icu-static.sh /opt/icu-static)
+          PCDIR=$(ICU_PREFIX="$ICU_PREFIX" bash scripts/gen-icu-static-pc.sh)
+          echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
@@ -598,6 +608,20 @@ jobs:
             echo "CPPFLAGS=-I$(brew --prefix icu4c)/include"
           } >> "$GITHUB_ENV"
 
+      # Windows: mingw toolchain + static ICU for the cgo build step below.
+      # (Bindings generation stays CGO=0 — it reflects the app's service API,
+      # which doesn't depend on cgo — so only the final build needs this.)
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-icu
+            mingw-w64-x86_64-pkg-config
+
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
@@ -611,6 +635,12 @@ jobs:
         working-directory: bowrain/apps/bowrain
         shell: bash
         env:
+          # On macOS/Linux the icu cgo packages compile during bindings analysis
+          # (toolchain + static .pc are present), so keep cgo on. On Windows the
+          # mingw toolchain isn't on this shell's PATH; bindings reflect the
+          # service API (cgo-independent), so build them with cgo off — the final
+          # Windows build step (msys2) does the cgo + static-ICU compile.
+          CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           go mod tidy
@@ -642,16 +672,26 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
+      # cgo build under MSYS2 mingw with statically-linked ICU, so the Windows
+      # desktop app uses the same native SQLite + ICU framework as macOS/Linux
+      # (no unicode61/modernc divergence). Runs in the msys2 shell so gcc +
+      # pkg-config + the static .pc all share one unix-path environment; the
+      # static C++/gcc runtimes mean Bowrain.exe needs no mingw DLLs alongside.
       - name: Build Bowrain (Windows)
         if: runner.os == 'Windows'
         working-directory: bowrain/apps/bowrain
-        shell: bash
+        shell: msys2 {0}
         env:
           GOOS: windows
           GOARCH: ${{ matrix.build.arch }}
-          CGO_ENABLED: "0"
+          CGO_ENABLED: "1"
+          CC: gcc
+          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
+          set -euo pipefail
+          PCDIR=$(ICU_PREFIX=/mingw64 bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          export PKG_CONFIG_PATH="$PCDIR"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 
@@ -864,7 +904,17 @@ jobs:
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev build-essential curl pkg-config
+          # Statically link our ICU usage (FTS5 tokenizer + UAX-29) so the
+          # distributed Linux binary doesn't bind to the build host's libicu
+          # major version. Built PIC + from source, same as the CLI. GTK/WebKit
+          # still load the system libicu at runtime — that's their own, separate,
+          # version-suffixed dependency and does not clash with our static copy.
+          ICU_PREFIX=$(bash scripts/build-icu-static.sh /opt/icu-static)
+          PCDIR=$(ICU_PREFIX="$ICU_PREFIX" bash scripts/gen-icu-static-pc.sh)
+          echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
@@ -887,6 +937,20 @@ jobs:
             echo "CPPFLAGS=-I$(brew --prefix icu4c)/include"
           } >> "$GITHUB_ENV"
 
+      # Windows: mingw toolchain + static ICU for the cgo build step below.
+      # (Bindings generation stays CGO=0 — it reflects the app's service API,
+      # which doesn't depend on cgo — so only the final build needs this.)
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-icu
+            mingw-w64-x86_64-pkg-config
+
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
@@ -894,6 +958,12 @@ jobs:
         working-directory: apps/kapi-desktop
         shell: bash
         env:
+          # On macOS/Linux the icu cgo packages compile during bindings analysis
+          # (toolchain + static .pc are present), so keep cgo on. On Windows the
+          # mingw toolchain isn't on this shell's PATH; bindings reflect the
+          # service API (cgo-independent), so build them with cgo off — the final
+          # Windows build step (msys2) does the cgo + static-ICU compile.
+          CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           go mod tidy
@@ -929,16 +999,23 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
 
+      # cgo build under MSYS2 mingw with statically-linked ICU — see the matching
+      # Bowrain step for rationale (native SQLite + ICU parity, no divergence).
       - name: Build Kapi Desktop (Windows)
         if: runner.os == 'Windows'
         working-directory: apps/kapi-desktop
-        shell: bash
+        shell: msys2 {0}
         env:
           GOOS: windows
           GOARCH: ${{ matrix.build.arch }}
-          CGO_ENABLED: "0"
+          CGO_ENABLED: "1"
+          CC: gcc
+          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
+          set -euo pipefail
+          PCDIR=$(ICU_PREFIX=/mingw64 bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          export PKG_CONFIG_PATH="$PCDIR"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
 

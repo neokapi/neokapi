@@ -58,9 +58,16 @@ if [[ -z "$libdir" || ! -d "$libdir" ]]; then
   exit 1
 fi
 
-for a in libicui18n.a libicuuc.a libicudata.a; do
-  if [[ ! -f "$libdir/$a" ]]; then
-    echo "gen-icu-static-pc.sh: missing static archive $libdir/$a (need an icu4c build with static libraries)" >&2
+# ICU static archive names vary by packaging:
+#   standard (brew, ICU source): libicui18n.a libicuuc.a libicudata.a
+#   Windows/mingw (MSYS2):        libicuin.a   libicuuc.a libicudt.a
+a_i18n=""; a_data=""
+for c in libicui18n.a libicuin.a;  do [[ -f "$libdir/$c" ]] && a_i18n="$libdir/$c" && break; done
+for c in libicudata.a libicudt.a;  do [[ -f "$libdir/$c" ]] && a_data="$libdir/$c" && break; done
+a_uc=""; [[ -f "$libdir/libicuuc.a" ]] && a_uc="$libdir/libicuuc.a"
+for v in "$a_i18n" "$a_uc" "$a_data"; do
+  if [[ -z "$v" ]]; then
+    echo "gen-icu-static-pc.sh: missing an ICU static archive in $libdir (need libicu{i18n,uc,data}.a, or mingw's libicu{in,uc,dt}.a; is this a static icu4c build?)" >&2
     exit 1
   fi
 done
@@ -80,7 +87,7 @@ pcdir=$(mktemp -d)
 # correct no matter which package(s) cgo passes to pkg-config (it always
 # requests both "icu-uc icu-i18n"). Duplicate archives on the link line are
 # harmless — the linker dedupes them with a warning.
-libs="$libdir/libicui18n.a $libdir/libicuuc.a $libdir/libicudata.a -l$cxx_lib"
+libs="$a_i18n $a_uc $a_data -l$cxx_lib"
 
 for name in icu-uc icu-i18n; do
   cat > "$pcdir/$name.pc" <<EOF
