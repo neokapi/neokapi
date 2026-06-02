@@ -1,21 +1,30 @@
 ---
 sidebar_position: 4
 title: "TM Matching Algorithm"
-description: Implementation note for AD-009 — the three derived matching keys (plain, structural, source-entity), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Sievepen.
-keywords: [TM matching, fuzzy match, Sievepen, plain key, structural key, source-entity, implementation note, neokapi]
+description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Sievepen.
+keywords: [TM matching, fuzzy match, Sievepen, plain key, structural key, generalized key, implementation note, neokapi]
 ---
 
 # TM Matching Algorithm
 
 This note provides implementation details for [AD-009](/contribute/architecture/009-translation-memory).
 
-## Derived Matching Keys
+## Derived matching keys
 
-Each TM entry has multiple matching representations derived from its stored Fragment. These are computed at storage time and indexed for fast lookup:
+Each TM entry stores its variants as `[]model.Run` sequences (AD-002). Several
+matching representations are derived from those runs at storage time and indexed
+for fast lookup. Sievepen computes them with the framework's projection helpers
+in `core/model`:
 
-- **plain**: `Fragment.Text()` -- strips all Span markers. Enables matching against legacy TMs and unanalyzed content.
-- **structural**: Spans rendered as numbered placeholders (`\{1\}`, `\{/1\}`). Enables matching with inline code position awareness.
-- **generalized**: Entity Spans as typed placeholders (`\{PERSON\}`, `\{PRODUCT\}`). Maximum reuse -- entities are interchangeable.
+- **plain**: `model.RunsPlainText(runs)` -- concatenates `Text` runs and drops
+  all inline-code runs. Enables matching against legacy TMs and unanalyzed content.
+- **structural**: `model.RunsStructuralText(runs)` -- renders inline-code runs as
+  positional placeholders: `PcOpen` as `\{1\}`, `PcClose` as `\{/1\}`, and `Ph`
+  as `\{1/\}`. Enables matching with inline-code position awareness.
+- **generalized**: `model.RunsGeneralizedText(runs)` -- renders entity `Ph` runs
+  (whose `Type` is an entity type) as typed placeholders (`\{PERSON\}`,
+  `\{PRODUCT\}`) and other inline-code runs as in the structural key. Maximum
+  reuse -- entities are interchangeable.
 
 The generalized key is the most powerful: "John works at Acme" and "Alice works at Globex" both generalize to `\{PERSON\} works at \{ORGANIZATION\}` -- an exact match.
 
@@ -94,14 +103,14 @@ Falls back to length-based pre-filtering if pg_trgm is unavailable.
 
 Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
 
-## TMX Element Mapping
+## TMX element mapping
 
-The import/export layer maps between Fragment Spans and TMX inline elements:
+The import/export layer maps between inline-code runs and TMX inline elements:
 
-| Fragment Span     | TMX Element |
-| ----------------- | ----------- |
-| `SpanPlaceholder` | `<ph>`      |
-| `SpanOpening`     | `<bpt>`     |
-| `SpanClosing`     | `<ept>`     |
+| Run       | TMX Element |
+| --------- | ----------- |
+| `Ph`      | `<ph>`      |
+| `PcOpen`  | `<bpt>`     |
+| `PcClose` | `<ept>`     |
 
-Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. Note that inline element mapping (`<ph>`, `<bpt>`, `<ept>`) is handled by the full TMX format reader (`core/formats/tmx/`), not by the sievepen TM import/export layer. The TM module's TMX import (`sievepen/tmx_import.go`) handles plain text and entity properties only. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.
+Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored as `Text`-only run sequences with no entity mappings. They participate in plain matching only.

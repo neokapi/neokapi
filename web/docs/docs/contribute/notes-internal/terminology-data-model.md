@@ -102,22 +102,23 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 **`unredact`** (Transform) -- Restores original entity values after external processing. Paired with `redact`:
 `reader -> ai-entity-extract -> redact -> [external MT] -> unredact -> writer`
 
-## Concept Relations (Phase 2)
+## Concept relations
+
+Concepts can be linked for graph import and export. A `ConceptRelation` records
+a typed, directed edge between two concepts:
 
 ```go
-type Stream struct {
-    ID          string
-    Name        string       // "Q2 Rebrand"
-    Changes     []StreamChange
-    Status      StreamStatus // draft, reviewing, promoted, discarded
+type ConceptRelation struct {
+    SourceID     string // origin concept ID
+    TargetID     string // target concept ID
+    RelationType string // uses graph.Label* constants
 }
 ```
 
-## Terminology Streams (Phase 2)
+`RelationType` draws its values from the `graph.Label*` constants, so relation
+edges share the vocabulary used by the rest of the graph layer.
 
-Named what-if experiments for terminology changes. Streams isolate changes from the active termbase until explicitly promoted.stream terms applied to content. Promotion applies changes atomically.
-
-## Content Model Extensions
+## Content model extensions
 
 - `TermAnnotation` -- matched term with concept, target terms, and position
 - `EntityAnnotation` -- named entity with type, DNT flag, and position

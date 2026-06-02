@@ -27,7 +27,7 @@ var (
 )
 
 // SQLiteTM is a multilingual, persistent translation memory backed by SQLite.
-// Each entry has a map of language variants (locale → Fragment) plus
+// Each entry has a map of language variants (locale → []model.Run) plus
 // normalized match keys per variant for tiered lookup.
 type SQLiteTM struct {
 	db *storage.DB

@@ -120,16 +120,17 @@ kapi pseudo-translate -i file.json --target-lang qps
 kapi word-count file.json
 ```
 
-The `-p` flag switches a command into project mode, loading a `.kapi`
-recipe ([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
+On project-aware commands, the `-p` / `--project` flag switches into
+project mode, loading a `.kapi` recipe
+([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
 
 ```bash
 kapi run translate -p myproject.kapi
-kapi run ai-translate-qa -p myproject.kapi --target-lang de
-kapi ai-translate -p myproject.kapi
+kapi run ai-translate-qa --project myproject.kapi --target-lang de
+kapi extract --project myproject.kapi
 ```
 
-With `-p`:
+With `--project`:
 
 - The flow name is looked up in the project's `flows` map.
 - `sourceLocale` and `targetLocales[0]` provide defaults (CLI flags
@@ -152,9 +153,23 @@ commands from inside a project tree:
    one — e.g. `kapi merge`).
 
 `ErrAmbiguousLayout` (multiple `*.kapi` files in the same directory)
-surfaces as a CLI error asking for explicit `-p`. The resolution
-helper lives in `cli/project.go` once and is reused by `run`,
-`extract`, `merge`, and any future project-aware command.
+surfaces as a CLI error asking for an explicit `--project`. The resolution
+helper (`AddProjectFlag` / `ResolveProjectPath`) lives in `cli/project.go`
+once and is reused by the project-aware commands — `run`, `extract`,
+`merge`, `brand`, and `verify` — plus any future project-aware command.
+
+:::warning `-p` means `--project` only on project-aware commands
+The `-p` shorthand binds to `--project` **only** on the project-aware
+commands listed above (`run`, `extract`, `merge`, `brand`, `verify`),
+where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
+`kapi ai-translate` or `kapi pseudo-translate`), there is no `--project`
+flag — the same `-p` shorthand is already taken by `--progress` (the
+progress-bar flag). So `kapi ai-translate -p my.kapi` is parsed as
+`--progress` with `my.kapi` left as a positional argument, **not** as a
+load-project request. Tool commands pick up project context (TM, glossary,
+defaults) through git-style discovery instead — run them from inside the
+project tree, or point `KAPI_PROJECT` at the recipe.
+:::
 
 ### Output format flags
 
