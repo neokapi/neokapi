@@ -35,7 +35,7 @@ merge makes the next extract cheaper.
 
 ## The interchange landscape
 
-"Interchange" spans four distinct boundaries. They share one seam — the
+"Interchange" spans three distinct boundaries. They share one seam — the
 same format readers and writers over kapi's content model — but differ in
 who they talk to and where the durable state lives:
 
@@ -44,11 +44,10 @@ who they talk to and where the durable state lives:
 | **Format conversion** (ad-hoc, one-way) | one file, no round-trip state | `kapi run -i` + a format writer | none — just the pipeline |
 | **Bilingual round-trip** _(this page)_ | a document as XLIFF 2.x / PO, worked elsewhere, merged back | `kapi extract` / `kapi merge` | external TMS / CAT tool |
 | **Asset interchange** | accumulated TM and terminology | `kapi tm import`/`export` (TMX), `kapi termbase import`/`export` (TBX) | corporate TM / term archives |
-| **Platform sync** | block-level deltas over an internal protocol — no exchange file at all | `kapi push` / `kapi pull` | the Bowrain server |
 
-The bright line: **bilingual round-trip and asset interchange leave to an
-external tool and come back, with project state holding the way back;
-platform sync stays connected to a stateful server.** This page is the
+The bright line: **bilingual round-trip and asset interchange both hand a
+standard file to an external tool and bring the result back, with project
+state holding the way back; format conversion is one-way.** This page is the
 bilingual round-trip — the standards-based handoff to a translator or TMS.
 
 For architectural context and design decisions see [AD-017: Bilingual
