@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/observe"
@@ -86,6 +87,11 @@ func runWorker(dbURL string) error {
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL content store: %w", err)
 	}
+	secretsCipher, err := crypto.NewCipher(os.Getenv("BOWRAIN_SECRETS_KEY"))
+	if err != nil {
+		return fmt.Errorf("invalid BOWRAIN_SECRETS_KEY: %w", err)
+	}
+	pgCS.SetSecretsCipher(secretsCipher)
 	var cs store.ContentStore = pgCS
 
 	pgJS, err := jobs.NewJobStore(pgdb)

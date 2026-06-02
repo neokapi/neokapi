@@ -32,6 +32,12 @@ type Config struct {
 	// DatabaseAuth is "azure".
 	AzureClientID string
 
+	// SecretsKey is a base64-encoded 32-byte key for AES-256-GCM encryption of
+	// secret columns at rest (connector credentials). Empty disables encryption
+	// (plaintext); existing plaintext is read transparently and re-sealed on the
+	// next write once a key is set.
+	SecretsKey string
+
 	// Auth
 	JWTSecret        string
 	OIDCIssuerURL    string

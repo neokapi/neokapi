@@ -38,6 +38,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/event"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -356,6 +357,15 @@ func NewServer(cfg Config) *Server {
 			slog.Warn("failed to open PostgreSQL stores", "error", err)
 		} else {
 			s.ContentStore = pg.Content
+			// Encrypt secret columns (connector credentials) at rest when a key
+			// is configured. The key was validated at startup; log defensively.
+			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
+				if secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey); cerr == nil {
+					pgStore.SetSecretsCipher(secretsCipher)
+				} else {
+					slog.Error("invalid secrets key; connector config stored unencrypted", "error", cerr)
+				}
+			}
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
 			s.ExtractionJobStore = pg.Extraction

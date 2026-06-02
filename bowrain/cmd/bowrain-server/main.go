@@ -16,6 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/server"
@@ -68,6 +69,12 @@ func run() error {
 	}
 	if envClientID := os.Getenv("AZURE_CLIENT_ID"); envClientID != "" {
 		cfg.AzureClientID = envClientID
+	}
+	if envSecretsKey := os.Getenv("BOWRAIN_SECRETS_KEY"); envSecretsKey != "" {
+		cfg.SecretsKey = envSecretsKey
+	}
+	if _, err := crypto.NewCipher(cfg.SecretsKey); err != nil {
+		return fmt.Errorf("invalid BOWRAIN_SECRETS_KEY: %w", err)
 	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
