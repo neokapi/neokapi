@@ -61,6 +61,11 @@ builds:
     goarch:
       - amd64
       - arm64
+    # Windows/arm64 is not built: the cgo + static-ICU toolchain (MSYS2 mingw)
+    # is wired for x86_64 only; arm64 Windows is a negligible audience.
+    ignore:
+      - goos: windows
+        goarch: arm64
     ldflags:
       - -s -w
       - -X main.pluginVersion={{.Version}}
@@ -226,10 +231,10 @@ release:
 
     ## Platform Support
 
-    | Component | Linux amd64 | Linux arm64 | macOS (universal) | Windows amd64 | Windows arm64 |
-    |-----------|:-----------:|:-----------:|:------------------:|:-------------:|:-------------:|
+    | Component | Linux amd64 | Linux arm64 | macOS amd64 | macOS arm64 | Windows amd64 |
+    |-----------|:-----------:|:-----------:|:-----------:|:-----------:|:-------------:|
     | kapi CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
     | bowrain CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
-    | Kapi Desktop | ✓ | ✓ | ✓ | ✓ | ✓ |
-    | Bowrain Desktop | ✓ | ✓ | ✓ | ✓ | ✓ |
+    | Kapi Desktop | ✓ | ✓ | — | ✓ | ✓ |
+    | Bowrain Desktop | ✓ | ✓ | — | ✓ | ✓ |
     | Docker (server) | ✓ | ✓ | — | — | — |
