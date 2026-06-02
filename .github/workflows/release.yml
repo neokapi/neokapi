@@ -151,6 +151,9 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
+          # inherit so the Windows-native `go` (from setup-go) is on the msys2
+          # shell's PATH alongside the mingw gcc/pkg-config.
+          path-type: inherit
           install: >-
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-icu
@@ -170,10 +173,12 @@ jobs:
           set -euo pipefail
           # go from the Windows runner (setup-go) is on PATH; CC = mingw gcc.
           export CC=gcc
-          # MSYS2 mingw ICU lives under /mingw64; gen-icu-static-pc.sh forces
-          # static archives + -lstdc++ (non-Darwin default).
-          PCDIR=$(ICU_PREFIX=/mingw64 bash scripts/gen-icu-static-pc.sh)
-          export PKG_CONFIG_PATH="$PCDIR"
+          # mingw ICU lives under /mingw64, but the native gcc/ld can't open MSYS
+          # virtual paths (/mingw64/...). Feed gen-icu-static-pc.sh Windows-form
+          # paths (cygpath -m) so the .pc references archives ld can open, and
+          # convert the generated .pc dir for the (native) pkg-config too.
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash scripts/gen-icu-static-pc.sh)
+          export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           mkdir -p out
           ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi.exe ./cmd/kapi )
           ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
@@ -695,8 +700,11 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          PCDIR=$(ICU_PREFIX=/mingw64 bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
-          export PKG_CONFIG_PATH="$PCDIR"
+          # Native gcc/ld can't open MSYS virtual paths (/mingw64/...); feed
+          # Windows-form paths (cygpath -m) and convert the .pc dir for the
+          # native pkg-config too.
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 
@@ -1021,8 +1029,11 @@ jobs:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          PCDIR=$(ICU_PREFIX=/mingw64 bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
-          export PKG_CONFIG_PATH="$PCDIR"
+          # Native gcc/ld can't open MSYS virtual paths (/mingw64/...); feed
+          # Windows-form paths (cygpath -m) and convert the .pc dir for the
+          # native pkg-config too.
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
 

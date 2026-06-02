@@ -26,9 +26,11 @@ ICU_VERSION="${ICU_VERSION:-78.3}"
 prefix="${1:-/opt/icu-static}"
 jobs="${ICU_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 
-# ICU release tag/asset naming: v78.3 -> tag release-78-3, asset icu4c-78_3-src.
-tag="release-${ICU_VERSION//./-}"
-asset="icu4c-${ICU_VERSION//./_}-src.tgz"
+# ICU release tag/asset naming (78.x): tag "release-78.3", source tarball
+# "icu4c-78.3-sources.tgz" (unpacks to icu/source). Older lines (<=77) used
+# dashes + "-src.tgz"; this targets the current dotted/-sources scheme.
+tag="release-${ICU_VERSION}"
+asset="icu4c-${ICU_VERSION}-sources.tgz"
 url="https://github.com/unicode-org/icu/releases/download/${tag}/${asset}"
 
 workdir=$(mktemp -d)
