@@ -1163,9 +1163,15 @@ async function recordTheme(
   if (web) await context.addCookies([await bowrainAuthCookie()]);
   // Pin the palette deterministically: set `.dark` at document-start AND re-assert
   // it via a MutationObserver, so an app's own theme logic can't flip the
-  // recording mid-run (toggle is idempotent → no loop).
-  await context.addInitScript((isDark) => {
-    const pin = () => document.documentElement.classList.toggle("dark", isDark);
+  // recording mid-run (toggle is idempotent → no loop). For the bowrain WEB
+  // capture, also mark the root with `pw-recording-tl` so the shared sidebar
+  // reserves the macOS traffic-light safe area (the desktop app sets its own
+  // `bw-desktop-mac`); the framed DesktopScene paints the dots over that gutter.
+  await context.addInitScript(({ isDark, isWeb }) => {
+    const pin = () => {
+      document.documentElement.classList.toggle("dark", isDark);
+      if (isWeb) document.documentElement.classList.add("pw-recording-tl");
+    };
     pin();
     document.addEventListener("DOMContentLoaded", pin);
     try {
@@ -1173,7 +1179,7 @@ async function recordTheme(
     } catch {
       /* observer unavailable — initial pin still applied */
     }
-  }, theme === "dark");
+  }, { isDark: theme === "dark", isWeb: !!web });
   const t0 = Date.now();
   const page = await context.newPage();
   await page.emulateMedia({ colorScheme: theme });

@@ -23,6 +23,17 @@ type Stage = "capture" | "normalize" | "artifacts" | "narrate" | "render" | "pub
 // Publish (mp4 → docs webm) runs last and is a no-op for demos without publishAs.
 const ALL_STAGES: Stage[] = ["capture", "artifacts", "narrate", "render", "publish"];
 
+// Phased pipeline: each phase runs one stage-group across ALL demos, so the
+// bowrain stack is needed only during `record`, and `package` re-renders from
+// persisted captures + narration with no Docker/network. `--phase` is sugar
+// over `--only` (which stays the primitive); see harness/Makefile.
+type Phase = "record" | "narrate" | "package";
+const PHASE_STAGES: Record<Phase, Stage[]> = {
+  record: ["capture", "artifacts"],
+  narrate: ["narrate"],
+  package: ["render", "publish"],
+};
+
 function parseThemes(v: string): ThemeMode[] {
   if (v === "both" || v === "all") return ["dark", "light"];
   return v.split(",").map((s) => s.trim()).filter((s) => s === "light" || s === "dark") as ThemeMode[];
@@ -41,6 +52,14 @@ function parseArgs(argv: string[]) {
     if (a === "--list") list = true;
     else if (a === "--force") force = true;
     else if (a.startsWith("--only=")) only = a.slice(7).split(",").map((s) => s.trim()) as Stage[];
+    else if (a.startsWith("--phase=")) {
+      const p = a.slice(8) as Phase;
+      if (!(p in PHASE_STAGES)) {
+        console.error(`Unknown --phase: ${p} (use record|narrate|package)`);
+        process.exit(1);
+      }
+      only = PHASE_STAGES[p];
+    }
     else if (a.startsWith("--quality=")) quality = a.slice(10) as "draft" | "final";
     else if (a.startsWith("--theme=")) themes = parseThemes(a.slice(8));
     else if (a.startsWith("--docs-dir=")) docsDir = a.slice(11);
