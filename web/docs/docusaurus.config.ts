@@ -159,13 +159,16 @@ const config: Config = {
           label: "Reference",
           position: "left",
           items: [
-            // Generated, runnable references + interactive grids. R4 fills the
+            // Kept in sync with the /reference overview page and the
+            // referenceSidebar in sidebars.ts — all three list the same set.
+            // Generated, runnable references + interactive grids; R4 fills the
             // per-entry pages under /reference/{commands,formats,tools}/.
             { label: "Reference Overview", to: "/reference" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "Project file", to: "/reference/project-file" },
+            { label: "KLF format", to: "/reference/klf-format" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Format Maturity", to: "/format-maturity" },

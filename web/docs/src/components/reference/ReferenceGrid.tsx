@@ -77,8 +77,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
   // (a built-in and an Okapi tool can share an id). Formats have unique ids.
   const builtins = useMemo(() => builtinToolIds(entries), [entries]);
   const hrefFor = useCallback(
-    (entry: ReferenceEntry) =>
-      kind === "format" ? formatHref(entry) : toolHref(entry, builtins),
+    (entry: ReferenceEntry) => (kind === "format" ? formatHref(entry) : toolHref(entry, builtins)),
     [kind, builtins],
   );
 
@@ -91,18 +90,33 @@ export default function ReferenceGrid({ entries, kind }: Props) {
     });
   }, [entries, search, filter]);
 
-  // Tools group by category; formats stay in a flat (already-sorted) grid.
+  // Tools group by category. Formats split by source (native engine vs Okapi
+  // bridge) so the two surfaces read as distinct sections — but only while the
+  // "All" filter is active; once a single source is selected the split is moot,
+  // so the grid goes flat. Within each format section, the alphabetical sort
+  // from the caller is preserved.
   const grouped = useMemo(() => {
-    if (kind !== "tool") return null;
-    const map = new Map<string, ReferenceEntry[]>();
-    for (const e of filtered) {
-      const cat = e.category || "other";
-      const list = map.get(cat) ?? [];
-      list.push(e);
-      map.set(cat, list);
+    if (kind === "tool") {
+      const map = new Map<string, ReferenceEntry[]>();
+      for (const e of filtered) {
+        const cat = e.category || "other";
+        const list = map.get(cat) ?? [];
+        list.push(e);
+        map.set(cat, list);
+      }
+      return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [filtered, kind]);
+    // Formats, "All" filter: section by source, built-in first.
+    if (filter === "all") {
+      const builtin = filtered.filter((e) => e.source === "built-in");
+      const okapi = filtered.filter((e) => e.source === "okapi");
+      const sections: [string, ReferenceEntry[]][] = [];
+      if (builtin.length) sections.push(["Built-in", builtin]);
+      if (okapi.length) sections.push(["Okapi bridge", okapi]);
+      return sections;
+    }
+    return null;
+  }, [filtered, kind, filter]);
 
   const filterButton = (value: Filter, label: string) => (
     <button
@@ -144,7 +158,14 @@ export default function ReferenceGrid({ entries, kind }: Props) {
       {grouped ? (
         grouped.map(([cat, items]) => (
           <section key={cat} className={styles.categorySection}>
-            <h2 className={styles.categoryHeading}>{cat}</h2>
+            <h2
+              className={`${styles.categoryHeading} ${
+                kind === "format" ? styles.sourceHeading : ""
+              }`}
+            >
+              {cat}
+              <span className={styles.categoryCount}>{items.length}</span>
+            </h2>
             <div className={styles.grid}>
               {items.map((entry) => (
                 <ReferenceCard

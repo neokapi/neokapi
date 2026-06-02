@@ -34,7 +34,7 @@ flows:
       - tool: ai-translate
         config:
           provider: anthropic
-          model: claude-sonnet-4-20250514
+          model: <provider-model-id>
 
   translate-and-qa:
     steps:
@@ -58,6 +58,15 @@ defaults:
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
+  exclude:
+    - "**/*.generated.json"
+  merge:
+    conflict_policy: translator-wins
+  tm:
+    fuzzy_threshold: 75
+  segmentation:
+    source: true
+  termbase: glossary/terms.db
 ```
 
 ## Fields
@@ -71,13 +80,14 @@ defaults:
 
 ### Optional
 
-| Field              | Type           | Description                                          |
-| ------------------ | -------------- | ---------------------------------------------------- |
-| `content`          | ContentEntry[] | File patterns to process                             |
-| `preset`           | string         | Framework preset name (e.g., `nextjs`, `react-intl`) |
-| `plugins`          | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`) |
-| `flows`            | map            | Named flow definitions                               |
-| `defaults`         | Defaults       | Processing defaults (source/target languages live here) |
+| Field      | Type           | Description                                                                                                  |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `content`  | ContentEntry[] | File patterns to process (see [ContentEntry](#contententry))                                                |
+| `preset`   | string         | A framework [preset](/reference/commands/presets) name (e.g., `nextjs`, `react-intl`) applied to formats    |
+| `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`)                                                 |
+| `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
+| `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |
+| `defaults` | Defaults       | Processing defaults (see [Defaults](#defaults); source/target languages live here)                          |
 
 ### ContentEntry
 
@@ -89,13 +99,66 @@ defaults:
 
 ### Defaults
 
-| Field              | Type     | Description                            |
-| ------------------ | -------- | -------------------------------------- |
-| `source_language`  | string   | BCP-47 source locale (e.g., `en-US`)   |
-| `target_languages` | string[] | BCP-47 target locales                  |
-| `concurrency`      | int      | Number of files to process in parallel |
-| `parallel_blocks`  | int      | Number of blocks to process in parallel within a file |
-| `encoding`         | string   | Input file encoding (default: `utf-8`) |
+`defaults` holds project-wide processing settings that individual content items can override. Several of these are governed by [AD-017](/contribute/architecture/017-bilingual-format-interop).
+
+| Field              | Type                | Description                                                                                                              |
+| ------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `source_language`  | string              | BCP-47 source locale (e.g., `en-US`)                                                                                     |
+| `target_languages` | string[]            | BCP-47 target locales                                                                                                    |
+| `locale_format`    | string              | Locale style for the `{lang}` placeholder: `bcp-47` (default) or `posix`                                                 |
+| `concurrency`      | int                 | Number of files to process in parallel                                                                                   |
+| `parallel_blocks`  | int                 | Number of blocks to process in parallel within a file                                                                    |
+| `encoding`         | string              | Input file encoding (default: `utf-8`)                                                                                   |
+| `exclude`          | string[]            | Glob patterns skipped during content scanning (e.g. `**/*.generated.json`)                                               |
+| `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or TM entry (see [merge](#merge))             |
+| `tm`               | TMDefaults          | TM pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                             |
+| `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
+| `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
+| `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |
+| `termbase`         | string              | Path to a glossary/termbase, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
+
+Individual content items can override `redaction` per entry (`ContentItem.redaction`).
+
+#### merge
+
+| Field             | Type   | Description                                                                                              |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| `conflict_policy` | string | `translator-wins` (default), `existing-wins`, or `newest-wins`                                          |
+
+#### tm
+
+| Field             | Type     | Description                                                                                            |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `fuzzy_threshold` | int      | Minimum fuzzy match score (0–100) to pre-fill the target on extract (default: `75`)                   |
+| `read`            | string[] | Additional read-only TM files consulted during pre-fill; writes always go to the project TM           |
+
+#### segmentation
+
+| Field    | Type    | Description                                                                       |
+| -------- | ------- | --------------------------------------------------------------------------------- |
+| `source` | bool    | Toggle sentence-level segmentation of source text on extract                      |
+| `srx`    | string  | Optional SRX rules file; built-in default rules are used when empty               |
+
+#### redaction
+
+The sensitive term list lives in a separate rules file referenced by `rules` (so it can be gitignored); this spec points at it and selects detection backends.
+
+| Field         | Type     | Description                                                              |
+| ------------- | -------- | ------------------------------------------------------------------------ |
+| `enabled`     | bool     | Turn redaction on for extract/merge                                      |
+| `rules`       | string   | Path to a redaction rules YAML file                                      |
+| `detectors`   | string[] | Detection backends: `rules` and/or `entities`                            |
+| `placeholder` | string   | Override the visible stand-in template, e.g. `[REDACTED:{category}]`     |
+
+#### brand_voice
+
+Bind a brand voice profile under `defaults.brand_voice`. Exactly one source is expected.
+
+| Field          | Type   | Description                                                             |
+| -------------- | ------ | ----------------------------------------------------------------------- |
+| `profile_file` | string | Path to a standalone profile YAML, resolved relative to the project root |
+| `profile`      | string | Name of a profile in the local brand store                              |
+| `pack`         | string | Name of a built-in starter pack                                         |
 
 ### Flow Steps
 
@@ -149,3 +212,9 @@ kapi ai-translate -i file.json --target-lang fr
 - **File > Save / Save As** for standard document operations
 - Double-click a Kapi project to open it in Kapi Desktop (macOS)
 - Drag and drop Kapi projects onto the app window
+
+## See also
+
+- [AD-008: Project model](/contribute/architecture/008-project-model) — the architectural decision behind the `.kapi` recipe and its extension mechanism.
+- [.kapi Project File Format](/contribute/notes-internal/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, and `ContentCollection` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
+- [Flow Steps Format](/contribute/notes-internal/flow-steps-format) — the full step specification used by `flows`.

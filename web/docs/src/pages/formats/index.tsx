@@ -6,6 +6,7 @@ import { formats } from "@neokapi/reference-data";
 // Root.tsx) code-splits the heavy runtime in when first opened.
 import { openKapi } from "@neokapi/kapi-playground/store";
 import { firstLine } from "@site/src/components/reference/Markdown";
+import ReferenceCount from "@site/src/components/reference/ReferenceCount";
 import ReferenceGrid from "@site/src/components/reference/ReferenceGrid";
 
 export default function Formats() {
@@ -33,6 +34,26 @@ export default function Formats() {
           — the form mirrors the editor used in Kapi Desktop, and the YAML output is ready to drop
           into a project recipe. Each format has a shareable link.
         </p>
+        <div className="alert alert--secondary" role="note">
+          <p style={{ marginBottom: "0.5rem" }}>
+            <strong>Two sources, one grid.</strong> Each card is tagged by where the format comes
+            from, and the section split (and the filter) follows the same tag:
+          </p>
+          <ul style={{ marginBottom: 0 }}>
+            <li>
+              <strong>Built-in</strong> (<ReferenceCount kind="format" source="built-in" />) — the
+              native, format-aware engine. These are the faithful readers/writers maintained in
+              neokapi itself, with bare ids such as <code>json</code>, <code>html</code>, and{" "}
+              <code>xliff</code>.
+            </li>
+            <li>
+              <strong>Okapi bridge</strong> (<ReferenceCount kind="format" source="okapi" />) —
+              filters provided by the optional Okapi bridge plugin, for compatibility with the Java{" "}
+              <a href="https://okapiframework.org/">Okapi Framework</a>. Their ids carry the{" "}
+              <code>okf_</code> prefix (e.g. <code>okf_html5</code>, <code>okf_openxml</code>).
+            </li>
+          </ul>
+        </div>
         <p>
           <button
             type="button"

@@ -4,36 +4,50 @@ slug: /reference
 title: Reference
 sidebar_label: Overview
 sidebar_position: 0
-description: Generated, authoritative reference for the neokapi framework — commands, format readers and writers, processing tools, flows, parity results, and benchmarks derived directly from the live codebase.
-keywords: [neokapi reference, commands, formats, tools, flows, parity, benchmarks, generated reference]
+description: Generated, authoritative reference for the neokapi framework — commands, format readers and writers, processing tools, the project file, the exchange format, the MCP server, and the project-status dashboards, derived directly from the live codebase.
+keywords: [neokapi reference, commands, formats, tools, project file, KLF, MCP, parity, benchmarks, generated reference]
 ---
 
 # Reference
 
 Generated, authoritative documentation for everything the framework exposes —
-commands, formats, and tools — derived directly from the code and the format
-and tool schemas.
+commands, formats, tools, the project file, and the exchange format — derived
+directly from the code and the format and tool schemas. This page lists every
+reference and dashboard in one place; the same set is mirrored in the navbar's
+**Reference** menu.
 
 ## Interactive references
 
-These pages are generated from the live registries and schemas:
+Generated from the live registries and schemas:
 
-- [Kapi CLI Commands](/commands) — every `kapi` command, with runnable examples.
-- [Format Reference](/formats) — every format reader/writer and its configurable
-  parameters.
-- [Tool Reference](/tools) — every processing tool and its inputs and outputs.
+- [Kapi CLI commands](/commands) — every `kapi` command, with runnable examples.
+- [Format reference](/formats) — every format reader/writer and its configurable
+  parameters. Each card is tagged **built-in** (the native engine) or
+  **Okapi bridge** (a filter provided by the Okapi bridge plugin).
+- [Tool reference](/tools) — every processing tool and its inputs and outputs,
+  grouped by category and tagged by source the same way.
+
+Each entry also has its own static, indexable page (see the note below).
 
 ## Configuration & integration
 
 - [Project file](/reference/project-file) — the `.kapi` recipe format, its
   fields, and how kapi discovers a project.
-- [MCP Server](/reference/mcp) — the kapi MCP tools exposed to AI assistants.
+- [KLF format](/reference/klf-format) — the Kapi Localization Format, the JSON
+  exchange serialization of the content model.
+- [MCP server](/reference/mcp) — the kapi MCP tools exposed to AI assistants.
 
 ## Project status
 
+These dashboards are generated from the test and benchmark suites:
+
 - [Parity](/parity) — coverage against the Okapi Framework.
+- [Format maturity](/format-maturity) — each format's position on the L0–L4
+  maturity rubric.
 - [Benchmarks](/pseudobench) — performance measurements.
-- [Test Results](/test-comparison) — filter test comparison dashboard.
+- [ML benchmark](/ml-benchmark) — measurements for the in-process ML models.
+- [Check eval](/check-eval) — evaluation of the verification checks.
+- [Test results](/test-comparison) — the Okapi vs neokapi filter test comparison.
 
 :::note
 

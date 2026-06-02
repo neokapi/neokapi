@@ -99,14 +99,47 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  referenceSidebar: ["reference/index", "reference/project-file", "reference/klf-format", "reference/mcp"],
-
-  toolboxSidebar: [
-    "toolbox/overview",
-    "toolbox/kgrep",
-    "toolbox/ksed",
-    "toolbox/kcat",
+  // Kept in sync with the /reference overview page and the Reference navbar
+  // dropdown (docusaurus.config.ts) — all three list the same set. The grids
+  // (/commands, /formats, /tools) and status dashboards are React pages under
+  // src/pages, so they appear here as `link` entries rather than doc ids.
+  referenceSidebar: [
+    "reference/index",
+    {
+      type: "category",
+      label: "Interactive references",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        { type: "link", label: "Kapi CLI commands", href: "/commands" },
+        { type: "link", label: "Format reference", href: "/formats" },
+        { type: "link", label: "Tool reference", href: "/tools" },
+      ],
+    },
+    {
+      type: "category",
+      label: "Configuration & integration",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: ["reference/project-file", "reference/klf-format", "reference/mcp"],
+    },
+    {
+      type: "category",
+      label: "Project status",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        { type: "link", label: "Parity", href: "/parity" },
+        { type: "link", label: "Format maturity", href: "/format-maturity" },
+        { type: "link", label: "Benchmarks", href: "/pseudobench" },
+        { type: "link", label: "ML benchmark", href: "/ml-benchmark" },
+        { type: "link", label: "Check eval", href: "/check-eval" },
+        { type: "link", label: "Test results", href: "/test-comparison" },
+      ],
+    },
   ],
+
+  toolboxSidebar: ["toolbox/overview", "toolbox/kgrep", "toolbox/ksed", "toolbox/kcat"],
 
   reactSidebar: [
     "react/introduction",

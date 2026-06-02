@@ -86,6 +86,9 @@
 }
 
 .categoryHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.9rem;
   text-transform: capitalize;
   letter-spacing: 0.02em;
@@ -93,6 +96,21 @@
   border-bottom: 1px solid var(--ifm-color-emphasis-200);
   padding-bottom: 0.4rem;
   margin-bottom: 0.75rem;
+}
+
+/* Format source sections ("Built-in", "Okapi bridge") are exact labels, not
+ * machine category ids, so don't title-case them. */
+.sourceHeading {
+  text-transform: none;
+}
+
+.categoryCount {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
 }
 
 .empty {
