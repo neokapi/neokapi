@@ -149,7 +149,9 @@ jobs:
         run: |
           # Presence check in-step (not via hashFiles in `if:` — hashFiles returns
           # empty for download-artifact outputs, which silently skipped every slot).
-          [ -d artifacts/neokapi-web ] && [ -n "$(ls -A artifacts/neokapi-web 2>/dev/null)" ] || { echo "no neokapi-web artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/neokapi-web ] || [ -z "$(ls -A artifacts/neokapi-web 2>/dev/null)" ]; then
+            echo "no neokapi-web artifact — skipping"; exit 0
+          fi
           # Replace only the app's own files; preserve any docs/ subdir
           # already present from a previous Docs — kapi run.
           mkdir -p "pages/${DEST}"
@@ -161,7 +163,9 @@ jobs:
         env:
           DEST: ${{ steps.target.outputs.bowrain_app_dest }}
         run: |
-          [ -d artifacts/bowrain-web ] && [ -n "$(ls -A artifacts/bowrain-web 2>/dev/null)" ] || { echo "no bowrain-web artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/bowrain-web ] || [ -z "$(ls -A artifacts/bowrain-web 2>/dev/null)" ]; then
+            echo "no bowrain-web artifact — skipping"; exit 0
+          fi
           mkdir -p "pages/${DEST}"
           (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
           cp -r artifacts/bowrain-web/* "pages/${DEST}/"
@@ -171,7 +175,9 @@ jobs:
         env:
           DEST: ${{ steps.target.outputs.kapi_docs_dest }}
         run: |
-          [ -d artifacts/kapi-site ] && [ -n "$(ls -A artifacts/kapi-site 2>/dev/null)" ] || { echo "no kapi-site artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/kapi-site ] || [ -z "$(ls -A artifacts/kapi-site 2>/dev/null)" ]; then
+            echo "no kapi-site artifact — skipping"; exit 0
+          fi
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-site/* "pages/${DEST}/"
@@ -181,7 +187,9 @@ jobs:
         env:
           DEST: ${{ steps.target.outputs.bowrain_docs_dest }}
         run: |
-          [ -d artifacts/bowrain-site ] && [ -n "$(ls -A artifacts/bowrain-site 2>/dev/null)" ] || { echo "no bowrain-site artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/bowrain-site ] || [ -z "$(ls -A artifacts/bowrain-site 2>/dev/null)" ]; then
+            echo "no bowrain-site artifact — skipping"; exit 0
+          fi
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-site/* "pages/${DEST}/"
@@ -191,7 +199,9 @@ jobs:
         env:
           DEST: ${{ steps.target.outputs.kapi_storybook_dest }}
         run: |
-          [ -d artifacts/kapi-storybook ] && [ -n "$(ls -A artifacts/kapi-storybook 2>/dev/null)" ] || { echo "no kapi-storybook artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/kapi-storybook ] || [ -z "$(ls -A artifacts/kapi-storybook 2>/dev/null)" ]; then
+            echo "no kapi-storybook artifact — skipping"; exit 0
+          fi
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
@@ -201,7 +211,9 @@ jobs:
         env:
           DEST: ${{ steps.target.outputs.bowrain_storybook_dest }}
         run: |
-          [ -d artifacts/bowrain-storybook ] && [ -n "$(ls -A artifacts/bowrain-storybook 2>/dev/null)" ] || { echo "no bowrain-storybook artifact — skipping"; exit 0; }
+          if [ ! -d artifacts/bowrain-storybook ] || [ -z "$(ls -A artifacts/bowrain-storybook 2>/dev/null)" ]; then
+            echo "no bowrain-storybook artifact — skipping"; exit 0
+          fi
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-storybook/* "pages/${DEST}/"
