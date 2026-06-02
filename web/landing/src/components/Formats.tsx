@@ -1,20 +1,24 @@
+import { ChevronRight } from "lucide-react";
+
+const FORMATS_REFERENCE_URL = "https://neokapi.github.io/web/neokapi/docs/reference/formats";
+
 const FORMAT_GROUPS = [
   {
     category: "Data",
-    formats: ["JSON", "YAML", "CSV", "TSV", "XML"],
+    description: "Structured key–value and tabular files — the catalogs apps ship strings in.",
   },
   {
     category: "Content",
-    formats: ["HTML", "Markdown", "Plaintext", "SRT", "VTT", "DTD"],
+    description: "Authored prose and markup, plus subtitle and caption tracks.",
   },
   {
     category: "Office & publishing",
-    formats: ["DOCX", "XLSX", "PPTX", "ODF", "EPUB", "PDF", "IDML", "MIF"],
+    description: "Word-processing, spreadsheet, presentation, e-book, and layout documents.",
   },
   {
     // Bilingual interchange — the translator handoff, not the main surface.
     category: "Interchange",
-    formats: ["XLIFF 1.2", "XLIFF 2.0", "PO/POT", "TMX", "Qt TS", "Properties"],
+    description: "Bilingual handoff and translation-memory formats for the translator workflow.",
   },
 ];
 
@@ -23,16 +27,13 @@ export function Formats() {
     <section id="formats" className="relative px-6 py-24">
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-500/15 bg-brand-500/[0.06] px-3.5 py-1.5 text-xs font-medium text-brand-300">
-            Still a format-aware localization toolkit
-          </div>
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
             The formats your content lives in
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Native readers and writers for localization, data, content, and office formats, detected
-            by extension, MIME type, or content — with more available through the okapi-bridge.
-            Round-trip, in place, not string-and-key extraction.
+            Native readers and writers for localization, data, content, subtitle, and office
+            formats, detected by extension, MIME type, or content — with more available through the
+            okapi-bridge. A round-trip, in place, not string-and-key extraction.
           </p>
         </div>
 
@@ -45,18 +46,21 @@ export function Formats() {
               <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-brand-400">
                 {group.category}
               </h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {group.formats.map((fmt) => (
-                  <span
-                    key={fmt}
-                    className="rounded-lg border border-surface-700/50 bg-surface-800/60 px-2.5 py-1 font-mono text-xs text-neutral-300"
-                  >
-                    {fmt}
-                  </span>
-                ))}
-              </div>
+              <p className="mt-4 text-sm leading-relaxed text-neutral-400">{group.description}</p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-10 text-center">
+          <a
+            href={FORMATS_REFERENCE_URL}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-5 py-2.5 font-display text-sm font-semibold text-brand-300 transition hover:bg-brand-500/[0.12] hover:text-brand-200"
+          >
+            Browse the Format Reference
+            <ChevronRight className="h-4 w-4" />
+          </a>
         </div>
       </div>
     </section>

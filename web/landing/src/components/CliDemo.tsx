@@ -3,22 +3,22 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   {
-    label: "Brand Check",
-    cmd: "kapi brand check \\\n  --profile-file acme.yaml \\\n  --min-score 80 \\\n  release-notes.md",
+    label: "Extract",
+    cmd: "kapi extract quarterly-report.docx \\\n  -o strings.json",
     description:
-      "Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.",
+      "Read any file and pull its text into blocks — structure, styles, fields, and placeholders preserved for a faithful round-trip back.",
   },
   {
-    label: "Brand Rewrite",
-    cmd: 'kapi brand rewrite \\\n  --profile-file acme.yaml \\\n  --text "Leverage our solution"',
+    label: "Merge",
+    cmd: "kapi merge strings.de.json \\\n  --skeleton quarterly-report.docx \\\n  -o quarterly-report.de.docx",
     description:
-      "Rewrite content to remove forbidden and competitor terms and bring it back on-voice — keeping meaning intact.",
+      "Write the changed text back into the original file, with markup, inline tags, and placeholders intact.",
   },
   {
-    label: "AI Translate",
+    label: "Translate",
     cmd: "kapi run ai-translate-qa \\\n  -i src/en.json -o src/fr.json \\\n  --source-lang en --target-lang fr",
     description:
-      "Brand-voice-aware translation: a profile bound on the flow is injected into the prompt, so output is on-brand at generation, not just checked after.",
+      "Translate with an LLM or MT backend and run QA in one flow, placeholders and markup preserved throughout.",
   },
   {
     label: "Terminology",
@@ -27,16 +27,22 @@ const TABS = [
       "Import terminology from CSV, JSON, or TBX. Enforce preferred and forbidden terms across every translation with term-enforce.",
   },
   {
-    label: "MCP",
-    cmd: "kapi mcp\n\n# exposes to any MCP client:\n#   brand_guide   brand_check   brand_rewrite\n#   term_lookup   tm_search\n# Claude Code · Cursor · Windsurf · ...",
+    label: "Brand check",
+    cmd: "kapi brand check \\\n  --profile-file acme.yaml \\\n  --min-score 80 \\\n  release-notes.md",
     description:
-      "Serve brand and terminology tools to your AI assistant over MCP, so generation stays on-brand inside the editor.",
+      "Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.",
   },
   {
     label: "Formats",
-    cmd: "kapi formats\n\n# built-in readers and writers:\n# JSON, YAML, HTML, Markdown, XML,\n# CSV, Properties, SRT, VTT,\n# XLIFF 1.2, XLIFF 2.0, PO, TMX, Plaintext, ...\n# more via the Okapi bridge plugin",
+    cmd: "kapi formats\n\n# native readers and writers for localization,\n# data, content, subtitle, and office formats,\n# detected by extension, MIME type, or content\n# — more available through the okapi-bridge",
     description:
-      "Explore the supported file formats. Neokapi detects formats by extension, MIME type, or content sniffing.",
+      "List the supported file formats. neokapi detects formats by extension, MIME type, or content sniffing.",
+  },
+  {
+    label: "MCP",
+    cmd: "kapi mcp\n\n# exposes the engine to any MCP client:\n#   extract   translate   check\n#   term_lookup   tm_search\n# Claude Code · Cursor · Windsurf · ...",
+    description:
+      "Serve the engine — extract, translate, check, term and TM lookup — to your AI assistant over MCP.",
   },
 ];
 
@@ -55,8 +61,8 @@ export function CliDemo() {
             CLI
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Govern brand voice, enforce terminology, and localize files directly. No project setup,
-            no server, no configuration needed.
+            Extract, translate, check, and write files back in place — directly from the terminal.
+            No project setup, no server, no configuration needed.
           </p>
         </div>
 

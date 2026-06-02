@@ -18,23 +18,24 @@ const CLI_METHODS = [
   },
 ];
 
-const QUICK_START = `# Print a brand voice guide to inject into your AI assistant
-kapi brand guide --pack friendly-dtc
+const QUICK_START = `# Extract the text from any file into blocks
+kapi extract quarterly-report.docx -o strings.json
 
-# Score content against a profile; --min-score gates CI (exit 3)
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+# Write the changed text back into the original file, faithfully
+kapi merge strings.de.json --skeleton quarterly-report.docx \\
+  -o quarterly-report.de.docx
 
-# Rewrite off-voice content to fix forbidden/competitor terms
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
-
-# Translate — brand-voice-aware via a flow — into every language
+# Translate and run QA in one flow
 kapi run ai-translate-qa -i app.json -o app.de.json \\
   --source-lang en --target-lang de
 
-# Serve brand + terminology tools to your AI assistant over MCP
+# Score content against a brand profile; --min-score gates CI (exit 3)
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+
+# Serve the engine to your AI assistant over MCP
 kapi mcp`;
 
-const ACTIONS_YAML = `name: Brand Voice Gate
+const ACTIONS_YAML = `name: Localization checks
 
 on:
   pull_request:
@@ -43,15 +44,15 @@ on:
       - 'src/locales/**'
 
 jobs:
-  brand-check:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
       - uses: neokapi/kapi-action@v1
         with:
-          # Fails the PR when the file scores below 80
-          command: brand check --profile-file brand.yaml --min-score 80 content/release-notes.md`;
+          # Fails the PR on any placeholder, terminology, or brand finding
+          command: verify --target-lang de`;
 
 export function GetStarted() {
   const [tab, setTab] = useState<"cli" | "desktop" | "actions">("cli");

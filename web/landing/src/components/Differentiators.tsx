@@ -2,6 +2,24 @@ import { WifiOff, Layers, Boxes } from "lucide-react";
 
 const AXES = [
   {
+    icon: Boxes,
+    title: "Any asset format",
+    description:
+      "Native readers and writers for localization, document, data, subtitle, and office formats, with more through the okapi-bridge. A round-trip, not string-and-key extraction.",
+    contrast: "String-centric tools stop at JSON keys and PO files.",
+    accent: "text-forest-400",
+    glow: "from-forest-500/20",
+  },
+  {
+    icon: Layers,
+    title: "Translate, check, and transform, unified",
+    description:
+      "Translation, terminology, QA, and voice scoring share one content model and one enforcement path — so what you ship stays consistent through every language.",
+    contrast: "Prompt-only skills have no engine, scoring, or l10n.",
+    accent: "text-accent-cyan",
+    glow: "from-accent-cyan/20",
+  },
+  {
     icon: WifiOff,
     title: "Local-first",
     description:
@@ -9,24 +27,6 @@ const AXES = [
     contrast: "Cloud-locked MCPs require their backend for every check.",
     accent: "text-brand-400",
     glow: "from-brand-500/20",
-  },
-  {
-    icon: Layers,
-    title: "Brand + terminology + l10n, unified",
-    description:
-      "Voice scoring, term enforcement, and translation share one model and one enforcement path — so the words your AI writes stay on-brand through every language.",
-    contrast: "Prompt-only brand skills have no engine, scoring, or l10n.",
-    accent: "text-accent-cyan",
-    glow: "from-accent-cyan/20",
-  },
-  {
-    icon: Boxes,
-    title: "Any asset format",
-    description:
-      "Native readers and writers for localization, document, data, subtitle, and office formats — DOCX, XLSX, PPTX, HTML, Markdown, JSON, YAML, XML, PO, subtitles, InDesign — with more through the okapi-bridge. Round-trip, not string-and-key extraction.",
-    contrast: "String-centric tools stop at JSON keys and PO files.",
-    accent: "text-forest-400",
-    glow: "from-forest-500/20",
   },
 ];
 
@@ -36,14 +36,14 @@ export function Differentiators() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Three axes{" "}
+            Three axes,{" "}
             <span className="bg-gradient-to-r from-brand-400 to-forest-400 bg-clip-text text-transparent">
-              no one else spans
+              one engine
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Writing tools, brand-voice prompts, and localization MCPs each own one slice. neokapi is
-            built across all three.
+            Writing tools, brand-voice prompts, and localization services each tend to cover one
+            slice. neokapi works across all three from a single content model.
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export function Differentiators() {
                 <h3 className="mt-5 font-display text-xl font-semibold text-white">{a.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-neutral-400">{a.description}</p>
                 <p className="mt-5 border-t border-surface-700/50 pt-4 text-xs leading-relaxed text-neutral-600">
-                  <span className="font-semibold text-neutral-500">vs. the field: </span>
+                  <span className="font-semibold text-neutral-500">By contrast: </span>
                   {a.contrast}
                 </p>
               </div>

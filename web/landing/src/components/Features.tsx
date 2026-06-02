@@ -14,7 +14,7 @@ const FEATURES = [
     icon: FileText,
     title: "Every format, natively",
     description:
-      "Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more through the okapi-bridge.",
+      "Read and write localization, data, content, subtitle, and office formats in place — with more through the okapi-bridge. The full list lives in the Format Reference.",
     accent: "text-brand-400",
     bg: "bg-brand-500/8",
     border: "border-brand-500/15",

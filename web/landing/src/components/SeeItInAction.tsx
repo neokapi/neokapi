@@ -13,17 +13,18 @@ export function SeeItInAction() {
       <div className="mx-auto max-w-5xl text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-500/15 bg-brand-500/[0.06] px-3.5 py-1.5 text-xs font-medium text-brand-300">
           <PlayCircle className="h-3.5 w-3.5" />
-          See it in action
+          One check, in detail: brand voice
         </div>
         <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          With kapi vs.{" "}
+          A brand-voice check,{" "}
           <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-            without
+            scored
           </span>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-          A generic AI draft for a marketing blog drifts off-voice. kapi scores it against the brand
-          profile and rewrites the violations — the same deterministic scorer the product ships.
+          Checks are one part of the engine. Here is the brand-voice check up close: a generic AI
+          draft for a marketing blog drifts off-voice, and kapi scores it against the brand profile
+          and rewrites the violations — the same deterministic scorer the product ships.
         </p>
 
         <div className="mt-12 grid gap-5 text-left sm:grid-cols-2">
