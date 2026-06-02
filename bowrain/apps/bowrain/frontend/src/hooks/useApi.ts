@@ -32,6 +32,7 @@ import type {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { optionalBinding } from "../api/optionalBinding";
 
 export function useFormats() {
   const [formats, setFormats] = useState<FormatInfo[]>([]);
@@ -664,9 +665,12 @@ export function useToolSchema(toolName: string | null) {
     setError(null);
 
     // Try to call the backend method; gracefully handle if not available
-    const fn = (Backend as Record<string, unknown>).GetToolSchema;
-    if (typeof fn === "function") {
-      (fn as (name: string) => Promise<ToolSchema | null>)(toolName)
+    const fn = optionalBinding<(name: string) => Promise<ToolSchema | null>>(
+      Backend,
+      "GetToolSchema",
+    );
+    if (fn) {
+      fn(toolName)
         .then((s) => setSchema(s))
         .catch((e: Error) => setError(e.message))
         .finally(() => setLoading(false));

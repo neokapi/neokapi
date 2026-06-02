@@ -104,6 +104,7 @@ export interface CollabSessionInfo {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { optionalBinding } from "./optionalBinding";
 
 /**
  * ApiAdapter implementation for the Bowrain desktop app.
@@ -493,10 +494,17 @@ export class WailsApiAdapter implements ApiAdapter {
     projectId: string,
     stream?: string,
   ): Promise<TranslationDashboardStats> {
-    return Backend.GetTranslationDashboard(
-      projectId,
-      stream ?? "",
-    ) as Promise<TranslationDashboardStats>;
+    // The dashboard is a server-side capability (HandleGetTranslationDashboard);
+    // it is not bound into the desktop backend and the desktop UI does not call
+    // this method. Resolve it by name so the bundler doesn't reject the missing
+    // binding, and fail loudly if it is ever invoked without one.
+    const fn = optionalBinding<
+      (projectId: string, stream: string) => Promise<TranslationDashboardStats>
+    >(Backend, "GetTranslationDashboard");
+    if (!fn) {
+      throw new Error("GetTranslationDashboard is not available in the desktop backend");
+    }
+    return fn(projectId, stream ?? "");
   }
   async lookupTMForBlock(
     _ws: string,

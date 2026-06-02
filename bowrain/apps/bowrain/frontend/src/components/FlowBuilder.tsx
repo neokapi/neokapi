@@ -27,6 +27,7 @@ import type { FlowDefinitionInfo } from "../types/api";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { optionalBinding } from "../api/optionalBinding";
 
 // --- Flow List ---------------------------------------------------------------
 
@@ -141,13 +142,16 @@ export function FlowBuilder({ projectId }: { projectId?: string }) {
       return schemasRef.current[toolName] ?? null;
     }
     if (fetchingRef.current.has(toolName)) return null;
-    const fn = (Backend as Record<string, unknown>).GetToolSchema;
-    if (typeof fn !== "function") {
+    const fn = optionalBinding<(name: string) => Promise<ComponentSchema | null>>(
+      Backend,
+      "GetToolSchema",
+    );
+    if (!fn) {
       schemasRef.current[toolName] = null;
       return null;
     }
     fetchingRef.current.add(toolName);
-    void (fn as (name: string) => Promise<ComponentSchema | null>)(toolName)
+    void fn(toolName)
       .then((result) => {
         schemasRef.current[toolName] = result ?? null;
       })
