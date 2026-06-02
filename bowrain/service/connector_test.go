@@ -79,18 +79,18 @@ func TestConnectorServiceWorkspaceScoping(t *testing.T) {
 	assert.Empty(t, svc.ListActive("ws-b"))
 
 	_, err = svc.GetConnector("ws-b", "wp-shared-id")
-	assert.ErrorIs(t, err, ErrConnectorNotFound)
+	require.ErrorIs(t, err, ErrConnectorNotFound)
 
 	_, err = svc.Fetch(context.Background(), "ws-b", "wp-shared-id", "proj-1", connector.FetchOptions{})
-	assert.ErrorIs(t, err, ErrConnectorNotFound)
+	require.ErrorIs(t, err, ErrConnectorNotFound)
 
 	err = svc.Publish(context.Background(), "ws-b", "wp-shared-id", "proj-1", connector.PublishOptions{})
-	assert.ErrorIs(t, err, ErrConnectorNotFound)
+	require.ErrorIs(t, err, ErrConnectorNotFound)
 
 	_, err = svc.ConnectorStatus(context.Background(), "ws-b", "wp-shared-id")
-	assert.ErrorIs(t, err, ErrConnectorNotFound)
+	require.ErrorIs(t, err, ErrConnectorNotFound)
 
-	assert.ErrorIs(t, svc.RemoveConnector("ws-b", "wp-shared-id"), ErrConnectorNotFound)
+	require.ErrorIs(t, svc.RemoveConnector("ws-b", "wp-shared-id"), ErrConnectorNotFound)
 
 	// Workspace A still owns it.
 	assert.Len(t, svc.ListActive("ws-a"), 1)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,10 +29,10 @@ func TestAuthorizeWorkspaceForUser(t *testing.T) {
 	require.NoError(t, s.authorizeWorkspaceForUser(ctx, "ws-a", "user-a"))
 
 	// A spoofed workspace_id the caller does not belong to is rejected.
-	assert.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-b", "user-a"))
+	require.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-b", "user-a"))
 	// An unknown principal is rejected.
-	assert.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-a", "user-z"))
+	require.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-a", "user-z"))
 	// Missing identity or workspace fails closed.
-	assert.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-a", ""))
-	assert.Error(t, s.authorizeWorkspaceForUser(ctx, "", "user-a"))
+	require.Error(t, s.authorizeWorkspaceForUser(ctx, "ws-a", ""))
+	require.Error(t, s.authorizeWorkspaceForUser(ctx, "", "user-a"))
 }

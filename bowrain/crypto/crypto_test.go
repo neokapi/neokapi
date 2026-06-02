@@ -63,7 +63,7 @@ func TestOpenSealedWithoutKeyErrors(t *testing.T) {
 
 	var noKey *Cipher
 	_, err = noKey.Open(sealed)
-	assert.Error(t, err, "a sealed value must not silently pass through without a key")
+	require.Error(t, err, "a sealed value must not silently pass through without a key")
 }
 
 func TestTamperIsDetected(t *testing.T) {
@@ -74,7 +74,7 @@ func TestTamperIsDetected(t *testing.T) {
 
 	tampered := sealed[:len(sealed)-3] + "AAA"
 	_, err = c.Open(tampered)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestNewCipherKeyValidation(t *testing.T) {
@@ -85,9 +85,9 @@ func TestNewCipherKeyValidation(t *testing.T) {
 
 	// Not base64.
 	_, err = NewCipher("not base64 !!!")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Valid base64 but wrong length.
 	_, err = NewCipher(base64.StdEncoding.EncodeToString([]byte("too-short")))
-	assert.Error(t, err)
+	require.Error(t, err)
 }
