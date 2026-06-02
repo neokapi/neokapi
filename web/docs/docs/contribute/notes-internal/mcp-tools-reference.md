@@ -194,9 +194,9 @@ see the generated [Tool Reference](/reference/tools/word-count)):
 
 The shared CLI base (`cli/mcp_brand.go`) registers a further set of offline
 tools on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any
-binary built on the CLI base (including kapi) exposes them. They mirror the
-cloud bowrain MCP brand tools so non-Claude MCP clients get parity locally.
-All run offline against local files and SQLite stores.
+binary built on the CLI base (including kapi) exposes them, so non-Claude MCP
+clients get local parity with the brand tools. All run offline against local
+files and SQLite stores.
 
 ### `brand_guide`
 
