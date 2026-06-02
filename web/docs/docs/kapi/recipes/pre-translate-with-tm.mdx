@@ -12,6 +12,14 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Pre-translate with TM + termbase
 
+:::note Runs anywhere
+No project needed — this pipeline runs ad-hoc against a loose `./tm.db` or a
+named TM. Inside a `.kapi` project it instead resolves the project's
+`.kapi/tm.db` automatically. See
+[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for which store
+each command uses.
+:::
+
 **Goal:** do the cheap, deterministic work before any machine or human
 translator touches the content. You're about to translate a batch of UI strings;
 your team has a translation memory from previous releases and an approved
@@ -45,11 +53,10 @@ out.
 
 ## Step 1 — load your TM
 
-Import the translation memory so leverage can read it. Inside a `.kapi` project,
-`kapi tm` commands resolve the project's authoritative TM (`.kapi/tm.db`) — the
-same file `kapi extract` pre-fills from and `kapi merge` writes back to. Outside
-a project the default is `./tm.db`; pass `--name <tm>` to target a named TM in
-`KAPI_HOME` or `--file <path>` for an explicit file.
+Import the translation memory so leverage can read it. With no flag the import
+lands in `./tm.db` (or the project's `.kapi/tm.db` when run inside a project);
+[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) covers selecting
+a named TM with `--name` or an explicit file with `--file`.
 
 ```bash
 kapi tm import project.tmx -s en -t fr
@@ -63,12 +70,11 @@ kapi tm stats
 
 ## Step 2 — leverage the TM
 
-Fill segments that have an exact or fuzzy match in the TM. With no flag inside a
-project, `tm-leverage` reads the same project TM you just imported into; pass
-`--tm <name>` (a `KAPI_HOME` TM) or `--tm <path>` to leverage a different one.
-Exact matches are applied automatically; fuzzy matches (70% similarity by
-default) are filled too, with the score recorded so reviewers know which to
-double-check:
+Fill segments that have an exact or fuzzy match in the TM. With no flag,
+`tm-leverage` reads the same TM you just imported into; pass `--tm <name|path>`
+to leverage a different one. Exact matches are applied automatically; fuzzy
+matches (70% similarity by default) are filled too, with the score recorded so
+reviewers know which to double-check:
 
 ```bash
 kapi tm-leverage messages_en.json \
@@ -137,6 +143,8 @@ and credentials), then keep the `term-check` step as your guardrail. See
 
 - [`kapi tm`](/reference/commands/tm) and
   [`kapi tm-leverage`](/reference/commands/tm-leverage) — command references.
+- [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) — loose file,
+  named store, or project store, and the flags that select each.
 - [Translation Memory](/framework/translation-memory) — how TM matching works.
 - [Enforce terminology](/kapi/recipes/terminology-qa) — the validation side of the
   same termbase.

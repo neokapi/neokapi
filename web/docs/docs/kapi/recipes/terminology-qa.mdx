@@ -11,6 +11,13 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # Enforce terminology
 
+:::note Runs anywhere
+No project needed — this recipe uses a **named** termbase under your config
+home (`--name product-terms`). See
+[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for the other
+storage models.
+:::
+
 **Goal:** verify that translated files use your approved terms — and catch the
 ones that don't, before they ship. A vendor's translations may read well and
 still use "code secret" where your glossary says "mot de passe", or a deprecated
@@ -48,9 +55,10 @@ kapi termbase import glossary.csv \
   -s en -t fr
 ```
 
-This stores the glossary under `~/.config/kapi/termbases/product-terms.db`. You
-only do this once — the termbase persists between sessions. Use `--header` when
-the CSV's first row is column names rather than data.
+This stores the glossary under `~/.config/kapi/termbases/product-terms.db` — the
+[named-store model](/kapi/recipes/tm-termbase-storage#2-a-named-store-under-your-config-home),
+reusable across directories. You only do this once; the termbase persists between
+sessions. Use `--header` when the CSV's first row is column names rather than data.
 
 Verify the import:
 
@@ -161,6 +169,8 @@ A few habits make this pay off:
 
 - [`kapi termbase`](/reference/commands/termbase) and
   [`kapi term-check`](/reference/commands/term-check) — command references.
+- [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) — the three
+  places a termbase can live and the flags that select each.
 - [Terminology Management](/framework/terminology) — how the terminology system
   works.
 - [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) — use your

@@ -10,6 +10,15 @@ import { RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Bilingual Workflow: Extract → Translate → Merge
 
+:::info Needs a .kapi project
+Unlike the ad-hoc recipes, this round-trip is project-based. `kapi extract` and
+`kapi merge` read the recipe's content globs and target locales and use the
+project's `.kapi/tm.db`, so start with `kapi init` (see
+[Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands from inside the
+project directory. See [Project file](/reference/project-file) for the recipe and
+its git-style discovery.
+:::
+
 Most serious localization projects run on bilingual exchange formats
 like **XLIFF 2.x** and **PO (gettext)**. Translators open them in a CAT
 tool (Trados, memoQ, OmegaT, Phrase, Lokalise, Crowdin, Poedit, …),

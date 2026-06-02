@@ -1,0 +1,130 @@
+---
+id: tm-termbase-storage
+title: "Where TM and termbases live"
+sidebar_label: "TM & termbase storage"
+sidebar_position: 4
+description: "The three places a kapi translation memory or termbase can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/tm.db — and the flags that select each."
+keywords: [kapi, translation memory, termbase, storage, named resource, project, tm.db, termbase.db]
+hide_table_of_contents: true
+---
+
+# Where TM and termbases live
+
+`kapi tm` and `kapi termbase` operate on a SQLite database. That database can
+live in one of three places. Which one a command uses is decided by a flag (or,
+when no flag is given, by whether a `.kapi` project is in scope). The same three
+models apply to both stores; only the default filename differs (`tm.db` vs
+`termbase.db`) and the named-store subdirectory (`tm/` vs `termbases/`).
+
+## The three storage models
+
+### 1. A loose file in the current directory
+
+The default with no flag and no project. A `kapi tm` command reads and writes
+`./tm.db`; a `kapi termbase` command reads and writes `./termbase.db`. This is
+the ad-hoc model — useful for a quick, throwaway store you don't intend to
+reuse.
+
+```bash
+kapi tm import corpus.tmx -s en -t fr         # → ./tm.db
+kapi termbase import glossary.csv -s en -t fr # → ./termbase.db
+```
+
+Point at an explicit path with `--file`, or write `--local` to be explicit about
+the current-directory default:
+
+```bash
+kapi tm stats --file ./build/scratch-tm.db
+kapi termbase stats --local
+```
+
+### 2. A named store under your config home
+
+Pass `--name <n>` to use a database under `~/.config/kapi/` that persists between
+sessions and is reusable across directories — a TM at
+`~/.config/kapi/tm/<n>.db` and a termbase at `~/.config/kapi/termbases/<n>.db`.
+This is the model to reach for when a glossary or memory outlives any single
+working directory.
+
+```bash
+kapi termbase import glossary.csv --name product-terms -s en -t fr
+kapi termbase stats --name product-terms
+kapi tm import corpus.tmx --name corporate-en-fr -s en -t fr
+```
+
+List what you have:
+
+```bash
+kapi tm list
+kapi termbase list
+```
+
+> The config home follows `KAPI_CONFIG_DIR` when set, otherwise the OS user
+> config directory (`~/.config/kapi` on Linux and macOS). A name may not contain
+> a path separator.
+
+### 3. A project's authoritative store
+
+When a command runs inside a [`.kapi` project](/reference/project-file) — and no
+`--name`, `--local`, or `--file` flag is given — `kapi tm` resolves the project's
+authoritative `<project-root>/.kapi/tm.db`, and `kapi termbase` resolves the
+project termbase (the recipe's `defaults.termbase`, else
+`<project-root>/.kapi/termbase.db`). The project is found by walking up the
+directory tree from the current directory, git-style.
+
+This is the same `tm.db` that [`kapi extract`](/reference/commands/extract)
+pre-fills from and [`kapi merge`](/reference/commands/merge) writes back to, and
+the same termbase that [`kapi term-check`](/reference/commands/term-check)
+enforces — so a project-mode `kapi tm lookup` or `kapi termbase lookup` sees
+exactly the store the round-trip uses, with no flag needed.
+
+```bash
+# Inside a project directory:
+kapi tm import ./corporate-en-fr.tmx          # → <project-root>/.kapi/tm.db
+kapi tm stats                                 # reads the project TM
+kapi termbase lookup "dashboard" -s en -t fr  # reads the project termbase
+```
+
+An explicit `--name`, `--local`, or `--file` always wins, so you can target a
+different store even from inside a project.
+
+## How tools select a store
+
+The tool commands that consume a store —
+[`kapi tm-leverage`](/reference/commands/tm-leverage) and
+[`kapi term-check`](/reference/commands/term-check) — follow the same precedence
+through their own `--tm` and `--termbase` flags:
+
+- `--tm <name|path>` / `--termbase <name|path>` — a bare name (no separators)
+  resolves under the config home; a value with a path separator is read as a
+  file path.
+- no flag, inside a project — the project's `.kapi/tm.db` / project termbase.
+
+```bash
+kapi tm-leverage messages.json --target-lang fr --tm corporate-en-fr
+kapi term-check messages_fr.json --source-lang en --target-lang fr \
+  --termbase product-terms
+```
+
+## Choosing a model
+
+| Model | Selected by | Lives at | Use when |
+| --- | --- | --- | --- |
+| Loose file | default, `--local`, `--file <path>` | `./tm.db` / `./termbase.db`, or the path you give | a one-off or throwaway store |
+| Named store | `--name <n>` | `~/.config/kapi/tm/<n>.db` / `~/.config/kapi/termbases/<n>.db` | a glossary or memory reused across directories |
+| Project store | no flag, inside a `.kapi` project | `<root>/.kapi/tm.db` / project termbase | a repository you localize repeatedly |
+
+## Note on locale flags
+
+`kapi tm` and `kapi termbase` take the locale with `-s`/`--source-locale` and
+`-t`/`--target-locale`. The tool commands that read these stores
+(`kapi tm-leverage`, `kapi term-check`) instead use the processing flags
+`--source-lang` and `--target-lang`, consistent with the other tools.
+
+## Next
+
+- [`kapi tm`](/reference/commands/tm) and
+  [`kapi termbase`](/reference/commands/termbase) — command references.
+- [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) — a
+  pipeline that uses these stores.
+- [Project file](/reference/project-file) — the `.kapi` recipe and discovery.
