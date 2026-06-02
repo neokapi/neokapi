@@ -302,4 +302,3 @@ gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC 
 - `--json` flag for machine-readable output
 - Exit codes: 0 (success), 1 (error), 2 (conflict)
 - `BOWRAIN_AUTH_TOKEN` environment variable (bypasses device flow login)
-- `--no-hooks` flag to skip interactive hooks

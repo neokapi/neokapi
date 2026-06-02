@@ -249,7 +249,7 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 2. Compute block hashes (BlockIdentity SHA-256)
 3. Compare with .kapi/cache/sync-cache.json -> identify changed blocks
 4. Resolve collections per content entry
-5. Run pre-push hooks (if configured)
+5. Run pre-push automations (if configured; recipe `hooks:` are validated but not yet executed — see /cli/flows/hooks)
 6. POST /api/v1/projects/:id/sync/push
    -> Request body: { blocks: [{id, text, name, type, item_name, collection}] }
    -> Response: { stored: N, new_cursor: X, push_id: "..." }

@@ -5,8 +5,14 @@ sidebar_position: 3
 
 # kapi diff
 
-Show detailed differences between local files and Bowrain Server content. Displays
-block-level changes with source and target text diffs.
+Show the translation blocks that changed locally relative to the last sync —
+like `git diff --stat`, but for content. For each file it reports how many
+blocks were added, changed, or removed locally versus the last-synced server
+state, and (when a server is configured) the number of remote changes available
+to pull.
+
+Without a server, `kapi diff` still works: it compares against the local sync
+cache, so it stays useful offline.
 
 ## Usage
 
@@ -17,159 +23,66 @@ kapi diff [paths...] [flags]
 ## Examples
 
 ```bash
-# Show all differences in the project
+# Summarize all local changes since the last sync
 kapi diff
 
-# Show differences for specific files
-kapi diff src/locales/en/messages.json
-
-# Show differences for a directory
+# Limit to a directory
 kapi diff src/locales/
 
-# Show only added/removed blocks (no modified)
-kapi diff --status added,removed
-
-# Use unified diff format (like git diff)
-kapi diff --format unified
-
-# Example output:
-# diff --bowrain a/ui/strings/messages b/ui/strings/messages
-# --- a/src/locales/en/messages.json (remote)
-# +++ b/src/locales/en/messages.json (local)
-#
-# Block: welcome_message
-# - Welcome to our app
-# + Welcome to our application
-#
-# Block: logout_button (added)
-# + Log Out
+# List the changed block ids/keys with a source preview
+kapi diff --verbose
 ```
+
+Example output:
+
+```text
+  src/locales/fr/messages.json   +1 ~2 -1
+
+1 file(s) changed: +1 ~2 -1
+Remote: 3 change(s) available to pull
+
+Use --verbose to see changed block ids/keys.
+```
+
+With `--verbose`, each changed block is listed under its file with a change
+sigil (`+` added, `~` changed, `-` removed) and a source preview.
 
 ## Options
 
-| Flag         | Description                                             | Default   |
-| ------------ | ------------------------------------------------------- | --------- |
-| `--format`   | Output format: `unified`, `json`, `table`               | `unified` |
-| `--status`   | Filter by change status: `added`, `removed`, `modified` | (all)     |
-| `--context`  | Lines of context in unified diff                        | `3`       |
-| `--no-color` | Disable colored output                                  | `false`   |
+| Flag        | Description                                       |
+| ----------- | ------------------------------------------------- |
+| `--verbose` | List changed block ids/keys with a source preview |
 
-## Diff Formats
+Output format and color come from the shared global flags:
 
-### Unified Format
+| Flag                            | Description                                |
+| ------------------------------- | ------------------------------------------ |
+| `--json`                        | Emit machine-readable JSON instead of text |
+| `--output-format <json\|text>`  | Select the output format                   |
+| `--jq <expr>`                   | Filter JSON output through a jq expression |
+| `--color <auto\|always\|never>` | Colorize JSON output                       |
 
-```diff
-diff --bowrain a/ui/strings/buttons b/ui/strings/buttons
---- a/src/locales/en/buttons.json (remote: sha256:abc123)
-+++ b/src/locales/en/buttons.json (local: sha256:def456)
+## How it works
 
-Block: save_button
-- Save
-+ Save Changes
+1. Resolve the project by walking up from the current directory to the `.kapi`
+   recipe (run `kapi init` first if none is found).
+2. Read local files via the format registry, respecting the recipe's `content:`
+   collections.
+3. Compare block-level content against the local sync cache to compute added,
+   changed, and removed blocks.
+4. When a server is configured, query it for the count of pending remote
+   changes.
 
-Block: cancel_button (removed)
-- Cancel
+Block identity is derived from the block's id/key and source content, so only
+genuinely changed blocks are reported.
 
-Block: close_button (added)
-+ Close
-```
+## Exit codes
 
-### JSON Format
+- `0` — the diff was produced (whether or not changes were found).
+- `1` — an error occurred (no project, server unavailable, etc.).
 
-```json
-{
-  "files": [
-    {
-      "local": "src/locales/en/buttons.json",
-      "remote": "ui/strings/buttons",
-      "blocks": [
-        {
-          "id": "save_button",
-          "status": "modified",
-          "remote_source": "Save",
-          "local_source": "Save Changes"
-        },
-        {
-          "id": "cancel_button",
-          "status": "removed",
-          "remote_source": "Cancel"
-        },
-        {
-          "id": "close_button",
-          "status": "added",
-          "local_source": "Close"
-        }
-      ]
-    }
-  ]
-}
-```
+## Related commands
 
-### Table Format
-
-```
-FILE: src/locales/en/buttons.json <-> ui/strings/buttons
-+----------------+----------+-----------------+-----------------+
-| Block ID       | Status   | Remote Source   | Local Source    |
-+----------------+----------+-----------------+-----------------+
-| save_button    | modified | Save            | Save Changes    |
-| cancel_button  | removed  | Cancel          |                 |
-| close_button   | added    |                 | Close           |
-+----------------+----------+-----------------+-----------------+
-```
-
-## How It Works
-
-`kapi diff` compares block-level content between local files and server state:
-
-1. **Read local files** via FormatRegistry (respecting the recipe's `content:` collections)
-2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
-3. **Compute block hashes** using `BlockIdentity` (source text + metadata)
-4. **Match blocks** by ID and hash across local/remote
-5. **Display differences** in the requested format
-
-## Content Hashing
-
-Block identity is computed as:
-
-```
-hash = sha256(block_id + source_text + context_metadata)
-```
-
-This enables efficient incremental sync — only changed blocks transfer over the network.
-
-## Exit Codes
-
-- `0` — No differences found
-- `1` — Differences exist (exit code mimics `diff` command)
-- `2` — Error (project not found, server unavailable, etc.)
-
-## Implementation Status
-
-:::warning Work in Progress
-
-`kapi diff` is currently a **placeholder**. Full implementation requires:
-
-- Server API endpoint: `POST /api/v1/workspaces/:ws/projects/:id/diff`
-- Block-level content comparison
-- FormatRegistry integration for reading local files
-- Diff formatting and colorization
-
-Current behavior: prints a message indicating the feature is not yet implemented.
-
-:::
-
-## Related Commands
-
-- [`kapi status`](/cli/commands/status) — Show which files changed (summary)
-- [`kapi pull`](/cli/commands/pull) — Fetch remote changes
-- [`kapi push`](/cli/commands/push) — Send local changes
-
-## When to Use
-
-Use `kapi diff` to:
-
-- **Review changes** before pushing to the server
-- **Understand conflicts** when both local and remote changed
-- **Generate reports** for translation review (JSON output)
-- **Debug sync issues** when `kapi status` shows unexpected state
+- [`kapi status`](/cli/commands/status) — higher-level sync summary.
+- [`kapi pull`](/cli/commands/pull) — fetch remote changes.
+- [`kapi push`](/cli/commands/push) — send local changes.

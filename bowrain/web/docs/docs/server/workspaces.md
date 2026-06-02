@@ -29,11 +29,13 @@ Each workspace member has a role that determines their permissions:
 | **Member** | Regular team member     | Create and edit projects, push and pull content |
 | **Viewer** | Read-only access        | View projects and translations                 |
 
-### Personal workspace
+### Before you connect
 
-In the Bowrain desktop app, a "Personal" workspace is created automatically for local, single-user work. No server connection is needed for the personal workspace.
-
-When you connect to a Bowrain server, the workspaces you have been invited to appear alongside your personal workspace in the workspace rail.
+Until the desktop app is connected to a Bowrain server, its workspace rail shows
+a single placeholder "Personal" workspace. It is not a place to author
+local-file projects — that is [kapi's job](/getting-started/kapi-vs-bowrain).
+Once you connect, the workspaces you have been invited to appear in the rail and
+the desktop opens their server-hosted projects.
 
 ## Managing workspaces
 

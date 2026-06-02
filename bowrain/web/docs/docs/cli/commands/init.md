@@ -123,7 +123,7 @@ server:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto
 
-# Hooks: flows to run at lifecycle points
+# Hooks: flows to run at lifecycle points (schema only — not yet executed; see /cli/flows/hooks)
 hooks:
   pre-push: [qa-check, term-enforce]
   post-pull: [segmentation]

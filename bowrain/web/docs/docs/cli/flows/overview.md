@@ -3,61 +3,65 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Translation Flows
+# Flows
 
-Flows are composable pipelines that process localization files through a sequence of tools. With 41+ format readers and 46+ processing tools, flows can handle everything from AI translation to source QA to terminology enforcement.
+A flow is a composable pipeline that processes localization files through a
+sequence of tools — AI translation, source QA, terminology enforcement, and
+more. Flows are a [neokapi engine](https://neokapi.github.io/web/neokapi/)
+feature; this page covers how they behave inside a Bowrain project. For the
+mechanics of the streaming pipeline, the full tool catalog, and the supported
+formats, see the neokapi reference:
 
-## What Are Flows?
+- [Tool reference](https://neokapi.github.io/web/neokapi/tools) — every
+  processing tool and its inputs and outputs.
+- [Format reference](https://neokapi.github.io/web/neokapi/formats) — every
+  format reader/writer and its configurable parameters.
+- [Flows](https://neokapi.github.io/web/neokapi/docs/framework/flows) — the
+  streaming-pipeline model.
 
-A flow is a multi-step processing pipeline where each step transforms the content:
+## Flows in a synced project
 
-```
-Input Files -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Output Files
-              |          |          |
-          Translate    QA Check   Enforce Terms
-```
+In a Bowrain project, a flow reads the files matching the recipe's `content:`
+collections, streams their blocks through the tools in order, and writes the
+results back to your local files. You then [`kapi push`](/cli/commands/push)
+those changes to the server like any other edit. The flow itself runs locally —
+it does not touch the server until you push.
 
-Flows automatically:
+## Built-in flows
 
-- Read files matching the recipe's `content:` collections
-- Process through each tool in sequence
-- Write results back to local files
-
-## Built-In Flows
-
-kapi includes several built-in flows:
+kapi ships a small set of composed flows you can run by name:
 
 | Flow               | Description                                                       |
 | ------------------ | ----------------------------------------------------------------- |
-| `ai-translate`     | Translate with AI/LLM (Anthropic, OpenAI, Ollama)                 |
-| `ai-translate-qa`  | AI translation + quality checks                                   |
+| `ai-translate`     | Translate with an AI/LLM provider                                 |
+| `ai-translate-qa`  | AI translation followed by quality checks                         |
 | `pseudo-translate` | Generate pseudo-translations for UI testing                       |
 | `qa-check`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
 | `tm-leverage`      | Pre-fill translations from translation memory                     |
 | `segmentation`     | Split source text into sentence segments                          |
 
-### Running Built-In Tools and Flows
+List what is available in your installation — including any tools and formats
+added by plugins — rather than relying on a fixed list:
 
 ```bash
-# List available tools and flows
-kapi tools
-kapi flows
-
-# Run a tool directly (top-level command)
-kapi ai-translate
-
-# Standalone mode (without a .kapi project)
-kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
-
-# Run a composed flow
-kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi flows     # composed flows
+kapi tools     # individual tools (flow steps)
+kapi formats   # supported formats
 ```
 
-## Custom Flows
+Run a flow:
 
-Create custom flows in `.kapi/flows/` as YAML files.
+```bash
+# Standalone (no project)
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
-### Example: Translation with QA
+# In a project, against the recipe's content collections
+kapi run ai-translate-qa
+```
+
+## Custom flows
+
+Define a flow as a YAML file under `.kapi/flows/`, composing the tools you need:
 
 `.kapi/flows/translate-with-qa.yaml`:
 
@@ -90,148 +94,13 @@ steps:
         - terminology
 ```
 
-Run with:
+Run it with `kapi run translate-with-qa`. See [Custom flows](/cli/flows/custom-flows)
+for the full recipe, and the [tool reference](https://neokapi.github.io/web/neokapi/tools)
+for each step's configurable parameters.
 
-```bash
-kapi run translate-with-qa
-```
+## Next steps
 
-## Tool Catalog (46+ Tools)
-
-All tools can be used as flow steps. They are organized into the following categories.
-
-### Content Analysis
-
-| Tool                     | Description                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| `word-count`             | Count words in source and target content                                      |
-| `char-count`             | Count characters in source and target content                                 |
-| `segment-count`          | Count translatable segments                                                   |
-| `scoping-report`         | Generate a detailed scoping report (word counts, repetitions, file breakdown) |
-| `repetition-analysis`    | Identify repeated segments across files for TM leverage                       |
-| `chars-listing`          | List all distinct characters used in source and/or target                     |
-| `translation-comparison` | Compare translations across locales or versions                               |
-
-### Translation
-
-| Tool               | Description                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `ai-translate`     | LLM-based translation (Anthropic, OpenAI, Ollama)                               |
-| `mt-translate`     | Machine translation (DeepL, Google, Microsoft, ModernMT, MyMemory)              |
-| `tm-leverage`      | Pre-fill from translation memory with fuzzy matching                            |
-| `diff-leverage`    | Leverage translations from a previous version using diff analysis               |
-| `pseudo-translate` | Generate pseudo-translations for UI testing and internationalization validation |
-| `create-target`    | Create target segments from source (copy source to target)                      |
-| `remove-target`    | Remove target segments                                                          |
-
-### Terminology
-
-| Tool             | Description                                                |
-| ---------------- | ---------------------------------------------------------- |
-| `term-lookup`    | Find terms in source text and annotate blocks              |
-| `term-enforce`   | Validate that required terminology is used in translations |
-| `term-check`     | Check terminology consistency across content               |
-| `ai-terminology` | Extract terminology using AI/LLM                           |
-
-### Quality Assurance
-
-| Tool                  | Description                                                               |
-| --------------------- | ------------------------------------------------------------------------- |
-| `qa-check`            | Rule-based quality checks (whitespace, punctuation, placeholders, length) |
-| `ai-qa`               | LLM-based quality review and error detection                              |
-| `ai-review`           | LLM-based translation review with scoring                                 |
-| `xml-validation`      | Validate XML/HTML structure in source and target                          |
-| `inconsistency-check` | Detect inconsistent translations of identical source strings              |
-| `length-check`        | Validate string length against configured limits                          |
-| `chars-check`         | Check for invalid or unexpected Unicode characters                        |
-| `pattern-check`       | Validate content against custom regex patterns                            |
-
-### Text Processing
-
-| Tool                 | Description                                                             |
-| -------------------- | ----------------------------------------------------------------------- |
-| `search-replace`     | Find and replace patterns (literal or regex)                            |
-| `case-transform`     | Transform text case (upper, lower, title)                               |
-| `linebreak-convert`  | Normalize line endings (LF, CRLF, CR)                                   |
-| `whitespace-correct` | Normalize spaces, match source whitespace, remove zero-width characters |
-| `fullwidth-convert`  | Convert between fullwidth and halfwidth characters (CJK)                |
-| `uri-convert`        | Encode or decode URI components                                         |
-| `bom-convert`        | Add or remove byte order marks                                          |
-| `segmentation`       | Split text into sentence-level segments                                 |
-
-### Inline Formatting
-
-| Tool                  | Description                                              |
-| --------------------- | -------------------------------------------------------- |
-| `span-classify`       | Classify inline spans by type (bold, italic, link, etc.) |
-| `tag-protect`         | Protect inline tags from modification during translation |
-| `inline-codes-remove` | Remove inline formatting codes from content              |
-| `layer-processor`     | Process embedded content layers (e.g., HTML inside JSON) |
-
-### Encoding and Format
-
-| Tool               | Description                               |
-| ------------------ | ----------------------------------------- |
-| `encoding-detect`  | Detect character encoding of source files |
-| `encoding-convert` | Convert between character encodings       |
-| `xslt-transform`   | Apply XSLT transformations to XML content |
-
-### Metadata and Properties
-
-| Tool             | Description                                             |
-| ---------------- | ------------------------------------------------------- |
-| `properties-set` | Set or update block properties (state, notes, metadata) |
-
-### External Integration
-
-| Tool               | Description                                             |
-| ------------------ | ------------------------------------------------------- |
-| `external-command` | Run an external command on block content (stdin/stdout) |
-
-## Supported Formats (41+)
-
-Flows can process files in any of the 41+ supported formats:
-
-| Category               | Formats                                                                                                               |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Localization**       | XLIFF 1.2, XLIFF 2.0, PO (GNU gettext), Qt TS, Java Properties, TMX                                                   |
-| **Structured Data**    | JSON, YAML, CSV, TSV, XML, DTD, ICU MessageFormat                                                                     |
-| **Documents**          | HTML, Markdown, OpenXML (DOCX/PPTX/XLSX), ODF, RTF, PDF, TeX/LaTeX, EPUB                                              |
-| **Desktop Publishing** | InDesign IDML, InCopy ICML, FrameMaker MIF                                                                            |
-| **Subtitles**          | SRT, TTML, WebVTT                                                                                                     |
-| **Wiki**               | MediaWiki/DokuWiki                                                                                                    |
-| **CAT Tools**          | Trados TTX, Trados TXML, Translation Table                                                                            |
-| **Specialized**        | Regex, Doxygen, PHP Content, Moses Text, Fixed-Width, Paragraph Plain Text, Spliced Lines, Versified Text, R Vignette |
-| **Archives**           | ZIP Archive                                                                                                           |
-| **Plain Text**         | Plain Text                                                                                                            |
-
-## How Flows Work
-
-1. **File Discovery**: kapi reads files matching the recipe's `content:` collections
-2. **Parsing**: Each file is parsed into blocks (translatable units)
-3. **Processing**: Blocks stream through tools in sequence
-4. **Writing**: Results are written back to local files
-
-### Streaming Pipeline
-
-Flows use a streaming architecture for efficiency:
-
-```
-Read File -> Parse -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Write
-            |         |          |          |
-         Channel   Channel    Channel    Channel
-```
-
-Benefits:
-
-- **Low memory**: Blocks stream through tools, not loaded entirely
-- **Parallelism**: Multiple tools can process different blocks concurrently
-- **Cancellation**: Ctrl+C stops immediately (context cancellation)
-
-## Next Steps
-
-- [Create Custom Flows](/cli/flows/custom-flows)
-- [Configure Hooks](/cli/flows/hooks)
-- [Available Formats](https://neokapi.github.io/web/neokapi/docs/features/formats)
-- [Run Command Reference](/cli/commands/run)
-- [Server-Side Flows](/server/flows)
+- [Custom flows](/cli/flows/custom-flows)
+- [Hooks](/cli/flows/hooks)
+- [Run command reference](/cli/commands/run)
+- [Server-side flows](/server/flows)

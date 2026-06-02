@@ -5,132 +5,91 @@ title: Installation
 
 # Installing Bowrain Server
 
-Deploy Bowrain Server using Docker, Docker Compose, or as a native binary. Bowrain Server uses **PostgreSQL** for storage and any **OIDC provider** (e.g. Keycloak) for authentication.
+A Bowrain deployment is several cooperating services, not a single binary:
 
-:::tip Production deployments
-For a production-ready stack with Traefik, PostgreSQL, NATS, and all required services, see [Self-Hosting](/server/self-hosting). The quick-start below is for development and evaluation.
-:::
+- **bowrain-server** — the REST + gRPC API (one process; gRPC is multiplexed onto the HTTP port).
+- **bowrain-worker** — the async worker that ingests pushes and runs the auto-translate-on-push automation against an upstream translation provider.
+- **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users, jobs). The server requires PostgreSQL; **there is no SQLite or file backend.**
+- **NATS** — the job queue and event bus shared by the server and worker.
+- **bowrain-web** — the static web UI, served as its own container.
+- An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
 
-## Docker (Recommended)
+This page covers local evaluation. For a production stack with TLS, backups, and a reverse proxy, see [Self-Hosting](/server/self-hosting), which is the canonical reference for the full architecture and the complete environment-variable set.
 
-### Quick Start
+## One-command local stack
 
-```bash
-docker run -d \
-  --name bowrain-server \
-  -p 8080:8080 \
-  -v bowrain-data:/data \
-  -e BOWRAIN_STORE=/data/bowrain.db \
-  -e BOWRAIN_JWT_SECRET=change-me-in-production \
-  -e BOWRAIN_OIDC_ISSUER_URL=https://keycloak.example.com/realms/bowrain \
-  -e BOWRAIN_OIDC_CLIENT_ID=bowrain \
-  -e BOWRAIN_OIDC_CLIENT_SECRET=your-client-secret \
-  ghcr.io/neokapi/bowrain-server:latest
-```
-
-### Docker Compose
-
-This is the recommended setup for self-hosting. It runs Keycloak (identity provider), Mailpit (email for development), and Bowrain Server together:
-
-```yaml
-services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    command: start-dev --import-realm
-    environment:
-      KC_HEALTH_ENABLED: "true"
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    volumes:
-      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json
-    ports:
-      - "8180:8080"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && cat <&3 | grep -q '200'",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "8025:8025" # Web UI
-      - "1025:1025" # SMTP
-
-  bowrain:
-    image: ghcr.io/neokapi/bowrain-server:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - BOWRAIN_JWT_SECRET=change-me-in-production
-      - BOWRAIN_OIDC_ISSUER_URL=http://keycloak:8080/realms/bowrain
-      - BOWRAIN_OIDC_PUBLIC_URL=http://localhost:8180/realms/bowrain
-      - BOWRAIN_OIDC_CLIENT_ID=bowrain
-      - BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret
-      - BOWRAIN_STORE=/data/bowrain.db
-      - BOWRAIN_SMTP_HOST=mailpit:1025
-      - BOWRAIN_SMTP_FROM=noreply@bowrain.cloud
-    volumes:
-      - bowrain-data:/data
-    depends_on:
-      keycloak:
-        condition: service_healthy
-
-volumes:
-  bowrain-data:
-```
-
-Start the stack:
+The repository ships a self-contained local stack at [`bowrain/compose.full.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/compose.full.yaml) — server, worker, PostgreSQL, NATS, Redis, Keycloak (with a pre-imported realm), and Mailpit. It defaults to the offline `demo` translation provider, so the full push → translate → pull cycle works with no API keys and no OIDC setup:
 
 ```bash
-docker compose up -d
+docker compose -f bowrain/compose.full.yaml up -d --build --wait
 ```
 
-Open `http://localhost:8080` in your browser. The Keycloak admin console is available at `http://localhost:8180` (admin / admin). Mailpit's web UI is at `http://localhost:8025`.
+Endpoints once it is up:
 
-:::tip OIDC Public URL
-When Keycloak runs in Docker, it has a different internal hostname (`keycloak:8080`) than the browser-facing URL (`localhost:8180`). Set `BOWRAIN_OIDC_PUBLIC_URL` to the browser-facing URL and `BOWRAIN_OIDC_ISSUER_URL` to the internal URL.
-:::
+| URL | Service |
+| --- | --- |
+| `http://localhost:8080` | bowrain-server API (and the web UI with `--profile web`) |
+| `http://localhost:8080/api/v1/health` | Health check |
+| `http://localhost:8180` | Keycloak admin console (admin / admin) |
+| `http://localhost:8025` | Mailpit (captured emails) |
 
-## Native Binary
+To serve the web UI from the server, add the `web` profile:
 
-### Download
+```bash
+docker compose -f bowrain/compose.full.yaml --profile web up -d --build
+```
 
-Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+For real translations, set `BOWRAIN_PLATFORM_PROVIDER` (e.g. `gemini`) and the matching API key in a `.env` file — see [Self-Hosting](/server/self-hosting#environment-variables).
+
+Tear down with `docker compose -f bowrain/compose.full.yaml down -v`.
+
+## Self-hosting from published images
+
+To run from the published `ghcr.io/neokapi/` images against your own OIDC provider, use the reference stack at [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml) — Traefik, PostgreSQL, NATS, the server, the worker, and the web UI.
+
+```bash
+docker compose -f deploy/docker/compose.yaml up -d
+```
+
+At minimum, provide an external OIDC issuer, a JWT secret, and (for auto-translate) an upstream provider:
+
+```bash
+POSTGRES_PASSWORD=...                          # database password
+BOWRAIN_JWT_SECRET=$(openssl rand -base64 32)  # JWT signing secret
+BOWRAIN_OIDC_ISSUER_URL=...                    # your realm's issuer URL
+BOWRAIN_OIDC_CLIENT_SECRET=...                 # the bowrain client's secret
+BOWRAIN_PLATFORM_PROVIDER=gemini               # or openai / anthropic / ollama
+BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
+```
+
+See [Self-Hosting](/server/self-hosting) for the full production walkthrough, including TLS, backups, and the complete service topology.
+
+## Native binary
+
+The server and worker also ship as native binaries on [GitHub Releases](https://github.com/neokapi/neokapi/releases). Both still require a reachable PostgreSQL and NATS.
 
 ```bash
 # Linux (x86_64)
 curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-linux-amd64.tar.gz
 tar xzf bowrain-server-linux-amd64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
-
-# Linux (ARM64)
-curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-linux-arm64.tar.gz
-tar xzf bowrain-server-linux-arm64.tar.gz
-sudo mv bowrain-server /usr/local/bin/
-
-# macOS (Apple Silicon)
-curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-darwin-arm64.tar.gz
-tar xzf bowrain-server-darwin-arm64.tar.gz
-sudo mv bowrain-server /usr/local/bin/
 ```
 
-### Run
+Run the server (PostgreSQL is required; the connection string must use the `postgres://` scheme):
 
 ```bash
 bowrain-server \
-  --store /var/lib/bowrain/bowrain.db \
+  --database-url postgres://bowrain:password@localhost/bowrain \
   --jwt-secret change-me-in-production \
   --oidc-issuer-url https://keycloak.example.com/realms/bowrain \
   --oidc-client-id bowrain \
-  --oidc-client-secret your-client-secret
+  --oidc-client-secret your-client-secret \
+  --port 8080
 ```
 
-### systemd Service
+The schema is created automatically on first start; migrations run on startup. The async worker is configured entirely through environment variables — see [Configuration](/server/configuration).
+
+### systemd service
 
 `/etc/systemd/system/bowrain-server.service`:
 
@@ -143,8 +102,9 @@ After=network.target
 Type=simple
 User=bowrain
 Group=bowrain
+Environment=BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
+Environment=BOWRAIN_NATS_URL=nats://localhost:4222
 ExecStart=/usr/local/bin/bowrain-server \
-  --store /var/lib/bowrain/bowrain.db \
   --jwt-secret ${BOWRAIN_JWT_SECRET} \
   --oidc-issuer-url https://keycloak.example.com/realms/bowrain \
   --oidc-client-id bowrain \
@@ -161,29 +121,18 @@ Enable and start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable bowrain-server
-sudo systemctl start bowrain-server
+sudo systemctl enable --now bowrain-server
 sudo systemctl status bowrain-server
 ```
 
-## OIDC Provider Setup
+## OIDC provider setup
 
-Bowrain Server requires an OIDC provider for authentication. We recommend [Keycloak](https://www.keycloak.org/).
+Bowrain Server requires an OIDC provider for authentication. Any OIDC-compliant
+provider works (Keycloak, Auth0, Okta, Azure AD, Dex). The local stack above
+imports a pre-configured Keycloak realm automatically; for your own provider see
+the [OIDC provider setup in Self-Hosting](/server/self-hosting#oidc-provider-setup).
 
-### Keycloak Realm Configuration
-
-1. Create a new realm (e.g. `bowrain`)
-2. Create a client:
-   - **Client ID**: `bowrain`
-   - **Client Protocol**: `openid-connect`
-   - **Access Type**: `confidential`
-   - **Valid Redirect URIs**: `https://bowrain.example.com/*`
-3. Copy the client secret from the **Credentials** tab
-4. Enable **User Registration** if you want self-service sign-up
-
-For local development, the Docker Compose setup above imports a pre-configured realm automatically.
-
-## Health Check
+## Health check
 
 Verify the server is running:
 
@@ -191,8 +140,8 @@ Verify the server is running:
 curl http://localhost:8080/api/v1/health
 ```
 
-## Next Steps
+## Next steps
 
-- [Configuration](/server/configuration) — all environment variables and CLI flags
-- [Getting Started](/server/getting-started) — first login, workspaces, invitations
-- [Self-Hosting](/server/self-hosting) — production deployment with TLS and backups
+- [Configuration](/server/configuration) — the complete environment-variable and CLI-flag reference.
+- [Getting Started](/server/getting-started) — first login, workspaces, invitations.
+- [Self-Hosting](/server/self-hosting) — production deployment with TLS and backups.

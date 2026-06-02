@@ -5,7 +5,13 @@ title: plugins
 
 # kapi plugin
 
-Manage plugins and bundles for additional formats and tools.
+Manage plugins and bundles that add formats and tools. Plugins are a
+[neokapi engine](https://neokapi.github.io/web/neokapi/) feature shared by every
+kapi installation — this page covers what a Bowrain user typically needs. For
+the full command surface and the plugin model, see the neokapi reference:
+
+- [`kapi plugin` command reference](https://neokapi.github.io/web/neokapi/commands/plugin)
+- [Plugin system](https://neokapi.github.io/web/neokapi/docs/contribute/plugins)
 
 ## Synopsis
 
@@ -13,103 +19,52 @@ Manage plugins and bundles for additional formats and tools.
 kapi plugin <command> [flags]
 ```
 
-## Concepts
+A **plugin** is a standalone format reader/writer or processing tool. A
+**bundle** is a collection distributed as one installable unit; its individual
+formats and tools register separately, so you can reference them by name (e.g.
+`okapi-html`) without knowing they came from a bundle.
 
-### Plugins vs Bundles
-
-A **plugin** is a standalone format reader/writer or processing tool. A **bundle** is a collection of formats and/or tools distributed as a single installable unit. The Okapi bridge is the canonical bundle — it provides 40+ format filters in one package.
-
-When you install a bundle, its individual capabilities (formats, tools) are registered separately. You can reference individual formats from a bundle (e.g., `okapi-html`) in flows and commands without knowing they came from a bundle.
-
-## Commands
-
-### List installed plugins
+## Common commands
 
 ```bash
-kapi plugin list
-kapi plugin list -a              # show all available (installed + registry)
+kapi plugin list                 # installed plugins
+kapi plugin list -a              # installed + available in the registry
+kapi plugin search <query>       # search by name/description, --ext, --mime, --type
+kapi plugin install <name>       # install latest (or <name>@<version>)
+kapi plugin update [<name>]      # update one, or all when omitted
+kapi plugin remove <name>        # remove all versions (or <name>@<version>)
 ```
 
-### Search for plugins and bundles
+## The Okapi bridge bundle
+
+The Okapi bridge is the canonical bundle: it brings the Okapi Framework's family
+of format filters — desktop-publishing, CAT-tool, and document formats — into
+kapi in one install.
 
 ```bash
-kapi plugin search <query>            # search by name or description
-kapi plugin search --bundle           # list all bundles
-kapi plugin search --format           # list format plugins (including bundles with formats)
-kapi plugin search --tool             # list tool plugins (including bundles with tools)
-kapi plugin search --bundle --format  # bundles that contain format capabilities
-kapi plugin search --ext .docx        # find plugins that handle .docx files
-kapi plugin search --mime text/html   # find plugins that handle HTML
-kapi plugin search --type format      # filter by capability type
+kapi plugin install okapi-bridge
 ```
 
-All filter flags are combined with AND logic.
-
-### Install a plugin or bundle
+Once installed, the additional formats appear in `kapi formats`. Rather than
+quoting a fixed number, list what your installation provides:
 
 ```bash
-kapi plugin install <name>                  # install latest version
-kapi plugin install <name>@<version>        # install specific version
+kapi formats
 ```
 
-### Update a plugin or bundle
+## Version pinning
 
-```bash
-kapi plugin update <name>       # update specific plugin
-kapi plugin update              # check and update all plugins
-```
-
-### Remove a plugin or bundle
-
-```bash
-kapi plugin remove <name>@<version>   # remove a specific version
-kapi plugin remove <name>             # remove all versions
-```
-
-## Search Flags
-
-| Flag            | Description                                        |
-| --------------- | -------------------------------------------------- |
-| `--bundle`      | Show only bundles (collections of formats/tools)   |
-| `--format`      | Show only plugins providing format capabilities    |
-| `--tool`        | Show only plugins providing tool capabilities      |
-| `--type <type>` | Filter by capability type (e.g., "format", "tool") |
-| `--mime <type>` | Filter by MIME type (e.g., "text/html")            |
-| `--ext <ext>`   | Filter by file extension (e.g., ".docx")           |
-
-## Plugin Directory
-
-Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be installed side-by-side:
-
-```
-~/.config/kapi/plugins/
-  okapi/
-    1.46.0/
-      version.json
-      neokapi-okapi-bridge.jar
-    1.47.0/
-      version.json
-      neokapi-okapi-bridge.jar
-```
-
-## Okapi Bridge Bundle
-
-The Okapi bridge bundle provides access to 40+ Okapi format filters:
-
-```bash
-kapi plugin install okapi
-```
-
-Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats`.
-
-## Version Pinning
-
-Pin a specific plugin version in `kapi.yaml`:
+Pin a plugin version in the project's `.kapi` recipe under the `plugins:` map so
+the whole team resolves the same build:
 
 ```yaml
 plugins:
-  okapi:
+  okapi-bridge:
     version: "1.47.0"
 ```
 
-See [Plugin System](https://neokapi.github.io/web/neokapi/docs/developer/plugins) for details on writing plugins and bundles.
+Installed plugins live under the kapi data directory
+(`$XDG_DATA_HOME/kapi/plugins`, or the system plugin roots), with multiple
+versions side by side. See the
+[plugin system](https://neokapi.github.io/web/neokapi/docs/contribute/plugins)
+reference for discovery details and for writing your own plugins.

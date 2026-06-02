@@ -1,39 +1,52 @@
 ---
-title: Project Management
+title: Projects
 sidebar_position: 4
 ---
 
-# Project Management in Bowrain
+# Projects in the desktop app
 
-Bowrain provides a store-backed project system for managing translation content with versioning and connector integration.
+Projects in Bowrain Desktop live **on the server**, not in a local database. The
+desktop is a [working copy of the server](/desktop/overview): you open a project
+that belongs to a [workspace](/desktop/workspaces), edit it alongside the web
+app, and your changes sync back. The authoritative content, version history, and
+project configuration are all held server-side.
 
-## Content Store
+The desktop does not create or author local-file projects — that is
+[kapi's job](/getting-started/kapi-vs-bowrain). A project's `.kapi` recipe
+(content, flows, plugins, languages, brand) is authored and versioned locally
+with kapi and pushed to the server with `kapi push`; the desktop then opens that
+project as a live client.
 
-Projects in Bowrain are backed by the Content Store, a local SQLite database that provides:
+## Opening a project
 
-- Persistent block storage with content-addressable deduplication
-- Version snapshots for tracking changes over time
+1. Sign in to your workspace (see [Workspaces](/desktop/workspaces)).
+2. Pick a project from the workspace's project list. On the BowMart workspace,
+   Maya opens the `store-frontend` project — the same one Jonas is reviewing in
+   the browser.
+3. The desktop loads the project's files and blocks from the server and shows
+   teammates' presence live.
 
-## Creating a Store-Backed Project
+## Versions and history
 
-1. Open the Projects view
-2. Click **Create Project**
-3. Set the project name, source locale, and target locales
-4. The project is created in the Content Store
+Version snapshots are created and stored **server-side**, so every client sees
+the same history. The desktop surfaces a project's versions and the differences
+between them; it does not keep an independent local version store. See
+[Real-time collaboration](/server/collaboration) for how concurrent edits merge.
 
-## Version History
+## Where local state fits
 
-Create version snapshots to track your project's state over time:
+The desktop's local footprint is **cache and offline queue only**:
 
-1. Open a project
-2. Navigate to the version history section
-3. Click **Create Version** and provide a label
-4. View past versions and the changes between them
+- a content cache so the project opens fast and stays readable offline, and
+- an offline edit queue that holds your changes when the network drops and
+  replays them to the server on reconnect.
 
-## Connector Integration
+Neither is a source of truth. If the local cache is cleared, the desktop
+re-fetches from the server.
 
-Store-backed projects work seamlessly with connectors:
+## Content sources
 
-1. **Pull** content from a connector into your project
-2. Translate using the translation editor, TM, or AI
-3. **Push** translations back to the connector
+Pulling content from a CMS, a git host, or a design tool is configured
+server-side through [connectors](/server/connectors); the desktop edits the
+resulting project. The desktop itself offers only **remote** connectors — see
+[Connectors](/desktop/connectors).

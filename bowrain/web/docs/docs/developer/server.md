@@ -63,36 +63,22 @@ POST /api/v1/flow/execute      # Execute a flow
 ### Running the Server
 
 ```bash
-bin/bowrain-server --port 8080 --host 0.0.0.0
+bin/bowrain-server --port 8080 --host 0.0.0.0 \
+    --database-url postgres://bowrain:password@localhost/bowrain
 ```
 
-Environment variables: `BOWRAIN_PORT`, `BOWRAIN_HOST`, `BOWRAIN_DATA_DIR`.
+The server requires PostgreSQL. See [Configuration](/server/configuration) for
+the complete environment-variable and flag reference.
 
 ## gRPC API
 
-The gRPC API provides streaming access and is available on a separate port.
-
-### Starting with gRPC
-
-```bash
-bin/bowrain-server --port 8080 --grpc-port 9090
-```
-
-Or via environment: `BOWRAIN_GRPC_PORT=9090`.
-
-### TLS Configuration
-
-The gRPC server supports native TLS to encrypt credentials and data in transit. Provide a certificate and key via flags or environment variables:
-
-```bash
-bin/bowrain-server --grpc-port 9090 \
-    --grpc-tls-cert /path/to/cert.pem \
-    --grpc-tls-key  /path/to/key.pem
-```
-
-Or via environment: `BOWRAIN_GRPC_TLS_CERT`, `BOWRAIN_GRPC_TLS_KEY`.
-
-When TLS is enabled, the server enforces TLS 1.2+ with AEAD cipher suites only. When omitted, the gRPC server runs without encryption (suitable for CI or when behind a TLS-terminating proxy). In local development, `make dev-server` automatically uses the mkcert wildcard certificates.
+The gRPC API provides streaming access. It is **multiplexed onto the same HTTP
+port** as the REST API using h2c (cleartext HTTP/2): requests carrying
+`Content-Type: application/grpc` are routed to the gRPC handler, everything else
+to the REST handler. There is no separate gRPC port or TLS flag — the server
+runs behind a TLS-terminating reverse proxy in production (see
+[Self-Hosting](/server/self-hosting#reverse-proxy)), which routes `/neokapi.*`
+to the server.
 
 ### Service Definition
 
@@ -125,13 +111,13 @@ Three RPCs use server-side streaming:
 ### Client Example
 
 ```go
-// Production / local dev with TLS:
-conn, err := grpc.NewClient("bowrain.mymac:1443",
+// Production: connect through the TLS-terminating proxy (port 443).
+conn, err := grpc.NewClient("bowrain.example.com:443",
     grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 )
 
-// CI / testing without TLS:
-// conn, err := grpc.NewClient("localhost:9090",
+// Local dev: the server speaks cleartext h2c on its HTTP port.
+// conn, err := grpc.NewClient("localhost:8080",
 //     grpc.WithTransportCredentials(insecure.NewCredentials()),
 // )
 

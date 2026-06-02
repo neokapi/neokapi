@@ -1,9 +1,14 @@
 ---
 sidebar_position: 2
-title: Getting Started
+title: Getting started
 ---
 
-# Getting Started with Bowrain
+# Getting started with the desktop app
+
+Bowrain Desktop is a [working copy of the server](/desktop/overview): you sign
+in to a workspace, open a project that lives on the server, and edit it
+alongside the web app. You do not create local-file projects in the desktop —
+that is [kapi's job](/getting-started/kapi-vs-bowrain).
 
 ## Installation
 
@@ -13,7 +18,7 @@ title: Getting Started
 brew install --cask neokapi/tap/bowrain
 ```
 
-### Binary Download
+### Binary download
 
 Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
@@ -21,27 +26,20 @@ Download the latest release from [GitHub Releases](https://github.com/neokapi/ne
 - **Windows**: signed installer (`bowrain-X.Y.Z-windows-amd64-setup.exe` or `-arm64-setup.exe`)
 - **Linux**: tarball (amd64, arm64)
 
-## First Project
+## First sign-in
 
-1. Launch Bowrain
-2. Create a new project or open a sample project
-3. Add source files to the project
-4. Configure source and target languages
-5. Run a translation flow or edit translations manually
+1. Launch Bowrain.
+2. Open **Settings** and enter your server URL (e.g. `https://bowrain.example.com`).
+3. Click **Connect** — this opens the login flow in your browser. After
+   authorization, your workspaces appear in the workspace rail.
+4. Pick a workspace, then open a project from its project list. On the BowMart
+   workspace, Maya opens the `store-frontend` project.
+
+The project's files and blocks load from the server, and teammates' presence
+appears live. See [Workspaces](/desktop/workspaces) for navigation and
+[Projects](/desktop/projects) for how server projects open in the desktop.
 
 ![Editor showing 100% translated blocks](/img/bowrain/dark/editor-translated.png)
-
-### Quick Start with Sample Projects
-
-Bowrain ships with ready-to-use sample projects in `bowrain/apps/bowrain/samples/`:
-
-1. Open the Website Translation sample project — a half-translated website with TM entries and terminology
-2. Click on `index.html` to open the translation editor
-3. Click **"TM Lookup"** in the toolbar to auto-fill blocks from translation memory
-4. Click **"Context"** to open the side panel showing TM matches and terminology per block
-5. Navigate blocks and click **"Apply"** on TM matches to insert translations
-6. Go back to project view and click **"Terminology"** to browse the termbase
-7. Click **"Save"** — TM and terminology are persisted in the project database
 
 ## Editing surfaces
 
@@ -53,45 +51,49 @@ The desktop opens three per-file surfaces — the same as the web app:
 
 See the [Translation editor](/server/translation-editor) for the full detail.
 
-## Block Status
+## Block status
 
-Each translation block has a status that is automatically tracked:
+Each translation block has a status that is tracked automatically:
 
 | Status      | Indicator | Condition                                 |
 | ----------- | --------- | ----------------------------------------- |
-| Not Started | Gray      | No target text                            |
+| Not started | Gray      | No target text                            |
 | Draft       | Yellow    | Has target text but no translation origin |
 | Translated  | Blue      | Translation origin is set (AI, TM, etc.)  |
 | Reviewed    | Green     | Manually marked as reviewed               |
 
 The progress bar at the top of the editor shows the distribution of block statuses.
 
-## Keyboard Shortcuts
+## Keyboard shortcuts
 
 | Shortcut               | Action                               |
 | ---------------------- | ------------------------------------ |
-| `Cmd/Ctrl+S`           | Save project                         |
-| `Cmd/Ctrl+O`           | Open project                         |
 | `Cmd/Ctrl+Enter`       | Confirm translation and move to next |
 | `Cmd/Ctrl+Shift+Enter` | Copy source to target                |
 | `Cmd/Ctrl+Shift+R`     | Mark block as reviewed               |
 
-## Using Translation Memory
+Edits commit to the server as you work (and queue locally when offline). There
+is no separate "save to a local file" step — the project's authoritative state
+lives on the server.
 
-Each project has its own TM that persists in the project database:
+## Translation memory and terminology
 
-1. **TM Explorer**: From the project view, click "Translation Memory" to browse, search, add, edit, or delete entries
-2. **TM Lookup**: In the editor toolbar, click "TM Lookup" to batch-apply TM matches to all untranslated blocks
-3. **Context Panel**: Click "Context" in the editor toolbar to see per-block TM matches with score, source, target, and match type. Click "Apply" to insert a match.
+A project's translation memory and terminology are **hosted on the server** and
+shared across the workspace, so Maya and Jonas always see the same memory and
+the same approved terms. The desktop keeps a local mirror for fast, offline
+lookups; it is a cache, never the source of truth.
 
-TM entries are automatically saved when you save the project.
+- **Context panel**: in the editor toolbar, click **Context** to see per-block
+  TM matches (score, source, target, match type) and terminology suggestions
+  (matched term, target suggestions, domain, lifecycle status). Click **Apply**
+  on a TM match to insert it.
+- **TM lookup**: in the editor toolbar, click **TM Lookup** to batch-apply TM
+  matches to all untranslated blocks.
+- **Explorers**: from the navigation panel, open **Memory** to browse, search,
+  and edit TM entries, or **Termbase** to manage concept-oriented terminology
+  with multi-locale terms and lifecycle statuses (preferred, approved, admitted,
+  deprecated, proposed, forbidden).
 
-## Using Terminology
-
-Each project has its own concept-oriented termbase:
-
-1. **Terminology Explorer**: From the project view, click "Terminology" to browse, search, add, edit, or delete concepts
-2. **Import Terms**: In the Terminology panel, import terms from CSV files (source/target pairs) or full JSON termbases
-3. **Context Panel**: In the editor, the Context panel shows terminology matches for the current block's source text — matched terms, target suggestions, domain, and lifecycle status
-
-Terminology concepts support multiple terms per locale with lifecycle statuses: preferred, approved, admitted, deprecated, proposed, forbidden.
+Changes made here are committed to the server and visible to the rest of the
+workspace. See [Translation memory](/server/translation-memory) and
+[Terminology](/server/terminology) for the full reference.

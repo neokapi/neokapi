@@ -1,162 +1,93 @@
 ---
-sidebar_position: 4
+sidebar_position: 6
 title: Walkthroughs
 ---
 
 # Walkthroughs
 
-Step-by-step guides for common Bowrain workflows, designed to be followed along with the sample projects.
+Short, follow-along guides for common desktop workflows. They assume you are
+[signed in to a workspace](/desktop/getting-started) and editing a project that
+lives on the server. Edits commit to the server as you work (and queue locally
+when offline) — there is no separate "save to a local file" step.
 
-## Walkthrough 1: TM Leverage — Auto-Fill Translations from Memory
+The examples use the **BowMart** workspace and its cast: **Maya** (translator,
+fr-FR), **Jonas** (reviewer), and **Priya** (project admin).
 
-**Goal**: Open a half-translated project and use translation memory to fill in missing translations.
+## Leverage translation memory
 
-**Sample project**: Website Translation
+**Goal**: fill in missing translations from the workspace's shared memory.
 
-### Steps
+1. Maya opens the `store-frontend` project and clicks a file to open the
+   translation editor.
+2. The progress bar shows the mix of statuses — some blocks translated (blue),
+   some not started (gray).
+3. Click **TM Lookup** in the toolbar. The desktop queries the project's
+   server-hosted translation memory for every untranslated block and fills the
+   exact matches automatically; the progress bar updates.
+4. Click **Context** to open the side panel, then navigate between blocks. For a
+   filled block the panel shows the TM match — source, target, score (100% for
+   exact), and match type.
+5. On a block with only fuzzy matches (below 100%), click **Apply** to insert
+   the closest one and edit as needed.
 
-1. **Launch Bowrain** and click "Open Project"
-2. **Select** the Website Translation sample project
-3. **Review the project**: You'll see `index.html` with its block count — some blocks already have French translations, German is mostly empty
-4. **Click** on `index.html` to open the translation editor
-5. **Notice** the progress bar: some blocks are translated (blue), some are not started (gray)
-6. **Click "TM Lookup"** in the toolbar
-   - Bowrain queries the project's translation memory for every untranslated block
-   - Blocks with exact TM matches are filled automatically
-   - The progress bar updates to reflect the new translations
-7. **Click "Context"** in the toolbar to open the Context panel
-8. **Navigate to a translated block** using the arrow keys or by clicking
-   - The Context panel shows the TM match: source text, target text, match score (100% for exact), and match type
-   - For blocks filled by TM Lookup, you'll see the source of the match
-9. **Navigate to a partially matching block** — the Context panel may show fuzzy matches (< 100%) that you can review and apply manually
-10. **Click "Apply"** on a fuzzy match to insert it, then edit as needed
-11. **Save the project** with Cmd/Ctrl+S — TM entries are persisted in the project database
+Filled translations commit to the server and appear for the rest of the
+workspace; the local mirror updates in step.
 
-### What You Learned
+## Manage terminology
 
-- TM Lookup batch-applies matches to all untranslated blocks
-- The Context panel provides per-block TM matches for manual review
-- Exact matches are applied automatically; fuzzy matches require manual review
-- TM data persists in the project database
+**Goal**: browse the shared termbase and see term suggestions while translating.
 
----
+1. From the navigation panel, open **Termbase** to browse the workspace's
+   concept-oriented terminology. Each concept shows its domain, definition, and
+   terms with lifecycle-status badges (preferred, approved, admitted,
+   deprecated, proposed, forbidden).
+2. Search by term text to filter concepts.
+3. Add a concept, or import terms from a CSV (source/target pairs) or a full
+   JSON termbase. Imported terms become server-side concepts visible to the
+   whole workspace.
+4. Back in the editor, open the **Context** panel and navigate to a block whose
+   source contains a known term. The terminology section lists the matched term,
+   target suggestions, domain, and status — so Maya keeps usage consistent with
+   what Priya has approved.
 
-## Walkthrough 2: Terminology Management — Build and Use a Termbase
+## Use the Context panel: TM and terminology together
 
-**Goal**: Import terminology, browse concepts, and see term suggestions while translating.
+**Goal**: combine memory matches and terminology while translating a block.
 
-**Sample project**: Software UI
+1. With a file open, click **Context** to open the side panel. It has two
+   sections: **TM matches** and **Terminology**.
+2. Navigate to a block with both. TM matches show source, target, a score badge
+   (green for 100%, yellow for fuzzy), and match type; terminology matches show
+   the matched source term, target suggestions, a domain badge, and a status
+   badge.
+3. Click **Apply** on a TM match to fill the target, then check the result
+   against the preferred terms shown below.
+4. For blocks without a TM match, use the terminology suggestions as a starting
+   point for a manual translation.
 
-### Steps
+The panel updates automatically as you move between blocks.
 
-1. **Open** the Software UI sample project — this is a new project with 33 UI string blocks and a pre-loaded termbase
-2. **Click "Terminology"** in the project view to open the Terminology Explorer
-3. **Browse concepts**: You'll see concepts like "Task" (en/fr/de/ja), "Dashboard" (en/fr/de/ja), etc.
-   - Each concept shows its domain, definition, and terms with status badges
-   - Status colors: green for preferred, blue for approved, yellow for admitted
-4. **Search** for "save" — the search filters concepts by term text
-5. **Click "Import CSV"** to import additional terms
-   - Select `sample-terms.csv` from the samples directory
-   - Set source locale to `en`, target locale to `fr`
-   - The imported terms are added as new concepts
-6. **Click "Add Concept"** to create a custom concept:
-   - Domain: "ui"
-   - Definition: "Action to remove an item permanently"
-   - Add terms: "delete" (en, preferred), "supprimer" (fr, preferred)
-7. **Go back to the project view** and click on a file to open the editor
-8. **Click "Context"** in the toolbar
-9. **Navigate** to a block containing a known term (e.g., "Dashboard", "Settings")
-   - The Terminology section shows matched terms with target suggestions
-   - Each match shows: source term, target term(s), domain, and lifecycle status
-10. **Use the term suggestions** to ensure consistent terminology across your translations
-11. **Save** — the termbase persists in the project database
+## Review and hand off
 
-### What You Learned
+**Goal**: review translated work across target locales and approve it.
 
-- The Terminology Explorer provides full CRUD for concepts and terms
-- CSV import adds flat term pairs as concepts
-- The Context panel shows per-block terminology suggestions during editing
-- Terms have lifecycle statuses that guide translators on which term to use
+1. Jonas opens the same project and switches to the **Review** surface to work
+   through blocks by status.
+2. Switch the target locale to review each language in turn; open the **Context**
+   panel to cross-reference TM and terminology.
+3. In **Visual** view, the live document preview sits beside the inline editing
+   card — click a block in the preview to jump to it, which helps catch
+   formatting issues.
+4. Mark blocks reviewed with `Cmd/Ctrl+Shift+R`. Because the project is hosted
+   server-side, Maya sees the review state update live, and the correction loop
+   feeds back into the workspace's shared checks (see
+   [Brand voice](/server/brand-voice)).
 
----
+## What these show
 
-## Walkthrough 3: Context Panel — TM + Terminology Side-by-Side
-
-**Goal**: Use the Context panel to leverage both TM matches and terminology while translating.
-
-**Sample project**: Website Translation
-
-### Steps
-
-1. **Open** the Website Translation sample project and click on `index.html`
-2. **Click "Context"** in the toolbar to open the side panel
-3. **The panel has two sections**:
-   - **TM Matches**: Shows translation memory matches for the current block
-   - **Terminology**: Shows terms found in the current block's source text
-4. **Navigate to a block** with both TM and term matches:
-   - TM matches show source, target, score badge (green for 100%, yellow for fuzzy), and match type
-   - Terminology matches show the matched source term, target suggestions, domain badge, and status badge
-5. **Click "Apply"** on a TM match — the target text is filled with the TM match
-6. **Review terminology** — check that the applied translation uses the preferred terms
-7. **Navigate to another block** — the panel updates automatically
-8. **For blocks without TM matches**, use terminology suggestions as a starting point for manual translation
-
-### What You Learned
-
-- The Context panel shows both TM and terminology for each block
-- TM matches provide full sentence translations; terminology provides term-level guidance
-- The panel updates as you navigate between blocks
-- TM and terminology work together to improve translation quality and consistency
-
----
-
-## Walkthrough 4: Complete Translation Workflow
-
-**Goal**: Translate a new project end-to-end using all available resources.
-
-**Sample project**: Software UI
-
-### Steps
-
-1. **Open** the Software UI sample project — 33 untranslated blocks with a 27-entry TM
-2. **Click "TM Lookup"** — blocks with TM matches are auto-filled (look for progress bar change)
-3. **Open the editor** and enable the **Context panel**
-4. **Work through remaining blocks**:
-   - For each untranslated block, check the Context panel for TM fuzzy matches and terminology
-   - Apply TM matches when the score is high enough
-   - Use terminology suggestions for consistent term usage
-   - Manually translate blocks that have no matches
-5. **Mark completed blocks as reviewed** using Cmd/Ctrl+Shift+R
-6. **Check progress** — the progress bar shows not-started (gray), draft (yellow), translated (blue), and reviewed (green)
-7. **Browse the Terminology Explorer** to verify your translations use preferred terms
-8. **Save the project** — all translations, TM entries, and termbase are saved
-
-### What You Learned
-
-- The recommended workflow: TM Lookup first, then manual translation with Context panel
-- Block status tracking gives clear visibility into translation progress
-- Terminology enforcement ensures consistency across the project
-
----
-
-## Walkthrough 5: Export and Review
-
-**Goal**: Review a completed translation and export the results.
-
-**Sample project**: Marketing Content
-
-### Steps
-
-1. **Open** the Marketing Content sample project — fully translated in 3 target languages (fr, de, es)
-2. **Open the editor** — all blocks show as translated (blue progress bar)
-3. **Switch target locale** to review each language
-4. **Enable the Context panel** to cross-reference translations with TM and terminology
-5. **Switch to Visual view** to see the live document preview alongside the inline editing card
-6. **Click on blocks** in the preview to jump to them
-7. **Mark reviewed blocks** as you go through them
-
-### What You Learned
-
-- Completed projects can be reviewed across multiple target locales
-- The split layout with live preview helps catch formatting issues
-- The Context panel is useful for review as well as initial translation
+- TM Lookup batch-fills exact matches; the Context panel surfaces fuzzy matches
+  and terminology for manual review.
+- TM and terminology are **shared and server-hosted**, so everyone in the
+  workspace works from the same memory and the same approved terms.
+- Block status tracks progress; review and approval happen live across the
+  desktop and web clients.

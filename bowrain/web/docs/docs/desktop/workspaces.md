@@ -3,87 +3,72 @@ sidebar_position: 3
 title: Workspaces
 ---
 
-# Workspaces in Bowrain
+# Workspaces in the desktop app
 
-Bowrain uses a Slack-inspired sidebar for workspace navigation, giving you quick
-access to all your translation workspaces, projects, and resources.
+The desktop is a [working copy of the server](/desktop/overview), so its
+workspaces are **the server's workspaces**. You sign in once and the desktop
+shows the same workspaces, projects, and resources you see in the
+[web app](/server/web-overview). A workspace's concepts — roles, members, and
+permissions — are defined server-side; see [Workspaces](/server/workspaces) for
+the reference.
 
-## Sidebar Layout
+## Sidebar layout
 
-The Bowrain sidebar has two panels:
+Bowrain uses a Slack-style sidebar with two panels.
 
-### Workspace Rail
+### Workspace rail
 
 The narrow icon rail on the far left shows your workspaces:
 
-- Each workspace is shown as a colored icon with its first letter (or custom logo)
-- The active workspace has a pill-shaped highlight
-- Click a workspace icon to switch to it
-- The **+** button at the bottom creates a new workspace
-- Your **avatar** at the bottom opens the account menu
+- Each workspace appears as a colored icon with its first letter (or custom logo).
+- The active workspace has a pill-shaped highlight.
+- Click a workspace icon to switch to it.
+- Your **avatar** at the bottom opens the account menu.
 
-### Navigation Panel
+### Navigation panel
 
-The wider panel to the right of the rail shows navigation for the active workspace:
+The wider panel shows navigation for the active workspace:
 
-- **Translate** — Project list and translation editor (the main view)
-- **Termbase** — Terminology management
-- **Memory** — Translation memory explorer
-- **Flows** — Pipeline editor
-- **Connectors** — Content source management
-- **Settings** — Workspace and app configuration
+- **Translate** — project list and translation editor (the main view)
+- **Termbase** — terminology management
+- **Memory** — translation memory explorer
+- **Flows** — flow editor
+- **Connectors** — content source management
+- **Settings** — workspace and app configuration
 
 Below the navigation items, a collapsible project list provides quick project
-switching without going back to the full project view.
+switching.
 
-## Personal Workspace
+## Connecting to a server
 
-When running Bowrain standalone (not connected to a server), a "Personal"
-workspace is created automatically. This is your default workspace for local
-work with local projects.
+The desktop is meaningful once connected to a `bowrain-server`:
 
-## Connecting to a Server
+1. Open **Settings** in the navigation panel.
+2. Enter the server URL (e.g. `https://bowrain.example.com`).
+3. Click **Connect** — this opens the login flow in your browser.
+4. After authorization, your server workspaces appear in the workspace rail.
 
-To access shared workspaces on a `bowrain-server`:
+Until you connect, the rail shows a single placeholder **Personal** workspace.
+The desktop does not author local-file projects there — creating and configuring
+projects is [kapi's job](/getting-started/kapi-vs-bowrain). Connect to a server
+to open real projects.
 
-1. Open **Settings** in the navigation panel
-2. Enter the server URL (e.g., `https://neokapi.example.com`)
-3. Click **Connect** — this opens the login flow in your browser
-4. After authorization, your server workspaces appear in the workspace rail
-
-You can work with both local (Personal) and server workspaces simultaneously.
-The workspace rail shows all available workspaces regardless of where they live.
-
-## Account Menu
+## Account menu
 
 Click your avatar at the bottom of the workspace rail to open the account menu:
 
-- **Email** — Your login email (for server-connected workspaces)
-- **Sign Out** — Disconnect from the server and remove stored credentials
+- **Email** — your login email.
+- **Sign out** — disconnect from the server and remove stored credentials.
 
-## Creating a Workspace
+## Members and roles
 
-1. Click the **+** button in the workspace rail
-2. Enter a name for the workspace (e.g., "Acme Translations")
-3. The workspace is created and becomes active
+Workspace membership is managed server-side. In a connected workspace, open
+**Settings** to invite members by email with a role, change roles, or remove
+members. See [Workspaces](/server/workspaces) for the role and permission model.
 
-On a connected server, other team members can be invited to the workspace through
-the Settings panel.
+## Workspace-scoped resources
 
-## Managing Members
-
-In a server-connected workspace, navigate to **Settings** to manage members:
-
-- **Invite members** by email with a selected role
-- **Change roles** (owner, admin, member, viewer)
-- **Remove members** from the workspace
-
-See [Workspaces](/server/workspaces) in the User Guide for details
-on roles and permissions.
-
-## Workspace-Scoped Resources
-
-All resources are scoped to the active workspace:
+All resources are scoped to the active workspace and held server-side:
 
 | Resource    | Scope                          |
 | ----------- | ------------------------------ |
@@ -93,4 +78,6 @@ All resources are scoped to the active workspace:
 | TM entries  | Per project (within workspace) |
 | Terminology | Per project (within workspace) |
 
-Switching workspaces shows a completely different set of projects and resources.
+Switching workspaces shows a different set of projects and resources. The
+desktop holds only a local cache of the active workspace's content for fast,
+offline-capable access — never a source of truth.
