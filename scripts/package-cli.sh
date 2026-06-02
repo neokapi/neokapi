@@ -26,6 +26,10 @@ out_dir="${3:?out dir required}"
 manifest="${4:?manifest.json path required}"
 
 mkdir -p "$out_dir"
+# Resolve to an absolute path: the Windows archive is created inside a
+# `( cd … && zip … )` subshell, so a relative out_dir (e.g. "dist") would not
+# resolve once the CWD changes.
+out_dir=$(cd "$out_dir" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
