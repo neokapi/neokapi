@@ -50,6 +50,9 @@ func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest
 	if input.Text == "" {
 		return nil, tmSearchOutput{}, errors.New("text is required")
 	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, tmSearchOutput{}, err
+	}
 
 	tm, err := s.tmResolver.GetTM(input.WorkspaceID)
 	if err != nil {
@@ -113,6 +116,9 @@ func (s *MCPServer) handleTMImport(ctx context.Context, req *mcp.CallToolRequest
 	}
 	if len(input.Entries) == 0 {
 		return nil, tmImportOutput{Imported: 0}, nil
+	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, tmImportOutput{}, err
 	}
 
 	tm, err := s.tmResolver.GetTM(input.WorkspaceID)

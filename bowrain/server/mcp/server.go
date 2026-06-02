@@ -39,6 +39,13 @@ type ConnectorResolver interface {
 	ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*connector.SyncStatus, error)
 }
 
+// MembershipChecker validates that an authenticated principal belongs to a
+// workspace. It gates the client-supplied workspace_id that workspace-scoped
+// tools accept, so a caller cannot target a workspace they are not a member of.
+type MembershipChecker interface {
+	IsMember(ctx context.Context, workspaceID, userID string) bool
+}
+
 // SandboxExecutor runs code in an isolated environment.
 type SandboxExecutor interface {
 	Execute(ctx context.Context, req SandboxRequest) (*SandboxResult, error)
@@ -66,6 +73,7 @@ type MCPServer struct {
 	tmResolver   TMResolver
 	tbResolver   TBResolver
 	connResolver ConnectorResolver
+	membership   MembershipChecker
 	sandbox      SandboxExecutor
 	toolReg      *registry.ToolRegistry
 	tracker      EventTracker
@@ -106,6 +114,30 @@ func WithTBResolver(r TBResolver) Option {
 // WithConnectorResolver adds connector access.
 func WithConnectorResolver(r ConnectorResolver) Option {
 	return func(s *MCPServer) { s.connResolver = r }
+}
+
+// WithMembershipChecker enables workspace-membership enforcement on the
+// workspace-scoped tools (TM, termbase, connector). When unset (single-user /
+// no-auth deployments), no enforcement is applied.
+func WithMembershipChecker(m MembershipChecker) Option {
+	return func(s *MCPServer) { s.membership = m }
+}
+
+// authorizeWorkspace rejects a workspace-scoped tool call whose authenticated
+// principal is not a member of workspaceID, so a client-supplied workspace_id
+// is validated against the caller's identity rather than trusted.
+func (s *MCPServer) authorizeWorkspace(ctx context.Context, req mcp.Request, workspaceID string) error {
+	return s.authorizeWorkspaceForUser(ctx, workspaceID, extractUserID(req))
+}
+
+func (s *MCPServer) authorizeWorkspaceForUser(ctx context.Context, workspaceID, userID string) error {
+	if s.membership == nil {
+		return nil // no-auth / single-user deployment: no enforcement
+	}
+	if userID == "" || workspaceID == "" || !s.membership.IsMember(ctx, workspaceID, userID) {
+		return fmt.Errorf("not authorized for workspace %q", workspaceID)
+	}
+	return nil
 }
 
 // WithSandbox adds sandbox code execution.

@@ -48,6 +48,9 @@ func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolReque
 	if input.Query == "" {
 		return nil, termSearchOutput{}, errors.New("query is required")
 	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, termSearchOutput{}, err
+	}
 
 	tb, err := s.tbResolver.GetTB(input.WorkspaceID)
 	if err != nil {
@@ -98,6 +101,9 @@ func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest,
 	}
 	if len(input.Terms) == 0 {
 		return nil, termAddOutput{Added: 0}, nil
+	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, termAddOutput{}, err
 	}
 
 	tb, err := s.tbResolver.GetTB(input.WorkspaceID)

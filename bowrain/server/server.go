@@ -559,6 +559,11 @@ func NewServer(cfg Config) *Server {
 		if s.Services != nil && s.Services.Connector != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithConnectorResolver(s.Services.Connector))
 		}
+		// Enforce workspace membership on the workspace-scoped MCP tools so a
+		// client-supplied workspace_id can't be used to reach another tenant.
+		if s.AuthStore != nil && cfg.JWTSecret != "" {
+			mcpOpts = append(mcpOpts, mcpserver.WithMembershipChecker(&mcpMembershipAdapter{auth: s.AuthStore}))
+		}
 		if s.ToolRegistry != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
 		}

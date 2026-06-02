@@ -48,6 +48,9 @@ func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRe
 	if input.ProjectID == "" {
 		return nil, connectorPullOutput{}, errors.New("project_id is required")
 	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, connectorPullOutput{}, err
+	}
 
 	items, err := s.connResolver.Fetch(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
 	if err != nil {
@@ -79,6 +82,9 @@ func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRe
 	if input.ProjectID == "" {
 		return nil, connectorPushOutput{}, errors.New("project_id is required")
 	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, connectorPushOutput{}, err
+	}
 
 	if err := s.connResolver.Publish(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
 		return nil, connectorPushOutput{}, fmt.Errorf("connector push: %w", err)
@@ -106,6 +112,9 @@ func (s *MCPServer) handleConnectorStatus(ctx context.Context, req *mcp.CallTool
 	}
 	if input.ConnectorID == "" {
 		return nil, connectorStatusOutput{}, errors.New("connector_id is required")
+	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, connectorStatusOutput{}, err
 	}
 
 	status, err := s.connResolver.ConnectorStatus(ctx, input.WorkspaceID, input.ConnectorID)
