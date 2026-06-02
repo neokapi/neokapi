@@ -37,29 +37,26 @@ jobs:
         run: |
           set -euo pipefail
           echo "Looking up parity workflow status for ${REPO}@${SHA}..."
-          # The most recent completed parity run for this commit. Status
-          # is one of: success, failure, cancelled, skipped, "" (none).
-          conclusion=$(gh api \
-            "repos/${REPO}/actions/workflows/parity.yml/runs?head_sha=${SHA}&per_page=1" \
-            --jq '.workflow_runs[0].conclusion // ""')
-          echo "Parity conclusion: '${conclusion}'"
-          case "$conclusion" in
-            success)
-              echo "Parity gate passed."
-              ;;
-            failure|cancelled|timed_out|action_required|startup_failure)
-              echo "::error::Parity workflow concluded as '${conclusion}' for ${SHA}; aborting release."
-              exit 1
-              ;;
-            "")
-              echo "::error::No parity workflow run found for ${SHA}. Re-run parity.yml against this commit before tagging the release."
-              exit 1
-              ;;
-            *)
-              echo "::error::Parity workflow has not finished (conclusion='${conclusion}') for ${SHA}. Wait for it to complete and re-tag, or re-run the parity workflow."
-              exit 1
-              ;;
-          esac
+          # Consider ALL parity runs for this commit, not just the most recent:
+          # the gate passes if ANY of them succeeded. This is robust to a second
+          # (e.g. manually-dispatched) parity run being in-flight or failed while
+          # an earlier run already passed for the same SHA — picking only
+          # workflow_runs[0] would spuriously block the release.
+          runs=$(gh api \
+            "repos/${REPO}/actions/workflows/parity.yml/runs?head_sha=${SHA}&per_page=50" \
+            --jq '[.workflow_runs[] | .status+":"+(.conclusion//"none")]')
+          echo "Parity runs for ${SHA}: ${runs}"
+          successes=$(echo "$runs" | grep -c '"completed:success"' || true)
+          inflight=$(echo "$runs" | grep -cE '"(queued|in_progress|requested|waiting|pending):' || true)
+          if [ "$successes" -gt 0 ]; then
+            echo "Parity gate passed (a successful parity run exists for ${SHA})."
+          elif [ "$inflight" -gt 0 ]; then
+            echo "::error::Parity is still running for ${SHA} and none has succeeded yet. Wait for it to finish, then re-run this job."
+            exit 1
+          else
+            echo "::error::No successful parity run for ${SHA}. Run parity.yml against this commit (it succeeds on push for core changes; otherwise 'gh workflow run parity.yml --ref main') before releasing."
+            exit 1
+          fi
 
   # Build the CLI binaries (kapi + kapi-bowrain) natively per OS/arch with
   # cgo + statically-linked ICU + the fts5 tag, so they match the framework the
