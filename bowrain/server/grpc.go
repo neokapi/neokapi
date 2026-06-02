@@ -28,6 +28,33 @@ func NewGRPCServer(srv *Server) *GRPCServer {
 	return &GRPCServer{srv: srv}
 }
 
+// authorizeProject resolves a project and verifies the caller is a member of
+// its workspace. In standalone mode (no AuthStore) it only resolves the
+// project. On a membership miss it returns codes.NotFound rather than
+// PermissionDenied, so the RPC cannot be used as a cross-tenant existence
+// oracle. It returns the project so callers avoid a second lookup.
+func (g *GRPCServer) authorizeProject(ctx context.Context, projectID string) (*store.Project, error) {
+	if g.srv.Services == nil {
+		return nil, status.Error(codes.Unavailable, "content store not configured")
+	}
+	p, err := g.srv.Services.Project.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "project not found: %v", err)
+	}
+	if g.srv.AuthStore == nil {
+		// Standalone / single-user mode: no workspace scoping.
+		return p, nil
+	}
+	claims, ok := GRPCUserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "authentication required")
+	}
+	if _, err := g.srv.AuthStore.GetMembership(ctx, p.WorkspaceID, claims.Subject); err != nil {
+		return nil, status.Error(codes.NotFound, "project not found")
+	}
+	return p, nil
+}
+
 func (g *GRPCServer) CreateProject(ctx context.Context, req *pb.CreateProjectRequest) (*pb.ProjectResponse, error) {
 	if g.srv.Services == nil {
 		return nil, status.Error(codes.Unavailable, "content store not configured")
@@ -51,12 +78,9 @@ func (g *GRPCServer) CreateProject(ctx context.Context, req *pb.CreateProjectReq
 }
 
 func (g *GRPCServer) GetProject(ctx context.Context, req *pb.GetProjectRequest) (*pb.ProjectResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
-	}
-	p, err := g.srv.Services.Project.GetProject(ctx, req.ProjectId)
+	p, err := g.authorizeProject(ctx, req.ProjectId)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "project not found: %v", err)
+		return nil, err
 	}
 	return projectToProto(p), nil
 }
@@ -69,16 +93,42 @@ func (g *GRPCServer) ListProjects(ctx context.Context, _ *pb.ListProjectsRequest
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list projects: %v", err)
 	}
+
 	resp := &pb.ListProjectsResponse{}
+
+	// Standalone / single-user mode: no workspace scoping.
+	if g.srv.AuthStore == nil {
+		for _, p := range projects {
+			resp.Projects = append(resp.Projects, projectToProto(p))
+		}
+		return resp, nil
+	}
+
+	// Multi-tenant: return only projects in workspaces the caller belongs to,
+	// so one tenant cannot enumerate another's projects. Membership is cached
+	// per workspace to avoid a lookup per project.
+	claims, ok := GRPCUserFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "authentication required")
+	}
+	memberOf := map[string]bool{}
 	for _, p := range projects {
-		resp.Projects = append(resp.Projects, projectToProto(p))
+		allowed, seen := memberOf[p.WorkspaceID]
+		if !seen {
+			_, mErr := g.srv.AuthStore.GetMembership(ctx, p.WorkspaceID, claims.Subject)
+			allowed = mErr == nil
+			memberOf[p.WorkspaceID] = allowed
+		}
+		if allowed {
+			resp.Projects = append(resp.Projects, projectToProto(p))
+		}
 	}
 	return resp, nil
 }
 
 func (g *GRPCServer) StoreBlocks(ctx context.Context, req *pb.StoreBlocksRequest) (*pb.StoreBlocksResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+		return nil, err
 	}
 
 	var blocks []*model.Block
@@ -100,8 +150,8 @@ func (g *GRPCServer) StoreBlocks(ctx context.Context, req *pb.StoreBlocksRequest
 }
 
 func (g *GRPCServer) StreamBlocks(req *pb.StreamBlocksRequest, stream pb.NeokapiService_StreamBlocksServer) error {
-	if g.srv.Services == nil {
-		return status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(grpcCtx(stream), req.ProjectId); err != nil {
+		return err
 	}
 
 	query := store.BlockQuery{ProjectID: req.ProjectId}
@@ -129,8 +179,8 @@ func (g *GRPCServer) StreamBlocks(req *pb.StreamBlocksRequest, stream pb.Neokapi
 }
 
 func (g *GRPCServer) CreateVersion(ctx context.Context, req *pb.CreateVersionRequest) (*pb.VersionResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+		return nil, err
 	}
 	v, err := g.srv.Services.Project.CreateVersion(ctx, req.ProjectId, req.Label, req.Description)
 	if err != nil {
@@ -140,8 +190,8 @@ func (g *GRPCServer) CreateVersion(ctx context.Context, req *pb.CreateVersionReq
 }
 
 func (g *GRPCServer) ListVersions(ctx context.Context, req *pb.ListVersionsRequest) (*pb.ListVersionsResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+		return nil, err
 	}
 	versions, err := g.srv.Services.Project.ListVersions(ctx, req.ProjectId)
 	if err != nil {
@@ -155,8 +205,8 @@ func (g *GRPCServer) ListVersions(ctx context.Context, req *pb.ListVersionsReque
 }
 
 func (g *GRPCServer) PullContent(ctx context.Context, req *pb.PullContentRequest) (*pb.PullContentResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+		return nil, err
 	}
 	opts := connector.FetchOptions{}
 	items, err := g.srv.Services.Connector.Fetch(ctx, req.ConnectorId, req.ProjectId, opts)
@@ -171,8 +221,8 @@ func (g *GRPCServer) PullContent(ctx context.Context, req *pb.PullContentRequest
 }
 
 func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest) (*pb.PushContentResponse, error) {
-	if g.srv.Services == nil {
-		return nil, status.Error(codes.Unavailable, "content store not configured")
+	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
+		return nil, err
 	}
 
 	// Count blocks before pushing so we can report the count.
@@ -229,6 +279,9 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 	// Load blocks from the store project.
 	if req.ProjectId == "" {
 		return status.Error(codes.InvalidArgument, "project_id is required for flow execution")
+	}
+	if _, err := g.authorizeProject(stream.Context(), req.ProjectId); err != nil {
+		return err
 	}
 
 	blocks, err := g.srv.Services.Project.GetBlocks(stream.Context(), store.BlockQuery{ProjectID: req.ProjectId})
