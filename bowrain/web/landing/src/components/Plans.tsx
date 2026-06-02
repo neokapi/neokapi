@@ -1,47 +1,87 @@
-import { useState } from "react";
-import { Check, Zap, Users, Building2 } from "lucide-react";
+import { Check, Gift, Zap, Users, Building2 } from "lucide-react";
 
-type Billing = "monthly" | "annual";
+// Tiers mirror the real billing model in bowrain/billing/plans.go:
+// plan IDs free/pro/team/enterprise, weekly AI credits, and seat/project
+// limits. Prices are not defined in code, so they are shown as placeholders
+// (tier + credits + cadence) rather than invented dollar amounts.
+const CREDITS = {
+  free: "50K",
+  pro: "500K",
+  team: "2M",
+} as const;
 
-const TIERS = [
+type Tier = {
+  id: "free" | "pro" | "team" | "enterprise";
+  name: string;
+  icon: typeof Zap;
+  description: string;
+  price: string;
+  priceNote: string;
+  cta: string;
+  ctaHref: string;
+  ctaStyle: string;
+  featured?: boolean;
+  features: string[];
+};
+
+const TIERS: Tier[] = [
   {
-    id: "starter",
-    name: "Starter",
-    icon: Zap,
-    description: "For an individual or small team moving local work onto the platform.",
-    monthly: "$XX",
-    annual: "$XX",
-    annualNote: "/mo, billed annually",
-    cta: "Start free trial",
+    id: "free",
+    name: "Free",
+    icon: Gift,
+    description: "For an individual evaluating the platform or running a single project.",
+    price: "$0",
+    priceNote: "/mo",
+    cta: "Get started",
+    ctaHref: "#get-started",
     ctaStyle:
       "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
     features: [
-      "1 workspace, 3 projects",
+      `${CREDITS.free} AI credits / week`,
+      "1 project, 1 seat",
       "All formats and workflow tools",
-      "AI translation (bring your own key)",
-      "Translation memory",
-      "Pseudo-localization",
+      "Translation memory & terminology",
+      "Visual translation editor",
       "Community support",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    icon: Zap,
+    description: "For a practitioner running several projects with connectors and the API.",
+    price: "Pricing",
+    priceNote: "billed monthly or annually",
+    cta: "Start free trial",
+    ctaHref: "#get-started",
+    ctaStyle:
+      "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
+    features: [
+      "Everything in Free, plus:",
+      `${CREDITS.pro} AI credits / week`,
+      "Up to 10 projects, 3 seats",
+      "Git connector",
+      "REST API access",
+      "Custom MT providers",
     ],
   },
   {
     id: "team",
     name: "Team",
     icon: Users,
-    description: "For teams that need collaboration, connectors, and automation.",
-    monthly: "$XX",
-    annual: "$XX",
-    annualNote: "/mo, billed annually",
+    description: "For teams that need collaboration, every connector, and automation.",
+    price: "Pricing",
+    priceNote: "billed monthly or annually",
     cta: "Start free trial",
+    ctaHref: "#get-started",
     ctaStyle: "bg-brand-500 text-white hover:bg-brand-600",
     featured: true,
     features: [
-      "Everything in Starter, plus:",
-      "Unlimited workspaces & projects",
-      "Live connectors (CMS, Git, Figma)",
-      "Automated workflows",
-      "Visual translation editor",
-      "Shared glossaries & translation memory",
+      "Everything in Pro, plus:",
+      `${CREDITS.team} AI credits / week`,
+      "Unlimited projects & seats",
+      "Custom connectors",
+      "Bravo code execution",
       "Team collaboration & review",
       "Priority support",
     ],
@@ -50,19 +90,18 @@ const TIERS = [
     id: "enterprise",
     name: "Enterprise",
     icon: Building2,
-    description: "For organizations with custom integration and compliance needs.",
-    monthly: "Custom",
-    annual: "Custom",
-    annualNote: "",
+    description: "For organizations with SSO, compliance, and deployment requirements.",
+    price: "Custom",
+    priceNote: "",
     cta: "Talk to us",
+    ctaHref: "mailto:hello@bowrain.com",
     ctaStyle:
       "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
     features: [
       "Everything in Team, plus:",
-      "Custom AI providers & models",
-      "Per-locale cultural adaptations",
-      "CMS/DAM enterprise connectors",
-      "SSO & audit trails",
+      "Unlimited AI credits",
+      "SSO / SAML",
+      "Audit trails",
       "On-premise deployment option",
       "Dedicated support & SLA",
     ],
@@ -70,8 +109,6 @@ const TIERS = [
 ];
 
 export function Plans() {
-  const [billing, setBilling] = useState<Billing>("annual");
-
   return (
     <section id="plans" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
@@ -82,46 +119,20 @@ export function Plans() {
             kapi
           </code>{" "}
           toolchain is free and runs anywhere. Add Bowrain when a team needs shared governance,
-          connectors, collaboration, and version history on the server.
+          connectors, collaboration, and version history on the server. Every plan includes a weekly
+          allowance of AI translation credits.
         </p>
-
-        <div className="mt-8 inline-flex items-center rounded-full border border-neutral-800 bg-neutral-900/50 p-1">
-          <button
-            onClick={() => setBilling("monthly")}
-            className={`rounded-full px-5 py-1.5 text-sm font-medium transition ${
-              billing === "monthly"
-                ? "bg-neutral-800 text-white shadow-sm"
-                : "text-neutral-500 hover:text-neutral-300"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBilling("annual")}
-            className={`rounded-full px-5 py-1.5 text-sm font-medium transition ${
-              billing === "annual"
-                ? "bg-neutral-800 text-white shadow-sm"
-                : "text-neutral-500 hover:text-neutral-300"
-            }`}
-          >
-            Annual
-            <span className="ml-1.5 rounded-full bg-suggestion/10 px-2 py-0.5 text-xs text-suggestion">
-              Save 20%
-            </span>
-          </button>
-        </div>
       </div>
 
-      <div className="mt-12 grid gap-6 lg:grid-cols-3">
+      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {TIERS.map((tier) => {
           const Icon = tier.icon;
-          const price = billing === "monthly" ? tier.monthly : tier.annual;
-          const isCustom = price === "Custom";
+          const hasNote = tier.priceNote !== "";
 
           return (
             <div
               key={tier.id}
-              className={`relative flex flex-col rounded-xl border p-8 ${
+              className={`relative flex flex-col rounded-xl border p-6 ${
                 tier.featured
                   ? "border-brand-500/50 bg-brand-500/5 shadow-lg shadow-brand-500/5"
                   : "border-neutral-800 bg-neutral-900/30"
@@ -149,18 +160,12 @@ export function Plans() {
               <p className="text-sm text-neutral-400">{tier.description}</p>
 
               <div className="mt-6 mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-white">{price}</span>
-                  {!isCustom && (
-                    <span className="text-sm text-neutral-500">
-                      {billing === "monthly" ? "/mo" : tier.annualNote}
-                    </span>
-                  )}
-                </div>
+                <div className="text-3xl font-bold text-white">{tier.price}</div>
+                {hasNote && <div className="mt-1 text-sm text-neutral-500">{tier.priceNote}</div>}
               </div>
 
               <a
-                href={tier.id === "enterprise" ? "mailto:hello@bowrain.com" : "#get-started"}
+                href={tier.ctaHref}
                 className={`mb-8 flex items-center justify-center rounded-xl px-6 py-3 text-sm font-medium transition ${tier.ctaStyle}`}
               >
                 {tier.cta}

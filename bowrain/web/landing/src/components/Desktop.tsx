@@ -34,24 +34,30 @@ export function Desktop() {
         />
       </div>
 
-      {/* Download links */}
+      {/* Download links — macOS ships via the Homebrew cask (install docs cover
+          the cask and the DMG); Windows and Linux builds are published to GitHub
+          Releases. See bowrain/web/docs install pages. */}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
         <a
-          href="#download-mac"
+          href="https://neokapi.github.io/web/bowrain/docs/installation"
           className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/50 px-5 py-2.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
         >
           <Apple className="h-4 w-4" />
           macOS
         </a>
         <a
-          href="#download-windows"
+          href="https://github.com/neokapi/neokapi/releases"
+          target="_blank"
+          rel="noopener"
           className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/50 px-5 py-2.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
         >
           <Monitor className="h-4 w-4" />
           Windows
         </a>
         <a
-          href="#download-linux"
+          href="https://github.com/neokapi/neokapi/releases"
+          target="_blank"
+          rel="noopener"
           className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/50 px-5 py-2.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
         >
           <Download className="h-4 w-4" />
@@ -59,7 +65,11 @@ export function Desktop() {
         </a>
       </div>
       <p className="mt-3 text-center text-xs text-neutral-600">
-        Works offline. Changes sync automatically when you reconnect.
+        macOS installs with{" "}
+        <code className="rounded bg-neutral-800 px-1 text-neutral-400">
+          brew install --cask neokapi/tap/bowrain
+        </code>
+        . Works offline; changes sync automatically when you reconnect.
       </p>
     </section>
   );
