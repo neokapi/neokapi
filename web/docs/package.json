@@ -27,6 +27,7 @@
     "@neokapi/flow-editor": "*",
     "@neokapi/kapi-lab": "*",
     "@neokapi/kapi-playground": "*",
+    "@neokapi/kapi-react": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
     "clsx": "^2.1.0",

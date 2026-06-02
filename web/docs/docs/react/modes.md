@@ -5,6 +5,9 @@ description: kapi-react has two production modes — runtime mode (one bundle, t
 keywords: [runtime mode, inline mode, bundle, kapi-react, production, i18n modes, code splitting]
 ---
 
+import BrowserOnly from "@docusaurus/BrowserOnly";
+import { PseudoModeExplorer } from "@site/src/components/react/PseudoModeExplorer";
+
 # Runtime vs. inline mode
 
 The plugin has two production modes. Pick based on how you ship your app.
@@ -129,6 +132,10 @@ setPseudoMode(null);
 The transform stacks on top of whatever's in the runtime dict — so you can load a real French catalog and THEN flip pseudo on to see what French looks like at +30% length, with markers showing which strings got translated vs. which fell through to source. `{param}` / `{=m0}` tokens are preserved verbatim so param substitution still works.
 
 **Works without a catalog.** The source string lands in the `__t` / `__tx` call as the `fallback` argument at build time. When the dict is empty the runtime uses the fallback, and pseudo transforms it. Edit `<h1>Welcome</h1>` → save → HMR replaces the module → React re-renders → `"▒ Ŵéļçöḿé ▒"`. No extract step, no compile step, no rebuild — just your source text flowing through the transform. A plain `neokapi({ mode: "runtime" })` in `vite.config.ts` is the only prerequisite; without runtime mode the plugin no-ops and there's no `__t` wrapper for pseudo to hook into.
+
+The panel below runs the real kapi-react runtime in your browser — no catalog loaded. Toggle pseudo mode and the same strings flip to accented, expanded text; `{name}` stays literal because `{param}` tokens are preserved through the transform:
+
+<BrowserOnly>{() => <PseudoModeExplorer />}</BrowserOnly>
 
 If you want pseudo to be the default in dev, wire it at the top of `main.tsx` guarded on `import.meta.env.DEV`, then keep the dev console handle available for tuning:
 

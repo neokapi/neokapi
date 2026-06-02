@@ -1,0 +1,66 @@
+.explorer {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.control input[type="range"] {
+  width: 12rem;
+}
+
+.colLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.5rem;
+}
+
+.strings {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-100);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stringRow {
+  font-size: 1.05rem;
+  font-weight: 600;
+  /* Pseudo accents pull from wide Unicode blocks; keep them on one line. */
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
