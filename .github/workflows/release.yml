@@ -61,9 +61,171 @@ jobs:
               ;;
           esac
 
-  goreleaser:
-    name: GoReleaser
+  # Build the CLI binaries (kapi + kapi-bowrain) natively per OS/arch with
+  # cgo + statically-linked ICU + the fts5 tag, so they match the framework the
+  # desktop apps use (native mattn SQLite + ICU FTS5 tokenizer + UAX-29). cgo
+  # rules out single-runner cross-compilation, so each target builds on its own
+  # native runner and uploads the binaries as artifacts; the package-cli job
+  # below archives/checksums/signs them and publishes the brew formulae.
+  #
+  # ICU provisioning differs per OS (see the per-OS steps): brew on macOS,
+  # built-from-source (PIC, static) on Linux, MSYS2 mingw on Windows. All feed
+  # scripts/gen-icu-static-pc.sh, which forces static linking.
+  #
+  # NOTE: this matrix is new and only macOS has been validated locally; the
+  # Linux (source ICU + PIE/PIC) and Windows (MSYS2 mingw, -static C++ runtime,
+  # ICU archive names) legs are expected to need CI iteration.
+  build-cli:
+    name: Build CLI (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
     needs: parity-gate
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { goos: darwin, goarch: arm64, os: macos-latest, icu: brew }
+          - { goos: darwin, goarch: amd64, os: macos-13, icu: brew }
+          - { goos: linux, goarch: amd64, os: ubuntu-latest, icu: source }
+          - { goos: linux, goarch: arm64, os: ubuntu-24.04-arm, icu: source }
+          - { goos: windows, goarch: amd64, os: windows-2025, icu: msys2 }
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - name: Compute build metadata
+        id: meta
+        shell: bash
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "LDFLAGS=-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.pluginVersion=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create //go:embed placeholders
+        shell: bash
+        run: |
+          mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
+          mkdir -p apps/kapi-desktop/frontend/dist && touch apps/kapi-desktop/frontend/dist/placeholder
+
+      # ---- ICU provisioning (sets PKG_CONFIG_PATH for the static .pc) ----
+      - name: Provision static ICU (macOS)
+        if: matrix.target.goos == 'darwin'
+        run: |
+          brew install pkg-config icu4c@78
+          PCDIR=$(bash scripts/gen-icu-static-pc.sh)
+          {
+            echo "PKG_CONFIG_PATH=${PCDIR}"
+            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+          } >> "$GITHUB_ENV"
+
+      - name: Provision static ICU (Linux, from source)
+        if: matrix.target.goos == 'linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential pkg-config curl
+          ICU_PREFIX=$(bash scripts/build-icu-static.sh /opt/icu-static)
+          PCDIR=$(ICU_PREFIX="$ICU_PREFIX" bash scripts/gen-icu-static-pc.sh)
+          echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
+
+      # ---- Build (macOS / Linux) ----
+      - name: Build kapi + kapi-bowrain (macOS / Linux)
+        if: matrix.target.goos != 'windows'
+        env:
+          GOOS: ${{ matrix.target.goos }}
+          GOARCH: ${{ matrix.target.goarch }}
+          CGO_ENABLED: "1"
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi )
+          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
+
+      # ---- Build (Windows, MSYS2 mingw + static ICU) ----
+      - name: Set up MSYS2 (Windows)
+        if: matrix.target.goos == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-icu
+            mingw-w64-x86_64-pkg-config
+
+      - name: Build kapi + kapi-bowrain (Windows)
+        if: matrix.target.goos == 'windows'
+        shell: msys2 {0}
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          # Static C++/gcc runtimes so kapi.exe needs no mingw DLLs alongside it.
+          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: |
+          set -euo pipefail
+          # go from the Windows runner (setup-go) is on PATH; CC = mingw gcc.
+          export CC=gcc
+          # MSYS2 mingw ICU lives under /mingw64; gen-icu-static-pc.sh forces
+          # static archives + -lstdc++ (non-Darwin default).
+          PCDIR=$(ICU_PREFIX=/mingw64 bash scripts/gen-icu-static-pc.sh)
+          export PKG_CONFIG_PATH="$PCDIR"
+          mkdir -p out
+          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi.exe ./cmd/kapi )
+          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
+
+      # ---- Sign the macOS kapi binary (quill: Developer ID + notarize) ----
+      - name: Sign + notarize kapi (macOS)
+        if: matrix.target.goos == 'darwin'
+        env:
+          QUILL_SIGN_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          QUILL_SIGN_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          QUILL_NOTARY_KEY: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          QUILL_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          QUILL_NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          curl -sSfL https://get.anchore.io/quill | sudo sh -s -- -b /usr/local/bin v0.7.1
+          IS_SNAPSHOT=false
+          [ -z "${QUILL_SIGN_P12:-}" ] && IS_SNAPSHOT=true
+          bash scripts/quill-sign-darwin.sh out/kapi darwin "$IS_SNAPSHOT"
+
+      # ---- Upload binaries for the package-cli job ----
+      - name: Upload CLI binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-bins-${{ matrix.target.goos }}-${{ matrix.target.goarch }}
+          path: out/*
+          retention-days: 14
+
+      # Windows kapi.exe is published out of band (Authenticode-signed locally
+      # with Certum, scripts/publish-windows-signed.sh) — keep its zip artifact.
+      - name: Package + upload Windows kapi CLI (out-of-band signing)
+        if: matrix.target.goos == 'windows'
+        shell: bash
+        run: |
+          (cd out && zip -q "kapi_${{ steps.meta.outputs.VERSION }}_windows_amd64.zip" kapi.exe)
+      - name: Upload Windows kapi zip
+        if: matrix.target.goos == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-cli-windows-amd64
+          path: out/kapi_*_windows_amd64.zip
+          retention-days: 14
+
+  # Package + publish the CLI binaries built by build-cli. This replaces the
+  # former GoReleaser job: GoReleaser OSS can't consume externally-built (cgo +
+  # static-ICU) binaries (`builder: prebuilt` is Pro only), so we reproduce its
+  # CLI outputs directly — archives, checksums, cosign signatures for the
+  # kapi-bowrain plugin tarballs, the kapi-cli/bowrain-cli brew formulae, and
+  # the GitHub release upload — using the same artifact names downstream
+  # consumers (formulae, docs, plugin registry) already expect.
+  package-cli:
+    name: Package + publish CLI
+    needs: [parity-gate, build-cli]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -74,58 +236,102 @@ jobs:
         with:
           go-version: "1.26.0"
 
+      # Release gate: shared UI must type-check + pass unit tests (previously
+      # run inside the GoReleaser job).
       - uses: ./.github/actions/setup-node-ui
-
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
         run: vp check --no-fmt --no-lint
-
       - name: Run UI unit tests
         working-directory: bowrain/packages/ui
         run: vp test
 
-      - name: Build SaaS web UI
-        working-directory: bowrain/apps/web
-        run: vp run build
-
-      - name: Create Bowrain frontend placeholder
-        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
-
-      - name: Download modules
-        run: |
-          go mod download && go mod verify
-          cd cli && go mod download && go mod verify
-          cd ../kapi && go mod download && go mod verify
-          cd ../apps/kapi-desktop && go mod download && go mod verify
-          cd ../../bowrain/core && go mod download && go mod verify
-          cd ../cli && go mod download && go mod verify
-          cd .. && go mod download && go mod verify
-
-      - name: Reset go.work.sum
-        run: git checkout -- go.work.sum
-
       - name: Install cosign (for kapi-bowrain plugin signing)
         uses: sigstore/cosign-installer@v3
 
-      - name: Install quill (macOS signing + notarization for CLI binaries)
-        run: |
-          curl -sSfL https://get.anchore.io/quill | sudo sh -s -- -b /usr/local/bin v0.7.1
-          quill version
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7
+      - name: Download CLI binaries
+        uses: actions/download-artifact@v7
         with:
-          version: "~> v2"
-          args: release --clean
+          pattern: cli-bins-*
+          path: cli-artifacts
+
+      - name: Package archives + checksums
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
+            bowrain/cli/cmd/kapi-bowrain/manifest.json
+
+      # Keyless cosign signature (sigstore bundle) for each kapi-bowrain plugin
+      # tarball — kapi's plugin-install verifier requires it. Mirrors the former
+      # GoReleaser `signs` block.
+      - name: Sign kapi-bowrain plugin archives (cosign)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          # quill: Developer ID signing + notarization of the macOS kapi binaries.
-          QUILL_SIGN_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          QUILL_SIGN_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-          QUILL_NOTARY_KEY: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
-          QUILL_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          QUILL_NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for a in dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
+            cosign sign-blob --yes --new-bundle-format=true \
+              --bundle "${a}.sigstore.json" "$a"
+          done
+
+      - name: Generate brew formulae
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
+            dist/checksums.txt brew-formulae
+
+      - name: Publish CLI archives to release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/kapi_*.tar.gz
+            dist/kapi-bowrain_*.tar.gz
+            dist/kapi-bowrain_*.zip
+            dist/*.sigstore.json
+            dist/checksums.txt
+          body: |
+            ## Installation
+
+            **Homebrew (kapi CLI, Apache-2.0, no plugins):**
+            ```
+            brew install neokapi/tap/kapi-cli
+            ```
+
+            **Homebrew (kapi + bowrain plugin):**
+            ```
+            brew install neokapi/tap/bowrain-cli
+            ```
+
+            **Homebrew (Kapi desktop app, macOS):**
+            ```
+            brew install --cask neokapi/tap/kapi
+            ```
+
+            **Homebrew (Bowrain desktop app, macOS):**
+            ```
+            brew install --cask neokapi/tap/bowrain
+            ```
+
+      - name: Push brew formulae to homebrew-tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neokapi/homebrew-tap.git" /tmp/tap
+          mkdir -p /tmp/tap/Formula
+          cp brew-formulae/kapi-cli.rb brew-formulae/bowrain-cli.rb /tmp/tap/Formula/
+          cd /tmp/tap
+          git config user.email "release-bot@neokapi.dev"
+          git config user.name "release-bot"
+          git add Formula/kapi-cli.rb Formula/bowrain-cli.rb
+          if ! git diff --staged --quiet; then
+            git commit -m "kapi-cli + bowrain-cli ${VERSION}"
+            git push
+          fi
 
       # Push the new kapi-bowrain plugin version into the manifest-plugins
       # registry so `kapi plugin install bowrain` resolves to this build.
@@ -192,7 +398,7 @@ jobs:
   docker:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: goreleaser
+    needs: package-cli
     strategy:
       fail-fast: false
       matrix:
@@ -292,7 +498,7 @@ jobs:
   docker-keycloak:
     name: Docker (bowrain-keycloak)
     runs-on: ubuntu-latest
-    needs: goreleaser
+    needs: package-cli
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
@@ -624,7 +830,7 @@ jobs:
 
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
-    needs: goreleaser
+    needs: package-cli
     strategy:
       fail-fast: false
       matrix:
@@ -906,42 +1112,11 @@ jobs:
         with:
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
-  # kapi CLI Windows binaries — built here as workflow artifacts (NOT attached to
-  # the release) so they can be Authenticode-signed locally with a Certum cert and
-  # added to the published release (scripts/publish-windows-signed.sh). The
-  # CI-signed macOS + Linux CLI builds and the GitHub release are owned by the
-  # goreleaser job.
-  build-windows-cli:
-    name: Build kapi CLI (Windows, unsigned artifact)
-    needs: parity-gate
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [amd64]
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v6
-        with:
-          go-version: "1.26.0"
-      - name: Build kapi.exe
-        working-directory: kapi
-        env:
-          GOOS: windows
-          GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: "0"
-          GH_SHA: ${{ github.sha }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          LDFLAGS="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          go build -trimpath -ldflags="${LDFLAGS}" -o kapi.exe ./cmd/kapi
-          zip -q "kapi_${VERSION}_windows_${GOARCH}.zip" kapi.exe
-      - uses: actions/upload-artifact@v7
-        with:
-          name: kapi-cli-windows-${{ matrix.arch }}
-          path: kapi/kapi_*_windows_${{ matrix.arch }}.zip
-          retention-days: 14
+  # NOTE: the Windows kapi CLI binary is now produced by the `build-cli` matrix
+  # (cgo + static ICU via MSYS2 mingw); it uploads the unsigned
+  # kapi-cli-windows-amd64 zip artifact for out-of-band Authenticode signing
+  # (scripts/publish-windows-signed.sh). The former standalone build-windows-cli
+  # job has been retired.
 
   update-casks:
     name: Update Homebrew Casks
@@ -1086,7 +1261,7 @@ jobs:
   update-actions:
     name: Update GitHub Actions
     runs-on: ubuntu-latest
-    needs: goreleaser
+    needs: package-cli
     steps:
       - name: Extract version
         id: version
