@@ -206,11 +206,12 @@ jobs:
 
       # Windows kapi.exe is published out of band (Authenticode-signed locally
       # with Certum, scripts/publish-windows-signed.sh) — keep its zip artifact.
-      - name: Package + upload Windows kapi CLI (out-of-band signing)
+      # git-bash on the Windows runner has no `zip`; use PowerShell's
+      # Compress-Archive (as the desktop Windows zip steps do).
+      - name: Package Windows kapi CLI zip (out-of-band signing)
         if: matrix.target.goos == 'windows'
-        shell: bash
-        run: |
-          (cd out && zip -q "kapi_${{ steps.meta.outputs.VERSION }}_windows_amd64.zip" kapi.exe)
+        shell: pwsh
+        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi_${{ steps.meta.outputs.VERSION }}_windows_amd64.zip" -Force
       - name: Upload Windows kapi zip
         if: matrix.target.goos == 'windows'
         uses: actions/upload-artifact@v7
