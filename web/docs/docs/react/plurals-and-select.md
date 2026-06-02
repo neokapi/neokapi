@@ -5,6 +5,8 @@ description: Count-aware and choice-based text in kapi-react — author plural f
 keywords: [plurals, select, Plural component, ICU, i18n, kapi-react, count-aware, React i18n]
 ---
 
+import { PluralSelectExplorer } from "@site/src/components/react/PluralSelectExplorer";
+
 # Plurals and select
 
 Count-aware and choice-based text, authored in React with per-form children. No raw ICU strings in your source.
@@ -57,6 +59,10 @@ That works, but mixes the source-language forms into an opaque string literal. k
 - **Placeholders per form** — `{n}` is an expression, handled by the same placeholder machinery as any JSX text.
 
 Under the hood the extractor emits the canonical ICU template that translators know. Source authors work in React; translators work in their CAT tool against ICU. Both views are correct.
+
+Move the count and change the locale to see which form `Intl.PluralRules` resolves — the same lookup `<Plural>` does at render time — next to the ICU template the extractor emits:
+
+<PluralSelectExplorer />
 
 ## Mixing inline elements inside a plural form
 
