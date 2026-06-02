@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	// Pure-Go SQLite (no C compiler required). Used for CGO_ENABLED=0 builds
-	// such as the Windows kapi CLI, where mattn/go-sqlite3 registers no driver.
-	// modernc ships only the built-in FTS5 tokenizers, so no ICU tokenizer is
-	// available here (see FTSWordTokenizer below).
+	// (the wasm build and bare `go build`/`go test` without a C toolchain),
+	// where mattn/go-sqlite3 registers no driver. Released binaries are all cgo
+	// (see driver_cgo.go). modernc ships only the built-in FTS5 tokenizers, so
+	// no ICU tokenizer is available here (see FTSWordTokenizer below).
 	_ "modernc.org/sqlite"
 )
 

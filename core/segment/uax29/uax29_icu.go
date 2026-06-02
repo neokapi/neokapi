@@ -1,11 +1,12 @@
-//go:build cgo && !windows
+//go:build cgo
 
 // Package uax29 is a sentence-segmentation engine backed by ICU's UAX-29
 // sentence BreakIterator (Unicode Standard Annex #29, "Unicode Text
 // Segmentation"). It registers itself under the name "uax29" in the
 // [github.com/neokapi/neokapi/core/segment] registry when ICU is linked into
-// the binary (cgo, non-Windows); on platforms without ICU the build-tagged
-// stub file is compiled instead and the engine is simply absent.
+// the binary (any cgo build — ICU is provisioned for every release target);
+// on non-cgo builds the build-tagged stub file is compiled instead and the
+// engine is simply absent.
 //
 // Blank-import this package to make the engine available:
 //
