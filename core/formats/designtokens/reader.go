@@ -48,9 +48,14 @@ const (
 // relabels the root layer's format to designtokens.
 type Reader struct {
 	format.BaseFormatReader
-	cfg   *Config
-	inner *jsonfmt.Reader
+	cfg           *Config
+	inner         *jsonfmt.Reader
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Reader emits a byte-exact skeleton by forwarding the store to the inner
+// JSON reader, which does the token-level skeleton emission.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new design-tokens reader.
 func NewReader() *Reader {
@@ -78,6 +83,12 @@ func (r *Reader) SetConfig(cfg format.DataFormatConfig) error {
 		r.cfg = c
 	}
 	return nil
+}
+
+// SetSkeletonStore records the skeleton store and forwards it to the inner JSON
+// reader (created in Open), which performs the byte-faithful skeleton emission.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata. The unique .tokens extension is claimed
@@ -122,6 +133,9 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	// the reliable way to configure it.
 	if jc, ok := inner.Config().(*jsonfmt.Config); ok {
 		r.cfg.applyToJSON(jc)
+	}
+	if r.skeletonStore != nil {
+		inner.SetSkeletonStore(r.skeletonStore)
 	}
 	if err := inner.Open(ctx, doc); err != nil {
 		return err

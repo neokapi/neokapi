@@ -1,6 +1,7 @@
 package applestrings
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -39,7 +40,50 @@ const (
 // recorded encoding marker lets the writer reproduce the original byte order.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+}
+
+// Ensure Reader implements SkeletonStoreEmitter so kapi extract can capture a
+// byte-exact source skeleton that kapi merge replays through the writer. Without
+// this the merge path (which discards layer properties and never re-reads the
+// original bytes) could not reproduce the file faithfully.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output. When
+// non-nil the reader emits a SkeletonText/SkeletonRef stream that stands in for
+// the file structure and each translatable value, and skips storing the
+// (now-redundant) original-bytes layer property.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
+// skelText appends non-translatable text to the skeleton buffer when active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore == nil {
+		return
+	}
+	if r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
+	_ = r.skeletonStore.WriteRef(id)
+}
+
+// skelFlush writes any remaining buffered text to the store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 // NewReader creates a new Apple Strings reader.
@@ -122,10 +166,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		MimeType: "text/plain",
 		HasBOM:   hadBOM,
 		Properties: map[string]string{
-			propOriginal: content,
 			propKind:     kindStr,
 			propEncoding: enc,
 		},
+	}
+	// The original-bytes property and the skeleton stream are two paths to the
+	// same byte-exact result. The merge path discards layer properties, so when
+	// a skeleton store is wired we omit propOriginal: the writer reconstructs
+	// from the skeleton instead (and the property would otherwise be dead state).
+	if r.skeletonStore == nil {
+		layer.Properties[propOriginal] = content
 	}
 	if hadBOM {
 		layer.Properties[propBOM] = "1"
@@ -145,6 +195,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 	}
+
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }

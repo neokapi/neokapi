@@ -35,6 +35,10 @@ type Writer struct {
 // HTML subfilter child layers serialize correctly.
 var _ format.SubfilterAware = (*Writer)(nil)
 
+// Ensure Writer consumes a byte-exact skeleton by forwarding the store to the
+// inner JSON writer, whose writeFromSkeleton path reproduces the document.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+
 // NewWriter creates a new i18next writer.
 func NewWriter() *Writer {
 	cfg := &Config{}
@@ -71,6 +75,13 @@ func (w *Writer) SetEncoding(encoding string) { w.inner.SetEncoding(encoding) }
 func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	w.resolver = resolver
 	w.inner.SetSubfilterResolver(resolver)
+}
+
+// SetSkeletonStore forwards the skeleton store to the inner JSON writer, whose
+// writeFromSkeleton path reproduces the document byte-for-byte, splicing only
+// translated values at each block reference.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.inner.SetSkeletonStore(store)
 }
 
 // Write transforms the incoming parts (flattening inline-coded runs on

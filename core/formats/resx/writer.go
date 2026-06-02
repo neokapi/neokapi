@@ -2,6 +2,7 @@ package resx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -22,7 +23,21 @@ import (
 // pipelines), the writer builds a canonical ResX document from scratch.
 type Writer struct {
 	format.BaseFormatWriter
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+}
+
+// Ensure Writer satisfies the skeleton-consumer contract. When a skeleton store
+// is wired (kapi merge), the writer replays the source-captured skeleton —
+// every byte verbatim except each <value> inner content, which is re-encoded
+// from the resolved Block value looked up by ID.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+
+// SetSkeletonStore wires a skeleton store so the writer reconstructs output from
+// the byte-exact skeleton captured at extract time, splicing each block's
+// resolved value into its <value> ref. This is the path kapi merge drives.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
 }
 
 // NewWriter creates a new RESX writer.
@@ -45,6 +60,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	var original []byte
 	// byName maps a <data>/@name to the output value for that entry.
 	byName := make(map[string]string)
+	// blocksByID maps a Block.ID to the block itself, for the skeleton path,
+	// which resolves each <value> ref by ID rather than by @name.
+	blocksByID := make(map[string]*model.Block)
 	var order []string
 
 	for {
@@ -68,11 +86,21 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 						order = append(order, block.Name)
 					}
 					byName[block.Name] = w.resolveValue(block)
+					blocksByID[block.ID] = block
 				}
 			}
 		}
 	}
 done:
+	// Skeleton path (kapi merge): replay the source-captured skeleton, splicing
+	// each block's resolved value into its <value> ref. Byte-exact when no
+	// translation changed; otherwise only the <value> inner content differs.
+	if w.skeletonStore != nil {
+		if err := w.skeletonStore.Flush(); err != nil {
+			return fmt.Errorf("resx writer: flush skeleton: %w", err)
+		}
+		return w.writeFromSkeleton(blocksByID)
+	}
 	if original != nil {
 		out, err := w.rewrite(original, byName)
 		if err != nil {
@@ -82,6 +110,39 @@ done:
 		return werr
 	}
 	return w.writeFromScratch(order, byName)
+}
+
+// writeFromSkeleton reconstructs the document from the skeleton store: text
+// entries are written verbatim, and each ref entry is replaced by the
+// XML-encoded resolved value of the referenced block (the same encodeText used
+// to write <value> inner content elsewhere). A ref whose block is missing
+// emits nothing, leaving the surrounding <value></value> tags empty rather than
+// failing the merge.
+func (w *Writer) writeFromSkeleton(blocksByID map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("resx writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			block, ok := blocksByID[string(entry.Data)]
+			if !ok {
+				continue
+			}
+			if _, err := io.WriteString(w.Output, encodeText(w.resolveValue(block))); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // resolveValue returns the output value for a block: the target text for the

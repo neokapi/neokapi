@@ -24,14 +24,19 @@ const (
 // plural/context metadata.
 type Reader struct {
 	format.BaseFormatReader
-	cfg      *Config
-	inner    *jsonfmt.Reader
-	resolver format.SubfilterResolver
+	cfg           *Config
+	inner         *jsonfmt.Reader
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
 }
 
 // Ensure Reader forwards subfiltering to the inner JSON reader so the `_html`
 // HTML subfilter resolves at pipeline time.
 var _ format.SubfilterAware = (*Reader)(nil)
+
+// Ensure Reader emits a byte-exact skeleton by forwarding the store to the inner
+// JSON reader, which does the token-level skeleton emission.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new i18next reader.
 func NewReader() *Reader {
@@ -66,6 +71,12 @@ func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	r.resolver = resolver
 }
 
+// SetSkeletonStore records the skeleton store and forwards it to the inner JSON
+// reader (created in Open), which performs the byte-faithful skeleton emission.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
 // Signature returns detection metadata. i18next files use the generic .json
 // extension and the application/json MIME, both of which are owned by the
 // generic json format and cannot be reliably auto-distinguished. The format is
@@ -93,6 +104,9 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 	if r.resolver != nil {
 		inner.SetSubfilterResolver(r.resolver)
+	}
+	if r.skeletonStore != nil {
+		inner.SetSkeletonStore(r.skeletonStore)
 	}
 	if err := inner.Open(ctx, doc); err != nil {
 		return err

@@ -23,12 +23,22 @@ func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult
 		return false
 	}
 
+	// Skeleton token cursor: the index of the next token whose raw bytes have not
+	// yet been emitted as SkeletonText. Leaves are walked in document order, so
+	// their <string> start-tag indices (strStart) are strictly ascending; for
+	// each leaf we emit every token up to and including its <string> start tag,
+	// a SkeletonRef for the value, the </string> end tag, then skip the inner
+	// value tokens. Everything else (DOCTYPE, keys, whitespace, entities) is
+	// replayed verbatim.
+	tokCursor := 0
+
 	counter := 0
 	for i := range doc.leafs {
 		leaf := doc.leafs[i]
 		counter++
+		blockID := "tu" + strconv.Itoa(counter)
 		block := &model.Block{
-			ID:           "tu" + strconv.Itoa(counter),
+			ID:           blockID,
 			Name:         leafName(leaf),
 			Translatable: true,
 			SourceLocale: locale,
@@ -52,8 +62,27 @@ func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult
 			block.Properties[propBlockValType] = leaf.valueType
 		}
 
+		// Skeleton: structure up to and including the <string> start tag → Text;
+		// the value → Ref; the </string> end tag → Text; skip inner value tokens.
+		if r.skeletonStore != nil {
+			for t := tokCursor; t <= leaf.strStart; t++ {
+				r.skelText(doc.toks[t].raw)
+			}
+			r.skelRef(blockID)
+			r.skelText(doc.toks[leaf.strEnd].raw)
+			tokCursor = leaf.strEnd + 1
+		}
+
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return false
+		}
+	}
+
+	// Skeleton: trailing tokens after the last leaf's </string> (closing dicts,
+	// </plist>, trailing whitespace/EOF). skelFlush in readContent emits it.
+	if r.skeletonStore != nil {
+		for t := tokCursor; t < len(doc.toks); t++ {
+			r.skelText(doc.toks[t].raw)
 		}
 	}
 	return true

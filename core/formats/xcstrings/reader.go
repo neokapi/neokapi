@@ -1,6 +1,7 @@
 package xcstrings
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,8 +16,13 @@ import (
 // Reader implements DataFormatReader for Apple String Catalog (.xcstrings) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Apple String Catalog reader.
 func NewReader() *Reader {
@@ -39,6 +45,54 @@ func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"application/json"},
 		Extensions: []string{".xcstrings"},
+	}
+}
+
+// SetSkeletonStore sets the skeleton store for byte-exact streaming output.
+// When set, the reader emits a token-level skeleton (every non-translatable
+// byte as Text, each translatable leaf value as a Ref keyed by the block ID)
+// so the writer can reconstruct the document byte-for-byte, splicing only
+// changed values. This is the path `kapi merge` relies on (the source-captured
+// skeleton is fed to the writer with the freshly-read blocks).
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelToken appends a token's prefix and raw bytes to the skeleton buffer.
+func (r *Reader) skelToken(tok token) {
+	if r.skeletonStore != nil {
+		r.skelBuf.WriteString(tok.prefix)
+		r.skelBuf.WriteString(tok.raw)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton
+// store. The leaf value's preceding whitespace prefix is written as Text first
+// so the writer reproduces it verbatim before emitting the (possibly
+// translated) value.
+func (r *Reader) skelRef(prefix, id string) {
+	if r.skeletonStore != nil {
+		r.skelText(prefix)
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
 	}
 }
 
@@ -98,10 +152,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Preserve the original document bytes so the writer can produce
 	// byte-faithful output, splicing only changed values. unsafe.String
 	// shares the backing array — content is not mutated after this point.
-	layer.Properties["xcstrings.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	//
+	// When a skeleton store is wired the writer reconstructs from the skeleton
+	// stream instead, so the (potentially large) original-bytes property is
+	// redundant and intentionally omitted — mirroring the native JSON reader.
+	if r.skeletonStore == nil {
+		layer.Properties["xcstrings.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
+	}
+
+	// Emit the byte-exact skeleton via an independent token walk. It mirrors
+	// the rewriter's structure and assigns block IDs ("tu"+counter) in the
+	// same document order — and with the same stale-skip — as emitLeaf below,
+	// so the Refs it writes line up with the blocks. Running it before block
+	// emission keeps the skeleton stream complete even if a downstream
+	// consumer cancels mid-stream.
+	if r.skeletonStore != nil {
+		r.emitSkeleton(content)
 	}
 
 	blockCounter := 0

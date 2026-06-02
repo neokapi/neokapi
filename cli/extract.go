@@ -343,9 +343,12 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 
 	// Persist the source skeleton for merge — only when the source reader
-	// supports skeleton emission. Formats that don't (e.g. JSON today)
-	// will re-read the source at merge time; stale detection still works
-	// via the source hash carried in the XLIFF file notes.
+	// supports skeleton emission (most text formats do, including the keyed
+	// catalog formats: JSON/YAML/.properties, Android XML, .resx, Apple
+	// .strings/.stringsdict/.xcstrings, .arb, i18next, design tokens).
+	// Formats without a skeleton emitter (e.g. binary gettext MO, PDF)
+	// re-read the source at merge time; stale detection still works via the
+	// source hash carried in the XLIFF file notes.
 	skeletonHash := strings.TrimPrefix(task.sourceHash, "sha256:")
 	skeletonPath := filepath.Join(task.batchDir, project.SkeletonFilename(skeletonHash))
 	var skelStore *format.SkeletonStore

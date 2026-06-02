@@ -1,36 +1,58 @@
 ---
 sidebar_position: 2
-title: Bilingual Workflow — Extract, Translate, Merge
-description: How to run a full bilingual round-trip with kapi — extract to XLIFF or PO, send to a CAT tool or translator, and merge translations back while keeping the TM in the loop.
-keywords: [bilingual workflow, XLIFF, PO, gettext, CAT tool, extract, merge, translation memory, round-trip]
+sidebar_label: Interchange
+title: Interchange — XLIFF, PO, and your TMS
+description: How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop.
+keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, merge, round-trip, translation memory, terminology]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 import { RoundTripDiagram } from "@neokapi/docs-shared";
 import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 
-# Bilingual Workflow: Extract → Translate → Merge
+# Interchange: work with any TMS or CAT tool
 
 :::info Needs a .kapi project
-Unlike the ad-hoc recipes, this round-trip is project-based. `kapi extract` and
-`kapi merge` read the recipe's content globs and target locales and use the
-project's `.kapi/tm.db`, so start with `kapi init` (see
-[Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands from inside the
-project directory. See [Project file](/reference/project-file) for the recipe and
-its git-style discovery.
+Interchange is **project-based**. `kapi extract` and `kapi merge` read the
+recipe's content globs and target locales and use the project's `.kapi/tm.db`
+plus the per-source skeletons under `.kapi/cache/extractions/`, so start with
+`kapi init` (see [Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands
+from inside the project directory. See [Project file](/reference/project-file)
+for the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_
+with no round-trip needs no project — that is plain `kapi run -i <file>`.)
 :::
 
-Most serious localization projects run on bilingual exchange formats
-like **XLIFF 2.x** and **PO (gettext)**. Translators open them in a CAT
-tool (Trados, memoQ, OmegaT, Phrase, Lokalise, Crowdin, Poedit, …),
-translate, and send them back. kapi's job is the **engineering glue**
-on either side of that handoff: emit a clean bilingual file, accept the
-returned one, and keep the project's **translation memory** in the
-loop so every merge makes the next extract cheaper.
+**Interchange** is how kapi hands content to the outside world in a
+standard, tool-neutral file and takes the result back. Most serious
+localization runs on bilingual exchange formats like **XLIFF 2.x** and
+**PO (gettext)**: translators open them in a CAT tool (Trados, memoQ,
+OmegaT, Phrase, Lokalise, Crowdin, Poedit, …), translate, and send them
+back. kapi's job is the **engineering glue** on either side of that
+handoff — emit a clean bilingual file, accept the returned one, rebuild
+the source format byte-for-byte from a captured **skeleton**, and keep the
+project's **translation memory** and **terminology** in the loop so every
+merge makes the next extract cheaper.
 
-This guide walks the full round-trip. For architectural context and
-design decisions see [AD-017: Bilingual Format
-Interop](/contribute/architecture/017-bilingual-format-interop).
+## The interchange landscape
+
+"Interchange" spans four distinct boundaries. They share one seam — the
+same format readers and writers over kapi's content model — but differ in
+who they talk to and where the durable state lives:
+
+| Boundary | What crosses | Driven by | Counterpart |
+| --- | --- | --- | --- |
+| **Format conversion** (ad-hoc, one-way) | one file, no round-trip state | `kapi run -i` + a format writer | none — just the pipeline |
+| **Bilingual round-trip** _(this page)_ | a document as XLIFF 2.x / PO, worked elsewhere, merged back | `kapi extract` / `kapi merge` | external TMS / CAT tool |
+| **Asset interchange** | accumulated TM and terminology | `kapi tm import`/`export` (TMX), `kapi termbase import`/`export` (TBX) | corporate TM / term archives |
+| **Platform sync** | block-level deltas over an internal protocol — no exchange file at all | `kapi push` / `kapi pull` | the Bowrain server |
+
+The bright line: **bilingual round-trip and asset interchange leave to an
+external tool and come back, with project state holding the way back;
+platform sync stays connected to a stateful server.** This page is the
+bilingual round-trip — the standards-based handoff to a translator or TMS.
+
+For architectural context and design decisions see [AD-017: Bilingual
+Format Interop](/contribute/architecture/017-bilingual-format-interop).
 
 <ThemedVideo
   sources={{
@@ -149,8 +171,10 @@ Which writes:
   recording the source→output mapping, per-file SHA-256, and TM
   leverage counts
 - Per-source skeletons under `.kapi/cache/extractions/<batch-id>/skel-<hash>.bin`
-  so `kapi merge` can rewrite the source byte-exactly from the
-  translator's return
+  so `kapi merge` can rebuild the source byte-for-byte from the
+  translator's return — for document and markup formats and for keyed
+  catalog formats alike (JSON, YAML, `.properties`, Android XML, `.resx`,
+  Apple `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)
 - A file-level `<note category="kapi">` on each XLIFF stamping the
   batch id, source file, and source hash
 
@@ -278,6 +302,25 @@ Enabling `defaults.segmentation.source: true` together with
 `--format po` errors early; emit XLIFF for projects that rely on
 sentence-level segmentation.
 :::
+
+## What stays in the project
+
+XLIFF and PO carry exactly one chosen target per locale, the source runs
+and inline codes, and — with the captured skeleton — enough to rebuild the
+original file byte-for-byte. Everything else in kapi's content model is
+**deliberately not** projected into the bilingual file; it stays in project
+state (`.kapi/`, `tm.db`, `termbase.db`):
+
+- **Stand-off overlays** — terminology, entity, and QA annotations anchored
+  to run ranges.
+- **Tone / channel variants** — alternate targets keyed by more than locale.
+- **Provenance and status** — where each target came from (TM pre-fill, a
+  specific merge batch, an MT or AI tool) and its review state.
+
+This is by design: the bilingual file is the lean, tool-neutral handoff,
+and the project is the system of record. It is also why merge needs the
+same project the extract ran in — the skeleton and manifest that make the
+round-trip byte-exact live there, not in the file the translator returns.
 
 ## Deeper reading
 

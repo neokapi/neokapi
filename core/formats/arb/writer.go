@@ -2,6 +2,8 @@ package arb
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -20,8 +22,12 @@ import (
 // writer builds a document from scratch using Dart's canonical indentation.
 type Writer struct {
 	format.BaseFormatWriter
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new ARB writer.
 func NewWriter() *Writer {
@@ -38,11 +44,19 @@ func NewWriter() *Writer {
 // Config returns the writer's config for customization.
 func (w *Writer) Config() *Config { return w.cfg }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output. When set, the
+// writer reconstructs the document from the skeleton (the kapi merge path)
+// rather than re-tokenizing the original bytes.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts and writes the reconstructed ARB document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	var original []byte
 	var layerLocale string
 	repl := newReplacements()
+	blocksByID := make(map[string]*model.Block) // block.ID → block (for skeleton store)
 
 	for {
 		select {
@@ -62,16 +76,71 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				}
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
 					w.collectBlock(block, repl)
 				}
 			}
 		}
 	}
 done:
+	// Skeleton path (byte-exact, the kapi merge path): rebuild from the
+	// captured skeleton, splicing in each block's resolved value. Takes
+	// precedence over the original/scratch fallbacks.
+	if w.skeletonStore != nil {
+		if err := w.skeletonStore.Flush(); err != nil {
+			return fmt.Errorf("arb writer: flush skeleton: %w", err)
+		}
+		return w.writeFromSkeleton(w.skeletonStore, blocksByID)
+	}
+
 	if original != nil {
 		return w.writeFromOriginal(original, repl)
 	}
 	return w.writeFromScratch(repl, layerLocale)
+}
+
+// writeFromSkeleton reads skeleton entries and reconstructs the document. Text
+// entries are written verbatim; each Ref is replaced with the referenced
+// block's resolved value (target for the writer's locale, else source),
+// JSON-escaped the way Dart's JsonEncoder does. This produces byte-exact output
+// for unchanged messages and changes only the message values that were
+// translated.
+func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocksByID map[string]*model.Block) error {
+	for {
+		entry, err := store.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("arb writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			var value string
+			if block, ok := blocksByID[string(entry.Data)]; ok {
+				value = w.blockValue(block)
+			}
+			if _, err := io.WriteString(w.Output, encodeJSONString(value)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// blockValue resolves a block's output ARB message value: the target text for
+// the writer's active locale when present, otherwise the source — mirroring
+// collectBlock. ICU placeholders re-emit their captured source via
+// valueFromRuns, so unchanged messages reproduce their exact bytes.
+func (w *Writer) blockValue(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return valueFromRuns(block.TargetRuns(w.Locale))
+	}
+	return valueFromRuns(block.SourceRuns())
 }
 
 // collectBlock records the output value for a block keyed by its ARB resource

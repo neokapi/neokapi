@@ -2,6 +2,7 @@ package androidxml
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -24,7 +25,18 @@ import (
 type Writer struct {
 	format.BaseFormatWriter
 	cfg *Config
+
+	// skeletonStore, when non-nil, drives byte-exact output for `kapi merge`:
+	// the verbatim structure replays from SkeletonText entries and each
+	// SkeletonRef is filled by re-serialising the matching block's runs via
+	// renderRunsToXML. This is the only path used on merge — the
+	// androidxml.original layer property is not consulted.
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Writer implements SkeletonStoreConsumer so `kapi merge` can splice
+// blocks into the source-captured skeleton.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new Android string-resources writer.
 func NewWriter() *Writer {
@@ -40,6 +52,14 @@ func NewWriter() *Writer {
 
 // Config returns the writer's config for customization.
 func (w *Writer) Config() *Config { return w.cfg }
+
+// SetSkeletonStore wires a skeleton store so the writer reconstructs output from
+// the source-captured skeleton (verbatim structure + per-block content refs)
+// instead of re-tokenizing an androidxml.original layer property. This is the
+// path `kapi merge` drives.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
 
 // valueKey uniquely addresses a translatable value inside a resources document.
 type valueKey struct {
@@ -76,6 +96,10 @@ func keyFromBlock(b *model.Block) (valueKey, bool) {
 
 // Write consumes Parts and writes the reconstructed resources document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeletonStore(ctx, parts)
+	}
+
 	var original []byte
 	// overrides holds only entries the writer should splice over the original:
 	// blocks carrying a real target translation for the writer's locale. Entries
@@ -132,6 +156,66 @@ done:
 		return werr
 	}
 	return w.writeFromScratch(order, scratch)
+}
+
+// writeWithSkeletonStore collects every block by ID, then reconstructs output by
+// replaying the source-captured skeleton: SkeletonText entries pass through
+// verbatim, SkeletonRef entries are filled with the matching block's content.
+func (w *Writer) writeWithSkeletonStore(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("androidxml writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeleton(blocksByID)
+}
+
+// writeFromSkeleton reads skeleton entries and reconstructs the document. Text
+// entries replay verbatim; ref entries are replaced by the matching block's
+// inner content, re-serialised via renderRunsToXML (target runs when the writer
+// has a locale and the block carries one, otherwise source runs) so inline
+// xliff:g/CDATA/printf markup re-emits faithfully and text is XML-escaped via
+// encodeText. An untranslated roundtrip is therefore byte-exact: each ref's
+// rendered source equals the original inner bytes.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("androidxml writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			if block, ok := blocks[string(entry.Data)]; ok {
+				if _, err := io.WriteString(w.Output, w.resolveValue(block)); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // resolveValue returns the encoded XML element content for a Block: the target

@@ -25,7 +25,21 @@ import (
 // extracted — they round-trip verbatim.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+}
+
+// Ensure Reader satisfies the skeleton-emitter contract. When a skeleton store
+// is wired (kapi extract), the reader streams a byte-exact skeleton — every
+// token verbatim except the inner content of each translatable <value>, which
+// is replaced by a SkeletonRef the writer fills back in on merge.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+
+// SetSkeletonStore wires a skeleton store so the reader emits byte-exact
+// skeleton entries. With a store set, the layer's "resx.original" property is
+// not populated — the skeleton supersedes it as the merge source of truth.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // NewReader creates a new RESX reader.
@@ -108,14 +122,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 	// Preserve the original document bytes so the writer can produce
 	// byte-faithful output, splicing only changed values. unsafe.String shares
-	// the backing array — content is not mutated after this point.
-	layer.Properties["resx.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	// the backing array — content is not mutated after this point. When a
+	// skeleton store is wired the skeleton carries every byte instead, so the
+	// (potentially large) original property is omitted — merge replays the
+	// skeleton, not the layer property.
+	if r.skeletonStore == nil {
+		layer.Properties["resx.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
 	}
 
 	r.walk(ctx, ch, toks)
+
+	if r.skeletonStore != nil {
+		r.emitSkeleton(toks)
+	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -146,6 +169,68 @@ func (r *Reader) walk(ctx context.Context, ch chan<- model.PartResult, toks []to
 		}
 		i = end
 	}
+}
+
+// emitSkeleton streams a byte-exact skeleton of the token stream to the
+// skeleton store. Every token is written verbatim except the inner character
+// data of a translatable <data>/<value> element, which is replaced by a
+// SkeletonRef carrying the block ID. The writer (writeFromSkeleton) replays the
+// text entries verbatim and re-encodes the resolved block value at each ref, so
+// an untranslated round-trip is byte-identical and a translated one changes only
+// the <value> inner bytes.
+//
+// Block IDs must match those assigned by walk(): the counter advances only for
+// translatable <data> entries, in document order, producing the same
+// "tu"+counter scheme. emitSkeleton mirrors walk() exactly to keep them aligned.
+//
+// Known limitation: a <value> whose content is a CDATA section round-trips
+// through the block as decoded plain text (collectText unwraps CDATA), so the
+// ref re-encodes it as escaped character data — the CDATA wrapper is not
+// preserved. Every other shape (plain text, entity-escaped text, .NET
+// placeholders, multi-line, empty) is byte-exact.
+func (r *Reader) emitSkeleton(toks []token) {
+	pending := 0 // start index of the not-yet-flushed verbatim run
+	flush := func(end int) {
+		var b strings.Builder
+		for _, t := range toks[pending:end] {
+			b.WriteString(t.raw)
+		}
+		_ = r.skeletonStore.WriteText([]byte(b.String()))
+		pending = end
+	}
+
+	blockCounter := 0
+	for i := 0; i < len(toks); i++ {
+		t := toks[i]
+		if t.kind != tokStartTag || t.name != "data" {
+			continue
+		}
+		end := matchEnd(toks, i, "data")
+		if end < 0 {
+			continue
+		}
+		entryToks := toks[i : end+1]
+
+		if r.isTranslatableData(t) {
+			blockCounter++
+			// Only emit a ref when the entry actually produced a Block: a
+			// <data> with no inner <value> span yields no Block (walk's
+			// emitDataBlock returns early on a missing <value>), so leave the
+			// whole entry as verbatim skeleton text.
+			valStart, valEnd := locateChild(entryToks, "value")
+			if valStart >= 0 {
+				// Flush everything up to and including the <value> start tag
+				// (entry-relative valStart maps to toks index i+valStart).
+				flush(i + valStart + 1)
+				_ = r.skeletonStore.WriteRef("tu" + strconv.Itoa(blockCounter))
+				// Resume verbatim emission at the </value> end tag, skipping
+				// the original inner-content tokens the ref now stands for.
+				pending = i + valEnd
+			}
+		}
+		i = end
+	}
+	flush(len(toks))
 }
 
 // isTranslatableData decides whether a <data> start tag denotes a translatable

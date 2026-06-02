@@ -26,6 +26,10 @@ type Writer struct {
 	inner *jsonfmt.Writer
 }
 
+// Ensure Writer consumes a byte-exact skeleton by forwarding the store to the
+// inner JSON writer, whose writeFromSkeleton path reproduces the document.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+
 // NewWriter creates a new design-tokens writer.
 func NewWriter() *Writer {
 	cfg := &Config{}
@@ -56,6 +60,13 @@ func (w *Writer) SetLocale(locale model.LocaleID) {
 
 // SetEncoding sets the output encoding on the inner writer.
 func (w *Writer) SetEncoding(encoding string) { w.inner.SetEncoding(encoding) }
+
+// SetSkeletonStore forwards the skeleton store to the inner JSON writer, whose
+// writeFromSkeleton path reproduces the document byte-for-byte, splicing only
+// translated $description values at each block reference.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.inner.SetSkeletonStore(store)
+}
 
 // Write delegates serialization to the inner JSON writer. Parts pass through
 // unchanged; the JSON writer splices translated $description values into the

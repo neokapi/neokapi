@@ -32,7 +32,22 @@ import (
 type Reader struct {
 	format.BaseFormatReader
 	cfg *Config
+
+	// skeletonStore, when non-nil, captures a byte-exact skeleton of the
+	// document interleaving verbatim structure (SkeletonText) with per-block
+	// content placeholders (SkeletonRef). This is the path `kapi merge` uses:
+	// the source is re-read with no skeleton (reader), the captured skeleton is
+	// opened and handed to the WRITER, and the writer splices each block's runs
+	// into the SkeletonRef slots — so the androidxml.original layer property is
+	// not involved on the merge path. skelBuf accumulates raw bytes between
+	// refs; skelFlush writes them out as one SkeletonText entry.
+	skeletonStore *format.SkeletonStore
+	skelBuf       strings.Builder
 }
+
+// Ensure Reader implements SkeletonStoreEmitter so `kapi extract` can capture a
+// byte-exact skeleton for `kapi merge`.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Android string-resources reader.
 func NewReader() *Reader {
@@ -60,6 +75,64 @@ func (r *Reader) SetConfig(cfg format.DataFormatConfig) error {
 		r.cfg = c
 	}
 	return nil
+}
+
+// SetSkeletonStore wires a skeleton store so the reader emits a byte-exact
+// skeleton (verbatim structure + per-block content refs) instead of relying on
+// the androidxml.original layer property. When set, the walk routes every
+// non-translatable byte to the skeleton verbatim and replaces each translatable
+// element's inner content with a SkeletonRef keyed by the block ID.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
+// skelText appends verbatim bytes to the pending skeleton-text buffer.
+func (r *Reader) skelText(raw string) {
+	if r.skeletonStore == nil {
+		return
+	}
+	r.skelBuf.WriteString(raw)
+}
+
+// skelTokens appends the verbatim bytes of every token in a span.
+func (r *Reader) skelTokens(toks []token) {
+	if r.skeletonStore == nil {
+		return
+	}
+	for _, t := range toks {
+		r.skelBuf.WriteString(t.raw)
+	}
+}
+
+// skelRef flushes any pending skeleton text and writes a content placeholder for
+// the given block ID. The writer substitutes the block's (target-or-source)
+// runs into this slot, re-serialising inline xliff:g/CDATA/printf via
+// renderRunsToXML and XML-escaping text via encodeText.
+func (r *Reader) skelRef(blockID string) {
+	if r.skeletonStore == nil {
+		return
+	}
+	r.skelFlush()
+	_ = r.skeletonStore.WriteRef(blockID)
+}
+
+// skelFlush writes any buffered verbatim bytes as one SkeletonText entry.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore == nil {
+		return
+	}
+	if r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText([]byte(r.skelBuf.String()))
+		r.skelBuf.Reset()
+	}
+}
+
+// blockID returns the block ID for the counter value, matching newBlock's
+// scheme. Used by the skeleton walk to key refs identically to the blocks the
+// same walk emits, and identically to a re-read of the same document at merge
+// time (the counter advances in element order in both cases).
+func blockID(counter int) string {
+	return "tu" + strconv.Itoa(counter)
 }
 
 // Signature returns detection metadata for this format. The .xml extension is
@@ -141,14 +214,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 	// Preserve the original document bytes so the writer can produce
 	// byte-faithful output, splicing only changed values. unsafe.String shares
-	// the backing array — content is not mutated after this point.
-	layer.Properties["androidxml.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	// the backing array — content is not mutated after this point. When a
+	// skeleton store is wired (the `kapi extract`/`kapi merge` path), the
+	// skeleton carries the verbatim structure instead, so we skip the property —
+	// merge discards the layer property anyway, re-reading the source fresh.
+	if r.skeletonStore == nil {
+		layer.Properties["androidxml.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
 	}
 
 	r.walk(ctx, ch, toks)
+
+	// Flush any trailing verbatim bytes after the last block ref.
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -173,6 +254,7 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 		switch t.kind {
 		case tokComment:
 			pendingComment = commentText(t.raw)
+			r.skelText(t.raw)
 			continue
 		case tokText:
 			// Whitespace-only text between a comment and its entry keeps the
@@ -180,43 +262,67 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 			if strings.TrimSpace(t.raw) != "" {
 				pendingComment = ""
 			}
+			r.skelText(t.raw)
 			continue
 		case tokStartTag:
 			switch t.name {
 			case "string":
 				end := matchEnd(toks, i, "string")
 				if end < 0 {
+					// Unbalanced — keep the lone start tag verbatim.
+					r.skelText(t.raw)
 					continue
 				}
 				if r.isTranslatable(t) && !r.isReferenceValue(toks[i+1:end]) {
 					*counter++
+					// Skeleton: start tag verbatim, a ref for the inner content,
+					// then the end tag verbatim.
+					r.skelText(t.raw)
+					r.skelRef(blockID(*counter))
+					r.skelText(toks[end].raw)
 					if !r.emitString(ctx, ch, t, toks[i+1:end], pendingComment, *counter) {
 						return
 					}
+				} else {
+					// Non-translatable <string> (translatable="false" or a bare
+					// resource reference): the whole entry round-trips verbatim.
+					r.skelTokens(toks[i : end+1])
 				}
 				pendingComment = ""
 				i = end
 			case "string-array":
 				end := matchEnd(toks, i, "string-array")
 				if end < 0 {
+					r.skelText(t.raw)
 					continue
 				}
 				if r.isTranslatable(t) {
+					// Container start tag verbatim; emitArray emits per-item
+					// structure + refs; the matching end tag is verbatim.
+					r.skelText(t.raw)
 					if !r.emitArray(ctx, ch, t, toks[i+1:end], pendingComment, counter) {
 						return
 					}
+					r.skelText(toks[end].raw)
+				} else {
+					r.skelTokens(toks[i : end+1])
 				}
 				pendingComment = ""
 				i = end
 			case "plurals":
 				end := matchEnd(toks, i, "plurals")
 				if end < 0 {
+					r.skelText(t.raw)
 					continue
 				}
 				if r.isTranslatable(t) {
+					r.skelText(t.raw)
 					if !r.emitPlurals(ctx, ch, t, toks[i+1:end], pendingComment, counter) {
 						return
 					}
+					r.skelText(toks[end].raw)
+				} else {
+					r.skelTokens(toks[i : end+1])
 				}
 				pendingComment = ""
 				i = end
@@ -226,21 +332,37 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 				end := matchEnd(toks, i, "resources")
 				pendingComment = ""
 				if end > i {
+					// Container start tag is verbatim structure; recurse for the
+					// inner span; the matching end tag is verbatim too.
+					r.skelText(t.raw)
 					r.walkSpan(ctx, ch, toks[i+1:end], counter)
+					r.skelText(toks[end].raw)
 					i = end
+				} else {
+					r.skelText(t.raw)
 				}
 			default:
 				// Any other element (declare-styleable, color, dimen, style, …)
-				// is non-translatable structure: skip its span and clear the
-				// pending comment.
+				// is non-translatable structure: round-trip its whole span
+				// verbatim and clear the pending comment.
 				end := matchEnd(toks, i, t.name)
 				pendingComment = ""
 				if end > i {
+					r.skelTokens(toks[i : end+1])
 					i = end
+				} else {
+					r.skelText(t.raw)
 				}
 			}
 		case tokSelfClose:
 			pendingComment = ""
+			r.skelText(t.raw)
+		default:
+			// End tags, CDATA, PIs, the prolog/doctype, and any other top-level
+			// token are verbatim structure. (Well-formed Android resources keep
+			// these between entries, e.g. the <?xml ?> prolog and stray
+			// whitespace handled above; this is a safety net for anything else.)
+			r.skelText(t.raw)
 		}
 	}
 }
@@ -307,13 +429,22 @@ func (r *Reader) emitArray(ctx context.Context, ch chan<- model.PartResult,
 	for i := 0; i < len(innerToks); i++ {
 		t := innerToks[i]
 		if t.kind != tokStartTag || t.name != "item" {
+			// Inter-item structure (whitespace, comments, anything non-item)
+			// round-trips verbatim in the skeleton.
+			r.skelText(t.raw)
 			continue
 		}
 		end := matchEndInner(innerToks, i, "item")
 		if end < 0 {
+			r.skelText(t.raw)
 			continue
 		}
 		*counter++
+		// Skeleton: <item ...> verbatim, a ref for the item's inner content,
+		// then </item> verbatim.
+		r.skelText(t.raw)
+		r.skelRef(blockID(*counter))
+		r.skelText(innerToks[end].raw)
 		blockName := name + "[" + strconv.Itoa(idx) + "]"
 		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]))
 		r.applyEntryProps(block, start, "string-array")
@@ -341,14 +472,21 @@ func (r *Reader) emitPlurals(ctx context.Context, ch chan<- model.PartResult,
 	for i := 0; i < len(innerToks); i++ {
 		t := innerToks[i]
 		if t.kind != tokStartTag || t.name != "item" {
+			r.skelText(t.raw)
 			continue
 		}
 		end := matchEndInner(innerToks, i, "item")
 		if end < 0 {
+			r.skelText(t.raw)
 			continue
 		}
 		quantity, _ := t.attrValue("quantity")
 		*counter++
+		// Skeleton: <item quantity="…"> verbatim, a ref for the inner content,
+		// then </item> verbatim.
+		r.skelText(t.raw)
+		r.skelRef(blockID(*counter))
+		r.skelText(innerToks[end].raw)
 		blockName := name + "[" + quantity + "]"
 		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]))
 		r.applyEntryProps(block, start, "plurals")

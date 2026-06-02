@@ -134,6 +134,13 @@ const NeokapiFeatures: ProductItem[] = [
     link: "/framework/architecture",
     linkText: "Architecture",
   },
+  {
+    title: "Interchange with any TMS",
+    description:
+      "Extract bilingual XLIFF 2.x or PO for Trados, memoQ, Phrase, or Crowdin, merge the translation back through a faithful skeleton, and keep translation memory and terminology in the loop.",
+    link: "/kapi/bilingual-workflow",
+    linkText: "Interchange",
+  },
 ];
 
 function ProductCard({ title, description, link, linkText }: ProductItem) {
