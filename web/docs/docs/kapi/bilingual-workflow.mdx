@@ -7,6 +7,7 @@ keywords: [bilingual workflow, XLIFF, PO, gettext, CAT tool, extract, merge, tra
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 import { RoundTripDiagram } from "@neokapi/docs-shared";
+import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 
 # Bilingual Workflow: Extract → Translate → Merge
 
@@ -72,6 +73,18 @@ The two commands that define this workflow are `kapi extract` and
   provenance (merge batch id, source file path, block content hash,
   originating XLIFF filename) so a later `kapi tm audit --batch <id>`
   can trace every TU back to the merge that introduced it.
+
+### See the round-trip on a bilingual file
+
+The diagram above is the workflow; the explorer below is the engine that
+makes it safe. Pick the bilingual XLIFF sample, run it through, and compare
+the source with the round-tripped output — kapi reads the file into the
+content model, the leaf text is replaced, and everything else (structure,
+identifiers, the skeleton `kapi merge` later rewrites from) comes back
+unchanged. The same reader and writer back `kapi extract` and `kapi merge`,
+running here in your browser via WebAssembly.
+
+<RoundTripExplorer defaultSampleId="app-xliff" />
 
 Both are on by default. `--no-tm` and `--no-tm-update` disable them
 (e.g. cold-translation workflows or dry-run review).

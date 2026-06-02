@@ -8,6 +8,7 @@ hide_table_of_contents: true
 ---
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 
 # Get oriented in kapi
 
@@ -34,6 +35,17 @@ Three commands orient you:
 > The interactive embed and the recorded video both come from
 > [`walkthroughs/kapi-overview.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-overview.scene.yaml).
 > Change the scene spec and regenerate; don't edit the generated output by hand.
+
+## See the format engine round-trip
+
+The command listings above tell you what kapi can read and do; the explorer
+below shows it. Run a file through `pseudo-translate` and compare the source
+with the round-tripped output — only the leaf text changes, while the
+non-translatable skeleton (tags, keys, attributes) returns byte-for-byte. This
+is the same reader and writer the recipes drive, running in your browser via
+WebAssembly.
+
+<RoundTripExplorer defaultSampleId="page-html" />
 
 ## Next
 
