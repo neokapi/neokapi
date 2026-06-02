@@ -24,7 +24,7 @@
 VPX := vpx
 RUN := $(VPX) tsx src/cli/run.ts
 
-.PHONY: deps list studio videos render publish capture record narrate package
+.PHONY: deps list studio videos render publish capture seed record narrate package
 
 deps: ## Install node deps + Playwright chromium
 	corepack pnpm install
@@ -48,6 +48,9 @@ publish: ## Convert existing renders → docs webm (no re-render)
 capture: ## Full pipeline (capture → render → publish) for DEMO=<id>
 	@test -n "$(DEMO)" || { echo "usage: make capture DEMO=<id>"; exit 1; }
 	$(RUN) $(DEMO) --force
+
+seed: ## Phase 0: seed bowrain content + mint record tokens → harness/.env (idempotent; needs the stack)
+	$(VPX) tsx scripts/seed-bowrain.ts
 
 record: ## Phase 1: capture all screencasts + artifacts (needs the bowrain stack; FORCE=1 to re-record)
 	$(RUN) published --phase=record $(if $(FORCE),--force)

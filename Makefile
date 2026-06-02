@@ -998,11 +998,14 @@ harness-deps: ## Install the demo-video harness deps (node + Playwright)
 harness-videos: ## Render + convert the docs demo videos (light + dark) → web/docs/static/video/kapi/
 	$(MAKE) -C harness videos
 
-# Phased video pipeline — record every screencast first (the only phase needing
-# the bowrain stack), then narrate, then package. Bring the stack up once and
-# re-render freely without re-recording. `harness-videos-staged` runs the whole
-# thing with the stack up only for the record phase. FORCE=1 redoes a phase.
-harness-record: ## Phase 1: record all screencasts + artifacts (needs the bowrain stack up)
+# Phased video pipeline — seed once, record every screencast (the only phase
+# needing the bowrain stack), then narrate, then package. Bring the stack up
+# once and re-render freely without re-recording. `harness-videos-staged` runs
+# the whole thing with the stack up only for seed+record. FORCE=1 redoes a phase.
+harness-seed: ## Phase 0: seed bowrain (BowMart workspace + content) + mint record tokens → harness/.env
+	$(MAKE) -C harness seed
+
+harness-record: ## Phase 1: record all screencasts + artifacts (needs the bowrain stack up + harness-seed)
 	$(MAKE) -C harness record FORCE=$(FORCE)
 
 harness-narrate: ## Phase 2: synthesize all narration (no Docker; TTS only)
@@ -1011,11 +1014,12 @@ harness-narrate: ## Phase 2: synthesize all narration (no Docker; TTS only)
 harness-package: ## Phase 3: render + publish all assets from persisted captures (no Docker/network)
 	$(MAKE) -C harness package FORCE=$(FORCE)
 
-harness-videos-all: harness-record harness-narrate harness-package ## Run all three phases in sequence (reuse existing outputs)
+harness-videos-all: harness-seed harness-record harness-narrate harness-package ## All phases in sequence (reuse existing outputs)
 
-harness-videos-staged: ## Full fresh pass: bowrain stack up ONLY for record, then narrate + package offline
-	$(MAKE) -C bowrain stack-up-web
-	$(MAKE) harness-record FORCE=1 || { $(MAKE) -C bowrain stack-down; exit 1; }
+harness-videos-staged: ## Full fresh pass: stack up → seed → record, then narrate + package offline
+	-$(MAKE) -C bowrain stack-up-web
+	$(MAKE) harness-seed                || { $(MAKE) -C bowrain stack-down; exit 1; }
+	$(MAKE) harness-record FORCE=1      || { $(MAKE) -C bowrain stack-down; exit 1; }
 	$(MAKE) -C bowrain stack-down
 	$(MAKE) harness-narrate FORCE=1
 	$(MAKE) harness-package FORCE=1
@@ -1295,7 +1299,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-run bench-run-full bench-stress \
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
-        harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
+        harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \

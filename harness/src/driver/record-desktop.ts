@@ -20,6 +20,13 @@ import { spawn, execFileSync } from "node:child_process";
 import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { injectCursor, moveTo, humanClick, humanType, idle } from "./cursor-helper.ts";
+import { loadEnv } from "../lib/env.ts";
+
+// Load harness/.env (the seed writes BOWRAIN_SESSION_TOKEN etc. there) BEFORE
+// the module-level BOWRAIN_* consts below read process.env. loadEnv() is
+// idempotent, so run.ts's own call later is a no-op. Without this, importing
+// this module during run.ts's import phase would capture an empty token.
+loadEnv();
 
 const WIDTH = 1440;
 const HEIGHT = 900;
