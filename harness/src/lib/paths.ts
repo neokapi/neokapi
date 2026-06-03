@@ -39,8 +39,28 @@ function resolveRepoRoot(): string {
 }
 export const REPO_ROOT = resolveRepoRoot();
 
-/** Where published demo videos land in the docs site (served via the docs-assets release). */
+/** Where published kapi demo videos land in the neokapi docs site (served via the docs-assets release). */
 export const DOCS_VIDEO_DIR = path.join(REPO_ROOT, "web", "docs", "static", "video", "kapi");
+
+/** Base of the bowrain docs static video tree (sibling to the kapi one, in the bowrain docs site). */
+const BOWRAIN_DOCS_VIDEO_BASE = path.join(REPO_ROOT, "bowrain", "web", "docs", "static", "video");
+
+/**
+ * The docs video directory a demo publishes into, derived from its brand + target.
+ * kapi demos land in web/docs/static/video/kapi; bowrain demos route to the matching
+ * bowrain docs subdir — bowrain-web (target: web), bowrain-desktop (target:
+ * bowrain-desktop), or bowrain-cli (shell/terminal demos). This is the single source
+ * of truth for routing — without it every demo silently published to the kapi dir
+ * unless a --docs-dir was passed by hand. An explicit --docs-dir still overrides.
+ */
+export function docsVideoDirFor(m: { brand?: string; target?: string; terminal?: string }): string {
+  if (m.brand === "bowrain") {
+    if (m.target === "web") return path.join(BOWRAIN_DOCS_VIDEO_BASE, "bowrain-web");
+    if (m.target === "bowrain-desktop") return path.join(BOWRAIN_DOCS_VIDEO_BASE, "bowrain-desktop");
+    return path.join(BOWRAIN_DOCS_VIDEO_BASE, "bowrain-cli"); // shell/CLI bowrain demos
+  }
+  return DOCS_VIDEO_DIR;
+}
 
 export const DEMOS_DIR = path.join(HARNESS_ROOT, "demos");
 export const PUBLIC_DIR = path.join(HARNESS_ROOT, "public");

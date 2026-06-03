@@ -375,7 +375,12 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
   }
 
   console.log(`  · starting bowrain frontend dev server (:${BW_VITE_PORT})`);
-  const vite = spawn("vp", ["dev", "--port", String(BW_VITE_PORT)], {
+  // --force re-optimizes deps on every recording, ignoring node_modules/.vite/deps.
+  // A stale prebundle cached by an older toolchain (pre-rolldown-1.0.3, before the
+  // keepNames `__name` helper-injection fix) re-triggers "__name is not defined"
+  // the moment the recharts dashboard mounts — blanking the page. Forcing a fresh
+  // prebundle with the current rolldown is the operational guard.
+  const vite = spawn("vp", ["dev", "--force", "--port", String(BW_VITE_PORT)], {
     cwd: BOWRAIN_FRONTEND_DIR,
     env: { ...process.env, FORCE_COLOR: "0" },
     stdio: "ignore",

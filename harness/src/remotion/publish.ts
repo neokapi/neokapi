@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { DOCS_VIDEO_DIR, ensureDir } from "../lib/paths.ts";
+import { docsVideoDirFor, ensureDir } from "../lib/paths.ts";
 import { sh } from "../lib/exec.ts";
 import type { DemoManifest } from "../types.ts";
 import { outputPathFor, type ThemeMode } from "./render.ts";
@@ -40,7 +40,7 @@ async function toPoster(mp4: string, jpg: string): Promise<void> {
 }
 
 export interface PublishOptions {
-  /** Override the docs video directory (default: <repo>/web/docs/static/video/kapi). */
+  /** Override the docs video directory (default: routed by brand/target via docsVideoDirFor). */
   docsDir?: string;
 }
 
@@ -53,7 +53,7 @@ export async function publishDemo(m: DemoManifest, opts: PublishOptions = {}): P
     console.log(`  · ${m.id}: no publishAs (preview only) — skipping`);
     return [];
   }
-  const docsDir = opts.docsDir ?? DOCS_VIDEO_DIR;
+  const docsDir = opts.docsDir ?? docsVideoDirFor(m);
   ensureDir(docsDir);
   const written: string[] = [];
   for (const themeMode of THEMES) {
