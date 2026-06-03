@@ -108,9 +108,16 @@ is built at startup from the locale precedence chain:
 --lang flag  >  KAPI_LANG  >  config.language  >  LC_ALL / LC_MESSAGES / LANG  >  "en"
 ```
 
-Builtin MO catalogs are embedded via `//go:embed`; plugin catalogs are
-loaded from `<pluginDir>/<name>/<version>/i18n/<locale>.mo` at
-plugin-discovery time (`cli/pluginhost`).
+Builtin MO catalogs are embedded via `//go:embed` and merged in
+`i18n.Resolve`. The convention for plugin-provided catalogs
+(`<pluginDir>/<name>/<version>/<i18nDir>/<locale>.mo`) and the loader
+helpers `i18n.PluginCatalogPath` / `i18n.LoadPluginCatalog` exist on
+`core/i18n`, but with the legacy plugin loader retired (#438 phase 9)
+nothing currently populates `ResolveOptions.PluginCatalogs` — manifest-
+driven plugin discovery in `cli/pluginhost` does not yet feed catalogs
+into the Translator (see the TODO in `cli/app.go`). The "Plugin bundles"
+and "Plugins contribute their own localizations" material below
+describes the intended design rather than current behavior.
 
 ### Pipeline
 
@@ -139,9 +146,12 @@ plugin-dir/
     └── ja-JP.mo
 ```
 
-`PluginManifest.I18nDir` overrides the default `"i18n"` path when
-plugins want a different layout. Plugins without an `i18n/` directory
-work unchanged — absence of a translation is silent, not an error.
+The conventional path is computed by
+`i18n.PluginCatalogPath(pluginVersionDir, locale, i18nDir)`
+(`core/i18n/resolve.go`), where the `i18nDir` argument defaults to
+`"i18n"` when empty; no manifest field currently overrides it. Plugins
+without an `i18n/` directory work unchanged — absence of a translation
+is silent, not an error.
 
 ### Scope format
 
@@ -149,9 +159,9 @@ work unchanged — absence of a translation is silent, not an error.
 canonical metadata document:
 
 - `tools.ai-translate.displayName`
-- `formats.okf_html.description`
-- `tools.ai-translate.properties.target-lang.title`
-- `tools.ai-translate.groups.advanced.label`
+- `formats.html.displayName`
+- `tools.ai-translate.properties.provider.title`
+- `tools.ai-translate.groups.provider.label`
 
 The MO file stores this string as `msgctxt`; the English source is
 `msgid`; the translation is `msgstr`. Homonyms ("Description" across

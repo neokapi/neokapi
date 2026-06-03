@@ -20,7 +20,7 @@ href="/docs">here</a> to read.</p>` extracts as one Block whose translator
 keeps the link wrapped around the right word in every target language. A
 small runtime (`__t` / `__tx`) interleaves React elements at marker
 positions when rendering translations. A lint package (`kapi-react-lint`)
-validates that target translations preserve required paired markers.
+flags i18n anti-patterns in JSX source so strings extract cleanly.
 
 ## Context
 
@@ -79,11 +79,11 @@ extracts as one Block whose `Source` is:
 
 ```
 TextRun("Click ")
-PcOpenRun  { id: "m0", type: "jsx:element", subType: "a",
-             data: '<a href="/docs">', equiv: "m0" }
+PcOpenRun  { id: "0", type: "jsx:element", subType: "a",
+             data: '<a href="/docs">', equiv: "=m0" }
 TextRun("here")
-PcCloseRun { id: "m0", type: "jsx:element", subType: "a",
-             data: "</a>", equiv: "m0" }
+PcCloseRun { id: "0", type: "jsx:element", subType: "a",
+             data: "</a>", equiv: "=m0" }
 TextRun(" to read the docs.")
 ```
 
@@ -116,7 +116,7 @@ single `PlaceholderRun` rather than a paired pair:
 | Source                | Run                                                     |
 | --------------------- | ------------------------------------------------------- |
 | `<Icon/>`             | `ph { type: "jsx:element", equiv: "=m0" }`              |
-| `<br/>`               | `ph { type: "fmt:break", equiv: "=m0" }`                |
+| `<br/>`               | `ph { type: "jsx:element", subType: "br", equiv: "=m0" }` |
 | `{userName}`          | `ph { type: "jsx:var", equiv: "userName" }`             |
 | `{cond && <Banner/>}` | `ph { type: "jsx:node", equiv: "=m0", optional: true }` |
 
@@ -204,25 +204,32 @@ no wrapping `<span>`, so layout (e.g. shadcn-style buttons relying on
 
 ### Lint validation
 
-`kapi-react-lint` validates target translations against their source
-Block. For paired markers the default `RunConstraints` are
-`{ deletable: false, cloneable: false }` (the same `deletable` /
-`cloneable` / `reorderable` shape as the framework's `RunConstraints`):
+`@neokapi/kapi-react-lint` is a source-authoring ESLint/oxlint plugin.
+Its rules catch i18n anti-patterns in the JSX/TSX *source* so content
+extracts cleanly at build time — it does not validate translated output.
+The plugin object works unchanged for both ESLint flat-config and oxlint
+(oxlint's plugin API is a strict subset of ESLint v9's, so no adapter
+layer is needed), and it ships shareable `recommended` /
+`recommended-strict` configs (`packages/kapi-react-lint/src/configs/`).
 
-| Translation behavior                                  | Lint    |
-| ----------------------------------------------------- | ------- |
-| Drop a paired pair entirely                           | error   |
-| Duplicate a paired pair                               | error   |
-| Reorder paired pairs (with their content)             | allowed |
-| Unbalanced (open without matching close)              | error   |
-| Mismatched ids                                        | error   |
-| Ill-nested (close before matching open in LIFO order) | error   |
-| Empty inner where source had content                  | error   |
-| Standalone `{equiv}` token dropped                    | error   |
+The rules (`packages/kapi-react-lint/src/rules/`) flag patterns that
+would fragment or break extraction:
 
-Per-element overrides via `componentMap` or `rules` entries — for
-example, marking a decorative `<em>` as `deletable: true` for languages
-where emphasis falls naturally outside the pair.
+| Rule                                | Flags                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `t-literal-first-arg`               | A non-literal first argument to `t()`.                                |
+| `t-no-concat`                       | String concatenation / template interpolation inside `t()`.           |
+| `no-concat-in-translatable-attr`    | Concatenation in a translatable attribute (`alt`, `title`, `placeholder`, `aria-label`, …). |
+| `no-string-literal-jsx-expr`        | A bare string literal in a JSX expression container.                  |
+| `no-ternary-in-translatable-attr`   | A ternary in a translatable attribute.                                |
+| `no-ternary-literals-in-jsx-child`  | A ternary with string-literal branches as a JSX child.                |
+| `prefer-t-for-label-props`          | Label props that should be wrapped in `t()`.                          |
+| `prefer-t-for-label-expr`           | Label expressions that should be wrapped in `t()`.                    |
+
+Translation QA and validation are not the lint package's concern — the
+kapi-react CLI (`packages/kapi-react/src/cli.ts`) routes those through
+`kapi`, and `compile` only flattens target runs into per-locale
+`{hash: text}` dictionaries.
 
 ## Consequences
 
@@ -238,9 +245,11 @@ where emphasis falls naturally outside the pair.
   the close half of a paired pair. The runtime decides standalone vs
   paired by looking for a matching close in the same scope — no separate
   marker prefix needed.
-- **Lint catches accessibility regressions.** Removing a link wrapper from
-  a translation is the kind of change that breaks screen readers and
-  semantic markup; a build-time error stops it before ship.
+- **Lint keeps source extractable.** `@neokapi/kapi-react-lint` flags
+  JSX-authoring anti-patterns — concatenation inside `t()`, string
+  literals or ternaries in translatable attributes and children, labels
+  that should be wrapped in `t()` — so strings extract cleanly into Blocks
+  at build time rather than fragmenting or escaping extraction.
 - **Framework convention extends to JSX.** kapi-react uses the same
   `Run[]` model as the HTML reader, the same paired-code semantics
   (`PcOpenRun` / `PcCloseRun`), and the same projections at boundaries.

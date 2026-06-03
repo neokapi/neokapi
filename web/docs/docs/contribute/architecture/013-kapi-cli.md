@@ -99,8 +99,9 @@ kapi
 Commands fall into categories:
 
 - **Format operations** — `kapi formats`, `kapi extract`, `kapi merge`
-- **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi ai-translate`,
-  `kapi mt-translate`, `kapi run <flow>`
+- **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi ai-translate`;
+  MT tools register per provider as `kapi <provider>-translate`
+  (e.g. `kapi deepl-translate`); `kapi run <flow>`
 - **Plugins** — `kapi plugin list/install/update`
 - **Presets** — `kapi presets list`
 - **Terminology and TM** — `kapi termbase`, `kapi tm`
@@ -115,7 +116,7 @@ listings depending on where they were defined.
 Most commands are one-shot by default:
 
 ```bash
-kapi ai-translate -i file.xliff --target-lang fr
+kapi ai-translate file.xliff --target-lang fr
 kapi pseudo-translate file.json
 kapi word-count file.json
 ```

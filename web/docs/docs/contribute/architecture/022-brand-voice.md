@@ -74,21 +74,30 @@ update, named `ProfileTag` references) for stores that track history.
 
 ### Findings and scoring
 
-A finding is a `brand.BrandVoiceFinding`: a `Dimension` (tone, style,
-vocabulary, clarity, brand_compliance), a `Severity` (neutral, minor, major,
-critical), a human message, an optional suggestion, the original text, and a
-**`Position model.RunRange`** — so a finding is anchored to the runs it concerns,
-the same run-range model used for overlays and redaction
-([AD-002](002-content-model.md)). Tools attach findings to a block as a
+A finding is a `brand.BrandVoiceFinding`, which is a type alias to
+`check.Finding` from the framework's content-verification core (`core/check`).
+The struct carries a free-form `Category string` — a brand finding sets it to a
+brand dimension (tone, style, vocabulary, clarity, brand_compliance), modeled by
+the brand-local `Dimension` type — a `Severity` (neutral, minor, major,
+critical), a human message, an optional suggestion, the original text, optional
+metadata, and a **`Position model.RunRange`** — so a finding is anchored to the
+runs it concerns, the same run-range model used for overlays and redaction
+([AD-002](002-content-model.md)). `Severity` and `SeverityWeight` are
+re-exported from `core/check`. Tools attach findings to a block as a
 `BrandVoiceAnnotation` (annotation type `brand-voice`), which also carries the
 profile id, the overall score, and its own `Position`.
 
-`brand.CalculateScore` rolls findings up using MQM-inspired penalty weights —
-neutral 0, minor 1, major 5, critical 25 — per dimension. Each dimension starts
-at 100 and is reduced by its penalty (clamped to 0); the overall score is 100
-minus the total penalty. The dimensions are fixed (tone, style, vocabulary,
-clarity, brand_compliance), so a `BrandComplianceScore` always has a consistent
-shape.
+This finding/severity/scoring path is shared across all checkers (terminology,
+do-not-translate, placeholder, register, brand), not bespoke to brand voice —
+brand voice is one checkset over the generic core, with `BrandComplianceScore`
+providing a dimension-shaped presentation of the generic `check.Score`.
+
+`brand.CalculateScore` rolls findings up using the MQM-inspired penalty weights
+defined in `core/check.SeverityWeight` — neutral 0, minor 1, major 5,
+critical 25 — per dimension. Each dimension starts at 100 and is reduced by its
+penalty (clamped to 0); the overall score is 100 minus the total penalty. The
+dimensions are fixed (tone, style, vocabulary, clarity, brand_compliance), so a
+`BrandComplianceScore` always has a consistent shape.
 
 ### The two tools
 

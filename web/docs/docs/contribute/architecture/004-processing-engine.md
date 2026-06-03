@@ -175,7 +175,7 @@ with Part snapshots. The `--trace path/to/trace.json` CLI flag enables
 tracing. The output is a `FlowTrace` JSON file containing:
 
 - **Nodes** — the tool chain with concurrency metadata
-- **Events** — timestamped enter/exit/pool-acquire events per Part
+- **Events** — timestamped enter/exit events per Part
 - **Part snapshots** — Part state before and after each node
 - **Duration** — total flow execution time in microseconds
 

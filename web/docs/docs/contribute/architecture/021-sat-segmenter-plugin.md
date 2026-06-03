@@ -133,8 +133,14 @@ The CLI registers the `sat` engine into `core/segment` at init
 (`cli/segment_sat.go`). The engine implements `segment.Segmenter`: it lazily
 dials the plugin on first `Segment`, flattens the run sequence to plain text
 with the shared mask options, sends one `segment` request, and maps the returned
-boundary rune offsets back to run-anchored spans. The subprocess is bound to the
-pipeline context of the first block, so cancelling a run tears it down.
+boundary rune offsets back to run-anchored spans. The subprocess is started
+under an engine-scoped context (`context.WithCancel(context.Background())` in
+`dial`), deliberately decoupled from any per-run pipeline context, so the warm
+model survives across blocks and files; the per-call `ctx` is used only for a
+pre-flight cancellation check. The process is torn down only by `satEngine.Close`
+(which cancels the engine context and kills/waits the child) or, as a backstop, a
+`runtime.AddCleanup` finalizer when `Close` is never called — not by completion
+or cancellation of an individual run.
 
 Two properties of this path are deliberate:
 

@@ -288,11 +288,16 @@ which locales to process:
 
 ```go
 func ResolveFlowLocales(
-    toolMetas []ToolMeta,
+    spec *StepsSpec,
+    toolInfos map[registry.ToolID]registry.ToolInfo,
     sourceLocale string,
     projectTargets []string,
 ) [][]string
 ```
+
+The runner passes the flow's `*StepsSpec` plus a map from `registry.ToolID` to
+`registry.ToolInfo` (which carries each tool's cardinality and default-locale
+metadata), not a `[]ToolMeta` slice.
 
 Resolution returns a slice of locale sets — one set per execution pass.
 Examples:
@@ -374,15 +379,24 @@ Tools register into a `ToolRegistry` with a name, factory function, and
 optional parameter schema:
 
 ```go
-reg.RegisterWithSchema("pseudo-translate", func(cfg map[string]any) (Tool, error) {
-    return pseudo.New(cfg)
-}, pseudo.Schema())
+reg.RegisterWithSchema("pseudo-translate", func() tool.Tool {
+    return NewPseudoTranslateTool(&PseudoConfig{Prefix: "▒ ", Suffix: " ▒", TargetLocale: "qps"})
+}, toolSchema(&PseudoConfig{Prefix: "▒ ", Suffix: " ▒"}, toolMeta("pseudo-translate", "Pseudo Translate", schema.CategoryTranslation, ...)))
 ```
 
+The factory is a zero-argument `func() tool.Tool` (`registry.ToolFactory`); it
+returns a tool built from a default config, with no error return. A separate
+config factory (`SetConfigFactory`) builds the tool from a config map when flow
+YAML overrides the defaults.
+
 `RegisterAll(reg)` in `core/tools/register.go` auto-registers all built-in
-tools. AI, MT, and terminology tools are instantiated on demand with their
-respective providers and registered into a flow's tool set at
-configuration time.
+tools. AI and MT tools are auto-registered separately by `aitools.RegisterAll`
+and `mttools.RegisterAll` (`core/ai/tools`, `core/mt/tools`), called alongside
+the built-ins during App init (`cli/app.go`). Each registers with a default
+offline factory (the mock LLM provider for AI tools, the demo MT provider for
+the `<provider>-translate` tools) plus a config factory (`SetConfigFactory`);
+the real provider is resolved from the credential-bearing config map at
+tool-creation time, not at registration time.
 
 Plugin tools ([AD-007: Plugin System and Okapi Bridge](007-plugin-system.md))
 use the same `Tool` interface via gRPC translation, so plugin-provided
@@ -436,6 +450,8 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `span-classify`       | Reclassify `code:markup` spans into semantic vocabulary types             |
 | `tag-protect`         | Identify and mark tags and placeholders for protection                    |
 | `xslt-transform`      | Apply regex-based tag/text transformations to block text                  |
+| `redact`              | Replace sensitive spans with placeholders pre-translation (recoverable source-transform) |
+| `unredact`            | Restore redacted spans from the vault post-translation                    |
 
 **Enrich tools** — add metadata or overlays via annotations:
 
@@ -444,7 +460,6 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
 | `tm-leverage`         | Pre-fill translations from Sievepen TM                                     |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
-| `term-lookup`         | Scan source text for known terms from TermBase                             |
 | `repetition-analysis` | Analyze source text repetitions across blocks in the pipeline              |
 
 **Validate tools** — check quality without modifying:
@@ -455,8 +470,10 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `char-count`             | Count characters per block                                                              |
 | `segment-count`          | Count source and target segments in blocks                                              |
 | `qa-check`               | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
+| `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
+| `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
+| `brand-vocab-check`      | Check target text against brand vocabulary / preferred-term rules                       |
 | `term-check`             | Verify terminology usage in translations against a glossary                             |
-| `term-enforce`           | Validate preferred term usage in target text                                            |
 | `inconsistency-check`    | Check for translation inconsistencies across blocks                                     |
 | `length-check`           | Verify translation length constraints                                                   |
 | `chars-check`            | Check for invalid or unexpected characters in translations                              |
@@ -488,9 +505,12 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 
 ### AI, MT, and terminology tools
 
-AI and MT tools are instantiated on demand with a provider, not
-auto-registered. They use the same `Tool` interface and work identically
-in flows.
+AI and MT tools are registered at startup like the other built-ins, so they
+appear in `kapi tools` and resolve in flows. Their distinguishing trait is
+provider injection: the registry holds a default offline-provider factory, and
+the real LLM/MT provider (with credentials) is supplied on demand via the
+config factory when the tool is instantiated. They use the same `Tool`
+interface and work identically in flows.
 
 **AI tools** (`core/ai/tools/`):
 

@@ -235,11 +235,15 @@ alignment — are **stand-off overlays** with run-anchored spans (see
 | QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
 | Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
 | Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |
-| Best TM match    | `tm-match`        | block annotation | tm-leverage           | Best TM match with fuzzy score         |
-| Word count       | `word-count`      | block annotation | word-count            | Token and character counts             |
 
 Block annotations are keyed by type and instance (`"alt-translation:0"`,
 `"alt-translation:1"`) to support several of one type per Block.
+
+Some scalar block-level results are carried as **properties** rather than
+annotations: `tm-leverage` writes the best TM match to `tm-match-score`
+(0–100) and `tm-match-type` (`"exact"`/`"fuzzy"`), and `word-count` writes
+`word-count-source` and per-locale `word-count-target:<locale>` (see
+[Dynamic properties](#dynamic-properties)).
 
 Tools communicate by reading annotations and overlays produced upstream and
 writing their own downstream, keeping tools loosely coupled through the shared

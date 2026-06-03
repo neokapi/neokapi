@@ -76,9 +76,14 @@ green parity run that doesn't reflect the code on disk. Instead,
 3. Exports `KAPI_PARITY_SANDBOX=$REPO/.parity` and runs
    `go test -tags parity ./cli/parity/...`.
 
-`cli/parity/env.go::LoadSandbox` enforces the contract: tests
-SkipNow if `KAPI_PARITY_SANDBOX` is unset, never silently fall
-back to a system install.
+`cli/parity/env.go::LoadSandbox` resolves the sandbox from
+`$KAPI_PARITY_SANDBOX`, or auto-discovers a locally built `.parity/`
+by walking up from cwd for `.parity/bin/kapi`; it never falls back to
+a system-installed `kapi`. Tests go through `RequireSandbox`, which
+enforces the contract by FAILING the test (`t.Fatalf`) when no sandbox
+is found — set `KAPI_PARITY_SKIP=1` to skip instead. Skip-by-default
+was deliberately abandoned because silent skips made local agent runs
+report parity green while CI failed.
 
 ### Comparison
 
@@ -119,11 +124,18 @@ per-filter / per-step status table.
 - **Regressions in Go ports surface immediately**. A change to the
   HTML reader that drops a paragraph break shows up the next time
   `parity.yml` runs on `main`.
-- **Bridge-only filters remain validated**. Even when a Go port does
-  not exist (e.g. `okf_archive`, `okf_idml`), the parity test asserts
-  that the bridge produces stable output against a fixed input. New
-  Okapi releases that break a filter become visible without anyone
-  needing to invoke that filter from production.
+- **Bridge-only filters remain validated**. When no Go port exists and
+  a textual fixture can be supplied (e.g. `okf_multiparsers`, wired with
+  `NewReader: nil` and an inline CSV input in
+  `cli/parity/formats/spec.go`), the parity test asserts that the bridge
+  produces stable output against a fixed input, so new Okapi releases
+  that break a filter become visible without anyone needing to invoke
+  that filter from production. Binary-container filters such as
+  `okf_idml` (which has a full `core/formats/idml` reader) and
+  `okf_archive` are currently `Skip: SKIP_BINARY` — no committed binary
+  corpus — so they appear as gap rows on the dashboard rather than
+  asserting bridge output until a corpus ships via okapi-bridge
+  `testdata/`.
 - **Cross-repo proto sync becomes load-bearing**. A neokapi proto
   change that the bridge doesn't mirror trips parity immediately.
   This is what we want: the proto IS the contract.
@@ -137,11 +149,21 @@ per-filter / per-step status table.
 
 1. Identify the Okapi filter id (`okf_<name>`) or step id from the
    bridge manifest at `~/.local/share/kapi/plugins/okapi-bridge/manifest.json`.
-2. Add a test under `cli/parity/formats/<name>_test.go` (or
-   `cli/parity/tools/<name>_test.go`) following the
-   `TestParityHTML` / `TestParityWordCount` template.
-3. Set `Mode: "head-to-head"` if there is a Go port to compare against,
-   or `Mode: "bridge-only"` if the test is a stability snapshot.
+2. **For a format:** add (or extend) a `spec.yaml` under
+   `core/formats/<name>/`, then add a `TestParity<Name>Spec` in
+   `cli/parity/formats/<name>_spec_test.go` that loads it via
+   `parityspec.LoadSpec` and runs a `parityspec.ParityRunner` — set
+   `NewReader` to the native reader for a head-to-head comparison, or
+   leave it `nil` for a bridge-only stability snapshot. The same
+   `spec.yaml` also drives the always-on native test in
+   `core/formats/<name>/spec_test.go` — one source of truth.
+   **For a step/tool:** add a `ToolSpec` row to the `toolSpecs` table in
+   `cli/parity/tools/spec.go`; the single table-driven `TestParityTools`
+   (`cli/parity/tools/spec_test.go`) picks it up automatically — there
+   are no per-tool `<name>_test.go` files.
+3. `Mode` is derived by the runner (head-to-head when a native
+   reader / tool is wired, bridge-only otherwise) and emitted via
+   `parity.Report` — it is not assigned by hand in the test.
 4. Run `make parity-test` locally; iterate until green.
 
 ## How the dashboard is wired

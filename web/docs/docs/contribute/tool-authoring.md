@@ -229,7 +229,7 @@ func Register(reg *registry.ToolRegistry) {
 Use the tool from the CLI:
 
 ```bash
-kapi wrap-text -i input.json --target-lang fr --prefix ">> " --suffix " <<"
+kapi wrap-text input.json --target-lang fr --prefix ">> " --suffix " <<"
 ```
 
 Or in a YAML flow:

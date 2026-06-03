@@ -81,7 +81,7 @@ delegates lifecycle to the base embed.
 The built-in formats under `core/formats/` span several families:
 
 - **Markup** — HTML, XML, Markdown / MDX, and structured-document formats.
-- **Translation exchange** — XLIFF 1.2 / 2.0, TMX, TBX, Gettext PO/MO.
+- **Translation exchange** — XLIFF 1.2 / 2.0, TMX, Gettext PO/MO.
 - **Structured data** — JSON, YAML, CSV, and design-token / app-localization
   variants (`xcstrings`, `arb`, `i18next`, `resx`, Android strings, iOS
   strings, …).

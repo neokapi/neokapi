@@ -118,8 +118,9 @@ open framework.
 
 In the framework today the embedded set is a single `kapi` skill whose router
 covers brand, terminology, localization, i18n, the toolbox, and a project model,
-with one reference file per concern (including a `bowrain.md` reference that
-frames team/cloud governance as one option). The split is the organizing
+with one reference file per concern — brand, localize (translation and
+terminology), i18n, project, and the toolbox. Terminology folds into the
+brand and localize references rather than a standalone file. The split is the organizing
 principle for the surface a skill targets; the framework binary bundles the kapi
 side, and `kapi skills list` reflects exactly what is embedded.
 

@@ -16,8 +16,12 @@ matching representations are derived from those runs at storage time and indexed
 for fast lookup. Sievepen computes them with the framework's projection helpers
 in `core/model`:
 
-- **plain**: `model.RunsPlainText(runs)` -- concatenates `Text` runs and drops
-  all inline-code runs. Enables matching against legacy TMs and unanalyzed content.
+- **plain**: `model.FlattenRuns(runs)` (normalized via `NormalizeText`) -- keeps
+  `Text` runs verbatim, renders `Ph` placeholders as `\{equiv\}` and `Sub` runs
+  as `[equiv]`, emits paired-code (`PcOpen`/`PcClose`) inner content but not the
+  wrappers, and takes the 'other' branch of plural/select constructs (or the
+  first form if 'other' is absent). Enables matching against legacy TMs and
+  unanalyzed content.
 - **structural**: `model.RunsStructuralText(runs)` -- renders inline-code runs as
   positional placeholders: `PcOpen` as `\{1\}`, `PcClose` as `\{/1\}`, and `Ph`
   as `\{1/\}`. Enables matching with inline-code position awareness.
@@ -70,20 +74,19 @@ Tiers 4-6 (fuzzy matching) previously scanned all entries for a locale pair and 
 Two FTS5 virtual tables backed by the `tm_variants` table, kept in sync on write:
 
 - **`tm_variant_trigram`**: `tokenize='trigram'` on `plain`, `struct_key`, `general_key`. Used for fuzzy candidate retrieval.
-- **`tm_variant_search`**: `tokenize='icu'` on `text`. Used for ranked UI search (FTS5 BM25).
+- **`tm_variant_search`**: word tokenizer via `storage.FTSWordTokenizer` on `text` -- resolves to `icu` under cgo builds and `unicode61` under the default pure-Go (modernc, no-cgo) and wasm builds; the ICU tokenizer is a cgo-only FTS5 extension. Used for ranked UI search (FTS5 BM25).
 
 `BuildTrigramQuery()` constructs the FTS5 MATCH expression:
 
 - **Multi-word text** (Latin, etc.): OR of individual words ≥3 chars as quoted substrings.
 - **Single word / CJK**: Overlapping 4-character windows sampled at even intervals (max 6 windows).
 
-Falls back to length-based pre-filtering (`LENGTH(source_plain) BETWEEN min AND max`) if FTS5 trigram is unavailable at runtime.
+Falls back to length-based pre-filtering (`LENGTH(plain) BETWEEN min AND max`) if FTS5 trigram is unavailable at runtime.
 
-### PostgreSQL: pg_trgm + fuzzystrmatch
+### PostgreSQL: pg_trgm + tsvector
 
-- **pg_trgm extension**: GIN trigram indexes on source_plain, source_struct, source_general. Uses the `%` similarity operator for candidate retrieval with a low threshold to maximize recall.
-- **fuzzystrmatch extension**: Provides `levenshtein_less_equal()` for optional threshold-based filtering in SQL.
-- **tsvector column**: `search_tsv` with `to_tsvector('simple', ...)` populated via BEFORE INSERT/UPDATE trigger. `ts_rank()` provides BM25-like ranking for UI search.
+- **pg_trgm extension**: GIN trigram indexes on `plain`, `struct_key`, `general_key`. Uses the `%` similarity operator for candidate retrieval with a low threshold to maximize recall. Final fuzzy scoring and threshold filtering happen in Go via `LevenshteinRatio` on the retrieved candidates -- not in SQL -- identical to the SQLite path.
+- **tsvector column**: `search_tsv` is a `GENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED` column (auto-maintained by Postgres, not by a trigger), indexed with a GIN index. UI text search matches via `search_tsv @@ plainto_tsquery('simple', ...)` with results ordered by recency (`updated_at DESC`, plus a stream-priority `CASE` when a stream chain is supplied), not via `ts_rank()`.
 
 Falls back to length-based pre-filtering if pg_trgm is unavailable.
 

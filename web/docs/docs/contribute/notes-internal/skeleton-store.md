@@ -80,24 +80,28 @@ the reader writes skeleton entries during reading. This requires creating the
 writer early (before reading), which is a change from the original flow where
 the writer was created after reading.
 
-Three call sites wire the skeleton store:
+There are two paths:
 
-- `cli/flow.go` — `runSingleFile()`
-- `cli/toolrun.go` — `processOneFile()`
-- `kapi/cmd/kapi/mcp_tools.go` — `executeFlow()`
+1. **The flow path** — used by `cli/flow.go` `runSingleFile()` and
+   `kapi/cmd/kapi/mcp_tools.go` `executeFlow()`/`executeFlowWithTools()`. Neither
+   wires the skeleton store inline. Both construct a `flow.FileRunner` via
+   `flow.NewFileRunner(...)` and call `runner.RunFile(...)`, which creates the
+   writer (in `RunFile`) then delegates to
+   `FileRunner.RunFileWithReaderWriter()` (`core/flow/filerunner.go`), where the
+   skeleton store is wired centrally before `reader.Read()`.
+2. **The tool path** — `cli/toolrun.go` `processOneFile()` — remains the only
+   inline wiring site, creating the writer early then doing the
+   emitter/consumer type-assert + `SetSkeletonStore` block.
 
-All three follow the same pattern:
+The central flow-path wiring (`RunFileWithReaderWriter`) looks like:
 
 ```go
-// Create writer early so we can wire skeleton store before reading.
-writer, err := formatReg.NewWriter(registryName)
-
-// Wire skeleton store if both reader and writer support it.
+// Wire skeleton store if both support it.
+var skeletonStore *format.SkeletonStore
 if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
     if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-        store, err := format.NewSkeletonStore()
-        if err == nil {
-            defer store.Close()
+        if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
+            skeletonStore = store
             emitter.SetSkeletonStore(store)
             consumer.SetSkeletonStore(store)
         }
@@ -107,6 +111,12 @@ if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 // Now read — the reader writes skeleton entries during this call.
 for result := range reader.Read(ctx) { ... }
 ```
+
+The store is held in a local `skeletonStore` variable and closed explicitly on
+each error path and at completion rather than via a single `defer`, since the
+writer outlives the function via the temp-then-rename output. The inline tool
+path (`cli/toolrun.go`) follows the same type-assert shape but uses a
+`defer store.Close()`.
 
 ## HTML tokenizer reader (`core/formats/html/tokenreader.go`)
 
@@ -260,10 +270,11 @@ The writer tries three modes in order:
 | ------------------------------------- | ------------------------------------------------------- |
 | `core/format/skeleton.go`             | SkeletonStore type, binary format, interfaces           |
 | `core/format/skeleton_test.go`        | Unit tests (roundtrip, empty skip, large data)          |
-| `core/formats/html/tokenreader.go`    | Single-pass tokenizer reader (~1100 lines)              |
+| `core/formats/html/tokenreader.go`    | Single-pass tokenizer reader                            |
 | `core/formats/html/reader.go`         | Dispatch: skeleton store → tokenizer, else → DOM        |
 | `core/formats/html/writer.go`         | Skeleton mode + re-parse fallback + block-only fallback |
 | `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute roundtrip tests  |
-| `cli/flow.go`                         | Skeleton store wiring in `runSingleFile()`              |
+| `core/flow/filerunner.go`             | Central skeleton store wiring in `RunFileWithReaderWriter()` (emitter/consumer check), shared by all flow file runs |
+| `cli/flow.go`                         | `runSingleFile()` builds a `FileRunner`; skeleton wiring delegated to `FileRunner` |
 | `cli/toolrun.go`                      | Skeleton store wiring in `processOneFile()`             |
-| `kapi/cmd/kapi/mcp_tools.go`          | Skeleton store wiring in `executeFlow()`                |
+| `kapi/cmd/kapi/mcp_tools.go`          | `executeFlow()`/`executeFlowWithTools()` build a `FileRunner`; skeleton wiring delegated to `FileRunner` |

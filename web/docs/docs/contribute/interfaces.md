@@ -415,10 +415,21 @@ type ToolFactory func() (tool.Tool, error)
 
 // Flow is a configured sequence of Tools that Parts stream through.
 type Flow struct {
-    Name          string
+    Name string
+
+    // Leading source-transform stage: source-settling transforms (redaction,
+    // normalization, simplifier) run before Tools so downstream tools see one
+    // settled source. Only tool.CapTransform tools may sit here.
+    SourceTransforms         []tool.Tool   // sequential / single-document
+    SourceTransformFactories []ToolFactory // parallel: fresh instance per document
+
     Tools         []tool.Tool   // sequential / single-document execution
     ToolFactories []ToolFactory // parallel: fresh tool chain per document
 }
+
+// Flow.Pipeline() / Flow.PipelineFactories() return the source-transform stage
+// followed by the main tools, so a front-loaded transform settles each block
+// before any later tool sees it.
 
 // Item represents a single document to process in a batch.
 type Item struct {

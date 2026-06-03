@@ -12,9 +12,22 @@ Tools process Parts as they flow through a pipeline. Most tools only care about 
 ## Using BaseTool
 
 Build a `tool.BaseTool` and set handler function fields for the Part types you
-want to process. Parts you don't handle pass through unchanged. A handler has the
-signature `func(part *model.Part) (*model.Part, error)`: it receives the
-streaming Part and type-asserts the resource it cares about.
+want to process. Parts you don't handle pass through unchanged. There are two
+families of handler.
+
+For **Block** parts, set exactly ONE capability-typed handler — the parameter
+type bounds what the tool may write (immutability model, AD-006):
+
+- `Annotate(tool.BlockView) error` — read-only; writes only overlays,
+  annotations, and properties.
+- `Translate(tool.TargetView) error` — reads source, writes target.
+- `Transform(tool.SourceView) error` — rewrites source (and may write target);
+  runs early, before overlays exist.
+
+For the non-Block parts (Data, Media, Layer/Group start/end), set the untyped
+`Handle*Fn` fields, which use `tool.PartHandler` =
+`func(part *model.Part) (*model.Part, error)`: these receive the streaming Part
+and type-assert the resource they care about.
 
 ```go
 package mytool

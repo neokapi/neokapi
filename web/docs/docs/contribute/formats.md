@@ -431,14 +431,27 @@ experience for translators and tools but are optional.
 
 ## Configuration
 
+`DataFormatConfig` requires four methods — `FormatName()`, `Reset()`,
+`Validate()`, and `ApplyMap(values map[string]any) error`. `ApplyMap` applies
+config values from a map and rejects unknown keys and type mismatches. The
+`format.ApplyMapViaJSON` helper (`core/format/applymap.go`) implements this for
+struct configs via JSON marshal/unmarshal with `DisallowUnknownFields`, while
+configs with complex parsing can hand-write a switch-based `ApplyMap` (see
+`core/formats/json/config.go`). The helper requires the struct's fields to
+carry matching `yaml`/`json` tags for the incoming keys.
+
 ```go
 type Config struct {
-    Encoding string `yaml:"encoding"`
+    Encoding string `yaml:"encoding" json:"encoding"`
 }
 
 func (c *Config) FormatName() string { return "myformat" }
 func (c *Config) Reset()             { c.Encoding = "UTF-8" }
 func (c *Config) Validate() error    { return nil }
+
+func (c *Config) ApplyMap(values map[string]any) error {
+    return format.ApplyMapViaJSON(c, values)
+}
 ```
 
 ## Registration

@@ -97,30 +97,23 @@ The recipe is a YAML document parsed into `core/project.KapiProject`:
 ```yaml
 # my-app.kapi
 version: v1
-id: my-app
 name: My App Localization
-sourceLocale: en-US
-targetLocales: [fr-FR, de-DE, ja-JP]
 
 content:
   - name: ui
-    store:
-      type: cache
-      path: .kapi/cache/blocks.db
     items:
       - path: "src/**/*.{tsx,jsx}"
         format:
           name: exec
           config:
             command: "vp kapi-react extract --stream"
+        target: "i18n/{lang}.json"
       - path: "src/i18n/en/*.json"
         format: json
-    writers:
-      - format: json
-        out: "i18n/{locale}.json"
+        target: "i18n/{lang}.json"
 
 plugins:
-  - okapi@1.47.0
+  okapi: "^1.47.0"
 
 flows:
   translate:
@@ -139,14 +132,18 @@ flows:
       - tool: qa-check
 
 defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
 ```
 
-Required fields: `version: v1`, `name`, and for each content item a non-empty
-`path`. Every flow contains at least one step with a non-empty `tool` (unless
-the step uses `parallel`, in which case the parallel branches carry the tools).
+Required fields: `version: v1` (must equal the current schema version) and, for
+each content item, a non-empty `path`. Every flow contains at least one step
+with a non-empty `tool` (unless the step uses `parallel`, in which case the
+parallel branches carry the tools). `name` is recommended as a project label
+but is optional and not validated.
 
 The recipe holds provider **names** only — API keys live in the OS keychain
 (see [AD-013: Kapi CLI](013-kapi-cli.md)) or environment. Nothing in the
@@ -182,12 +179,15 @@ runs the matching decoder; unknown keys (no decoder registered) round-
 trip without error so binaries with different sets of plugins linked in
 remain forward-compatible.
 
-Recipes can declare a hard dependency via `requires:` — validation fails
-when no extension under the named group has been registered:
+Recipes can declare a hard dependency via `requires:`, a map of plugin name to
+version constraint (use `"*"` for any version; semver forms such as `^1.0` are
+also accepted). Validation fails when no extension under the named group has
+been registered:
 
 ```yaml
 version: v1
-requires: [myplugin]
+requires:
+  myplugin: "*"
 server:
   url: https://platform.example.com/team/proj
 ```
@@ -210,7 +210,8 @@ meaningful only when that plugin is installed.
 
 ```yaml
 version: v1
-requires: [myplugin]
+requires:
+  myplugin: "*"
 server:
   url: https://platform.example.com/my-team/abc123
 ```
@@ -430,38 +431,42 @@ file list. Both the CLI and kapi-desktop use this single implementation.
 
 ```go
 func (ctx *ProjectContext) ConfigureReader(
-    r format.DataFormatReader, formatName string,
+    reader Configurable, formatName string,
 ) error
 
-func (ctx *ProjectContext) ConfigureWriter(
-    w format.DataFormatWriter, formatName string,
-) error
+func (ctx *ProjectContext) ConfigureWriter(writer format.DataFormatWriter)
 ```
 
-Applies `FormatDefaults` from the project: preset selection and config
-overrides. If the project declares `defaults.formats.okf_html.preset: strict-extraction`,
-`ConfigureReader` applies that preset before opening. No project defaults for
-a format means no-op.
+`ConfigureReader` applies a format's `FormatDefaults.Config` overrides (via
+`cfg.ApplyMap`) from `defaults.formats.<format>` onto the reader's config; it
+takes the `Configurable` interface — any component exposing
+`Config() format.DataFormatConfig`, which a `DataFormatReader` satisfies — and
+is a no-op when the project declares no defaults for that format or the
+component has no config. `ConfigureWriter` takes only the writer (no
+`formatName`, no return) and sets its encoding from the project defaults.
+Preset selection (e.g. `defaults.formats.okf_html.preset: strict-extraction`)
+is resolved separately — not by `ConfigureReader` — through
+`resolver.ResolveFormatConfig` (see `cli/flow.go`), which merges the named
+preset's config before the reader is opened.
 
 ### Flow execution settings
 
-The executor's `flow.ResourceContext` carries project-scoped execution
-settings:
+The executor's `flow.ResourceContext` carries the resource-resolution context
+for a single run:
 
 ```go
 type ResourceContext struct {
-    ProjectDir     string
-    OutputDir      string
-    SourceLocale   string
-    TargetLocale   string
-    ToolName       string
-
-    Concurrency    int
-    ParallelBlocks int
-    Encoding       string
-    FormatDefaults map[string]FormatDefaults
+    ProjectDir   string
+    OutputDir    string
+    SourceLocale string
+    TargetLocale string
+    ToolName     string
 }
 ```
+
+Project-scoped execution defaults (`Concurrency`, `ParallelBlocks`, `Encoding`,
+`FormatDefaults`) live on `core/project.ProjectContext`, not on
+`ResourceContext`.
 
 CLI flags and desktop UI settings override project defaults when explicitly
 set. The project provides defaults, not mandates.

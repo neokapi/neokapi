@@ -114,7 +114,8 @@ still mutated the source, which is why source rewrites belong here, up front.
 source_transforms:
   - tool: redact
     config:
-      patterns: [email, credit-card]
+      detectors: [rules]
+      rulesPath: redaction-rules.yaml
 
 steps:
   - tool: ai-translate
@@ -160,7 +161,7 @@ steps:
     label: Apply TM matches
     config:
       targetLocale: fr
-      threshold: 0.7
+      fuzzyThreshold: 75
 
   - tool: ai-translate
     label: Translate remaining

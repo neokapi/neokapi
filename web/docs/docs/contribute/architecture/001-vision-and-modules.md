@@ -173,7 +173,8 @@ core/
     ignore/           .kapiignore pattern matching
     httputil/         HTTP client helpers
     set/              Generic set container
-    testutil/         Shared test helpers
+    internal/
+        testutil/     Shared test helpers
 sievepen/             Translation memory (interface + in-memory + SQLite + matching)
 termbase/             Terminology (interface + in-memory + SQLite + import)
 providers/
@@ -208,14 +209,11 @@ kapi, and kapi-desktop without publishing. `go mod tidy` does not respect
 `go.work`, so each child module's `go.mod` carries a `replace` directive
 pointing to `../` for the parent modules it depends on.
 
-Modules are tagged independently using Go's module version conventions:
-
-```
-v0.16.0              → framework
-cli/v0.1.0           → cli
-kapi/v0.1.0          → kapi
-kapi-desktop/v0.1.0  → kapi-desktop
-```
+Only the framework module is tagged today, using flat semver tags (`vX.Y.Z`).
+The child modules (`cli`, `kapi`, `kapi-desktop`, and the platform modules) are
+not independently tagged. Go's module-version conventions would allow
+per-module tags (e.g. `cli/v0.1.0`), but the workspace currently relies on
+`go.work` plus `replace` directives rather than published per-module versions.
 
 All modules target Go 1.26+. The root Makefile provides per-module build,
 test, vet, and lint targets.

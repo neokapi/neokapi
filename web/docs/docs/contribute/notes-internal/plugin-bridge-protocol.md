@@ -77,12 +77,12 @@ message ProcessHeader {
   ...
   repeated int32 subscribe_parts = 10;
   // Empty = all events cross gRPC (backward compatible).
-  // [4] = Block only — structural events (Layer, Data, Group) are
+  // [5] = Block only — structural events (Layer, Data, Group) are
   // written directly by Java without gRPC round-trips.
 }
 ```
 
-Setting `subscribe_parts = [4]` reduces message count from ~570K to ~157K for a large XLSX file, since only translatable Block events need Go-side processing.
+Setting `subscribe_parts = [5]` reduces message count from ~570K to ~157K for a large XLSX file, since only translatable Block events need Go-side processing.
 
 ### Content Transfer
 
@@ -178,7 +178,7 @@ Key design choices:
 | Flag                | Default                 | Description                              |
 | ------------------- | ----------------------- | ---------------------------------------- |
 | `--concurrency N`   | `availableProcessors()` | Max concurrent filter pipelines          |
-| `--idle-timeout N`  | 0 (no timeout)          | Shut down after N seconds idle           |
+| `--idle-timeout N`  | 300 (5 min) in daemon mode; 0 (no timeout) in legacy subprocess mode | Shut down after N seconds idle |
 | `--stuck-timeout N` | 120                     | Translation queue poll timeout (seconds) |
 
 ### Heartbeat and Auto-Close
@@ -288,7 +288,7 @@ buffer knobs on the Go side:
   stream closes, which needs `ReadDone` from Java, which needs translations
   from Go — a circular dependency. Per-part delivery breaks the cycle.
 
-The `subscribe_parts = [4]` (Block-only) optimization — letting Java write
+The `subscribe_parts = [5]` (Block-only) optimization — letting Java write
 structural events directly without a gRPC round-trip — does far more for large
 documents than any buffer sizing, cutting message counts by roughly 3-4×.
 

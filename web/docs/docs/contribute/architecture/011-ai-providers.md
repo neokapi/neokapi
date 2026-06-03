@@ -141,8 +141,11 @@ option. The tool's `Process` method chooses a path from those values:
 
 - **Block-by-block** (`batchSize <= 1` and `concurrency <= 1`) — the default
   `BaseTool.Process` drives one `provider.Translate()` call per translatable
-  Block. This is also the only path that honours session overlay caching
-  (`SessionProcess`), so re-runs can skip already-translated Blocks.
+  Block. Under a session it uses the simplest sequential skip/hydrate path
+  (`sessionHandleBlock`): `GetOverlay` to skip already-translated Blocks,
+  `PutOverlay` to write the result back. The batched path also honours session
+  overlay caching, via `processBatchedWithSession`, which pre-filters cached
+  Blocks and writes overlays on the way out.
 - **Batched** (`processBatched`) — drains all input Parts into a slice,
   selects the translatable Blocks (skipping already-translated ones when
   `SkipMatched` is set), groups them into batches of `batchSize`, and
@@ -150,7 +153,8 @@ option. The tool's `Process` method chooses a path from those values:
   under a `chan struct{}` semaphore sized to `BatchConcurrency`, so at most
   that many LLM calls are in flight at once. All Parts are then written
   downstream in their original order; entries missing from the structured
-  response fall back to individual `handleBlock` calls.
+  response fall back to individual per-block `translate()` calls (one
+  `provider.Translate()` per missing Block).
 
 Streaming mode is orthogonal: when the provider implements
 `StreamingLLMProvider` and an `OnProgress` callback is supplied, the tool

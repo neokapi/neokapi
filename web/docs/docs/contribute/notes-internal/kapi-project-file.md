@@ -177,13 +177,19 @@ kapi run translate -p translation.kapi
 
 Built-in flows are `ai-translate`, `ai-translate-qa`, `pseudo-translate`,
 `qa-check`, `tm-leverage`, and `secure-translate` (see
-`core/flow.BuiltInFlows`). A recipe's `flows:` map can add or override flows by
-name.
+`core/flow.BuiltInFlows`). A recipe's `flows:` map can add new flows and
+override the single-tool built-ins (`ai-translate`, `pseudo-translate`,
+`qa-check`, `tm-leverage`). It cannot override the composed built-ins
+(`ai-translate-qa`, `secure-translate`) when invoked via `-p`: `runWithProject`
+(`cli/run.go`) dispatches those to the built-in pipeline before consulting
+`proj.GetFlow`.
 
 With `-p`:
 
-- The flow name is looked up first in the project's `flows` map, then in the
-  built-in set
+- The flow name is matched against the built-in composed flows first (currently
+  `ai-translate-qa` and `secure-translate` — the `BuiltInFlows` entries with 2+
+  tool nodes); if it is not one of those, it is looked up in the project's
+  `flows` map (and finally the plugin fallback)
 - `defaults.source_language` and `defaults.target_languages[0]` provide
   defaults (CLI flags override)
 - For single-file flows, `--input` selects the file. The project's `content`

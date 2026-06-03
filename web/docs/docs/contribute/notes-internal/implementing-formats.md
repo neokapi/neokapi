@@ -571,9 +571,9 @@ Okapi test patterns map to neokapi as:
 | Format                                      | Best for learning                                        | Key patterns                                                                 |
 | ------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | **JSON** (`core/formats/json/`)             | Key-value formats, regex-based config, subfilter support | Token walking, coalescing skeleton, 3-mode writer fallback, extensive config |
-| **HTML** (`core/formats/html/`)             | Markup/streaming formats, tokenizer-based parsing        | Tokenizer dispatch, inline spans, skeleton store                             |
+| **HTML** (`core/formats/html/`)             | Markup/streaming formats, tokenizer-based parsing        | Tokenizer dispatch, inline spans, per-block skeletons (`model.Block.Skeleton`) |
 | **Plaintext** (`core/formats/plaintext/`)   | Minimal format, starting point                           | Simplest possible reader/writer                                              |
-| **XLIFF** (`core/formats/xliff/`)           | Bilingual exchange formats                               | Per-block skeletons (not SkeletonStore), segment handling                    |
+| **XLIFF** (`core/formats/xliff/`)           | Bilingual exchange formats                               | SkeletonStore (coalescing buffer in reader, `writeFromSkeleton` in writer), segment/target handling |
 | **Properties** (`core/formats/properties/`) | Line-oriented key-value formats                          | Line parsing, escape handling                                                |
 
 ## Checklist

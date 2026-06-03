@@ -57,7 +57,7 @@ func HasExtensionGroup(group string) bool
 
 Re-registering the same `(Scope, Name)` pair panics — competing init functions are almost always a bug. Pure-name matches across scopes don't conflict (`collection` at `ScopeItem` and `ScopeDefaults` are distinct).
 
-`Group` lets a recipe declare `requires: [gitlab]` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without that plugin's behavior — `gitlab-push` won't work without the gitlab plugin installed, so a recipe using the `gitlab:` block typically declares `requires: [gitlab]`.
+`Group` lets a recipe declare `requires: { gitlab: "*" }` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without that plugin's behavior — `gitlab-push` won't work without the gitlab plugin installed, so a recipe using the `gitlab:` block typically declares `requires: { gitlab: "*" }`. The map form is mandatory: each entry maps a plugin name to a semver constraint, with `"*"` meaning any version. The bare-list form (`requires: [gitlab]`) is rejected with an actionable error.
 
 `HasExtensionGroup` is consulted by `KapiProject.Validate()` to enforce `requires:`. Plugins typically don't need to call it directly.
 
@@ -171,7 +171,8 @@ func init() {
 ```yaml
 version: v1
 name: my-app
-requires: [gitlab]
+requires:
+  gitlab: "*"
 gitlab:
   url: https://gitlab.example.com/team/project
   branch: localization
@@ -180,11 +181,10 @@ content:
     format: json
 ```
 
-When loaded by a binary that links `gitlab-plugin/schema` (the plugin binary, or a desktop app that blank-imports the schema for validation), the recipe validates. When loaded by a `kapi` with no gitlab plugin installed, the recipe fails at parse time:
+When loaded by a binary that links `gitlab-plugin/schema` (the plugin binary, or a desktop app that blank-imports the schema for validation), the recipe validates. When loaded by a `kapi` with no gitlab plugin installed, the recipe fails to validate:
 
 ```
-recipe requires extension group "gitlab" but no matching extension is registered
-(this binary was not built with the "gitlab" extension linked in)
+invalid project file: recipe requires plugin "gitlab" (*) but no matching extension is registered (install with `kapi plugin install gitlab`)
 ```
 
 ### Adding a command

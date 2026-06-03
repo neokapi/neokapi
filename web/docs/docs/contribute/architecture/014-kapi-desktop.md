@@ -63,10 +63,13 @@ apps/kapi-desktop/
 │   ├── tm.go / termbase.go  # TM and terminology operations
 │   └── sample/              # bundled sample project
 ├── frontend/                # React 19 + Vite + TailwindCSS
+│   ├── bindings/            # Wails-generated TypeScript
 │   ├── src/
-│   │   ├── views/           # Welcome, Project, FlowEditor, FlowRunner, Plugins, Credentials, Settings
-│   │   ├── components/      # leaf components
-│   │   └── bindings/        # Wails-generated TypeScript
+│   │   ├── components/      # all UI, incl. page views as *Page.tsx (WelcomePage, ProjectPage, FlowPage, RunnerPage, PluginManager, CredentialsPage, SettingsPage, …)
+│   │   ├── context/         # React context providers
+│   │   ├── hooks/           # React hooks
+│   │   ├── stories/         # Storybook stories
+│   │   └── types/           # shared TS types
 │   └── vite.config.ts
 └── build/                   # Wails build configs + per-platform settings
 ```
@@ -113,8 +116,15 @@ bindings. The main groups:
   the filesystem via `ProjectContext.ResolveContent`, showing matched
   files grouped by collection.
 - **Recents and settings** — persists recent files at
-  `~/.config/desktop/recent.json` and settings at
-  `~/.config/desktop/settings.json` (theme, plugin directory).
+  `~/.config/kapi-desktop/recent.json` and settings at
+  `~/.config/kapi-desktop/settings.json` (theme, UI language,
+  hidden/custom locales, samples-dismissed). The path is the platform
+  `UserConfigDir` + `kapi-desktop` (e.g.
+  `~/Library/Application Support/kapi-desktop` on macOS) — a desktop-only
+  root distinct from the kapi CLI's `~/.config/kapi` root, overridable via
+  `KAPI_DESKTOP_CONFIG_DIR`. The plugin directory is not a persisted
+  setting; it is resolved at startup from `KAPI_PLUGIN_DIR`, defaulting to
+  `~/.config/kapi/plugins`.
 
 ### Frontend views
 
@@ -133,8 +143,9 @@ bindings. The main groups:
   installed plugins, see plugin-provided formats and tools.
 - **Credential vault** — add a provider, test the key, store in the
   keychain. Keys are never displayed after entry.
-- **Settings** — theme (light/dark/system), plugin directory, telemetry
-  opt-in.
+- **Settings** — a General tab with theme (light/dark/system) and UI
+  language, plus tabs for AI credentials, plugin management, and locale
+  customization (hidden/custom locales).
 
 ### Reuse of framework primitives
 

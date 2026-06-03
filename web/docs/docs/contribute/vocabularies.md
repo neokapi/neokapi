@@ -173,8 +173,8 @@ func (r *Reader) phRun(semType, subType, id, nativeMarkup string) model.Run {
 
 ### Mapping native elements to semantic types
 
-Each format maps its native constructs to semantic types. The HTML and Markdown
-readers map differently but resolve to the same types:
+Each format maps its native constructs to semantic types. The HTML reader keys a
+name → type map on the element name:
 
 ```go
 var htmlSemanticTypes = map[string]string{
@@ -185,13 +185,22 @@ var htmlSemanticTypes = map[string]string{
     "br": "struct:break", "img": "media:image",
     "sub": "fmt:subscript", "sup": "fmt:superscript", "mark": "fmt:highlight",
 }
-
-var markdownSemanticTypes = map[string]string{
-    "strong": "fmt:bold", "emphasis": "fmt:italic",
-    "code": "fmt:code", "link": "link:hyperlink",
-    "image": "media:image", "softbreak": "struct:break",
-}
 ```
+
+The Markdown reader has no such map. It switches on goldmark AST node types and
+assigns the semantic type per node before calling `r.vocab.LookupOrFallback(…)`,
+resolving to the same vocabulary types:
+
+| Markdown construct                  | Semantic type    |
+| ----------------------------------- | ---------------- |
+| strong emphasis (`ast.Emphasis` level 2) | `fmt:bold`       |
+| emphasis (`ast.Emphasis` level 1)   | `fmt:italic`     |
+| inline code                         | `fmt:code`       |
+| link                                | `link:hyperlink` |
+| image                               | `link:image`     |
+
+A soft line break is not a run: it is emitted as inline text continuation (see
+`softBreakContinuation`), not a `struct:break` placeholder.
 
 ### SubType conventions
 

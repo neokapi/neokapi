@@ -54,6 +54,11 @@ type GraphStore interface {
     BulkCreateNodes(ctx context.Context, nodes []*Node) error
     BulkCreateEdges(ctx context.Context, edges []*Edge) error
 
+    // Cypher escape hatch (AGE backend only; SQLite returns ErrCypherNotSupported)
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
+    CypherExec(ctx context.Context, query string, params map[string]any) error
+
+    // Lifecycle
     Close() error
 }
 ```
@@ -203,6 +208,8 @@ defer store.Close()
 ```
 
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
+
+The SQLite backend has no native Cypher support, so `CypherQuery` and `CypherExec` return the sentinel `graph.ErrCypherNotSupported`. The server-side Apache AGE backend (`bowrain/graph/`) implements both natively.
 
 The `GraphStore` interface is designed for extension — server deployments can add their own backend behind the same interface.
 

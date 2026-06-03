@@ -17,7 +17,8 @@ across locales with per-term metadata (status, part of speech, grammatical
 gender). The `TermBase` interface (`termbase/` package) supports in-memory
 and SQLite backends, a tiered lookup pipeline, and TBX import/export.
 Terminology flows through the streaming pipeline via first-class annotation
-types with character-level positions for precise inline highlighting.
+types whose positions are run-anchored (`RunRange`) for precise inline
+highlighting that survives run-preserving edits.
 
 ## Context
 
@@ -34,8 +35,9 @@ The framework needs:
   management without rewriting data.
 - Pipeline integration — terminology as streaming tools, not a separate
   service.
-- Precise positions — character-level ranges on matched terms so downstream
-  UIs can highlight within a Fragment.
+- Precise positions — run-anchored `RunRange` spans on matched terms (run
+  index + intra-run rune offset) so downstream UIs can highlight within a
+  Fragment.
 - Annotation semantics — do-not-translate markers for entity names, locale
   formatting hints, and pending AI-proposed candidates distinct from
   curated entries.
@@ -51,14 +53,24 @@ query flexibility; TBX handles import and export only.
 A `Concept` groups terms across locales, each with context:
 
 ```go
+// TermSource indicates whether a concept comes from traditional
+// terminology or brand vocabulary.
+type TermSource string
+
+const (
+    TermSourceTerminology     TermSource = "terminology"
+    TermSourceBrandVocabulary TermSource = "brand_vocabulary"
+)
+
 type Term struct {
-    Text         string
-    Locale       model.LocaleID
-    Status       model.TermStatus // proposed, approved, preferred,
-                                   // admitted, deprecated, forbidden
-    PartOfSpeech string
-    Gender       string
-    Note         string
+    Text           string
+    Locale         model.LocaleID
+    Status         model.TermStatus // proposed, approved, preferred,
+                                     // admitted, deprecated, forbidden
+    PartOfSpeech   string
+    Gender         string
+    Note           string
+    CompetitorTerm bool             // marks a competitor brand term
 }
 
 type Concept struct {
@@ -66,6 +78,7 @@ type Concept struct {
     ProjectID  string
     Domain     string
     Definition string
+    Source     TermSource // "terminology" or "brand_vocabulary"
     Terms      []Term
     Properties map[string]string
     CreatedAt  time.Time
@@ -86,7 +99,7 @@ type TermBase interface {
     DeleteConcept(id string) error
     Lookup(sourceText string, opts LookupOptions) []TermMatch
     LookupAll(sourceText string, opts LookupOptions) []TermMatch
-    Search(query string, sourceLocale, targetLocale string,
+    Search(query string, sourceLocale, targetLocale model.LocaleID,
         offset, limit int) ([]Concept, int)
     Count() int
     Concepts() []Concept
@@ -139,8 +152,12 @@ queries.
 
 ### Annotations
 
-Two annotation types implement the `Annotation` interface with
-character-level `TextRange` positions for precise inline highlighting:
+Three annotation types — `TermAnnotation`, `TermCandidateAnnotation`, and
+`EntityAnnotation` — implement the `Annotation` interface with run-anchored
+`RunRange` positions for precise inline highlighting. (The termbase lookup
+itself returns a character-level `TextRange` offset into the source text,
+which the pipeline tool converts to a `RunRange` when it writes the
+annotation onto the block.)
 
 - **`TermAnnotation`** — a matched term from the termbase, carrying
   concept ID, target term options, status, and position.
@@ -149,9 +166,9 @@ character-level `TextRange` positions for precise inline highlighting:
   accept, reject, or defer.
 
 An **`EntityAnnotation`** type carries named entities (people,
-organizations, products, dates, locations) with character positions and
-optional DNT (do-not-translate) flags. Entity annotations serve multiple
-purposes:
+organizations, products, dates, locations) with run-anchored `RunRange`
+positions and optional DNT (do-not-translate) flags. Entity annotations
+serve multiple purposes:
 
 - Input to Sievepen TM generalization ([AD-009: Translation Memory](009-translation-memory.md)).
 - Do-not-translate markers consumed by AI translation.
@@ -165,10 +182,13 @@ Blocks.
 
 Concepts carry relations to other concepts:
 
-- **broader** / **narrower** — taxonomic relationships.
-- **related** — associative relationships.
-- **supersedes** — this concept replaces another.
-- **see-also** — cross-reference.
+- **broader** / **narrower** — taxonomic relationships
+  (`skos:broader` / `skos:narrower`).
+- **part-of** / **has-part** — compositional meronymy/holonymy.
+- **related** — the associative relationship (`skos:related`).
+- **replaced-by** — a superseded concept points to its replacement.
+- **exact-match** / **close-match** — cross-scheme equivalence
+  (`skos:exactMatch` / `skos:closeMatch`).
 
 Relations enable graph navigation in UIs and support terminology
 deprecation workflows where a superseded concept's terms are
@@ -177,20 +197,24 @@ automatically flagged in new content.
 ### Competitor terms
 
 Terms carry a `CompetitorTerm` boolean flag marking competitor brand
-terms. Competitor terms flow through `term-enforce` as critical-severity
-violations, supporting brand voice governance without requiring the full
-brand module.
+terms. The `brand-vocab-check` tool surfaces competitor terms found in
+source text as critical-severity brand-voice findings (and forbidden terms
+as major-severity), supporting brand voice governance using the termbase's
+brand-vocabulary source.
 
 ### Pipeline tools
 
 The framework ships built-in terminology tools as ordinary pipeline stages:
 
 - **`term-lookup`** (enrich) — scans source text for known terms, attaches
-  `TermAnnotation` with `TextRange` positions. Downstream tools (AI
-  translate, QA) use these annotations for context.
-- **`term-enforce`** (validate) — checks preferred term usage in target
-  text. Reports forbidden terms, non-preferred variants, deprecated
-  terms, and missing target counterparts.
+  `TermAnnotation` with run-anchored `RunRange` positions. Downstream tools
+  (AI translate, QA) use these annotations for context.
+- **`term-enforce`** (validate) — for each known source term, checks that
+  an acceptable target-locale translation (preferred/approved by default,
+  configurable via `CheckStatuses`) is present in the target text; flags
+  blocks where the expected translation is missing. Forbidden-, deprecated-,
+  and competitor-term detection is handled by `brand-vocab-check`, which
+  scans source text — not `term-enforce`.
 - **`ai-terminology`** (AI-assisted enrich) — LLM extraction of candidate
   terms with `status: proposed`. Uses a provider from
   [AD-011: AI Providers](011-ai-providers.md).
@@ -225,7 +249,7 @@ relations, term status, and context fields.
 
 - Terminology is a first-class pipeline citizen, not a bolt-on
   post-processing step.
-- Character-level annotation positions enable precise inline UI
+- Run-anchored annotation positions enable precise inline UI
   highlighting without re-detecting term boundaries at render time.
 - Entity annotations drive both terminology extraction and TM
   generalization — a single annotation pass serves multiple consumers.

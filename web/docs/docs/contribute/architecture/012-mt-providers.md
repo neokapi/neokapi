@@ -75,7 +75,7 @@ thing.
 | Provider                 | Config Fields                    | Auth                               | Distinctive Feature                       |
 | ------------------------ | -------------------------------- | ---------------------------------- | ----------------------------------------- |
 | **DeepL**                | APIKey, Formality, BaseURL       | `DeepL-Auth-Key` header            | Formality control (more/less/prefer)      |
-| **Google Translate**     | APIKey, ProjectID, BaseURL       | API key in query string            | Cloud Translation API v2                  |
+| **Google Translate**     | APIKey, ProjectID, BaseURL       | `X-Goog-Api-Key` header            | Cloud Translation API v2                  |
 | **Microsoft Translator** | SubscriptionKey, Region, BaseURL | `Ocp-Apim-Subscription-Key` header | Optional region header                    |
 | **ModernMT**             | APIKey, Hints, BaseURL           | `MMT-ApiKey` header                | Memory hints bias translations toward TMs |
 | **MyMemory**             | Email, BaseURL                   | None (free tier)                   | Email unlocks higher rate limits          |

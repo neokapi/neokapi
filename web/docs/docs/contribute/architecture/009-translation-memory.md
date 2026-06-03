@@ -183,13 +183,16 @@ scans. The candidate set (target ~200 entries) is then scored with
 character-level Levenshtein in Go.
 
 - **SQLite** — an FTS5 virtual table with `tokenize='trigram'` indexes
-  source_plain, source_struct, and source_general. Triggers keep it in sync
-  with the base table. Falls back to length-based pre-filtering if FTS5
-  trigram is unavailable at runtime.
+  `plain`, `struct_key`, and `general_key`. Because these are not `content=`
+  external-content FTS tables, no SQL triggers are wired; the index is kept in
+  sync manually — explicit DELETE/INSERT into `tm_variant_trigram` on each
+  upsert/delete, plus `RebuildFuzzyIndex()`/`RebuildSearchIndex()` for set-based
+  repopulation after bulk imports. Falls back to length-based pre-filtering if
+  FTS5 trigram is unavailable at runtime.
 - **SQLite UI search** — a separate FTS5 `unicode61` table with BM25
   ranking, used by the CLI and desktop UI for ranked full-text search.
 
-`buildTrigramQuery()` constructs the FTS5 MATCH expression differently for
+`BuildTrigramQuery()` constructs the FTS5 MATCH expression differently for
 multi-word Latin text (OR of quoted substrings ≥3 characters) and for
 single-word or CJK text (overlapping 4-character windows sampled at even
 intervals).
