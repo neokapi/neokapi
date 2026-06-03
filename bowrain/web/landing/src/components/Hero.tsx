@@ -69,7 +69,11 @@ export function Hero() {
         </p>
       </div>
 
-      {/* Real product screenshot — the translation editor, captured from the live app. */}
+      {/* Real product demo — the translation editor, recorded from the live app.
+          Served by the sibling docs deploy (/web/bowrain/docs/… today, /docs/… at
+          launch), so it is never committed to git; the poster is a real screenshot
+          in the landing's own public/, shown until the video loads (and in isolated
+          landing-only dev, where the docs path isn't served). */}
       <div className="animate-fade-in-up-delay-3 relative z-10 mt-16 w-full max-w-5xl">
         <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-brand-500/10">
           <div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
@@ -80,11 +84,17 @@ export function Hero() {
               Bowrain — Company Website · en → fr
             </span>
           </div>
-          <img
-            src={`${base}editor.png`}
-            alt="The Bowrain translation editor: source and target side by side, with translation-memory and terminology matches in a context panel and a live document preview."
+          <video
             className="block w-full"
-          />
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={`${base}editor.png`}
+            aria-label="The Bowrain translation editor: source and target side by side, with translation-memory and terminology matches in a context panel and a live document preview."
+          >
+            <source src={`${base}docs/video/bowrain-web/bowrain-web-editor-dark.webm`} type="video/webm" />
+          </video>
         </div>
         <p className="mt-3 text-center text-xs text-neutral-600">
           The shared editor — translation memory and terminology matches inline, a live preview,
