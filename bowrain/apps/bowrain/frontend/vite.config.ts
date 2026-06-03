@@ -6,15 +6,14 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
-  // `recharts` (bowrain's dashboard charts) is CJS-heavy; rolldown-vite's
-  // optimizeDeps pre-bundle of it emitted esbuild interop helpers (`__name`,
-  // `require_isUnsafeProperty`) without defining them, crashing real.html on
-  // load under `vp dev` (recorder timeout). Exclude it from the pre-bundle so
-  // it's served from its ESM build, and disable keepNames as a belt-and-braces.
-  esbuild: { keepNames: false },
+  // `recharts` (bowrain's dashboard charts) is a CJS-heavy dep; under
+  // rolldown-vite, CJS deps should be force-pre-bundled (optimizeDeps.include)
+  // so rolldown converts CJS→ESM cleanly. (This cleared a `require_isUnsafe
+  // Property` crash; note a separate rolldown/Oxc dev-transform "__name is not
+  // defined" bug still blocks the bowrain-desktop RECORDER under `vp dev` —
+  // present even on vite-plus 0.1.24 — tracked as an upstream issue.)
   optimizeDeps: {
-    exclude: ["recharts"],
-    esbuildOptions: { keepNames: false },
+    include: ["recharts"],
   },
   server: {
     port: 3000,
