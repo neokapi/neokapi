@@ -118,6 +118,12 @@ const (
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
 func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta) (*SyncPushResponse, error) {
+	// Guard a nil client: callers build the client from the recipe's server:
+	// block, which is absent until the project is connected. Return a clear
+	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
+	if c == nil {
+		return nil, fmt.Errorf("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
+	}
 	// 1. Compute Merkle hashes over the changed subset only (additive-only
 	//    contract above): these are change indicators, not authoritative roots.
 	itemHashes := make(map[string]string)

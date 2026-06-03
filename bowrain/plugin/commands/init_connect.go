@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -104,14 +105,24 @@ func runInitConnect(_ *cobra.Command, _ []string) error {
 		if err != nil || auth == nil || auth.AccessToken == "" {
 			return fmt.Errorf("not signed in; run `kapi auth login --server %s`, or pass --anonymous", serverURL)
 		}
-		fmt.Printf("Creating project on %s...\n", auth.ServerURL)
+		// Target the explicit --server / BOWRAIN_SERVER_URL; fall back to the
+		// server recorded at login. Under BOWRAIN_AUTH_TOKEN (CI/non-interactive)
+		// auth.ServerURL is empty, so using it here posted to an empty URL.
+		targetServer := serverURL
+		if targetServer == "" {
+			targetServer = auth.ServerURL
+		}
+		if targetServer == "" {
+			return errors.New("server URL not configured — pass --server or set BOWRAIN_SERVER_URL")
+		}
+		fmt.Printf("Creating project on %s...\n", targetServer)
 		projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
-			auth.ServerURL, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, "")
+			targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, "")
 		if err != nil {
 			return fmt.Errorf("create project: %w", err)
 		}
-		setServerURL(recipe, project.FormatProjectURL(auth.ServerURL, workspaceSlug, projectID))
-		fmt.Printf("Connected to %s (workspace %s, project %s)\n", auth.ServerURL, workspaceSlug, projectID)
+		setServerURL(recipe, project.FormatProjectURL(targetServer, workspaceSlug, projectID))
+		fmt.Printf("Connected to %s (workspace %s, project %s)\n", targetServer, workspaceSlug, projectID)
 	}
 
 	// Persist the server: block into the existing recipe.
