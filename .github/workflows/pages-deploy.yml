@@ -134,6 +134,31 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
+      # Discover which artifacts the triggering run actually produced, so the
+      # per-slot downloads below only run for present artifacts — no more scary
+      # "Artifact not found" ##[error] lines on a green deploy. Fail-open: if this
+      # step is skipped or errors, has_* is empty (≠ 'false') so the download is
+      # still attempted (continue-on-error then tolerates a genuine absence).
+      - name: Discover artifacts in the triggering run
+        id: arts
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          names=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts" --paginate --jq '.artifacts[].name' | tr '\n' ' ')
+          echo "artifacts present in run ${RUN_ID}: ${names}"
+          for slot in neokapi-web bowrain-web kapi-site bowrain-site kapi-storybook bowrain-storybook; do
+            key="has_${slot//-/_}"
+            if printf ' %s ' "${names}" | grep -q " ${slot} "; then
+              echo "${key}=true"
+            else
+              echo "${key}=false"
+            fi >> "$GITHUB_OUTPUT"
+          done
+
       # Download each artifact BY NAME into its own dir. Downloading ALL
       # artifacts (no name) with download-artifact@v8 only creates per-artifact
       # subdirs when 2+ match; a SINGLE artifact extracts FLAT into `path`, so
@@ -143,7 +168,7 @@ jobs:
       # download is flat into its own path for any count; continue-on-error
       # tolerates artifacts a given triggering run didn't produce.
       - name: Download neokapi-web artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_neokapi_web != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -169,7 +194,7 @@ jobs:
           cp -r artifacts/neokapi-web/* "pages/${DEST}/"
 
       - name: Download bowrain-web artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_web != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -191,7 +216,7 @@ jobs:
           cp -r artifacts/bowrain-web/* "pages/${DEST}/"
 
       - name: Download kapi-site artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_kapi_site != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -213,7 +238,7 @@ jobs:
           cp -r artifacts/kapi-site/* "pages/${DEST}/"
 
       - name: Download bowrain-site artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_site != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -235,7 +260,7 @@ jobs:
           cp -r artifacts/bowrain-site/* "pages/${DEST}/"
 
       - name: Download kapi-storybook artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_kapi_storybook != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -257,7 +282,7 @@ jobs:
           cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
 
       - name: Download bowrain-storybook artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_storybook != 'false' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
