@@ -1205,7 +1205,7 @@ async function recordTheme(
     // Default kapi-desktop renders an h1 immediately; bowrain-desktop renders its
     // dashboard only after the backend auto-connects to the server (a few
     // seconds), so callers pass a connected-state selector + we allow longer.
-    await page.waitForSelector(ready ?? "h1", { timeout: ready ? 30_000 : 15_000 });
+    await page.waitForSelector(ready ?? "h1", { timeout: ready ? 45_000 : 15_000 });
   }
   await injectCursor(page);
   await page.waitForTimeout(400);
@@ -1317,7 +1317,11 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   if (opts.bowrainDesktop) {
     const stack = await startBowrainStack();
     const browser = await chromium.launch();
-    const ready = '[data-testid="nav-translate"], [data-testid="nav-flows"], [data-testid^="project-card"]';
+    // App-shell-loaded markers on the desktop dashboard/projects view. (The old
+    // nav-translate/nav-flows testids were removed from the UI — keep this in
+    // sync with the shared ProjectDashboard / sidebar testids.)
+    const ready =
+      '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="sidebar-dashboard"]';
     try {
       console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
       const light = await recordTheme(browser, stack.url, "light", outDir, id, undefined, ready);

@@ -19,6 +19,13 @@ import { setTransport } from "@wailsio/runtime";
 import idMap from "./wails-id-map.generated.json";
 import App from "../App";
 
+// This entry exists only to RECORD the real desktop app (framed by the harness's
+// macOS window chrome, which paints the traffic-light dots). Reserve the
+// traffic-light safe area so the sidebar workspace switcher clears the dots —
+// the same `bw-desktop-mac` marker the shipped Wails entry (main.tsx) sets on
+// macOS. Unconditional here since this entry is recording-only.
+document.documentElement.classList.add("bw-desktop-mac");
+
 const BRIDGE = (import.meta.env.VITE_WBRIDGE_URL as string) || "http://localhost:5275/wbridge";
 const ids = idMap as Record<string, string>;
 
