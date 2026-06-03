@@ -489,7 +489,7 @@ flag or through `kapi init`:
 kapi init                                     # scaffold {name}.kapi + .kapi/
 kapi run translate -p my-app.kapi             # run a declared flow
 kapi ai-translate -p my-app.kapi              # tool runs against the project
-kapi pseudo-translate -i file.json            # tool runs ad-hoc, no project
+kapi pseudo-translate file.json            # tool runs ad-hoc, no project
 ```
 
 kapi-desktop ([AD-014: Kapi Desktop](014-kapi-desktop.md)) opens `.kapi` files

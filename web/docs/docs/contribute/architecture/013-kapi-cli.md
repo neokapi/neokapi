@@ -116,7 +116,7 @@ Most commands are one-shot by default:
 
 ```bash
 kapi ai-translate -i file.xliff --target-lang fr
-kapi pseudo-translate -i file.json --target-lang qps
+kapi pseudo-translate file.json
 kapi word-count file.json
 ```
 

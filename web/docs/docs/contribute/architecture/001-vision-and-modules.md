@@ -234,7 +234,7 @@ config, with the following precedence (highest wins):
 Both kapi and kapi-desktop use [Cobra](https://github.com/spf13/cobra) (kapi
 directly, kapi-desktop indirectly through the shared CLI base) for
 hierarchical subcommands. Kapi operates directly on files (`kapi
-pseudo-translate -i file.json`); kapi-desktop wraps the same commands behind
+pseudo-translate file.json`); kapi-desktop wraps the same commands behind
 a GUI.
 
 ### Locale handling

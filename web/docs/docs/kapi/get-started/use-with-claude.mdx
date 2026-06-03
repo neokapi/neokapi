@@ -64,7 +64,7 @@ a structured pipeline — the same steps every time the UI changes:
 
 ```bash
 npm run extract                                # kapi-react collects the UI strings from the JSX → i18n/
-kapi pseudo-translate i18n/ --target-lang qps  # readiness check: surfaces anything not localizable yet
+kapi pseudo-translate i18n/  # readiness check: surfaces anything not localizable yet
 kapi ai-translate i18n/ --target-lang ja       # translate; interpolation placeholders preserved
 npm run compile                                # → public/translations/ja.json (loaded at runtime)
 ```

@@ -14,7 +14,7 @@ keywords: [kapi, translate, KLF, pseudo-translate, AI translation, kapi-react, l
 Pseudo-translation is the fastest way to see what's been picked up for translation — and what hasn't.
 
 ```bash
-kapi pseudo-translate i18n/ --target-lang qps
+kapi pseudo-translate i18n/
 ```
 
 No `-o` — the default for KLF inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
@@ -39,7 +39,7 @@ Add it to CI as a UI-layout smoke test:
 
 ```yaml title=".github/workflows/ui-qa.yml"
 - run: vp kapi-react extract
-- run: kapi pseudo-translate i18n/ --target-lang qps
+- run: kapi pseudo-translate i18n/
 - run: vp kapi-react compile i18n/ --out public/translations
 - run: npm run test:e2e # runs against ?locale=qps
 ```
@@ -138,7 +138,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 {
   "scripts": {
     "i18n:extract": "vp kapi-react extract",
-    "i18n:pseudo": "kapi pseudo-translate i18n/ --target-lang qps",
+    "i18n:pseudo": "kapi pseudo-translate i18n/",
     "i18n:ai": "for lang in fr de ja; do kapi ai-translate i18n/ --target-lang $lang; done",
     "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
   }

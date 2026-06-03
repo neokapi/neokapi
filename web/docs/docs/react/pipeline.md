@@ -143,7 +143,7 @@ Each run **accumulates** a target locale into the same `.klf`. The writer is loc
 For UI-layout QA, pseudo-translation generates visibly-altered strings without any real translation:
 
 ```bash
-kapi pseudo-translate i18n/ --target-lang qps
+kapi pseudo-translate i18n/
 ```
 
 `Welcome` becomes `[Ŵéḷçőḿé]`, padded and accented. Missing translations stand out instantly, and strings that wrap too aggressively (or too narrowly) show up in layout testing.
@@ -160,7 +160,7 @@ Structural context (the `jsxPath`, the translator note, the inline element token
 
 ### In-place default vs. explicit redirect
 
-`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/ --target-lang qps` reads and writes the same files, since the KLF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
+`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/` reads and writes the same files, since the KLF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
 
 Non-KLF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
 
@@ -206,7 +206,7 @@ For ad-hoc projects, skip `.kapi` entirely and compose with Unix pipes:
 
 ```bash
 vp kapi-react extract --stream > i18n/blocks.ndjson
-kapi pseudo-translate i18n/ --target-lang qps
+kapi pseudo-translate i18n/
 vp kapi-react compile i18n/ --out public/translations
 ```
 

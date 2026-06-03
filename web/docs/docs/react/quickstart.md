@@ -99,7 +99,7 @@ human-readable and git-diffable.
 Pseudo-translation generates `[Wëlcömé tö Âcmé]`-style accented strings that make it obvious what's been picked up for translation — and which strings are still English. Perfect first pass.
 
 ```bash
-kapi pseudo-translate i18n/ --target-lang qps
+kapi pseudo-translate i18n/
 ```
 
 ## 6. Compile to a runtime dict

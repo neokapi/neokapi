@@ -36,7 +36,7 @@ kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
 # Pseudo-translate for testing (top-level tool command)
-kapi pseudo-translate -i input.html -o output.html --target-lang fr
+kapi pseudo-translate input.html -o output.html --target-lang fr
 
 # Process multiple files in parallel (top-level tool command)
 kapi ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
