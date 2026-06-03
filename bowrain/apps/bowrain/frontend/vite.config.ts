@@ -6,14 +6,14 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
-  // `recharts` (bowrain's dashboard charts) is a CJS-heavy dep; under
-  // rolldown-vite, CJS deps should be force-pre-bundled (optimizeDeps.include)
-  // so rolldown converts CJS→ESM cleanly. (This cleared a `require_isUnsafe
-  // Property` crash; note a separate rolldown/Oxc dev-transform "__name is not
-  // defined" bug still blocks the bowrain-desktop RECORDER under `vp dev` —
-  // present even on vite-plus 0.1.24 — tracked as an upstream issue.)
+  // recharts is a CJS-heavy dep used by the LINKED workspace lib @neokapi/ui
+  // (bowrain/packages/ui charts), not imported directly here. Vite's documented
+  // form for a linked lib's nested CJS dep is `<linked-lib> > <nested-dep>`, so
+  // it gets pre-bundled (CJS→ESM) with its helpers defined. A bare `recharts`
+  // include is the wrong shape for a transitive-via-linked-lib dep and left the
+  // rolldown helpers undefined ("__name is not defined") under `vp dev`.
   optimizeDeps: {
-    include: ["recharts"],
+    include: ["@neokapi/ui > recharts"],
   },
   server: {
     port: 3000,
