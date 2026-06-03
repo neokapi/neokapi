@@ -134,13 +134,23 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download all artifacts from triggering run
+      # Download each artifact BY NAME into its own dir. Downloading ALL
+      # artifacts (no name) with download-artifact@v8 only creates per-artifact
+      # subdirs when 2+ match; a SINGLE artifact extracts FLAT into `path`, so
+      # the slots' `artifacts/<name>` check false-skipped whenever the triggering
+      # run produced exactly one artifact (e.g. "Docs — bowrain" → one
+      # `bowrain-site`) → "No changes to deploy" on a green run. A name-scoped
+      # download is flat into its own path for any count; continue-on-error
+      # tolerates artifacts a given triggering run didn't produce.
+      - name: Download neokapi-web artifact
         if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
+          name: neokapi-web
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-          path: artifacts
+          path: artifacts/neokapi-web
 
       - name: Slot neokapi-web Vite app at /web/neokapi/ root
         if: ${{ steps.target.outputs.skip != 'true' }}
@@ -158,6 +168,16 @@ jobs:
           (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
           cp -r artifacts/neokapi-web/* "pages/${DEST}/"
 
+      - name: Download bowrain-web artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: bowrain-web
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/bowrain-web
+
       - name: Slot bowrain-web Vite app at /web/bowrain/ root
         if: ${{ steps.target.outputs.skip != 'true' }}
         env:
@@ -169,6 +189,16 @@ jobs:
           mkdir -p "pages/${DEST}"
           (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
           cp -r artifacts/bowrain-web/* "pages/${DEST}/"
+
+      - name: Download kapi-site artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: kapi-site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/kapi-site
 
       - name: Slot kapi Docusaurus at /web/neokapi/docs/
         if: ${{ steps.target.outputs.skip != 'true' }}
@@ -182,6 +212,16 @@ jobs:
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-site/* "pages/${DEST}/"
 
+      - name: Download bowrain-site artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: bowrain-site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/bowrain-site
+
       - name: Slot bowrain Docusaurus at /web/bowrain/docs/
         if: ${{ steps.target.outputs.skip != 'true' }}
         env:
@@ -194,6 +234,16 @@ jobs:
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-site/* "pages/${DEST}/"
 
+      - name: Download kapi-storybook artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: kapi-storybook
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/kapi-storybook
+
       - name: Slot kapi storybook
         if: ${{ steps.target.outputs.skip != 'true' }}
         env:
@@ -205,6 +255,16 @@ jobs:
           rm -rf "pages/${DEST}"
           mkdir -p "pages/${DEST}"
           cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
+
+      - name: Download bowrain-storybook artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: bowrain-storybook
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/bowrain-storybook
 
       - name: Slot bowrain storybook
         if: ${{ steps.target.outputs.skip != 'true' }}
