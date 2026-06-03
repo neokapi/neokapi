@@ -39,11 +39,15 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          # Pin GitHub's published ed25519 host key instead of trusting a runtime
+          # ssh-keyscan (which is itself MITM-able). Verified, not skipped.
+          # https://docs.github.com/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GkZH" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Prune preview for the closed PR
         env:
-          GIT_SSH_COMMAND: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes
         run: |
           set -euo pipefail
           # PR comes from github.event (an integer for pull_request) or a manual
