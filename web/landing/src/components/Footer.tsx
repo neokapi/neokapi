@@ -1,3 +1,6 @@
+// Injected at build time by vite.config.ts `define`.
+declare const __BUILD_STAMP__: string;
+
 export function Footer() {
   return (
     <footer className="border-t border-surface-700/50 px-6 py-10">
@@ -39,6 +42,9 @@ export function Footer() {
         </div>
 
         <div className="text-xs text-neutral-700">Apache 2.0</div>
+      </div>
+      <div className="mx-auto mt-6 max-w-6xl text-center text-[11px] tabular-nums text-neutral-700/80">
+        built {__BUILD_STAMP__}
       </div>
     </footer>
   );

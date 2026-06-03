@@ -1,6 +1,21 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import { execFileSync } from "node:child_process";
+
+// Build freshness stamp ("<YYYY-MM-DD HH:MM> UTC · <short-sha>"), appended to
+// the footer copyright so the deployed docs reveal when/from-what they built.
+const buildStamp = (() => {
+  let sha = process.env.GITHUB_SHA?.slice(0, 9) ?? "dev";
+  try {
+    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    /* not a git checkout — keep the env/dev fallback */
+  }
+  return `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · ${sha}`;
+})();
 
 // URL of the kapi/neokapi docs site, used for cross-site links.
 // Defaults to the GitHub Pages production URL; override via env var locally
@@ -164,7 +179,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} neokapi contributors. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} neokapi contributors. Built with Docusaurus. · built ${buildStamp}`,
     },
     prism: {
       theme: prismThemes.github,
