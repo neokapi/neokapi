@@ -39,12 +39,12 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # All bowrain docs videos — the CLI scene tapes (bowrain-cli/) and the
-      # framed walkthrough videos (bowrain-web/ + bowrain-desktop/) — are recorded
-      # on a desktop against a real running stack, which CI cannot reproduce, and
-      # published to the bowrain-docs-assets release (make bowrain-kapi-scenes /
-      # the harness, then make publish-bowrain-docs-assets). CI no longer records
-      # anything; it stages the assets here, mirroring docs-kapi.yml.
+      # All bowrain docs videos — the CLI demos (bowrain-cli/) and the framed
+      # walkthrough videos (bowrain-web/ + bowrain-desktop/) — are produced by the
+      # harness on a desktop against a real running stack, which CI cannot
+      # reproduce, and published to the bowrain-docs-assets release (make
+      # publish-bowrain-docs-assets). CI never records; it stages the assets here,
+      # mirroring docs-kapi.yml.
       - name: Stage bowrain videos + images from bowrain-docs-assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,9 +67,6 @@ jobs:
         # with ERR_PNPM_IGNORED_BUILDS and fails the docs build.
         run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
         working-directory: bowrain/web/docs
-
-      - name: Stage walkthrough scene .webm into static/video/bowrain/
-        run: bash bowrain/web/docs/scripts/stage-scenes.sh
 
       - name: Determine base URL (production vs PR preview)
         id: base

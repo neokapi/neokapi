@@ -1024,74 +1024,6 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 	$(MAKE) harness-narrate FORCE=1
 	$(MAKE) harness-package FORCE=1
 
-# Record the kapi docs scene tapes (VHS) on your desktop and stage them under
-# static/video/kapi/, then `make publish-docs-assets`. Done locally so CI doesn't
-# re-record on every build (docs-kapi.yml stages these from the docs-assets release).
-# Needs `vhs` (brew install vhs) and a built kapi (bin/kapi).
-kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/video/kapi/
-	@command -v vhs >/dev/null || { echo "vhs not found — run: brew install vhs"; exit 1; }
-	@test -x bin/kapi || $(MAKE) build
-	@mkdir -p web/docs/static/video/kapi
-	@for scene_dir in web/docs/scenes/*/; do \
-	  for tape in "$$scene_dir"*.tape; do \
-	    [ -f "$$tape" ] || continue; \
-	    echo "Recording $$tape"; \
-	    scene_env="KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache"; \
-	    if find "$$scene_dir" -name '*.kapi' | grep -q .; then \
-	      : "scene owns a recipe — keep discovery on (nearest-wins shields it from the root dogfood recipe)"; \
-	    else \
-	      scene_env="$$scene_env KAPI_NO_PROJECT=1"; \
-	    fi; \
-	    (cd "$$scene_dir" && env $$scene_env PATH="$(CURDIR)/bin:$$PATH" vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
-	  done; \
-	done
-	@for webm in web/docs/scenes/*/*.webm; do \
-	  [ -f "$$webm" ] || continue; \
-	  out="web/docs/static/video/kapi/$$(basename "$$webm")"; \
-	  ffmpeg -y -i "$$webm" -an -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -pix_fmt yuv420p \
-	    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -map_metadata -1 \
-	    "$$out" >/dev/null 2>&1 || cp "$$webm" "$$out"; \
-	done
-	@echo "Recorded $$(ls web/docs/static/video/kapi/01-*.webm 2>/dev/null | wc -l) scene(s) → web/docs/static/video/kapi/  (now: make publish-docs-assets)"
-
-# Record the bowrain CLI docs scene tapes (VHS) on your desktop and stage them
-# under bowrain/web/docs/static/video/bowrain-cli/, then
-# `make publish-bowrain-docs-assets`. Done locally so CI doesn't re-record on
-# every build (docs-bowrain.yml stages these from the bowrain-docs-assets
-# release). Needs `vhs`, a built kapi + kapi-bowrain plugin, and a reachable
-# server — set BOWRAIN_BACKEND_URL (and authenticate first). The tapes cd into
-# WALKTHROUGH_DIR, a temp dir OUTSIDE the checkout, so `kapi init`/push/sync
-# never walk up into the repo's own dogfood .kapi project. The plugin is
-# discovered only from an isolated dir (KAPI_PLUGINS_DIR_ONLY).
-bowrain-kapi-scenes: ## Record bowrain CLI scene tapes (VHS, desktop) → bowrain/web/docs/static/video/bowrain-cli/
-	@command -v vhs >/dev/null || { echo "vhs not found — run: brew install vhs"; exit 1; }
-	@test -x bin/kapi || $(MAKE) build
-	@test -x bin/kapi-bowrain || $(MAKE) build-kapi-bowrain-plugin
-	@mkdir -p bowrain/web/docs/static/video/bowrain-cli "$(KAPI_ISO_DIR)/plugins/bowrain"
-	@cp bin/kapi-bowrain "$(KAPI_ISO_DIR)/plugins/bowrain/kapi-bowrain"
-	@cp bowrain/cli/cmd/kapi-bowrain/manifest.json "$(KAPI_ISO_DIR)/plugins/bowrain/manifest.json"
-	@wt="$${WALKTHROUGH_DIR:-$${TMPDIR:-/tmp}/bowrain-walkthrough}"; \
-	  rm -rf "$$wt" && mkdir -p "$$wt"; \
-	  for scene_dir in bowrain/web/docs/scenes/*/; do \
-	    for tape in "$$scene_dir"*.tape; do \
-	      [ -f "$$tape" ] || continue; \
-	      echo "Recording $$tape"; \
-	      (cd "$$scene_dir" && env KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 \
-	        KAPI_PLUGINS_DIR="$(KAPI_ISO_DIR)/plugins" \
-	        KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache \
-	        WALKTHROUGH_DIR="$$wt" PATH="$(CURDIR)/bin:$$PATH" \
-	        vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
-	    done; \
-	  done
-	@for webm in bowrain/web/docs/scenes/*/*.webm; do \
-	  [ -f "$$webm" ] || continue; \
-	  out="bowrain/web/docs/static/video/bowrain-cli/$$(basename "$$webm")"; \
-	  ffmpeg -y -i "$$webm" -an -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -pix_fmt yuv420p \
-	    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -map_metadata -1 \
-	    "$$out" >/dev/null 2>&1 || cp "$$webm" "$$out"; \
-	done
-	@echo "Recorded bowrain CLI scene(s) → bowrain/web/docs/static/video/bowrain-cli/  (now: make publish-bowrain-docs-assets)"
-
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset. Override with
@@ -1178,7 +1110,6 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs site with the
 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 	cd bowrain/web/docs && corepack pnpm install --ignore-workspace
-	cd bowrain/web/docs && bash scripts/stage-scenes.sh
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
 publish-landing: landing-build ## Build + deploy both landing pages to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)

@@ -68,10 +68,9 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # All docs videos — VHS scene tapes (01-*.webm) and the harness Claude
-      # explainer videos (claude-*) — are recorded on the desktop and published to
-      # the docs-assets release (make kapi-scenes / make harness-videos, then
-      # make publish-docs-assets). CI no longer records them; it stages them here.
+      # All docs videos are produced by the harness on the desktop (make
+      # harness-videos / harness-videos-staged) and published to the docs-assets
+      # release (make publish-docs-assets). CI never records; it stages them here.
       - name: Stage docs videos from docs-assets
         env:
           GH_TOKEN: ${{ github.token }}

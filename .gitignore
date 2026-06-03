@@ -80,17 +80,8 @@ storybook-static/
 # Playwright
 test-results/
 playwright-report/
-bowrain/web/docs/scenes/.test-results/
-
-# Walkthrough scene assets — recordings + screenshots are build artifacts,
-# not source. Recorder scripts and AppleScripts are tracked; webm/png/etc.
-# are produced on demand and uploaded to releases (or regenerated locally).
-bowrain/web/docs/scenes/**/*.webm
-bowrain/web/docs/scenes/**/*.mp4
-bowrain/web/docs/scenes/**/*.mov
-bowrain/web/docs/scenes/**/*.gif
-bowrain/web/docs/scenes/**/*.png
-bowrain/web/docs/scenes/**/*.jpg
+# kapi docs scene fixtures stay tracked; any transient recordings or
+# screenshots under web/docs/scenes/ are build artifacts, not source.
 web/docs/scenes/**/*.webm
 web/docs/scenes/**/*.mp4
 web/docs/scenes/**/*.mov

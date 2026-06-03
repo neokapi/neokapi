@@ -139,15 +139,11 @@ Where this is already wired:
 
 - **Makefile** — use the shared `$(KAPI_ISO_ENV)` (defined near the top) to
   prefix any in-repo `bin/kapi` call (e.g. the `kapi-*-pseudo-translate`
-  targets). `make kapi-scenes` applies config isolation to every scene and adds
-  `KAPI_NO_PROJECT=1` for scenes that don't own a `*.kapi` fixture (scenes that
-  do — e.g. `kapi-bilingual-workflow` — keep discovery on and rely on
-  nearest-recipe-wins).
+  targets): it applies config isolation and adds `KAPI_NO_PROJECT=1` for
+  invocations that don't own a `*.kapi` fixture (those that do keep discovery on
+  and rely on nearest-recipe-wins).
 - **`kapi/e2e`** — `TestMain` builds with `-tags fts5` and pins an isolated
   config/data/cache home with `KAPI_NO_PROJECT=1` (see `isoEnv`).
-- **bowrain docs scenes** (`docs-bowrain.yml`) — run from `$WALKTHROUGH_DIR`, a
-  temp dir *outside* the checkout, so the bowrain plugin commands (which require
-  a project) operate on their own `kapi init`'d project, never the dogfood one.
 - **harness/** — already safe: its sandboxes live in `os.tmpdir()` (outside the
   repo) and it sets `XDG_DATA_HOME` / `KAPI_CONFIG_DIR` via `kapiIsolationEnv()`.
 
@@ -400,26 +396,27 @@ Create a type embedding `tool.BaseTool`. For Blocks, set exactly one capability-
 
 Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
 
-## Documentation Assets (Walkthroughs & Scenes)
+## Documentation Assets (Walkthrough Videos)
 
-Walkthrough videos serve as documentation and are embedded on the website. **Whenever UI- or CLI-surface code changes, re-record the affected walkthrough scenes** as part of the verification process before committing.
+Walkthrough videos serve as documentation and are embedded on the website. **Whenever UI- or CLI-surface code changes, re-record the affected walkthrough videos** as part of the verification process before committing.
 
-Docs are walkthrough-first: each walkthrough is an authored prompt (`web/docs/walkthroughs/{id}.md`) plus a unified scene spec (`{id}.scene.yaml`). The recorder produces per-scene artifacts under `web/docs/scenes/{id}/` — VHS `.tape` files for terminal scenes and Playwright `.spec.ts` for UI scenes — each rendering to a `.webm` that lands under `web/docs/static/video/`. `KapiPlayground` embeds wire the scenes into the MDX pages.
+Videos are produced by the **harness** (`harness/`): each demo is an authored `demo.yaml` — a real kapi/bowrain command sequence or a UI flow — that the harness drives against real infrastructure, screencasts, narrates (TTS), and renders with Remotion into theme-matched light + dark `.webm` files. Published videos land under `web/docs/static/video/` (kapi) and `bowrain/web/docs/static/video/` (bowrain); the MDX wires them in with `ThemedVideo` / `KapiPlayground` embeds. (The interactive in-browser explorers are a separate system — `{id}.scene.yaml` specs driving the WASM engine — not videos.)
 
 ### How to regenerate
 
 ```bash
-make kapi-scenes          # record the kapi terminal scene tapes (VHS, desktop) → web/docs/static/video/kapi/
-make harness-videos       # render the narrated demo videos (light + dark) → web/docs/static/video/kapi/
-make fetch-docs-assets    # download already-built assets from the docs-assets release (transitional)
-make publish-docs-assets  # publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
+make harness-videos-staged        # full pass: stack up → seed → record → narrate → package (light + dark)
+make harness-videos               # render the kapi demo videos from existing captures
+make publish-docs-assets          # publish web/docs/static/{img,video} → docs-assets release (merges, never drops)
+make publish-bowrain-docs-assets  # publish bowrain/web/docs/static/{img,video} → bowrain-docs-assets release
+make fetch-docs-assets            # download already-built assets from the docs-assets release
 ```
 
-The three walkthrough skills drive the workflow: `walkthrough-scenes` (regenerate the recorder artifacts), `walkthrough-verify` (run scenes locally, capture sizes + durations), and `walkthrough-doc` (regenerate the published MDX).
+See `harness/` (and its Makefile) for the phased seed → record → narrate → package pipeline; bring the stack up once and re-render freely.
 
 ### In CI
 
-The docs build workflow (`.github/workflows/docs-kapi.yml`) **stages** the `.webm` assets from the `docs-assets` GitHub release rather than recording in CI — recording happens on the desktop and is pushed to the release via `make publish-docs-assets`. Assets are not stored in git.
+The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **stage** the `.webm` assets from the `docs-assets` / `bowrain-docs-assets` GitHub releases rather than recording in CI — recording happens on the desktop and is pushed to a release via the `publish-*-docs-assets` targets. Assets are not stored in git.
 
 ### Real systems, not mocks
 

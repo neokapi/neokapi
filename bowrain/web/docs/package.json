@@ -12,8 +12,7 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
-    "typecheck": "vpx tsc",
-    "scenes": "playwright test --config playwright.config.ts"
+    "typecheck": "vpx tsc"
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.0",
@@ -30,14 +29,17 @@
     "@docusaurus/module-type-aliases": "^3.10.0",
     "@docusaurus/tsconfig": "^3.10.0",
     "@docusaurus/types": "^3.10.0",
-    "@playwright/test": "^1.58.2",
     "typescript": "^6.0.3"
   },
   "overrides": {
     "webpackbar": "^7.0.0"
   },
   "browserslist": {
-    "production": [">0.5%", "not dead", "not op_mini all"],
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ],
     "development": [
       "last 3 chrome version",
       "last 3 firefox version",
@@ -46,5 +48,6 @@
   },
   "engines": {
     "node": ">=20.0"
-  }
+  },
+  "packageManager": "pnpm@11.5.1"
 }
