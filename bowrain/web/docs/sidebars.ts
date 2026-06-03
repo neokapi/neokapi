@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "server/web-overview",
         "server/getting-started",
+        "server/walkthroughs",
       ],
     },
     {
@@ -106,24 +107,6 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/desktop-app",
-      ],
-    },
-    {
-      type: "category",
-      label: "Walkthroughs",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "server/walkthroughs",
-        "walkthroughs/bowrain-web-login-and-workspace",
-        "walkthroughs/bowrain-web-claim-project",
-        "walkthroughs/bowrain-web-translation-editor",
-        "walkthroughs/bowrain-web-context-panel",
-        "walkthroughs/bowrain-web-tm-explorer",
-        "walkthroughs/bowrain-web-term-explorer",
-        "walkthroughs/bowrain-web-pseudo-translation",
-        "walkthroughs/bowrain-web-settings",
-        "walkthroughs/bowrain-web-invite-workflow",
       ],
     },
   ],
