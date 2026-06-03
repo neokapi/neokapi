@@ -1,0 +1,64 @@
+id: bowrain-cli-getting-started
+title: Connect a project and sync translations
+subtitle: kapi init connects your local files to a Bowrain server; push and pull move translations like git.
+tagline: your files stay yours — the server adds the team, the memory, and the governance.
+kind: use-case
+publishAs: bowrain-cli-getting-started
+# A scripted plain-shell demo (no Claude): the bowrain CLI runs for real against
+# a live server (seeded by `make harness-seed`), so the commands and their output
+# are recorded exactly as a developer would see them.
+terminal: shell
+brand: bowrain
+cwd: ~/bowmart/help-center
+needsAi: false
+captureTimeoutSec: 180
+aspects:
+  - kapi init · push · pull
+  - your files, the team's server
+  - sync like git
+  - every locale
+
+script:
+  - comment: BowMart's help-center copy — English, sitting in your repo.
+  - command: cat src/locales/en.json
+  - comment: Connect this project to your Bowrain server, in the BowMart workspace.
+  - command: kapi init --name help-center --workspace bowmart --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
+  - comment: Track the files you want translated.
+  - command: kapi add "src/locales/*.json"
+  - comment: Push the source up — the team and the AI tools work on it there.
+  - command: kapi push
+  - comment: Check sync state — like git status.
+  - command: kapi status
+  - comment: Pull the translations back into your repo, same files and format.
+  - command: kapi pull
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Bowrain is the server-side companion to kapi. Your content stays in your
+      repository; the server adds a team, shared translation memory, and
+      governance over time. Connecting a project to it takes a single command.
+  - id: init
+    kind: terminal
+    text: >
+      Here is BowMart's help-center copy — a few English strings in a JSON file.
+      kapi init scaffolds the project and connects it to the BowMart workspace on
+      your Bowrain server, with the source and target languages set.
+    caption: "kapi init — connect the project to Bowrain"
+  - id: push
+    kind: terminal
+    text: >
+      Track the files you want translated, then push. The source travels to the
+      server, where the team and the AI tools can work on it together.
+    caption: "kapi push — source up to the server"
+  - id: pull
+    kind: terminal
+    text: >
+      Pull brings translations back into your repository, in the same files and
+      the same format you started with — none yet on a brand-new project, but
+      this is the command your CI runs to fetch completed work. kapi status
+      shows what is in sync, exactly like git.
+    caption: "kapi pull — translations back into your files"
+  - id: outro
+    kind: outro

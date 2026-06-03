@@ -1,0 +1,56 @@
+id: bowrain-cli-auth-and-workspaces
+title: Sign in, find your workspaces, test locally
+subtitle: kapi auth and workspace show who and where you're connected; pseudo-translate checks layout before you send for real translation.
+tagline: the bowrain plugin handles the server; kapi handles the files.
+kind: use-case
+publishAs: bowrain-cli-auth-and-workspaces
+terminal: shell
+brand: bowrain
+cwd: ~/bowmart/help-center
+needsAi: false
+captureTimeoutSec: 180
+aspects:
+  - kapi auth · workspace
+  - server + account at a glance
+  - many workspaces
+  - pseudo-translate to test
+
+script:
+  - comment: Which server and account is this checkout connected to?
+  - command: kapi auth status
+  - comment: List the workspaces you can push projects to.
+  - command: kapi workspace list
+  - comment: Before sending for real translation, pseudo-translate to test layout.
+  - command: kapi pseudo-translate src/locales/en.json
+  - comment: Padded, accented copy (qps) — surfaces truncation and layout bugs early.
+  - command: cat src/locales/qps.json
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Once the bowrain plugin is installed, kapi gains a handful of server-aware
+      commands. They answer the everyday questions: who am I, where can I push,
+      and is my content ready.
+  - id: auth
+    kind: terminal
+    text: >
+      kapi auth status shows the server and account this checkout is connected
+      to — useful when you work across more than one Bowrain server.
+    caption: "kapi auth status — server + account"
+  - id: workspace
+    kind: terminal
+    text: >
+      kapi workspace list shows every workspace you belong to. A project is
+      pushed into one of them, and each keeps its own projects, memory, and
+      terminology.
+    caption: "kapi workspace list — where you can push"
+  - id: pseudo
+    kind: terminal
+    text: >
+      And because kapi is still the file toolchain underneath, you can
+      pseudo-translate locally first — padded, accented copy that surfaces
+      layout and truncation problems before a translator ever sees the file.
+    caption: "kapi pseudo-translate — test layout locally"
+  - id: outro
+    kind: outro

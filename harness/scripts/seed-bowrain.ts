@@ -110,6 +110,32 @@ async function jpostSoft(p: string, body: unknown, token: string): Promise<void>
   }
 }
 
+async function jdelete(p: string, token: string): Promise<void> {
+  const r = await fetch(`${API}${p}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok && r.status !== 404) {
+    throw new Error(`DELETE ${p} → ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  }
+}
+
+/**
+ * The collaboration + correction-loop seeders mint timestamp-suffixed workspaces
+ * (collab-<n>, brand-loop-<n>) every run and never remove the old ones, so the
+ * demo user's `kapi workspace list` accretes test artifacts. Prune those strays
+ * here so the workspace list stays the canonical set (the bowmart workspace, plus
+ * whatever a fresh collab/brand-loop seed creates for those demos).
+ */
+async function pruneStrayWorkspaces(token: string): Promise<void> {
+  const all = listOf<Workspace>(await jget("/workspaces", token), "workspaces");
+  const stray = all.filter((w) => /^(collab|brand-loop)-\d+$/.test(w.slug));
+  for (const w of stray) {
+    await jdelete(`/${w.slug}`, token);
+    console.log(`  · pruned stray workspace ${w.slug}`);
+  }
+}
+
 function listOf<T>(data: unknown, key: string): T[] {
   if (Array.isArray(data)) return data as T[];
   const obj = (data ?? {}) as Record<string, unknown>;
@@ -388,6 +414,7 @@ async function main(): Promise<void> {
   const aliceToken = await deviceAuth(ALICE.email, ALICE.name);
   const bobToken = await deviceAuth(BOB.email, BOB.name);
 
+  await pruneStrayWorkspaces(aliceToken);
   const ws = await ensureWorkspace(aliceToken);
 
   // Project 1 — "Company Website": the editor / review / collaboration walks.

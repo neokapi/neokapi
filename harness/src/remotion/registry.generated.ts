@@ -18,6 +18,14 @@ export const DEMOS: RegistryEntry[] = [
     "title": "grep, sed and cat — for any format"
   },
   {
+    "id": "bowrain-cli-auth-and-workspaces",
+    "title": "Sign in, find your workspaces, test locally"
+  },
+  {
+    "id": "bowrain-cli-getting-started",
+    "title": "Connect a project and sync translations"
+  },
+  {
     "id": "bowrain-desktop-dashboard",
     "title": "The desktop app, on your team's server"
   },
