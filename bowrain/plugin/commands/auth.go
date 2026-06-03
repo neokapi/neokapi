@@ -124,6 +124,16 @@ var authStatusCmd = &cobra.Command{
 			return output.Print(cmd, out)
 		}
 
+		// In token mode (BOWRAIN_AUTH_TOKEN, e.g. CI) LoadAuth carries only the
+		// server + token, not a local profile. Fetch the user from the server so
+		// status shows who you are instead of a blank user; degrade gracefully
+		// (keep it blank) if the lookup fails.
+		if stored.User.Email == "" && stored.AccessToken != "" && stored.ServerURL != "" {
+			if u, ferr := fetchUserInfo(stored.ServerURL, stored.AccessToken); ferr == nil && u != nil {
+				stored.User = *u
+			}
+		}
+
 		var expiry *time.Time
 		if !stored.Expiry.IsZero() {
 			expiry = &stored.Expiry
