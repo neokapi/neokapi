@@ -499,6 +499,22 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 // CreateAuthenticatedProject creates a project on the server as an authenticated user.
 // The project is created in the user's workspace. Returns the project ID.
 func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
+	// AD-011: authenticated projects are created under the workspace-scoped
+	// collection (POST /api/v1/:ws/projects). There is no flat /api/v1/projects
+	// create route, so resolve the caller's workspace when one isn't supplied
+	// (single workspace → use it; otherwise the first — callers may pass an
+	// explicit slug to target a specific one).
+	if workspace == "" {
+		wss, werr := ListWorkspaces(serverURL, token)
+		if werr != nil {
+			return "", "", fmt.Errorf("resolve workspace: %w", werr)
+		}
+		if len(wss) == 0 {
+			return "", "", fmt.Errorf("no workspace available for this account — create one first (kapi workspace create)")
+		}
+		workspace = wss[0].Slug
+	}
+
 	payload := map[string]any{
 		"name":                    name,
 		"default_source_language": sourceLocale,
@@ -506,16 +522,13 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 	if len(targetLocales) > 0 {
 		payload["target_languages"] = targetLocales
 	}
-	if workspace != "" {
-		payload["workspace"] = workspace
-	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects"
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/" + url.PathEscape(workspace) + "/projects"
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return "", "", fmt.Errorf("create request: %w", err)
@@ -542,7 +555,13 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 		return "", "", fmt.Errorf("decode response: %w", err)
 	}
 
-	return result.ID, result.WorkspaceSlug, nil
+	// The workspace-scoped create route may not echo the slug (it's in the URL);
+	// fall back to the workspace we resolved/targeted.
+	slug := result.WorkspaceSlug
+	if slug == "" {
+		slug = workspace
+	}
+	return result.ID, slug, nil
 }
 
 // WorkspaceInfo contains basic workspace metadata returned by ListWorkspaces.

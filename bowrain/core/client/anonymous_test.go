@@ -108,61 +108,90 @@ func TestCreateAnonymousProject(t *testing.T) {
 }
 
 func TestCreateAuthenticatedProject(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+	// AD-011: authenticated projects are created under the workspace-scoped
+	// collection (POST /api/v1/:ws/projects) — there is NO flat /api/v1/projects
+	// create route. These tests assert that exact contract (the previous version
+	// mocked the obsolete flat route, which hid a live 404 — see the integration
+	// test in client_integration_test.go that runs against a real server).
+
+	t.Run("resolves workspace then creates under the scoped route", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/projects", r.URL.Path)
-			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
-
-			var req map[string]any
-			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			assert.Equal(t, "my-project", req["name"])
-			assert.Equal(t, "en", req["default_source_language"])
-
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id":             "proj_auth_123",
-				"workspace_slug": "my-ws",
-			})
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/api/v1/workspaces":
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode([]map[string]string{
+					{"id": "ws1", "name": "My WS", "slug": "my-ws", "type": "personal"},
+				})
+			case r.Method == http.MethodPost && r.URL.Path == "/api/v1/my-ws/projects":
+				var req map[string]any
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+				assert.Equal(t, "my-project", req["name"])
+				assert.Equal(t, "en", req["default_source_language"])
+				_, hasWorkspace := req["workspace"]
+				assert.False(t, hasWorkspace, "workspace belongs in the URL, not the body")
+				w.WriteHeader(http.StatusCreated)
+				_ = json.NewEncoder(w).Encode(map[string]any{"id": "proj_auth_123"})
+			default:
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				w.WriteHeader(http.StatusNotFound)
+			}
 		}))
 		defer srv.Close()
 
 		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_auth_123", projectID)
-		assert.Equal(t, "my-ws", wsSlug)
+		assert.Equal(t, "my-ws", wsSlug, "slug falls back to the resolved workspace when the response omits it")
 	})
 
-	t.Run("with workspace", func(t *testing.T) {
+	t.Run("explicit workspace skips resolution and posts to the scoped route", func(t *testing.T) {
+		listed := false
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/v1/workspaces" {
+				listed = true
+			}
+			assert.Equal(t, "/api/v1/team-ws/projects", r.URL.Path)
+			assert.Equal(t, http.MethodPost, r.Method)
 			var req map[string]any
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			assert.Equal(t, "team-ws", req["workspace"])
-
+			_, hasWorkspace := req["workspace"]
+			assert.False(t, hasWorkspace, "workspace belongs in the URL, not the body")
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id":             "proj_ws_456",
-				"workspace_slug": "team-ws",
-			})
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": "proj_ws_456", "workspace_slug": "team-ws"})
 		}))
 		defer srv.Close()
 
 		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "team-ws")
 		require.NoError(t, err)
+		assert.False(t, listed, "an explicit workspace must not trigger workspace resolution")
 		assert.Equal(t, "proj_ws_456", projectID)
 		assert.Equal(t, "team-ws", wsSlug)
 	})
 
-	t.Run("unauthorized", func(t *testing.T) {
+	t.Run("unauthorized create surfaces the HTTP status", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"error":"invalid token"}`))
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAuthenticatedProject(srv.URL, "bad-token", "my-project", "en", nil, "")
+		_, _, err := CreateAuthenticatedProject(srv.URL, "bad-token", "my-project", "en", nil, "team-ws")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 401")
+	})
+
+	t.Run("no workspace available is a clear error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v1/workspaces", r.URL.Path)
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]string{})
+		}))
+		defer srv.Close()
+
+		_, _, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no workspace available")
 	})
 }
 
