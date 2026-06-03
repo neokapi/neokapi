@@ -29,6 +29,7 @@ var (
 	connectAnonymous bool
 	connectProjectID string
 	connectEmail     string
+	connectWorkspace string
 )
 
 var initConnectCmd = &cobra.Command{
@@ -116,8 +117,10 @@ func runInitConnect(_ *cobra.Command, _ []string) error {
 			return errors.New("server URL not configured — pass --server or set BOWRAIN_SERVER_URL")
 		}
 		fmt.Printf("Creating project on %s...\n", targetServer)
+		// connectWorkspace ("" → resolve the account's workspace; non-empty →
+		// create under that workspace, for users who belong to several).
 		projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
-			targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, "")
+			targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, connectWorkspace)
 		if err != nil {
 			return fmt.Errorf("create project: %w", err)
 		}
@@ -137,5 +140,6 @@ func init() {
 	initConnectCmd.Flags().BoolVar(&connectAnonymous, "anonymous", false, "Create the project without signing in")
 	initConnectCmd.Flags().StringVar(&connectProjectID, "project", "", "Attach to an existing server project by ID")
 	initConnectCmd.Flags().StringVar(&connectEmail, "email", "", "Email a link to claim an anonymous project")
+	initConnectCmd.Flags().StringVar(&connectWorkspace, "workspace", "", "Create the project in this workspace (slug); defaults to your only/first workspace")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(initConnectCmd) })
 }

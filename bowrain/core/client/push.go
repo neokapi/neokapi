@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -122,7 +123,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
 	if c == nil {
-		return nil, fmt.Errorf("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
+		return nil, errors.New("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
 	}
 	// 1. Compute Merkle hashes over the changed subset only (additive-only
 	//    contract above): these are change indicators, not authoritative roots.

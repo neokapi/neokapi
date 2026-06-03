@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -510,7 +511,7 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 			return "", "", fmt.Errorf("resolve workspace: %w", werr)
 		}
 		if len(wss) == 0 {
-			return "", "", fmt.Errorf("no workspace available for this account — create one first (kapi workspace create)")
+			return "", "", errors.New("no workspace available for this account — create one first (kapi workspace create)")
 		}
 		workspace = wss[0].Slug
 	}

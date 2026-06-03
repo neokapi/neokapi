@@ -66,7 +66,8 @@
           {"name": "server", "type": "string", "description": "Bowrain server URL (connect this project to it)"},
           {"name": "anonymous", "type": "bool", "description": "Create the project without signing in"},
           {"name": "project", "type": "string", "description": "Attach to an existing server project by ID"},
-          {"name": "email", "type": "string", "description": "Email a link to claim an anonymous project"}
+          {"name": "email", "type": "string", "description": "Email a link to claim an anonymous project"},
+          {"name": "workspace", "type": "string", "description": "Create the project in this workspace (slug); defaults to your only/first workspace"}
         ]
       }
     ]
