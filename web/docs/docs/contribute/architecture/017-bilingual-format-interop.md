@@ -304,7 +304,8 @@ is absent.
 - **AD-013 (Kapi CLI)** — adds `extract` and `merge` top-level
   commands and describes the auto-discovery resolution order.
 - **AD-015 (Testing & Documentation)** — extract/merge each ship
-  with VHS tapes and a unified workflow guide on the docs site.
+  with an interactive walkthrough embed and a unified workflow guide on the
+  docs site.
 
 ## Rationale
 

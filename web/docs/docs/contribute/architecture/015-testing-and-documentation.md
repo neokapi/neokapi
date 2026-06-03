@@ -13,12 +13,12 @@ keywords: [testing, documentation, testify, roundtrip, Playwright, E2E, architec
 neokapi follows a three-tier test pyramid (unit via testify, integration
 via format roundtrips and flow E2E, application E2E via Playwright for
 GUIs). Documentation is a Docusaurus 3 site serving user docs, framework
-ADs, and implementation notes from one deployment. Demo assets are produced
-by the **walkthrough/scenes engine** (issue #425): an authored walkthrough
-prompt drives recorder artifacts — VHS `.tape` files for terminal scenes,
-Playwright `.spec.ts` files for UI scenes — which record `.webm` videos that
-land under `web/docs/static/video/`. Recordings run against real systems and
-regenerate on behavior changes.
+ADs, and implementation notes from one deployment. Demo assets come from two
+complementary pipelines: interactive in-browser walkthroughs, where an
+authored `{id}.scene.yaml` is compiled by `scripts/walkthrough-gen/gen.ts`
+into a `KapiPlayground` embed that runs the real kapi CLI as WebAssembly; and
+narrated explainer videos, rendered by the `harness/` pipeline as per-theme
+`.webm`s under `web/docs/static/video/`. Both run against real systems.
 
 ## Context
 
@@ -52,7 +52,7 @@ keeping deployment simple.
 ```
                   /\
                  /  \
-                / E2E \           Playwright video, VHS terminal recordings
+                / E2E \           Playwright (desktop + web UI suites)
                /------\
               / Integ  \          Format roundtrips, flow E2E, store tests
              /----------\
@@ -93,10 +93,11 @@ pipeline end-to-end flows with real tools, connector integration, and
 store operations. They run as part of `make test` without the `-short`
 flag.
 
-**E2E tests** use [Playwright](https://playwright.dev/) for GUI workflows
-with video capture enabled. The recordings double as regression tests
-and documentation demos. CLI demos use [VHS](https://github.com/charmbracelet/vhs)
-to record from declarative tape files.
+**E2E tests** use [Playwright](https://playwright.dev/) for GUI workflows.
+The web UI and desktop frontends keep their own suites (e.g.
+`bowrain/apps/web/e2e`, `bowrain/apps/bowrain/frontend/e2e`, `bowrain/e2e/cloud`).
+These are application tests, separate from the documentation demos described
+below.
 
 **Make targets:**
 
@@ -130,10 +131,10 @@ web/docs/
 │       ├── architecture/    # framework ADs (this document)
 │       └── notes-internal/  # implementation notes
 ├── walkthroughs/            # authored prompts: {id}.md + {id}.scene.yaml
-├── scenes/                  # recorder artifacts: {id}/0N-*.tape|.spec.ts + .webm
+├── scenes/                  # per-walkthrough WASM-embed fixtures: {id}/ (seeded in-browser)
 └── static/
     ├── img/                 # static images (logos, favicons, staged)
-    └── video/               # recorded scene + harness videos (staged)
+    └── video/               # harness explainer videos (staged from the release)
 ```
 
 A single `@docusaurus/plugin-content-docs` instance serves all content
@@ -153,10 +154,10 @@ algorithms, API routes) that would otherwise bloat the decision documents.
 
 Hosting is GitHub Pages, deployed via GitHub Actions on push to `main`.
 
-### Walkthrough/scenes engine
+### Walkthrough/embed engine
 
-Demo assets for the kapi site are produced by the walkthrough/scenes engine
-(issue #425), authored prompt → recorded scene → published page:
+Demo assets for the kapi site come from the walkthrough engine (issue #425),
+authored prompt → generated embed → published page:
 
 1. **The walkthrough prompt** is the authored unit. Each lives at
    `web/docs/walkthroughs/{id}.md` with YAML frontmatter declaring an ordered
@@ -165,29 +166,35 @@ Demo assets for the kapi site are produced by the walkthrough/scenes engine
    regression). The prose sections (`## Story`, `## Scene N`, `## Closing`)
    are the source of truth for everything the published page says.
 
-2. **Scene recorder artifacts** live under `web/docs/scenes/{id}/`, one
-   directory per walkthrough. kapi terminal walkthroughs are **embed-only** by
-   default: the `{id}.scene.yaml` carries no `tape:` block, so the generator
-   emits only the interactive in-browser playground embed
-   (`web/docs/src/components/KapiPlayground/embeds/{id}.embed.ts`) and no VHS
-   recording. The engine still supports two recorded scene types — a curated
-   VHS `.tape` (`mode: video`) and a `kind: web` Playwright `.spec.ts` against a
-   real backend — but moving-picture narration now comes from per-theme
-   **harness explainer videos** (`harness/`) rather than VHS terminal captures.
-   The `walkthrough-scenes` skill regenerates these artifacts deterministically
-   from the prompt — the same prompt yields byte-identical scene files.
+2. **The interactive embed** is generated from the companion
+   `web/docs/walkthroughs/{id}.scene.yaml` (the unified spec, W3, issue #661).
+   kapi walkthroughs are **embed-only**: `scripts/walkthrough-gen/gen.ts`
+   compiles each scene into a `KapiPlayground` embed config
+   (`web/docs/src/components/KapiPlayground/embeds/{id}.embed.ts`, plus the
+   `index.ts` registry and `types.ts`) and keeps the prompt's `smoke_contract`
+   in sync. Any fixture bytes the embed seeds in the browser live under
+   `web/docs/scenes/{id}/`. The generator is deterministic — it formats output
+   with `vp fmt` and writes no timestamps, so re-runs are idempotent.
 
-The unified `web/docs/walkthroughs/{id}.scene.yaml` spec (W3, issue #661) is the
-single authored source: `scripts/walkthrough-gen/gen.ts` emits the interactive
-embed from it (always) and, when the scene declares a `tape:` block, a
-declarative VHS tape as well — so the live wasm playground and any recording
-cannot drift. It also keeps the prompt's `smoke_contract` in sync.
+   The embeds are committed, so the site builds straight from them; regenerate
+   only when a `.scene.yaml` changes:
 
-3. **The published page** is regenerated by the `walkthrough-doc` skill into
-   `web/docs/docs/walkthroughs/{id}.mdx`, interleaving the prompt prose with a
-   `KapiEmbed` playground (the primary artifact for interactive terminal
-   walkthroughs) and `ThemedVideo` embeds for narrated explainers. Videos are
-   referenced by site-relative path, with per-theme assets:
+   ```bash
+   node --experimental-strip-types scripts/walkthrough-gen/gen.ts <id>   # one walkthrough
+   node --experimental-strip-types scripts/walkthrough-gen/gen.ts --all  # all walkthroughs
+   node --experimental-strip-types scripts/walkthrough-gen/gen.ts --check # fail if any output is stale
+   ```
+
+   There is no make target, npm script, or CI step that invokes the generator;
+   it is run by hand when a spec changes. The embeds render live in the browser
+   against the kapi CLI compiled to WebAssembly (`make web-wasm-cli` →
+   `web/docs/static/wasm/kapi-cli.wasm.gz`).
+
+3. **The published page** interleaves the prompt prose into the recipe and
+   get-started MDX under `web/docs/docs/kapi/`, embedding a `KapiPlayground`
+   (the primary artifact for interactive terminal walkthroughs) and, where a
+   narrated explainer exists, a `ThemedVideo`. Videos are referenced by
+   site-relative path, with per-theme assets:
 
 ```mdx
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -210,53 +217,54 @@ the assets tarball.
 
 ### Real systems, not mocks
 
-Scenes run against real neokapi infrastructure — a terminal scene records the
-real `kapi` binary, a web scene drives a real backend:
+Demo assets run against real neokapi infrastructure — the embeds execute the
+real `kapi` CLI (compiled to WebAssembly) and the harness videos drive a real
+backend:
 
-- **CLI** — terminal scenes invoke the built `bin/kapi` against fixtures
-  under the scene directory; no command is mocked.
-- **Authentication and identity** — web scenes use the real Keycloak OIDC
-  provider via `compose.yaml` (auth via session-cookie injection in the
-  spec). Never mock the auth flow.
-- **Server** — for web scenes, the real platform server binary, never a mock API server.
+- **CLI** — embeds run the real kapi WASM CLI against fixtures under the scene
+  directory; no command is mocked.
+- **Authentication and identity** — harness web demos use the real Keycloak
+  OIDC provider via `compose.yaml`. Never mock the auth flow.
+- **Server** — harness web demos use the real platform server binary, never a
+  mock API server.
 - **Database and storage** — a real SQLite database (the server creates
   one automatically).
 - **External integrations** outside the scope of neokapi (third-party MT
   providers, external LLM APIs) may be mocked for isolation.
 
-The `smoke_contract` in each prompt is what `walkthrough-verify` re-runs to
-prove the recorded commands still pass; a behavior change that breaks a
-documented command fails the contract, forcing a regenerate.
+The `smoke_contract` in each prompt is re-run by `make docs-verify-snippets`
+(driving the WASM CLI) to prove the documented commands still pass; a behavior
+change that breaks a documented command fails the contract.
 
 ### Asset generation and staging
 
-Scene videos are recorded on the desktop (not in CI) and published to a
-GitHub release named `docs-assets`. The Makefile exposes only the targets
-that exist:
+Videos are rendered on the desktop (not in CI) and published to a GitHub
+release named `docs-assets`. The Makefile exposes only the targets that exist:
 
 ```bash
-make kapi-scenes          # record every web/docs/scenes/*/*.tape with VHS
-                          #   (needs `brew install vhs` + bin/kapi) and
-                          #   stage the .webm under web/docs/static/video/kapi/
-make harness-videos       # render the narrated Claude-explainer videos
-                          #   (light + dark) → web/docs/static/video/kapi/
+make harness-videos       # render the narrated explainer videos (light + dark)
+                          #   → web/docs/static/video/kapi/
+make harness-videos-staged # full pass: stack up → seed → record → narrate → package
 make publish-docs-assets  # merge web/docs/static/{img,video} into the
                           #   docs-assets release (never drops existing assets)
 make fetch-docs-assets    # download the docs-assets tarball into static/
                           #   (transitional, until the engine covers everything)
+make web-wasm-cli         # build the in-browser kapi CLI → static/wasm/kapi-cli.wasm.gz
 ```
 
-Assets are not stored in git. CI **does not record** scenes: the
+The interactive embeds need no recording step: their generated
+`embeds/*.embed.ts` are committed, and they render live against the WASM CLI.
+Videos are not stored in git. CI **does not record or render**: the
 `docs-kapi.yml` deploy workflow downloads the `docs-assets` tarball and copies
 its `video/` into `web/docs/static/video/` before building the site (the wasm
 playground is built separately and downloaded as a workflow artifact). A
 developer who only edits documentation text can rely on the prebuilt tarball
-via `make fetch-docs-assets` and skip recording.
+via `make fetch-docs-assets`.
 
-The walkthrough skills automate the per-walkthrough loop:
-`walkthrough-scenes` regenerates the recorder artifacts from a prompt,
-`walkthrough-verify` records them against the real backend and checks the MDX
-builds, and `walkthrough-doc` regenerates the published `.mdx`.
+To regenerate an embed after editing its `.scene.yaml`, run
+`scripts/walkthrough-gen/gen.ts <id>` by hand (see above); to refresh a video,
+render it with the `harness-*` targets and republish with
+`make publish-docs-assets`.
 
 ### Verification checklist for CLI/UI changes
 
@@ -266,11 +274,11 @@ Before committing a change that affects documented behavior:
 2. Frontend unit tests pass (`vp test` in each package).
 3. Production builds succeed.
 4. Go build succeeds (`make build`).
-5. Affected walkthroughs re-verify against the real backend
-   (`walkthrough-verify`), so the scene `smoke_contract` still passes.
-6. Affected scene videos are re-recorded on the desktop (`make kapi-scenes`)
-   and republished (`make publish-docs-assets`) when the recorded output
-   changed.
+5. Affected walkthrough `smoke_contract`s still pass under
+   `make docs-verify-snippets` (the commands run in the WASM CLI).
+6. Affected embeds are regenerated (`scripts/walkthrough-gen/gen.ts <id>`) and,
+   when a demo video changed, re-rendered on the desktop (`make harness-videos`)
+   and republished (`make publish-docs-assets`).
 
 ## Consequences
 
@@ -282,9 +290,9 @@ Before committing a change that affects documented behavior:
   both in-repo and on the website.
 - Demo videos are generated from actual commands and UI, preventing
   drift.
-- One authored walkthrough prompt drives the scene recorders and the
-  published MDX, so a documented command, its recorded video, and (for
-  terminal walkthroughs) the interactive playground stay in lock-step.
+- One authored walkthrough prompt drives both the generated interactive embed
+  and the published MDX, so a documented command and its in-browser playground
+  stay in lock-step.
 - GitHub Pages hosting has no cost and integrates with the existing
   release workflow.
 - The test pyramid enforces coverage at every level with appropriate
@@ -300,6 +308,5 @@ Before committing a change that affects documented behavior:
 
 - [AD-001: Vision and Modules](001-vision-and-modules.md) — module
   layout tested at the `GOWORK=off` level
-- [AD-013: Kapi CLI](013-kapi-cli.md) — VHS tapes exercise the CLI
-- [AD-014: Kapi Desktop](014-kapi-desktop.md) — Playwright specs
-  exercise the desktop
+- [AD-013: Kapi CLI](013-kapi-cli.md) — interactive embeds run the CLI as WASM
+- [AD-014: Kapi Desktop](014-kapi-desktop.md) — Playwright suites test the desktop

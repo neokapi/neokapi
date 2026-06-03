@@ -13,6 +13,8 @@ The script step lets you run custom JavaScript (ES5) on each Part flowing throug
 
 The script tool receives each Part one at a time. For each Part, your script runs with access to a `part` object and three control functions: `emit()`, `skip()`, and `log()`. If your script calls neither `emit()` nor `skip()`, the Part passes through unchanged.
 
+You can write your logic in either of two equivalent forms: as **top-level code** against the implicit `part` global (used throughout the examples below), or as a **`function process(part)`** that the tool calls once per Part (see [Function form](#function-form)). Both have identical capabilities; the function form adds a return-value convenience.
+
 ## The JavaScript API
 
 ### The part object
@@ -77,6 +79,31 @@ log("Processing block: " + part.block.id);
 | `emit(part)` called            | Only emitted parts are forwarded              |
 | `skip()` called                | Part is dropped                               |
 | `emit()` called multiple times | All emitted parts are forwarded (one-to-many) |
+
+### Function form
+
+Instead of writing top-level code against the implicit `part` global, you can define a `process` function. The tool calls it once per Part, passing the part as its argument:
+
+```javascript
+function process(part) {
+  if (part.type === "block" && part.block.targets["fr"]) {
+    var seg = part.block.targets["fr"][0];
+    seg.content.text = seg.content.text.toUpperCase();
+  }
+  return part; // emit the (modified) part
+}
+```
+
+Inside `process`, `emit()`, `skip()`, and `log()` behave exactly as in the implicit-globals form. As a convenience, the function's **return value** is also honored — but only when you have _not_ already called `emit()` or `skip()` (an explicit call always wins):
+
+| `process(part)` returns | Result                                          |
+| ----------------------- | ----------------------------------------------- |
+| a part object           | that part is emitted                            |
+| an array of parts       | all are emitted (one-to-many)                   |
+| `null`                  | the part is dropped (equivalent to `skip()`)    |
+| nothing (`undefined`)   | the part passes through unchanged               |
+
+The function form works identically with `--code`, `--script-file`, and the YAML `code`/`scriptFile` config. It reads naturally for transforms that compute and return a result; the implicit-globals form is terser for simple filters. Source edits still require `allowSourceMutation` (see [Configuration reference](#configuration-reference)) in either form.
 
 ## CLI usage
 
