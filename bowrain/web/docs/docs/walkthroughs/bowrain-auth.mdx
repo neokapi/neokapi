@@ -1,29 +1,35 @@
 ---
 id: bowrain-auth
-title: "Sign into Bowrain Server from the CLI"
-sidebar_label: "Auth"
-description: "kapi auth — login, logout, and status against Bowrain Server."
+title: "Auth and workspaces from the CLI"
+sidebar_label: "Auth & workspaces"
+description: "kapi auth and kapi workspace — see who you're signed in as, which workspaces you can push to, and pseudo-translate locally to test layout."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Sign into Bowrain Server from the CLI
+# Auth and workspaces from the CLI
 
-> Generated from [`walkthroughs/bowrain-auth.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/bowrain-auth.md). Do not edit by hand — change the prompt and regenerate.
-
-`kapi auth` is how you sign into Bowrain Server from the CLI. Quick status check; help for the subcommands.
-
-## Scene 1 — auth
+Once the kapi-bowrain plugin is installed, kapi gains a handful of server-aware
+commands for the everyday questions: who am I, where can I push, and is my
+content ready.
 
 <ThemedVideo
   sources={{
-    light: "/video/bowrain-cli/01-auth.webm",
-    dark: "/video/bowrain-cli/01-auth.webm",
+    light: "/video/bowrain-cli/bowrain-cli-auth-and-workspaces-light.webm",
+    dark: "/video/bowrain-cli/bowrain-cli-auth-and-workspaces-dark.webm",
   }}
 />
 
-`kapi auth --help` lists login/logout/status. `kapi auth status` prints the active session (or that you're signed out).
+`kapi auth status` shows the server and account this checkout is connected to —
+useful when you work across more than one Bowrain server. `kapi workspace list`
+shows every workspace you belong to; a project is pushed into one of them, and
+each keeps its own projects, translation memory, and terminology. And because
+kapi is still the file toolchain underneath, you can `kapi pseudo-translate`
+locally first — padded, accented copy (the `qps` pseudo-locale) that surfaces
+layout and truncation problems before a translator ever sees the file.
 
 ## Next
 
-For the full device-OAuth flow, see [`kapi auth login`](/cli/commands/auth).
+- [Getting started](/walkthroughs/bowrain-getting-started) — connect a project and sync.
+- For the full device-OAuth login flow and workspace management, see
+  [`kapi auth`](/cli/commands/auth) and [`kapi workspace`](/cli/commands/workspace).

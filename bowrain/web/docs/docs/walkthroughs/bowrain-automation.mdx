@@ -2,39 +2,31 @@
 id: bowrain-automation
 title: "Automate translation sync with local rules + GitHub Actions"
 sidebar_label: "Automation"
-description: "Two layers of automation: local hooks/automations on the .kapi recipe + GitHub Actions workflow for CI/CD."
+description: "Two layers of automation: local hooks/automations on the .kapi recipe + a GitHub Actions workflow for CI/CD."
 ---
-
-import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Automate translation sync with local rules + GitHub Actions
 
-> Generated from [`walkthroughs/bowrain-automation.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/bowrain-automation.md). Do not edit by hand — change the prompt and regenerate.
+Bowrain has two layers of automation: **local rules** declared on the `.kapi`
+recipe (top-level `hooks:` and `automations:`) that run on the developer machine
+(e.g. pre-push QA), and **GitHub Actions workflows** that run on the CI/CD side.
+Together they make translation sync fully automated — code lands, translations
+follow.
 
-Bowrain has two layers of automation: **local rules** declared on the `.kapi` recipe (top-level `hooks:` and `automations:`) that run on the developer machine (e.g. pre-push QA), and **GitHub Actions workflows** that run on the CI/CD side. Together they make translation sync fully automated — code lands, translations follow.
+## Local rules
 
-## Scene 1 — local rules
+Declare `hooks:` and `automations:` at the top level of the `<dir-name>.kapi`
+recipe. A pre-push QA hook, for example, fires automatically before `kapi push`
+runs, so source never reaches the server without passing your checks. Local
+rules give a developer guardrails on their own machine.
 
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-cli/01-local-rules.webm",
-    dark: "/video/bowrain-cli/01-local-rules.webm",
-  }}
-/>
+## GitHub Actions
 
-Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:` and `automations:` blocks. Run `kapi push` and watch the pre-push QA hook fire automatically before the actual push happens.
-
-## Scene 2 — GitHub Actions
-
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-cli/02-gh-actions.webm",
-    dark: "/video/bowrain-cli/02-gh-actions.webm",
-  }}
-/>
-
-Show the `.github/workflows/bowrain-sync.yml` that runs `kapi sync` on every push to main. This is the CI/CD half of the automation.
+For the CI/CD half, a workflow such as `.github/workflows/bowrain-sync.yml` runs
+`kapi sync` on every push to `main`, so the moment code lands the server picks up
+the new source, translations are requested, and completed work flows back.
 
 ## Next
 
-The full automation rule schema and event types are documented in [Automation](/server/automation).
+The full automation rule schema and event types are documented in
+[Automation](/server/automation).

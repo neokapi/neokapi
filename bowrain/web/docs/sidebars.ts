@@ -32,7 +32,6 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "walkthroughs/bowrain-getting-started",
-        "walkthroughs/bowrain-overview",
       ],
     },
   ],
@@ -170,11 +169,7 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        "walkthroughs/bowrain-init",
-        "walkthroughs/bowrain-create-project",
         "walkthroughs/bowrain-auth",
-        "walkthroughs/bowrain-pseudo-translate",
-        "walkthroughs/bowrain-workspaces",
         "walkthroughs/bowrain-automation",
       ],
     },

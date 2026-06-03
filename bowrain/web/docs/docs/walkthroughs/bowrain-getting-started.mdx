@@ -1,62 +1,38 @@
 ---
 id: bowrain-getting-started
-title: "Getting started from a local codebase (kapi) — init, push, pull, sync"
+title: "Getting started from a local codebase (kapi)"
 sidebar_label: "Developer path (kapi)"
-description: "The kapi developer path in four scenes: initialize a project, push, pull, and finally sync. One of several ways content reaches Bowrain."
+description: "Connect a local project to Bowrain with kapi and sync translations like git: init, push, status, pull."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Getting started from a local codebase (kapi) — init, push, pull, sync
+# Getting started from a local codebase (kapi)
 
-> Generated from [`walkthroughs/bowrain-getting-started.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/bowrain-getting-started.md). Do not edit by hand — change the prompt and regenerate.
-
-The kapi developer path in four scenes: initialize a project, push source content to the server, pull translated content back, and finally use `kapi sync` to do all three in one command — by the end, you have a CI-ready workflow. This is the on-ramp for a developer working from a local codebase; if your content lives in a CMS, a design tool, or a git host, [connect it server-side](/server/connectors) instead — no checkout needed.
-
-## Scene 1 — init
-
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-cli/01-init.webm",
-    dark: "/video/bowrain-cli/01-init.webm",
-  }}
-/>
-
-Run `kapi init` in your project directory. The command writes a `<dir-name>.kapi` recipe at the root and creates a sibling `.kapi/` state directory. `ls -la` shows the recipe alongside the state dir; `ls .kapi/` shows the layout (manifest, TM/termbase, `cache/` for regenerable state).
-
-## Scene 2 — push
+The kapi developer path: connect a local project to your Bowrain server, push the
+source for the team to translate, and pull translations back — synced like git.
+This is the on-ramp for a developer working from a local codebase; if your
+content lives in a CMS, a design tool, or a git host,
+[connect it server-side](/server/connectors) instead — no checkout needed.
 
 <ThemedVideo
   sources={{
-    light: "/video/bowrain-cli/02-push.webm",
-    dark: "/video/bowrain-cli/02-push.webm",
+    light: "/video/bowrain-cli/bowrain-cli-getting-started-light.webm",
+    dark: "/video/bowrain-cli/bowrain-cli-getting-started-dark.webm",
   }}
 />
 
-`kapi push` sends your local source content to Bowrain Server. `kapi status` shows what got pushed and which keys are pending translation.
-
-## Scene 3 — pull
-
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-cli/03-pull.webm",
-    dark: "/video/bowrain-cli/03-pull.webm",
-  }}
-/>
-
-`kapi pull` brings translated content back from the server into your local files. `kapi status` confirms the new state.
-
-## Scene 4 — sync
-
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-cli/04-sync.webm",
-    dark: "/video/bowrain-cli/04-sync.webm",
-  }}
-/>
-
-`kapi sync` does push + wait-for-translations + pull in a single command. Use this in CI; the timeout flag bounds how long it'll wait for AI / human translation to complete before exiting.
+`kapi init --server <url>` writes a `<dir-name>.kapi` recipe and a sibling
+`.kapi/` state directory and connects the project to your Bowrain server (pass
+`--workspace <slug>` if you belong to several). `kapi add` tracks the files you
+want translated; `kapi push` sends the source up for the team and the AI tools
+to work on; `kapi status` shows sync state, exactly like git; and `kapi pull`
+brings translations back into the same files and formats. `kapi sync` does
+push-wait-pull in one command for CI.
 
 ## Next
 
-For automation rules that trigger on push, see the [bowrain-automation walkthrough](/walkthroughs/bowrain-automation).
+- [Auth and workspaces](/walkthroughs/bowrain-auth) — sign in and choose where to push.
+- [Automation](/walkthroughs/bowrain-automation) — local rules + GitHub Actions.
+- Command reference: [init](/cli/commands/init), [push](/cli/commands/push),
+  [pull](/cli/commands/pull), [sync](/cli/commands/sync), [status](/cli/commands/status).
