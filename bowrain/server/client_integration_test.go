@@ -72,6 +72,49 @@ func TestClientServerSyncContract(t *testing.T) {
 	pullResp, err := c.Pull(ctx, 0, []string{"fr"}, 100)
 	require.NoError(t, err, "pull must hit the real sync route")
 	require.NotNil(t, pullResp)
+
+	// 5. PushStatus — sync status route /api/v1/:ws/:pid/sync/:ref/status.
+	if pushResp.PushID != "" {
+		st, err := c.PushStatus(ctx, pushResp.PushID)
+		require.NoError(t, err, "push-status must hit the real sync route")
+		require.NotNil(t, st)
+	}
+}
+
+// TestClientServerRouteSurface is a lightweight guard over the rest of the
+// client's URL surface: every route the client constructs must be registered on
+// the server. It documents the audit conclusion (after the create-project fix,
+// no client route is missing server-side) and fails if either side renames a
+// route without the other. The sync/stream/asset routes are exercised live by
+// TestClientServerSyncContract; the flat helper routes below are matched here.
+func TestClientServerRouteSurface(t *testing.T) {
+	srv, _ := newTestServer(t)
+	e := srv.GetEcho()
+
+	registered := map[string]bool{}
+	for _, r := range e.Routes() {
+		registered[r.Method+" "+r.Path] = true
+	}
+
+	// Routes the bowrain client constructs, in the client's own terms.
+	want := []string{
+		"GET /api/v1/workspaces",         // ListWorkspaces
+		"POST /api/v1/:ws/projects",      // CreateAuthenticatedProject (the fixed route)
+		"POST /api/v1/projects/anonymous", // CreateAnonymousProject
+		"POST /api/v1/projects/claim",    // ClaimProject
+		"POST /api/v1/auth/refresh",      // RefreshToken
+		"GET /api/v1/:ws/:id/sync/:ref/pull",
+		"GET /api/v1/:ws/:id/sync/:ref/status",
+		"GET /api/v1/:ws/:id/sync/:ref/blocks",
+		"POST /api/v1/:ws/:id/sync/:ref/push/init",
+		"POST /api/v1/:ws/:id/sync/:ref/push/diff",
+		"POST /api/v1/:ws/:id/sync/:ref/push/commit",
+		"GET /api/v1/:ws/:id/streams",
+		"POST /api/v1/:ws/:id/streams",
+	}
+	for _, route := range want {
+		assert.True(t, registered[route], "client uses %q but the server does not register it", route)
+	}
 }
 
 // TestPushNilClientGuard documents the robustness fix: Push on a nil client
