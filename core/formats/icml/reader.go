@@ -144,6 +144,9 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 		offset := decoder.InputOffset()
 		tok, err := decoder.Token()
 		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				r.emitError(ch, fmt.Errorf("icml: parsing document: %w", err))
+			}
 			break
 		}
 
@@ -287,6 +290,9 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				r.emitError(ch, fmt.Errorf("icml: parsing document: %w", err))
+			}
 			break
 		}
 

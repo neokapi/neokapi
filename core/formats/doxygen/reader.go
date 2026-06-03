@@ -1062,10 +1062,21 @@ func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
 	}
 
 	// --- Closing line ---
-	// Check for text before the closing `"""` (rare but valid).
 	closingLine := cb.rawLines[len(cb.rawLines)-1]
 	closingTrimmed := strings.TrimSpace(closingLine)
 	ci := strings.Index(closingTrimmed, `"""`)
+
+	// Unterminated docstring: the opening `"""` has no matching close
+	// before EOF, so the final raw line is genuine body content rather
+	// than a closing delimiter. Emit it verbatim and do not synthesize a
+	// closing `"""` that the source never had — guarding ci avoids a
+	// slice-bounds panic on closingTrimmed[:ci] when ci == -1.
+	if ci < 0 {
+		entries = append(entries, "S:"+closingLine)
+		return strings.Join(entries, "\x01")
+	}
+
+	// Check for text before the closing `"""` (rare but valid).
 	beforeClose := strings.TrimSpace(closingTrimmed[:ci])
 	if beforeClose != "" {
 		if _, isTrans := textIdxToTL[textCursor]; isTrans {

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -70,12 +71,19 @@ var odfNSPrefixMap = map[string]string{
 	"http://www.w3.org/XML/1998/namespace":                      "xml",
 }
 
-// odfNSRegistry tracks dynamic namespace URI -> prefix mappings from the document.
+// odfNSRegistry tracks dynamic namespace URI -> prefix mappings from the
+// document. It is a process-global shared by every Reader, so the mutex guards
+// it against concurrent ODF readers (e.g. parallel extractions) racing on the
+// map — without it the race detector flags the unsynchronised map writes in
+// odfRegisterNamespaces against reads in odfResolvePrefix.
 var odfNSRegistry = struct {
-	m map[string]string
+	mu sync.RWMutex
+	m  map[string]string
 }{m: make(map[string]string)}
 
 func odfRegisterNamespaces(attrs []xml.Attr) {
+	odfNSRegistry.mu.Lock()
+	defer odfNSRegistry.mu.Unlock()
 	for _, a := range attrs {
 		if a.Name.Space == "xmlns" {
 			odfNSRegistry.m[a.Value] = a.Name.Local
@@ -86,7 +94,10 @@ func odfRegisterNamespaces(attrs []xml.Attr) {
 }
 
 func odfResolvePrefix(ns string) string {
-	if p, ok := odfNSRegistry.m[ns]; ok {
+	odfNSRegistry.mu.RLock()
+	p, ok := odfNSRegistry.m[ns]
+	odfNSRegistry.mu.RUnlock()
+	if ok {
 		return p
 	}
 	if p, ok := odfNSPrefixMap[ns]; ok {

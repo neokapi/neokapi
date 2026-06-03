@@ -245,6 +245,10 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
+	if err := scanner.Err(); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("fixedwidth: reading: %w", err)}
+		return
+	}
 
 	if len(lines) == 0 {
 		return
