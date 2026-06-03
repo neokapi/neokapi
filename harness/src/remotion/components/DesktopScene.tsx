@@ -94,6 +94,13 @@ export const DesktopScene: React.FC<{
   const { fps } = useVideoConfig();
 
   // ── Window / body geometry (fit the screencast aspect into the canvas) ──
+  // Web demos capture a browser SPA with no native window chrome, so we frame
+  // them inside a real browser top bar (traffic lights + an address pill) and
+  // place the capture BELOW it — the dots can never overlap app content.
+  // Native-app demos (kapi-desktop / bowrain-desktop) keep their own title-bar
+  // gutter, so they get the lightweight dots overlay instead.
+  const isWeb = demoId.startsWith("bowrain-web");
+  const BAR = isWeb ? 44 : 0;
   const FW = 1920;
   const FH = 1080;
   const padTop = 64;
@@ -104,8 +111,8 @@ export const DesktopScene: React.FC<{
   const aspect = screencast.width / screencast.height;
   let bw = availW;
   let bh = bw / aspect;
-  if (bh > availH) {
-    bh = availH;
+  if (bh > availH - BAR) {
+    bh = availH - BAR;
     bw = bh * aspect;
   }
 
@@ -233,7 +240,7 @@ export const DesktopScene: React.FC<{
         <div
           style={{
             width: bw,
-            height: bh,
+            height: bh + BAR,
             transformStyle: "preserve-3d",
             transformOrigin: "center center",
             transform: `translate3d(${cam.tx}px, ${cam.ty}px, ${driftZ}px) rotateX(${cam.pitch}deg) rotateY(${cam.yaw}deg) scale(${cam.s})`,
@@ -244,13 +251,65 @@ export const DesktopScene: React.FC<{
             boxShadow: "0 50px 120px rgba(0,0,0,0.65), 0 8px 28px rgba(0,0,0,0.45)",
           }}
         >
-          <OffthreadVideo src={videoSrc} startFrom={startFrom} playbackRate={playbackRate} muted toneMapped={false} style={{ position: "absolute", top: 0, left: 0, width: bw, height: bh }} />
-          {/* Inline macOS traffic lights on the app's own top bar — part of the card. */}
-          <div style={{ position: "absolute", top: 17, left: 20, display: "flex", gap: 9 }}>
-            <Light c="#ff5f57" />
-            <Light c="#febc2e" />
-            <Light c="#28c840" />
-          </div>
+          {isWeb ? (
+            // Browser chrome: traffic lights + an address pill, with the captured
+            // web app placed BELOW it so the dots never overlap app content.
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: bw,
+                height: BAR,
+                display: "flex",
+                alignItems: "center",
+                background: theme.chrome,
+                borderBottom: `1px solid ${theme.panelBorder}`,
+              }}
+            >
+              <div style={{ display: "flex", gap: 9, marginLeft: 20 }}>
+                <Light c="#ff5f57" />
+                <Light c="#febc2e" />
+                <Light c="#28c840" />
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  margin: "0 22px 0 20px",
+                  height: 24,
+                  borderRadius: 12,
+                  background: theme.resultBg,
+                  border: `1px solid ${theme.panelBorder}`,
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: 14,
+                  color: theme.dim,
+                  fontSize: 13,
+                  fontFamily: theme.fontSans,
+                }}
+              >
+                bowrain.cloud
+              </div>
+            </div>
+          ) : null}
+          <OffthreadVideo
+            src={videoSrc}
+            startFrom={startFrom}
+            playbackRate={playbackRate}
+            muted
+            toneMapped={false}
+            style={{ position: "absolute", top: BAR, left: 0, width: bw, height: bh }}
+          />
+          {!isWeb && (
+            // Native-app demos: macOS traffic lights overlaid on the app's own
+            // title-bar gutter (kapi-desktop reserves pl-16; bowrain-desktop via
+            // the bw-desktop-mac marker).
+            <div style={{ position: "absolute", top: 17, left: 20, display: "flex", gap: 9 }}>
+              <Light c="#ff5f57" />
+              <Light c="#febc2e" />
+              <Light c="#28c840" />
+            </div>
+          )}
         </div>
       </AbsoluteFill>
 

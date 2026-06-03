@@ -96,9 +96,11 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
         // smaller value; tune via HARNESS_RENDER_CONCURRENCY (default 4).
         concurrency: Math.max(1, Number(process.env.HARNESS_RENDER_CONCURRENCY) || 4),
         // Desktop scenes embed a screencast .webm and seek into it per beat;
-        // decoding a seek can exceed Remotion's 30s default delayRender budget
-        // under render load, intermittently failing a frame. Generous headroom.
-        timeoutInMilliseconds: 180_000,
+        // decoding a seek (and loading poster <Img>/fonts) can exceed Remotion's
+        // 30s default delayRender budget under heavy machine load, intermittently
+        // failing a frame. Generous headroom so a slow-under-load asset finishes
+        // rather than timing out (tune via HARNESS_RENDER_TIMEOUT_MS).
+        timeoutInMilliseconds: Math.max(180_000, Number(process.env.HARNESS_RENDER_TIMEOUT_MS) || 600_000),
         onProgress: ({ progress }) => {
           const pct = Math.floor(progress * 100);
           if (pct >= lastPct + 10) {

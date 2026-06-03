@@ -6,6 +6,16 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  // `recharts` (bowrain's dashboard charts) is CJS-heavy; rolldown-vite's
+  // optimizeDeps pre-bundle of it emitted esbuild interop helpers (`__name`,
+  // `require_isUnsafeProperty`) without defining them, crashing real.html on
+  // load under `vp dev` (recorder timeout). Exclude it from the pre-bundle so
+  // it's served from its ESM build, and disable keepNames as a belt-and-braces.
+  esbuild: { keepNames: false },
+  optimizeDeps: {
+    exclude: ["recharts"],
+    esbuildOptions: { keepNames: false },
+  },
   server: {
     port: 3000,
     proxy: {

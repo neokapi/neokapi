@@ -1189,6 +1189,17 @@ async function recordTheme(
   }, { isDark: theme === "dark", isWeb: !!web });
   const t0 = Date.now();
   const page = await context.newPage();
+  // Debug: surface the browser console (HARNESS_DEBUG=1) + uncaught errors
+  // during capture — uncaught errors are always logged (they're a failure
+  // signal); the full console stream is opt-in to keep normal records quiet.
+  if (process.env.HARNESS_DEBUG) {
+    page.on("console", (m) => console.log(`    [browser:${m.type()}] ${m.text()}`.slice(0, 300)));
+  }
+  page.on("pageerror", (e) =>
+    console.log(
+      `    [pageerror] ${(e as Error).message} :: ${((e as Error).stack || "").split("\n").slice(1, 4).join(" | ")}`.slice(0, 600),
+    ),
+  );
   await page.emulateMedia({ colorScheme: theme });
   if (web) {
     // Land in the authenticated workspace; wait for the app shell, not an h1.
@@ -1205,7 +1216,17 @@ async function recordTheme(
     // Default kapi-desktop renders an h1 immediately; bowrain-desktop renders its
     // dashboard only after the backend auto-connects to the server (a few
     // seconds), so callers pass a connected-state selector + we allow longer.
-    await page.waitForSelector(ready ?? "h1", { timeout: ready ? 45_000 : 15_000 });
+    try {
+      await page.waitForSelector(ready ?? "h1", { timeout: ready ? 45_000 : 15_000 });
+    } catch (e) {
+      const shot = path.join(outDir, `_debug-${theme}.png`);
+      await page.screenshot({ path: shot }).catch(() => {});
+      const body = await page
+        .evaluate(() => (document.body?.innerText ?? "(no body)").slice(0, 1500))
+        .catch(() => "(eval failed)");
+      console.log(`  [debug] ready-selector timed out; screenshot=${shot}\n  [debug] body:\n${body}`);
+      throw e;
+    }
   }
   await injectCursor(page);
   await page.waitForTimeout(400);
