@@ -7,38 +7,46 @@ import Heading from "@theme/Heading";
 
 import styles from "./index.module.css";
 
-// A static faux-terminal that illustrates the one-command sync a kapi project
-// gets once its recipe declares a `server:` block. It is purely decorative —
-// not interactive — so it carries no click handler.
-function HeroTerminal() {
+// A static faux-UI panel illustrating bowrain's correction-learning loop: the
+// repeated corrections a team makes to AI output surface as candidate rules, and
+// promoting one hardens it into a versioned brand check enforced on every future
+// generation. Purely decorative (aria-hidden) — the real flow lives in
+// Brand voice & corrections.
+function HeroPromote() {
+  const rules = [
+    { from: "leverage", to: "use", count: 4 },
+    { from: "best-in-class", to: "proven", count: 3 },
+  ];
   return (
-    <div className={styles.heroTerminal} aria-hidden="true">
-      <div className={styles.heroTerminalBar}>
+    <div className={styles.heroCard} aria-hidden="true">
+      <div className={styles.heroCardBar}>
         <span className={styles.heroDot} data-tone="red" />
         <span className={styles.heroDot} data-tone="amber" />
         <span className={styles.heroDot} data-tone="green" />
-        <span className={styles.heroTerminalLabel}>kapi sync</span>
+        <span className={styles.heroCardLabel}>brand checks</span>
       </div>
-      <div className={styles.heroTerminalBody}>
-        <span className={styles.heroLine}>
-          <span className={styles.heroPrompt}>$</span> kapi sync
-        </span>
-        <span className={clsx(styles.heroLine, styles.heroOutput)}>
-          <span className={styles.heroKey}>push</span> &nbsp;12 blocks changed &rarr; bowrain.cloud
-        </span>
-        <span className={clsx(styles.heroLine, styles.heroOutput)}>
-          <span className={styles.heroKey}>wait</span> &nbsp;translate &middot; QA &middot; brand checks
-        </span>
-        <span className={clsx(styles.heroLine, styles.heroOutput)}>
-          <span className={styles.heroKey}>pull</span> &nbsp;12 blocks translated
-        </span>
-        <span className={clsx(styles.heroLine, styles.heroOutput)}>
-          <span className={styles.heroOk}>in sync</span> with the workspace
-        </span>
-        <span className={clsx(styles.heroLine, styles.heroCursorLine)}>
-          <span className={styles.heroPrompt}>$</span>
-          <span className={styles.heroCursor} />
-        </span>
+      <div className={styles.heroCardBody}>
+        <div className={styles.heroCardTitle}>Suggested rules</div>
+        <p className={styles.heroCardHint}>Repeated corrections become candidate rules.</p>
+        <ul className={styles.ruleList}>
+          {rules.map((r) => (
+            <li className={styles.ruleRow} key={r.from}>
+              <span className={styles.ruleTerms}>
+                <span className={styles.ruleFrom}>{r.from}</span>
+                <span className={styles.ruleArrow}>&rarr;</span>
+                <span className={styles.ruleTo}>{r.to}</span>
+              </span>
+              <span className={styles.ruleCount}>
+                {r.count} corrections
+              </span>
+              <span className={styles.rulePromote}>Promote</span>
+            </li>
+          ))}
+        </ul>
+        <p className={styles.heroCardFoot}>
+          <span className={styles.heroOk}>Promoted</span> &rarr; a versioned check, enforced on every
+          future generation.
+        </p>
       </div>
     </div>
   );
@@ -56,9 +64,10 @@ function HomepageHeader() {
           </Heading>
           <p className={styles.heroSubtitle}>
             The server-side platform companion to kapi: shared, versioned governance of brand voice,
-            terminology, and translation memory; collaborative editing; connectors to the systems your
-            content already lives in; and automation &mdash; the persistent, multi-user layer a team
-            needs. It is to kapi what GitHub is to git.
+            terminology, and translation memory &mdash; that learns from every correction &mdash; plus
+            collaborative editing, connectors to the systems your content already lives in, and
+            automation. The persistent, multi-user layer a team needs; it is to kapi what GitHub is to
+            git.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -70,7 +79,7 @@ function HomepageHeader() {
           </div>
         </div>
         <div className={styles.heroAside}>
-          <HeroTerminal />
+          <HeroPromote />
         </div>
       </div>
     </header>

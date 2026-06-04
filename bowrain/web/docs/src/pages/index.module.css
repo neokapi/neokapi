@@ -103,11 +103,13 @@
   min-width: 0;
 }
 
-/* ── The faux-terminal preview card ───────────────────────────────────────── */
+/* ── The faux "suggested rules" card (the correction-learning loop) ───────── */
 
-/* A static illustration of `kapi sync`. Catppuccin-Mocha palette so it matches
-   the live terminal a reader sees elsewhere in the docs. */
-.heroTerminal {
+/* A static illustration of bowrain's correction loop: the corrections a team
+   repeats on AI output surface as candidate rules; promoting one hardens it into
+   a versioned check, enforced on every future generation. Catppuccin-Mocha
+   palette, matching the app panels a reader sees elsewhere in the docs. */
+.heroCard {
   display: block;
   width: 100%;
   text-align: left;
@@ -119,7 +121,7 @@
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
 }
 
-.heroTerminalBar {
+.heroCardBar {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -145,7 +147,7 @@
   background: #a6e3a1;
 }
 
-.heroTerminalLabel {
+.heroCardLabel {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -156,57 +158,91 @@
   font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
 }
 
-.heroTerminalBody {
-  display: block;
+.heroCardBody {
   padding: 1.1rem 1.2rem 1.2rem;
-  font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
-  font-size: 0.92rem;
-  line-height: 1.7;
   color: #cdd6f4;
 }
 
-.heroLine {
-  display: block;
-  white-space: pre-wrap;
-  word-break: break-word;
+.heroCardTitle {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #cdd6f4;
 }
 
-.heroPrompt {
-  color: #89b4fa;
-  user-select: none;
-  margin-right: 0.5ch;
-}
-
-.heroOutput {
+.heroCardHint {
+  margin: 0.15rem 0 0.9rem;
+  font-size: 0.8rem;
   color: #9399b2;
+}
+
+.ruleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ruleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(205, 214, 244, 0.1);
+  border-radius: 9px;
+  background: rgba(205, 214, 244, 0.03);
+  font-size: 0.86rem;
+}
+
+.ruleTerms {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45ch;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
+}
+
+.ruleFrom {
+  color: #f38ba8;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.ruleArrow {
+  color: #9399b2;
+}
+
+.ruleTo {
+  color: #a6e3a1;
+}
+
+.ruleCount {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #9399b2;
+  white-space: nowrap;
+}
+
+.rulePromote {
+  flex-shrink: 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(166, 227, 161, 0.45);
+  color: #a6e3a1;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .heroOk {
   color: #a6e3a1;
+  font-weight: 600;
 }
 
-.heroKey {
-  color: #f9e2af;
-}
-
-.heroCursorLine {
-  display: flex;
-  align-items: center;
-}
-
-.heroCursor {
-  display: inline-block;
-  width: 0.55ch;
-  height: 1.05em;
-  margin-left: 0.1ch;
-  background: #cdd6f4;
-  animation: heroBlink 1.1s steps(2, start) infinite;
-}
-
-@keyframes heroBlink {
-  to {
-    visibility: hidden;
-  }
+.heroCardFoot {
+  margin: 0.95rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #9399b2;
 }
 
 .features {
@@ -234,7 +270,7 @@
     justify-content: center;
   }
 
-  .heroTerminal {
+  .heroCard {
     max-width: 32rem;
     margin: 0 auto;
   }
@@ -244,15 +280,9 @@
   .heroTitle {
     font-size: 1.9rem;
   }
-  .heroTerminalBody {
-    font-size: 0.82rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroCursor {
-    animation: none;
-  }
   .tryButton {
     transition: none;
   }
