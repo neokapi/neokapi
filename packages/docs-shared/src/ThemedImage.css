@@ -1,0 +1,25 @@
+/* Theme-aware <img> toggling for ThemedImage. Docusaurus sets data-theme on
+   <html>; default (and light) shows the light variant, dark shows the dark one.
+   Only emitted when the light/dark sources differ. */
+.themed-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem auto;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+}
+
+.themed-img--dark {
+  display: none;
+}
+.themed-img--light {
+  display: block;
+}
+
+[data-theme="dark"] .themed-img--light {
+  display: none;
+}
+[data-theme="dark"] .themed-img--dark {
+  display: block;
+}

@@ -52,3 +52,11 @@
 .sidebar-section-heading > .menu__list-item-collapsible > .menu__link::after {
   display: none; /* never show a collapse caret on a static heading */
 }
+
+/* Footer copyright + build stamp — smaller and more subtle. */
+.footer__copyright {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-500);
+  opacity: 0.85;
+}

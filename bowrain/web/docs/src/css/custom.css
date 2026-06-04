@@ -52,3 +52,11 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+/* Footer copyright + build stamp — smaller and more subtle. */
+.footer__copyright {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-500);
+  opacity: 0.85;
+}
