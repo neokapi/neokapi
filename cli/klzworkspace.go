@@ -132,8 +132,12 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		defer cleanup()
 	}
 
-	discard, err := os.MkdirTemp("", "kapi-klz-discard-*")
-	if err != nil {
+	// Document output during a transform is a throwaway (the work that
+	// persists is the overlays the SessionTools cache). Write it under the
+	// cache dir rather than the OS temp dir — the latter doesn't exist in the
+	// wasm sandbox.
+	discard := filepath.Join(c.dir, "discard")
+	if err := os.MkdirAll(discard, 0o755); err != nil {
 		return fmt.Errorf("transform: %w", err)
 	}
 	defer os.RemoveAll(discard)

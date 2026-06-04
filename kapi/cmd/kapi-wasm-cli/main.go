@@ -135,6 +135,12 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(runCmd)
 	root.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	root.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
+	// .klz workspace verbs (AD-025 §5): pack/unpack the working cache and info
+	// to show its dirty state. The cache is the wasm session-persistent
+	// in-memory store (core/blockstore/cache_wasm.go).
+	root.AddCommand(app.NewPackCmd())
+	root.AddCommand(app.NewUnpackCmd())
+	root.AddCommand(app.NewInfoCmd())
 	// init scaffolds a .kapi project (recipe + state dir) with pure local file
 	// writes, so it runs in the browser against the in-memory filesystem.
 	root.AddCommand(app.NewInitCmd())
