@@ -109,12 +109,12 @@ func TestHistoryHashChain(t *testing.T) {
 	assert.Equal(t, first.Hash, second.Prev, "each line links to the previous hash")
 
 	tampered := strings.Replace(string(log), `"note":"b"`, `"note":"HACKED"`, 1)
-	assert.Error(t, VerifyHistory([]byte(tampered)), "an edited line must fail verification")
+	require.Error(t, VerifyHistory([]byte(tampered)), "an edited line must fail verification")
 
 	dropped := lines[0] + "\n" + lines[2] + "\n"
-	assert.Error(t, VerifyHistory([]byte(dropped)), "a removed line must break the chain")
+	require.Error(t, VerifyHistory([]byte(dropped)), "a removed line must break the chain")
 
-	assert.NoError(t, VerifyHistory(nil))
+	require.NoError(t, VerifyHistory(nil))
 }
 
 func TestOverlaySetRejectsBadEnvelope(t *testing.T) {

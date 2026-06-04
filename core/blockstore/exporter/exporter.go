@@ -12,6 +12,7 @@ package exporter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -57,7 +58,7 @@ func Export(ctx context.Context, store blockstore.Store) (*Snapshot, error) {
 
 	enum, ok := sess.(blockstore.OverlayEnumerator)
 	if !ok {
-		return snap, fmt.Errorf("exporter: store session does not support overlay enumeration")
+		return snap, errors.New("exporter: store session does not support overlay enumeration")
 	}
 	for o, err := range enum.AllOverlays() {
 		if err != nil {

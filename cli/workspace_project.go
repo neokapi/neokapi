@@ -98,7 +98,7 @@ func (a *App) runPack(cmd *cobra.Command) error {
 		}
 		pkg.Overlays = storeToKlzOverlays(snap.Overlays)
 		if len(snap.Blocks) > 0 {
-			pkg.Blocks = []klz.BlockDoc{{Path: "blocks/project.klf", File: blocksToKLF(snap.Blocks, string(a.SourceLang))}}
+			pkg.Blocks = []klz.BlockDoc{{Path: "blocks/project.klf", File: blocksToKLF(snap.Blocks, a.SourceLang)}}
 		}
 	}
 
@@ -145,7 +145,7 @@ func (a *App) runPack(cmd *cobra.Command) error {
 	if a.Quiet {
 		return nil
 	}
-	return outputPrint(cmd, fmt.Sprintf("Packed project working state → %s", outPath))
+	return outputPrint(cmd, "Packed project working state → "+outPath)
 }
 
 // runUnpack rehydrates a project's working state from a .klz snapshot into
@@ -236,7 +236,7 @@ func blocksToKLF(entries []exporter.BlockEntry, sourceLocale string) *klf.File {
 		SchemaVersion: klf.SchemaVersion,
 		Kind:          klf.Kind,
 		Generator:     klf.GeneratorInfo{ID: "kapi", Version: "1"},
-		Project:       klf.ProjectInfo{ID: "project", SourceLocale: klf.LocaleID(sourceLocale)},
+		Project:       klf.ProjectInfo{ID: "project", SourceLocale: sourceLocale},
 		Documents: []klf.Document{{
 			ID:           "project",
 			DocumentType: klf.DocumentTypeJSX,
