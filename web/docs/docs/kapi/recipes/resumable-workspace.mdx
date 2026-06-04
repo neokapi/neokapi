@@ -33,10 +33,18 @@ pick up where it was left.
 
 ## Try it
 
-The lab below runs the **real kapi engine in your browser** (WebAssembly) — pick a
-sample (including binary Word/Excel documents), step through
-`extract → pseudo-translate → pack → merge`, and watch the workspace's recipe,
-per-locale overlays, and dirty → clean state update after each step.
+Walk the lifecycle as narrated commands, running live in your browser
+(WebAssembly) — `extract → pseudo-translate → info → pack → merge`:
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+
+<KapiGuidedEmbed id="kapi-klz-workspace" />
+
+### Inspect it
+
+The lab below is the same workflow, interactive — pick a sample (including binary
+**Word/Excel** documents) and step through it, watching the workspace's recipe,
+per-locale overlays, and **dirty → clean** state update after each step.
 
 import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 
