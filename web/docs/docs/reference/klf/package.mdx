@@ -84,19 +84,21 @@ A `.klz` is not only an at-rest snapshot of finished content — it can also car
 a project's **in-progress working state**, so work can move between machines and
 resume where it left off. Two mechanisms cooperate, with **no per-step CLI verbs**:
 
-- **Cached resume.** A project run executes against the project's persistent
-  block store (`.kapi/cache/blocks.db`). Tools cache per-block results as
-  overlays, so re-running a flow **skips work that is already done** — output is
-  byte-identical, the expensive steps just don't recompute. The store *is* the
-  workspace; resume is simply running again.
+- **Cached resume.** Inside a `.kapi` project, a run executes against the
+  project's persistent block store (`.kapi/cache/blocks.db`). Tools cache
+  per-block results as overlays, so re-running a flow **skips work that is
+  already done** — output is byte-identical, the expensive steps just don't
+  recompute. The store *is* the workspace; resume is simply running again. (A
+  standalone run with no project uses an ephemeral in-memory store and caches
+  nothing between runs.)
 - **Hand-off.** `kapi pack` snapshots that working state — the block-store
   overlays plus the authoritative TM and termbase — into a portable `.klz`;
   `kapi unpack` rehydrates it into another machine's `.kapi/` state dir, where a
   run resumes against the warm cache.
 
 ```bash
-kapi run translate-qa -i app.json -o app.fr.json   # caches overlays in .kapi/
-kapi pack   -o snapshot.klz                          # snapshot the working state
+kapi run ai-translate-qa -i app.json -o app.fr.json  # in a project: caches overlays in .kapi/
+kapi pack   -o snapshot.klz                           # snapshot the working state
 #   ... move snapshot.klz to another machine ...
 kapi unpack snapshot.klz                             # rehydrate, then run to resume
 ```

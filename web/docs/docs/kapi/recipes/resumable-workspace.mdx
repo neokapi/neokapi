@@ -17,11 +17,14 @@ CI. kapi supports this with two pieces that need almost no new command surface:
 
 ## Resume is just running again
 
-A project run executes against the project's persistent block store
-(`.kapi/cache/blocks.db`). Tools cache their per-block results there, so the
-*next* run reuses them instead of recomputing:
+Caching is a **project** feature. Inside a `.kapi` project — passed with `-p` or
+auto-discovered by walking up from the current directory, like git — a run
+executes against the project's persistent block store (`.kapi/cache/blocks.db`).
+Tools cache their per-block results there, so the *next* run reuses them instead
+of recomputing:
 
 ```bash
+# run from inside a .kapi project (or pass -p recipe.kapi)
 kapi run ai-translate-qa -i app.json -o app.fr.json   # translates, caches results
 kapi run ai-translate-qa -i app.json -o app.fr.json   # reuses the cache — no re-translation
 ```
@@ -32,6 +35,12 @@ running again continues from it. This is correct because the store is
 content-addressed: a block you've already translated is found by its hash, and a
 block whose source you changed gets a new hash, so only the changed content is
 redone.
+
+Outside a project (a standalone `kapi run` with no `.kapi` anywhere up the tree),
+the run uses an ephemeral in-memory store: it produces the same output but caches
+nothing between invocations, so there is no cross-run resume. The persistence
+that makes resume and `pack`/`unpack` work lives in the project's `.kapi/` state
+directory.
 
 ## Move the working state: `pack` / `unpack`
 
