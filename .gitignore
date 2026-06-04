@@ -1,5 +1,7 @@
 # Build artifacts
 bin/
+__pycache__/
+*.pyc
 /bowrain-server
 /actionlint
 coverage/
