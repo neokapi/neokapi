@@ -57,3 +57,7 @@ jobs:
 
       - name: Run snippet verifier
         run: node --experimental-strip-types scripts/verify-snippets/harness.ts
+
+      - name: Verify .klz + .kapi workflows in wasm (JSON + Office)
+        run: GOROOT="$(go env GOROOT)" node --experimental-strip-types scripts/klz-wasm-smoke.ts
+
