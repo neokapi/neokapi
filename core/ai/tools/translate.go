@@ -316,9 +316,15 @@ func (t *AITranslateTool) processBatchedWithSession(
 
 	// Filter: split cached vs. needs-translation.
 	toTranslate := make(chan *model.Part, t.batchSize*2)
-	translated := make(chan *model.Part, t.batchSize*2)
 
-	var filterErr error
+	forward := func(p *model.Part) bool {
+		select {
+		case toTranslate <- p:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
 	go func() {
 		defer close(toTranslate)
 		for {
@@ -331,7 +337,9 @@ func (t *AITranslateTool) processBatchedWithSession(
 				}
 				block, ok := part.Resource.(*model.Block)
 				if !ok || block == nil || !block.Translatable || block.ID == "" {
-					toTranslate <- part
+					if !forward(part) {
+						return
+					}
 					continue
 				}
 				if caps.RandomAccess {
@@ -348,22 +356,15 @@ func (t *AITranslateTool) processBatchedWithSession(
 						}
 					}
 				}
-				toTranslate <- part
+				if !forward(part) {
+					return
+				}
 			}
 		}
 	}()
 
-	// Capture translated parts and write overlays before forwarding.
-	go func() {
-		defer close(translated)
-		for part := range translated {
-			out <- part
-		}
-	}()
-
-	// processBatched writes to `translated`; we need the overlay write
-	// wrapped around its output. Simpler: collect translated parts
-	// inline rather than adding a second goroutine chain.
+	// processBatched writes the translated parts to batchOut; we wrap each
+	// with the overlay write before forwarding to the caller.
 	batchOut := make(chan *model.Part, t.batchSize*2)
 	done := make(chan error, 1)
 	go func() {
@@ -398,7 +399,6 @@ func (t *AITranslateTool) processBatchedWithSession(
 	if err := <-done; err != nil {
 		return err
 	}
-	_ = filterErr
 	return nil
 }
 

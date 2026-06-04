@@ -137,7 +137,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Read all content
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("json: reading: %w", err)}
+		r.emitErr(ctx, ch, fmt.Errorf("json: reading: %w", err))
 		return
 	}
 
@@ -167,7 +167,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	sc := newScanner(content)
 	tokens, err := sc.scan()
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("json: parsing: %w", err)}
+		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", err))
 		return
 	}
 
@@ -612,7 +612,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		Reader:       io.NopCloser(bytes.NewReader([]byte(content))),
 	}
 	if err := subReader.Open(ctx, subDoc); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("json: subfilter open for %s: %w", path, err)}
+		r.emitErr(ctx, ch, fmt.Errorf("json: subfilter open for %s: %w", path, err))
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 		return
 	}
@@ -620,7 +620,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	// Read sub-reader parts, skipping the sub-reader's own layer start/end
 	for pr := range subReader.Read(ctx) {
 		if pr.Error != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("json: subfilter read for %s: %w", path, pr.Error)}
+			r.emitErr(ctx, ch, fmt.Errorf("json: subfilter read for %s: %w", path, pr.Error))
 			break
 		}
 		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
@@ -642,6 +642,15 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// emitErr forwards an error result, honouring cancellation so a stopped
+// consumer can't deadlock the reader goroutine on the unbuffered channel.
+func (r *Reader) emitErr(ctx context.Context, ch chan<- model.PartResult, err error) {
+	select {
+	case ch <- model.PartResult{Error: err}:
+	case <-ctx.Done():
 	}
 }
 

@@ -80,6 +80,13 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 		return p.inner.Process(ctx, in, out)
 	}
 
+	// Own a cancellable child context so that any early return (worker error
+	// or downstream cancel) unblocks the dispatcher and in-flight workers
+	// parked on the results channel, instead of leaking them until some
+	// external cancel arrives.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// results channel carries sequenced parts from workers and passthrough.
 	results := make(chan sequencedPart, p.concurrency*2)
 

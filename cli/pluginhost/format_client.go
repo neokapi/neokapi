@@ -88,7 +88,7 @@ func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
 // OutputRef, so the daemon completes after sending ReadDone (and a
 // final ProcessComplete).
 func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
-	ch := make(chan model.PartResult)
+	ch := make(chan model.PartResult, 64)
 	go func() {
 		defer close(ch)
 
@@ -139,7 +139,9 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 				select {
 				case ch <- model.PartResult{Part: protoconvert.ProtoToPart(m.Part)}:
 				case <-ctx.Done():
-					ch <- model.PartResult{Error: ctx.Err()}
+					// The consumer cancelled and has stopped draining; a
+					// further send would block forever. The cancellation is
+					// already observable via ctx, so just unwind.
 					return
 				}
 			case *pb.ProcessResponse_PartBatch:
@@ -147,7 +149,6 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 					select {
 					case ch <- model.PartResult{Part: protoconvert.ProtoToPart(p)}:
 					case <-ctx.Done():
-						ch <- model.PartResult{Error: ctx.Err()}
 						return
 					}
 				}
@@ -156,7 +157,6 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 					select {
 					case ch <- model.PartResult{Part: protoconvert.ContentBlockToPart(cb)}:
 					case <-ctx.Done():
-						ch <- model.PartResult{Error: ctx.Err()}
 						return
 					}
 				}
@@ -261,6 +261,11 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	}
 	bridgeClient := pb.NewBridgeServiceClient(client.Conn)
 
+	// Own a cancellable context so an early return (recv or daemon error)
+	// releases the send goroutine instead of leaving it parked on `parts`.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	stream, err := bridgeClient.Process(ctx)
 	if err != nil {
 		return fmt.Errorf("process: %w", err)
@@ -298,14 +303,23 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	sendErr := make(chan error, 1)
 	go func() {
 		defer func() { _ = stream.CloseSend() }()
-		for part := range parts {
-			msg := protoconvert.PartToProto(part)
-			if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: msg}}); err != nil {
-				sendErr <- fmt.Errorf("send part: %w", err)
+		for {
+			select {
+			case part, ok := <-parts:
+				if !ok {
+					sendErr <- nil
+					return
+				}
+				msg := protoconvert.PartToProto(part)
+				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: msg}}); err != nil {
+					sendErr <- fmt.Errorf("send part: %w", err)
+					return
+				}
+			case <-ctx.Done():
+				sendErr <- ctx.Err()
 				return
 			}
 		}
-		sendErr <- nil
 	}()
 
 	var output []byte
