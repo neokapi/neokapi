@@ -15,9 +15,11 @@ export function Nav() {
           href="#"
           className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white"
         >
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">
-            B
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            alt="Bowrain logo"
+            className="h-7 w-7"
+          />
           bowrain
         </a>
 
