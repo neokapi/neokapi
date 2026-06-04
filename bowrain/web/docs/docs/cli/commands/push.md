@@ -69,7 +69,7 @@ Push state is tracked in `.kapi/cache/sync-cache.json` (auto-gitignored):
 
 ```json
 {
-  "server_url": "https://bowrain.example.com",
+  "server_url": "https://bowrain.cloud",
   "project_id": "abc123",
   "sync_cursor": 4821,
   "last_sync": "2026-02-15T10:30:00Z",

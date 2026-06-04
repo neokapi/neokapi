@@ -55,7 +55,7 @@ Trigger a flow manually through the REST API:
 
 ```bash
 # Start a flow execution
-curl -X POST https://bowrain.example.com/api/v1/projects/:id/flows/run \
+curl -X POST https://bowrain.cloud/api/v1/projects/:id/flows/run \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -100,7 +100,7 @@ among many.
 
 ```bash
 # Check execution status
-curl https://bowrain.example.com/api/v1/projects/:id/flows/executions/:execId \
+curl https://bowrain.cloud/api/v1/projects/:id/flows/executions/:execId \
   -H "Authorization: Bearer $TOKEN"
 
 # Response:
@@ -132,15 +132,15 @@ curl https://bowrain.example.com/api/v1/projects/:id/flows/executions/:execId \
 
 ```bash
 # List recent executions for a project
-curl https://bowrain.example.com/api/v1/projects/:id/flows/executions \
+curl https://bowrain.cloud/api/v1/projects/:id/flows/executions \
   -H "Authorization: Bearer $TOKEN"
 
 # Filter by flow name
-curl "https://bowrain.example.com/api/v1/projects/:id/flows/executions?flow=ai-translate" \
+curl "https://bowrain.cloud/api/v1/projects/:id/flows/executions?flow=ai-translate" \
   -H "Authorization: Bearer $TOKEN"
 
 # Filter by status
-curl "https://bowrain.example.com/api/v1/projects/:id/flows/executions?status=failed" \
+curl "https://bowrain.cloud/api/v1/projects/:id/flows/executions?status=failed" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -187,7 +187,7 @@ A flow definition is a node/edge graph (reader → tool(s) → writer) rather th
 a flat step list, so it round-trips losslessly through the visual editor:
 
 ```bash
-curl -X POST https://bowrain.example.com/api/v1/acme/proj-1/flows \
+curl -X POST https://bowrain.cloud/api/v1/acme/proj-1/flows \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
