@@ -176,6 +176,28 @@ func TestKlzRunIOMultiSource(t *testing.T) {
 		"each document's targets must stay isolated in a multi-source .klz")
 }
 
+// TestKlzResumeToDirectory verifies resuming a multi-source .klz into a bare
+// directory writes one file per source, named after the source.
+func TestKlzResumeToDirectory(t *testing.T) {
+	dir := t.TempDir()
+	a := writeWS(t, dir, "a.json", `{"greeting":"Hello world"}`)
+	b := writeWS(t, dir, "b.json", `{"x":"Another string"}`)
+
+	aExp := filepath.Join(dir, "a.expected.json")
+	bExp := filepath.Join(dir, "b.expected.json")
+	kapi(t, "pseudo-translate", a, "-o", aExp, "--target-lang", "qps")
+	kapi(t, "pseudo-translate", b, "-o", bExp, "--target-lang", "qps")
+
+	pkg := filepath.Join(dir, "pack.klz")
+	kapi(t, "pseudo-translate", a, b, "-o", pkg, "--target-lang", "qps")
+
+	outDir := filepath.Join(dir, "qps") + "/"
+	kapi(t, "pseudo-translate", pkg, "-o", outDir, "--target-lang", "qps")
+
+	assert.Equal(t, readFile(t, aExp), readFile(t, filepath.Join(dir, "qps", "a.json")))
+	assert.Equal(t, readFile(t, bExp), readFile(t, filepath.Join(dir, "qps", "b.json")))
+}
+
 // TestKlzResumeRequiresOutput verifies reading a .klz without -o errors
 // rather than silently writing into a temp dir.
 func TestKlzResumeRequiresOutput(t *testing.T) {

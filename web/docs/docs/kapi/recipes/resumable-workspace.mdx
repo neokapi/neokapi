@@ -48,16 +48,19 @@ kapi run ai-translate-qa -i app.json -o work.klz
 kapi run ai-translate-qa -i work.klz -o app.fr.json
 ```
 
-Several inputs pack into one `.klz`, and resume writes them back out with a
-template; each document's work stays isolated:
+Several inputs pack into one `.klz`, and resume writes them back out — into a
+directory (one file per source, keeping each name) or via an `-o` template. Each
+document's work stays isolated:
 
 ```bash
 kapi pseudo-translate src/*.json -o batch.klz
-kapi pseudo-translate batch.klz -o 'out/{name}.json'
+kapi pseudo-translate batch.klz  -o qps/                # → qps/<name>.json per source
+kapi pseudo-translate batch.klz  -o 'out/{name}.json'   # or a template
 ```
 
 (When you read a `.klz`, pass `-o` for the destination — there's nothing to infer
-it from.)
+it from. A single input with a plain path, e.g. `-o app.fr.json`, writes that one
+file.)
 
 ## Project snapshots: `pack` / `unpack`
 

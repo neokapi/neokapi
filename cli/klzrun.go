@@ -160,7 +160,7 @@ func (a *App) runKlzWorkflow(ctx context.Context, cmd *cobra.Command, flowName s
 
 		docOut := filepath.Join(outDir, base) // throwaway when writing a package
 		if !outIsKlz {
-			docOut = a.resolveOutputPath(srcPath, output)
+			docOut = a.resolveKlzDocOutput(output, srcPath, len(sources) > 1)
 		}
 		if err := runner.RunFile(ctx, flowName, tools, srcPath, docOut, targetLang); err != nil {
 			_ = store.Close()
@@ -200,6 +200,31 @@ func (a *App) runKlzWorkflow(ctx context.Context, cmd *cobra.Command, flowName s
 		return output1(cmd, output, len(sources), false)
 	}
 	return nil
+}
+
+// resolveKlzDocOutput maps one resumed source to its document output path:
+//
+//   - a template ("{name}", …) is expanded per source;
+//   - a directory (trailing separator, an existing dir, or implied because
+//     several sources are being written) receives "<dir>/<source-base>";
+//   - otherwise the literal path is used (single-source convert).
+//
+// This makes `-o qps/` write ./qps/<name> for every input — the natural way
+// to say "write the finished files back into this directory".
+func (a *App) resolveKlzDocOutput(output, srcPath string, multi bool) string {
+	if strings.Contains(output, "{") {
+		return a.resolveOutputPath(srcPath, output)
+	}
+	isDir := strings.HasSuffix(output, "/") || strings.HasSuffix(output, string(os.PathSeparator))
+	if !isDir {
+		if fi, err := os.Stat(output); err == nil && fi.IsDir() {
+			isDir = true
+		}
+	}
+	if isDir || multi {
+		return filepath.Join(output, filepath.Base(srcPath))
+	}
+	return output
 }
 
 // overlaysForSource returns the overlays tagged for a given source path.
