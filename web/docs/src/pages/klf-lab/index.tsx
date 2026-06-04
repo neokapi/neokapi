@@ -8,7 +8,7 @@ import styles from "./index.module.css";
 // a .klf document and watch the real engine (core/klf, compiled to WebAssembly)
 // canonicalize the bytes, render each block to its preview, validate the run
 // structure, and resolve a companion .klfl annotation overlay. Everything runs
-// the same code the CLI and Bowrain server run — nothing is mocked.
+// the same code the kapi CLI runs — nothing is mocked.
 
 export default function KlfLabPage(): React.ReactElement {
   return (
@@ -26,7 +26,7 @@ export default function KlfLabPage(): React.ReactElement {
             each block to its preview, validates the run structure, and resolves
             a companion <code>.klfl</code> annotation overlay anchor by anchor.
             Nothing is mocked; this is the same engine the{" "}
-            <Link to="/playground-cli">CLI</Link> and the Bowrain server run.
+            <Link to="/playground-cli">kapi CLI</Link> runs.
           </p>
         </div>
 
