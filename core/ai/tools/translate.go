@@ -262,7 +262,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		return t.translate(tool.NewTargetView(block))
+		return t.translate(tool.NewTargetViewWithContext(ctx, block))
 	}
 
 	// Skip if already cached.
@@ -276,7 +276,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewTargetView(block)); err != nil {
+	if err := t.translate(tool.NewTargetViewWithContext(ctx, block)); err != nil {
 		return err
 	}
 
@@ -442,7 +442,7 @@ func (t *AITranslateTool) translate(v tool.TargetView) error {
 	}
 
 	// Plain text translation.
-	resp, err := t.translateBlock(context.Background(), aiprovider.TranslateRequest{
+	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
 		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -508,7 +508,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.TargetView, sourceRuns
 		t.sourceLocale, t.targetLocale, sourceText,
 	)
 
-	resp, err := t.translateBlock(context.Background(), aiprovider.TranslateRequest{
+	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
 		Source:         prompt,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -719,7 +719,7 @@ type batchResult struct {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		return t.translate(tool.NewTargetView(entries[0].block))
+		return t.translate(tool.NewTargetViewWithContext(ctx, entries[0].block))
 	}
 
 	// Build numbered prompt.
@@ -777,13 +777,13 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i+1]
 		if !ok || text == "" {
-			if err := t.translate(tool.NewTargetView(entry.block)); err != nil {
+			if err := t.translate(tool.NewTargetViewWithContext(ctx, entry.block)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		ev := tool.NewTargetView(entry.block)
+		ev := tool.NewTargetViewWithContext(ctx, entry.block)
 		if entry.hasInlineCodes {
 			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
 			ev.SetTargetRuns(t.targetLocale, targetRuns)

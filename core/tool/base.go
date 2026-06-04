@@ -100,7 +100,7 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 			if !ok {
 				return nil
 			}
-			result, err := b.dispatch(part)
+			result, err := b.dispatch(ctx, part)
 			if err != nil {
 				return err
 			}
@@ -158,7 +158,13 @@ func IsSourceTransform(t Tool) bool {
 // or nil if the handler dropped it. For callers that apply a BaseTool across an
 // in-memory slice of parts rather than driving the streaming pipeline.
 func (b *BaseTool) Apply(part *model.Part) (*model.Part, error) {
-	return b.dispatch(part)
+	return b.dispatch(context.Background(), part)
+}
+
+// ApplyContext is Apply with an explicit context, so a block handler driven
+// outside the streaming pipeline can still honour cancellation/deadlines.
+func (b *BaseTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
+	return b.dispatch(ctx, part)
 }
 
 // hasBlockHandler reports whether the tool set one of the capability-typed
@@ -168,10 +174,10 @@ func (b *BaseTool) hasBlockHandler() bool {
 	return b.Annotate != nil || b.Translate != nil || b.Transform != nil
 }
 
-func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
+func (b *BaseTool) dispatch(ctx context.Context, part *model.Part) (*model.Part, error) {
 	switch part.Type {
 	case model.PartBlock:
-		return b.handleBlock(part)
+		return b.handleBlock(ctx, part)
 	case model.PartData:
 		return b.handleData(part)
 	case model.PartMedia:
@@ -194,14 +200,14 @@ func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
 // backstop (gated by EnforceImmutability) additionally catches in-place edits
 // the read-only view type can't prevent — a tool that mutates the live run
 // slices it was handed.
-func (b *BaseTool) handleBlock(part *model.Part) (*model.Part, error) {
+func (b *BaseTool) handleBlock(ctx context.Context, part *model.Part) (*model.Part, error) {
 	switch {
 	case b.Transform != nil:
-		return b.runTransform(part)
+		return b.runTransform(ctx, part)
 	case b.Translate != nil:
-		return b.runTranslate(part)
+		return b.runTranslate(ctx, part)
 	case b.Annotate != nil:
-		return b.runAnnotate(part)
+		return b.runAnnotate(ctx, part)
 	default:
 		return part, nil
 	}
@@ -209,12 +215,12 @@ func (b *BaseTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 // runAnnotate drives a read-only annotation handler. Backstop: neither source
 // nor target content may change (only overlays/annotations/properties).
-func (b *BaseTool) runAnnotate(part *model.Part) (*model.Part, error) {
+func (b *BaseTool) runAnnotate(ctx context.Context, part *model.Part) (*model.Part, error) {
 	block, _ := part.Resource.(*model.Block)
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(block)
+	v := newBlockView(ctx, block)
 	if !EnforceImmutability {
 		if err := b.Annotate(v); err != nil {
 			return nil, err
@@ -235,12 +241,12 @@ func (b *BaseTool) runAnnotate(part *model.Part) (*model.Part, error) {
 }
 
 // runTranslate drives a target-writing handler. Backstop: source is read-only.
-func (b *BaseTool) runTranslate(part *model.Part) (*model.Part, error) {
+func (b *BaseTool) runTranslate(ctx context.Context, part *model.Part) (*model.Part, error) {
 	block, _ := part.Resource.(*model.Block)
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(block)
+	v := newBlockView(ctx, block)
 	if !EnforceImmutability {
 		if err := b.Translate(v); err != nil {
 			return nil, err
@@ -260,12 +266,12 @@ func (b *BaseTool) runTranslate(part *model.Part) (*model.Part, error) {
 // runTransform drives a source-transform handler (source + target writable).
 // Backstop: source must not change once a stand-off overlay is attached — the
 // overlay's run-anchored ranges would rot. Source transforms run early.
-func (b *BaseTool) runTransform(part *model.Part) (*model.Part, error) {
+func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.Part, error) {
 	block, _ := part.Resource.(*model.Block)
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(block)
+	v := newBlockView(ctx, block)
 	if !EnforceImmutability {
 		if err := b.Transform(v); err != nil {
 			return nil, err

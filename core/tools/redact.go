@@ -211,7 +211,7 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 
 	var matches []redaction.Match
 	if t.rules != nil {
-		ms, err := t.rules.Detect(context.Background(), text, v.SourceLocale())
+		ms, err := t.rules.Detect(v.Context(), text, v.SourceLocale())
 		if err != nil {
 			return fmt.Errorf("redact: %w", err)
 		}

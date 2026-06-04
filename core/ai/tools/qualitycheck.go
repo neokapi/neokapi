@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -138,7 +137,7 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 		t.targetLocale, targetText,
 	)
 
-	resp, err := t.provider.ChatStructured(context.Background(), []aiprovider.Message{
+	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
 		{Role: "user", Content: prompt},
 	}, qaSchema())
 	if err != nil {

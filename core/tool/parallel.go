@@ -131,7 +131,7 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 						// Route through the dispatcher so the tool's typed
 						// handler (and the immutability backstop) applies; each
 						// worker handles a distinct block, so no shared state.
-						result, err := baseTool.handleBlock(part)
+						result, err := baseTool.handleBlock(ctx, part)
 						select {
 						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 						case <-ctx.Done():
@@ -139,7 +139,7 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 					})
 				} else {
 					// Non-Block: dispatch to inner tool's handler, then send result.
-					result, err := baseTool.dispatch(part)
+					result, err := baseTool.dispatch(ctx, part)
 					select {
 					case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 					case <-ctx.Done():

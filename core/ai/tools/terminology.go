@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -133,7 +132,7 @@ func (t *AITerminologyTool) annotate(v tool.BlockView) error {
 		domainHint, t.locale, sourceText,
 	)
 
-	resp, err := t.provider.ChatStructured(context.Background(), []aiprovider.Message{
+	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
 		{Role: "user", Content: prompt},
 	}, terminologySchema())
 	if err != nil {

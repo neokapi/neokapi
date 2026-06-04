@@ -97,7 +97,7 @@ func (t *MTTranslateTool) translate(v tool.TargetView) error {
 
 	sourceRuns := v.SourceRuns()
 	if hasInlineCodes(sourceRuns) {
-		resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
+		resp, err := t.provider.Translate(v.Context(), mtprovider.TranslateRequest{
 			Source:       model.RunsSemanticHTML(sourceRuns, t.vocab),
 			SourceLocale: t.sourceLocale,
 			TargetLocale: t.targetLocale,
@@ -109,7 +109,7 @@ func (t *MTTranslateTool) translate(v tool.TargetView) error {
 		return nil
 	}
 
-	resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
+	resp, err := t.provider.Translate(v.Context(), mtprovider.TranslateRequest{
 		Source:       sourceText,
 		SourceLocale: t.sourceLocale,
 		TargetLocale: t.targetLocale,
@@ -154,7 +154,7 @@ func (t *MTTranslateTool) SessionProcess(
 			if !ok {
 				return nil
 			}
-			if err := t.sessionHandleBlock(sess, caps.RandomAccess, overlayKind, part); err != nil {
+			if err := t.sessionHandleBlock(ctx, sess, caps.RandomAccess, overlayKind, part); err != nil {
 				return err
 			}
 			select {
@@ -175,6 +175,7 @@ type mtTargetCache struct {
 }
 
 func (t *MTTranslateTool) sessionHandleBlock(
+	ctx context.Context,
 	sess blockstore.Session,
 	randomAccess bool,
 	overlayKind string,
@@ -186,7 +187,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		return t.translate(tool.NewTargetView(block))
+		return t.translate(tool.NewTargetViewWithContext(ctx, block))
 	}
 
 	if randomAccess {
@@ -199,7 +200,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewTargetView(block)); err != nil {
+	if err := t.translate(tool.NewTargetViewWithContext(ctx, block)); err != nil {
 		return err
 	}
 

@@ -1,6 +1,10 @@
 package tool
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"context"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // BlockView is the surface a tool sees for a Block (AD-002 / AD-006
 // immutability model). Source and target content are READ-ONLY through this
@@ -17,6 +21,12 @@ import "github.com/neokapi/neokapi/core/model"
 // treat returned runs as read-only; the dispatcher's backstop check
 // (EnforceImmutability) catches accidental in-place edits in dev/test.
 type BlockView interface {
+	// Context returns the dispatch context, so a handler can honour
+	// cancellation/deadlines on any work it does (LLM/MT/NER calls, subprocess
+	// execution, DB lookups). It is never nil: views built without a context
+	// (in-memory Apply, tests) report context.Background().
+	Context() context.Context
+
 	ID() string
 	Name() string
 	Type() string
@@ -83,20 +93,46 @@ type SourceView interface {
 // blockView is the single concrete view; the handler field's parameter type
 // (BlockView / TargetView / SourceView) narrows which methods a tool can call.
 type blockView struct {
+	ctx     context.Context
 	b       *model.Block
 	dropped bool
 }
 
-func newBlockView(b *model.Block) *blockView { return &blockView{b: b} }
+func newBlockView(ctx context.Context, b *model.Block) *blockView {
+	return &blockView{ctx: ctx, b: b}
+}
 
 // NewBlockView, NewTargetView and NewSourceView build an explicit view over a
 // Block at the matching capability tier. Dispatched handlers receive a view
 // automatically; these constructors are for Process-override tools (batched or
 // session-aware translators, stream operators) that hold a *model.Block
-// directly and want to reuse the same capability-scoped surface.
-func NewBlockView(b *model.Block) BlockView   { return newBlockView(b) }
-func NewTargetView(b *model.Block) TargetView { return newBlockView(b) }
-func NewSourceView(b *model.Block) SourceView { return newBlockView(b) }
+// directly and want to reuse the same capability-scoped surface. The view's
+// Context() reports context.Background(); use the WithContext variants from a
+// Process override to propagate cancellation into provider/network calls.
+func NewBlockView(b *model.Block) BlockView   { return newBlockView(context.Background(), b) }
+func NewTargetView(b *model.Block) TargetView { return newBlockView(context.Background(), b) }
+func NewSourceView(b *model.Block) SourceView { return newBlockView(context.Background(), b) }
+
+// NewBlockViewWithContext, NewTargetViewWithContext and NewSourceViewWithContext
+// are the cancellation-aware constructors for Process-override tools: the view's
+// Context() returns ctx, so handlers can honour deadlines/cancellation.
+func NewBlockViewWithContext(ctx context.Context, b *model.Block) BlockView {
+	return newBlockView(ctx, b)
+}
+func NewTargetViewWithContext(ctx context.Context, b *model.Block) TargetView {
+	return newBlockView(ctx, b)
+}
+func NewSourceViewWithContext(ctx context.Context, b *model.Block) SourceView {
+	return newBlockView(ctx, b)
+}
+
+// Context reports the dispatch context, defaulting to context.Background().
+func (v *blockView) Context() context.Context {
+	if v.ctx != nil {
+		return v.ctx
+	}
+	return context.Background()
+}
 
 // Reads.
 func (v *blockView) ID() string                     { return v.b.ID }
