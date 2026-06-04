@@ -153,6 +153,43 @@ func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 // qaCheckHandler holds the config reference and provides methods for each check category.
 type qaCheckHandler struct {
 	tool *tool.BaseTool
+	// patterns are the config's QA patterns with their source/target regexes
+	// compiled once at construction, instead of per block.
+	patterns []compiledQAPattern
+}
+
+// compiledQAPattern is a QAPattern with its regexes precompiled. tgtRe is nil
+// for "same-match" patterns (empty or "<same>" target).
+type compiledQAPattern struct {
+	pat   QAPattern
+	srcRe *regexp.Regexp
+	tgtRe *regexp.Regexp
+}
+
+// compileQAPatterns precompiles the enabled patterns, dropping any with an
+// invalid (or missing) source regex, or an invalid target regex — matching the
+// old per-block code's "continue past bad patterns" behavior.
+func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
+	out := make([]compiledQAPattern, 0, len(patterns))
+	for _, p := range patterns {
+		if !p.Enabled || p.Source == "" {
+			continue
+		}
+		srcRe, err := regexp.Compile(p.Source)
+		if err != nil {
+			continue
+		}
+		cp := compiledQAPattern{pat: p, srcRe: srcRe}
+		if p.Target != "" && p.Target != "<same>" {
+			tgtRe, err := regexp.Compile(p.Target)
+			if err != nil {
+				continue
+			}
+			cp.tgtRe = tgtRe
+		}
+		out = append(out, cp)
+	}
+	return out
 }
 
 // checkTextIssues runs text-level checks: empty, whitespace, doubled words, same-as-source, corrupted chars.
@@ -315,8 +352,8 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 	var findings []check.Finding
 
 	// Check: pattern verification.
-	if conf.CheckPatterns && len(conf.Patterns) > 0 {
-		findings = append(findings, checkPatterns(sourceText, targetText, conf.Patterns)...)
+	if conf.CheckPatterns && len(h.patterns) > 0 {
+		findings = append(findings, h.checkPatterns(sourceText, targetText)...)
 	}
 
 	// Check: inline code differences.
@@ -351,7 +388,7 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		ToolDescription: "Performs rule-based quality checks on translations",
 		Cfg:             cfg,
 	}
-	h := &qaCheckHandler{tool: t}
+	h := &qaCheckHandler{tool: t, patterns: compileQAPatterns(cfg.Patterns)}
 
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {
@@ -644,29 +681,18 @@ func hasCorruptedCharacters(s string) bool {
 	return false
 }
 
-// checkPatterns verifies source/target pattern pairs.
-func checkPatterns(sourceText, targetText string, patterns []QAPattern) []check.Finding {
+// checkPatterns verifies source/target pattern pairs using precompiled regexes.
+func (h *qaCheckHandler) checkPatterns(sourceText, targetText string) []check.Finding {
 	var findings []check.Finding
-	for _, p := range patterns {
-		if !p.Enabled {
-			continue
-		}
-		if p.Source == "" {
-			continue
-		}
-		re, err := regexp.Compile(p.Source)
-		if err != nil {
-			continue
-		}
-
-		matches := re.FindAllString(sourceText, -1)
+	for _, cp := range h.patterns {
+		p := cp.pat
+		matches := cp.srcRe.FindAllString(sourceText, -1)
 		if len(matches) == 0 {
 			continue
 		}
 
 		// Check that target matches the target pattern.
-		targetPattern := p.Target
-		if targetPattern == "" || targetPattern == "<same>" {
+		if cp.tgtRe == nil {
 			// Target should contain the same matches.
 			for _, m := range matches {
 				if !strings.Contains(targetText, m) {
@@ -683,11 +709,7 @@ func checkPatterns(sourceText, targetText string, patterns []QAPattern) []check.
 				}
 			}
 		} else {
-			tgtRe, err := regexp.Compile(targetPattern)
-			if err != nil {
-				continue
-			}
-			tgtMatches := tgtRe.FindAllString(targetText, -1)
+			tgtMatches := cp.tgtRe.FindAllString(targetText, -1)
 			if len(tgtMatches) != len(matches) {
 				desc := p.Description
 				if desc == "" {

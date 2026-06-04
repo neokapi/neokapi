@@ -336,9 +336,9 @@ type BlockProperties struct {
 
 // BlockPreviewHints mirrors klf.BlockPreviewHints.
 type BlockPreviewHints struct {
-	StoryID      string                 `json:"storyId,omitempty"`
-	SnapshotPath string                 `json:"snapshotPath,omitempty"`
-	SampleValues map[string]interface{} `json:"sampleValues,omitempty"`
+	StoryID      string         `json:"storyId,omitempty"`
+	SnapshotPath string         `json:"snapshotPath,omitempty"`
+	SampleValues map[string]any `json:"sampleValues,omitempty"`
 }
 
 // FlattenRuns returns the plain text form of a Run sequence.
@@ -347,9 +347,9 @@ type BlockPreviewHints struct {
 // constructs contribute their 'other' branch (or the first branch
 // if 'other' is absent).
 func FlattenRuns(runs []Run) string {
-	var b []rune
+	var b strings.Builder
 	flattenRunsTo(&b, runs)
-	return string(b)
+	return b.String()
 }
 
 // RenderRunsWithData writes the Run sequence as markup-preserving
@@ -402,19 +402,19 @@ func renderRunsDataTo(buf *strings.Builder, runs []Run) {
 	}
 }
 
-func flattenRunsTo(buf *[]rune, runs []Run) {
+func flattenRunsTo(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			*buf = append(*buf, []rune(r.Text.Text)...)
+			buf.WriteString(r.Text.Text)
 		case r.Ph != nil:
-			*buf = append(*buf, '{')
-			*buf = append(*buf, []rune(r.Ph.Equiv)...)
-			*buf = append(*buf, '}')
+			buf.WriteByte('{')
+			buf.WriteString(r.Ph.Equiv)
+			buf.WriteByte('}')
 		case r.Sub != nil:
-			*buf = append(*buf, '[')
-			*buf = append(*buf, []rune(r.Sub.Equiv)...)
-			*buf = append(*buf, ']')
+			buf.WriteByte('[')
+			buf.WriteString(r.Sub.Equiv)
+			buf.WriteByte(']')
 		case r.Plural != nil:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				flattenRunsTo(buf, form)
@@ -443,16 +443,16 @@ func flattenRunsTo(buf *[]rune, runs []Run) {
 // 'other' is absent). This is the text-only variant of FlattenRuns, which
 // renders {equiv} for placeholders.
 func RunsText(runs []Run) string {
-	var buf []rune
+	var buf strings.Builder
 	runsTextTo(&buf, runs)
-	return string(buf)
+	return buf.String()
 }
 
-func runsTextTo(buf *[]rune, runs []Run) {
+func runsTextTo(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			*buf = append(*buf, []rune(r.Text.Text)...)
+			buf.WriteString(r.Text.Text)
 		case r.Plural != nil:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				runsTextTo(buf, form)

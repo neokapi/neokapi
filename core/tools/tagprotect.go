@@ -58,18 +58,20 @@ func NewTagProtectTool(cfg *TagProtectConfig) *tool.BaseTool {
 		ToolDescription: "Identifies and marks tags and placeholders for protection",
 		Cfg:             cfg,
 	}
+
+	// Precompile the protection patterns once instead of per block.
+	patterns := cfg.Patterns
+	if len(patterns) == 0 {
+		patterns = defaultTagPatterns
+	}
+	compiled := compileTagPatterns(patterns)
+
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {
 			return nil
 		}
 
-		conf := t.Cfg.(*TagProtectConfig)
-		patterns := conf.Patterns
-		if len(patterns) == 0 {
-			patterns = defaultTagPatterns
-		}
-
-		protected := findProtectedTags(v.SourceText(), patterns)
+		protected := findProtectedTags(v.SourceText(), compiled)
 
 		v.SetProperty(PropTagProtectCount, strconv.Itoa(len(protected)))
 
@@ -96,15 +98,25 @@ type ProtectedTag struct {
 	Offset int    // Byte offset in source text
 }
 
-func findProtectedTags(text string, patterns []string) []ProtectedTag {
-	var tags []ProtectedTag
-	seen := make(map[string]bool) // deduplicate by offset+text
-
+// compileTagPatterns compiles the protection patterns once, dropping any that
+// fail to compile (matching findProtectedTags' old per-block skip behavior).
+func compileTagPatterns(patterns []string) []*regexp.Regexp {
+	out := make([]*regexp.Regexp, 0, len(patterns))
 	for _, pat := range patterns {
 		re, err := regexp.Compile(pat)
 		if err != nil {
 			continue
 		}
+		out = append(out, re)
+	}
+	return out
+}
+
+func findProtectedTags(text string, patterns []*regexp.Regexp) []ProtectedTag {
+	var tags []ProtectedTag
+	seen := make(map[string]bool) // deduplicate by offset+text
+
+	for _, re := range patterns {
 		matches := re.FindAllStringIndex(text, -1)
 		for _, m := range matches {
 			matched := text[m[0]:m[1]]

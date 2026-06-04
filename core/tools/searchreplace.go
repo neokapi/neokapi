@@ -97,19 +97,24 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		ToolDescription: "Performs search and replace on block text",
 		Cfg:             cfg,
 	}
+	// Precompile the regex pairs once at construction (per-block recompilation
+	// was a hot-path cost) — mirrors patterncheck/segmentation. A compile error
+	// is surfaced on first use, preserving the prior apply-time error behavior.
+	compiled, compileErr := compilePairs(buildEffectivePairs(cfg))
+
 	// Transform: search-replace may rewrite source and/or target text.
 	t.Transform = func(v tool.SourceView) error {
 		if !v.Translatable() {
 			return nil
 		}
-
-		conf := t.Cfg.(*SearchReplaceConfig)
-		if len(conf.Pairs) == 0 {
+		if compileErr != nil {
+			return fmt.Errorf("search-replace: %w", compileErr)
+		}
+		if len(compiled) == 0 {
 			return nil
 		}
 
-		// Build effective pairs, applying config-level regex/case/dotAll/multiLine flags.
-		effectivePairs := buildEffectivePairs(conf)
+		conf := t.Cfg.(*SearchReplaceConfig)
 
 		// replaceAll defaults to true for backward compat when not set via schema.
 		replaceAll := conf.ReplaceAll
@@ -130,10 +135,7 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		// Apply to source text if enabled.
 		if applySource {
 			sourceText := v.SourceText()
-			newSource, err := applyReplacements(sourceText, effectivePairs, replaceAll)
-			if err != nil {
-				return fmt.Errorf("search-replace source: %w", err)
-			}
+			newSource := applyReplacements(sourceText, compiled, replaceAll)
 			if newSource != sourceText {
 				v.SetSourceText(newSource)
 			}
@@ -142,10 +144,7 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		// Apply to target text if enabled and locale is set and target exists.
 		if applyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
 			targetText := v.TargetText(conf.TargetLocale)
-			newTarget, err := applyReplacements(targetText, effectivePairs, replaceAll)
-			if err != nil {
-				return fmt.Errorf("search-replace target: %w", err)
-			}
+			newTarget := applyReplacements(targetText, compiled, replaceAll)
 			if newTarget != targetText {
 				v.SetTargetText(conf.TargetLocale, newTarget)
 			}
@@ -154,6 +153,31 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		return nil
 	}
 	return t
+}
+
+// compiledPair is a search/replace pair with its regex compiled once.
+// re is nil for literal (non-regex) pairs.
+type compiledPair struct {
+	re      *regexp.Regexp
+	search  string
+	replace string
+}
+
+// compilePairs precompiles the regex pairs, returning an error for the first
+// invalid pattern (the same error the apply path used to return per block).
+func compilePairs(pairs []ReplacePair) ([]compiledPair, error) {
+	out := make([]compiledPair, len(pairs))
+	for i, p := range pairs {
+		out[i] = compiledPair{search: p.Search, replace: p.Replace}
+		if p.IsRegex {
+			re, err := regexp.Compile(p.Search)
+			if err != nil {
+				return nil, fmt.Errorf("invalid regex %q: %w", p.Search, err)
+			}
+			out[i].re = re
+		}
+	}
+	return out, nil
 }
 
 // buildEffectivePairs creates effective pairs from config, applying the config-level
@@ -186,31 +210,27 @@ func buildEffectivePairs(conf *SearchReplaceConfig) []ReplacePair {
 	return pairs
 }
 
-// applyReplacements applies all replacement pairs to the given text.
-// If replaceAll is false, only the first match is replaced.
-func applyReplacements(text string, pairs []ReplacePair, replaceAll bool) (string, error) {
+// applyReplacements applies all precompiled replacement pairs to the given
+// text. If replaceAll is false, only the first match is replaced.
+func applyReplacements(text string, pairs []compiledPair, replaceAll bool) string {
 	result := text
 	for _, pair := range pairs {
-		if pair.IsRegex {
-			re, err := regexp.Compile(pair.Search)
-			if err != nil {
-				return "", fmt.Errorf("invalid regex %q: %w", pair.Search, err)
-			}
+		if pair.re != nil {
 			if replaceAll {
-				result = re.ReplaceAllString(result, pair.Replace)
+				result = pair.re.ReplaceAllString(result, pair.replace)
 			} else {
-				loc := re.FindStringIndex(result)
+				loc := pair.re.FindStringIndex(result)
 				if loc != nil {
-					result = result[:loc[0]] + re.ReplaceAllString(result[loc[0]:loc[1]], pair.Replace) + result[loc[1]:]
+					result = result[:loc[0]] + pair.re.ReplaceAllString(result[loc[0]:loc[1]], pair.replace) + result[loc[1]:]
 				}
 			}
 		} else {
 			if replaceAll {
-				result = strings.ReplaceAll(result, pair.Search, pair.Replace)
+				result = strings.ReplaceAll(result, pair.search, pair.replace)
 			} else {
-				result = strings.Replace(result, pair.Search, pair.Replace, 1)
+				result = strings.Replace(result, pair.search, pair.replace, 1)
 			}
 		}
 	}
-	return result, nil
+	return result
 }
