@@ -1,12 +1,12 @@
 ---
 sidebar_position: 4
 title: KLF vs XLIFF
-description: How the Kapi Localization Format maps onto XLIFF 2.x, where the two formats differ in philosophy, and when to reach for each.
+description: How the Kapi Localization Format maps onto XLIFF 2.2, where the two formats differ in philosophy, where XLIFF is the stronger choice, and when to reach for each.
 keywords:
   [
     KLF,
     XLIFF,
-    XLIFF 2.0,
+    XLIFF 2.2,
     comparison,
     interchange,
     localization,
@@ -16,12 +16,20 @@ keywords:
 
 # KLF vs XLIFF
 
-[XLIFF](https://docs.oasis-open.org/xliff/xliff-core/v2.1/xliff-core-v2.1.html)
+[XLIFF](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html)
 is the OASIS standard for exchanging localizable content between tools. KLF
 serves the same purpose _inside_ the neokapi toolchain. The two formats model
 the same problem and most concepts map cleanly between them — but they make
 different choices about structure, segmentation, and serialization. This page
-maps KLF onto XLIFF 2.x and explains where, and why, they diverge.
+maps KLF onto XLIFF and explains where, and why, they diverge, and where XLIFF
+is the better tool for the job.
+
+The comparison targets **XLIFF 2.2**, which is published in two parts: **Part 1
+(Core)** — the structural and inline model every conformant tool understands —
+and **Part 2 (Extended)** — a set of optional modules (Translation Candidates,
+Glossary, Validation, Plural/Gender/Select, and more). Where a capability lives
+in an Extended module rather than Core, that is called out, because older
+XLIFF 2.0 / 2.1 tools and some CAT tools support only a subset of the modules.
 
 KLF does not replace XLIFF. neokapi reads and writes XLIFF as an **interchange**
 format (see the [bilingual workflow](/kapi/bilingual-workflow)) so content can
@@ -30,23 +38,26 @@ content-exchange representation the pipeline operates on.
 
 ## Concept mapping
 
-| KLF                              | XLIFF 2.x                                           | Notes                                                                                                 |
-| -------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `File` envelope                  | `<xliff>` root                                      | KLF carries `generator`/`project`/`vocabulary` metadata; XLIFF carries `version`/`srcLang`/`trgLang`. |
-| `Document`                       | `<file>`                                            | One source artifact's worth of content.                                                               |
-| `Block`                          | `<unit>`                                            | The unit of translation tracking.                                                                     |
-| `source` `Run[]`                 | `<segment><source>` content                         | KLF has no structural segment; XLIFF wraps source/target in one or more `<segment>`s.                 |
-| `targets` map (locale → `Run[]`) | `<segment><target>`                                 | **KLF holds many target locales in one file; XLIFF is bilingual — one `trgLang` per file.**           |
-| `text` run                       | character data                                      |                                                                                                       |
-| `ph` run                         | `<ph>` (standalone code)                            | KLF carries the original token inline in `data`; XLIFF references it via `<originalData>`/`dataRef`.  |
-| `pcOpen` / `pcClose`             | `<pc>` (or `<sc>` / `<ec>`)                         | A paired code wrapping content.                                                                       |
-| `sub` run                        | sub-flows (`<ph>` with `subFlows`, referenced unit) | Embedded content extracted by a subfilter.                                                            |
-| `plural` run                     | _(no native equivalent)_                            | XLIFF has no first-class plural model — forms become separate units or tool-specific conventions.     |
-| `select` run                     | _(no native equivalent)_                            | As above.                                                                                             |
-| `Placeholder` metadata           | code metadata + `<originalData>`                    | KLF declares every placeholder once per block for validation.                                         |
-| `BlockProperties` (file/line/…)  | `<note>` / Metadata module                          | Provenance for translators and tools.                                                                 |
-| `.klfl` annotations              | `<mrk>` inline markers + Metadata module            | **KLF keeps annotations stand-off in a separate file; XLIFF inlines them.**                           |
-| Validation `kind`s               | Validation module                                   | Different scope; KLF's checks are placeholder- and paired-code-centric.                               |
+| KLF                              | XLIFF 2.2                                                                                   | Notes                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `File` envelope                  | `<xliff>` root                                                                              | KLF carries `generator`/`project`/`vocabulary` metadata; XLIFF carries `version`/`srcLang`/`trgLang`.                 |
+| `Document`                       | `<file>`                                                                                    | One source artifact's worth of content.                                                                               |
+| (no structural grouping)         | `<group>`                                                                                   | XLIFF can nest `<group>`s for hierarchy; KLF blocks are flat within a `Document`.                                     |
+| `Block`                          | `<unit>`                                                                                    | The unit of translation tracking.                                                                                     |
+| `source` `Run[]`                 | `<segment><source>` content                                                                 | KLF has no structural segment; XLIFF wraps source/target in one or more structural `<segment>`s per `<unit>`.         |
+| `targets` map (locale → `Run[]`) | `<segment><target>`                                                                         | **KLF holds many target locales in one file; XLIFF is bilingual — one `trgLang` per document.**                       |
+| (no per-target state)            | `<segment state>`                                                                           | XLIFF tracks `initial` → `translated` → `reviewed` → `final` (+ `subState`); KLF has no segment state machine.        |
+| `text` run                       | character data                                                                              |                                                                                                                       |
+| `ph` run                         | `<ph>` (standalone code)                                                                    | KLF carries the original token inline in `data`; XLIFF references native data via `<originalData>`/`dataRef`.         |
+| `pcOpen` / `pcClose`             | `<pc>` (or `<sc>` / `<ec>`)                                                                 | A paired code wrapping content. XLIFF distinguishes well-formed `<pc>` from overlapping `<sc>`/`<ec>` spans.          |
+| `RunConstraints` (per-run)       | `canCopy` / `canDelete` / `canReorder` / `canOverlap`                                       | Both formats encode per-code editing rules; XLIFF's are a standardized inline-code attribute set.                     |
+| `sub` run                        | `subFlows` / `subFlowsStart`/`subFlowsEnd` (referenced `<unit>` ids)                        | Embedded content extracted by a subfilter.                                                                            |
+| `plural` / `select` run          | **Plural, Gender, and Select Module** (Extended, `urn:…:xliff:pgs:1.0`)                     | First-class in KLF Core; in XLIFF an _Extended module_ added in 2.2 — and with no standard representation before 2.2. |
+| `Placeholder` metadata           | code metadata + `<originalData>`                                                            | KLF declares every placeholder once per block for validation.                                                         |
+| `BlockProperties` (file/line/…)  | `<note>` / Metadata module                                                                  | Provenance for translators and tools.                                                                                 |
+| `.klfl` annotations              | `<mrk>` / `<sm>`/`<em>` inline markers + Metadata module                                    | **KLF keeps annotations stand-off in a separate file; XLIFF inlines them.**                                           |
+| Validation `kind`s               | Validation Module (Extended)                                                                | Different scope; KLF's built-in checks are placeholder- and paired-code-centric.                                      |
+| (none)                           | Translation Candidates, Glossary, Format Style, Resource Data, Size/Length Restriction, ITS | XLIFF's Extended modules; KLF has no equivalents (see below).                                                         |
 
 ## Where they differ in philosophy
 
@@ -58,32 +69,77 @@ prefixes), which makes content hashing and line-diffing harder.
 
 **Inline model.** A KLF `Run` carries its original token inline (`data`), so a
 block's runs are self-contained. XLIFF separates the displayed code from its
-original data (`<originalData>` referenced by `dataRef`), which is powerful but
-adds a layer of indirection.
+native data (`<originalData>`/`<data>` referenced by `dataRef`,
+`dataRefStart`/`dataRefEnd`), which de-duplicates repeated codes and is robust,
+at the cost of a layer of indirection.
 
 **Segmentation is an overlay, not structure.** XLIFF makes `<segment>` a
-structural child of `<unit>`. KLF deliberately has _no_ `Segment` type:
-segmentation is an opt-in stand-off overlay anchored to run-index ranges
+structural child of `<unit>`, and gives each segment its own translation state.
+KLF deliberately has _no_ `Segment` type: segmentation is an opt-in stand-off
+overlay anchored to run-index ranges
 ([AD-002](/contribute/architecture/002-content-model)). A block is always a flat
 `Run[]`; how it is segmented is metadata layered on top, not a reshaping of the
 content.
 
-**Plural and select are first-class.** ICU plural and select constructs are
-structured runs in KLF — a `pivot` plus a map of `Run[]` per form — so markup and
-placeholders inside a clause stay first-class and a tool can reason about the
-whole group. XLIFF has no native plural construct; each form is typically a
-separate unit, losing the grouping.
+**Plural and select.** ICU plural and select constructs are first-class **Core**
+runs in KLF — a `pivot` plus a map of `Run[]` per form — so markup and
+placeholders inside a clause stay first-class and any tool can reason about the
+whole group. XLIFF gained an equivalent only in 2.2, as the optional **Plural,
+Gender, and Select Module** in Part 2 (Extended); XLIFF 2.0 / 2.1 had no standard
+plural representation, and Core-only or older tooling still does not understand
+the module. So the capability exists in both, but it is guaranteed everywhere in
+KLF and module-gated in XLIFF.
 
 **Stand-off annotations.** KLF annotations live in a companion `.klfl`
 JSON-Lines file, anchored to blocks by `block` / `run` / `range` / `form`
 anchors. They never touch the `.klf` content, so re-extracting source does not
 disturb them and a validator can detect orphaned anchors. XLIFF expresses
-annotations inline with `<mrk>` and through the Metadata module, interleaved with
-the content.
+annotations inline with `<mrk>`/`<sm>`/`<em>` and through the Metadata module,
+interleaved with the content.
 
 **Multi-target.** A single KLF file can hold translations for many locales in
-each block's `targets` map. XLIFF is bilingual by design: a file declares one
+each block's `targets` map. XLIFF is bilingual by design: a document declares one
 `srcLang` and one `trgLang`.
+
+## Where XLIFF is the stronger choice
+
+KLF is deliberately narrow — a deterministic content-exchange format for the
+pipeline. XLIFF is a mature, broad industry standard, and there are real areas
+where it is the better tool:
+
+- **Industry interoperability.** XLIFF is _the_ lingua franca of translation
+  vendors, CAT tools (Trados, memoQ, Phrase, …) and TMS platforms. Handing off
+  to a human translation supply chain means XLIFF, not KLF.
+- **A translation workflow state machine.** XLIFF's per-segment `state`
+  (`initial` → `translated` → `reviewed` → `final`) plus `subState` models the
+  lifecycle of a translation through review. KLF has no notion of target state;
+  it records committed content, not where it is in a workflow.
+- **Inline TM/MT match suggestions.** The **Translation Candidates** module
+  carries scored translation suggestions (`<mtc:matches>`) right next to the unit
+  they apply to. KLF has no inline match-candidate representation — matches live
+  in the separate TM, not in the exchange file.
+- **A rich, standardized module ecosystem.** XLIFF 2.2 Extended defines
+  **Glossary**, **Format Style**, **Metadata**, **Resource Data**, **Size and
+  Length Restriction** (enforce length limits on translations), **Validation**
+  (declare validation rules in the file), and an **ITS Module** that bridges to
+  the W3C [Internationalization Tag Set](https://www.w3.org/TR/its20/). KLF has
+  none of these; equivalent concerns are handled by separate neokapi subsystems
+  or `.klfl` annotations rather than standardized in the file.
+- **Formal conformance and processing requirements.** XLIFF specifies how a
+  conformant Agent must behave — e.g. an agent MUST preserve XLIFF-defined
+  elements it does not understand, and MUST NOT alter the `<skeleton>`. That
+  contract is what lets a chain of independent tools cooperate safely on the same
+  document.
+- **Standardized skeleton handling.** XLIFF's `<skeleton>` and original-data
+  model is part of the standard, so any conformant merger can reconstruct the
+  source. KLF's skeleton is an opaque, neokapi-internal payload.
+
+In short: reach for **XLIFF** when content crosses an organizational boundary
+into the broader localization industry, or when you need translation-workflow
+state, inline match candidates, or any of the Extended modules. Reach for
+**KLF** when content stays inside the neokapi/kapi pipeline and you want a
+deterministic, hashable, multi-target JSON representation that AI and
+programmatic tooling can manipulate directly.
 
 ## When to use which
 
@@ -95,12 +151,14 @@ AI-driven workflows.
 
 Use **XLIFF** when you need to interoperate with the wider localization industry
 — handing content to a translation vendor, or round-tripping through an external
-CAT tool or TMS. neokapi treats XLIFF as an interchange boundary: `kapi extract`
-can emit it and `kapi merge` can consume it, so you can move between KLF and
-XLIFF through the toolchain rather than choosing one forever.
+CAT tool or TMS — or when you need the workflow state, match candidates, or
+Extended modules described above. neokapi treats XLIFF as an interchange
+boundary: `kapi extract` can emit it and `kapi merge` can consume it, so you can
+move between KLF and XLIFF through the toolchain rather than choosing one forever.
 
 ## See also
 
 - [Specification](/reference/klf/spec) — the normative KLF schema.
 - [Bilingual workflow](/kapi/bilingual-workflow) — extracting to and merging from interchange formats.
 - [Format reference](/formats) — the full grid of format readers and writers, including XLIFF.
+- [XLIFF 2.2 Core (Part 1)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html) and [Extended (Part 2)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html) — the OASIS specification.
