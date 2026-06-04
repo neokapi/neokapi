@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -16,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/klz"
+	"github.com/spf13/cobra"
 )
 
 // A .klz is a single-file, serverless localization workspace — the portable
@@ -206,10 +209,41 @@ func (a *App) mergeFromKlz(ctx context.Context, klzPath, outOverride string) err
 
 // ─── info: show workspace status (dirty?) ───────────────────────
 
-// infoKlz prints the workspace's state: sources, locales, output layout, and
-// whether the cache is dirty (has work not yet packed into the .klz). Named
+// WorkspaceInfo is the structured state of a .klz workspace: its sources,
+// recipe, per-locale overlay coverage, and dirty flag. Emitted as text or,
+// with --json, as JSON — the latter drives the docs lab's inspection panel.
+type WorkspaceInfo struct {
+	Workspace   string         `json:"workspace"`
+	SourceLang  string         `json:"sourceLang,omitempty"`
+	TargetLangs []string       `json:"targetLangs,omitempty"`
+	Out         string         `json:"out,omitempty"`
+	Documents   []string       `json:"documents"`
+	Overlays    map[string]int `json:"overlays"` // locale → translated-block count
+	Dirty       bool           `json:"dirty"`
+}
+
+// FormatText renders the workspace info for humans.
+func (o WorkspaceInfo) FormatText(w io.Writer) error {
+	state := "clean (packed)"
+	if o.Dirty {
+		state = "dirty — run `kapi pack " + filepath.Base(o.Workspace) + "` to update the .klz"
+	}
+	fmt.Fprintf(w, "%s\n  documents: %d (%s)\n  locales:   %s\n  output:    %s\n",
+		o.Workspace, len(o.Documents), strings.Join(o.Documents, ", "),
+		strings.Join(o.TargetLangs, ", "), o.Out)
+	if len(o.Overlays) > 0 {
+		for _, l := range o.TargetLangs {
+			fmt.Fprintf(w, "  translated[%s]: %d\n", l, o.Overlays[l])
+		}
+	}
+	fmt.Fprintf(w, "  state:     %s\n", state)
+	return nil
+}
+
+// infoKlz prints the workspace's state (text, or JSON with --json). Named
 // `info` rather than `status` (which the bowrain plugin owns).
-func (a *App) infoKlz(ctx context.Context, klzPath string) error {
+func (a *App) infoKlz(cmd *cobra.Command, klzPath string) error {
+	ctx := cmd.Context()
 	c, err := a.ensureKlzCache(ctx, klzPath)
 	if err != nil {
 		return err
@@ -218,18 +252,26 @@ func (a *App) infoKlz(ctx context.Context, klzPath string) error {
 	if err != nil {
 		return err
 	}
-	state := "clean (packed)"
-	if dirty {
-		state = "dirty — run `kapi pack " + filepath.Base(klzPath) + "` to update the .klz"
+	info := WorkspaceInfo{Workspace: klzPath, Dirty: dirty, Overlays: map[string]int{}}
+	for _, s := range c.meta.Sources {
+		info.Documents = append(info.Documents, s.Name)
 	}
-	locales, out := "", ""
 	if c.meta.Recipe != nil {
-		locales = strings.Join(c.meta.Recipe.TargetLangs, ", ")
-		out = c.meta.Recipe.Out
+		info.SourceLang = c.meta.Recipe.SourceLang
+		info.TargetLangs = c.meta.Recipe.TargetLangs
+		info.Out = c.meta.Recipe.Out
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("%s\n  documents: %d\n  locales:   %s\n  output:    %s\n  state:     %s",
-		klzPath, len(c.meta.Sources), locales, out, state))
-	return nil
+	// Per-locale translated-block counts (overlays of kind targets/<locale>).
+	pkg, err := c.toPackage(ctx)
+	if err != nil {
+		return err
+	}
+	for _, ov := range pkg.Overlays {
+		if l, ok := strings.CutPrefix(ov.Kind, "targets/"); ok {
+			info.Overlays[l]++
+		}
+	}
+	return output.Print(cmd, info)
 }
 
 // packKlz ejects a workspace cache into its .klz (the explicit hand-off

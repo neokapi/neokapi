@@ -46,8 +46,13 @@ export interface LabRuntime {
   /** Run a command with tracing; argv uses absolute /project paths. */
   trace: (argv: string[]) => Promise<TraceOutcome>;
   run: (argv: string[]) => Promise<number>;
+  /** Run a command capturing stdout+stderr (e.g. `info --json`). */
+  runCapture: (argv: string[]) => Promise<{ code: number; output: string }>;
   /** Read a file from the in-memory filesystem (decoded UTF-8), or null. */
   readFile: (path: string) => string | null;
+  /** Read raw bytes from the in-memory filesystem, or null (for binary
+   *  outputs like .docx — used to confirm a valid OOXML zip was produced). */
+  readBytes: (path: string) => Uint8Array | null;
   /** Run a KLF spec operation against the canonical Go engine (synchronous). */
   klf: (req: KlfRequest) => KlfResponse;
 }
@@ -143,11 +148,39 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     return serialized(() => rt.run(argv));
   }, []);
 
+  const runCapture = useCallback(
+    async (argv: string[]): Promise<{ code: number; output: string }> => {
+      const rt = runtimeRef.current;
+      if (!rt) return { code: 1, output: "runtime not ready" };
+      return serialized(async () => {
+        let captured = "";
+        rt.setSinks(
+          (s) => (captured += s),
+          (s) => (captured += s),
+        );
+        const code = await rt.run(argv);
+        rt.setSinks(noop, noop);
+        return { code, output: captured };
+      });
+    },
+    [],
+  );
+
   const readFile = useCallback((path: string): string | null => {
     const rt = runtimeRef.current;
     if (!rt) return null;
     try {
       return new TextDecoder().decode(rt.vol.readFile(path));
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const readBytes = useCallback((path: string): Uint8Array | null => {
+    const rt = runtimeRef.current;
+    if (!rt) return null;
+    try {
+      return rt.vol.readFile(path);
     } catch {
       return null;
     }
@@ -169,7 +202,9 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     inspect,
     trace,
     run,
+    runCapture,
     readFile,
+    readBytes,
     klf,
   };
 }

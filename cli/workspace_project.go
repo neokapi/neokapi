@@ -57,7 +57,7 @@ machine and "kapi unpack" it to resume work there.`,
 // (has work not yet packed into the .klz). Named `info` because the bowrain
 // plugin owns `status`.
 func (a *App) NewInfoCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "info <work.klz>",
 		Short:   "Show a .klz workspace's state (dirty?)",
 		GroupID: "content",
@@ -67,9 +67,11 @@ func (a *App) NewInfoCmd() *cobra.Command {
 			if !isKlzPath(args[0]) {
 				return errors.New("info: expects a .klz workspace")
 			}
-			return a.infoKlz(cmd.Context(), args[0])
+			return a.infoKlz(cmd, args[0])
 		},
 	}
+	output.AddFlags(cmd)
+	return cmd
 }
 
 // NewUnpackCmd creates the "unpack" command: rehydrate a project's working

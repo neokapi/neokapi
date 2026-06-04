@@ -31,6 +31,17 @@ kapi merge work.klz -o l10n/                               # emit → l10n/<lang
 No project, no server — one portable file you can hand to another machine and
 pick up where it was left.
 
+## Try it
+
+The lab below runs the **real kapi engine in your browser** (WebAssembly) — pick a
+sample (including binary Word/Excel documents), step through
+`extract → pseudo-translate → pack → merge`, and watch the workspace's recipe,
+per-locale overlays, and dirty → clean state update after each step.
+
+import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
+
+<WorkspaceExplorer defaultSampleId="json" />
+
 ## Extract — ingest sources
 
 `extract` pulls the source documents into the workspace and records a small
