@@ -15,6 +15,7 @@ Env:
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -53,6 +54,7 @@ def test_kinds(d: str) -> list[str]:
     kinds = []
     probes = [
         "reader_test", "writer_test", "roundtrip_test", "skeleton_test",
+        "snippets_test",
         "spec_test", "invariants_test", "malformed_test", "acceptance_test",
         "corpus_test", "upstream_test", "subfilter_test", "config_test",
         "schema_test", "transform_test", "fuzz",
@@ -106,7 +108,7 @@ def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str) -> str:
     if not has("reader.go"):
         return "L0? (no reader.go -- stub/internal?)"
     # L1 floor
-    l1 = has("writer.go") and has("config.go") and (k("roundtrip") or k("skeleton"))
+    l1 = has("writer.go") and has("config.go") and (k("roundtrip") or k("skeleton") or k("snippets"))
     if not l1:
         return "L0 (missing writer/config or a fidelity test)"
     harvest = counterpart.startswith("none")
@@ -138,17 +140,107 @@ def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str) -> str:
     return "L3+ (assess edge-case matrix, schema_test, xfail hygiene for L4 by hand)"
 
 
+def floor_ceiling(coarse: str) -> tuple[str, str]:
+    """Map the human coarse_level string to (deterministic base, promotable ceiling).
+
+    `base` is the level the on-disk files alone guarantee; `ceiling` is the
+    highest a by-hand/LLM judgment may promote to. A scorer must keep the
+    published level within [base, ceiling] — judgment can only decide the
+    boundary the files cannot (harvest L2->L3, parity L3->L4), never invent a
+    tier whose required files are absent.
+    """
+    if coarse.startswith("L0"):
+        return "L0", "L0"
+    if coarse.startswith("L1"):
+        return "L1", "L1"
+    if coarse.startswith("L2+"):
+        return "L2", "L3"  # harvest ceiling: L3 reachable by the self-contained ladder
+    if coarse.startswith("L2"):
+        return "L2", "L2"
+    if coarse.startswith("L3"):
+        return "L3", "L4"  # parity L3 met; L4 is a by-hand quality call
+    return "L0", "L4"
+
+
+def _ftype(fmt: str, counterpart: str) -> str:
+    if fmt == "pdf":
+        return "read-only"
+    if fmt == "splicedlines":
+        return "internal"
+    return "harvest" if counterpart.startswith("none") else "parity"
+
+
+def audit_one(fmt: str) -> dict:
+    """Deterministic file-signal audit for one format as a machine contract."""
+    d = os.path.join(REPO, "core", "formats", fmt)
+    counterpart = okapi_counterpart(fmt)
+    parity_test = has_file(os.path.join(REPO, "cli", "parity", "formats"), f"{fmt}_spec_test.go")
+    coarse = coarse_level(d, fmt, parity_test, counterpart)
+    base, ceiling = floor_ceiling(coarse)
+    return {
+        "format": fmt,
+        "type": _ftype(fmt, counterpart),
+        "okapi_counterpart": counterpart,
+        "has": {
+            "reader": has_file(d, "reader.go"),
+            "writer": has_file(d, "writer.go"),
+            "config": has_file(d, "config.go"),
+            "schema": has_file(d, "schema.go"),
+            "spec_yaml": has_file(d, "spec.yaml"),
+            "transform": has_file(d, "transform.go"),
+            "testdata": os.path.isdir(os.path.join(d, "testdata")),
+            "parity_spec_test": parity_test,
+            "annotations": has_file(d, "parity-annotations.yaml"),
+        },
+        "applymap_rejects_unknown": applymap_rejects_unknown(os.path.join(d, "config.go")),
+        "test_kinds": test_kinds(d),
+        "coarse_level": coarse,
+        "base": base,
+        "ceiling": ceiling,
+    }
+
+
+def all_formats() -> list[str]:
+    base = os.path.join(REPO, "core", "formats")
+    out = []
+    for name in sorted(os.listdir(base)):
+        d = os.path.join(base, name)
+        if not os.path.isdir(d) or name in NOT_A_FORMAT:
+            continue
+        if not has_file(d, "reader.go"):
+            continue
+        out.append(name)
+    return out
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
+    argv = sys.argv[1:]
+    json_mode = "--json" in argv
+    all_mode = "--all" in argv
+    pos = [a for a in argv if not a.startswith("-")]
+
+    if all_mode:
+        data = [audit_one(f) for f in all_formats()]
+        if json_mode:
+            print(json.dumps(data, indent=2))
+        else:
+            for x in data:
+                print(f"{x['format']}: {x['coarse_level']}")
+        return 0
+
+    if len(pos) != 1:
         print(__doc__)
         return 2
-    fmt = sys.argv[1].strip().lstrip("/")
+    fmt = pos[0].strip().lstrip("/")
     d = os.path.join(REPO, "core", "formats", fmt)
     if not os.path.isdir(d):
         print(f"!! no such format dir: core/formats/{fmt}/")
         return 1
     if fmt in NOT_A_FORMAT:
         print(f"** {fmt} is not a real format (thin/internal) -- skip.")
+        return 0
+    if json_mode:
+        print(json.dumps(audit_one(fmt), indent=2))
         return 0
 
     parity_test = has_file(os.path.join(REPO, "cli", "parity", "formats"),

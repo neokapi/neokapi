@@ -36,6 +36,33 @@ Two tools operationalize this document:
   appends a dashboard trend snapshot. (For a single format, the
   `refresh-format-maturity` skill does the same audit interactively.)
 
+### How scores are computed (reproducible by design — scorer v2)
+
+The triage workflow does **not** let the model pick a level; the level is
+*computed* from two inputs so re-runs are reproducible:
+
+1. **A deterministic file floor** — `audit-format.py --json` pins the mechanical
+   dimensions (reader/writer/config/spec/parity/malformed/corpus presence) and a
+   `base..ceiling` band. The model cannot push a level above what the files
+   support, nor re-decide a file fact.
+2. **Three evidence-cited quality dimensions** — the model may only *demote*
+   Writer (byte-equality vs "no error"), Parity (xfail hygiene) and Corpus
+   (real vs synthetic), each requiring a `file:line`/`TestName` citation or it is
+   dropped. These move only the L3↔L4 boundary.
+
+The published level is then **sticky-anchored** to the prior dashboard: a move
+publishes only with a cited `delta_justification`; otherwise the prior level
+stands. Verify the variance bound deterministically (no LLM cost):
+
+```
+python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json \
+  | node .skills/refresh-format-maturity/scripts/repro-check.mjs
+```
+
+It reports, per format, the level range over *every* combination of the quality
+dimensions — `PINNED` (spread 0) or a single-step L3↔L4 boundary. Any
+`>=2-STEP` format is a scoring leak to fix.
+
 ## Maturity levels
 
 A format sits at exactly **one** level: the highest level whose criteria are
