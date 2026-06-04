@@ -115,99 +115,81 @@ func TestPackDeterministicWithoutLog(t *testing.T) {
 		"packs of the same state must be byte-identical without --log")
 }
 
-// TestKlzRunIOAdHoc verifies .klz as a first-class in-progress I/O format
-// with NO project: write the working state with `-o work.klz`, then resume
-// from it to produce output byte-identical to a one-shot run.
-func TestKlzRunIOAdHoc(t *testing.T) {
-	dir := t.TempDir()
-	src := writeWS(t, dir, "app.json", wsSource)
+// .klz workspace: extract → transform-in-place → merge (AD-025 §5). The
+// deterministic pseudo-translate tool keeps results reproducible.
 
-	oneShot := filepath.Join(dir, "oneshot.json")
-	kapi(t, "pseudo-translate", src, "-o", oneShot, "--target-lang", "fr-FR")
-
-	work := filepath.Join(dir, "work.klz")
-	out := kapi(t, "pseudo-translate", src, "-o", work, "--target-lang", "fr-FR")
-	assert.Contains(t, out, "Packed")
-	assert.FileExists(t, work)
-
-	resumed := filepath.Join(dir, "resumed.json")
-	kapi(t, "pseudo-translate", work, "-o", resumed, "--target-lang", "fr-FR")
-
-	assert.Equal(t, readFile(t, oneShot), readFile(t, resumed),
-		"resuming a .klz must produce output byte-identical to a one-shot run")
-}
-
-// TestKlzRunIOContinue verifies .klz → .klz: resume a package and re-pack to
-// carry the work forward.
-func TestKlzRunIOContinue(t *testing.T) {
-	dir := t.TempDir()
-	src := writeWS(t, dir, "app.json", wsSource)
-	oneShot := filepath.Join(dir, "oneshot.json")
-	kapi(t, "pseudo-translate", src, "-o", oneShot, "--target-lang", "fr-FR")
-
-	w1 := filepath.Join(dir, "w1.klz")
-	w2 := filepath.Join(dir, "w2.klz")
-	kapi(t, "pseudo-translate", src, "-o", w1, "--target-lang", "fr-FR")
-	kapi(t, "pseudo-translate", w1, "-o", w2, "--target-lang", "fr-FR")
-	final := filepath.Join(dir, "final.json")
-	kapi(t, "pseudo-translate", w2, "-o", final, "--target-lang", "fr-FR")
-	assert.Equal(t, readFile(t, oneShot), readFile(t, final))
-}
-
-// TestKlzRunIOMultiSource verifies several inputs pack into one .klz with
-// per-document isolation — block IDs are only unique within a document, so a
-// shared keyspace would cross-contaminate targets.
-func TestKlzRunIOMultiSource(t *testing.T) {
+// TestKlzExtractTransformMerge verifies the full ad-hoc workspace flow with
+// no project, and that merged output equals a one-shot run per document.
+func TestKlzExtractTransformMerge(t *testing.T) {
 	dir := t.TempDir()
 	a := writeWS(t, dir, "a.json", `{"greeting":"Hello world"}`)
 	b := writeWS(t, dir, "b.json", `{"x":"Another string"}`)
 
-	aExp := filepath.Join(dir, "a.expected.json")
-	bExp := filepath.Join(dir, "b.expected.json")
-	kapi(t, "pseudo-translate", a, "-o", aExp, "--target-lang", "fr-FR")
-	kapi(t, "pseudo-translate", b, "-o", bExp, "--target-lang", "fr-FR")
-
-	multi := filepath.Join(dir, "multi.klz")
-	kapi(t, "pseudo-translate", a, b, "-o", multi, "--target-lang", "fr-FR")
-	kapi(t, "pseudo-translate", multi, "-o", filepath.Join(dir, "out", "{name}.json"), "--target-lang", "fr-FR")
-
-	assert.Equal(t, readFile(t, aExp), readFile(t, filepath.Join(dir, "out", "a.json")))
-	assert.Equal(t, readFile(t, bExp), readFile(t, filepath.Join(dir, "out", "b.json")),
-		"each document's targets must stay isolated in a multi-source .klz")
-}
-
-// TestKlzResumeToDirectory verifies resuming a multi-source .klz into a bare
-// directory writes one file per source, named after the source.
-func TestKlzResumeToDirectory(t *testing.T) {
-	dir := t.TempDir()
-	a := writeWS(t, dir, "a.json", `{"greeting":"Hello world"}`)
-	b := writeWS(t, dir, "b.json", `{"x":"Another string"}`)
-
-	aExp := filepath.Join(dir, "a.expected.json")
-	bExp := filepath.Join(dir, "b.expected.json")
+	aExp := filepath.Join(dir, "a.exp.json")
+	bExp := filepath.Join(dir, "b.exp.json")
 	kapi(t, "pseudo-translate", a, "-o", aExp, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", b, "-o", bExp, "--target-lang", "qps")
 
-	pkg := filepath.Join(dir, "pack.klz")
-	kapi(t, "pseudo-translate", a, b, "-o", pkg, "--target-lang", "qps")
+	work := filepath.Join(dir, "work.klz")
+	out := kapi(t, "extract", a, b, "-o", work, "--target-lang", "qps")
+	assert.Contains(t, out, "Extracted 2")
 
-	outDir := filepath.Join(dir, "qps") + "/"
-	kapi(t, "pseudo-translate", pkg, "-o", outDir, "--target-lang", "qps")
+	kapi(t, "pseudo-translate", work) // transform in place (qps from recipe)
 
-	assert.Equal(t, readFile(t, aExp), readFile(t, filepath.Join(dir, "qps", "a.json")))
-	assert.Equal(t, readFile(t, bExp), readFile(t, filepath.Join(dir, "qps", "b.json")))
+	kapi(t, "merge", work, "-o", filepath.Join(dir, "l10n"))
+	assert.Equal(t, readFile(t, aExp), readFile(t, filepath.Join(dir, "l10n", "a.json")))
+	assert.Equal(t, readFile(t, bExp), readFile(t, filepath.Join(dir, "l10n", "b.json")),
+		"each document's targets must stay isolated through the workspace")
 }
 
-// TestKlzResumeRequiresOutput verifies reading a .klz without -o errors
-// rather than silently writing into a temp dir.
-func TestKlzResumeRequiresOutput(t *testing.T) {
+// TestKlzMultiLocaleAccumulates verifies transforms accumulate locales and
+// merge emits one file per source × locale under <out>/<lang>/.
+func TestKlzMultiLocaleAccumulates(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+
+	kapi(t, "pseudo-translate", work, "--target-lang", "fr")
+	kapi(t, "pseudo-translate", work, "--target-lang", "qps")
+
+	kapi(t, "merge", work, "-o", filepath.Join(dir, "l10n"))
+	assert.FileExists(t, filepath.Join(dir, "l10n", "fr", "app.json"))
+	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
+}
+
+// TestKlzRecipeRemembersOutput verifies the recipe (locales + out layout)
+// travels with the .klz, so `merge` needs no flags.
+func TestKlzRecipeRemembersOutput(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "fr,qps",
+		"--out", filepath.Join(dir, "l10n", "{lang}", "{name}.{ext}"))
+
+	kapi(t, "pseudo-translate", work, "--target-lang", "fr")
+	kapi(t, "pseudo-translate", work, "--target-lang", "qps")
+
+	kapi(t, "merge", work) // no -o: uses the recipe's locales + out layout
+	assert.FileExists(t, filepath.Join(dir, "l10n", "fr", "app.json"))
+	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
+}
+
+// TestKlzTransformGuards verifies the model's guards: creating a .klz needs
+// extract; emitting needs merge.
+func TestKlzTransformGuards(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", wsSource)
-	work := filepath.Join(dir, "work.klz")
-	kapi(t, "pseudo-translate", src, "-o", work, "--target-lang", "fr-FR")
 
-	_, err := kapiAllowFail(t, "pseudo-translate", work, "--target-lang", "fr-FR")
-	require.Error(t, err, "resuming a .klz without -o must error")
+	// A tool can't write a .klz directly — that's extract's job.
+	_, err := kapiAllowFail(t, "pseudo-translate", src, "-o", filepath.Join(dir, "x.klz"), "--target-lang", "qps")
+	require.Error(t, err)
+
+	// A tool on a .klz with -o is rejected (transform is in place; use merge).
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+	_, err = kapiAllowFail(t, "pseudo-translate", work, "-o", filepath.Join(dir, "out.json"))
+	require.Error(t, err)
 }
 
 // readFileBytes reads a file's raw bytes (readFile, the string variant,

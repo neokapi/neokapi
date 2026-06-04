@@ -86,13 +86,21 @@ filename. Mixed target locales in one batch are fine — merge handles
 each input independently.`,
 		Example: `  kapi merge -i out/app.en-US-to-fr-FR.xliff
   kapi merge -i file1.xliff -i file2.xliff
-  kapi merge -i vendor-return/ --no-tm-update`,
+  kapi merge -i vendor-return/ --no-tm-update
+  kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Ad-hoc workspace: `merge work.klz -o <dir>` emits the localized
+			// files from a .klz (no project needed).
+			if len(args) == 1 && isKlzPath(args[0]) {
+				out, _ := cmd.Flags().GetString("output")
+				return a.mergeFromKlz(cmd.Context(), args[0], out)
+			}
 			return a.runMerge(cmd)
 		},
 	}
 	AddProjectFlag(cmd)
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
+	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .klz workspace")
 	cmd.Flags().Bool("no-tm-update", false, "skip TM write-back")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	return cmd

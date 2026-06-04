@@ -40,13 +40,17 @@ flows:
 EOF
 }
 
-# ── .klz as ad-hoc run I/O (no project) ───────────────────────────────────
-echo "klz-smoke: .klz run I/O (ad-hoc resume == one-shot)"
+# ── .klz ad-hoc workspace: extract → transform → merge (no project) ────────
+echo "klz-smoke: .klz workspace (extract → transform → merge == one-shot)"
 printf '{"greeting":"Hello world","farewell":"Goodbye now"}' > "$WORK/app.json"
-( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate app.json -o oneshot.json --target-lang fr-FR >/dev/null )
-( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate app.json -o work.klz --target-lang fr-FR >/dev/null )
-( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate work.klz -o resumed.json --target-lang fr-FR >/dev/null )
-diff -q "$WORK/oneshot.json" "$WORK/resumed.json" >/dev/null || { echo "FAIL: .klz resume differs from one-shot"; exit 1; }
+(
+  cd "$WORK" && export KAPI_NO_PROJECT=1
+  "$KAPI" pseudo-translate app.json -o oneshot.json --target-lang qps >/dev/null
+  "$KAPI" extract app.json -o work.klz --target-lang qps >/dev/null
+  "$KAPI" pseudo-translate work.klz >/dev/null            # transform in place
+  "$KAPI" merge work.klz -o l10n/ >/dev/null              # emit
+)
+diff -q "$WORK/oneshot.json" "$WORK/l10n/app.json" >/dev/null || { echo "FAIL: workspace merge differs from one-shot"; exit 1; }
 
 mkproject "$WORK/p1"
 REC="$WORK/p1/demo.kapi"

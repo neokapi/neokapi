@@ -59,10 +59,13 @@ project.klz
 ├── media/<name>           opaque blobs
 │
 │   ── working-state members (AD-025 §5) ──
-├── source/<name>          original input document(s) (for run-written packages)
+├── source/<name>          ingested source document(s)
 ├── overlays.klfo          in-progress overlays  (targets, annotations, …)
 └── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
+
+(A workspace `.klz` also carries a `recipe` block in `manifest.json` — its target
+locales and output layout — kept out of the `rootHash`.)
 
 Because every member is a native lossless format, the whole package is lossless:
 unpacking can seed a fresh translation memory, termbase, and block store, and the
@@ -85,20 +88,20 @@ A `.klz` is not only an at-rest snapshot of finished content — it can also car
 **in-progress working state**, so work can stop, move between machines, and resume
 where it left off. There are two routes, and neither needs per-step CLI verbs:
 
-- **`.klz` as run I/O (ad-hoc).** Any tool or flow writes a `.klz` when the output
-  has a `.klz` extension, and resumes when the input is one. No project required —
-  the `.klz` *is* the workspace.
+- **`.klz` as an ad-hoc workspace (`extract` / transform / `merge`).** No project
+  required — the `.klz` *is* the workspace. `extract` ingests sources, running a
+  tool or flow on the `.klz` transforms it in place, and `merge` emits the
+  finished files. A small **recipe** (target locales + output layout) travels with
+  the file, so `merge` needs no flags.
 
   ```bash
-  kapi pseudo-translate app.json -o work.klz   # write the in-progress package
-  #   ... later, or on another machine ...
-  kapi pseudo-translate work.klz  -o app.fr.json  # resume → finished file
+  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
+  kapi ai-translate work.klz --target-lang fr                # transform in place
+  kapi merge   work.klz -o l10n/                             # emit → l10n/<lang>/<name>
   ```
 
-  Resuming reuses the work in the package instead of recomputing it, so the
-  output is byte-identical to a one-shot run and the expensive steps don't re-run.
-  Several inputs pack into one `.klz`; resume writes them back with an `-o`
-  template, each document's work kept isolated.
+  Transforming reuses the work already in the package instead of recomputing it,
+  so the expensive steps don't re-run, and each document's work stays isolated.
 
 - **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
   state also includes the project TM and termbase. `kapi pack` snapshots all of
@@ -111,11 +114,12 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
   kapi unpack snapshot.klz      # rehydrate elsewhere, then run to resume
   ```
 
-The working-state member is `overlays.klfo`: the in-progress overlays
-(`targets/<locale>`, `annotations/<name>`, segmentation, …) keyed by
-`(kind, blockHash)`, alongside the `source/<name>` documents a run-written package
-carries so it can be resumed. Overlays in a multi-document package are scoped per
-source, since block ids are only unique within one document.
+The working-state members are `source/<name>` (the ingested documents) and
+`overlays.klfo` (the in-progress overlays — `targets/<locale>`,
+`annotations/<name>`, segmentation, … keyed by `(kind, blockHash)`). Overlays in a
+multi-document package are scoped per source, since block ids are only unique
+within one document. A `recipe` block in the manifest (not a content member, so
+out of the `rootHash`) carries the workspace's target locales and output layout.
 
 ### Progress is derived from content, not a journal
 

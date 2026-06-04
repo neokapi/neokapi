@@ -110,16 +110,17 @@ A `.klz` is both an at-rest snapshot of finished content **and** a carrier of
 where it left off. The design delivers this through existing-grain mechanisms
 rather than a step-by-step CLI verb family:
 
-- **`.klz` as run I/O (ad-hoc).** A `.klz` output (`-o work.klz`) or input
-  (`-i work.klz`) on any tool or `run` routes through a klz-aware path that runs
-  the flow against a persistent block store. Writing exports the store's overlays
-  plus the original `source/<name>` bytes into the package; reading warms a fresh
-  store from those overlays and re-streams the source through the flow, so
-  already-done work hydrates instead of recomputing and the finished output is
-  byte-identical to a one-shot run. No project is required — the `.klz` *is* the
-  workspace. Because block ids are only unique within one document, a multi-source
-  package scopes each overlay to its source (`OverlayDoc.Source`) and resumes each
-  against its own store.
+- **`.klz` as an ad-hoc workspace.** Three pipeline-stage verbs operate on a
+  `.klz` with no project: `extract <sources> -o work.klz` ingests the source
+  documents (and records a `Recipe` — target locales + output layout); running any
+  tool or `run` flow *on* the `.klz` transforms it **in place** (each source is
+  streamed through the flow against a per-source persistent store and the resulting
+  overlays are folded back into the package); and `merge work.klz` emits the
+  finished documents (hydrating the stored target overlays onto each source, one
+  file per source × locale). Because block ids are only unique within one document,
+  a multi-source package scopes each overlay to its source (`OverlayDoc.Source`)
+  and runs each against its own store. Transforming reuses overlays already
+  present rather than recomputing, so output equals a one-shot run.
 - **Cached resume (project).** A project run executes against the project's
   persistent block store (`core/blockstore` at `.kapi/cache/blocks.db`, wired via
   `flow.WithBlockStore`). Because the store is append-only and content-addressed —
@@ -180,14 +181,15 @@ tracking, whose state is wholly in the overlays.)
   `klz` package round-trip + a cache-internal store round-trip.
 - The working-state / hand-off capability (§5) is implemented
   ([GitHub issue #787](https://github.com/neokapi/neokapi/issues/787)): the
-  `.klz` carries `overlays.klfo` (in-progress overlays) + `source/<name>`; the
-  block-store exporter/loader (`core/blockstore/exporter`) is the inverse of the
-  importer; `flow.FileRunner` runs against a persistent store. A `.klz` on either
-  side of any tool / `run` routes through `cli/klzrun.go` (write the working
-  state, resume from it — ad-hoc, no project), and `pack` / `unpack` snapshot and
-  rehydrate a whole project's state. Progress is derived from the overlays present
-  (no journal); the optional advisory `history.jsonl` (hash-chained, opt-in
-  `pack --log`, verified on `unpack`) is
+  `.klz` carries `overlays.klfo` (in-progress overlays) + `source/<name>` + a
+  manifest `recipe`; the block-store exporter/loader (`core/blockstore/exporter`)
+  is the inverse of the importer; `flow.FileRunner` runs against a persistent
+  store. The ad-hoc workspace verbs live in `cli/klzworkspace.go` —
+  `extract`/transform-in-place/`merge`, dispatched from the `extract`, `merge`,
+  `run`, and tool commands — and `pack` / `unpack` snapshot and rehydrate a whole
+  project's state. Progress is derived from the overlays present (no journal); the
+  optional advisory `history.jsonl` (hash-chained, opt-in `pack --log`, verified
+  on `unpack`) is
   excluded from the content `rootHash`. Covered by unit tests (klz overlays +
   history-chain round-trip and tamper detection; the exporter store round-trip),
   the `kapi/e2e` suite (pack/unpack round-trip, cached-resume byte-equality,

@@ -93,18 +93,22 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
-	// A .klz on either side of a tool run routes through the klz-aware
-	// workflow, so `kapi pseudo-translate app.json -o work.klz` writes the
-	// in-progress state and `kapi pseudo-translate -i work.klz -o app.json`
-	// resumes from it (see runKlzWorkflow).
-	if klzInvolved(cfg.Files, cfg.OutputTemplate) {
-		return a.runKlzWorkflow(ctx, nil, cfg.ToolName, func() ([]tool.Tool, func(), error) {
+	// A tool run on a single .klz transforms the workspace IN PLACE; output
+	// files come later from `kapi merge`.
+	if klzWorkspaceInput(cfg.Files) {
+		if cfg.OutputTemplate != "" {
+			return errKlzTransformOutput
+		}
+		return a.transformKlzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
 			t, terr := cfg.NewTool()
 			if terr != nil {
 				return nil, nil, terr
 			}
 			return []tool.Tool{t}, nil, nil
-		}, cfg.Files, cfg.OutputTemplate, cfg.TargetLang)
+		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName))
+	}
+	if isKlzPath(cfg.OutputTemplate) {
+		return errKlzCreateWithExtract
 	}
 
 	files, err := resolveFiles(cfg.Files)

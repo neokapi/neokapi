@@ -86,6 +86,10 @@ type Package struct {
 	// package for hand-off convenience but is excluded from RootHash and
 	// ignored by resume/status — deleting it loses no work. Empty by default.
 	History []byte
+	// Recipe is the workspace intent (target locales + output layout) a
+	// run-built .klz carries so config travels with the file. nil for a
+	// plain at-rest package. Stored in the manifest, not the RootHash.
+	Recipe *Recipe
 }
 
 // GeneratorInfo identifies the tool that produced the package.
@@ -135,6 +139,36 @@ type OverlayDoc struct {
 	Source string `json:"source,omitempty"`
 }
 
+// Recipe is the small amount of intent a workspace .klz carries so config
+// travels with the file — the localization equivalent of a one-file .kapi
+// project. It lets `merge` emit without re-specifying locales or output
+// layout. Stored in the manifest (metadata, not a content member); it is
+// not part of the content RootHash.
+type Recipe struct {
+	// SourceLang is the source locale the documents were extracted in.
+	SourceLang string `json:"sourceLang,omitempty"`
+	// TargetLangs are the locales worked (and to emit on merge), in
+	// first-seen order.
+	TargetLangs []string `json:"targetLangs,omitempty"`
+	// Out is the output path template merge writes to (placeholders
+	// {name} {lang} {ext} {dir}); empty means the default per-locale layout.
+	Out string `json:"out,omitempty"`
+}
+
+// AddTargetLang appends a locale to the recipe if not already present,
+// preserving first-seen order.
+func (r *Recipe) AddTargetLang(locale string) {
+	if locale == "" {
+		return
+	}
+	for _, l := range r.TargetLangs {
+		if l == locale {
+			return
+		}
+	}
+	r.TargetLangs = append(r.TargetLangs, locale)
+}
+
 // Manifest is the package inventory written as manifest.json. RootHash is a
 // Merkle digest over the (sorted) member content hashes, giving the package a
 // stable content identity independent of zip framing.
@@ -145,6 +179,9 @@ type Manifest struct {
 	Generator     *GeneratorInfo `json:"generator,omitempty"`
 	Members       []Member       `json:"members"`
 	RootHash      string         `json:"rootHash"`
+	// Recipe is workspace intent (target locales + output layout). Metadata,
+	// kept out of the content RootHash (AD-025 §5).
+	Recipe *Recipe `json:"recipe,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -173,6 +210,7 @@ func (p *Package) Marshal() ([]byte, error) {
 		Created:       p.Created,
 		Generator:     p.Generator,
 		RootHash:      rootHash(members),
+		Recipe:        p.Recipe,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -328,7 +366,7 @@ func Unmarshal(data []byte) (*Package, error) {
 		return nil, fmt.Errorf("klz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 
-	pkg := &Package{Created: manifest.Created, Generator: manifest.Generator}
+	pkg := &Package{Created: manifest.Created, Generator: manifest.Generator, Recipe: manifest.Recipe}
 	verify := make([]memberBytes, 0, len(manifest.Members))
 
 	for _, m := range manifest.Members {

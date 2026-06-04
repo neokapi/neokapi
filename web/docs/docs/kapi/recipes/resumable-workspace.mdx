@@ -1,96 +1,90 @@
 ---
 id: resumable-workspace
-title: "Work in progress with .klz"
-sidebar_label: "Hand-off & resume"
+title: "Work in a .klz workspace"
+sidebar_label: "Workspace (.klz)"
 sidebar_position: 6
-description: "Write a flow's in-progress state to a .klz, then resume from it later — ad-hoc with any tool or run, or as a project-wide snapshot with pack / unpack. Already-done work is never recomputed."
-keywords: [klz, resume, handoff, working state, pack, unpack, cache, overlays, AD-025]
+description: "A .klz is a single-file, serverless localization workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config (locales, output layout) travels with the file."
+keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff, AD-025]
 ---
 
-# Work in progress with `.klz`
+# Work in a `.klz` workspace
 
-Some work doesn't finish in one place or one shot. You might pre-translate now and
-review later, or segment on one machine and translate on another. A **`.klz`** is
-the portable in-progress form of a flow: write it instead of a finished file, then
-resume from it whenever you like.
+A `.klz` is a **single-file, serverless localization workspace** — the portable
+equivalent of a `.kapi` project's working state. You build it up and emit from it
+with three verbs that map to the pipeline stages:
 
-## `.klz` as in-progress output
-
-Any tool or flow can write a `.klz` instead of a translated file — just give the
-output a `.klz` extension:
-
-```bash
-kapi pseudo-translate app.json -o work.klz      # writes the working state, not app.fr.json
-```
-
-`work.klz` carries the original source plus the work done so far (the per-block
-overlays). To produce the finished document, run again **from** the `.klz`:
+| Stage | Verb |
+|---|---|
+| **reader** — ingest sources | `kapi extract <sources> -o work.klz` |
+| **transform** — run tools, in place | `kapi <tool> work.klz` · `kapi run <flow> -i work.klz` |
+| **writer** — emit finished files | `kapi merge work.klz -o <dir>` |
 
 ```bash
-kapi pseudo-translate work.klz -o app.fr.json   # resumes, writes the finished file
+kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
+kapi ai-translate work.klz --target-lang fr                 # transform in place
+kapi pseudo-translate work.klz --target-lang qps           # …accumulates
+kapi merge work.klz -o l10n/                               # emit → l10n/<lang>/<name>
 ```
 
-The result is byte-identical to a one-shot `kapi pseudo-translate app.json -o
-app.fr.json` — the `.klz` round-trip just lets you stop and continue. This needs
-**no project**: the `.klz` *is* the workspace.
+No project, no server — one portable file you can hand to another machine and
+pick up where it was left.
 
-Resuming reuses the work already in the package instead of recomputing it, so the
-expensive steps (AI translation, MT) don't run again. You can also continue into a
-new `.klz` to carry the work forward, or hand it to another machine in between:
+## Extract — ingest sources
+
+`extract` pulls the source documents into the workspace and records a small
+**recipe** so config travels with the file:
 
 ```bash
-# Machine A — start the work, save the in-progress package
-kapi run ai-translate-qa -i app.json -o work.klz
-
-#   ... copy work.klz to machine B (no server, no account needed) ...
-
-# Machine B — resume and finish
-kapi run ai-translate-qa -i work.klz -o app.fr.json
+kapi extract src/**/*.json -o work.klz \
+  --target-lang fr,qps \
+  --out 'l10n/{lang}/{name}.{ext}'
 ```
 
-Several inputs pack into one `.klz`, and resume writes them back out — into a
-directory (one file per source, keeping each name) or via an `-o` template. Each
-document's work stays isolated:
+The recipe holds the target locales and the output layout, so later steps need no
+flags. (`extract` also still emits bilingual XLIFF/PO for a `.kapi` project — the
+`.klz` form is the ad-hoc, no-project path.)
+
+## Transform — run tools in place
+
+Running a tool or flow **on** a `.klz` mutates the workspace: it appends the work
+(per-block overlays) and saves the file. It does **not** write output documents —
+that is `merge`'s job. Transforms are repeatable and composable, and locales
+accumulate:
 
 ```bash
-kapi pseudo-translate src/*.json -o batch.klz
-kapi pseudo-translate batch.klz  -o qps/                # → qps/<name>.json per source
-kapi pseudo-translate batch.klz  -o 'out/{name}.json'   # or a template
+kapi ai-translate    work.klz --target-lang fr
+kapi pseudo-translate work.klz --target-lang qps
+kapi run ai-translate-qa -i work.klz --target-lang fr
 ```
 
-(When you read a `.klz`, pass `-o` for the destination — there's nothing to infer
-it from. A single input with a plain path, e.g. `-o app.fr.json`, writes that one
-file.)
+Re-running a transform reuses the work already in the package instead of
+recomputing it, so the expensive steps (AI, MT) don't run twice. Each document's
+work stays isolated — block ids are only unique within a document, so a
+multi-source workspace keeps them separate.
 
-## Project snapshots: `pack` / `unpack`
+## Merge — emit the finished files
 
-Inside a `.kapi` project, the working state is bigger than one document's overlays
-— it also includes the project's translation memory and termbase. `kapi pack`
-snapshots all of it into a `.klz`, and `kapi unpack` rehydrates it into another
-machine's `.kapi/` state dir:
+`merge` writes the localized documents, one per source × target locale. With no
+`-o` it uses the recipe's layout; otherwise `-o <dir>` (one file per source,
+under `<lang>/` when there are several locales) or an `-o` template:
 
 ```bash
-kapi pack   -o snapshot.klz   # snapshot the project's working state
-kapi unpack snapshot.klz      # rehydrate elsewhere, then run to resume
+kapi merge work.klz                       # → recipe's layout
+kapi merge work.klz -o l10n/              # → l10n/<lang>/<name>
+kapi merge work.klz -o '{dir}/{name}.{lang}.{ext}'
 ```
 
-`pack` excludes regenerable caches and secrets, so a snapshot is the source of
-truth, not a pile of derived files. For a custody trail, `kapi pack --log` stamps
-a tamper-evident, hash-chained provenance line into the snapshot (`unpack` verifies
-it). A plain `pack` is byte-deterministic.
+Merge replays the stored translations onto the source and writes — it never
+re-runs a tool or calls a provider.
 
-Within a project, re-running a flow also reuses the project's persistent cache
-(`.kapi/cache/blocks.db`), so resume there is simply running again — no `.klz`
-needed unless you're moving the state somewhere.
+## Why these verbs
 
-## How resume stays correct
-
-Progress is derived from the content itself — the per-block overlays — never from
-a separate status file. Each block is addressed by a hash of its source, so a
-block you've already translated is found and reused, and a block whose source you
-changed gets a new hash and is redone. That's what makes resume idempotent
-(re-running a finished step is a no-op) and safe across a crash (work that didn't
-commit simply isn't there, so the next run redoes it).
+`extract` / `merge` are kapi's existing localization round-trip: pull translatable
+content out, put the finished content back. A `.klz` is just another working form
+of that round-trip — alongside bilingual XLIFF/PO — except the translation happens
+*in* the workspace with kapi's tools rather than in an external editor. Progress is
+derived from the content itself (the overlays present), never a separate status
+file, so resuming is correct, idempotent, and crash-safe by construction.
 
 ## See also
 

@@ -50,6 +50,19 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	if len(inputPaths) > 0 {
+		outputFlag, _ := cmd.Flags().GetString("output")
+		// Running a flow on a .klz transforms the workspace IN PLACE
+		// (appends overlays); output files come later from `kapi merge`. The
+		// target locale may come from the workspace recipe, so this runs
+		// before the --target-lang requirement below.
+		if klzWorkspaceInput(inputPaths) {
+			if outputFlag != "" {
+				return errKlzTransformOutput
+			}
+			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
+				return a.buildFlowTools(flowName, cmd)
+			}, a.TargetLang, "")
+		}
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
 			if info := a.ToolReg.GetToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
@@ -58,14 +71,8 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 				return errors.New("--target-lang is required")
 			}
 		}
-		outputFlag, _ := cmd.Flags().GetString("output")
-		// A .klz on either side routes through the klz-aware workflow: it
-		// makes .klz a first-class in-progress I/O format (write the working
-		// state, resume from it later) — see runKlzWorkflow.
-		if klzInvolved(inputPaths, outputFlag) {
-			return a.runKlzWorkflow(ctx, cmd, flowName, func() ([]tool.Tool, func(), error) {
-				return a.buildFlowTools(flowName, cmd)
-			}, inputPaths, outputFlag, a.TargetLang)
+		if isKlzPath(outputFlag) {
+			return errKlzCreateWithExtract
 		}
 		if len(inputPaths) == 1 {
 			return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
