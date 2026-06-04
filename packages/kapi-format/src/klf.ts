@@ -10,6 +10,7 @@
 
 import type {
   Block,
+  BlockPreviewHints,
   Document,
   File,
   Generator,
@@ -117,13 +118,43 @@ function canonicalBlock(b: Block): unknown {
     type: b.type,
     source: b.source.map(canonicalRun),
     targets: canonicalTargets(b.targets),
-    placeholders: nonEmpty(b.placeholders?.map(canonicalPlaceholder)),
+    // placeholders is a required field: emitted always, even as `[]`, to match
+    // Go (core/klf.Block.Placeholders has no omitempty).
+    placeholders: (b.placeholders ?? []).map(canonicalPlaceholder),
     properties: b.properties,
-    preview: b.preview,
+    preview: b.preview ? canonicalPreview(b.preview) : undefined,
   });
 }
 
-function canonicalTargets(t: Block["targets"] | undefined): Record<string, unknown> | undefined {
+// canonicalPreview emits the preview hints in Go struct-field order and
+// deep-sorts sampleValues keys to match Go's encoding/json map-key sorting.
+function canonicalPreview(p: BlockPreviewHints): unknown {
+  return omitUndefined({
+    storyId: p.storyId,
+    snapshotPath: p.snapshotPath,
+    sampleValues: p.sampleValues
+      ? (sortKeysDeep(p.sampleValues) as Record<string, unknown>)
+      : undefined,
+  });
+}
+
+// sortKeysDeep recursively sorts object keys so a JSON.stringify of the result
+// matches Go's encoding/json, which sorts every map's keys.
+function sortKeysDeep(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeysDeep);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+      out[k] = sortKeysDeep((v as Record<string, unknown>)[k]);
+    }
+    return out;
+  }
+  return v;
+}
+
+function canonicalTargets(
+  t: Block["targets"] | undefined,
+): Record<string, unknown> | undefined {
   if (!t) return undefined;
   const keys = Object.keys(t).sort();
   if (keys.length === 0) return undefined;
@@ -144,7 +175,8 @@ function canonicalRun(r: Run): unknown {
     const formsIn = r.plural.forms;
     const keys = Object.keys(formsIn).sort();
     const forms: Record<string, unknown> = {};
-    for (const k of keys) forms[k] = formsIn[k as keyof typeof formsIn]?.map(canonicalRun);
+    for (const k of keys)
+      forms[k] = formsIn[k as keyof typeof formsIn]?.map(canonicalRun);
     return {
       plural: omitUndefined({
         pivot: r.plural.pivot,

@@ -111,6 +111,49 @@ ok("roundtrip ok", goRound.ok === true, goRound.error ?? "");
 const tsSha = sha(marshalFile(file));
 ok("Go canonical sha == TS canonical sha", goRound.sha256 === tsSha, `go=${String(goRound.sha256).slice(0, 12)} ts=${tsSha.slice(0, 12)}`);
 
+// Edge cases that previously diverged Go↔TS (see /klf-tests conformance):
+// an empty placeholders array (must serialize as `[]`, not be omitted) and a
+// multi-key preview.sampleValues (keys must sort to match Go map ordering),
+// plus a sub run.
+const edge: File = {
+  schemaVersion: "1.0",
+  kind: "kapi-localization-format",
+  generator: { id: "edge", version: "1" },
+  project: { id: "edge", sourceLocale: "en" },
+  documents: [
+    {
+      id: "d",
+      documentType: "jsx",
+      path: "edge.tsx",
+      blocks: [
+        {
+          id: "outer",
+          hash: "h",
+          translatable: true,
+          type: "jsx:element",
+          source: [{ text: "Hi " }, { sub: { id: "1", ref: "inner", equiv: "cta" } }],
+          placeholders: [{ name: "cta", kind: "node", sourceExpr: "<X/>" }],
+          properties: { file: "edge.tsx", line: 1, component: "E", jsxPath: "p", element: "p" },
+          preview: { storyId: "e--default", sampleValues: { label: "react", index: 3, deletable: true } },
+        },
+        {
+          id: "inner",
+          hash: "h2",
+          translatable: true,
+          type: "jsx:element",
+          source: [{ text: "Confirm" }],
+          placeholders: [],
+          properties: { file: "edge.tsx", line: 2, component: "E", jsxPath: "a", element: "a" },
+        },
+      ],
+    },
+  ],
+};
+const goEdge = klf({ op: "roundtrip", klf: `${JSON.stringify(edge, null, 2)}\n` });
+ok("edge roundtrip ok", goEdge.ok === true, goEdge.error ?? "");
+const tsEdge = sha(marshalFile(edge));
+ok("Go sha == TS sha (empty placeholders + sampleValues order + sub)", goEdge.sha256 === tsEdge, `go=${String(goEdge.sha256).slice(0, 12)} ts=${tsEdge.slice(0, 12)}`);
+
 // ── 2. HTML preview parity ─────────────────────────────────────────────────
 for (const b of [filesHeading, shoppingCart]) {
   const goHtml = klf({ op: "renderHtml", block: b }).html;
