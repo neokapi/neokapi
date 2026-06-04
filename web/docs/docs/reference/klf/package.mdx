@@ -1,0 +1,91 @@
+---
+sidebar_position: 5
+title: The KLF family & .klz package
+description: The KLF family of native lossless formats (blocks, translation memory, termbase) and the .klz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
+keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, pack, unpack]
+---
+
+# The KLF family & the `.klz` package
+
+KLF is the native serialization of one content atom — the translatable
+[block](/reference/klf/spec#block). A project owns more than blocks, though: a
+translation memory and a termbase, plus stand-off annotations and media. The
+**KLF family** gives each of those atoms a native, deterministic, *lossless*
+format, and the **`.klz` package** bundles them into one portable artifact.
+
+## Two tiers: native vs interchange
+
+For every atom there are two serializations, playing the same two roles KLF and
+XLIFF play for blocks (see [KLF vs XLIFF](/reference/klf/vs-xliff)):
+
+| Atom | **Native** (lossless — pack, cache, hash) | **Interchange** (lossy — industry handoff) |
+| --- | --- | --- |
+| blocks + targets | **KLF** — `.klf` | XLIFF / PO |
+| stand-off annotations | **KLF annotations** — `.klfl` | — |
+| translation memory | **KLF-TM** — `kapi-tm-format` | TMX |
+| termbase | **KLF-TB** — `kapi-termbase-format` | TBX |
+
+The native forms round-trip **every** field of the internal model. The
+interchange forms map only the standard, industry-portable subset — which is
+exactly why they cannot be used to pack a project losslessly:
+
+- **TMX drops** the entity mappings (including the `conceptId` cross-link from a
+  TM entity to a termbase concept), provenance origins and import sessions,
+  per-entry properties, and notes.
+- **TBX drops** the term `source` (terminology vs `brand_vocabulary`), the
+  `competitorTerm` flag, and the extensible properties.
+
+KLF-TM and KLF-TB preserve all of these. They share the KLF discipline: a `kind`
+magic string, a `MAJOR.MINOR` `schemaVersion` with the same forward-compatibility
+contract as [KLF](/reference/klf/spec#versioning), and a deterministic serializer
+(sorted records, no HTML escaping, trailing newline) so the bytes are stable for
+content hashing and git diffing. KLF-TM even reuses the same `Run` model as KLF
+blocks for its variant content, so inline codes, placeholders, and plural/select
+constructs serialize identically.
+
+## The `.klz` package
+
+A `.klz` is a deterministic zip bundling a project's **authoritative** content,
+one member per content type — the same content-type set the
+[sync protocol](/contribute/architecture/025-klf-package) moves over the wire:
+
+```
+project.klz
+├── manifest.json          inventory: per-member sha256 + Merkle rootHash
+├── blocks/<id>.klf        KLF              (blocks + targets)
+├── annotations/<id>.klfl  KLF annotations  (stand-off overlays)
+├── tm.klftm               KLF-TM           (translation memory)
+├── termbase.klftb         KLF-TB           (terminology)
+└── media/<name>           opaque blobs
+```
+
+Because every member is a native lossless format, the whole package is lossless:
+unpacking can seed a fresh translation memory, termbase, and block store, and the
+project's regenerable caches (the block-store cache, sync hashes) rebuild
+faithfully from it. The manifest's per-member SHA-256 and Merkle `rootHash` give
+the package — and each member — a stable content identity; unpacking verifies
+both before trusting the contents.
+
+### What a package deliberately excludes
+
+A `.klz` packs the **source of truth**, not the regenerable caches. It excludes
+the block-store cache (`blocks.db`) and the sync hash cache, which rebuild on
+demand, and it excludes secrets (the sync claim token). This is what makes the
+package the at-rest twin of the sync wire format: packing is the sync converters
+writing files instead of protobuf, and unpacking is the inverse.
+
+## When to use it
+
+Use a `.klz` to move a whole project losslessly: backup and archival, seeding a
+fresh server or an offline desktop working copy, transferring a project between
+machines without a server, or building a deterministic test fixture. Use the
+**interchange** formats (XLIFF/PO, TMX, TBX) instead when content crosses into
+the wider localization industry — a translation vendor, an external CAT tool, or
+a TMS — and the lossy, standards-based subset is what the other side expects.
+
+## See also
+
+- [AD-025: KLF Family and the .klz Package](/contribute/architecture/025-klf-package) — the decision and rationale.
+- [Specification](/reference/klf/spec) — the KLF block format the family is built around.
+- [KLF vs XLIFF](/reference/klf/vs-xliff) — the native-vs-interchange split for blocks.
+- Reference implementations: [`sievepen/klftm`](https://github.com/neokapi/neokapi/tree/main/sievepen/klftm) (KLF-TM), [`termbase/klftb`](https://github.com/neokapi/neokapi/tree/main/termbase/klftb) (KLF-TB), [`klz`](https://github.com/neokapi/neokapi/tree/main/klz) (the package container).
