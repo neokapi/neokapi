@@ -178,6 +178,56 @@ func TestKlzRecipeRemembersOutput(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
 }
 
+// TestKlzCacheDirtyAndPack verifies the git-bundle model: a transform touches
+// only the cache (the .klz bytes are unchanged and `info` reports dirty);
+// `pack` ejects the cache into the .klz and `info` goes clean.
+func TestKlzCacheDirtyAndPack(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+	assert.Contains(t, kapi(t, "info", work), "clean")
+
+	before := readFileBytes(t, work)
+	kapi(t, "pseudo-translate", work) // cache only
+	assert.Equal(t, before, readFileBytes(t, work), "a transform must not rewrite the .klz")
+	assert.Contains(t, kapi(t, "info", work), "dirty")
+
+	kapi(t, "pack", work)
+	assert.NotEqual(t, before, readFileBytes(t, work), "pack must rewrite the .klz")
+	assert.Contains(t, kapi(t, "info", work), "clean")
+}
+
+// TestKlzAutoPack verifies --pack ejects to the .klz as part of the transform.
+func TestKlzAutoPack(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+	kapi(t, "pseudo-translate", work, "--pack")
+	assert.Contains(t, kapi(t, "info", work), "clean", "--pack must leave the workspace clean")
+}
+
+// TestKlzHandoff verifies a packed .klz at a new path rebuilds its cache from
+// the file and resumes correctly (the "another machine" case).
+func TestKlzHandoff(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
+	exp := filepath.Join(dir, "exp.json")
+	kapi(t, "pseudo-translate", src, "-o", exp, "--target-lang", "qps")
+
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+	kapi(t, "pseudo-translate", work)
+	kapi(t, "pack", work)
+
+	// "Ship" the .klz to a new path → a fresh cache key, rebuilt from the file.
+	shipped := filepath.Join(t.TempDir(), "shipped.klz")
+	require.NoError(t, os.WriteFile(shipped, readFileBytes(t, work), 0o644))
+	kapi(t, "merge", shipped, "-o", filepath.Join(dir, "out"))
+	assert.Equal(t, readFile(t, exp), readFile(t, filepath.Join(dir, "out", "app.json")))
+}
+
 // TestKlzTransformReusesCache pins the caching guarantee: the overlays in a
 // .klz ARE the cache, so a second transform hydrates them instead of
 // recomputing. We tamper a cached target overlay to a sentinel; if the
@@ -188,8 +238,10 @@ func TestKlzTransformReusesCache(t *testing.T) {
 	work := filepath.Join(dir, "work.klz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", work) // first transform: computes + caches
+	kapi(t, "pack", work)             // eject so the cache is clean and re-syncs
 
-	// Tamper the cached target overlay to a sentinel value.
+	// Tamper the packed target overlay to a sentinel. The cache is clean, so
+	// the next command rebuilds the cache from this (tampered) .klz.
 	pkg, err := klz.Unmarshal(readFileBytes(t, work))
 	require.NoError(t, err)
 	tampered := false

@@ -18,6 +18,8 @@ with three verbs that map to the pipeline stages:
 | **reader** — ingest sources | `kapi extract <sources> -o work.klz` |
 | **transform** — run tools, in place | `kapi <tool> work.klz` · `kapi run <flow> -i work.klz` |
 | **writer** — emit finished files | `kapi merge work.klz -o <dir>` |
+| **eject** — write the shareable `.klz` | `kapi pack work.klz` · transform `--pack` |
+| **inspect** — dirty? | `kapi info work.klz` |
 
 ```bash
 kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
@@ -46,10 +48,9 @@ flags. (`extract` also still emits bilingual XLIFF/PO for a `.kapi` project — 
 
 ## Transform — run tools in place
 
-Running a tool or flow **on** a `.klz` mutates the workspace: it appends the work
-(per-block overlays) and saves the file. It does **not** write output documents —
-that is `merge`'s job. Transforms are repeatable and composable, and locales
-accumulate:
+Running a tool or flow **on** a `.klz` transforms the workspace: it appends the
+work (per-block overlays). It does **not** write output documents — that is
+`merge`'s job. Transforms are repeatable and composable, and locales accumulate:
 
 ```bash
 kapi ai-translate    work.klz --target-lang fr
@@ -57,10 +58,30 @@ kapi pseudo-translate work.klz --target-lang qps
 kapi run ai-translate-qa -i work.klz --target-lang fr
 ```
 
-Re-running a transform reuses the work already in the package instead of
-recomputing it, so the expensive steps (AI, MT) don't run twice. Each document's
-work stays isolated — block ids are only unique within a document, so a
-multi-source workspace keeps them separate.
+Re-running a transform reuses the work already done instead of recomputing it, so
+the expensive steps (AI, MT) don't run twice. Each document's work stays isolated.
+
+### The cache and the bundle
+
+Transforms run against a fast, persistent **working cache** (under your cache dir,
+keyed to the `.klz`) — they do **not** rewrite the `.klz` on every command. The
+`.klz` is the stable, shareable *bundle*; the cache is your *working clone*. The
+`.klz` changes only when you explicitly **eject**:
+
+```bash
+kapi info work.klz     # documents, locales, and whether the cache is dirty
+kapi pack work.klz     # eject the cache → work.klz (for sharing)
+```
+
+`info` reports `dirty` when the cache has work not yet packed. Add `--pack` to a
+transform to eject immediately:
+
+```bash
+kapi ai-translate work.klz --target-lang fr --pack   # transform AND eject
+```
+
+Receive a packed `.klz` on another machine and the first command rebuilds the
+cache from the file automatically — nothing to set up.
 
 ## Merge — emit the finished files
 

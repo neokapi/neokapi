@@ -59,9 +59,10 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 			if outputFlag != "" {
 				return errKlzTransformOutput
 			}
+			doPack, _ := cmd.Flags().GetBool("pack")
 			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
 				return a.buildFlowTools(flowName, cmd)
-			}, a.TargetLang, "")
+			}, a.TargetLang, "", doPack)
 		}
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
@@ -104,6 +105,7 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")

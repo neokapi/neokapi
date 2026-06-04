@@ -244,6 +244,18 @@ func (p *Package) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// RootHash returns the package's Merkle content identity — the same digest
+// stored in the manifest, computed over the content members (history
+// excluded). Used to detect whether a working cache has diverged from its
+// packed .klz (AD-025 §5).
+func (p *Package) RootHash() (string, error) {
+	members, err := p.serializeMembers()
+	if err != nil {
+		return "", err
+	}
+	return rootHash(members), nil
+}
+
 // serializeMembers turns each section into its native KLF-family bytes.
 func (p *Package) serializeMembers() ([]memberBytes, error) {
 	var members []memberBytes

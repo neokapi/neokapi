@@ -57,6 +57,7 @@ func init() {
 	// the persistent block-store cache, not a stepping verb family.
 	rootCmd.AddCommand(app.NewPackCmd())
 	rootCmd.AddCommand(app.NewUnpackCmd())
+	rootCmd.AddCommand(app.NewInfoCmd())
 
 	// Toolbox: format-aware cat / grep / sed. Registered as hidden, flag-detached
 	// proxies that delegate to the same standalone commands the multi-call

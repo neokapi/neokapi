@@ -316,6 +316,9 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					NewTool:        newTool,
 					NewCollector:   collector,
 				}
+				if p, _ := cmd.Flags().GetBool("pack"); p {
+					rc.Pack = true
+				}
 
 				if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 					rc.AfterTool = func() {
@@ -334,6 +337,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
 		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
+		cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 		if info.WritesOutput {
 			cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
 			cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")

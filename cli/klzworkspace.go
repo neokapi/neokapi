@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -20,17 +19,16 @@ import (
 )
 
 // A .klz is a single-file, serverless localization workspace — the portable
-// equivalent of a .kapi project's working state. Three pipeline-stage verbs
-// operate on it (AD-025 §5):
+// twin of a .kapi project's working state. It is operated on through three
+// pipeline-stage verbs against a persistent shadow cache (see klzcache.go):
 //
-//   - extract <sources> -o work.klz   reader: ingest source documents
+//   - extract <sources> -o work.klz   reader: ingest sources (+ a recipe)
 //   - <tool|run> work.klz             transform: run a tool/flow IN PLACE
 //   - merge work.klz [-o ...]         writer: emit the localized files
 //
-// The package carries the sources, the per-source overlays (the work), and a
-// small Recipe (target locales + output layout) so config travels with the
-// file. This file implements those three operations; the commands route to
-// them when a .klz is on the command line.
+// Transforms touch only the cache (fast, incremental); the .klz is rewritten
+// by `kapi pack` (or a transform's --pack), the git-bundle eject. `kapi info`
+// shows whether the cache is dirty (diverged from the packed .klz).
 
 // isKlzPath reports whether a path names a .klz package.
 func isKlzPath(p string) bool {
@@ -52,16 +50,13 @@ var errKlzTransformOutput = errors.New("running a tool on a .klz updates it in p
 var errKlzCreateWithExtract = errors.New("to create a .klz workspace use `kapi extract <sources> -o work.klz`, then run tools on it")
 
 // toolChainBuilder builds the tool chain (and a cleanup) for a klz transform.
-// It abstracts over `run` (a composed flow) and a top-level tool command (a
-// single tool).
 type toolChainBuilder func() ([]tool.Tool, func(), error)
 
 // ─── extract: ingest sources into a workspace ───────────────────
 
-// extractToKlz writes a fresh workspace package from source files plus a
-// recipe (target locales + output layout). No tools run yet — that is what
-// the transform verbs are for.
-func (a *App) extractToKlz(sources []string, outKlz, targetLang, outLayout string) error {
+// extractToKlz writes a fresh .klz from source files plus a recipe (target
+// locales + output layout) and builds its working cache. No tools run yet.
+func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, targetLang, outLayout string) error {
 	files, err := resolveFiles(sources)
 	if err != nil {
 		return err
@@ -77,7 +72,6 @@ func (a *App) extractToKlz(sources []string, outKlz, targetLang, outLayout strin
 	for _, tl := range splitLocales(targetLang) {
 		recipe.AddTargetLang(tl)
 	}
-
 	pkg := &klz.Package{Generator: &klz.GeneratorInfo{ID: "kapi"}, Recipe: recipe}
 	for _, f := range files {
 		if isKlzPath(f) {
@@ -92,6 +86,9 @@ func (a *App) extractToKlz(sources []string, outKlz, targetLang, outLayout strin
 	if err := saveWorkspace(pkg, outKlz); err != nil {
 		return err
 	}
+	if _, err := buildKlzCache(ctx, outKlz); err != nil {
+		return err
+	}
 	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(pkg.Source), outKlz))
 	return nil
 }
@@ -99,22 +96,21 @@ func (a *App) extractToKlz(sources []string, outKlz, targetLang, outLayout strin
 // ─── transform: run a tool/flow in place ────────────────────────
 
 // transformKlzInPlace runs the tool chain over every source in the workspace
-// against per-source warm stores and folds the resulting overlays back into
-// the package — mutating it in place. Locales accumulate: each transform adds
-// its target locale to the recipe.
-func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string, build toolChainBuilder, targetLang, toolDefaultLocale string) error {
-	pkg, err := loadWorkspace(klzPath)
+// against the cache's persistent per-source block stores — incrementally,
+// without rewriting the .klz. Locales accumulate in the recipe. With doPack
+// it also ejects the result to the .klz (--pack); otherwise the cache is left
+// dirty for an explicit `kapi pack`.
+func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string, build toolChainBuilder, targetLang, toolDefaultLocale string, doPack bool) error {
+	c, err := a.ensureKlzCache(ctx, klzPath)
 	if err != nil {
 		return err
 	}
-	if pkg.Recipe == nil {
-		pkg.Recipe = &klz.Recipe{SourceLang: a.SourceLang}
+	if c.meta.Recipe == nil {
+		c.meta.Recipe = &klz.Recipe{SourceLang: a.SourceLang}
 	}
-	// Resolve the target locale: explicit flag, else the recipe's first
-	// locale, else the tool's default (e.g. pseudo-translate → qps).
 	locale := targetLang
-	if locale == "" && len(pkg.Recipe.TargetLangs) > 0 {
-		locale = pkg.Recipe.TargetLangs[0]
+	if locale == "" && len(c.meta.Recipe.TargetLangs) > 0 {
+		locale = c.meta.Recipe.TargetLangs[0]
 	}
 	if locale == "" {
 		locale = toolDefaultLocale
@@ -123,7 +119,10 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		return errors.New("transform: --target-lang is required (none recorded in the workspace)")
 	}
 	a.TargetLang = locale
-	pkg.Recipe.AddTargetLang(locale)
+	c.meta.Recipe.AddTargetLang(locale)
+	if c.meta.Recipe.SourceLang != "" {
+		a.SourceLang = c.meta.Recipe.SourceLang
+	}
 
 	tools, cleanup, err := build()
 	if err != nil {
@@ -133,66 +132,65 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		defer cleanup()
 	}
 
-	work, err := os.MkdirTemp("", "kapi-klz-xform-*")
+	discard, err := os.MkdirTemp("", "kapi-klz-discard-*")
 	if err != nil {
 		return fmt.Errorf("transform: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(discard)
 
-	var all []klz.OverlayDoc
-	for i, src := range pkg.Source {
-		prior := overlaysForSource(pkg.Overlays, src.Path)
-		out, err := a.runKlzSource(ctx, work, i, flowName, tools, src, prior, filepath.Join(work, "discard-"+filepath.Base(src.Path)), locale)
-		if err != nil {
+	for _, src := range c.meta.Sources {
+		if err := a.runCacheSource(ctx, c, src, flowName, tools, filepath.Join(discard, src.Name), locale); err != nil {
 			return err
 		}
-		all = append(all, out...)
 	}
-	pkg.Overlays = all
-
-	if err := saveWorkspace(pkg, klzPath); err != nil {
+	if err := c.save(); err != nil {
 		return err
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s (%d document(s), locales: %s)", klzPath, len(pkg.Source), strings.Join(pkg.Recipe.TargetLangs, ", ")))
+
+	if doPack {
+		if err := c.pack(ctx); err != nil {
+			return err
+		}
+		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), locales: %s)", klzPath, len(c.meta.Sources), strings.Join(c.meta.Recipe.TargetLangs, ", ")))
+		return nil
+	}
+	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s) — run `kapi pack %s` to share", klzPath, len(c.meta.Sources), strings.Join(c.meta.Recipe.TargetLangs, ", "), filepath.Base(klzPath)))
 	return nil
 }
 
 // ─── merge: emit the localized files ────────────────────────────
 
-// mergeFromKlz writes the finished documents from a workspace: for each
-// source × target locale it hydrates the stored target overlays onto the
-// source and writes the localized file. Output layout comes from -o, else
-// the recipe's Out, else a default per-locale layout.
+// mergeFromKlz writes the finished documents from the workspace cache: for
+// each source × target locale it hydrates the stored target overlays and
+// writes the localized file. Layout comes from -o, else the recipe's Out,
+// else a default per-locale layout. Reads the cache (freshest state); does
+// not require a pack.
 func (a *App) mergeFromKlz(ctx context.Context, klzPath, outOverride string) error {
-	pkg, err := loadWorkspace(klzPath)
+	c, err := a.ensureKlzCache(ctx, klzPath)
 	if err != nil {
 		return err
 	}
-	locales := mergeLocales(pkg)
+	var locales []string
+	if c.meta.Recipe != nil {
+		locales = c.meta.Recipe.TargetLangs
+	}
 	if len(locales) == 0 {
 		return errors.New("merge: workspace has no translated locales yet — run a tool on it first")
 	}
 	layout := outOverride
-	if layout == "" && pkg.Recipe != nil {
-		layout = pkg.Recipe.Out
+	if layout == "" && c.meta.Recipe != nil {
+		layout = c.meta.Recipe.Out
 	}
-	if pkg.Recipe != nil && pkg.Recipe.SourceLang != "" {
-		a.SourceLang = pkg.Recipe.SourceLang
+	if c.meta.Recipe != nil && c.meta.Recipe.SourceLang != "" {
+		a.SourceLang = c.meta.Recipe.SourceLang
 	}
-
-	work, err := os.MkdirTemp("", "kapi-klz-merge-*")
-	if err != nil {
-		return fmt.Errorf("merge: %w", err)
-	}
-	defer os.RemoveAll(work)
 
 	written := 0
-	for i, src := range pkg.Source {
-		prior := overlaysForSource(pkg.Overlays, src.Path)
+	for _, src := range c.meta.Sources {
 		for _, locale := range locales {
 			docOut := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
 			tools := []tool.Tool{newHydrateTargetsTool(model.LocaleID(locale))}
-			if _, err := a.runKlzSource(ctx, work, i, "merge", tools, src, prior, docOut, locale); err != nil {
+			if err := a.runCacheSource(ctx, c, src, "merge", tools, docOut, locale); err != nil {
 				return err
 			}
 			written++
@@ -202,29 +200,70 @@ func (a *App) mergeFromKlz(ctx context.Context, klzPath, outOverride string) err
 	return nil
 }
 
+// ─── info: show workspace status (dirty?) ───────────────────────
+
+// infoKlz prints the workspace's state: sources, locales, output layout, and
+// whether the cache is dirty (has work not yet packed into the .klz). Named
+// `info` rather than `status` (which the bowrain plugin owns).
+func (a *App) infoKlz(ctx context.Context, klzPath string) error {
+	c, err := a.ensureKlzCache(ctx, klzPath)
+	if err != nil {
+		return err
+	}
+	dirty, err := c.dirty(ctx)
+	if err != nil {
+		return err
+	}
+	state := "clean (packed)"
+	if dirty {
+		state = "dirty — run `kapi pack " + filepath.Base(klzPath) + "` to update the .klz"
+	}
+	locales, out := "", ""
+	if c.meta.Recipe != nil {
+		locales = strings.Join(c.meta.Recipe.TargetLangs, ", ")
+		out = c.meta.Recipe.Out
+	}
+	a.printlnUnlessQuiet(fmt.Sprintf("%s\n  documents: %d\n  locales:   %s\n  output:    %s\n  state:     %s",
+		klzPath, len(c.meta.Sources), locales, out, state))
+	return nil
+}
+
+// packKlz ejects a workspace cache into its .klz (the explicit hand-off
+// boundary).
+func (a *App) packKlz(ctx context.Context, klzPath string) error {
+	c, err := a.ensureKlzCache(ctx, klzPath)
+	if err != nil {
+		return err
+	}
+	if err := c.pack(ctx); err != nil {
+		return err
+	}
+	a.printlnUnlessQuiet("Packed " + klzPath)
+	return nil
+}
+
+// unpackKlz rebuilds a workspace cache from its .klz, discarding any unpacked
+// work in the existing cache.
+func (a *App) unpackKlz(ctx context.Context, klzPath string) error {
+	if _, err := buildKlzCache(ctx, klzPath); err != nil {
+		return err
+	}
+	a.printlnUnlessQuiet(fmt.Sprintf("Unpacked %s into its working cache", klzPath))
+	return nil
+}
+
 // ─── shared per-source runner ───────────────────────────────────
 
-// runKlzSource runs one source through the tool chain against a fresh store
-// warmed with its prior overlays, writing the document to docOut. It returns
-// the store's overlays tagged with the source path (the full set: prior +
-// anything the tools added).
-func (a *App) runKlzSource(ctx context.Context, work string, idx int, flowName string, tools []tool.Tool, src klz.SourceDoc, prior []klz.OverlayDoc, docOut, targetLang string) ([]klz.OverlayDoc, error) {
-	store, err := blockstore.NewCacheStore(filepath.Join(work, fmt.Sprintf("blocks-%d.db", idx)))
+// runCacheSource runs one source through the tool chain against its
+// persistent cache store, writing the document to docOut. The store is
+// persistent, so SessionTools read prior overlays (skip recompute) and write
+// new ones directly — no per-invocation load/export.
+func (a *App) runCacheSource(ctx context.Context, c *klzCache, src klzCacheSource, flowName string, tools []tool.Tool, docOut, targetLang string) error {
+	store, err := blockstore.NewCacheStore(c.storePath(src.Key))
 	if err != nil {
-		return nil, fmt.Errorf("klz: open store: %w", err)
+		return fmt.Errorf("klz: open store: %w", err)
 	}
 	defer store.Close()
-	if len(prior) > 0 {
-		if err := exporter.LoadOverlays(ctx, store, klzToStoreOverlays(prior)); err != nil {
-			return nil, fmt.Errorf("klz: warm store: %w", err)
-		}
-	}
-
-	srcPath := filepath.Join(work, fmt.Sprintf("src-%d-%s", idx, filepath.Base(src.Path)))
-	if err := os.WriteFile(srcPath, src.Data, 0o644); err != nil {
-		return nil, fmt.Errorf("materialize source: %w", err)
-	}
-
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
 		SourceLocale:    model.LocaleID(a.SourceLang),
@@ -233,19 +272,7 @@ func (a *App) runKlzSource(ctx context.Context, work string, idx int, flowName s
 		DetectFormat:    a.klzDetectFormat(src.Path),
 		ConfigureReader: a.klzConfigureReader(),
 	})
-	if err := runner.RunFile(ctx, flowName, tools, srcPath, docOut, targetLang); err != nil {
-		return nil, err
-	}
-
-	snap, err := exporter.Export(ctx, store)
-	if err != nil {
-		return nil, fmt.Errorf("klz: export overlays: %w", err)
-	}
-	out := storeToKlzOverlays(snap.Overlays)
-	for i := range out {
-		out[i].Source = src.Path
-	}
-	return out, nil
+	return runner.RunFile(ctx, flowName, tools, c.sourcePath(src.Name), docOut, targetLang)
 }
 
 // ─── helpers ────────────────────────────────────────────────────
@@ -256,23 +283,6 @@ func overlaysForSource(overlays []klz.OverlayDoc, sourcePath string) []klz.Overl
 	for _, o := range overlays {
 		if o.Source == sourcePath {
 			out = append(out, o)
-		}
-	}
-	return out
-}
-
-// mergeLocales returns the locales to emit: the recipe's, else the distinct
-// locales found across the overlays' "targets/<locale>" kinds.
-func mergeLocales(pkg *klz.Package) []string {
-	if pkg.Recipe != nil && len(pkg.Recipe.TargetLangs) > 0 {
-		return pkg.Recipe.TargetLangs
-	}
-	seen := map[string]bool{}
-	var out []string
-	for _, o := range pkg.Overlays {
-		if l, ok := strings.CutPrefix(o.Kind, "targets/"); ok && !seen[l] {
-			seen[l] = true
-			out = append(out, l)
 		}
 	}
 	return out
@@ -314,9 +324,8 @@ func splitLocales(s string) []string {
 	return out
 }
 
-// klzDetectFormat returns a flag/extension-aware format detector. The path
-// argument is the source member path, used for extension detection of the
-// embedded document.
+// klzDetectFormat returns a flag/extension-aware format detector for the
+// embedded source document.
 func (a *App) klzDetectFormat(sourcePath string) func(string) registry.FormatID {
 	if a.FormatFlag != "" {
 		name := preset.ParseFormatRef(a.FormatFlag).RegistryName()

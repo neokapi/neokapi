@@ -89,19 +89,23 @@ A `.klz` is not only an at-rest snapshot of finished content — it can also car
 where it left off. There are two routes, and neither needs per-step CLI verbs:
 
 - **`.klz` as an ad-hoc workspace (`extract` / transform / `merge`).** No project
-  required — the `.klz` *is* the workspace. `extract` ingests sources, running a
-  tool or flow on the `.klz` transforms it in place, and `merge` emits the
-  finished files. A small **recipe** (target locales + output layout) travels with
-  the file, so `merge` needs no flags.
+  required. The `.klz` is a portable *bundle*; the runtime is a persistent shadow
+  cache keyed to the file, so transforms are fast and incremental and the `.klz`
+  is rewritten only when you **`pack`** (or pass `--pack`). `extract` ingests
+  sources (+ a recipe), running a tool/flow on the `.klz` transforms it in place,
+  and `merge` emits the finished files. `info` shows whether the cache is dirty.
 
   ```bash
   kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
-  kapi ai-translate work.klz --target-lang fr                # transform in place
-  kapi merge   work.klz -o l10n/                             # emit → l10n/<lang>/<name>
+  kapi ai-translate work.klz --target-lang fr                # transform (cache)
+  kapi info  work.klz                                         # dirty?
+  kapi pack  work.klz                                         # eject for sharing
+  kapi merge work.klz -o l10n/                                # emit → l10n/<lang>/<name>
   ```
 
-  Transforming reuses the work already in the package instead of recomputing it,
-  so the expensive steps don't re-run, and each document's work stays isolated.
+  A small **recipe** (target locales + output layout) travels with the file, so
+  `merge` needs no flags. Transforming reuses work already done instead of
+  recomputing it, and each document's work stays isolated.
 
 - **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
   state also includes the project TM and termbase. `kapi pack` snapshots all of

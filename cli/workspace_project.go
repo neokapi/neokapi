@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,9 +34,15 @@ func (a *App) NewPackCmd() *cobra.Command {
 authoritative translation memory, and the termbase — into a portable .klz.
 Regenerable caches and secrets are excluded. Move the snapshot to another
 machine and "kapi unpack" it to resume work there.`,
-		Example: `  kapi pack -o snapshot.klz`,
-		Args:    cobra.NoArgs,
+		Example: `  kapi pack -o snapshot.klz   # a .kapi project
+  kapi pack work.klz         # eject a .klz workspace's cache`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Ad-hoc workspace: `kapi pack work.klz` ejects the .klz's working
+			// cache into the file (the git-bundle hand-off boundary).
+			if len(args) == 1 && isKlzPath(args[0]) {
+				return a.packKlz(cmd.Context(), args[0])
+			}
 			return a.runPack(cmd)
 		},
 	}
@@ -43,6 +50,26 @@ machine and "kapi unpack" it to resume work there.`,
 	cmd.Flags().StringP("output", "o", "", "output .klz snapshot path")
 	cmd.Flags().Bool("log", false, "stamp a tamper-evident provenance line into the snapshot's advisory history")
 	return cmd
+}
+
+// NewInfoCmd creates the "info" command: show a .klz workspace's state —
+// documents, locales, output layout, and whether its working cache is dirty
+// (has work not yet packed into the .klz). Named `info` because the bowrain
+// plugin owns `status`.
+func (a *App) NewInfoCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "info <work.klz>",
+		Short:   "Show a .klz workspace's state (dirty?)",
+		GroupID: "content",
+		Example: `  kapi info work.klz`,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !isKlzPath(args[0]) {
+				return errors.New("info: expects a .klz workspace")
+			}
+			return a.infoKlz(cmd.Context(), args[0])
+		},
+	}
 }
 
 // NewUnpackCmd creates the "unpack" command: rehydrate a project's working
@@ -150,7 +177,11 @@ func (a *App) runPack(cmd *cobra.Command) error {
 
 // runUnpack rehydrates a project's working state from a .klz snapshot into
 // the local .kapi/ state dir, recreating the block store, TM, and termbase.
+// A workspace .klz (one carrying a Recipe) instead rebuilds its shadow cache.
 func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
+	if pkg, err := loadWorkspace(snapshotPath); err == nil && pkg.Recipe != nil {
+		return a.unpackKlz(cmd.Context(), snapshotPath)
+	}
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
 		return err

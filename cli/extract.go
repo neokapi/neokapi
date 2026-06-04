@@ -56,7 +56,7 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 				}
 				tl, _ := cmd.Flags().GetString("target-lang")
 				layout, _ := cmd.Flags().GetString("out")
-				return a.extractToKlz(args, out, tl, layout)
+				return a.extractToKlz(cmd.Context(), args, out, tl, layout)
 			}
 			return a.runExtract(cmd)
 		},

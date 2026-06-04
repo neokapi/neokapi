@@ -81,8 +81,11 @@ type ToolRunConfig struct {
 	// DefaultLayout: no -o/--output-dir was given, so resolve each output
 	// path with localeOutputPath — swap the source locale in the input path
 	// if present, else write under a {lang}/ directory beside the input.
-	DefaultLayout  bool
-	TargetLang     string
+	DefaultLayout bool
+	TargetLang    string
+	// Pack: when the input is a .klz workspace, auto-eject the transform to
+	// the .klz (the --pack flag); otherwise the cache is left dirty.
+	Pack           bool
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
 	NewTool        func() (tool.Tool, error)
@@ -105,7 +108,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 				return nil, nil, terr
 			}
 			return []tool.Tool{t}, nil, nil
-		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName))
+		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), cfg.Pack)
 	}
 	if isKlzPath(cfg.OutputTemplate) {
 		return errKlzCreateWithExtract

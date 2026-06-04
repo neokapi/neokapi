@@ -110,17 +110,22 @@ A `.klz` is both an at-rest snapshot of finished content **and** a carrier of
 where it left off. The design delivers this through existing-grain mechanisms
 rather than a step-by-step CLI verb family:
 
-- **`.klz` as an ad-hoc workspace.** Three pipeline-stage verbs operate on a
-  `.klz` with no project: `extract <sources> -o work.klz` ingests the source
-  documents (and records a `Recipe` — target locales + output layout); running any
-  tool or `run` flow *on* the `.klz` transforms it **in place** (each source is
-  streamed through the flow against a per-source persistent store and the resulting
-  overlays are folded back into the package); and `merge work.klz` emits the
-  finished documents (hydrating the stored target overlays onto each source, one
-  file per source × locale). Because block ids are only unique within one document,
-  a multi-source package scopes each overlay to its source (`OverlayDoc.Source`)
-  and runs each against its own store. Transforming reuses overlays already
-  present rather than recomputing, so output equals a one-shot run.
+- **`.klz` as an ad-hoc workspace, the git-bundle model.** A `.klz` is the
+  portable *bundle*; the runtime is a persistent **shadow cache** under
+  `$XDG_CACHE_HOME/kapi/klz/<key>`, keyed by the `.klz`'s absolute path, so the
+  working directory stays a single file. Three pipeline-stage verbs (no project):
+  `extract <sources> -o work.klz` ingests the sources and records a `Recipe`
+  (target locales + output layout); running any tool or `run` flow *on* the `.klz`
+  **transforms it in place** against the cache's persistent per-source block stores
+  — incrementally, *without rewriting the `.klz`*; and `merge work.klz` emits the
+  finished documents from the cache (hydrating stored target overlays, one file per
+  source × locale). The `.klz` is rewritten only by `kapi pack work.klz` (or a
+  transform's `--pack`) — the explicit eject; `kapi info work.klz` reports whether
+  the cache is **dirty** (its content `RootHash` differs from the packed `.klz`).
+  Block ids are only unique within one document, so each source has its own store
+  and each overlay is tagged with its source (`OverlayDoc.Source`). Transforming
+  reuses overlays already present rather than recomputing (the cache is the cache),
+  so output equals a one-shot run.
 - **Cached resume (project).** A project run executes against the project's
   persistent block store (`core/blockstore` at `.kapi/cache/blocks.db`, wired via
   `flow.WithBlockStore`). Because the store is append-only and content-addressed —
