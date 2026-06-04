@@ -8,12 +8,20 @@ on:
       - "web/docs/**"
       - "packages/docs-shared/**"
       - "packages/reference-data/**"
+      # The docs site bundles these packages (the Lab + KLF Lab/Tests + the
+      # playground), so a change to them must rebuild and redeploy the site.
+      - "packages/kapi-lab/**"
+      - "packages/kapi-format/**"
+      - "packages/kapi-playground/**"
       - ".github/workflows/docs-kapi.yml"
   pull_request:
     paths:
       - "web/docs/**"
       - "packages/docs-shared/**"
       - "packages/reference-data/**"
+      - "packages/kapi-lab/**"
+      - "packages/kapi-format/**"
+      - "packages/kapi-playground/**"
       - ".github/workflows/docs-kapi.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
