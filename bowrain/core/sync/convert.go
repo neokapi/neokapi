@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
 
@@ -52,10 +53,12 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		}
 	}
 
-	// Annotations (serialized as JSON bytes for extensibility).
+	// Annotations (serialized as type-discriminated JSON so the polymorphic
+	// model.Annotation interface can be reconstructed on decode).
 	if len(b.Annotations) > 0 {
-		data, _ := json.Marshal(b.Annotations)
-		sb.AnnotationsJson = data
+		if data, err := marshalAnnotations(b.Annotations); err == nil {
+			sb.AnnotationsJson = data
+		}
 	}
 
 	// Skeleton.
@@ -84,7 +87,10 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 }
 
 // ProtoToBlock converts a SyncBlock protobuf message to a model.Block.
-func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
+// Returns an error if any of the optional JSON extension fields (Annotations,
+// Skeleton, DisplayHint, ContentRef) cannot be decoded; all other fields are
+// still populated in the returned block.
+func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	b := &model.Block{
 		ID:                 sb.Id,
 		Name:               sb.Name,
@@ -129,28 +135,38 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 
 	// Annotations.
 	if len(sb.AnnotationsJson) > 0 {
-		_ = json.Unmarshal(sb.AnnotationsJson, &b.Annotations)
+		anns, err := unmarshalAnnotations(sb.AnnotationsJson)
+		if err != nil {
+			return b, fmt.Errorf("decode annotations: %w", err)
+		}
+		b.Annotations = anns
 	}
 
 	// Skeleton.
 	if len(sb.SkeletonJson) > 0 {
 		b.Skeleton = &model.Skeleton{}
-		_ = json.Unmarshal(sb.SkeletonJson, b.Skeleton)
+		if err := json.Unmarshal(sb.SkeletonJson, b.Skeleton); err != nil {
+			return b, fmt.Errorf("decode skeleton: %w", err)
+		}
 	}
 
 	// Display hint.
 	if len(sb.DisplayHintJson) > 0 {
 		b.DisplayHint = &model.DisplayHint{}
-		_ = json.Unmarshal(sb.DisplayHintJson, b.DisplayHint)
+		if err := json.Unmarshal(sb.DisplayHintJson, b.DisplayHint); err != nil {
+			return b, fmt.Errorf("decode display hint: %w", err)
+		}
 	}
 
 	// Content ref.
 	if len(sb.ContentRefJson) > 0 {
 		b.ContentRef = &model.ContentRef{}
-		_ = json.Unmarshal(sb.ContentRefJson, b.ContentRef)
+		if err := json.Unmarshal(sb.ContentRefJson, b.ContentRef); err != nil {
+			return b, fmt.Errorf("decode content ref: %w", err)
+		}
 	}
 
-	return b
+	return b, nil
 }
 
 // runsToSyncSegment wraps a flat run sequence in a single wire segment.
@@ -392,4 +408,54 @@ func ComputeRootHash(itemHashes map[string]string) string {
 		h.Write([]byte(itemHashes[name]))
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// annotationEnvelope carries an annotation's concrete type alongside its JSON
+// payload so the polymorphic model.Annotation interface can be reconstructed.
+// A plain json.Marshal of map[string]model.Annotation cannot round-trip,
+// because json.Unmarshal has no way to pick the concrete type for an interface.
+type annotationEnvelope struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+// marshalAnnotations encodes a block's annotations as type-discriminated
+// envelopes.
+func marshalAnnotations(anns map[string]model.Annotation) ([]byte, error) {
+	env := make(map[string]annotationEnvelope, len(anns))
+	for k, a := range anns {
+		if a == nil {
+			continue
+		}
+		data, err := json.Marshal(a)
+		if err != nil {
+			return nil, fmt.Errorf("marshal annotation %q: %w", k, err)
+		}
+		env[k] = annotationEnvelope{Type: a.AnnotationType(), Data: data}
+	}
+	return json.Marshal(env)
+}
+
+// unmarshalAnnotations reconstructs typed annotations from the discriminated
+// envelopes written by marshalAnnotations, falling back to GenericAnnotation
+// for unregistered types.
+func unmarshalAnnotations(data []byte) (map[string]model.Annotation, error) {
+	var env map[string]annotationEnvelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		return nil, err
+	}
+	out := make(map[string]model.Annotation, len(env))
+	for k, e := range env {
+		a, ok := model.NewAnnotation(e.Type)
+		if !ok {
+			a = &model.GenericAnnotation{Kind: e.Type}
+		}
+		if len(e.Data) > 0 {
+			if err := json.Unmarshal(e.Data, a); err != nil {
+				return nil, fmt.Errorf("decode annotation %q (%s): %w", k, e.Type, err)
+			}
+		}
+		out[k] = a
+	}
+	return out, nil
 }

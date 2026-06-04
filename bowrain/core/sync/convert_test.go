@@ -32,7 +32,8 @@ func TestBlockRoundTrip(t *testing.T) {
 	assert.Equal(t, "homepage", pb.Properties["context"])
 
 	// Convert back.
-	b2 := ProtoToBlock(pb)
+	b2, err := ProtoToBlock(pb)
+	require.NoError(t, err)
 	assert.Equal(t, "b1", b2.ID)
 	assert.Equal(t, "greeting", b2.Name)
 	assert.Equal(t, "Hello world", b2.SourceText())
@@ -54,7 +55,8 @@ func TestBlockWithTargets(t *testing.T) {
 	require.Len(t, pb.Targets["fr"].Segments[0].Runs, 1)
 	assert.Equal(t, "Bonjour", pb.Targets["fr"].Segments[0].Runs[0].GetText().GetText())
 
-	b2 := ProtoToBlock(pb)
+	b2, err := ProtoToBlock(pb)
+	require.NoError(t, err)
 	assert.Equal(t, "Bonjour", b2.TargetText("fr"))
 	assert.Equal(t, "Hallo", b2.TargetText("de"))
 }
@@ -69,7 +71,8 @@ func TestBlockWithAnnotations(t *testing.T) {
 	pb := BlockToProto(b, "en.json")
 	assert.NotEmpty(t, pb.AnnotationsJson)
 
-	b2 := ProtoToBlock(pb)
+	b2, err := ProtoToBlock(pb)
+	require.NoError(t, err)
 	assert.NotNil(t, b2.Annotations)
 }
 

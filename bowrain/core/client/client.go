@@ -16,6 +16,13 @@ import (
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
 
+// defaultHTTPClient is the http.Client used by package-level helper functions.
+// Override in tests to avoid real network calls.
+//
+// TODO: thread context.Context through the package-level helper signatures once
+// callers in bowrain/ have been migrated (finding #19/#21).
+var defaultHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 // StreamHeader is the HTTP header used to communicate the active stream (legacy).
 // New clients use URL path-based stream routing instead.
 const StreamHeader = "X-Bowrain-Stream"
@@ -39,6 +46,9 @@ type BowrainClient struct {
 	compressor *compression.Pool // optional zstd compressor for chunk upload
 }
 
+// defaultClientTimeout is the read/connect timeout applied to all sync operations.
+const defaultClientTimeout = 120 * time.Second
+
 // NewWorkspaceBowrainClient creates a client that uses workspace-scoped routes with auth.
 func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string) *BowrainClient {
 	return &BowrainClient{
@@ -46,7 +56,7 @@ func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string
 		projectID:  projectID,
 		workspace:  workspace,
 		authToken:  authToken,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: defaultClientTimeout},
 	}
 }
 
@@ -56,7 +66,7 @@ func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient
 		baseURL:    strings.TrimRight(serverURL, "/"),
 		projectID:  projectID,
 		claimToken: claimToken,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: defaultClientTimeout},
 	}
 }
 
@@ -68,7 +78,7 @@ func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClie
 		baseURL:    strings.TrimRight(serverURL, "/"),
 		projectID:  projectID,
 		authToken:  authToken,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: defaultClientTimeout},
 	}
 }
 
@@ -475,7 +485,12 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/anonymous"
-	resp, err := http.Post(u, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return "", "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("create anonymous project: %w", err)
 	}
@@ -530,14 +545,14 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/" + url.PathEscape(workspace) + "/projects"
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return "", "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("create project: %w", err)
 	}
@@ -576,13 +591,13 @@ type WorkspaceInfo struct {
 // ListWorkspaces returns the workspaces accessible to the authenticated user.
 func ListWorkspaces(serverURL, token string) ([]WorkspaceInfo, error) {
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
 	}
@@ -613,13 +628,13 @@ type ProjectInfo struct {
 // GetProject retrieves a project by ID.
 func GetProject(serverURL, token, projectID string) (*ProjectInfo, error) {
 	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get project: %w", err)
 	}
@@ -640,13 +655,13 @@ func GetProject(serverURL, token, projectID string) (*ProjectInfo, error) {
 // DeleteProject deletes a project by ID.
 func DeleteProject(serverURL, token, projectID string) error {
 	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
-	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("delete project: %w", err)
 	}
@@ -674,14 +689,14 @@ func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, e
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/claim"
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("claim project: %w", err)
 	}
@@ -702,13 +717,13 @@ func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, e
 // JoinWorkspace accepts a workspace invite code and joins the workspace.
 func JoinWorkspace(serverURL, token, inviteCode string) error {
 	u := fmt.Sprintf("%s/api/v1/join/%s", strings.TrimRight(serverURL, "/"), inviteCode)
-	req, err := http.NewRequest(http.MethodPost, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("join workspace: %w", err)
 	}
@@ -733,14 +748,14 @@ func CreateWorkspace(serverURL, token, name, slug string) (*WorkspaceInfo, error
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("create workspace: %w", err)
 	}
@@ -1146,13 +1161,14 @@ func (c *BowrainClient) DownloadBlob(ctx context.Context, downloadURL string) ([
 	if err != nil {
 		return nil, fmt.Errorf("create download request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download blob: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("download failed: HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return io.ReadAll(resp.Body)
 }

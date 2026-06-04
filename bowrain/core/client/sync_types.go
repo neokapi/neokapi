@@ -39,10 +39,12 @@ type SyncRunConstraints struct {
 	Reorderable bool `json:"reorderable,omitempty"`
 }
 
+// SyncTextRun carries a plain-text span on the sync wire.
 type SyncTextRun struct {
 	Text string `json:"text"`
 }
 
+// SyncPlaceholderRun is a non-paired inline code (model.PlaceholderRun) on the sync wire.
 type SyncPlaceholderRun struct {
 	ID          string              `json:"id"`
 	Type        string              `json:"type"`
@@ -53,6 +55,7 @@ type SyncPlaceholderRun struct {
 	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
 }
 
+// SyncPcOpenRun is the opening half of a paired inline code (model.PcOpenRun) on the sync wire.
 type SyncPcOpenRun struct {
 	ID          string              `json:"id"`
 	Type        string              `json:"type"`
@@ -63,6 +66,7 @@ type SyncPcOpenRun struct {
 	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
 }
 
+// SyncPcCloseRun is the closing half of a paired inline code (model.PcCloseRun) on the sync wire.
 type SyncPcCloseRun struct {
 	ID      string `json:"id"`
 	Type    string `json:"type"`
@@ -71,17 +75,22 @@ type SyncPcCloseRun struct {
 	Equiv   string `json:"equiv,omitempty"`
 }
 
+// SyncSubRun is a sub-flow run (model.SubRun) on the sync wire, referencing a nested content unit.
 type SyncSubRun struct {
 	ID    string `json:"id"`
 	Ref   string `json:"ref"`
 	Equiv string `json:"equiv"`
 }
 
+// SyncPluralRun carries a plural-form run (model.PluralRun) on the sync wire.
+// Forms maps ICU plural-category strings (e.g. "one", "other") to run sequences.
 type SyncPluralRun struct {
 	Pivot string               `json:"pivot"`
 	Forms map[string][]SyncRun `json:"forms"`
 }
 
+// SyncSelectRun carries a select/switch run (model.SelectRun) on the sync wire.
+// Cases maps case-key strings to run sequences.
 type SyncSelectRun struct {
 	Pivot string               `json:"pivot"`
 	Cases map[string][]SyncRun `json:"cases"`

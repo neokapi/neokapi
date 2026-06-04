@@ -63,6 +63,9 @@ type PushCommitRequest struct {
 	WorkspaceSlug string          `json:"workspace_slug"`
 }
 
+// ChunkRef identifies a single uploaded chunk in the push commit manifest.
+// Hash is the SHA-256 of the exact bytes uploaded (after optional zstd compression)
+// and must match how the blob store keys the chunk so the worker can retrieve it.
 type ChunkRef struct {
 	Index       int    `json:"index"`
 	ContentType string `json:"content_type"`
@@ -159,7 +162,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	// only the changed subset, so an item the server flags "deleted" merely
 	// reflects items absent from this push, not items the user removed. Acting
 	// on it would be data loss.
-	allNeeded := map[string]map[string]bool{} // item → set of needed block IDs
+	allNeeded := map[string]map[string]struct{}{} // item → set of needed block IDs
 	diffItems := make([]string, 0, len(initResp.ChangedItems)+len(initResp.NewItems))
 	diffItems = append(diffItems, initResp.ChangedItems...)
 	diffItems = append(diffItems, initResp.NewItems...)
@@ -178,9 +181,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		if err != nil {
 			return nil, fmt.Errorf("push diff for %s: %w", itemName, err)
 		}
-		needed := map[string]bool{}
+		needed := map[string]struct{}{}
 		for _, id := range diffResp.Needed {
-			needed[id] = true
+			needed[id] = struct{}{}
 		}
 		// diffResp.Deleted is deliberately ignored — same additive-only reason
 		// as initResp.DeletedItems above: BlockHashes covers only the changed
@@ -201,7 +204,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		chunkBytes := 0
 
 		for _, b := range blocks {
-			if !neededIDs[b.ID] {
+			if _, ok := neededIDs[b.ID]; !ok {
 				continue
 			}
 			sb := bowsync.BlockToProto(b, itemName)
@@ -251,7 +254,10 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 
 	// 5. Commit.
-	itemsJSON, _ := json.Marshal(items)
+	itemsJSON, err := json.Marshal(items)
+	if err != nil {
+		return nil, fmt.Errorf("marshal items: %w", err)
+	}
 	commitResp, err := c.pushCommit(ctx, PushCommitRequest{
 		UploadID: initResp.UploadID,
 		Chunks:   chunks,
@@ -265,7 +271,10 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 }
 
 func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*PushInitResponse, error) {
-	body, _ := json.Marshal(req)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal push init request: %w", err)
+	}
 	u := c.streamPrefix() + "/push/init"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
@@ -278,7 +287,7 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("push init HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	var result PushInitResponse
@@ -286,7 +295,10 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 }
 
 func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*PushDiffResponse, error) {
-	body, _ := json.Marshal(req)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal push diff request: %w", err)
+	}
 	u := c.streamPrefix() + "/push/diff"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
@@ -299,7 +311,7 @@ func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*Pus
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("push diff HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	var result PushDiffResponse
@@ -359,7 +371,10 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 }
 
 func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (*SyncPushResponse, error) {
-	body, _ := json.Marshal(req)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal push commit request: %w", err)
+	}
 	u := c.streamPrefix() + "/push/commit"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
@@ -372,7 +387,7 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("push commit HTTP %d: %s", resp.StatusCode, string(b))
 	}
 	var result SyncPushResponse

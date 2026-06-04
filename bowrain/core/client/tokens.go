@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -46,14 +47,14 @@ func CreateToken(serverURL, token, workspace, name string, expireDays int) (*Cre
 	}
 
 	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("create token: %w", err)
 	}
@@ -74,13 +75,13 @@ func CreateToken(serverURL, token, workspace, name string, expireDays int) (*Cre
 // ListTokens returns all API tokens for the given workspace.
 func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
 	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list tokens: %w", err)
 	}
@@ -101,13 +102,13 @@ func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
 // DeleteToken deletes an API token by ID.
 func DeleteToken(serverURL, token, workspace, tokenID string) error {
 	u := fmt.Sprintf("%s/api/v1/%s/tokens/%s", strings.TrimRight(serverURL, "/"), workspace, tokenID)
-	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("delete token: %w", err)
 	}
