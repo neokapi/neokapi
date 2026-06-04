@@ -3,11 +3,14 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/klz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -173,6 +176,39 @@ func TestKlzRecipeRemembersOutput(t *testing.T) {
 	kapi(t, "merge", work) // no -o: uses the recipe's locales + out layout
 	assert.FileExists(t, filepath.Join(dir, "l10n", "fr", "app.json"))
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
+}
+
+// TestKlzTransformReusesCache pins the caching guarantee: the overlays in a
+// .klz ARE the cache, so a second transform hydrates them instead of
+// recomputing. We tamper a cached target overlay to a sentinel; if the
+// second transform recomputed it would overwrite the sentinel — it must not.
+func TestKlzTransformReusesCache(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
+	work := filepath.Join(dir, "work.klz")
+	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
+	kapi(t, "pseudo-translate", work) // first transform: computes + caches
+
+	// Tamper the cached target overlay to a sentinel value.
+	pkg, err := klz.Unmarshal(readFileBytes(t, work))
+	require.NoError(t, err)
+	tampered := false
+	for i := range pkg.Overlays {
+		if strings.HasPrefix(pkg.Overlays[i].Kind, "targets/") {
+			pkg.Overlays[i].Payload = json.RawMessage(`{"target":"SENTINEL-CACHED"}`)
+			tampered = true
+		}
+	}
+	require.True(t, tampered, "first transform must have written a target overlay")
+	out, err := pkg.Marshal()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(work, out, 0o644))
+
+	// Second transform must reuse the cached overlay, not recompute it.
+	kapi(t, "pseudo-translate", work)
+	kapi(t, "merge", work, "-o", filepath.Join(dir, "out"))
+	assert.Contains(t, readFile(t, filepath.Join(dir, "out", "app.json")), "SENTINEL-CACHED",
+		"a second transform must hydrate the cached overlay, not recompute it")
 }
 
 // TestKlzTransformGuards verifies the model's guards: creating a .klz needs
