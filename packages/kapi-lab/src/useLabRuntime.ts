@@ -39,6 +39,8 @@ export interface LabRuntime {
   status: LabStatus;
   error: string | null;
   ready: boolean;
+  /** Create a directory (and parents) under /project. */
+  mkdir: (path: string) => void;
   /** Seed a file into the in-memory filesystem under /project. Accepts text or
    *  raw bytes (use bytes for binary formats like .docx). Returns its path. */
   writeFile: (filename: string, data: string | Uint8Array) => string;
@@ -100,6 +102,11 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       cancelled = true;
     };
   }, [assets]);
+
+  const mkdir = useCallback((path: string): void => {
+    const rt = runtimeRef.current;
+    if (rt) rt.vol.mkdirp(`${PROJECT_DIR}/${path}`);
+  }, []);
 
   const writeFile = useCallback((filename: string, data: string | Uint8Array): string => {
     const rt = runtimeRef.current;
@@ -198,6 +205,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     status,
     error,
     ready: status === "ready",
+    mkdir,
     writeFile,
     inspect,
     trace,

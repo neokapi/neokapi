@@ -118,6 +118,26 @@ of that round-trip — alongside bilingual XLIFF/PO — except the translation h
 derived from the content itself (the overlays present), never a separate status
 file, so resuming is correct, idempotent, and crash-safe by construction.
 
+## Compare: a `.kapi` project
+
+The same engine powers a **`.kapi` project** — the multi-file, team/server form. A
+project keeps its config in a committed `.kapi` *recipe* (declared content, flows,
+target languages) and its working state in a `.kapi/` directory (the persistent
+cache, TM, and termbase). Run a declared flow against it below — and contrast it
+with the single-file `.klz` workspace above: same content, same output, different
+packaging.
+
+import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
+
+<ProjectExplorer defaultSampleId="json" />
+
+| | `.kapi` project | `.klz` workspace |
+|---|---|---|
+| shape | recipe file + `.kapi/` state dir | single portable file |
+| config | committed recipe (content, flows, locales) | recipe carried in the file |
+| best for | teams, servers, version control | ad-hoc, single-file hand-off |
+| state | persistent `.kapi/cache` | shadow cache, ejected on `pack` |
+
 ## See also
 
 - [The KLF family & `.klz` package](/reference/klf/package) — the package format

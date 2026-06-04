@@ -28,6 +28,8 @@ export { default as KlfConformance } from "./KlfConformance";
 export type { KlfConformanceProps } from "./KlfConformance";
 export { default as WorkspaceExplorer } from "./WorkspaceExplorer";
 export type { WorkspaceExplorerProps } from "./WorkspaceExplorer";
+export { default as ProjectExplorer } from "./ProjectExplorer";
+export type { ProjectExplorerProps } from "./ProjectExplorer";
 export { WORKSPACE_SAMPLES, workspaceSampleById } from "./workspaceSamples";
 export type { WorkspaceSample } from "./workspaceSamples";
 export { KLF_SAMPLES, klfSampleById, klfText, ANNOTATIONS_KLFL } from "./klfFixtures";
