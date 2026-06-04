@@ -167,7 +167,7 @@ func buildProperties(src any) map[string]PropertyEntry {
 	// schemas (which use format/schema.PropertySchema that embeds the
 	// core type).
 	switch m := src.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return buildPropertiesFromAny(m)
 	}
 	// Cast by reflection: round-trip through JSON. Small, correct, and

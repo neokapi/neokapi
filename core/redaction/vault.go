@@ -1,11 +1,12 @@
 package redaction
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -165,11 +166,8 @@ func sortedValues(m map[string]RedactedValue) []RedactedValue {
 	for _, rv := range m {
 		out = append(out, rv)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].BlockID != out[j].BlockID {
-			return out[i].BlockID < out[j].BlockID
-		}
-		return out[i].Token < out[j].Token
+	slices.SortFunc(out, func(a, b RedactedValue) int {
+		return cmp.Or(cmp.Compare(a.BlockID, b.BlockID), cmp.Compare(a.Token, b.Token))
 	})
 	return out
 }

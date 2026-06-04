@@ -4,7 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/dlclark/regexp2"
 
@@ -167,7 +167,7 @@ func applyRules(ctx context.Context, rules []compiledRule, text []rune) ([]int, 
 			breaks = append(breaks, pos)
 		}
 	}
-	sort.Ints(breaks)
+	slices.Sort(breaks)
 	return breaks, nil
 }
 

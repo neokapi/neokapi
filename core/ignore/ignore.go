@@ -69,7 +69,7 @@ func (m *Matcher) LoadEnv() {
 	if val == "" {
 		return
 	}
-	for _, p := range strings.Split(val, ",") {
+	for p := range strings.SplitSeq(val, ",") {
 		m.AddPattern(p)
 	}
 }

@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -72,11 +73,7 @@ func (req TranslateRequest) Directives() string {
 	}
 	if len(req.Glossary) > 0 {
 		b.WriteString("\n\nGlossary:\n")
-		keys := make([]string, 0, len(req.Glossary))
-		for k := range req.Glossary {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := slices.Sorted(maps.Keys(req.Glossary))
 		for _, k := range keys {
 			fmt.Fprintf(&b, "- %s → %s\n", k, req.Glossary[k])
 		}

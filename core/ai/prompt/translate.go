@@ -2,7 +2,8 @@ package prompt
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -23,11 +24,7 @@ func sortedGlossaryLines(glossary map[string]string) string {
 	if len(glossary) == 0 {
 		return ""
 	}
-	keys := make([]string, 0, len(glossary))
-	for k := range glossary {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(glossary))
 	var b strings.Builder
 	for _, k := range keys {
 		fmt.Fprintf(&b, "- %s → %s\n", k, glossary[k])

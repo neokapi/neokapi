@@ -119,7 +119,9 @@ func TestDemoProvider_NeutralSchema(t *testing.T) {
 
 func TestDemoProvider_NoticeOnce(t *testing.T) {
 	// Reset the once guard for an isolated assertion.
-	demoNoticeOnce = sync.Once{}
+	noticeOnce = sync.OnceFunc(func() {
+		_, _ = io.WriteString(demoNoticeWriter, DemoNotice+"\n")
+	})
 	var buf strings.Builder
 	SetDemoNoticeWriter(&buf)
 	defer SetDemoNoticeWriter(io.Discard)

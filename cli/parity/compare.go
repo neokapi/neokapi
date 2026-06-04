@@ -191,14 +191,8 @@ func firstDiff(a, b []byte) string {
 	}
 	for i := 0; i < n; i++ {
 		if a[i] != b[i] {
-			lo := i - 8
-			if lo < 0 {
-				lo = 0
-			}
-			hi := i + 24
-			if hi > n {
-				hi = n
-			}
+			lo := max(i-8, 0)
+			hi := min(i+24, n)
 			return fmt.Sprintf("offset %d: want %q got %q", i, a[lo:hi], b[lo:hi])
 		}
 	}

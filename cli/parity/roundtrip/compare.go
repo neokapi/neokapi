@@ -116,14 +116,14 @@ func compareTiered(got, reference []byte, isZip bool, norm Normalizer) Compariso
 		RawDiffOffset:  -1,
 		NormDiffOffset: -1,
 	}
-	if reason := compareBytesOrZip(got, reference, isZip); reason == "" {
+	reason := compareBytesOrZip(got, reference, isZip)
+	if reason == "" {
 		res.Achieved = TierByteEqual
 		return res
-	} else {
-		res.Reason = reason
-		if !isZip {
-			res.RawDiffOffset = firstDiff(got, reference)
-		}
+	}
+	res.Reason = reason
+	if !isZip {
+		res.RawDiffOffset = firstDiff(got, reference)
 	}
 
 	if norm != nil {
@@ -190,7 +190,7 @@ func firstDiff(a, b []byte) int {
 	if len(b) < n {
 		n = len(b)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if a[i] != b[i] {
 			return i
 		}
