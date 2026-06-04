@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -109,6 +110,28 @@ func (m *MetricsTool) SetConfig(c tool.ToolConfig) error { return m.inner.SetCon
 // inner.Process returns. Both interceptor goroutines are joined before
 // Process returns so neither leaks on the happy path or the cancel/error path.
 func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	return m.intercept(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+		return m.inner.Process(ctx, innerIn, innerOut)
+	})
+}
+
+// SessionProcess forwards the session contract to the wrapped tool when it
+// is a SessionTool, while still counting parts — so persistent overlay
+// caching survives the metrics wrapper (without this, a wrapped SessionTool
+// silently loses its cache, defeating resumable runs).
+func (m *MetricsTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
+	st, ok := m.inner.(tool.SessionTool)
+	if !ok {
+		return m.Process(ctx, in, out)
+	}
+	return m.intercept(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+		return st.SessionProcess(ctx, sess, innerIn, innerOut)
+	})
+}
+
+// intercept runs run() with metrics-counting channels spliced around the
+// inner tool's in/out.
+func (m *MetricsTool) intercept(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part, run func(<-chan *model.Part, chan<- *model.Part) error) error {
 	metricsIn := make(chan *model.Part, cap(in))
 	metricsOut := make(chan *model.Part, cap(out))
 
@@ -145,7 +168,7 @@ func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 	}()
 
 	// Run the inner tool.
-	err := m.inner.Process(ctx, metricsIn, metricsOut)
+	err := run(metricsIn, metricsOut)
 
 	// Signal the input interceptor to stop forwarding (the inner tool is no
 	// longer reading metricsIn) and close metricsOut so the output
@@ -159,5 +182,8 @@ func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 	return err
 }
 
-// Verify MetricsTool implements tool.Tool at compile time.
-var _ tool.Tool = (*MetricsTool)(nil)
+// Verify MetricsTool implements tool.Tool and tool.SessionTool at compile time.
+var (
+	_ tool.Tool        = (*MetricsTool)(nil)
+	_ tool.SessionTool = (*MetricsTool)(nil)
+)

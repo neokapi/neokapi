@@ -17,6 +17,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -210,12 +211,26 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
+	// In project mode, run against the project's persistent block store
+	// (.kapi/cache/blocks.db) so SessionTools cache per-block work as
+	// overlays — that is what lets a later run skip already-done steps and
+	// makes the project's working state packable (AD-025 §5). Identical
+	// output either way; the store only adds the overlay cache.
+	var projStore blockstore.Store
+	if a.projectContext != nil {
+		if s := a.openProjectBlockStore(); s != nil {
+			projStore = s
+			defer s.Close()
+		}
+	}
+
 	// Build reader configuration callback: applies preset config + project defaults.
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
 		Recorder:     recorder,
+		Store:        projStore,
 		ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 			if len(mergedConfig) > 0 {
 				if cfg := reader.Config(); cfg != nil {

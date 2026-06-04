@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -46,6 +47,14 @@ type FileRunnerConfig struct {
 	// tools with TracingTool to capture per-tool snapshots. This is what makes
 	// `kapi run <flow> --trace` produce the same rich trace as a single tool.
 	Recorder *TraceRecorder
+
+	// Store, when non-nil, is the block store the executor runs the tool
+	// chain against. A persistent store (e.g. a workspace's blocks.db) makes
+	// SessionTools cache per-block work as overlays and skip already-done
+	// steps on a later run — the substrate of resumable .klz workspaces
+	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so
+	// one-shot runs are unchanged.
+	Store blockstore.Store
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -254,7 +263,11 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// by daemon-backed plugin formats (one Process stream at a time) and
 	// guarantees every skeleton entry is written before the writer's
 	// internal skeleton Flush().
-	executor := NewExecutor()
+	var execOpts []ExecutorOption
+	if r.cfg.Store != nil {
+		execOpts = append(execOpts, WithBlockStore(r.cfg.Store))
+	}
+	executor := NewExecutor(execOpts...)
 
 	// Derive a cancellable context for the feeder so a tool error (which
 	// cancels the executor's own internal context and stops the tools)

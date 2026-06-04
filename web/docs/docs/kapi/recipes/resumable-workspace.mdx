@@ -1,0 +1,80 @@
+---
+id: resumable-workspace
+title: "Hand off a project mid-flow with .klz"
+sidebar_label: "Hand-off & resume"
+sidebar_position: 6
+description: "Move a project's in-progress working state between machines with kapi pack / unpack, and resume against the persistent block-store cache so already-translated content is never recomputed."
+keywords: [klz, pack, unpack, handoff, resume, cache, working state, provenance, AD-025]
+---
+
+# Hand off a project mid-flow with `.klz`
+
+Some work can't finish in one place. You might segment and pre-translate on CI,
+do the licensed machine translation on an air-gapped machine, and finish back on
+CI. kapi supports this with two pieces that need almost no new command surface:
+**cached resume** (re-running skips work already done) and **`pack` / `unpack`**
+(move the working state as a portable `.klz`).
+
+## Resume is just running again
+
+A project run executes against the project's persistent block store
+(`.kapi/cache/blocks.db`). Tools cache their per-block results there, so the
+*next* run reuses them instead of recomputing:
+
+```bash
+kapi run ai-translate-qa -i app.json -o app.fr.json   # translates, caches results
+kapi run ai-translate-qa -i app.json -o app.fr.json   # reuses the cache — no re-translation
+```
+
+The second run is byte-identical and doesn't call the translator again for blocks
+it already did. There's no "resume" flag — the store *is* the workspace, and
+running again continues from it. This is correct because the store is
+content-addressed: a block you've already translated is found by its hash, and a
+block whose source you changed gets a new hash, so only the changed content is
+redone.
+
+## Move the working state: `pack` / `unpack`
+
+To continue on another machine, snapshot the working state into a `.klz` and
+rehydrate it there:
+
+```bash
+# Machine A — pre-translate, then snapshot
+kapi run ai-translate-qa -i app.json -o app.fr.json
+kapi pack -o snapshot.klz
+
+#   ... copy snapshot.klz to machine B (no server needed) ...
+
+# Machine B — rehydrate and resume
+kapi unpack snapshot.klz
+kapi run ai-translate-qa -i app.json -o app.fr.json   # resumes against the warm cache
+```
+
+`pack` captures the block-store overlays plus the authoritative translation
+memory and termbase. It deliberately **excludes** regenerable caches and secrets,
+so a snapshot is the source of truth, not a pile of derived files.
+
+## Tamper-evident provenance (optional)
+
+For a hand-off you may want a custody trail. `pack --log` stamps a hash-chained
+line into an advisory `history.jsonl` inside the snapshot recording the pack;
+`unpack` verifies the chain and warns if it was altered:
+
+```bash
+kapi pack -o snapshot.klz --log
+```
+
+The log is **purely advisory**: it's excluded from the package's content hash,
+nothing reads it back to decide anything, and deleting it loses no work. A plain
+`pack` (without `--log`) is byte-deterministic — packing the same state twice
+produces identical bytes.
+
+Progress is always derived from the content itself — the overlays present in the
+store — never from a separate status file that could drift from it.
+
+## See also
+
+- [The KLF family & `.klz` package](/reference/klf/package) — the package format
+  and its working-state members.
+- [AD-025: KLF Family and the `.klz` Package](/contribute/architecture/025-klf-package) — the design and the
+  content-derived-progress decision.

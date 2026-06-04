@@ -32,9 +32,23 @@ const (
 	ContentTypeTM          = "tm"
 	ContentTypeTermbase    = "termbase"
 	ContentTypeMedia       = "media"
+	// ContentTypeOverlays is the member kind carrying in-progress overlay
+	// layers (targets, annotations, segmentation, …) keyed by
+	// (kind, blockHash) — the substance of a resumable workspace. See
+	// AD-025 §5.
+	ContentTypeOverlays = "overlays"
+	// ContentTypeHistory is the advisory, append-only JSONL log of what ran,
+	// when, and by whom (AD-025 §5). It is strictly subordinate to content:
+	// deliberately EXCLUDED from the content RootHash, never read by resume
+	// or status, and safe to delete with no loss of work. Opt-in.
+	ContentTypeHistory = "history"
 
 	tmPath       = "tm.klftm"
 	termbasePath = "termbase.klftb"
+	// OverlaysPath is the single overlay-set member's archive path.
+	OverlaysPath = "overlays.klfo"
+	// HistoryPath is the advisory history log's archive path.
+	HistoryPath = "history.jsonl"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -51,6 +65,17 @@ type Package struct {
 	TM          *klftm.File
 	Termbase    *klftb.File
 	Media       []Media
+
+	// Overlays carries in-progress overlay layers (targets, annotations, …)
+	// when the package snapshots a project's working state rather than a
+	// finished at-rest project. Empty for a plain at-rest package.
+	// Serialized as a single deterministic overlays.klfo member.
+	Overlays []OverlayDoc
+	// History is the advisory, append-only JSONL log (raw bytes, one JSON
+	// object per line). Opt-in and content-subordinate: it rides in the
+	// package for hand-off convenience but is excluded from RootHash and
+	// ignored by resume/status — deleting it loses no work. Empty by default.
+	History []byte
 }
 
 // GeneratorInfo identifies the tool that produced the package.
@@ -75,6 +100,16 @@ type AnnotationDoc struct {
 type Media struct {
 	Path string // archive path under media/, e.g. "media/logo.png"
 	Data []byte
+}
+
+// OverlayDoc is one append-layer entry, mirroring blockstore.Overlay minus
+// the volatile UpdatedAt timestamp: a workspace's content identity is the
+// work itself, not when it was recorded (AD-025 §5). Payload is the
+// tool-owned JSON body, carried verbatim.
+type OverlayDoc struct {
+	Kind      string          `json:"kind"`
+	BlockHash string          `json:"blockHash"`
+	Payload   json.RawMessage `json:"payload"`
 }
 
 // Manifest is the package inventory written as manifest.json. RootHash is a
@@ -196,14 +231,30 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		}
 		add(m.Path, ContentTypeMedia, m.Data)
 	}
+	if len(p.Overlays) > 0 {
+		data, err := marshalOverlaySet(p.Overlays)
+		if err != nil {
+			return nil, fmt.Errorf("klz: marshal overlays: %w", err)
+		}
+		add(OverlaysPath, ContentTypeOverlays, data)
+	}
+	if len(p.History) > 0 {
+		add(HistoryPath, ContentTypeHistory, p.History)
+	}
 	return members, nil
 }
 
-// rootHash is a Merkle digest over the sorted member content hashes.
+// rootHash is a Merkle digest over the sorted CONTENT member hashes. The
+// advisory history log is excluded: it is subordinate to content (AD-025
+// §5), so it must not perturb the package's content identity, and its
+// timestamps would otherwise break determinism.
 func rootHash(members []memberBytes) string {
-	sorted := make([]Member, len(members))
-	for i, m := range members {
-		sorted[i] = m.Member
+	sorted := make([]Member, 0, len(members))
+	for _, m := range members {
+		if m.ContentType == ContentTypeHistory {
+			continue
+		}
+		sorted = append(sorted, m.Member)
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
 	h := sha256.New()
@@ -293,6 +344,14 @@ func Unmarshal(data []byte) (*Package, error) {
 			pkg.Termbase = f
 		case ContentTypeMedia:
 			pkg.Media = append(pkg.Media, Media{Path: m.Path, Data: body})
+		case ContentTypeHistory:
+			pkg.History = body
+		case ContentTypeOverlays:
+			overlays, err := unmarshalOverlaySet(body)
+			if err != nil {
+				return nil, fmt.Errorf("klz: parse %q: %w", m.Path, err)
+			}
+			pkg.Overlays = overlays
 		default:
 			return nil, fmt.Errorf("klz: unknown content type %q for %q", m.ContentType, m.Path)
 		}

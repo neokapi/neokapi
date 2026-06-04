@@ -56,7 +56,11 @@ project.klz
 ├── annotations/<id>.klfl  KLF annotations  (stand-off overlays)
 ├── tm.klftm               KLF-TM           (translation memory)
 ├── termbase.klftb         KLF-TB           (terminology)
-└── media/<name>           opaque blobs
+├── media/<name>           opaque blobs
+│
+│   ── working-state members (AD-025 §5) ──
+├── overlays.klfo          in-progress overlays  (targets, annotations, …)
+└── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
 
 Because every member is a native lossless format, the whole package is lossless:
@@ -73,6 +77,50 @@ the block-store cache (`blocks.db`) and the sync hash cache, which rebuild on
 demand, and it excludes secrets (the sync claim token). This is what makes the
 package the at-rest twin of the sync wire format: packing is the sync converters
 writing files instead of protobuf, and unpacking is the inverse.
+
+## Working state: hand-off and resume
+
+A `.klz` is not only an at-rest snapshot of finished content — it can also carry
+a project's **in-progress working state**, so work can move between machines and
+resume where it left off. Two mechanisms cooperate, with **no per-step CLI verbs**:
+
+- **Cached resume.** A project run executes against the project's persistent
+  block store (`.kapi/cache/blocks.db`). Tools cache per-block results as
+  overlays, so re-running a flow **skips work that is already done** — output is
+  byte-identical, the expensive steps just don't recompute. The store *is* the
+  workspace; resume is simply running again.
+- **Hand-off.** `kapi pack` snapshots that working state — the block-store
+  overlays plus the authoritative TM and termbase — into a portable `.klz`;
+  `kapi unpack` rehydrates it into another machine's `.kapi/` state dir, where a
+  run resumes against the warm cache.
+
+```bash
+kapi run translate-qa -i app.json -o app.fr.json   # caches overlays in .kapi/
+kapi pack   -o snapshot.klz                          # snapshot the working state
+#   ... move snapshot.klz to another machine ...
+kapi unpack snapshot.klz                             # rehydrate, then run to resume
+```
+
+The working-state member is `overlays.klfo`: the in-progress overlays
+(`targets/<locale>`, `annotations/<name>`, segmentation, …) keyed by
+`(kind, blockHash)`.
+
+### Progress is derived from content, not a journal
+
+Because the block store is append-only and content-addressed, *"has step X run?"*
+is a pure function of the content: does X's overlay exist for the current block
+hashes? That is what makes cached resume correct — re-running is a no-op where
+the overlay is already present, and a source change re-hashes its block so only
+the affected work recomputes. There is **no authoritative progress journal** — it
+would be a second source of truth that could drift from the content (the
+dual-state footgun this codebase avoids).
+
+The one optional log is **advisory provenance**: `kapi pack --log` stamps a
+hash-chained line into `history.jsonl` recording the pack (tamper-evident custody
+for hand-off; `unpack` verifies the chain and warns if broken). It is strictly
+subordinate to content — excluded from the package `rootHash`, never read to
+decide anything, and safe to delete with no loss of work. A default `pack` (no
+`--log`) is byte-deterministic.
 
 ## When to use it
 

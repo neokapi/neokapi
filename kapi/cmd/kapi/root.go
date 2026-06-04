@@ -52,6 +52,12 @@ func init() {
 	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	rootCmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
 
+	// .klz project snapshot hand-off (AD-025 §5): pack the working state
+	// into a portable .klz and rehydrate it elsewhere. Resume across runs is
+	// the persistent block-store cache, not a stepping verb family.
+	rootCmd.AddCommand(app.NewPackCmd())
+	rootCmd.AddCommand(app.NewUnpackCmd())
+
 	// Toolbox: format-aware cat / grep / sed. Registered as hidden, flag-detached
 	// proxies that delegate to the same standalone commands the multi-call
 	// binaries kcat / kgrep / ksed run (see main.go busybox dispatch). Hidden so

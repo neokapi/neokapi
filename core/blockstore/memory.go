@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"sort"
 	"sync"
 	"time"
 )
@@ -162,6 +163,25 @@ func (s *memorySession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 				if !yield(v, nil) {
 					return
 				}
+			}
+		}
+	}
+}
+
+func (s *memorySession) AllOverlays() iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
+		if s.done {
+			yield(Overlay{}, ErrClosed)
+			return
+		}
+		keys := make([]string, 0, len(s.overlays))
+		for k := range s.overlays {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if !yield(s.overlays[k], nil) {
+				return
 			}
 		}
 	}
