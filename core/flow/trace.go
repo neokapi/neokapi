@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -286,6 +287,27 @@ func (t *TracingTool) SetConfig(c tool.ToolConfig) error { return t.inner.SetCon
 // inner.Process returns. Both interceptor goroutines are joined before
 // Process returns so neither leaks on the happy path or the cancel/error path.
 func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	return t.trace(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+		return t.inner.Process(ctx, innerIn, innerOut)
+	})
+}
+
+// SessionProcess forwards the session contract to the wrapped tool when it
+// is a SessionTool, while still recording trace events — so persistent
+// overlay caching survives the tracing wrapper.
+func (t *TracingTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
+	st, ok := t.inner.(tool.SessionTool)
+	if !ok {
+		return t.Process(ctx, in, out)
+	}
+	return t.trace(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+		return st.SessionProcess(ctx, sess, innerIn, innerOut)
+	})
+}
+
+// trace runs run() with trace-recording channels spliced around the inner
+// tool's in/out.
+func (t *TracingTool) trace(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part, run func(<-chan *model.Part, chan<- *model.Part) error) error {
 	tracedIn := make(chan *model.Part, cap(in))
 	tracedOut := make(chan *model.Part, cap(out))
 
@@ -326,7 +348,7 @@ func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 
 	// Run the inner tool. BaseTool.Process returns when input is exhausted
 	// but does not close its output channel.
-	err := t.inner.Process(ctx, tracedIn, tracedOut)
+	err := run(tracedIn, tracedOut)
 
 	// Signal the input interceptor to stop forwarding (the inner tool is no
 	// longer reading tracedIn) and close tracedOut so the output interceptor

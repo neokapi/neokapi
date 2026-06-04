@@ -81,8 +81,11 @@ type ToolRunConfig struct {
 	// DefaultLayout: no -o/--output-dir was given, so resolve each output
 	// path with localeOutputPath — swap the source locale in the input path
 	// if present, else write under a {lang}/ directory beside the input.
-	DefaultLayout  bool
-	TargetLang     string
+	DefaultLayout bool
+	TargetLang    string
+	// Pack: when the input is a .klz workspace, auto-eject the transform to
+	// the .klz (the --pack flag); otherwise the cache is left dirty.
+	Pack           bool
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
 	NewTool        func() (tool.Tool, error)
@@ -93,6 +96,24 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	// A tool run on a single .klz transforms the workspace IN PLACE; output
+	// files come later from `kapi merge`.
+	if klzWorkspaceInput(cfg.Files) {
+		if cfg.OutputTemplate != "" {
+			return errKlzTransformOutput
+		}
+		return a.transformKlzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
+			t, terr := cfg.NewTool()
+			if terr != nil {
+				return nil, nil, terr
+			}
+			return []tool.Tool{t}, nil, nil
+		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), cfg.Pack)
+	}
+	if isKlzPath(cfg.OutputTemplate) {
+		return errKlzCreateWithExtract
+	}
+
 	files, err := resolveFiles(cfg.Files)
 	if err != nil {
 		return err

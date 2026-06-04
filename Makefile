@@ -1089,6 +1089,12 @@ docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke
 klf-smoke: web-wasm-cli ## Verify KLF Go(wasm)↔TS parity for the docs Tests page (serialization, preview, anchors, validation)
 	node --experimental-strip-types scripts/verify-snippets/klf-smoke.ts
 
+klz-smoke: build ## Verify the resumable .klz workspace lifecycle (open→step→finish == one-shot; pack stable)
+	bash scripts/klz-smoke.sh $(BIN_DIR)/kapi
+
+klz-wasm-smoke: web-wasm-cli ## Verify .klz workspace + .kapi project run in the browser WASM engine (JSON + Office)
+	GOROOT="$$($(GO) env GOROOT)" node --experimental-strip-types scripts/klz-wasm-smoke.ts
+
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
 # Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +

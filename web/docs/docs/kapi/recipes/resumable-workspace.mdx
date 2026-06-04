@@ -1,0 +1,154 @@
+---
+id: resumable-workspace
+title: "Work in a .klz workspace"
+sidebar_label: "Workspace (.klz)"
+sidebar_position: 6
+description: "A .klz is a single-file, serverless localization workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config (locales, output layout) travels with the file."
+keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff, AD-025]
+---
+
+# Work in a `.klz` workspace
+
+A `.klz` is a **single-file, serverless localization workspace** — the portable
+equivalent of a `.kapi` project's working state. You build it up and emit from it
+with three verbs that map to the pipeline stages:
+
+| Stage | Verb |
+|---|---|
+| **reader** — ingest sources | `kapi extract <sources> -o work.klz` |
+| **transform** — run tools, in place | `kapi <tool> work.klz` · `kapi run <flow> -i work.klz` |
+| **writer** — emit finished files | `kapi merge work.klz -o <dir>` |
+| **eject** — write the shareable `.klz` | `kapi pack work.klz` · transform `--pack` |
+| **inspect** — dirty? | `kapi info work.klz` |
+
+```bash
+kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
+kapi ai-translate work.klz --target-lang fr                 # transform in place
+kapi pseudo-translate work.klz --target-lang qps           # …accumulates
+kapi merge work.klz -o l10n/                               # emit → l10n/<lang>/<name>
+```
+
+No project, no server — one portable file you can hand to another machine and
+pick up where it was left.
+
+## Try it
+
+Walk the lifecycle as narrated commands, running live in your browser
+(WebAssembly) — `extract → pseudo-translate → info → pack → merge`:
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+
+<KapiGuidedEmbed id="kapi-klz-workspace" />
+
+### Inspect it
+
+The lab below is the same workflow, interactive — pick a sample (including binary
+**Word/Excel** documents) and step through it, watching the workspace's recipe,
+per-locale overlays, and **dirty → clean** state update after each step.
+
+import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
+
+<WorkspaceExplorer defaultSampleId="json" />
+
+## Extract — ingest sources
+
+`extract` pulls the source documents into the workspace and records a small
+**recipe** so config travels with the file:
+
+```bash
+kapi extract src/**/*.json -o work.klz \
+  --target-lang fr,qps \
+  --out 'l10n/{lang}/{name}.{ext}'
+```
+
+The recipe holds the target locales and the output layout, so later steps need no
+flags. (`extract` also still emits bilingual XLIFF/PO for a `.kapi` project — the
+`.klz` form is the ad-hoc, no-project path.)
+
+## Transform — run tools in place
+
+Running a tool or flow **on** a `.klz` transforms the workspace: it appends the
+work (per-block overlays). It does **not** write output documents — that is
+`merge`'s job. Transforms are repeatable and composable, and locales accumulate:
+
+```bash
+kapi ai-translate    work.klz --target-lang fr
+kapi pseudo-translate work.klz --target-lang qps
+kapi run ai-translate-qa -i work.klz --target-lang fr
+```
+
+Re-running a transform reuses the work already done instead of recomputing it, so
+the expensive steps (AI, MT) don't run twice. Each document's work stays isolated.
+
+### The cache and the bundle
+
+Transforms run against a fast, persistent **working cache** (under your cache dir,
+keyed to the `.klz`) — they do **not** rewrite the `.klz` on every command. The
+`.klz` is the stable, shareable *bundle*; the cache is your *working clone*. The
+`.klz` changes only when you explicitly **eject**:
+
+```bash
+kapi info work.klz     # documents, locales, and whether the cache is dirty
+kapi pack work.klz     # eject the cache → work.klz (for sharing)
+```
+
+`info` reports `dirty` when the cache has work not yet packed. Add `--pack` to a
+transform to eject immediately:
+
+```bash
+kapi ai-translate work.klz --target-lang fr --pack   # transform AND eject
+```
+
+Receive a packed `.klz` on another machine and the first command rebuilds the
+cache from the file automatically — nothing to set up.
+
+## Merge — emit the finished files
+
+`merge` writes the localized documents, one per source × target locale. With no
+`-o` it uses the recipe's layout; otherwise `-o <dir>` (one file per source,
+under `<lang>/` when there are several locales) or an `-o` template:
+
+```bash
+kapi merge work.klz                       # → recipe's layout
+kapi merge work.klz -o l10n/              # → l10n/<lang>/<name>
+kapi merge work.klz -o '{dir}/{name}.{lang}.{ext}'
+```
+
+Merge replays the stored translations onto the source and writes — it never
+re-runs a tool or calls a provider.
+
+## Why these verbs
+
+`extract` / `merge` are kapi's existing localization round-trip: pull translatable
+content out, put the finished content back. A `.klz` is just another working form
+of that round-trip — alongside bilingual XLIFF/PO — except the translation happens
+*in* the workspace with kapi's tools rather than in an external editor. Progress is
+derived from the content itself (the overlays present), never a separate status
+file, so resuming is correct, idempotent, and crash-safe by construction.
+
+## Compare: a `.kapi` project
+
+The same engine powers a **`.kapi` project** — the multi-file, team/server form. A
+project keeps its config in a committed `.kapi` *recipe* (declared content, flows,
+target languages) and its working state in a `.kapi/` directory (the persistent
+cache, TM, and termbase). Run a declared flow against it below — and contrast it
+with the single-file `.klz` workspace above: same content, same output, different
+packaging.
+
+import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
+
+<ProjectExplorer defaultSampleId="json" />
+
+| | `.kapi` project | `.klz` workspace |
+|---|---|---|
+| shape | recipe file + `.kapi/` state dir | single portable file |
+| config | committed recipe (content, flows, locales) | recipe carried in the file |
+| best for | teams, servers, version control | ad-hoc, single-file hand-off |
+| state | persistent `.kapi/cache` | shadow cache, ejected on `pack` |
+
+## See also
+
+- [The KLF family & `.klz` package](/reference/klf/package) — the package format
+  and its working-state members.
+- [AD-025: KLF Family and the `.klz` Package](/contribute/architecture/025-klf-package) — the design and the
+  content-derived-progress decision.

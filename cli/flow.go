@@ -17,6 +17,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -49,6 +50,20 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	if len(inputPaths) > 0 {
+		outputFlag, _ := cmd.Flags().GetString("output")
+		// Running a flow on a .klz transforms the workspace IN PLACE
+		// (appends overlays); output files come later from `kapi merge`. The
+		// target locale may come from the workspace recipe, so this runs
+		// before the --target-lang requirement below.
+		if klzWorkspaceInput(inputPaths) {
+			if outputFlag != "" {
+				return errKlzTransformOutput
+			}
+			doPack, _ := cmd.Flags().GetBool("pack")
+			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
+				return a.buildFlowTools(flowName, cmd)
+			}, a.TargetLang, "", doPack)
+		}
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
 			if info := a.ToolReg.GetToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
@@ -57,7 +72,9 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 				return errors.New("--target-lang is required")
 			}
 		}
-		outputFlag, _ := cmd.Flags().GetString("output")
+		if isKlzPath(outputFlag) {
+			return errKlzCreateWithExtract
+		}
 		if len(inputPaths) == 1 {
 			return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
 		}
@@ -88,6 +105,7 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
@@ -210,12 +228,26 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
+	// In project mode, run against the project's persistent block store
+	// (.kapi/cache/blocks.db) so SessionTools cache per-block work as
+	// overlays — that is what lets a later run skip already-done steps and
+	// makes the project's working state packable (AD-025 §5). Identical
+	// output either way; the store only adds the overlay cache.
+	var projStore blockstore.Store
+	if a.projectContext != nil {
+		if s := a.openProjectBlockStore(); s != nil {
+			projStore = s
+			defer s.Close()
+		}
+	}
+
 	// Build reader configuration callback: applies preset config + project defaults.
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
 		Recorder:     recorder,
+		Store:        projStore,
 		ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 			if len(mergedConfig) > 0 {
 				if cfg := reader.Config(); cfg != nil {

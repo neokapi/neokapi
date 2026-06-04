@@ -44,12 +44,26 @@ Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch
 plus one bilingual file per source → target pair in --out-dir (default "out/").`,
 		Example: `  kapi extract -p app.kapi --no-tm
   kapi extract -p app.kapi --target-lang fr
-  kapi extract -p app.kapi --target-lang fr,de,es`,
+  kapi extract -p app.kapi --target-lang fr,de,es
+  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Ad-hoc workspace: `extract <sources> -o work.klz` ingests source
+			// documents into a portable .klz workspace (no project needed).
+			out, _ := cmd.Flags().GetString("output")
+			if isKlzPath(out) || len(args) > 0 {
+				if !isKlzPath(out) {
+					return errors.New("extract: writing source files needs -o <work.klz>")
+				}
+				tl, _ := cmd.Flags().GetString("target-lang")
+				layout, _ := cmd.Flags().GetString("out")
+				return a.extractToKlz(cmd.Context(), args, out, tl, layout)
+			}
 			return a.runExtract(cmd)
 		},
 	}
 	AddProjectFlag(cmd)
+	cmd.Flags().StringP("output", "o", "", "write an ad-hoc .klz workspace from the given source files")
+	cmd.Flags().String("out", "", "merge-time output layout recorded in the .klz (e.g. 'l10n/{lang}/{name}.{ext}')")
 	cmd.Flags().String("target-lang", "", "comma-separated target locales (default: all in recipe)")
 	cmd.Flags().String("only", "", "restrict to a single content collection by name")
 	cmd.Flags().String("pattern", "", "extra glob pattern restricting which source files to include")

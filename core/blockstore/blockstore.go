@@ -154,6 +154,19 @@ type Session interface {
 	Close() error
 }
 
+// OverlayEnumerator is an optional Session capability: enumerate every
+// overlay regardless of kind, in (kind, blockHash) order. Stores that can
+// scan their full overlay space (memory, sqlite cache) implement it; it is
+// what the block-store exporter uses to snapshot all in-progress work
+// without knowing the kinds up front. Streaming/remote sessions that can't
+// enumerate need not implement it — callers fall back to per-kind
+// ListOverlays.
+type OverlayEnumerator interface {
+	// AllOverlays streams every overlay the session can see, ordered by
+	// (kind, blockHash) for deterministic export.
+	AllOverlays() iter.Seq2[Overlay, error]
+}
+
 // Sentinel errors returned by Store/Session implementations.
 var (
 	// ErrNotFound indicates a block hash or overlay (kind,hash) not

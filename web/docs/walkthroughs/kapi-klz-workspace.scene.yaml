@@ -1,0 +1,30 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-klz-workspace
+#
+# Walks the .klz workspace lifecycle (AD-025 §5). The commands share state
+# across steps (the workspace + its shadow cache persist), so they run in order.
+
+id: kapi-klz-workspace
+scene: klz-workspace
+mode: interactive
+
+seed:
+  - messages.json
+files: []
+
+steps:
+  - comment: A .klz is a single-file, serverless localization workspace. Ingest your sources.
+  - command: kapi extract messages.json -o work.klz --target-lang qps
+    narration: extract reads the source into a portable .klz and records a recipe (locales + output layout).
+  - comment: Run tools ON the workspace — it transforms in place.
+  - command: kapi pseudo-translate work.klz
+    narration: The tool caches its per-block work in the workspace's shadow cache — the .klz file itself is not rewritten yet.
+  - command: kapi info work.klz
+    narration: info reports the workspace is now "dirty" — there is work not yet packed into the .klz.
+  - comment: Eject the working state into the shareable .klz.
+  - command: kapi pack work.klz
+    narration: pack writes the .klz — the explicit hand-off boundary. info would now show "clean".
+  - comment: Emit the finished, localized files.
+  - command: kapi merge work.klz -o out/
+    narration: merge writes the translated documents from the workspace, one per source and locale.

@@ -56,8 +56,16 @@ project.klz
 ├── annotations/<id>.klfl  KLF annotations  (stand-off overlays)
 ├── tm.klftm               KLF-TM           (translation memory)
 ├── termbase.klftb         KLF-TB           (terminology)
-└── media/<name>           opaque blobs
+├── media/<name>           opaque blobs
+│
+│   ── working-state members (AD-025 §5) ──
+├── source/<name>          ingested source document(s)
+├── overlays.klfo          in-progress overlays  (targets, annotations, …)
+└── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
+
+(A workspace `.klz` also carries a `recipe` block in `manifest.json` — its target
+locales and output layout — kept out of the `rootHash`.)
 
 Because every member is a native lossless format, the whole package is lossless:
 unpacking can seed a fresh translation memory, termbase, and block store, and the
@@ -73,6 +81,66 @@ the block-store cache (`blocks.db`) and the sync hash cache, which rebuild on
 demand, and it excludes secrets (the sync claim token). This is what makes the
 package the at-rest twin of the sync wire format: packing is the sync converters
 writing files instead of protobuf, and unpacking is the inverse.
+
+## Working state: hand-off and resume
+
+A `.klz` is not only an at-rest snapshot of finished content — it can also carry
+**in-progress working state**, so work can stop, move between machines, and resume
+where it left off. There are two routes, and neither needs per-step CLI verbs:
+
+- **`.klz` as an ad-hoc workspace (`extract` / transform / `merge`).** No project
+  required. The `.klz` is a portable *bundle*; the runtime is a persistent shadow
+  cache keyed to the file, so transforms are fast and incremental and the `.klz`
+  is rewritten only when you **`pack`** (or pass `--pack`). `extract` ingests
+  sources (+ a recipe), running a tool/flow on the `.klz` transforms it in place,
+  and `merge` emits the finished files. `info` shows whether the cache is dirty.
+
+  ```bash
+  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
+  kapi ai-translate work.klz --target-lang fr                # transform (cache)
+  kapi info  work.klz                                         # dirty?
+  kapi pack  work.klz                                         # eject for sharing
+  kapi merge work.klz -o l10n/                                # emit → l10n/<lang>/<name>
+  ```
+
+  A small **recipe** (target locales + output layout) travels with the file, so
+  `merge` needs no flags. Transforming reuses work already done instead of
+  recomputing it, and each document's work stays isolated.
+
+- **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
+  state also includes the project TM and termbase. `kapi pack` snapshots all of
+  it; `kapi unpack` rehydrates it into another machine's `.kapi/` state dir.
+  Within a project, re-running a flow also reuses the project's persistent cache
+  (`.kapi/cache/blocks.db`), so resume there is simply running again.
+
+  ```bash
+  kapi pack   -o snapshot.klz   # snapshot the project's working state
+  kapi unpack snapshot.klz      # rehydrate elsewhere, then run to resume
+  ```
+
+The working-state members are `source/<name>` (the ingested documents) and
+`overlays.klfo` (the in-progress overlays — `targets/<locale>`,
+`annotations/<name>`, segmentation, … keyed by `(kind, blockHash)`). Overlays in a
+multi-document package are scoped per source, since block ids are only unique
+within one document. A `recipe` block in the manifest (not a content member, so
+out of the `rootHash`) carries the workspace's target locales and output layout.
+
+### Progress is derived from content, not a journal
+
+Because the block store is append-only and content-addressed, *"has step X run?"*
+is a pure function of the content: does X's overlay exist for the current block
+hashes? That is what makes cached resume correct — re-running is a no-op where
+the overlay is already present, and a source change re-hashes its block so only
+the affected work recomputes. There is **no authoritative progress journal** — it
+would be a second source of truth that could drift from the content (the
+dual-state footgun this codebase avoids).
+
+The one optional log is **advisory provenance**: `kapi pack --log` stamps a
+hash-chained line into `history.jsonl` recording the pack (tamper-evident custody
+for hand-off; `unpack` verifies the chain and warns if broken). It is strictly
+subordinate to content — excluded from the package `rootHash`, never read to
+decide anything, and safe to delete with no loss of work. A default `pack` (no
+`--log`) is byte-deterministic.
 
 ## When to use it
 

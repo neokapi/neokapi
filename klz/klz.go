@@ -32,9 +32,28 @@ const (
 	ContentTypeTM          = "tm"
 	ContentTypeTermbase    = "termbase"
 	ContentTypeMedia       = "media"
+	// ContentTypeOverlays is the member kind carrying in-progress overlay
+	// layers (targets, annotations, segmentation, …) keyed by
+	// (kind, blockHash) — the substance of a resumable workspace. See
+	// AD-025 §5.
+	ContentTypeOverlays = "overlays"
+	// ContentTypeSource is the member kind carrying an original input
+	// document's bytes, so a `.klz` written as in-progress run output can
+	// reconstruct (resume / finish) the document in its source format. The
+	// thing being worked on, not an asset referenced by content (media).
+	ContentTypeSource = "source"
+	// ContentTypeHistory is the advisory, append-only JSONL log of what ran,
+	// when, and by whom (AD-025 §5). It is strictly subordinate to content:
+	// deliberately EXCLUDED from the content RootHash, never read by resume
+	// or status, and safe to delete with no loss of work. Opt-in.
+	ContentTypeHistory = "history"
 
 	tmPath       = "tm.klftm"
 	termbasePath = "termbase.klftb"
+	// OverlaysPath is the single overlay-set member's archive path.
+	OverlaysPath = "overlays.klfo"
+	// HistoryPath is the advisory history log's archive path.
+	HistoryPath = "history.jsonl"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -51,6 +70,26 @@ type Package struct {
 	TM          *klftm.File
 	Termbase    *klftb.File
 	Media       []Media
+
+	// Overlays carries in-progress overlay layers (targets, annotations, …)
+	// when the package snapshots a project's working state rather than a
+	// finished at-rest project. Empty for a plain at-rest package.
+	// Serialized as a single deterministic overlays.klfo member.
+	Overlays []OverlayDoc
+	// Source carries the original input document bytes a `.klz` was written
+	// on (one per input), so reading the package back can re-stream the
+	// source through the flow and write the finished output in its source
+	// format. Empty for a plain at-rest project snapshot.
+	Source []SourceDoc
+	// History is the advisory, append-only JSONL log (raw bytes, one JSON
+	// object per line). Opt-in and content-subordinate: it rides in the
+	// package for hand-off convenience but is excluded from RootHash and
+	// ignored by resume/status — deleting it loses no work. Empty by default.
+	History []byte
+	// Recipe is the workspace intent (target locales + output layout) a
+	// run-built .klz carries so config travels with the file. nil for a
+	// plain at-rest package. Stored in the manifest, not the RootHash.
+	Recipe *Recipe
 }
 
 // GeneratorInfo identifies the tool that produced the package.
@@ -77,6 +116,59 @@ type Media struct {
 	Data []byte
 }
 
+// SourceDoc is one original input document a `.klz` was written on.
+type SourceDoc struct {
+	Path string // archive path under source/, e.g. "source/report.docx"
+	Data []byte
+}
+
+// OverlayDoc is one append-layer entry, mirroring blockstore.Overlay minus
+// the volatile UpdatedAt timestamp: a workspace's content identity is the
+// work itself, not when it was recorded (AD-025 §5). Payload is the
+// tool-owned JSON body, carried verbatim.
+type OverlayDoc struct {
+	Kind      string          `json:"kind"`
+	BlockHash string          `json:"blockHash"`
+	Payload   json.RawMessage `json:"payload"`
+	// Source, when set, names the source document this overlay belongs to
+	// (its source/<name> member path). It scopes overlays per document so a
+	// package carrying several sources keeps each document's block-addressed
+	// work isolated — block IDs are only unique within one document, so a
+	// shared keyspace would collide. Empty for a project snapshot, whose
+	// overlays share one block store.
+	Source string `json:"source,omitempty"`
+}
+
+// Recipe is the small amount of intent a workspace .klz carries so config
+// travels with the file — the localization equivalent of a one-file .kapi
+// project. It lets `merge` emit without re-specifying locales or output
+// layout. Stored in the manifest (metadata, not a content member); it is
+// not part of the content RootHash.
+type Recipe struct {
+	// SourceLang is the source locale the documents were extracted in.
+	SourceLang string `json:"sourceLang,omitempty"`
+	// TargetLangs are the locales worked (and to emit on merge), in
+	// first-seen order.
+	TargetLangs []string `json:"targetLangs,omitempty"`
+	// Out is the output path template merge writes to (placeholders
+	// {name} {lang} {ext} {dir}); empty means the default per-locale layout.
+	Out string `json:"out,omitempty"`
+}
+
+// AddTargetLang appends a locale to the recipe if not already present,
+// preserving first-seen order.
+func (r *Recipe) AddTargetLang(locale string) {
+	if locale == "" {
+		return
+	}
+	for _, l := range r.TargetLangs {
+		if l == locale {
+			return
+		}
+	}
+	r.TargetLangs = append(r.TargetLangs, locale)
+}
+
 // Manifest is the package inventory written as manifest.json. RootHash is a
 // Merkle digest over the (sorted) member content hashes, giving the package a
 // stable content identity independent of zip framing.
@@ -87,6 +179,9 @@ type Manifest struct {
 	Generator     *GeneratorInfo `json:"generator,omitempty"`
 	Members       []Member       `json:"members"`
 	RootHash      string         `json:"rootHash"`
+	// Recipe is workspace intent (target locales + output layout). Metadata,
+	// kept out of the content RootHash (AD-025 §5).
+	Recipe *Recipe `json:"recipe,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -115,6 +210,7 @@ func (p *Package) Marshal() ([]byte, error) {
 		Created:       p.Created,
 		Generator:     p.Generator,
 		RootHash:      rootHash(members),
+		Recipe:        p.Recipe,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -146,6 +242,18 @@ func (p *Package) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("klz: finalize archive: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// RootHash returns the package's Merkle content identity — the same digest
+// stored in the manifest, computed over the content members (history
+// excluded). Used to detect whether a working cache has diverged from its
+// packed .klz (AD-025 §5).
+func (p *Package) RootHash() (string, error) {
+	members, err := p.serializeMembers()
+	if err != nil {
+		return "", err
+	}
+	return rootHash(members), nil
 }
 
 // serializeMembers turns each section into its native KLF-family bytes.
@@ -196,14 +304,36 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		}
 		add(m.Path, ContentTypeMedia, m.Data)
 	}
+	for _, s := range p.Source {
+		if s.Path == "" {
+			return nil, errors.New("klz: source needs Path")
+		}
+		add(s.Path, ContentTypeSource, s.Data)
+	}
+	if len(p.Overlays) > 0 {
+		data, err := marshalOverlaySet(p.Overlays)
+		if err != nil {
+			return nil, fmt.Errorf("klz: marshal overlays: %w", err)
+		}
+		add(OverlaysPath, ContentTypeOverlays, data)
+	}
+	if len(p.History) > 0 {
+		add(HistoryPath, ContentTypeHistory, p.History)
+	}
 	return members, nil
 }
 
-// rootHash is a Merkle digest over the sorted member content hashes.
+// rootHash is a Merkle digest over the sorted CONTENT member hashes. The
+// advisory history log is excluded: it is subordinate to content (AD-025
+// §5), so it must not perturb the package's content identity, and its
+// timestamps would otherwise break determinism.
 func rootHash(members []memberBytes) string {
-	sorted := make([]Member, len(members))
-	for i, m := range members {
-		sorted[i] = m.Member
+	sorted := make([]Member, 0, len(members))
+	for _, m := range members {
+		if m.ContentType == ContentTypeHistory {
+			continue
+		}
+		sorted = append(sorted, m.Member)
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
 	h := sha256.New()
@@ -248,7 +378,7 @@ func Unmarshal(data []byte) (*Package, error) {
 		return nil, fmt.Errorf("klz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 
-	pkg := &Package{Created: manifest.Created, Generator: manifest.Generator}
+	pkg := &Package{Created: manifest.Created, Generator: manifest.Generator, Recipe: manifest.Recipe}
 	verify := make([]memberBytes, 0, len(manifest.Members))
 
 	for _, m := range manifest.Members {
@@ -293,6 +423,16 @@ func Unmarshal(data []byte) (*Package, error) {
 			pkg.Termbase = f
 		case ContentTypeMedia:
 			pkg.Media = append(pkg.Media, Media{Path: m.Path, Data: body})
+		case ContentTypeSource:
+			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Data: body})
+		case ContentTypeHistory:
+			pkg.History = body
+		case ContentTypeOverlays:
+			overlays, err := unmarshalOverlaySet(body)
+			if err != nil {
+				return nil, fmt.Errorf("klz: parse %q: %w", m.Path, err)
+			}
+			pkg.Overlays = overlays
 		default:
 			return nil, fmt.Errorf("klz: unknown content type %q for %q", m.ContentType, m.Path)
 		}

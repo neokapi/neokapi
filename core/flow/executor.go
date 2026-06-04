@@ -426,8 +426,14 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	g, ctx := errgroup.WithContext(ctx)
 
+	// Open the session with the parent context, NOT the errgroup's derived
+	// context: errgroup cancels its context the moment Wait() returns, and a
+	// persistent session backed by a *sql.Tx (blockstore.NewCacheStore) is
+	// aborted by database/sql when its context is cancelled — which would
+	// roll back every overlay the SessionTools wrote, right before Commit.
+	// The tool goroutines still observe cancellation through the errgroup
+	// context they each receive.
 	rawSession, err := e.config.Store.Begin(ctx)
 	if err != nil {
 		ch := make(chan *model.Part, e.config.ChannelSize)
@@ -435,6 +441,8 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 		cancel()
 		return ch, ch, func() error { return fmt.Errorf("open blockstore session: %w", err) }
 	}
+
+	g, ctx := errgroup.WithContext(ctx)
 	// All tools share this one session and run concurrently in their own
 	// goroutines, so guard it against concurrent use (see syncSession).
 	session := newSyncSession(rawSession)
@@ -459,12 +467,21 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 
 	return channels[0], channels[len(channels)-1], func() error {
 		err := g.Wait()
-		cancel()
 		if err != nil {
+			cancel()
 			_ = session.Rollback()
 			return err
 		}
-		if cerr := session.Commit(); cerr != nil {
+		// Commit BEFORE cancelling the pipeline context. A persistent
+		// session is backed by a *sql.Tx opened with this context
+		// (blockstore.NewCacheStore via WithBlockStore); database/sql aborts
+		// that tx when its context is cancelled, so cancelling first would
+		// roll back every overlay the SessionTools just wrote. The tool
+		// goroutines have already finished (g.Wait returned), so deferring
+		// the cancel costs nothing.
+		cerr := session.Commit()
+		cancel()
+		if cerr != nil {
 			return fmt.Errorf("commit session: %w", cerr)
 		}
 		return nil

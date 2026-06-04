@@ -2,8 +2,8 @@
 id: 025-klf-package
 sidebar_position: 25
 title: "AD-025: KLF Family and the .klz Package"
-description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also serves as a resumable, step-by-step workspace whose progress is derived from content rather than an authoritative journal."
-keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, resumable, workspace, step-wise flow]
+description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal."
+keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
 ---
 
 # AD-025: KLF Family and the .klz Package
@@ -103,51 +103,64 @@ lets the regenerable caches rebuild. It **excludes** regenerable caches
 token). This makes the package the at-rest equivalent of the sync wire protocol:
 packing is the sync converters writing files instead of protobuf chunks.
 
-### 5. A `.klz` is a resumable workspace, not just a one-shot artifact
+### 5. A `.klz` carries working state for hand-off and resume
 
-A `.klz` is both an at-rest snapshot **and** a durable, resumable workspace.
-Work need not go `input → output` in one shot; it can go
-`input → open → "in progress" → step → … → finish → output`, applying a flow
-step by step, persisting after each, and stopping, inspecting, handing off, or
-resuming at any point. This holds for **both** standalone ad-hoc CLI use (the
-`.klz` *is* the workspace — no project required) and `.kapi` projects (the
-`.klz` is the pack/unpack handoff form of the project's working state). A `.klz`
-is to the working state directory what a git *bundle* is to `.git`: the editable
-form is a working directory built on the existing state-dir machinery
-(`blocks.db` + `tm.db` + `termbase.db`); the `.klz` is its portable snapshot,
-moved across by pack/unpack.
+A `.klz` is both an at-rest snapshot of finished content **and** a carrier of
+**in-progress working state**, so work can stop, move between machines, and resume
+where it left off. The design delivers this through existing-grain mechanisms
+rather than a step-by-step CLI verb family:
 
-This works because the substrate is already step-wise: the block store
-(`core/blockstore`) is append-only and content-addressed — a tool does not
-rewrite blocks, it appends an *overlay* layer keyed by `(kind, blockHash)`
-(`targets`, `annotations/*`, `segmentation`, …) — and flows already have
-declarative stage boundaries (`source-transform` settles the source first, then
-the `main` chain). "Apply a step" is "append that step's overlay"; the
-`DataFormatWriter` is deferred until `finish`. Everything between `open` and
-`finish` is overlays on frozen, content-addressed blocks — that is what "in
-progress" *is*.
+- **`.klz` as an ad-hoc workspace, the git-bundle model.** A `.klz` is the
+  portable *bundle*; the runtime is a persistent **shadow cache** under
+  `$XDG_CACHE_HOME/kapi/klz/<key>`, keyed by the `.klz`'s absolute path, so the
+  working directory stays a single file. Three pipeline-stage verbs (no project):
+  `extract <sources> -o work.klz` ingests the sources and records a `Recipe`
+  (target locales + output layout); running any tool or `run` flow *on* the `.klz`
+  **transforms it in place** against the cache's persistent per-source block stores
+  — incrementally, *without rewriting the `.klz`*; and `merge work.klz` emits the
+  finished documents from the cache (hydrating stored target overlays, one file per
+  source × locale). The `.klz` is rewritten only by `kapi pack work.klz` (or a
+  transform's `--pack`) — the explicit eject; `kapi info work.klz` reports whether
+  the cache is **dirty** (its content `RootHash` differs from the packed `.klz`).
+  Block ids are only unique within one document, so each source has its own store
+  and each overlay is tagged with its source (`OverlayDoc.Source`). Transforming
+  reuses overlays already present rather than recomputing (the cache is the cache),
+  so output equals a one-shot run.
+- **Cached resume (project).** A project run executes against the project's
+  persistent block store (`core/blockstore` at `.kapi/cache/blocks.db`, wired via
+  `flow.WithBlockStore`). Because the store is append-only and content-addressed —
+  a tool appends an *overlay* keyed by `(kind, blockHash)` rather than rewriting a
+  block — a `SessionTool` caches its per-block result and hydrates from it on a
+  later run. Re-running a flow therefore **skips work already done**; the store
+  *is* the workspace, resume is just running again.
+- **Project snapshot (`pack` / `unpack`).** For the whole project, `pack` exports
+  the block-store overlays plus the authoritative TM and termbase into a portable
+  `.klz`; `unpack` rehydrates it into another machine's `.kapi/` state dir. A
+  `.klz` is to the state directory what a git *bundle* is to `.git`.
 
 **Progress is derived from content, not recorded in an authoritative journal.**
 Because the store is content-addressed, "has step X run?" is a pure function of
 the content: *does X's overlay exist, anchored to the current block hashes?*
-Resume walks the planned steps and skips those whose overlay is already present
-(the same Merkle compare the sync engine runs); idempotency and skip-unchanged
-fall out for free; and crash safety is automatic — a crash mid-step simply means
-the overlay never committed, so resume re-runs it, with nothing to reconcile.
-A separate per-step status journal is deliberately **avoided**: it would be a
-second source of truth that can drift from the content (the dual-state footgun
-this codebase avoids — `sync-cache.json` and `blocks.db` are both explicitly
-regenerable). The only durable state beyond the content itself is a minimal
-**intent** record — the target flow, its parameters, and the input hash — so an
-ad-hoc resume knows its goal without re-specifying it. Any human-readable
-history (what ran, when, by whom; failed or no-op steps that leave no content
-footprint) is an **advisory, regenerable log strictly subordinate to content**:
-content wins on any conflict, and deleting the log loses no work.
+That is what makes cached resume correct and idempotent — re-running is a no-op
+where the overlay is present; a changed source re-hashes its block so only the
+affected work recomputes; and crash safety is automatic, since a crash that did
+not commit an overlay simply leaves it absent and the next run redoes it, with
+nothing to reconcile. An authoritative progress journal is deliberately
+**avoided**: it would be a second source of truth that can drift from the content
+(the dual-state footgun this codebase avoids — `sync-cache.json` and `blocks.db`
+are both explicitly regenerable). A journal cannot survive the content changing
+underneath it (a re-hashed block silently invalidates a "done" claim), so making
+it correct means re-deriving the content-addressing the store already provides.
 
-The natural hard checkpoint is the end of the `source-transform` stage: those
-steps rewrite source and therefore change block hashes (correctly invalidating
-overlays keyed by the old hash), so flows settle them first and downstream
-annotate/translate/QA overlays anchor to stable hashes.
+The one durable record beyond content is **advisory provenance**: `pack --log`
+appends a hash-chained line to `history.jsonl` recording the pack, giving a
+hand-off a tamper-evident custody trail (`unpack` verifies the chain and warns on
+a break). It is strictly subordinate to content — excluded from the package
+`rootHash`, never read to decide anything, and safe to delete with no loss of
+work; a default `pack` is byte-deterministic. (A journal *is* the right tool
+where an action has effects outside the content — sent mail, a charged card, a
+paid API call; those belong to the authz/audit subsystem, not to progress
+tracking, whose state is wholly in the overlays.)
 
 ## Consequences
 
@@ -161,18 +174,29 @@ annotate/translate/QA overlays anchor to stable hashes.
   a `.klz` — and each member — has a stable content hash, and the same Merkle
   diff the sync engine runs over the wire applies to packages at rest.
 - KLF itself is unchanged; the family composes around it rather than growing it.
-- A `.klz` can carry in-progress work (overlays), so a flow can be applied
-  step by step and resumed, with progress derived from content rather than a
-  journal — bringing stateful, resumable, reviewable workflows to the
-  standalone CLI, the server-less twin of the platform's stateful project.
+- A `.klz` can carry in-progress work (overlays), so a project's working state
+  can be handed off (`pack`/`unpack`) and a flow resumed against the warm
+  block-store cache — with progress derived from content rather than a journal,
+  the server-less twin of the platform's stateful project.
 
 ## Implementation
 
 - Formats: `sievepen/klftm`, `termbase/klftb`, container `klz/`.
 - Tests: per-format lossless round-trip + determinism + envelope rejection, and
   `klz` package round-trip + a cache-internal store round-trip.
-- The resumable-workspace / step-wise-flow capability (§5) is tracked for
-  implementation in [GitHub issue #787](https://github.com/neokapi/neokapi/issues/787)
-  (CLI verbs, the blockstore⇄`.klz` overlay (de)serialization, the step/resume
-  executor entrypoints, tests, docs, and examples).
+- The working-state / hand-off capability (§5) is implemented
+  ([GitHub issue #787](https://github.com/neokapi/neokapi/issues/787)): the
+  `.klz` carries `overlays.klfo` (in-progress overlays) + `source/<name>` + a
+  manifest `recipe`; the block-store exporter/loader (`core/blockstore/exporter`)
+  is the inverse of the importer; `flow.FileRunner` runs against a persistent
+  store. The ad-hoc workspace verbs live in `cli/klzworkspace.go` —
+  `extract`/transform-in-place/`merge`, dispatched from the `extract`, `merge`,
+  `run`, and tool commands — and `pack` / `unpack` snapshot and rehydrate a whole
+  project's state. Progress is derived from the overlays present (no journal); the
+  optional advisory `history.jsonl` (hash-chained, opt-in `pack --log`, verified
+  on `unpack`) is
+  excluded from the content `rootHash`. Covered by unit tests (klz overlays +
+  history-chain round-trip and tamper detection; the exporter store round-trip),
+  the `kapi/e2e` suite (pack/unpack round-trip, cached-resume byte-equality,
+  pack determinism, provenance log), and the `make klz-smoke` headless gate.
 - Reference: [KLF family & the .klz package](/reference/klf/package).

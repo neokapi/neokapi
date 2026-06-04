@@ -1,3 +1,5 @@
+//go:build !wasm
+
 package blockstore
 
 import (
@@ -219,6 +221,37 @@ func (s *cacheSession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 		`, kind)
 		if err != nil {
 			yield(Overlay{}, fmt.Errorf("blockstore: list overlays: %w", err))
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var sc Overlay
+			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
+				yield(Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
+				return
+			}
+			if !yield(sc, nil) {
+				return
+			}
+		}
+		if err := rows.Err(); err != nil {
+			yield(Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
+		}
+	}
+}
+
+func (s *cacheSession) AllOverlays() iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
+		if s.done {
+			yield(Overlay{}, ErrClosed)
+			return
+		}
+		rows, err := s.tx.QueryContext(s.ctx, `
+			SELECT kind, block_hash, payload, updated_at
+			FROM overlays ORDER BY kind, block_hash
+		`)
+		if err != nil {
+			yield(Overlay{}, fmt.Errorf("blockstore: list all overlays: %w", err))
 			return
 		}
 		defer rows.Close()

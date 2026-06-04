@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"sort"
 	"sync"
 	"time"
 )
@@ -25,20 +26,35 @@ func NewMemoryStore() Store {
 	}
 }
 
+// NewPersistentMemoryStore returns a memory store that advertises
+// Persistent=true and whose Close is a no-op — so it survives Begin/Commit
+// cycles and repeated open/close across commands. It is the substrate for
+// the wasm build's NewCacheStore (where SQLite is unavailable): a single
+// process-lifetime store stands in for the on-disk cache. Not for native
+// use (the SQLite cache is the real persistent store there).
+func NewPersistentMemoryStore() Store {
+	return &memoryStore{
+		blocks:     make(map[string]memBlock),
+		overlays:   make(map[string]Overlay),
+		persistent: true,
+	}
+}
+
 type memBlock struct {
 	collection string
 	block      Block
 }
 
 type memoryStore struct {
-	mu       sync.Mutex
-	blocks   map[string]memBlock // key: block hash
-	overlays map[string]Overlay  // key: kind+"\x00"+blockHash
-	closed   bool
+	mu         sync.Mutex
+	blocks     map[string]memBlock // key: block hash
+	overlays   map[string]Overlay  // key: kind+"\x00"+blockHash
+	closed     bool
+	persistent bool // advertise Persistent; Close is a no-op
 }
 
 func (m *memoryStore) Capabilities() Capabilities {
-	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true}
+	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true, Persistent: m.persistent}
 }
 
 func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
@@ -62,6 +78,11 @@ func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
 func (m *memoryStore) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.persistent {
+		// A persistent (wasm cache) store outlives individual open/close
+		// cycles, so Close keeps it usable for the next command.
+		return nil
+	}
 	m.closed = true
 	return nil
 }
@@ -162,6 +183,25 @@ func (s *memorySession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 				if !yield(v, nil) {
 					return
 				}
+			}
+		}
+	}
+}
+
+func (s *memorySession) AllOverlays() iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
+		if s.done {
+			yield(Overlay{}, ErrClosed)
+			return
+		}
+		keys := make([]string, 0, len(s.overlays))
+		for k := range s.overlays {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if !yield(s.overlays[k], nil) {
+				return
 			}
 		}
 	}
