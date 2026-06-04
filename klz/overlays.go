@@ -36,9 +36,12 @@ func marshalOverlaySet(overlays []OverlayDoc) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("overlay %q/%q: %w", o.Kind, o.BlockHash, err)
 		}
-		sorted[i] = OverlayDoc{Kind: o.Kind, BlockHash: o.BlockHash, Payload: payload}
+		sorted[i] = OverlayDoc{Source: o.Source, Kind: o.Kind, BlockHash: o.BlockHash, Payload: payload}
 	}
 	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Source != sorted[j].Source {
+			return sorted[i].Source < sorted[j].Source
+		}
 		if sorted[i].Kind != sorted[j].Kind {
 			return sorted[i].Kind < sorted[j].Kind
 		}

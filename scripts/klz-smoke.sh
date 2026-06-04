@@ -40,6 +40,14 @@ flows:
 EOF
 }
 
+# ── .klz as ad-hoc run I/O (no project) ───────────────────────────────────
+echo "klz-smoke: .klz run I/O (ad-hoc resume == one-shot)"
+printf '{"greeting":"Hello world","farewell":"Goodbye now"}' > "$WORK/app.json"
+( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate app.json -o oneshot.json --target-lang fr-FR >/dev/null )
+( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate app.json -o work.klz --target-lang fr-FR >/dev/null )
+( cd "$WORK" && KAPI_NO_PROJECT=1 "$KAPI" pseudo-translate work.klz -o resumed.json --target-lang fr-FR >/dev/null )
+diff -q "$WORK/oneshot.json" "$WORK/resumed.json" >/dev/null || { echo "FAIL: .klz resume differs from one-shot"; exit 1; }
+
 mkproject "$WORK/p1"
 REC="$WORK/p1/demo.kapi"
 

@@ -37,6 +37,11 @@ const (
 	// (kind, blockHash) — the substance of a resumable workspace. See
 	// AD-025 §5.
 	ContentTypeOverlays = "overlays"
+	// ContentTypeSource is the member kind carrying an original input
+	// document's bytes, so a `.klz` written as in-progress run output can
+	// reconstruct (resume / finish) the document in its source format. The
+	// thing being worked on, not an asset referenced by content (media).
+	ContentTypeSource = "source"
 	// ContentTypeHistory is the advisory, append-only JSONL log of what ran,
 	// when, and by whom (AD-025 §5). It is strictly subordinate to content:
 	// deliberately EXCLUDED from the content RootHash, never read by resume
@@ -71,6 +76,11 @@ type Package struct {
 	// finished at-rest project. Empty for a plain at-rest package.
 	// Serialized as a single deterministic overlays.klfo member.
 	Overlays []OverlayDoc
+	// Source carries the original input document bytes a `.klz` was written
+	// on (one per input), so reading the package back can re-stream the
+	// source through the flow and write the finished output in its source
+	// format. Empty for a plain at-rest project snapshot.
+	Source []SourceDoc
 	// History is the advisory, append-only JSONL log (raw bytes, one JSON
 	// object per line). Opt-in and content-subordinate: it rides in the
 	// package for hand-off convenience but is excluded from RootHash and
@@ -102,6 +112,12 @@ type Media struct {
 	Data []byte
 }
 
+// SourceDoc is one original input document a `.klz` was written on.
+type SourceDoc struct {
+	Path string // archive path under source/, e.g. "source/report.docx"
+	Data []byte
+}
+
 // OverlayDoc is one append-layer entry, mirroring blockstore.Overlay minus
 // the volatile UpdatedAt timestamp: a workspace's content identity is the
 // work itself, not when it was recorded (AD-025 §5). Payload is the
@@ -110,6 +126,13 @@ type OverlayDoc struct {
 	Kind      string          `json:"kind"`
 	BlockHash string          `json:"blockHash"`
 	Payload   json.RawMessage `json:"payload"`
+	// Source, when set, names the source document this overlay belongs to
+	// (its source/<name> member path). It scopes overlays per document so a
+	// package carrying several sources keeps each document's block-addressed
+	// work isolated — block IDs are only unique within one document, so a
+	// shared keyspace would collide. Empty for a project snapshot, whose
+	// overlays share one block store.
+	Source string `json:"source,omitempty"`
 }
 
 // Manifest is the package inventory written as manifest.json. RootHash is a
@@ -231,6 +254,12 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		}
 		add(m.Path, ContentTypeMedia, m.Data)
 	}
+	for _, s := range p.Source {
+		if s.Path == "" {
+			return nil, errors.New("klz: source needs Path")
+		}
+		add(s.Path, ContentTypeSource, s.Data)
+	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
 		if err != nil {
@@ -344,6 +373,8 @@ func Unmarshal(data []byte) (*Package, error) {
 			pkg.Termbase = f
 		case ContentTypeMedia:
 			pkg.Media = append(pkg.Media, Media{Path: m.Path, Data: body})
+		case ContentTypeSource:
+			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Data: body})
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:

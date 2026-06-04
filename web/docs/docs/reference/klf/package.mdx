@@ -59,6 +59,7 @@ project.klz
 ├── media/<name>           opaque blobs
 │
 │   ── working-state members (AD-025 §5) ──
+├── source/<name>          original input document(s) (for run-written packages)
 ├── overlays.klfo          in-progress overlays  (targets, annotations, …)
 └── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
@@ -81,31 +82,40 @@ writing files instead of protobuf, and unpacking is the inverse.
 ## Working state: hand-off and resume
 
 A `.klz` is not only an at-rest snapshot of finished content — it can also carry
-a project's **in-progress working state**, so work can move between machines and
-resume where it left off. Two mechanisms cooperate, with **no per-step CLI verbs**:
+**in-progress working state**, so work can stop, move between machines, and resume
+where it left off. There are two routes, and neither needs per-step CLI verbs:
 
-- **Cached resume.** Inside a `.kapi` project, a run executes against the
-  project's persistent block store (`.kapi/cache/blocks.db`). Tools cache
-  per-block results as overlays, so re-running a flow **skips work that is
-  already done** — output is byte-identical, the expensive steps just don't
-  recompute. The store *is* the workspace; resume is simply running again. (A
-  standalone run with no project uses an ephemeral in-memory store and caches
-  nothing between runs.)
-- **Hand-off.** `kapi pack` snapshots that working state — the block-store
-  overlays plus the authoritative TM and termbase — into a portable `.klz`;
-  `kapi unpack` rehydrates it into another machine's `.kapi/` state dir, where a
-  run resumes against the warm cache.
+- **`.klz` as run I/O (ad-hoc).** Any tool or flow writes a `.klz` when the output
+  has a `.klz` extension, and resumes when the input is one. No project required —
+  the `.klz` *is* the workspace.
 
-```bash
-kapi run ai-translate-qa -i app.json -o app.fr.json  # in a project: caches overlays in .kapi/
-kapi pack   -o snapshot.klz                           # snapshot the working state
-#   ... move snapshot.klz to another machine ...
-kapi unpack snapshot.klz                             # rehydrate, then run to resume
-```
+  ```bash
+  kapi pseudo-translate app.json -o work.klz   # write the in-progress package
+  #   ... later, or on another machine ...
+  kapi pseudo-translate work.klz  -o app.fr.json  # resume → finished file
+  ```
+
+  Resuming reuses the work in the package instead of recomputing it, so the
+  output is byte-identical to a one-shot run and the expensive steps don't re-run.
+  Several inputs pack into one `.klz`; resume writes them back with an `-o`
+  template, each document's work kept isolated.
+
+- **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
+  state also includes the project TM and termbase. `kapi pack` snapshots all of
+  it; `kapi unpack` rehydrates it into another machine's `.kapi/` state dir.
+  Within a project, re-running a flow also reuses the project's persistent cache
+  (`.kapi/cache/blocks.db`), so resume there is simply running again.
+
+  ```bash
+  kapi pack   -o snapshot.klz   # snapshot the project's working state
+  kapi unpack snapshot.klz      # rehydrate elsewhere, then run to resume
+  ```
 
 The working-state member is `overlays.klfo`: the in-progress overlays
 (`targets/<locale>`, `annotations/<name>`, segmentation, …) keyed by
-`(kind, blockHash)`.
+`(kind, blockHash)`, alongside the `source/<name>` documents a run-written package
+carries so it can be resumed. Overlays in a multi-document package are scoped per
+source, since block ids are only unique within one document.
 
 ### Progress is derived from content, not a journal
 

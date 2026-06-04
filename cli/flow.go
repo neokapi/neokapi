@@ -59,6 +59,14 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 			}
 		}
 		outputFlag, _ := cmd.Flags().GetString("output")
+		// A .klz on either side routes through the klz-aware workflow: it
+		// makes .klz a first-class in-progress I/O format (write the working
+		// state, resume from it later) — see runKlzWorkflow.
+		if klzInvolved(inputPaths, outputFlag) {
+			return a.runKlzWorkflow(ctx, cmd, flowName, func() ([]tool.Tool, func(), error) {
+				return a.buildFlowTools(flowName, cmd)
+			}, inputPaths, outputFlag, a.TargetLang)
+		}
 		if len(inputPaths) == 1 {
 			return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
 		}
