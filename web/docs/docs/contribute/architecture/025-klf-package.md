@@ -2,8 +2,8 @@
 id: 025-klf-package
 sidebar_position: 25
 title: "AD-025: KLF Family and the .klz Package"
-description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX)."
-keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache]
+description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also serves as a resumable, step-by-step workspace whose progress is derived from content rather than an authoritative journal."
+keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, resumable, workspace, step-wise flow]
 ---
 
 # AD-025: KLF Family and the .klz Package
@@ -103,6 +103,52 @@ lets the regenerable caches rebuild. It **excludes** regenerable caches
 token). This makes the package the at-rest equivalent of the sync wire protocol:
 packing is the sync converters writing files instead of protobuf chunks.
 
+### 5. A `.klz` is a resumable workspace, not just a one-shot artifact
+
+A `.klz` is both an at-rest snapshot **and** a durable, resumable workspace.
+Work need not go `input → output` in one shot; it can go
+`input → open → "in progress" → step → … → finish → output`, applying a flow
+step by step, persisting after each, and stopping, inspecting, handing off, or
+resuming at any point. This holds for **both** standalone ad-hoc CLI use (the
+`.klz` *is* the workspace — no project required) and `.kapi` projects (the
+`.klz` is the pack/unpack handoff form of the project's working state). A `.klz`
+is to the working state directory what a git *bundle* is to `.git`: the editable
+form is a working directory built on the existing state-dir machinery
+(`blocks.db` + `tm.db` + `termbase.db`); the `.klz` is its portable snapshot,
+moved across by pack/unpack.
+
+This works because the substrate is already step-wise: the block store
+(`core/blockstore`) is append-only and content-addressed — a tool does not
+rewrite blocks, it appends an *overlay* layer keyed by `(kind, blockHash)`
+(`targets`, `annotations/*`, `segmentation`, …) — and flows already have
+declarative stage boundaries (`source-transform` settles the source first, then
+the `main` chain). "Apply a step" is "append that step's overlay"; the
+`DataFormatWriter` is deferred until `finish`. Everything between `open` and
+`finish` is overlays on frozen, content-addressed blocks — that is what "in
+progress" *is*.
+
+**Progress is derived from content, not recorded in an authoritative journal.**
+Because the store is content-addressed, "has step X run?" is a pure function of
+the content: *does X's overlay exist, anchored to the current block hashes?*
+Resume walks the planned steps and skips those whose overlay is already present
+(the same Merkle compare the sync engine runs); idempotency and skip-unchanged
+fall out for free; and crash safety is automatic — a crash mid-step simply means
+the overlay never committed, so resume re-runs it, with nothing to reconcile.
+A separate per-step status journal is deliberately **avoided**: it would be a
+second source of truth that can drift from the content (the dual-state footgun
+this codebase avoids — `sync-cache.json` and `blocks.db` are both explicitly
+regenerable). The only durable state beyond the content itself is a minimal
+**intent** record — the target flow, its parameters, and the input hash — so an
+ad-hoc resume knows its goal without re-specifying it. Any human-readable
+history (what ran, when, by whom; failed or no-op steps that leave no content
+footprint) is an **advisory, regenerable log strictly subordinate to content**:
+content wins on any conflict, and deleting the log loses no work.
+
+The natural hard checkpoint is the end of the `source-transform` stage: those
+steps rewrite source and therefore change block hashes (correctly invalidating
+overlays keyed by the old hash), so flows settle them first and downstream
+annotate/translate/QA overlays anchor to stable hashes.
+
 ## Consequences
 
 - A project's full content can be serialized losslessly and rehydrated into
@@ -115,10 +161,18 @@ packing is the sync converters writing files instead of protobuf chunks.
   a `.klz` — and each member — has a stable content hash, and the same Merkle
   diff the sync engine runs over the wire applies to packages at rest.
 - KLF itself is unchanged; the family composes around it rather than growing it.
+- A `.klz` can carry in-progress work (overlays), so a flow can be applied
+  step by step and resumed, with progress derived from content rather than a
+  journal — bringing stateful, resumable, reviewable workflows to the
+  standalone CLI, the server-less twin of the platform's stateful project.
 
 ## Implementation
 
 - Formats: `sievepen/klftm`, `termbase/klftb`, container `klz/`.
 - Tests: per-format lossless round-trip + determinism + envelope rejection, and
   `klz` package round-trip + a cache-internal store round-trip.
+- The resumable-workspace / step-wise-flow capability (§5) is tracked for
+  implementation in [GitHub issue #787](https://github.com/neokapi/neokapi/issues/787)
+  (CLI verbs, the blockstore⇄`.klz` overlay (de)serialization, the step/resume
+  executor entrypoints, tests, docs, and examples).
 - Reference: [KLF family & the .klz package](/reference/klf/package).
