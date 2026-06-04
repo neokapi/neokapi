@@ -36,13 +36,22 @@ func NewPool(dict []byte) *Pool {
 
 	p.encoders = sync.Pool{
 		New: func() any {
-			enc, _ := zstd.NewWriter(nil, encOpts...)
+			enc, err := zstd.NewWriter(nil, encOpts...)
+			if err != nil {
+				// The options are fixed at construction, so a failure here is a
+				// misconfiguration (programmer error). Fail loudly rather than
+				// pooling a nil encoder that panics on first use.
+				panic(fmt.Sprintf("compression: build zstd encoder: %v", err))
+			}
 			return enc
 		},
 	}
 	p.decoders = sync.Pool{
 		New: func() any {
-			dec, _ := zstd.NewReader(nil, decOpts...)
+			dec, err := zstd.NewReader(nil, decOpts...)
+			if err != nil {
+				panic(fmt.Sprintf("compression: build zstd decoder: %v", err))
+			}
 			return dec
 		},
 	}

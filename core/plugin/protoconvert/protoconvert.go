@@ -33,7 +33,14 @@ func jsonToMap(data []byte) map[string]any {
 
 // AnnotationToProto converts a model.Annotation to a proto AnnotationEntry.
 func AnnotationToProto(a model.Annotation) *pb.AnnotationEntry {
-	data, _ := json.Marshal(a)
+	data, err := json.Marshal(a)
+	if err != nil {
+		// A model.Annotation that can't be JSON-encoded is a programming error
+		// (a non-serializable field), not a runtime condition. Fail loudly here
+		// rather than emitting a silently-empty entry that would corrupt the
+		// block on the other side of the bridge.
+		panic(fmt.Sprintf("protoconvert: marshal annotation %q: %v", a.AnnotationType(), err))
+	}
 	return &pb.AnnotationEntry{
 		Type: a.AnnotationType(),
 		Data: data,

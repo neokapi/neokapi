@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
+	"slices"
 )
 
 // Migration represents a single schema migration step.
@@ -40,7 +42,18 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		return fmt.Errorf("get current version: %w", err)
 	}
 
-	for _, m := range migrations {
+	// Apply in ascending version order regardless of how the caller ordered the
+	// slice, and reject duplicate versions, so correctness doesn't depend on
+	// every call site hand-sorting its migrations.
+	ordered := slices.Clone(migrations)
+	slices.SortFunc(ordered, func(a, b Migration) int { return cmp.Compare(a.Version, b.Version) })
+	for i := 1; i < len(ordered); i++ {
+		if ordered[i].Version == ordered[i-1].Version {
+			return fmt.Errorf("duplicate migration version %d in %q", ordered[i].Version, tableName)
+		}
+	}
+
+	for _, m := range ordered {
 		if m.Version <= currentVersion {
 			continue
 		}
