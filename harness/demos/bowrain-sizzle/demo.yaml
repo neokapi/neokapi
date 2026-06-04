@@ -1,0 +1,20 @@
+id: bowrain-sizzle
+title: "Bowrain — the team localization platform"
+subtitle: "Governance, collaboration, and quality — montaged"
+tagline: "A reel of the bowrain platform's key features"
+# Not a captured demo: a montage composition (Sizzle.tsx) that sequences the
+# existing bowrain feature screencasts. terminal:desktop satisfies manifest
+# validation (no Claude prompt/script). brand+target route the published webm to
+# the bowrain-web docs video dir, which the landing hero reads.
+terminal: desktop
+target: web
+brand: bowrain
+publishAs: bowrain-sizzle
+aspects:
+  - Shared editor
+  - Real-time collaboration
+  - Terminology
+  - Review
+  - Quality checks
+narration: []
+artifacts: []

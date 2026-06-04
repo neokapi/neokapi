@@ -34,6 +34,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Build flows visually"
   },
   {
+    "id": "bowrain-sizzle",
+    "title": "Bowrain — the team localization platform"
+  },
+  {
     "id": "bowrain-web-collaboration",
     "title": "Real-time collaboration"
   },

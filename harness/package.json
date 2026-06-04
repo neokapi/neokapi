@@ -18,14 +18,15 @@
   "dependencies": {
     "@remotion/bundler": "^4.0.0",
     "@remotion/cli": "^4.0.0",
-    "@remotion/renderer": "^4.0.0",
     "@remotion/google-fonts": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "@remotion/transitions": "4.0.469",
+    "dotenv": "^16.4.5",
+    "playwright": "^1.48.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remotion": "^4.0.0",
-    "dotenv": "^16.4.5",
-    "yaml": "^2.5.0",
-    "playwright": "^1.48.0"
+    "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

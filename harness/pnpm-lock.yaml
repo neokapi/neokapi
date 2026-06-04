@@ -20,6 +20,9 @@ importers:
       '@remotion/renderer':
         specifier: ^4.0.0
         version: 4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@remotion/transitions':
+        specifier: 4.0.469
+        version: 4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -358,6 +361,9 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
+  '@remotion/paths@4.0.469':
+    resolution: {integrity: sha512-zmnXwJTj4QODjMS9hjEzhSCVtHZX+TzjJEbKps9Lqpycn7apRQkB0dR80/+s0OgazQiWD7FO7mOtBF9yol3FPw==, tarball: https://registry.npmjs.org/@remotion/paths/-/paths-4.0.469.tgz}
+
   '@remotion/player@4.0.469':
     resolution: {integrity: sha512-cAnin3JPrJx0mBFT7bcZ9N8xOwXygMIWeM4qHgDONfIwgqouir8gQFPIxRtyAzNubMl8xvLjbPSBbDeusNDAGw==, tarball: https://registry.npmjs.org/@remotion/player/-/player-4.0.469.tgz}
     peerDependencies:
@@ -366,6 +372,12 @@ packages:
 
   '@remotion/renderer@4.0.469':
     resolution: {integrity: sha512-9529YcfPbZCQCVhq/eGQaqsuQzAeXClWzq9Eq3vC1UpJrAwsA3DfpDZiwu8IOXVhKqR4uouYJZQagcAahhH9bg==, tarball: https://registry.npmjs.org/@remotion/renderer/-/renderer-4.0.469.tgz}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/shapes@4.0.469':
+    resolution: {integrity: sha512-HiMvIuO1SivwTDIHP+NIY1uRWwIFfpp+71VvKr1AK7gEK5tHlmu3C/s3c8r7D6j7kfaWCfJHP4fO2nGV8swsTA==, tarball: https://registry.npmjs.org/@remotion/shapes/-/shapes-4.0.469.tgz}
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -387,6 +399,12 @@ packages:
 
   '@remotion/timeline-utils@4.0.469':
     resolution: {integrity: sha512-Jrl0IUdgljfh64SgOxkFvgMX4UY1nYxDp8Hddrk2R8edIcVUJrMoe2+xLlgFoKwyhyZNE4kHNXnrVlUoSI4d5g==, tarball: https://registry.npmjs.org/@remotion/timeline-utils/-/timeline-utils-4.0.469.tgz}
+
+  '@remotion/transitions@4.0.469':
+    resolution: {integrity: sha512-jS1Jc/cTCBq0hz3QNiLP8msD9lzrGcTPBC98BCKUCj+krm7iJ6M9xgysh7KDnylllYIsKsIQ4lDbFgcd/oU3Uw==, tarball: https://registry.npmjs.org/@remotion/transitions/-/transitions-4.0.469.tgz}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@remotion/web-renderer@4.0.469':
     resolution: {integrity: sha512-6Bgx3zLy4AgQiT2ERQCqiBUatNfQhZ4amod6kIy3Xmc8nUw7m2KtzUXZfy7V+Ln3/yo3cRcBa1ehFSRiNbUfCg==, tarball: https://registry.npmjs.org/@remotion/web-renderer/-/web-renderer-4.0.469.tgz}
@@ -1410,6 +1428,8 @@ snapshots:
       react-dom: 19.2.6(react@19.2.6)
       remotion: 4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
 
+  '@remotion/paths@4.0.469': {}
+
   '@remotion/player@4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       react: 19.2.6
@@ -1437,6 +1457,12 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@remotion/shapes@4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@remotion/paths': 4.0.469
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
 
   '@remotion/streaming@4.0.469': {}
 
@@ -1505,6 +1531,14 @@ snapshots:
   '@remotion/timeline-utils@4.0.469':
     dependencies:
       mediabunny: 1.45.0
+
+  '@remotion/transitions@4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@remotion/paths': 4.0.469
+      '@remotion/shapes': 4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      remotion: 4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
 
   '@remotion/web-renderer@4.0.469(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:

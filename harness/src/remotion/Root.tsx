@@ -2,6 +2,7 @@ import React from "react";
 import { Composition, staticFile, type CalculateMetadataFunction } from "remotion";
 import type { CapturedArtifact, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
 import { Demo, type DemoProps } from "./Demo.tsx";
+import { Sizzle, sizzleCalcMeta } from "./compositions/Sizzle.tsx";
 import { computeTiming } from "./timeline.ts";
 import { FPS, WIDTH, HEIGHT } from "./components/theme.ts";
 import { DEMOS } from "./registry.generated.ts";
@@ -54,7 +55,7 @@ const calcMeta: CalculateMetadataFunction<DemoProps> = async ({ props }) => {
 export const RemotionRoot: React.FC = () => {
   return (
     <>
-      {DEMOS.map((d) => (
+      {DEMOS.filter((d) => d.id !== "bowrain-sizzle").map((d) => (
         <Composition
           key={d.id}
           id={d.id}
@@ -67,6 +68,19 @@ export const RemotionRoot: React.FC = () => {
           calculateMetadata={calcMeta}
         />
       ))}
+      {/* Landing sizzle: a montage of the bowrain feature screencasts (not a
+          captured demo). Its own component + metadata loader; duration is
+          computed from the clip plan in Sizzle.tsx. */}
+      <Composition
+        id="bowrain-sizzle"
+        component={Sizzle}
+        durationInFrames={FPS}
+        fps={FPS}
+        width={WIDTH}
+        height={HEIGHT}
+        defaultProps={{ id: "bowrain-sizzle", themeMode: "dark" as const }}
+        calculateMetadata={sizzleCalcMeta}
+      />
     </>
   );
 };

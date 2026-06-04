@@ -69,36 +69,32 @@ export function Hero() {
         </p>
       </div>
 
-      {/* Real product demo — the translation editor, recorded from the live app.
-          Served by the sibling docs deploy (/web/bowrain/docs/… today, /docs/… at
-          launch), so it is never committed to git; the poster is a real screenshot
-          in the landing's own public/, shown until the video loads (and in isolated
-          landing-only dev, where the docs path isn't served). */}
+      {/* Platform sizzle — a montage of the bowrain feature walkthroughs (shared
+          editor, collaboration, memory + terminology, review, correction loop),
+          produced by the harness from the same recordings as the docs videos. It
+          carries its own window chrome + title cards, so it sits in a plain
+          rounded frame (no extra browser bar). Served by the sibling docs deploy
+          (/web/bowrain/docs/… today, /docs/… at launch), so the webm is never
+          committed to git; the poster is a committed still in the landing's own
+          public/, shown until the video loads (and in isolated landing-only dev,
+          where the docs path isn't served). */}
       <div className="animate-fade-in-up-delay-3 relative z-10 mt-16 w-full max-w-5xl">
-        <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-brand-500/10">
-          <div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
-            <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
-            <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
-            <div className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
-            <span className="ml-2 font-mono text-xs text-neutral-600">
-              Bowrain — Company Website · en → fr
-            </span>
-          </div>
+        <div className="overflow-hidden rounded-xl border border-neutral-800 shadow-2xl shadow-brand-500/10">
           <video
             className="block w-full"
             autoPlay
             muted
             loop
             playsInline
-            poster={`${base}editor.png`}
-            aria-label="The Bowrain translation editor: source and target side by side, with translation-memory and terminology matches in a context panel and a live document preview."
+            poster={`${base}sizzle.jpg`}
+            aria-label="A montage of the Bowrain platform: the shared editor, real-time collaboration, translation memory and terminology, review and approval, and corrections that become versioned checks."
           >
-            <source src={`${base}docs/video/bowrain-web/bowrain-web-editor-dark.webm`} type="video/webm" />
+            <source src={`${base}docs/video/bowrain-web/bowrain-sizzle-dark.webm`} type="video/webm" />
           </video>
         </div>
         <p className="mt-3 text-center text-xs text-neutral-600">
-          The shared editor — translation memory and terminology matches inline, a live preview,
-          every locale.
+          The platform at a glance — a shared editor, real-time collaboration, memory and
+          terminology, review, and checks that learn from every correction.
         </p>
       </div>
     </section>
