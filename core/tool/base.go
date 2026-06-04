@@ -1,10 +1,11 @@
 package tool
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"hash/fnv"
-	"sort"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -20,6 +21,12 @@ type PartHandler func(part *model.Part) (*model.Part, error)
 // slices the read-only view hands back — including a source rewrite while a
 // stand-off overlay is attached (overlays anchor to runs and would be
 // invalidated). Can be disabled in perf-sensitive embeddings.
+//
+// Concurrency: this is a process-wide configuration knob, not per-run state.
+// Set it once during initialization, before any tool starts processing. It is
+// read (never written) from the concurrent per-block dispatch path, including
+// ParallelBlockTool's workers, so toggling it while a flow is running is a data
+// race and unsupported.
 var EnforceImmutability = true
 
 // BaseTool provides default pass-through behavior and event dispatch.
@@ -303,19 +310,21 @@ func blockTargetsSig(b *model.Block) uint64 {
 	if len(b.Targets) == 0 {
 		return 0
 	}
-	keys := make([]string, 0, len(b.Targets))
-	index := make(map[string]model.VariantKey, len(b.Targets))
-	for k := range b.Targets {
-		kt, _ := k.MarshalText()
-		keys = append(keys, string(kt))
-		index[string(kt)] = k
+	type variant struct {
+		key string
+		tgt *model.Target
 	}
-	sort.Strings(keys)
+	entries := make([]variant, 0, len(b.Targets))
+	for k, t := range b.Targets {
+		mt, _ := k.MarshalText()
+		entries = append(entries, variant{key: string(mt), tgt: t})
+	}
+	slices.SortFunc(entries, func(a, b variant) int { return cmp.Compare(a.key, b.key) })
 	h := fnv.New64a()
-	for _, kt := range keys {
-		_, _ = h.Write([]byte(kt))
+	for _, e := range entries {
+		_, _ = h.Write([]byte(e.key))
 		_, _ = h.Write([]byte{0})
-		if t := b.Targets[index[kt]]; t != nil {
+		if t := e.tgt; t != nil {
 			_, _ = h.Write([]byte(model.RenderRunsWithData(t.Runs)))
 			_, _ = h.Write([]byte{0})
 			_, _ = h.Write([]byte(t.Status))

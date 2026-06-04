@@ -724,7 +724,7 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
-		return c, nil
+		return c, fmt.Errorf("query terms for concept %s: %w", id, err)
 	}
 	defer rows.Close()
 
@@ -895,6 +895,9 @@ func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(normalizedSource string, o
 
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
+		// A query error is not the same as "no candidates"; surface it
+		// instead of silently returning an empty match set.
+		slog.Warn("termbase fuzzy candidate query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
@@ -946,6 +949,9 @@ func (tb *SQLiteTermBase) queryFuzzyFullScan(normalizedSource string, opts Looku
 
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
+		// A query error is not the same as "no candidates"; surface it
+		// instead of silently returning an empty match set.
+		slog.Warn("termbase fuzzy candidate query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()

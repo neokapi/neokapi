@@ -4,9 +4,13 @@ package sievepen
 // It counts the minimum number of single-character edits (insertions,
 // deletions, or substitutions) required to change one string into the other.
 func LevenshteinDistance(a, b string) int {
-	runesA := []rune(a)
-	runesB := []rune(b)
+	return LevenshteinDistanceRunes([]rune(a), []rune(b))
+}
 
+// LevenshteinDistanceRunes is the rune-slice core of LevenshteinDistance.
+// Callers that score one fixed query against many candidates can convert the
+// query to runes once and avoid re-decoding it per candidate.
+func LevenshteinDistanceRunes(runesA, runesB []rune) int {
 	lenA := len(runesA)
 	lenB := len(runesB)
 
@@ -32,7 +36,7 @@ func LevenshteinDistance(a, b string) int {
 			if runesA[i-1] == runesB[j-1] {
 				cost = 0
 			}
-			curr[j] = min3(
+			curr[j] = min(
 				prev[j]+1,      // deletion
 				curr[j-1]+1,    // insertion
 				prev[j-1]+cost, // substitution
@@ -53,28 +57,17 @@ func LevenshteinRatio(a, b string) float64 {
 	if a == b {
 		return 1.0
 	}
+	return LevenshteinRatioRunes([]rune(a), []rune(b))
+}
 
-	runesA := []rune(a)
-	runesB := []rune(b)
+// LevenshteinRatioRunes is the rune-slice core of LevenshteinRatio, for hot
+// loops that score a fixed query (converted to runes once) against many
+// candidates.
+func LevenshteinRatioRunes(runesA, runesB []rune) float64 {
 	maxLen := max(len(runesB), len(runesA))
-
 	if maxLen == 0 {
 		return 1.0
 	}
-
-	dist := LevenshteinDistance(a, b)
+	dist := LevenshteinDistanceRunes(runesA, runesB)
 	return 1.0 - float64(dist)/float64(maxLen)
-}
-
-func min3(a, b, c int) int {
-	if a < b {
-		if a < c {
-			return a
-		}
-		return c
-	}
-	if b < c {
-		return b
-	}
-	return c
 }

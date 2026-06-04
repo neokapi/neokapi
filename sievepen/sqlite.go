@@ -33,6 +33,12 @@ type SQLiteTM struct {
 	db *storage.DB
 }
 
+// Compile-time checks that SQLiteTM satisfies the TM interfaces.
+var (
+	_ TranslationMemory = (*SQLiteTM)(nil)
+	_ TMStore           = (*SQLiteTM)(nil)
+)
+
 // NewSQLiteTM opens (or creates) a SQLite-backed translation memory.
 // Use ":memory:" for an in-memory database (useful for testing).
 func NewSQLiteTM(dbPath string) (*SQLiteTM, error) {
@@ -823,6 +829,10 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 	if err != nil {
 		return nil, err
 	}
+	// Convert the fixed query keys to runes once, not per candidate.
+	genKeyRunes := []rune(generalKey)
+	structKeyRunes := []rune(structKey)
+	plainKeyRunes := []rune(plainKey)
 	for _, entry := range candidates {
 		if seen[entry.ID] {
 			continue
@@ -834,21 +844,21 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 		var bestScore float64
 		var bestType MatchType
 		if modeEnabled[MatchModeGeneralized] {
-			s := LevenshteinRatio(generalKey, NormalizeText(model.RunsGeneralizedText(srcRuns)))
+			s := LevenshteinRatioRunes(genKeyRunes, []rune(NormalizeText(model.RunsGeneralizedText(srcRuns))))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchGeneralizedFuzzy
 			}
 		}
 		if modeEnabled[MatchModeStructural] {
-			s := LevenshteinRatio(structKey, NormalizeText(model.RunsStructuralText(srcRuns)))
+			s := LevenshteinRatioRunes(structKeyRunes, []rune(NormalizeText(model.RunsStructuralText(srcRuns))))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchStructuralFuzzy
 			}
 		}
 		if modeEnabled[MatchModePlain] {
-			s := LevenshteinRatio(plainKey, NormalizeText(model.FlattenRuns(srcRuns)))
+			s := LevenshteinRatioRunes(plainKeyRunes, []rune(NormalizeText(model.FlattenRuns(srcRuns))))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchFuzzy
@@ -1135,7 +1145,10 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	//     as-is and materialised as a single TextRun on read.
 	varRows, err := tm.db.QueryContext(context.Background(), `SELECT entry_id, locale, coded FROM tm_variants
 		WHERE entry_id IN (`+placeholders+`) ORDER BY entry_id, locale`, idArgs...)
-	if err == nil {
+	if err != nil {
+		return nil, fmt.Errorf("load tm variants: %w", err)
+	}
+	{
 		for varRows.Next() {
 			var eid, loc, coded string
 			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
@@ -1159,7 +1172,10 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 		WHERE e.entry_id IN (`+placeholders+`)
 		ORDER BY e.entry_id, e.placeholder_id, v.locale
 	`, idArgs...)
-	if err == nil {
+	if err != nil {
+		return nil, fmt.Errorf("load tm entities: %w", err)
+	}
+	{
 		// Map (entry index, placeholder_id) → entity slice index.
 		type entKey struct {
 			entryIdx int
@@ -1210,7 +1226,10 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	originRows, err := tm.db.QueryContext(context.Background(), `SELECT entry_id, source, key, reference, added_at, added_by, session_id
 		FROM tm_entry_origins WHERE entry_id IN (`+placeholders+`)
 		ORDER BY entry_id, ordinal`, idArgs...)
-	if err == nil {
+	if err != nil {
+		return nil, fmt.Errorf("load tm origins: %w", err)
+	}
+	{
 		for originRows.Next() {
 			var eid string
 			var o Origin

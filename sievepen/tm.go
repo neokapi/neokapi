@@ -1,7 +1,8 @@
 package sievepen
 
 import (
-	"sort"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -179,12 +180,7 @@ func (e *TMEntry) Locales() []model.LocaleID {
 	if e == nil || len(e.Variants) == 0 {
 		return nil
 	}
-	out := make([]model.LocaleID, 0, len(e.Variants))
-	for l := range e.Variants {
-		out = append(out, l)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-	return out
+	return slices.Sorted(maps.Keys(e.Variants))
 }
 
 // EntityAdaptation describes how to substitute an entity value

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -72,7 +72,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 		if len(locales) == 0 {
 			continue
 		}
-		sort.Slice(locales, func(i, j int) bool { return locales[i] < locales[j] })
+		slices.Sort(locales)
 
 		srcLang := entry.HintSrcLang
 		if srcLang == "" {
