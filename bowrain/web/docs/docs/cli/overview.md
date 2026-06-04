@@ -71,7 +71,7 @@ View or set project and global configuration values:
 ```bash
 kapi config name              # Print project name
 kapi config name "My App"     # Set project name
-kapi config --global server.url https://bowrain.example.com  # Set global server URL
+kapi config --global server.url https://bowrain.cloud  # Set global server URL
 ```
 
 ## When to use it

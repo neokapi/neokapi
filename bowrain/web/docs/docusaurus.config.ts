@@ -22,6 +22,12 @@ const buildStamp = (() => {
 // to point at a localhost build of the kapi site.
 const KAPI_WEB_SITE = process.env.KAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
 
+// URL of the Bowrain marketing landing page (the bowrain-web Vite app that sits
+// one level up from these docs, at /web/bowrain/). The top-left navbar logo
+// links here so it navigates back out to the product landing page; override via
+// env var locally to point at a localhost build of the bowrain site.
+const BOWRAIN_WEB_SITE = process.env.BOWRAIN_WEB_SITE || "https://neokapi.github.io/web/bowrain/";
+
 const config: Config = {
   title: "Bowrain",
   tagline: "Govern and steward brand voice, terminology, and translation — as a team",
@@ -115,8 +121,20 @@ const config: Config = {
       logo: {
         alt: "Bowrain",
         src: "img/logo.png",
+        // The logo navigates back out to the Bowrain marketing landing page
+        // (one level up from the docs), not to the docs root — the "Home" item
+        // below covers the docs landing page. target _self keeps it in-tab.
+        href: BOWRAIN_WEB_SITE,
+        target: "_self",
       },
       items: [
+        {
+          // Docs landing page (src/pages/index.tsx). Added because the logo now
+          // leaves the docs site for the marketing landing page.
+          to: "/",
+          label: "Home",
+          position: "left",
+        },
         {
           type: "docSidebar",
           sidebarId: "gettingStartedSidebar",

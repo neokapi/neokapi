@@ -51,7 +51,7 @@ kapi init --anonymous --name "My App" --source en
 kapi init --name "My App" --email alex@example.com
 
 # Non-interactive: connect to existing server project
-kapi init --server https://bowrain.example.com --project abc123
+kapi init --server https://bowrain.cloud --project abc123
 ```
 
 ## What Happens
@@ -94,9 +94,9 @@ kapi init --anonymous --name "My App" --source en --json
   "recipe": "/path/to/my-app/my-app.kapi",
   "state_dir": "/path/to/my-app/.kapi",
   "project_id": "proj_abc123",
-  "server": "https://bowrain.example.com",
+  "server": "https://bowrain.cloud",
   "claim_token": "clm_def456",
-  "claim_url": "https://bowrain.example.com/claim/clm_def456"
+  "claim_url": "https://bowrain.cloud/claim/clm_def456"
 }
 ```
 
@@ -120,7 +120,7 @@ content:
 
 # Optional: connect to Bowrain Server (compound URL)
 server:
-  url: https://bowrain.example.com/my-team/abc123
+  url: https://bowrain.cloud/my-team/abc123
   stream: $auto
 
 # Hooks: flows to run at lifecycle points (schema only — not yet executed; see /cli/flows/hooks)
@@ -144,7 +144,7 @@ The server URL is resolved from (first match wins):
 Set it once globally with:
 
 ```bash
-kapi config --global server.url https://bowrain.example.com
+kapi config --global server.url https://bowrain.cloud
 ```
 
 ## Project Discovery

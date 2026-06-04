@@ -78,7 +78,7 @@ flows:
 
 # Optional bowrain-server connection — presence enables push/pull/sync.
 server:
-  url: https://bowrain.example.com/my-team/abc123
+  url: https://bowrain.cloud/my-team/abc123
   stream: $auto              # auto-detect from git branch / CI
 
 # Top-level lifecycle policy:
@@ -281,13 +281,13 @@ For non-interactive usage (e.g. CI/CD), use flags:
 kapi init --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Connect to a server (anonymous claim)
-kapi init --server https://bowrain.example.com --anonymous
+kapi init --server https://bowrain.cloud --anonymous
 
 # Apply a framework preset
 kapi init --preset nextjs
 
 # Connect to an existing project
-kapi init --server https://bowrain.example.com --project abc123
+kapi init --server https://bowrain.cloud --project abc123
 ```
 
 ### Init flags
@@ -317,10 +317,10 @@ The `server.url` field is a compound URL that encodes the server address, worksp
 ```yaml
 server:
   # Workspace project
-  url: https://bowrain.example.com/my-team/abc123
+  url: https://bowrain.cloud/my-team/abc123
 
   # Direct project (no workspace)
-  # url: https://bowrain.example.com/projects/abc123
+  # url: https://bowrain.cloud/projects/abc123
 
   stream: $auto
 ```

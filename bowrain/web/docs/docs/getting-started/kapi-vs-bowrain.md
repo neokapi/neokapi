@@ -68,4 +68,4 @@ through [connectors](/server/connectors), on the host the server runs on.
 
 You do not choose one forever. Start in kapi; connect a project to Bowrain when
 the team and the governance needs arrive. See the
-[introduction](/) for how the two fit together.
+[introduction](/introduction) for how the two fit together.

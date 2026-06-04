@@ -24,6 +24,12 @@ const buildStamp = (() => {
 // production prefix and navigate out of the preview.
 const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
+// URL of the neokapi marketing landing page (the neokapi-web Vite app that sits
+// one level up from these docs, at /web/neokapi/). The top-left navbar logo
+// links here so it navigates back out to the product landing page; override via
+// env var locally to point at a localhost build of the neokapi site.
+const NEOKAPI_WEB_SITE = process.env.NEOKAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
+
 const config: Config = {
   title: "neokapi",
   tagline: "The faithful, format-aware content engine for people and AI agents",
@@ -145,8 +151,20 @@ const config: Config = {
       logo: {
         alt: "neokapi",
         src: "img/logo.png",
+        // The logo navigates back out to the neokapi marketing landing page
+        // (one level up from the docs), not to the docs root — the "Home" item
+        // below covers the docs landing page. target _self keeps it in-tab.
+        href: NEOKAPI_WEB_SITE,
+        target: "_self",
       },
       items: [
+        {
+          // Docs landing page (src/pages/index.tsx). Added because the logo now
+          // leaves the docs site for the marketing landing page.
+          to: "/",
+          label: "Home",
+          position: "left",
+        },
         // IA: Kapi is the product (getting started + CLI + Desktop + recipes +
         // projects); Framework is the engine (an Overview, then concepts +
         // extending + architecture + notes); Reference holds the

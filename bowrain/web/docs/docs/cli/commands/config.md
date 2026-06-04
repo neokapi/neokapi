@@ -39,7 +39,7 @@ kapi config name "My Project"
 kapi config --global server.url
 
 # Set global config (applies to all projects)
-kapi config --global server.url https://bowrain.example.com
+kapi config --global server.url https://bowrain.cloud
 ```
 
 ## Options
@@ -57,14 +57,14 @@ kapi config --global server.url https://bowrain.example.com
 | `name`                       | Project name                                               | `My App`                                           |
 | `defaults.source_language`   | Source locale (BCP 47)                                     | `en-US`                                            |
 | `defaults.target_languages`  | Target locales (list)                                      | `[fr-FR, de-DE]`                                   |
-| `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://bowrain.example.com/my-team/proj_abc123`  |
+| `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://bowrain.cloud/my-team/proj_abc123`  |
 | `server.stream`              | Server stream (`$auto` for auto-detect)                    | `$auto`                                            |
 
 ### Global Config (`~/.config/bowrain/bowrain.yaml`)
 
 | Key                | Description                         | Example                       |
 | ------------------ | ----------------------------------- | ----------------------------- |
-| `server.url`       | Default server URL for all projects | `https://bowrain.example.com` |
+| `server.url`       | Default server URL for all projects | `https://bowrain.cloud` |
 | `plugin_directory` | Plugin directory path               | `/home/user/.config/bowrain/plugins` |
 
 ## Global vs Project Config
@@ -75,11 +75,11 @@ overrides global values for the current project.
 For example, set the server URL globally so all `kapi init` commands use it:
 
 ```bash
-kapi config --global server.url https://bowrain.example.com
+kapi config --global server.url https://bowrain.cloud
 ```
 
 Then override it for a specific project if needed:
 
 ```bash
-kapi config server.url https://staging.bowrain.example.com
+kapi config server.url https://staging.bowrain.cloud
 ```
