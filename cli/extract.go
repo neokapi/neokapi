@@ -142,7 +142,9 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		}
 		return fmt.Errorf("project plugin requirements not met — install missing plugins or adjust version constraints in %s", projectPath)
 	}
-	ctx := project.NewProjectContext(proj, projectPath)
+	// pctx is a *project.ProjectContext (not context.Context); renamed to avoid
+	// shadowing the cancellation context (cmd.Context()) used later in this function.
+	pctx := project.NewProjectContext(proj, projectPath)
 
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -168,7 +170,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 	only, _ := cmd.Flags().GetString("only")
 	pattern, _ := cmd.Flags().GetString("pattern")
 
-	targets, err := resolveTargetLocales(cmd, ctx)
+	targets, err := resolveTargetLocales(cmd, pctx)
 	if err != nil {
 		return err
 	}
@@ -176,7 +178,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		return fmt.Errorf("extract: no target locales — set defaults.target_languages in %s or pass --target-lang", projectPath)
 	}
 
-	files, err := ctx.ResolveContent(a.FormatReg)
+	files, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
 		return fmt.Errorf("extract: resolve content: %w", err)
 	}
@@ -203,7 +205,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		return err
 	}
 
-	redactionSpec, err := resolveRedaction(cmd, ctx, layout.Root)
+	redactionSpec, err := resolveRedaction(cmd, pctx, layout.Root)
 	if err != nil {
 		return err
 	}
@@ -239,14 +241,14 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 			Version: version.Version,
 		},
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
-		SourceLocale: ctx.SourceLocale,
+		SourceLocale: pctx.SourceLocale,
 		Options: project.ExtractionOptions{
 			Format:       format,
 			XLIFFVersion: effectiveXLIFFVersion(xliffVersion),
 			NoTM:         noTM,
 			Only:         only,
 			Pattern:      pattern,
-			Segmentation: ctx.Project != nil && ctx.Project.Defaults.Segmentation.Source,
+			Segmentation: pctx.Project != nil && pctx.Project.Defaults.Segmentation.Source,
 		},
 	}
 
@@ -260,7 +262,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		pairOutDir := absOut
 
 		for _, src := range files {
-			outName := bilingualOutputName(src, ctx.SourceLocale, tgt, format)
+			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, format)
 			outPath := filepath.Join(pairOutDir, outName)
 
 			sourceHash, err := project.HashFile(src.Path)
@@ -271,7 +273,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 			}
 
 			ef, err := a.extractOne(cmd.Context(), extractTask{
-				ctx:            ctx,
+				ctx:            pctx,
 				layout:         layout,
 				source:         src,
 				sourceHash:     sourceHash,

@@ -88,20 +88,26 @@ func ResolveFormat(cmd *cobra.Command) Format {
 	return FormatText
 }
 
-// Print outputs data in the format specified by command flags. In JSON mode
-// it honors --jq (filter) and --color.
+// Print outputs data in the format specified by command flags. It writes to
+// cmd.OutOrStdout() / cmd.ErrOrStderr() so tests that call cmd.SetOut/SetErr
+// can capture structured output. In JSON mode it honors --jq (filter) and
+// --color.
 func Print(cmd *cobra.Command, data any) error {
+	w := cmd.OutOrStdout()
 	if ResolveFormat(cmd) == FormatJSON {
 		filter, _ := cmd.Flags().GetString("jq")
-		return RenderJSON(os.Stdout, data, filter, Colorize(cmd))
+		return RenderJSON(w, data, filter, Colorize(cmd, w))
 	}
-	return printText(os.Stdout, data)
+	return printText(w, data)
 }
 
 // Colorize decides whether JSON output should be ANSI-colored. Precedence:
 // --color always/never, then NO_COLOR / CLICOLOR_FORCE env, then whether
-// stdout is a terminal.
-func Colorize(cmd *cobra.Command) bool {
+// the resolved writer w is a terminal.
+//
+// Pass cmd.OutOrStdout() as w so the check reflects the actual destination,
+// not the process stdout (they differ when a test calls cmd.SetOut).
+func Colorize(cmd *cobra.Command, w io.Writer) bool {
 	switch c, _ := cmd.Flags().GetString("color"); c {
 	case "always", "force":
 		return true
@@ -114,7 +120,10 @@ func Colorize(cmd *cobra.Command) bool {
 	if os.Getenv("CLICOLOR_FORCE") != "" {
 		return true
 	}
-	return isatty.IsTerminal(os.Stdout.Fd())
+	if f, ok := w.(*os.File); ok {
+		return isatty.IsTerminal(f.Fd())
+	}
+	return false
 }
 
 // PrintTo outputs data in the specified format to the given writer.
@@ -156,14 +165,16 @@ type Error struct {
 	Code  string `json:"code,omitempty"`
 }
 
-// PrintError outputs an error in the appropriate format.
+// PrintError outputs an error in the appropriate format to cmd.ErrOrStderr()
+// so tests using cmd.SetErr can capture error output.
 func PrintError(cmd *cobra.Command, err error, code string) {
+	w := cmd.ErrOrStderr()
 	format := ResolveFormat(cmd)
 	if format == FormatJSON {
 		e := Error{Error: err.Error(), Code: code}
-		_ = printJSON(os.Stderr, e)
+		_ = printJSON(w, e)
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(w, "Error: %v\n", err)
 	}
 }
 

@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
 	"github.com/spf13/pflag"
 )
+
+// connectorRPCTimeout is the per-call deadline for source-connector RPCs.
+// Long-running operations (push of large repos) use streaming or chunked
+// calls; this guards against a hung daemon on a control-plane call.
+const connectorRPCTimeout = 5 * time.Minute
 
 // SourceConnectorOpsClaimed lists the standard op names handled by the
 // generic source-connector dispatcher. Plugins that follow the
@@ -52,9 +58,17 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 
 	sc := pb.NewSourceConnectorServiceClient(client.Conn)
 
+	// Each RPC call gets a per-call deadline derived from the caller's context.
+	// This guards against a hung daemon without cancelling the outer command ctx.
+	rpcCtx := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(ctx, connectorRPCTimeout)
+	}
+
 	switch op {
 	case "status":
-		resp, err := sc.Status(ctx, &pb.StatusRequest{Project: ref})
+		callCtx, cancel := rpcCtx()
+		defer cancel()
+		resp, err := sc.Status(callCtx, &pb.StatusRequest{Project: ref})
 		if err != nil {
 			return fmt.Errorf("daemon Status: %w", err)
 		}
@@ -70,7 +84,9 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		return nil
 
 	case "ls":
-		resp, err := sc.ListFiles(ctx, &pb.ListFilesRequest{Project: ref, Paths: rest})
+		callCtx, cancel := rpcCtx()
+		defer cancel()
+		resp, err := sc.ListFiles(callCtx, &pb.ListFilesRequest{Project: ref, Paths: rest})
 		if err != nil {
 			return fmt.Errorf("daemon ListFiles: %w", err)
 		}
@@ -86,7 +102,9 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		flags.BoolVar(&force, "force", false, "")
 		flags.BoolVar(&dryRun, "dry-run", false, "")
 		positional := parseFlags(flags, rest)
-		resp, err := sc.Push(ctx, &pb.PushRequest{
+		callCtx, cancel := rpcCtx()
+		defer cancel()
+		resp, err := sc.Push(callCtx, &pb.PushRequest{
 			Project: ref,
 			Paths:   positional,
 			Force:   force,
@@ -107,7 +125,9 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		flags.BoolVar(&dryRun, "dry-run", false, "")
 		flags.StringSliceVar(&locales, "locale", nil, "")
 		_ = parseFlags(flags, rest)
-		resp, err := sc.Pull(ctx, &pb.PullRequest{
+		callCtx, cancel := rpcCtx()
+		defer cancel()
+		resp, err := sc.Pull(callCtx, &pb.PullRequest{
 			Project: ref,
 			Locales: locales,
 			Force:   force,

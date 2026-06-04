@@ -87,10 +87,13 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 	cmd.GroupID = ""
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
-	cmd.PersistentPreRun = func(*cobra.Command, []string) {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		app.Config = config.NewAppConfig()
-		app.Init()
+		if err := app.Init(); err != nil {
+			return err
+		}
 		ApplyAppInitializers(app)
+		return nil
 	}
 	cmd.PersistentPostRun = func(*cobra.Command, []string) { app.Shutdown() }
 	if inner := cmd.RunE; inner != nil {

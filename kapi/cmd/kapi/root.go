@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/pluginhost"
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/cobra"
 )
 
@@ -15,16 +16,20 @@ var app = &cli.App{}
 var rootCmd = &cobra.Command{
 	Use:           "kapi",
 	Short:         "A localization and translation toolkit",
+	Version:       version.Version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Long: `kapi helps you manage multilingual content — convert document formats,
 translate with AI, and run quality checks across a wide range of file types.`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		app.Config = config.NewAppConfig()
-		app.Init()
+		if err := app.Init(); err != nil {
+			return err
+		}
 		// Plugins (e.g. bowrain) register App initializers at init().
 		// Apply them after Init has set up registries and config.
 		cli.ApplyAppInitializers(app)
+		return nil
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		app.Shutdown()

@@ -176,8 +176,14 @@ func (a *App) InitPluginHost() {
 	if a.PluginHost != nil {
 		return
 	}
+	// Honor --plugin-dir: when set it takes precedence over KAPI_PLUGINS_DIR
+	// so a developer can point at a custom directory without touching env.
+	envPluginsDir := os.Getenv("KAPI_PLUGINS_DIR")
+	if a.PluginDir != "" {
+		envPluginsDir = a.PluginDir
+	}
 	opts := pluginhost.DiscoverOptions{
-		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
+		EnvPluginsDir: envPluginsDir,
 		OnWarn: func(s string) {
 			if !a.Quiet {
 				fmt.Fprintln(os.Stderr, "Warning: "+s)
@@ -237,10 +243,14 @@ func (a *App) InitPluginHost() {
 
 // Init finishes app initialization after flag parsing: credentials,
 // config load, format priority overrides, and metadata translator.
-// Call this in PersistentPreRun. InitRegistries runs first (idempotently)
+// Call this in PersistentPreRunE. InitRegistries runs first (idempotently)
 // so Init is safe even when the CLI entry point already called
 // InitRegistries at init() time.
-func (a *App) Init() {
+//
+// Init returns an error when an explicitly-specified --config file cannot be
+// read, or when the credential store fails to initialize. Config-file-not-
+// found is not an error (the default search paths are optional).
+func (a *App) Init() error {
 	a.InitRegistries()
 
 	// Initialize the shared credential store and wire credential resolution
@@ -261,7 +271,9 @@ func (a *App) Init() {
 	if a.CfgFile != "" {
 		a.Config.Viper().SetConfigFile(a.CfgFile)
 	}
-	_ = a.Config.Load()
+	if err := a.Config.Load(); err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
 
 	// Apply format priority overrides from configuration.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
@@ -273,6 +285,7 @@ func (a *App) Init() {
 		Flag:           a.Lang,
 		ConfigLanguage: a.Config.Language(),
 	})
+	return nil
 }
 
 // InstalledPluginList returns the currently loaded manifest-driven plugins

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -243,10 +244,10 @@ type DaemonPoolOptions struct {
 type DaemonPool struct {
 	opts DaemonPoolOptions
 
-	mu          sync.Mutex
-	clients     map[string]*DaemonClient // key: plugin name
-	spawnLocks  map[string]*sync.Mutex   // per-plugin spawn coordination — prevents concurrent first-callers from each spawning a JVM only to kill all but one
-	closed      bool
+	mu         sync.Mutex
+	clients    map[string]*DaemonClient // key: plugin name
+	spawnLocks map[string]*sync.Mutex   // per-plugin spawn coordination — prevents concurrent first-callers from each spawning a JVM only to kill all but one
+	closed     bool
 }
 
 // NewDaemonPool builds an empty pool. Daemons are spawned lazily in
@@ -672,12 +673,24 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	return client, nil
 }
 
+// maxGRPCMsgSize is the per-message limit for the daemon gRPC connection.
+// The default gRPC cap is 4 MB; bridge plugins stream whole documents inline
+// (ContentRef_Inline), so we raise the limit to 256 MB per call to avoid
+// ResourceExhausted errors on large files.
+const maxGRPCMsgSize = 256 << 20 // 256 MB
+
 // dialUnixSocket opens a gRPC client connection over a Unix socket.
 // Insecure transport is fine here — the socket sits under $TMPDIR with
 // 0600 mode, owned by the same user.
 func dialUnixSocket(ctx context.Context, socket string) (*grpc.ClientConn, error) {
 	target := "unix://" + socket
-	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(target,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxGRPCMsgSize),
+			grpc.MaxCallSendMsgSize(maxGRPCMsgSize),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -692,15 +705,19 @@ func dialUnixSocket(ctx context.Context, socket string) (*grpc.ClientConn, error
 }
 
 // waitReady blocks until the connection enters READY state or ctx fires.
+// TRANSIENT_FAILURE is treated as a hard stop since the daemon is unlikely
+// to recover on its own at startup time.
 func waitReady(ctx context.Context, conn *grpc.ClientConn) error {
 	conn.Connect()
 	for {
 		s := conn.GetState()
-		switch s.String() {
-		case "READY":
+		switch s {
+		case connectivity.Ready:
 			return nil
-		case "SHUTDOWN":
+		case connectivity.Shutdown:
 			return errors.New("connection shut down before ready")
+		case connectivity.TransientFailure:
+			return errors.New("connection entered transient failure before ready")
 		}
 		if !conn.WaitForStateChange(ctx, s) {
 			return ctx.Err()
