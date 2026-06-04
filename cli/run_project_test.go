@@ -187,8 +187,8 @@ flows:
 
 	assert.Equal(t, "Acme App Localization", proj.Name)
 	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
-	assert.Equal(t, 3, len(proj.Defaults.TargetLanguages))
-	assert.Equal(t, 2, len(proj.Content))
+	assert.Len(t, proj.Defaults.TargetLanguages, 3)
+	assert.Len(t, proj.Content, 2)
 	assert.Equal(t, "nextjs", proj.Preset)
 
 	// Plugins.
@@ -201,7 +201,7 @@ flows:
 	assert.Equal(t, "strict-extraction", proj.Defaults.Formats["okf_html"].Preset)
 
 	// Flows
-	assert.Equal(t, 2, len(proj.Flows))
+	assert.Len(t, proj.Flows, 2)
 
 	translate := proj.GetFlow("translate")
 	require.NotNil(t, translate)

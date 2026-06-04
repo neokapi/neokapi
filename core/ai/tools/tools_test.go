@@ -45,9 +45,10 @@ func TestAITranslateToolSetsTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
-	assert.Equal(t, 1, len(mock.TranslateCalls))
+	assert.Len(t, mock.TranslateCalls, 1)
 }
 
 func TestAITranslateToolSkipsNonTranslatable(t *testing.T) {
@@ -71,9 +72,10 @@ func TestAITranslateToolSkipsNonTranslatable(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
-	assert.Equal(t, 0, len(mock.TranslateCalls))
+	assert.Empty(t, mock.TranslateCalls)
 }
 
 func TestAITranslateToolSkipsMatchedWhenConfigured(t *testing.T) {
@@ -98,9 +100,10 @@ func TestAITranslateToolSkipsMatchedWhenConfigured(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour", resultBlock.TargetText(model.LocaleFrench))
-	assert.Equal(t, 0, len(mock.TranslateCalls))
+	assert.Empty(t, mock.TranslateCalls)
 }
 
 func TestAITranslateToolWithGlossary(t *testing.T) {
@@ -192,6 +195,7 @@ func TestAITranslateToolSetsAnnotation(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	ann, ok := resultBlock.Annotations["alt-translations"]
 	require.True(t, ok)
@@ -240,7 +244,7 @@ func TestAITranslateToolInFlow(t *testing.T) {
 
 	block1 := parts[1].Resource.(*model.Block)
 	assert.True(t, block1.HasTarget(model.LocaleFrench))
-	assert.Equal(t, 2, len(mock.TranslateCalls))
+	assert.Len(t, mock.TranslateCalls, 2)
 }
 
 func TestAIQACheckToolAddsProperties(t *testing.T) {
@@ -271,6 +275,7 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 
 	// ai-qa maps the model's structured output onto the unified check findings.
@@ -303,8 +308,8 @@ func TestAIQACheckToolSkipsUntranslated(t *testing.T) {
 	require.NoError(t, err)
 
 	<-out
-	assert.Equal(t, 0, len(mock.ChatCalls))
-	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
+	assert.Empty(t, mock.ChatCalls)
+	assert.Empty(t, mock.ChatStructuredCalls)
 }
 
 func TestAITerminologyToolExtractsTerms(t *testing.T) {
@@ -333,6 +338,7 @@ func TestAITerminologyToolExtractsTerms(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	termsStr := resultBlock.Properties["terminology"]
 	assert.NotEmpty(t, termsStr)
@@ -371,6 +377,7 @@ func TestAIReviewToolAddsReview(t *testing.T) {
 	require.NoError(t, err)
 
 	result := <-out
+	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 	assert.Contains(t, resultBlock.Properties["review"], "Score: 9")
 	assert.Equal(t, "mock", resultBlock.Properties["review-provider"])
@@ -396,7 +403,7 @@ func TestAIReviewToolSkipsUntranslated(t *testing.T) {
 	require.NoError(t, err)
 
 	<-out
-	assert.Equal(t, 0, len(mock.ChatCalls))
+	assert.Empty(t, mock.ChatCalls)
 }
 
 // batchJSON builds a structured batch response JSON string.
@@ -451,8 +458,8 @@ func TestAITranslateBatchMode(t *testing.T) {
 	require.Len(t, parts, 3)
 
 	// All 3 blocks translated in a single ChatStructured call (batch).
-	assert.Equal(t, 1, len(mock.ChatStructuredCalls), "should use 1 batch ChatStructured call")
-	assert.Equal(t, 0, len(mock.TranslateCalls), "should not call Translate in batch mode")
+	assert.Len(t, mock.ChatStructuredCalls, 1, "should use 1 batch ChatStructured call")
+	assert.Empty(t, mock.TranslateCalls, "should not call Translate in batch mode")
 
 	assert.Equal(t, "Bonjour le monde", parts[0].Resource.(*model.Block).TargetText(model.LocaleFrench))
 	assert.Equal(t, "Bienvenue", parts[1].Resource.(*model.Block).TargetText(model.LocaleFrench))
@@ -505,8 +512,8 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 
 	// With batch size 2, we get 3 batches: [2, 2, 1].
 	// The single-item batch (size 1) uses handleBlock → Translate(), not ChatStructured().
-	assert.Equal(t, 2, len(mock.ChatStructuredCalls), "5 blocks / batch_size=2 → 2 full batches via ChatStructured")
-	assert.Equal(t, 1, len(mock.TranslateCalls), "1 remaining block uses single Translate")
+	assert.Len(t, mock.ChatStructuredCalls, 2, "5 blocks / batch_size=2 → 2 full batches via ChatStructured")
+	assert.Len(t, mock.TranslateCalls, 1, "1 remaining block uses single Translate")
 
 	// All blocks should have targets.
 	for _, p := range parts {
@@ -598,8 +605,8 @@ func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 	require.Len(t, parts, 2)
 
 	// Only 1 translatable block → single Translate call (not batch ChatStructured).
-	assert.Equal(t, 1, len(mock.TranslateCalls))
-	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
+	assert.Len(t, mock.TranslateCalls, 1)
+	assert.Empty(t, mock.ChatStructuredCalls)
 	assert.True(t, parts[0].Resource.(*model.Block).HasTarget(model.LocaleFrench))
 	assert.False(t, parts[1].Resource.(*model.Block).HasTarget(model.LocaleFrench))
 }
@@ -644,7 +651,7 @@ func TestAITranslateBatchStructuredSchema(t *testing.T) {
 		parts = append(parts, p)
 	}
 	require.Len(t, parts, 2)
-	assert.Equal(t, 1, len(mock.ChatStructuredCalls))
+	assert.Len(t, mock.ChatStructuredCalls, 1)
 }
 
 func TestProviderMockDefaultBehavior(t *testing.T) {

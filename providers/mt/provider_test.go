@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -57,10 +58,11 @@ func TestGoogleProvider(t *testing.T) {
 			Format string `json:"format"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		assert.NoError(t, err)
-		assert.Equal(t, "Hello world", reqBody.Q)
-		assert.Equal(t, "en", reqBody.Source)
-		assert.Equal(t, "fr", reqBody.Target)
+		if assert.NoError(t, err) {
+			assert.Equal(t, "Hello world", reqBody.Q)
+			assert.Equal(t, "en", reqBody.Source)
+			assert.Equal(t, "fr", reqBody.Target)
+		}
 
 		resp := map[string]any{
 			"data": map[string]any{
@@ -91,8 +93,11 @@ func TestGoogleProvider(t *testing.T) {
 }
 
 func TestGoogleProviderSkipsNonTranslatable(t *testing.T) {
+	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called for non-translatable blocks")
+		hits.Add(1)
+		t.Errorf("API should not be called for non-translatable blocks (got request to %s)", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
@@ -109,6 +114,7 @@ func TestGoogleProviderSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+	require.Zero(t, hits.Load(), "provider must not call the API for non-translatable blocks")
 }
 
 func TestDeepLProvider(t *testing.T) {
@@ -119,11 +125,12 @@ func TestDeepLProvider(t *testing.T) {
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 
 		err := r.ParseForm()
-		assert.NoError(t, err)
-		assert.Equal(t, "Hello world", r.FormValue("text"))
-		assert.Equal(t, "FR", r.FormValue("target_lang"))
-		assert.Equal(t, "EN", r.FormValue("source_lang"))
-		assert.Equal(t, "more", r.FormValue("formality"))
+		if assert.NoError(t, err) {
+			assert.Equal(t, "Hello world", r.FormValue("text"))
+			assert.Equal(t, "FR", r.FormValue("target_lang"))
+			assert.Equal(t, "EN", r.FormValue("source_lang"))
+			assert.Equal(t, "more", r.FormValue("formality"))
+		}
 
 		resp := map[string]any{
 			"translations": []map[string]any{
@@ -154,8 +161,11 @@ func TestDeepLProvider(t *testing.T) {
 }
 
 func TestDeepLProviderSkipsNonTranslatable(t *testing.T) {
+	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called for non-translatable blocks")
+		hits.Add(1)
+		t.Errorf("API should not be called for non-translatable blocks (got request to %s)", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
@@ -172,6 +182,7 @@ func TestDeepLProviderSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+	require.Zero(t, hits.Load(), "provider must not call the API for non-translatable blocks")
 }
 
 func TestMicrosoftProvider(t *testing.T) {
@@ -189,9 +200,12 @@ func TestMicrosoftProvider(t *testing.T) {
 			Text string `json:"Text"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		assert.NoError(t, err)
-		assert.Len(t, reqBody, 1)
-		assert.Equal(t, "Hello world", reqBody[0].Text)
+		if assert.NoError(t, err) {
+			assert.Len(t, reqBody, 1)
+			if len(reqBody) > 0 {
+				assert.Equal(t, "Hello world", reqBody[0].Text)
+			}
+		}
 
 		resp := []map[string]any{
 			{
@@ -221,8 +235,11 @@ func TestMicrosoftProvider(t *testing.T) {
 }
 
 func TestMicrosoftProviderSkipsNonTranslatable(t *testing.T) {
+	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called for non-translatable blocks")
+		hits.Add(1)
+		t.Errorf("API should not be called for non-translatable blocks (got request to %s)", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
@@ -239,6 +256,7 @@ func TestMicrosoftProviderSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+	require.Zero(t, hits.Load(), "provider must not call the API for non-translatable blocks")
 }
 
 func TestMyMemoryProvider(t *testing.T) {
@@ -276,8 +294,11 @@ func TestMyMemoryProvider(t *testing.T) {
 }
 
 func TestMyMemoryProviderSkipsNonTranslatable(t *testing.T) {
+	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called for non-translatable blocks")
+		hits.Add(1)
+		t.Errorf("API should not be called for non-translatable blocks (got request to %s)", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
@@ -293,6 +314,7 @@ func TestMyMemoryProviderSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+	require.Zero(t, hits.Load(), "provider must not call the API for non-translatable blocks")
 }
 
 func TestModernMTProvider(t *testing.T) {
@@ -309,10 +331,11 @@ func TestModernMTProvider(t *testing.T) {
 			Hints  []int64 `json:"hints"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		assert.NoError(t, err)
-		assert.Equal(t, "Hello world", reqBody.Q)
-		assert.Equal(t, "en", reqBody.Source)
-		assert.Equal(t, "fr", reqBody.Target)
+		if assert.NoError(t, err) {
+			assert.Equal(t, "Hello world", reqBody.Q)
+			assert.Equal(t, "en", reqBody.Source)
+			assert.Equal(t, "fr", reqBody.Target)
+		}
 
 		resp := map[string]any{
 			"status": 200,
@@ -340,8 +363,11 @@ func TestModernMTProvider(t *testing.T) {
 }
 
 func TestModernMTProviderSkipsNonTranslatable(t *testing.T) {
+	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called for non-translatable blocks")
+		hits.Add(1)
+		t.Errorf("API should not be called for non-translatable blocks (got request to %s)", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
@@ -358,6 +384,7 @@ func TestModernMTProviderSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+	require.Zero(t, hits.Load(), "provider must not call the API for non-translatable blocks")
 }
 
 func TestGoogleConfigValidation(t *testing.T) {

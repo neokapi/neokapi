@@ -21,8 +21,9 @@ func TestCreateAnonymousProject(t *testing.T) {
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "my-project", req["name"])
 			assert.Equal(t, "en", req["default_source_language"])
-			targets := req["target_languages"].([]any)
-			assert.Equal(t, []any{"nb", "fr"}, targets)
+			if targets, ok := req["target_languages"].([]any); assert.True(t, ok, "target_languages must be []any") {
+				assert.Equal(t, []any{"nb", "fr"}, targets)
+			}
 
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]string{
