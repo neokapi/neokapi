@@ -729,6 +729,9 @@ importers:
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../flow-editor
+      '@neokapi/kapi-format':
+        specifier: '*'
+        version: link:../kapi-format
       '@neokapi/kapi-playground':
         specifier: '*'
         version: link:../kapi-playground

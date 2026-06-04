@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Import from the light /runtime subpath (not the package index) so we don't
 // pull xterm / the modal into explorer bundles — explorers never show a terminal.
 import { bootKapiRuntime } from "@neokapi/kapi-playground/runtime";
-import type { InspectResult, KapiRuntime, TraceRunResult } from "@neokapi/kapi-playground/runtime";
+import type {
+  InspectResult,
+  KapiRuntime,
+  KlfRequest,
+  KlfResponse,
+  TraceRunResult,
+} from "@neokapi/kapi-playground/runtime";
 import type { ContentTree, FlowTrace } from "./types";
 
 export type LabStatus = "idle" | "booting" | "ready" | "error";
@@ -42,6 +48,8 @@ export interface LabRuntime {
   run: (argv: string[]) => Promise<number>;
   /** Read a file from the in-memory filesystem (decoded UTF-8), or null. */
   readFile: (path: string) => string | null;
+  /** Run a KLF spec operation against the canonical Go engine (synchronous). */
+  klf: (req: KlfRequest) => KlfResponse;
 }
 
 const PROJECT_DIR = "/project";
@@ -145,6 +153,14 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     }
   }, []);
 
+  const klf = useCallback((req: KlfRequest): KlfResponse => {
+    const rt = runtimeRef.current;
+    if (!rt) return { ok: false, error: "runtime not ready" };
+    // The klf endpoint is pure CPU work over an in-memory JSON payload (no fs,
+    // no shared stdout), so it needs no serialization against the run chain.
+    return rt.klf(req);
+  }, []);
+
   return {
     status,
     error,
@@ -154,5 +170,6 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     trace,
     run,
     readFile,
+    klf,
   };
 }

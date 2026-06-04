@@ -1,0 +1,81 @@
+---
+sidebar_position: 1
+title: Overview
+description: What the Kapi Localization Format (.klf) is, the role it plays in the localization pipeline, and how the canonical Go engine and the TypeScript mirror relate.
+keywords:
+  [
+    KLF,
+    kapi localization format,
+    .klf,
+    exchange format,
+    content model,
+    localization,
+  ]
+---
+
+# Kapi Localization Format (KLF)
+
+The **Kapi Localization Format** is the JSON wire serialization of neokapi's
+[content model](/framework/content-model). Where the in-memory model carries the
+full runtime `Block` — skeleton, overlays, annotations, identity — KLF is the
+on-disk, language-neutral form of the same data: a set of `Document`s, each
+holding `Block`s whose translatable content is a flat sequence of `Run`s, with
+optional per-locale `targets`. It plays the role XLIFF plays in other
+toolchains: a structured exchange format that moves extracted content between an
+extractor, a translation step, and a merge step without losing inline markup,
+placeholders, or plural/select structure.
+
+KLF files use the `.klf` extension and the MIME type
+`application/vnd.neokapi.klf+json`. Stand-off annotations live in a companion
+`.klfl` overlay file.
+
+## What it is for
+
+Use KLF when you need a faithful, diff-friendly, hashable representation of
+translatable content:
+
+- feeding extracted blocks to an AI or MT translation step,
+- exchanging content between tools,
+- persisting an extraction for later merge.
+
+The serializer is deterministic — 2-space indent, no HTML escaping, sorted map
+keys, trailing newline — so the byte output is stable for content hashing and
+for reviewing changes in git.
+
+## What it is not for
+
+KLF is an **authoring and exchange** format, not a runtime catalog. It is
+intentionally heavy: it carries the data shape that lets translators work, that
+tools like `kapi pseudo-translate` round-trip, and that a review platform can
+persist. That richness is waste at runtime, where the only operation is
+`(scope, source) → translated`. Compile KLF down to an established runtime
+catalog format (gettext MO, compact per-locale JSON, ICU) for the running
+application; keep KLF on the pipeline side.
+
+## Two implementations, one format
+
+KLF has two reference implementations kept byte-for-byte equivalent by shared
+golden fixtures:
+
+- **Go — canonical.** [`core/klf`](https://github.com/neokapi/neokapi/tree/main/core/klf)
+  in the framework module. Where the two sides differ, the Go source governs.
+- **TypeScript — mirror.** The
+  [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format)
+  package, used by the React extractor and the in-browser tooling.
+
+You can watch the two engines agree, live, on the
+[KLF conformance page](/klf-tests) — it runs the spec conformance suite against
+both implementations in your browser.
+
+## In this section
+
+- **[Specification](/reference/klf/spec)** — the normative schema: the file
+  envelope, the run discriminated union, per-locale targets, validation rules,
+  and the `.klfl` annotation overlay.
+- **[Examples](/reference/klf/examples)** — worked examples of every run kind,
+  a full `.klf` + `.klfl` pair, and an embedded lab to edit them live.
+- **[KLF vs XLIFF](/reference/klf/vs-xliff)** — how KLF maps onto XLIFF 2.x, and
+  where the two formats differ in philosophy.
+- **[KLF Lab](/klf-lab)** — edit a `.klf` document and watch the real engine
+  parse, canonicalize, render, validate, and resolve annotations against it.
+- **[KLF Tests](/klf-tests)** — the cross-engine conformance suite.

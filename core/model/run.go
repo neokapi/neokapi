@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -251,6 +252,14 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON enforces that exactly one discriminator is set before
 // emitting JSON.
+//
+// HTML escaping is disabled: a run's `data`/`text` routinely holds
+// source markup like `<span>` or an `&&` expression, and the KLF wire
+// form is "no HTML escaping" (see core/klf.Marshal). The package-level
+// json.Marshal would escape `<`, `>`, and `&` into `<` etc.;
+// encoding through marshalRunNoEscapeHTML keeps the literal bytes so the
+// Go output matches the TypeScript mirror (@neokapi/kapi-format) and the
+// content hash stays implementation-independent.
 func (r Run) MarshalJSON() ([]byte, error) {
 	switch r.Kind() {
 	case "":
@@ -260,35 +269,49 @@ func (r Run) MarshalJSON() ([]byte, error) {
 		// `{"text":"literal"}` — not as a nested object. Every
 		// other run kind nests its struct under its discriminator
 		// key; text is the exception the spec calls out explicitly.
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			Text string `json:"text"`
 		}{r.Text.Text})
 	case RunKindPh:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			Ph *PlaceholderRun `json:"ph"`
 		}{r.Ph})
 	case RunKindPcOpen:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			PcOpen *PcOpenRun `json:"pcOpen"`
 		}{r.PcOpen})
 	case RunKindPcClose:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			PcClose *PcCloseRun `json:"pcClose"`
 		}{r.PcClose})
 	case RunKindSub:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			Sub *SubRun `json:"sub"`
 		}{r.Sub})
 	case RunKindPlural:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			Plural *PluralRun `json:"plural"`
 		}{r.Plural})
 	case RunKindSelect:
-		return json.Marshal(struct {
+		return marshalRunNoEscapeHTML(struct {
 			Select *SelectRun `json:"select"`
 		}{r.Select})
 	}
 	return nil, fmt.Errorf("model: run has unknown discriminator %q", r.Kind())
+}
+
+// marshalRunNoEscapeHTML JSON-encodes v with HTML escaping disabled,
+// stripping the trailing newline json.Encoder appends. Nested Runs (in
+// plural forms / select cases) recurse back through Run.MarshalJSON, so
+// the whole tree stays unescaped and consistent.
+func marshalRunNoEscapeHTML(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // Placeholder is metadata about a variable or element token

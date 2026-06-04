@@ -9,6 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestMarshalDoesNotHTMLEscape asserts the wire-level "no HTML escaping"
+// contract end to end: a document whose runs carry `<`, `>`, and `&` in their
+// data (paired-code tags, logical-and JSX nodes) must serialize with those
+// bytes literal — not `<` / `&` — so the Go output matches the
+// TypeScript mirror's JSON.stringify output and the content hash is
+// implementation-independent. Guards the regression where Run.MarshalJSON's
+// inner encoder re-introduced HTML escaping.
+func TestMarshalDoesNotHTMLEscape(t *testing.T) {
+	data, err := Marshal(fixtureDocument())
+	require.NoError(t, err)
+	out := string(data)
+	// The literal markup must be present, unescaped — filesHeading's <span>
+	// paired code and tagChip's `&&` logical-and node. (JSON escapes the inner
+	// double quotes as \", so match a quote-free slice.)
+	assert.Contains(t, out, `<span className=`)
+	assert.Contains(t, out, `index !== undefined &&`)
+	// And none of it may appear in the \u-escaped form json.Marshal would emit.
+	assert.NotContains(t, out, `u003c`, "must not escape '<' as \\u003c")
+	assert.NotContains(t, out, `u003e`, "must not escape '>' as \\u003e")
+	assert.NotContains(t, out, `u0026`, "must not escape '&' as \\u0026")
+}
+
 func TestRoundTripDocument(t *testing.T) {
 	doc := fixtureDocument()
 	buf, err := Marshal(doc)

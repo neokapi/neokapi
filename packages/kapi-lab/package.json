@@ -21,6 +21,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@neokapi/flow-editor": "*",
+    "@neokapi/kapi-format": "*",
     "@neokapi/kapi-playground": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",

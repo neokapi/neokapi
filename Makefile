@@ -1086,6 +1086,9 @@ docs-wasm:
 docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
 	node --experimental-strip-types scripts/verify-snippets/harness.ts
 
+klf-smoke: web-wasm-cli ## Verify KLF Go(wasm)↔TS parity for the docs Tests page (serialization, preview, anchors, validation)
+	node --experimental-strip-types scripts/verify-snippets/klf-smoke.ts
+
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
 # Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +

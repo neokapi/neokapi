@@ -71,12 +71,37 @@ export function renderRuns(runs: Run[], vocab: VocabularyLookup): string {
   return out;
 }
 
+// CLDR plural-form order, mirroring core/klf.pluralOrder, so the Go and
+// TypeScript renderers emit forms in the same sequence regardless of the
+// order they were authored in.
+const PLURAL_ORDER = ["zero", "one", "two", "few", "many", "other"];
+
+function orderedPluralForms(forms: Partial<Record<string, Run[]>>): string[] {
+  const present = new Set(Object.keys(forms));
+  const ordered = PLURAL_ORDER.filter((f) => present.has(f));
+  // Any non-standard keys follow the canonical ones, sorted, for stability.
+  const extras = [...present].filter((f) => !PLURAL_ORDER.includes(f)).sort();
+  return [...ordered, ...extras];
+}
+
+// Select-case order, mirroring core/klf.orderedSelectKeys: the keys sorted
+// alphabetically, with `other` last.
+function orderedSelectKeys(cases: Record<string, Run[]>): string[] {
+  const keys = Object.keys(cases)
+    .filter((k) => k !== "other")
+    .sort();
+  if ("other" in cases) keys.push("other");
+  return keys;
+}
+
 function renderPluralRun(
   plural: { pivot: string; forms: Partial<Record<string, Run[]>> },
   vocab: VocabularyLookup,
 ): string {
   const pivot = escapeHtml(plural.pivot);
-  const formEntries = Object.entries(plural.forms) as Array<[string, Run[]]>;
+  const formEntries = orderedPluralForms(plural.forms).map(
+    (form) => [form, plural.forms[form] as Run[]] as [string, Run[]],
+  );
   const inner = formEntries
     .map(([form, formRuns]) => {
       const label = `plural:${form}`;
@@ -95,7 +120,8 @@ function renderSelectRun(
   vocab: VocabularyLookup,
 ): string {
   const pivot = escapeHtml(sel.pivot);
-  const inner = Object.entries(sel.cases)
+  const inner = orderedSelectKeys(sel.cases)
+    .map((value) => [value, sel.cases[value]] as [string, Run[]])
     .map(([value, caseRuns]) => {
       const label = `select:${value}`;
       const body = renderRuns(caseRuns, vocab);

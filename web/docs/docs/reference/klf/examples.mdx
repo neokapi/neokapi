@@ -1,0 +1,307 @@
+---
+sidebar_position: 3
+title: Examples
+description: Worked KLF examples — every run kind, a complete .klf document with its .klfl annotation overlay, and an embedded lab to edit them live in the browser.
+keywords: [KLF, examples, .klf, .klfl, runs, plural, select, sub, annotations]
+---
+
+import { KlfExplorer } from "@site/src/components/Lab/KlfExplorer";
+
+# KLF examples
+
+These examples walk through the run model one kind at a time, then show a
+complete document and its annotation overlay. The [specification](/reference/klf/spec)
+is the normative reference; this page is the readable companion. Every example
+is real — they are the golden fixtures shared between the Go and TypeScript
+implementations.
+
+## A block is a flat run sequence
+
+The unit of translation is a `Block`. Its `source` is a flat `Run[]`: inline
+markup, variables, and ICU constructs all live _in the sequence_, not in the
+text. This is what lets a translation step rewrite the readable text while every
+placeholder and tag stays first-class and accounted for.
+
+### Paired code wrapping a variable
+
+`files-heading` extracts `Files <span className="muted">({count} matched)</span>`.
+The `<span>` becomes a **paired code** — an opening `pcOpen` and a closing
+`pcClose` that share an `id` — and `{count}` becomes a **`ph`** placeholder
+between them:
+
+```json
+{
+  "id": "files-heading",
+  "hash": "2xykvb",
+  "translatable": true,
+  "type": "jsx:element",
+  "source": [
+    { "text": "Files " },
+    {
+      "pcOpen": {
+        "id": "1",
+        "type": "jsx:element",
+        "subType": "span",
+        "data": "<span className=\"muted\">",
+        "equiv": "muted",
+        "disp": "span"
+      }
+    },
+    { "text": "(" },
+    {
+      "ph": {
+        "id": "2",
+        "type": "jsx:var",
+        "subType": "number",
+        "data": "{count}",
+        "equiv": "count",
+        "disp": "count"
+      }
+    },
+    { "text": " matched)" },
+    {
+      "pcClose": {
+        "id": "1",
+        "type": "jsx:element",
+        "subType": "span",
+        "data": "</span>",
+        "equiv": "muted"
+      }
+    }
+  ],
+  "placeholders": [
+    {
+      "name": "muted",
+      "kind": "element",
+      "jsType": "ReactNode",
+      "sourceExpr": "<span className=\"muted\">...</span>"
+    },
+    {
+      "name": "count",
+      "kind": "variable",
+      "jsType": "number",
+      "sourceExpr": "count"
+    }
+  ],
+  "properties": {
+    "file": "src/FilesHeading.tsx",
+    "line": 4,
+    "component": "FilesHeading",
+    "jsxPath": "FilesHeading > h2",
+    "element": "h2"
+  }
+}
+```
+
+A French target re-orders the readable text but keeps both the `muted` paired
+code and the `count` variable — so it validates clean:
+
+```json
+{
+  "fr-FR": [
+    {
+      "pcOpen": {
+        "id": "1",
+        "type": "jsx:element",
+        "subType": "span",
+        "data": "<span className=\"muted\">",
+        "equiv": "muted"
+      }
+    },
+    { "text": "(" },
+    {
+      "ph": {
+        "id": "2",
+        "type": "jsx:var",
+        "subType": "number",
+        "data": "{count}",
+        "equiv": "count"
+      }
+    },
+    { "text": " trouvés)" },
+    {
+      "pcClose": {
+        "id": "1",
+        "type": "jsx:element",
+        "subType": "span",
+        "data": "</span>",
+        "equiv": "muted"
+      }
+    }
+  ]
+}
+```
+
+### Optional nodes
+
+`tag-chip` carries two **optional** `jsx:node` placeholders — conditional JSX
+expressions that may or may not render — around a required `{label}` variable.
+Because `badge` and `required` are declared `"optional": true`, a target may drop
+them; it may not drop `label`:
+
+```json
+{
+  "source": [
+    {
+      "ph": {
+        "id": "1",
+        "type": "jsx:node",
+        "subType": "logical-and",
+        "data": "index !== undefined && <span className=\"badge\">{index}</span>",
+        "equiv": "badge",
+        "disp": "⟨badge⟩"
+      }
+    },
+    { "text": " " },
+    {
+      "ph": {
+        "id": "2",
+        "type": "jsx:var",
+        "subType": "string",
+        "data": "{label}",
+        "equiv": "label",
+        "disp": "label"
+      }
+    },
+    { "text": " " },
+    {
+      "ph": {
+        "id": "3",
+        "type": "jsx:node",
+        "subType": "logical-and",
+        "data": "!deletable && <span className=\"required\">*</span>",
+        "equiv": "required",
+        "disp": "⟨required⟩"
+      }
+    }
+  ],
+  "placeholders": [
+    {
+      "name": "badge",
+      "kind": "node",
+      "jsType": "ReactNode",
+      "sourceExpr": "index !== undefined && <span className=\"badge\">{index}</span>",
+      "optional": true
+    },
+    {
+      "name": "label",
+      "kind": "variable",
+      "jsType": "string",
+      "sourceExpr": "label"
+    },
+    {
+      "name": "required",
+      "kind": "node",
+      "jsType": "ReactNode",
+      "sourceExpr": "!deletable && <span className=\"required\">*</span>",
+      "optional": true
+    }
+  ]
+}
+```
+
+### Plural
+
+A `plural` run carries an ICU plural construct as structure: a `pivot` and a
+`forms` map, where each form is its own `Run[]`, so markup and placeholders
+inside a clause stay first-class. Form keys are emitted in sorted order on the
+wire (`one`, `other`, `zero`):
+
+```json
+{
+  "plural": {
+    "pivot": "count",
+    "forms": {
+      "one": [{ "text": "1 item in your cart" }],
+      "other": [
+        {
+          "ph": {
+            "id": "1",
+            "type": "jsx:var",
+            "subType": "number",
+            "data": "{count}",
+            "equiv": "count",
+            "disp": "count"
+          }
+        },
+        { "text": " items in your cart" }
+      ],
+      "zero": [{ "text": "Your cart is empty" }]
+    }
+  }
+}
+```
+
+The `count` pivot is declared in `placeholders` with kind `icu-pivot`.
+
+### Select
+
+A `select` run is symmetric to `plural`, but its `cases` map is keyed by
+arbitrary values rather than CLDR plural categories:
+
+```json
+{
+  "select": {
+    "pivot": "gender",
+    "cases": {
+      "female": [{ "text": "She liked your post" }],
+      "male": [{ "text": "He liked your post" }],
+      "other": [{ "text": "They liked your post" }]
+    }
+  }
+}
+```
+
+### Subblock
+
+When an outer format extracts a field whose value is itself a mini-document in
+another format, the subfilter produces a separate `Block` and the outer block
+points at it with a **`sub`** run:
+
+```json
+{
+  "id": "email-body",
+  "source": [
+    { "text": "Thanks for signing up. " },
+    { "sub": { "id": "1", "ref": "email-cta", "equiv": "cta" } }
+  ],
+  "placeholders": [
+    {
+      "name": "cta",
+      "kind": "node",
+      "jsType": "ReactNode",
+      "sourceExpr": "<CallToAction/>"
+    }
+  ]
+}
+```
+
+## A complete document with an annotation overlay
+
+A full `.klf` bundles documents and blocks under the envelope; a companion
+`.klfl` overlay attaches stand-off annotations by anchor. The header below is one
+line; each annotation is one line. The `term-1` record anchors to the `label`
+run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to the
+`one` plural form; `orphan-1` carries a stale `runId` and will _not_ resolve:
+
+```jsonl
+{"type":"header","annotationType":"@neokapi/example","annotationVersion":"1.0.0","producer":{"id":"@neokapi/kapi-format-examples","version":"0.0.1"},"created":"2026-04-15T12:00:00Z","targetArchive":"sha256:deadbeef"}
+{"type":"annotation","id":"review-1","anchor":{"kind":"block","block":"files-heading"},"data":{"kind":"review-status","status":"approved"}}
+{"type":"annotation","id":"term-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label"}}
+{"type":"annotation","id":"entity-1","anchor":{"kind":"range","block":"files-heading","path":[4],"offset":1,"length":7},"data":{"kind":"named-entity","entity":"matched"}}
+{"type":"annotation","id":"qa-1","anchor":{"kind":"form","block":"shopping-cart-plural","path":[0],"key":"one"},"data":{"kind":"qa","note":"singular form reviewed"}}
+{"type":"annotation","id":"orphan-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"99"},"data":{"kind":"protected-term","term":"label"}}
+```
+
+## Try it live
+
+The lab below runs the real `core/klf` engine in your browser. Pick a sample or
+edit the `.klf` directly — it re-parses, canonicalizes, renders each block, and
+validates the run structure as you type. Edit the `.klfl` overlay and click an
+annotation to resolve it against the live document and see exactly what it points
+at (or why it does not resolve).
+
+<KlfExplorer defaultSampleId="full" />
+
+For the cross-engine conformance suite — these same operations run against both
+the Go engine and the TypeScript mirror — see the [KLF Tests page](/klf-tests).

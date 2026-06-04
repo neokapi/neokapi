@@ -183,7 +183,7 @@ const config: Config = {
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "Project file", to: "/reference/project-file" },
-            { label: "KLF format", to: "/reference/klf-format" },
+            { label: "KLF format", to: "/reference/klf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Format Maturity", to: "/format-maturity" },

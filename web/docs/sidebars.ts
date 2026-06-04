@@ -121,7 +121,21 @@ const sidebars: SidebarsConfig = {
       label: "Configuration & integration",
       collapsible: false,
       className: "sidebar-section-heading",
-      items: ["reference/project-file", "reference/klf-format", "reference/mcp"],
+      items: ["reference/project-file", "reference/mcp"],
+    },
+    {
+      type: "category",
+      label: "KLF Format",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "reference/klf/overview",
+        "reference/klf/spec",
+        "reference/klf/examples",
+        "reference/klf/vs-xliff",
+        { type: "link", label: "KLF Lab", href: "/klf-lab" },
+        { type: "link", label: "KLF Tests", href: "/klf-tests" },
+      ],
     },
     {
       type: "category",

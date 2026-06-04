@@ -49,12 +49,36 @@ export interface TraceRunResult {
   trace: unknown | null;
 }
 
+/**
+ * A KLF spec operation routed to the canonical Go engine (core/klf) via the
+ * `klf` wasm endpoint. The shape is op-specific; see the KLF docs Lab/Tests
+ * pages for the per-op payloads (roundtrip, validateBlock, validateTarget,
+ * resolveAnchor, renderHtml).
+ */
+export interface KlfRequest {
+  op: "roundtrip" | "validateBlock" | "validateTarget" | "resolveAnchor" | "renderHtml";
+  [key: string]: unknown;
+}
+
+/** Generic KLF endpoint response; always carries `ok`. */
+export interface KlfResponse {
+  ok: boolean;
+  error?: string;
+  [key: string]: unknown;
+}
+
 export interface KapiRuntime {
   vol: MemVolume;
   run(argv: string[]): Promise<number>;
   preview(path: string): Promise<PreviewResult>;
   /** Inspect a file's content model, returning the parsed ContentTree. */
   inspect(path: string): Promise<InspectResult>;
+  /**
+   * Run a KLF spec operation against the canonical Go engine. Synchronous: the
+   * wasm endpoint does pure in-memory work over the JSON payload (no fs), so it
+   * returns the parsed response directly rather than a Promise.
+   */
+  klf(req: KlfRequest): KlfResponse;
   /**
    * Run a command with flow tracing enabled and return the parsed FlowTrace.
    * Appends `--trace <tmp>` to argv, runs it, and reads the trace back from the
@@ -192,6 +216,17 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
           };
         } catch (e) {
           return { ok: false, error: `parse content tree: ${(e as Error).message}` };
+        }
+      },
+      klf: (req: KlfRequest): KlfResponse => {
+        const fn = g.klf;
+        if (typeof fn !== "function") {
+          return { ok: false, error: "klf endpoint unavailable in this wasm build" };
+        }
+        try {
+          return JSON.parse(fn(JSON.stringify(req)) as string) as KlfResponse;
+        } catch (e) {
+          return { ok: false, error: `klf request failed: ${(e as Error).message}` };
         }
       },
       runWithTrace: async (argv: string[]): Promise<TraceRunResult> => {

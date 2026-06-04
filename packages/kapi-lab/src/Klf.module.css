@@ -1,0 +1,530 @@
+/* Shared styling for the KLF Lab and the KLF conformance runner. The
+   `.preview` block styles target the class names the Go/TS renderers emit
+   (neokapi-var, neokapi-node, neokapi-plural, …) so the rendered HTML from
+   either engine looks identical and on-brand. */
+
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.editor {
+  width: 100%;
+  min-height: 14rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-font-color-base);
+  resize: vertical;
+  tab-size: 2;
+}
+
+.editorSmall {
+  min-height: 8rem;
+}
+
+.editorError {
+  border-color: var(--ifm-color-danger);
+}
+
+.label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── Block cards ─────────────────────────────────────────────────────── */
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--ifm-card-background-color);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.cardId {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.cardBody {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--ifm-global-radius);
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.badgeType {
+  background: color-mix(in srgb, #3b82f6 16%, transparent);
+  color: #1d4ed8;
+}
+
+.badgeMuted {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.badgeOk {
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+  color: #15803d;
+}
+
+.badgeErr {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #b91c1c;
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+/* ── Rendered preview (engine HTML) ──────────────────────────────────── */
+.preview {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  line-height: 1.7;
+}
+
+.preview :global(.neokapi-var) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.3rem;
+  border-radius: var(--ifm-global-radius);
+  font-size: 0.85em;
+  font-family: var(--ifm-font-family-monospace);
+  background: color-mix(in srgb, #3b82f6 15%, transparent);
+  color: #1e40af;
+  border: 1px solid color-mix(in srgb, #3b82f6 40%, transparent);
+}
+
+.preview :global(.neokapi-node) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.3rem;
+  border-radius: var(--ifm-global-radius);
+  font-size: 0.85em;
+  font-family: var(--ifm-font-family-monospace);
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #92400e;
+  border: 1px solid color-mix(in srgb, #f59e0b 45%, transparent);
+  cursor: help;
+}
+
+.preview :global(.neokapi-sub) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.3rem;
+  border-radius: var(--ifm-global-radius);
+  font-size: 0.85em;
+  font-family: var(--ifm-font-family-monospace);
+  background: color-mix(in srgb, #14b8a6 16%, transparent);
+  color: #0f766e;
+  border: 1px solid color-mix(in srgb, #14b8a6 45%, transparent);
+}
+
+.preview :global([data-neokapi-span]) {
+  border-bottom: 2px solid color-mix(in srgb, #94a3b8 70%, transparent);
+}
+
+.preview :global(.neokapi-unknown) {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #b91c1c;
+  padding: 0 0.2rem;
+  border-radius: var(--ifm-global-radius);
+}
+
+.preview :global(.neokapi-plural),
+.preview :global(.neokapi-select) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.preview :global(.neokapi-plural-form),
+.preview :global(.neokapi-select-case) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  border-left: 3px solid color-mix(in srgb, #a855f7 55%, transparent);
+  background: color-mix(in srgb, #a855f7 6%, transparent);
+  border-radius: 0 var(--ifm-global-radius) var(--ifm-global-radius) 0;
+}
+
+.preview :global(.neokapi-plural-form-label),
+.preview :global(.neokapi-select-case-label) {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #7c3aed;
+  min-width: 5.5rem;
+}
+
+/* ── Runs strip (index-labelled, highlightable) ──────────────────────── */
+.runs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: stretch;
+}
+
+.run {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--ifm-global-radius);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  font-size: 0.78rem;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.runIndex {
+  font-size: 0.62rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.runKind {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.runText {
+  color: var(--ifm-font-color-base);
+}
+.runTextKind {
+  color: var(--ifm-color-emphasis-500);
+}
+.runPh {
+  border-color: color-mix(in srgb, #f59e0b 55%, transparent);
+}
+.runPhKind {
+  color: #b45309;
+}
+.runPc {
+  border-color: color-mix(in srgb, #3b82f6 55%, transparent);
+}
+.runPcKind {
+  color: #1d4ed8;
+}
+.runPlural {
+  border-color: color-mix(in srgb, #a855f7 55%, transparent);
+}
+.runPluralKind {
+  color: #7c3aed;
+}
+.runSub {
+  border-color: color-mix(in srgb, #14b8a6 55%, transparent);
+}
+.runSubKind {
+  color: #0f766e;
+}
+
+.runHighlight {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-color));
+}
+
+.rangeMark {
+  background: color-mix(in srgb, var(--ifm-color-primary) 35%, transparent);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── Validation + placeholder lists ──────────────────────────────────── */
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.finding {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--ifm-global-radius);
+  background: color-mix(in srgb, #ef4444 8%, transparent);
+}
+
+.findingKind {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+  white-space: nowrap;
+}
+
+.phList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.phChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-color-emphasis-100);
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.phOptional {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+/* ── Annotation overlay ──────────────────────────────────────────────── */
+.annList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.annItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-card-background-color);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.annItem:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.annItemActive {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-card-background-color));
+}
+
+.annTop {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.annId {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.annAnchor {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.annResolution {
+  font-size: 0.78rem;
+}
+
+/* ── Status / messages ───────────────────────────────────────────────── */
+.status {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  min-height: 1.3rem;
+}
+
+.statusError {
+  color: var(--ifm-color-danger);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--ifm-color-primary);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-primary);
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonGhost {
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.chip:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.chipActive {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+}
+
+/* ── Conformance table ───────────────────────────────────────────────── */
+.summary {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.summaryStat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-emphasis-100);
+  font-size: 0.85rem;
+}
+
+.summaryCount {
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  vertical-align: top;
+}
+
+.table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.caseName {
+  font-weight: 600;
+}
+
+.caseDesc {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.78rem;
+}
+
+.verdict {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.pass {
+  color: #15803d;
+}
+.fail {
+  color: #b91c1c;
+}
+.na {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.catTag {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+  white-space: nowrap;
+}
+
+.detail {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+  word-break: break-word;
+}

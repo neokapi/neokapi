@@ -36,6 +36,46 @@ func TestRunMarshalUnmarshalRoundTrip(t *testing.T) {
 	}
 }
 
+// TestRunMarshalDoesNotHTMLEscape guards the KLF "no HTML escaping" wire
+// contract: a run's data/text routinely holds markup like `<span>` or an `&&`
+// expression, and the bytes Run.MarshalJSON emits must keep those literal so a
+// non-escaping encoder (core/klf.Marshal) yields output matching the TypeScript
+// mirror (@neokapi/kapi-format, which uses JSON.stringify) and the content hash
+// stays implementation-independent.
+//
+// Note: the assertion calls MarshalJSON directly rather than the package-level
+// json.Marshal, because json.Marshal re-escapes a Marshaler's output during
+// compaction (escapeHTML defaults on) — the klf path deliberately encodes with
+// SetEscapeHTML(false), which preserves these literal bytes.
+func TestRunMarshalDoesNotHTMLEscape(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		run  Run
+		want string
+	}{
+		{"text", Run{Text: &TextRun{Text: "a < b && c > d"}}, `{"text":"a < b && c > d"}`},
+		{
+			"pcOpen",
+			Run{PcOpen: &PcOpenRun{ID: "1", Type: "jsx:element", SubType: "span", Data: `<span className="muted">`, Equiv: "muted"}},
+			`{"pcOpen":{"id":"1","type":"jsx:element","subType":"span","data":"<span className=\"muted\">","equiv":"muted"}}`,
+		},
+		{
+			"ph-logical-and",
+			Run{Ph: &PlaceholderRun{ID: "1", Type: "jsx:node", Data: "a && <b/>", Equiv: "x"}},
+			`{"ph":{"id":"1","type":"jsx:node","data":"a && <b/>","equiv":"x"}}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := tc.run.MarshalJSON()
+			require.NoError(t, err)
+			// Exact match proves the markup bytes are literal: had they been
+			// HTML-escaped, the angle brackets and ampersands would appear as
+			// their \u-escaped forms and differ from want.
+			assert.Equal(t, tc.want, string(data))
+		})
+	}
+}
+
 func TestRunRejectsBadShapes(t *testing.T) {
 	var r Run
 	require.Error(t, r.UnmarshalJSON([]byte(`{}`)))
