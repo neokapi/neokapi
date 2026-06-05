@@ -10,6 +10,10 @@ on:
   push:
     tags:
       - "sat-v*"
+  # Build-only dry run for iterating on the platform matrix (e.g. bringing up
+  # windows/arm64) WITHOUT publishing a release or registering into the plugin
+  # registry. The publish + register jobs below are gated to tag pushes only.
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -48,6 +52,12 @@ jobs:
           - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
           - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
+          # windows/arm64: native windows-11-arm runner. No GCC mingw for
+          # aarch64-windows exists, so the toolchain is LLVM-based throughout —
+          # MSYS2 CLANGARM64 (clang + libc++) for cgo, and the Rust
+          # aarch64-pc-windows-gnullvm target (same LLVM/UCRT/libc++ ABI) for the
+          # tokenizers static lib. (#804)
+          - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64 }
     runs-on: ${{ matrix.build.os }}
     env:
       # Pinned native-dependency versions (see job-level comment above).
@@ -98,8 +108,11 @@ jobs:
       - name: Download onnxruntime (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          GOARCH: ${{ matrix.build.goarch }}
         run: |
-          $asset = "onnxruntime-win-x64-$env:ONNXRUNTIME_VERSION.zip"
+          $slug = if ($env:GOARCH -eq 'arm64') { 'win-arm64' } else { 'win-x64' }
+          $asset = "onnxruntime-$slug-$env:ONNXRUNTIME_VERSION.zip"
           $url = "https://github.com/microsoft/onnxruntime/releases/download/v$env:ONNXRUNTIME_VERSION/$asset"
           Write-Host "Downloading $url"
           $dest = "$env:RUNNER_TEMP\$asset"
@@ -137,34 +150,69 @@ jobs:
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
 
       # Windows: no prebuilt lib is published by daulet/tokenizers, so build the
-      # tokenizers-ffi crate from Rust source. The plugin's cgo directive is
-      #   #cgo windows LDFLAGS: -ltokenizers -lm -lstdc++ -lws2_32 -luserenv
-      # which is GNU-ld style (-l<name> -> lib<name>.a, -lstdc++) — so we MUST
-      # build with the windows-GNU (MinGW) Rust target, NOT msvc, and rename the
-      # crate output (libtokenizers_ffi.a) to libtokenizers.a. cgo on
-      # windows-2025 uses the bundled mingw-w64 gcc, which matches the gnu ABI.
-      - name: Install Rust (Windows, GNU target)
+      # tokenizers-ffi crate from Rust source. The crate bundles C++ (esaxx via
+      # the cc crate), so the C++ runtime the .a expects must match what cgo
+      # links at the end:
+      #   * amd64 -> x86_64-pc-windows-gnu (GCC mingw / libstdc++); cgo on
+      #     windows-2025 uses the bundled mingw gcc. The upstream cgo directive's
+      #     -lstdc++ is correct here.
+      #   * arm64 -> aarch64-pc-windows-gnullvm (LLVM mingw / libc++); there is no
+      #     GCC mingw for aarch64-windows. cgo links with CLANGARM64 clang, so the
+      #     C++ runtime is libc++ — the upstream -lstdc++ is WRONG for this leg and
+      #     the final cgo link is expected to need -lc++ (see #804).
+      - name: Install Rust (Windows)
         if: runner.os == 'Windows'
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-gnu
+          targets: ${{ matrix.build.goarch == 'arm64' && 'aarch64-pc-windows-gnullvm' || 'x86_64-pc-windows-gnu' }}
 
-      - name: Build libtokenizers from source (Windows)
-        if: runner.os == 'Windows'
+      # amd64: GCC-mingw ABI, build in plain bash with the runner's gcc.
+      - name: Build libtokenizers from source (Windows amd64)
+        if: runner.os == 'Windows' && matrix.build.goarch == 'amd64'
         shell: bash
         run: |
           set -euo pipefail
           git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
             https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
           cd "$RUNNER_TEMP/tokenizers-src"
-          # tokenizers-ffi is a staticlib crate; build it for the GNU ABI so the
-          # archive is linkable by cgo's mingw gcc.
           cargo build --release -p tokenizers-ffi --target x86_64-pc-windows-gnu
           mkdir -p "$RUNNER_TEMP/tok"
           # staticlib output for the gnu target is libtokenizers_ffi.a; the cgo
           # directive looks for -ltokenizers => libtokenizers.a.
           cp "target/x86_64-pc-windows-gnu/release/libtokenizers_ffi.a" "$RUNNER_TEMP/tok/libtokenizers.a"
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
+
+      # arm64: LLVM mingw (CLANGARM64) provides clang + libc++ for both the crate's
+      # C++ (esaxx) and the later cgo link. Export clang onto the Windows PATH +
+      # CC so the shared package step's `go build` (plain bash) uses it too.
+      - name: Set up MSYS2 CLANGARM64 (Windows arm64)
+        if: runner.os == 'Windows' && matrix.build.goarch == 'arm64'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          path-type: inherit
+          install: >-
+            mingw-w64-clang-aarch64-clang
+            mingw-w64-clang-aarch64-cmake
+            make
+
+      - name: Build libtokenizers from source (Windows arm64)
+        if: runner.os == 'Windows' && matrix.build.goarch == 'arm64'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          export CC=clang CXX=clang++
+          git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
+            https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
+          cd "$RUNNER_TEMP/tokenizers-src"
+          cargo build --release -p tokenizers-ffi --target aarch64-pc-windows-gnullvm
+          mkdir -p "$RUNNER_TEMP/tok"
+          cp "target/aarch64-pc-windows-gnullvm/release/libtokenizers_ffi.a" "$RUNNER_TEMP/tok/libtokenizers.a"
+          echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
+          # Put CLANGARM64 clang on the Windows PATH + set CC so the shared package
+          # step (plain bash) links the cgo binary with the matching libc++ ABI.
+          echo "CC=clang" >> "$GITHUB_ENV"
+          cygpath -w "$(dirname "$(command -v clang)")" >> "$GITHUB_PATH"
 
       # ── macOS Developer-ID signing setup (sign the staged binary pre-tar) ─────
       - name: Import signing certificate
@@ -339,6 +387,8 @@ jobs:
   # upload directly.
   publish-sat-release:
     name: Publish kapi-sat release
+    # Tag pushes only — workflow_dispatch is a build-only dry run.
+    if: startsWith(github.ref, 'refs/tags/sat-v')
     needs: build-sat-plugin
     runs-on: ubuntu-latest
     steps:
@@ -367,6 +417,8 @@ jobs:
   # existing "bowrain"/"okapi-bridge" entries.
   register-sat-plugin:
     name: Register kapi-sat in plugin registry
+    # Tag pushes only — workflow_dispatch is a build-only dry run.
+    if: startsWith(github.ref, 'refs/tags/sat-v')
     needs: publish-sat-release
     runs-on: ubuntu-latest
     steps:
