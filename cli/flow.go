@@ -1160,7 +1160,7 @@ func (a *App) resolveProjectGlossary(cmd *cobra.Command, targetLang string) ([]c
 		target = model.LocaleID(a.TargetLang)
 	}
 
-	concepts, err := tb.Concepts(cmd.Context())
+	concepts, err := tb.Concepts(cmdContext(cmd))
 	if err != nil {
 		return nil, fmt.Errorf("list termbase concepts: %w", err)
 	}

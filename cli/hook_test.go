@@ -21,6 +21,10 @@ func runHookStopCapture(t *testing.T, stdin string) (stopHookDecision, string) {
 	a := &App{}
 	cmd := a.newHookStopCmd()
 	cmd.SetIn(strings.NewReader(stdin))
+	// Invoking runHookStop directly bypasses cobra's Execute, which normally
+	// seeds cmd.Context(); set it so the ctx-aware termbase/TM lookups in the
+	// verify gate get a real context instead of nil.
+	cmd.SetContext(t.Context())
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
@@ -125,6 +129,9 @@ func runHookPreEditCapture(t *testing.T, stdin string) (preToolUseDecision, stri
 	a := &App{}
 	cmd := a.newHookPreEditCmd()
 	cmd.SetIn(strings.NewReader(stdin))
+	// See runHookStopCapture: a direct call bypasses cobra's Execute, so seed
+	// the context the ctx-aware project lookups expect.
+	cmd.SetContext(t.Context())
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 

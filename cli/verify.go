@@ -222,6 +222,16 @@ func (a *App) runVerify(cmd *cobra.Command, args []string) error {
 func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, error) {
 	a.InitRegistries()
 
+	// The verify path threads cmd.Context() into ctx-aware TM/termbase lookups
+	// (e.g. resolveProjectGlossary). When computeVerify runs outside cobra's
+	// Execute — the Stop hook builds a fresh NewVerifyCmd(), and tests call
+	// runVerify directly — that context is nil, which panics deep in
+	// database/sql and then deadlocks on the deferred store Close. Seed a real
+	// context once here so every downstream cmd.Context() is non-nil.
+	if cmd != nil && cmd.Context() == nil {
+		cmd.SetContext(context.Background())
+	}
+
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
 		// Operational error (no project) → exit 1, the cobra default.

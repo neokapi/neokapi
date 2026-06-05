@@ -41,6 +41,10 @@ func runSingleTMXImport(t *testing.T) string {
 	require.NoError(t, cmd.Flags().Set("source-locale", "en"))
 	require.NoError(t, cmd.Flags().Set("target-locale", "fr"))
 
+	// Calling RunE directly bypasses cobra's Execute, which is what normally
+	// seeds cmd.Context(); set it here so the ctx-aware TM import path has a
+	// real context instead of nil.
+	cmd.SetContext(t.Context())
 	require.NoError(t, cmd.RunE(cmd, []string{tmxPath}))
 	return dbPath
 }
