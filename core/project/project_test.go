@@ -187,7 +187,7 @@ flows:
 	assert.Equal(t, true, coll.Items[0].Format.Config["preserveWhitespace"])
 
 	// Flows.
-	spec := proj.GetFlow("pseudo")
+	spec := proj.Flow("pseudo")
 	require.NotNil(t, spec)
 	assert.Len(t, spec.Steps, 1)
 	assert.Equal(t, "pseudo-translate", spec.Steps[0].Tool)
@@ -449,8 +449,8 @@ func TestGetFlow(t *testing.T) {
 		},
 	}
 
-	assert.NotNil(t, proj.GetFlow("translate"))
-	assert.Nil(t, proj.GetFlow("nonexistent"))
+	assert.NotNil(t, proj.Flow("translate"))
+	assert.Nil(t, proj.Flow("nonexistent"))
 }
 
 func TestFlowNames(t *testing.T) {
@@ -516,7 +516,7 @@ func TestParallelSteps(t *testing.T) {
 	}
 
 	require.NoError(t, proj.Validate())
-	spec := proj.GetFlow("parallel-qa")
+	spec := proj.Flow("parallel-qa")
 	require.NotNil(t, spec)
 	assert.Len(t, spec.Steps[0].Parallel, 2)
 }

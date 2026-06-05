@@ -109,7 +109,7 @@ func TestRunFromProject_FlowNotFound(t *testing.T) {
 	loaded, err := project.Load(projPath)
 	require.NoError(t, err)
 
-	spec := loaded.GetFlow("nonexistent")
+	spec := loaded.Flow("nonexistent")
 	assert.Nil(t, spec, "nonexistent flow should return nil")
 }
 
@@ -128,7 +128,7 @@ func TestToolFromStep_BuiltinTool(t *testing.T) {
 		"pseudo-translate should be in ToolRegistry")
 
 	// Verify it has a schema (needed for CLI command generation).
-	s := app.ToolReg.GetSchema("pseudo-translate")
+	s := app.ToolReg.Schema("pseudo-translate")
 	assert.NotNil(t, s, "pseudo-translate should have a schema")
 }
 
@@ -203,13 +203,13 @@ flows:
 	// Flows
 	assert.Len(t, proj.Flows, 2)
 
-	translate := proj.GetFlow("translate")
+	translate := proj.Flow("translate")
 	require.NotNil(t, translate)
 	assert.Len(t, translate.Steps, 1)
 	assert.Equal(t, "ai-translate", translate.Steps[0].Tool)
 	assert.Equal(t, "anthropic", translate.Steps[0].Config["provider"])
 
-	pipeline := proj.GetFlow("full-pipeline")
+	pipeline := proj.Flow("full-pipeline")
 	require.NotNil(t, pipeline)
 	assert.Len(t, pipeline.Steps, 3)
 	assert.Equal(t, "qa-check", pipeline.Steps[1].Tool)

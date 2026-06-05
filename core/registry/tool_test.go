@@ -101,20 +101,20 @@ func TestRegisterWithSchema_EmptyMeta(t *testing.T) {
 	assert.Empty(t, info.Requires)
 }
 
-func TestGetSchema_ReturnsSchema(t *testing.T) {
+func TestSchema_ReturnsSchema(t *testing.T) {
 	reg := NewToolRegistry()
 
 	s := &schema.ComponentSchema{Title: "Test"}
 	reg.RegisterWithSchema("test", func() tool.Tool { return &stubTool{} }, s)
 
-	got := reg.GetSchema("test")
+	got := reg.Schema("test")
 	assert.NotNil(t, got)
 	assert.Equal(t, "Test", got.Title)
 }
 
-func TestGetSchema_ReturnsNilForUnknown(t *testing.T) {
+func TestSchema_ReturnsNilForUnknown(t *testing.T) {
 	reg := NewToolRegistry()
-	assert.Nil(t, reg.GetSchema("nonexistent"))
+	assert.Nil(t, reg.Schema("nonexistent"))
 }
 
 func TestNewTool_CreatesInstance(t *testing.T) {
@@ -132,7 +132,7 @@ func TestNewTool_ErrorForUnknown(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestGetToolInfo_ReturnsInfo(t *testing.T) {
+func TestToolInfo_ReturnsInfo(t *testing.T) {
 	reg := NewToolRegistry()
 	reg.RegisterWithSchema("test", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
 		Title: "Test",
@@ -146,7 +146,7 @@ func TestGetToolInfo_ReturnsInfo(t *testing.T) {
 		},
 	})
 
-	info := reg.GetToolInfo("test")
+	info := reg.ToolInfo("test")
 	require.NotNil(t, info)
 	assert.Equal(t, ToolID("test"), info.Name)
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
@@ -155,9 +155,9 @@ func TestGetToolInfo_ReturnsInfo(t *testing.T) {
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
 }
 
-func TestGetToolInfo_ReturnsNilForUnknown(t *testing.T) {
+func TestToolInfo_ReturnsNilForUnknown(t *testing.T) {
 	reg := NewToolRegistry()
-	assert.Nil(t, reg.GetToolInfo("nonexistent"))
+	assert.Nil(t, reg.ToolInfo("nonexistent"))
 }
 
 func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {

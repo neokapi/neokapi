@@ -106,7 +106,7 @@ func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
 	cmds := app.NewToolCommands()
 
 	for _, cmd := range cmds {
-		info := app.ToolReg.GetToolInfo(registry.ToolID(cmd.Name()))
+		info := app.ToolReg.ToolInfo(registry.ToolID(cmd.Name()))
 		if info == nil {
 			continue
 		}
@@ -124,7 +124,7 @@ func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
 	cmds := app.NewToolCommands()
 
 	for _, cmd := range cmds {
-		info := app.ToolReg.GetToolInfo(registry.ToolID(cmd.Name()))
+		info := app.ToolReg.ToolInfo(registry.ToolID(cmd.Name()))
 		if info == nil {
 			continue
 		}
@@ -144,14 +144,14 @@ func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
 
 func TestDefaultParallelBlocks_AITools(t *testing.T) {
 	app := newTestApp()
-	info := app.ToolReg.GetToolInfo("ai-translate")
+	info := app.ToolReg.ToolInfo("ai-translate")
 	require.NotNil(t, info)
 	assert.Equal(t, 5, info.DefaultParallelBlocks)
 }
 
 func TestDefaultParallelBlocks_NonAITools(t *testing.T) {
 	app := newTestApp()
-	info := app.ToolReg.GetToolInfo("pseudo-translate")
+	info := app.ToolReg.ToolInfo("pseudo-translate")
 	require.NotNil(t, info)
 	assert.Equal(t, 0, info.DefaultParallelBlocks)
 }

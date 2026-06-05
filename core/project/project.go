@@ -697,7 +697,7 @@ type MissingRequirement struct {
 }
 
 // GetFlow returns the StepsSpec for a named flow, or nil if not found.
-func (p *KapiProject) GetFlow(name string) *flow.StepsSpec {
+func (p *KapiProject) Flow(name string) *flow.StepsSpec {
 	if p.Flows == nil {
 		return nil
 	}

@@ -526,7 +526,7 @@ func (a *App) GetFlow(tabID, name string) *flow.StepsSpec {
 	if op == nil {
 		return nil
 	}
-	return op.Project.GetFlow(name)
+	return op.Project.Flow(name)
 }
 
 // SaveFlow saves or updates a flow in a project tab.
@@ -685,7 +685,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 // into the schema with a credential-picker widget, and the manual provider
 // fields (provider, apiKey, model) are made conditionally visible.
 func (a *App) GetToolSchema(name string) map[string]any {
-	s := a.toolReg.GetSchema(registry.ToolID(name))
+	s := a.toolReg.Schema(registry.ToolID(name))
 	if s == nil {
 		return nil
 	}

@@ -122,7 +122,7 @@ func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 			Aliases:     info.Aliases,
 		}
 
-		if s := treg.GetSchema(info.Name); s != nil {
+		if s := treg.Schema(info.Name); s != nil {
 			if e.Description == "" {
 				e.Description = s.Description
 			}

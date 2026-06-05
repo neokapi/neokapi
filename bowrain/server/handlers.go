@@ -251,7 +251,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 	slices.Sort(toolNames)
 	tools := make([]registry.ToolInfo, 0, len(toolNames))
 	for _, name := range toolNames {
-		if info := s.ToolRegistry.GetToolInfo(name); info != nil {
+		if info := s.ToolRegistry.ToolInfo(name); info != nil {
 			tools = append(tools, *info)
 		} else {
 			tools = append(tools, registry.ToolInfo{Name: name})

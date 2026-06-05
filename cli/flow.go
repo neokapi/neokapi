@@ -66,7 +66,7 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 		}
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
-			if info := a.ToolReg.GetToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
+			if info := a.ToolReg.ToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
 				a.TargetLang = string(info.DefaultLocale)
 			} else {
 				return errors.New("--target-lang is required")
@@ -777,7 +777,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
 	}
 
-	info := a.ToolReg.GetToolInfo(registry.ToolID(toolName))
+	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
 
 	// Resource setup driven by Requires metadata.
 	if info != nil {
@@ -877,7 +877,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 				if n.Type != "tool" {
 					continue
 				}
-				if info := a.ToolReg.GetToolInfo(registry.ToolID(n.Name)); info != nil && info.DefaultParallelBlocks > maxPB {
+				if info := a.ToolReg.ToolInfo(registry.ToolID(n.Name)); info != nil && info.DefaultParallelBlocks > maxPB {
 					maxPB = info.DefaultParallelBlocks
 				}
 			}
@@ -1236,7 +1236,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 
 	// Try config factory first (schema-driven tools).
 	if a.ToolReg.Has(toolID) {
-		toolSchema := a.ToolReg.GetSchema(toolID)
+		toolSchema := a.ToolReg.Schema(toolID)
 		config := step.Config
 		if rCtx != nil && toolSchema != nil {
 			var err error

@@ -76,7 +76,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 		return fmt.Errorf("tab %q not found", tabID)
 	}
 
-	spec := op.Project.GetFlow(flowName)
+	spec := op.Project.Flow(flowName)
 	if spec == nil {
 		return fmt.Errorf("flow %q not found", flowName)
 	}
@@ -386,7 +386,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		return nil, fmt.Errorf("tab %q not found", tabID)
 	}
 
-	spec := op.Project.GetFlow(flowName)
+	spec := op.Project.Flow(flowName)
 	if spec == nil {
 		return nil, fmt.Errorf("flow %q not found", flowName)
 	}
