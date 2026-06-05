@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -224,11 +225,11 @@ func (r *FileRunner) newExecutor() *DefaultExecutor {
 func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools []tool.Tool, inputPath, targetLang string, reader format.DataFormatReader) error {
 	if r.cfg.Store == nil {
 		reader.Close()
-		return fmt.Errorf("process-only run requires a persistent block store; none configured")
+		return errors.New("process-only run requires a persistent block store; none configured")
 	}
 	if !r.cfg.Store.Capabilities().Persistent {
 		reader.Close()
-		return fmt.Errorf("process-only run requires a persistent block store; the configured store is ephemeral")
+		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
 	}
 
 	parts, _, err := r.readParts(ctx, reader, inputPath, targetLang)
