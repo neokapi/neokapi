@@ -8,12 +8,103 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/klz"
 )
 
 // WorkspaceExt is the file extension for a .klz project snapshot.
 const WorkspaceExt = ".klz"
+
+// A .klz now carries the FULL project recipe (core/project.KapiProject), one
+// source of truth for intent (AD-025 §6). The helpers below centralize the
+// few fields the klz workspace flow reads — source locale, target locales,
+// and the klz output layout (a klz-owned recipe Extras key) — so callers don't
+// reach into the recipe shape directly.
+
+// recipeSourceLang returns the recipe's source language, or "" when unset.
+func recipeSourceLang(r *project.KapiProject) string {
+	if r == nil {
+		return ""
+	}
+	return string(r.Defaults.SourceLanguage)
+}
+
+// recipeTargetLangs returns the recipe's target locales as strings, in order.
+func recipeTargetLangs(r *project.KapiProject) []string {
+	if r == nil {
+		return nil
+	}
+	out := make([]string, 0, len(r.Defaults.TargetLanguages))
+	for _, l := range r.Defaults.TargetLanguages {
+		out = append(out, string(l))
+	}
+	return out
+}
+
+// recipeOut returns the klz workspace output layout from the recipe's Extras.
+func recipeOut(r *project.KapiProject) string {
+	return klz.RecipeWorkspaceMeta(r).Out
+}
+
+// isWorkspacePackage reports whether a .klz is an ad-hoc workspace (created by
+// `extract -o work.klz`) rather than a whole-project snapshot (created by
+// `pack`). Both carry a full recipe, so the distinction rides in the recipe's
+// klz workspace meta.
+func isWorkspacePackage(pkg *klz.Package) bool {
+	if pkg == nil || pkg.Recipe == nil {
+		return false
+	}
+	return klz.RecipeWorkspaceMeta(pkg.Recipe).Workspace
+}
+
+// recipeAddTargetLang appends a target locale to the recipe if absent,
+// preserving first-seen order. Initializes the recipe shape as needed.
+func recipeAddTargetLang(r *project.KapiProject, locale string) {
+	if r == nil || locale == "" {
+		return
+	}
+	loc := model.LocaleID(locale)
+	for _, l := range r.Defaults.TargetLanguages {
+		if l == loc {
+			return
+		}
+	}
+	r.Defaults.TargetLanguages = append(r.Defaults.TargetLanguages, loc)
+}
+
+// newWorkspaceRecipe synthesizes a minimal KapiProject recipe for an ad-hoc
+// .klz workspace: schema version + source/target locales + the klz output
+// layout (carried in Extras under the "klz" key). This is the full-recipe
+// slot a .kapi file uses; an ad-hoc extract fills only these fields.
+func newWorkspaceRecipe(sourceLang string, targetLangs []string, out string) *project.KapiProject {
+	r := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage: model.LocaleID(sourceLang),
+		},
+	}
+	for _, tl := range targetLangs {
+		recipeAddTargetLang(r, tl)
+	}
+	// Mark this as an ad-hoc workspace recipe (vs a project snapshot), so
+	// `unpack` rebuilds the shadow cache rather than a .kapi/ state dir.
+	_ = klz.SetRecipeWorkspaceMeta(r, klz.WorkspaceMeta{Out: out, Workspace: true})
+	return r
+}
+
+// newInterchangeRecipe synthesizes the minimal recipe a bilingual interchange
+// .klz carries: schema version + the source→target locale pair (AD-025 §7).
+func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
+	r := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage: model.LocaleID(sourceLang),
+		},
+	}
+	recipeAddTargetLang(r, targetLang)
+	return r
+}
 
 // openProjectBlockStore opens (creating dirs as needed) the active
 // project's persistent block store at .kapi/cache/blocks.db. Returns nil

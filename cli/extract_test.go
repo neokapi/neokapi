@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/klz"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -125,6 +126,69 @@ func TestExtract_MultiTargetWritesOneOutputPerPair(t *testing.T) {
 		assert.Equal(t, "src/locales/en/messages.json", pair.Files[0].Source)
 		assert.NotEmpty(t, pair.Files[0].SourceHash)
 	}
+}
+
+// TestExtractMergeKlzInterchangeRoundTrip exercises the bilingual interchange
+// profile (AD-025 §7): `kapi extract --format klz` writes a
+// kind=kapi-interchange package with TM-pre-filled target overlays + skeleton,
+// and `kapi merge <file.klz>` hydrates those targets and writes translated
+// output.
+func TestExtractMergeKlzInterchangeRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := extractProjectFixture(t, real, []model.LocaleID{"fr-FR"})
+	writeJSONSource(t, real, "src/locales/en/messages.json",
+		`{"greeting": "Hello, world."}`)
+
+	// TM with an exact match for the source text so extract pre-fills a target.
+	tm := sievepen.NewInMemoryTM()
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
+		ID:          "tm-greeting",
+		HintSrcLang: "en-US",
+		Variants: map[model.LocaleID][]model.Run{
+			"en-US": {{Text: &model.TextRun{Text: "Hello, world."}}},
+			"fr-FR": {{Text: &model.TextRun{Text: "Bonjour le monde."}}},
+		},
+	}))
+
+	// Extract --format klz.
+	ea := newExtractApp(t)
+	ea.TMBackend = tm
+	ecmd := ea.NewExtractCmd(ExtractCmdOptions{})
+	var eout bytes.Buffer
+	ecmd.SetOut(&eout)
+	ecmd.SetErr(&eout)
+	ecmd.SetArgs([]string{"--project", recipe, "--format", "klz"})
+	require.NoError(t, ecmd.Execute(), "extract output: %s", eout.String())
+
+	klzPath := filepath.Join(real, "out", "src-locales-en-messages.en-US-to-fr-FR.klz")
+	data, err := os.ReadFile(klzPath)
+	require.NoError(t, err, "extract did not write the interchange .klz")
+	pkg, err := klz.Unmarshal(data)
+	require.NoError(t, err)
+	assert.Equal(t, klz.KindInterchange, pkg.Kind)
+	require.NotNil(t, pkg.InterchangeTask)
+	assert.Equal(t, "fr-FR", pkg.InterchangeTask.TargetLocale)
+	require.NotEmpty(t, pkg.Skeletons, "interchange package must carry a skeleton")
+	require.NotEmpty(t, pkg.Overlays, "interchange package must carry TM-prefilled target overlays")
+
+	// Merge the interchange .klz back.
+	ma := newExtractApp(t)
+	ma.TMBackend = tm
+	mcmd := ma.NewMergeCmd(MergeCmdOptions{})
+	var mout bytes.Buffer
+	mcmd.SetOut(&mout)
+	mcmd.SetErr(&mout)
+	mcmd.SetArgs([]string{"--project", recipe, klzPath})
+	require.NoError(t, mcmd.Execute(), "merge output: %s", mout.String())
+	assert.Contains(t, mout.String(), "applied=1")
+
+	// The merged target file should exist and carry the translated text.
+	mergedPath := filepath.Join(real, "src/locales/en", "fr-FR", "messages.json")
+	merged, err := os.ReadFile(mergedPath)
+	require.NoError(t, err, "merge did not write the translated output")
+	assert.Contains(t, string(merged), "Bonjour le monde.")
 }
 
 func TestExtract_TargetLangFlagSubsetsRecipe(t *testing.T) {

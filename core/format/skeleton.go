@@ -61,6 +61,37 @@ type SkeletonStore struct {
 // SkeletonStoreEmitter without actually emitting.
 func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 
+// Bytes returns a copy of the serialized skeleton stream written so far. It
+// flushes pending writes first, so it is valid to call right after the last
+// WriteText/WriteRef/WriteLang without a separate Flush. For a file-backed
+// store the bytes are read back from the backing file; for a memory-backed
+// store they come straight from the buffer. The returned slice is a copy the
+// caller owns, so embedding it (e.g. as a .klz skeleton member) is safe even
+// after the store is closed. Used by kapi to capture a source's skeleton into
+// a portable package (AD-025 §6).
+func (s *SkeletonStore) Bytes() ([]byte, error) {
+	if s.writer != nil {
+		if err := s.writer.Flush(); err != nil {
+			return nil, err
+		}
+	}
+	if s.buf != nil {
+		out := make([]byte, s.buf.Len())
+		copy(out, s.buf.Bytes())
+		return out, nil
+	}
+	if s.file == nil {
+		return nil, errors.New("skeleton store: no backing storage")
+	}
+	// File-backed: read the whole file back from the start without disturbing
+	// any reader position the caller may rely on later.
+	data, err := os.ReadFile(s.file.Name())
+	if err != nil {
+		return nil, fmt.Errorf("skeleton store: read bytes: %w", err)
+	}
+	return data, nil
+}
+
 // NewSkeletonStore creates a new skeleton store backed by a temporary file.
 // The file is removed when Close is called — use NewSkeletonStoreAt for a
 // store that survives Close() for later reuse (e.g. kapi extract capturing
@@ -108,6 +139,19 @@ func NewSkeletonStoreAt(path string) (*SkeletonStore, error) {
 		writer:     bufio.NewWriter(f),
 		persistent: true,
 	}, nil
+}
+
+// NewSkeletonStoreFromBytes returns a read-mode skeleton store backed by the
+// given serialized stream (the bytes a prior Bytes() call produced). Use it to
+// consume a skeleton carried inline rather than on the filesystem — e.g. a
+// .klz package that embeds the round-trip skeleton as a member (AD-025 §6).
+// The store is ready to read via Next(); Close() is a no-op (no backing file).
+func NewSkeletonStoreFromBytes(data []byte) *SkeletonStore {
+	buf := bytes.NewBuffer(append([]byte(nil), data...))
+	return &SkeletonStore{
+		buf:    buf,
+		reader: bufio.NewReader(buf),
+	}
 }
 
 // OpenSkeletonStore opens an existing persisted skeleton file for reading.

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/google/uuid"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
@@ -20,7 +22,11 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/klz"
 	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/sievepen/klftm"
+	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/termbase/klftb"
 	"github.com/spf13/cobra"
 )
 
@@ -50,13 +56,20 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 			// Ad-hoc workspace: `extract <sources> -o work.klz` ingests source
 			// documents into a portable .klz workspace (no project needed).
 			out, _ := cmd.Flags().GetString("output")
+			format, _ := cmd.Flags().GetString("format")
+			withSource, _ := cmd.Flags().GetBool("with-source")
+			// Bilingual interchange .klz: `extract -i <src> --format klz` emits a
+			// task-scoped (kind=kapi-interchange) package per source→target pair.
+			if format == ExtractFormatKLZ {
+				return a.runExtractKlz(cmd)
+			}
 			if isKlzPath(out) || len(args) > 0 {
 				if !isKlzPath(out) {
 					return errors.New("extract: writing source files needs -o <work.klz>")
 				}
 				tl, _ := cmd.Flags().GetString("target-lang")
 				layout, _ := cmd.Flags().GetString("out")
-				return a.extractToKlz(cmd.Context(), args, out, tl, layout)
+				return a.extractToKlz(cmd.Context(), args, out, tl, layout, withSource)
 			}
 			return a.runExtract(cmd)
 		},
@@ -67,9 +80,10 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("target-lang", "", "comma-separated target locales (default: all in recipe)")
 	cmd.Flags().String("only", "", "restrict to a single content collection by name")
 	cmd.Flags().String("pattern", "", "extra glob pattern restricting which source files to include")
-	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po)")
+	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po | klz)")
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
 	cmd.Flags().Bool("no-tm", false, "skip TM pre-fill on extract")
+	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .klz (default: identity + skeleton only)")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")
 	cmd.Flags().Bool("redact", false, "replace sensitive content with placeholders; originals stay in a local vault for merge")
 	cmd.Flags().String("redact-rules", "", "path to a redaction rules YAML file (implies --redact)")
@@ -117,6 +131,10 @@ func resolveRedaction(cmd *cobra.Command, ctx *project.ProjectContext, rootDir s
 const (
 	ExtractFormatXLIFF2 = project.ExtractionFormatXLIFF2
 	ExtractFormatPO     = project.ExtractionFormatPO
+	// ExtractFormatKLZ selects the bilingual interchange .klz output
+	// (kind=kapi-interchange) — neokapi's lossless interchange format for a
+	// translator or reviewer (AD-025 §7).
+	ExtractFormatKLZ = "klz"
 )
 
 func (a *App) runExtract(cmd *cobra.Command) error {
@@ -732,6 +750,8 @@ func bilingualOutputName(src project.ResolvedFile, source, target model.LocaleID
 	switch ext {
 	case ExtractFormatPO:
 		return out + ".po"
+	case ExtractFormatKLZ:
+		return out + ".klz"
 	default:
 		return out + ".xliff"
 	}
@@ -763,6 +783,211 @@ func effectiveXLIFFVersion(flag string) string {
 		return flag
 	}
 	return xliff2.DefaultXLIFFVersion
+}
+
+// ─── bilingual interchange .klz (kind=kapi-interchange) ─────────
+//
+// `kapi extract --format klz` emits one task-scoped .klz per source→target
+// pair (AD-025 §7): the source blocks' targets pre-filled from TM (as
+// `targets/<locale>` overlays, hydrated by `kapi merge` exactly like the
+// workspace flow), the per-source round-trip skeleton, a minimal recipe
+// carrying the locale pair, and the relevant TM/termbase context subset. It is
+// neokapi's lossless interchange format for a translator or reviewer.
+
+// runExtractKlz drives the bilingual-interchange extract over a project's
+// content × target locales, writing one <slug>.<src>-to-<tgt>.klz per pair.
+func (a *App) runExtractKlz(cmd *cobra.Command) error {
+	projectPath, err := RequireProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	proj, err := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+	if err != nil {
+		return fmt.Errorf("load project: %w", err)
+	}
+	pctx := project.NewProjectContext(proj, projectPath)
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return fmt.Errorf("resolve project layout: %w", err)
+	}
+	if err := project.EnsureLayout(layout); err != nil {
+		return err
+	}
+
+	noTM, _ := cmd.Flags().GetBool("no-tm")
+	only, _ := cmd.Flags().GetString("only")
+	pattern, _ := cmd.Flags().GetString("pattern")
+
+	targets, err := resolveTargetLocales(cmd, pctx)
+	if err != nil {
+		return err
+	}
+	if len(targets) == 0 {
+		return fmt.Errorf("extract: no target locales — set defaults.target_languages in %s or pass --target-lang", projectPath)
+	}
+
+	files, err := pctx.ResolveContent(a.FormatReg)
+	if err != nil {
+		return fmt.Errorf("extract: resolve content: %w", err)
+	}
+	files = filterFiles(files, only, pattern, layout.Root)
+	if len(files) == 0 {
+		return errors.New("extract: no source files matched — check content patterns / --only / --pattern")
+	}
+
+	outDir, _ := cmd.Flags().GetString("out-dir")
+	if outDir == "" {
+		outDir = "out"
+	}
+	absOut := outDir
+	if !filepath.IsAbs(absOut) {
+		absOut = filepath.Join(layout.Root, absOut)
+	}
+	if err := os.MkdirAll(absOut, 0o755); err != nil {
+		return fmt.Errorf("extract: create out dir: %w", err)
+	}
+
+	var tm sievepen.TranslationMemory
+	if !noTM {
+		if a.TMBackend != nil {
+			tm = a.TMBackend
+		} else if loaded, lerr := sievepen.NewSQLiteTM(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
+			defer loaded.Close()
+			tm = loaded
+		}
+	}
+
+	// Termbase context (optional): bound termbase or project termbase.db.
+	var tb termbase.TermBase
+	if tbLoaded, terr := termbase.NewSQLiteTermBase(filepath.Join(layout.StateDir, "termbase.db")); terr == nil {
+		defer tbLoaded.Close()
+		tb = tbLoaded
+	}
+
+	written := 0
+	for _, tgt := range targets {
+		for _, src := range files {
+			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, ExtractFormatKLZ)
+			outPath := filepath.Join(absOut, outName)
+			if err := a.extractOneKlz(cmd.Context(), klzInterchangeTask{
+				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: tm, tb: tb,
+			}); err != nil {
+				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "  %s → %s: %s\n", src.Relative, tgt, outName)
+			written++
+		}
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "\nExtracted %d bilingual interchange package(s) into %s\n", written, outDir)
+	return nil
+}
+
+type klzInterchangeTask struct {
+	ctx          *project.ProjectContext
+	source       project.ResolvedFile
+	targetLocale model.LocaleID
+	outputPath   string
+	tm           sievepen.TranslationMemory
+	tb           termbase.TermBase
+}
+
+// extractOneKlz assembles a KindInterchange package for one (source, target)
+// pair: reads the source blocks (capturing the skeleton), TM-pre-fills the
+// target as a `targets/<locale>` overlay per block, attaches the relevant
+// TM/termbase context, and writes the .klz.
+func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error {
+	srcAbs := task.source.Path
+	data, err := os.ReadFile(srcAbs)
+	if err != nil {
+		return fmt.Errorf("read source: %w", err)
+	}
+	formatID := registry.FormatID(task.source.Format)
+	sourceHash := project.HashBytes(data)
+
+	blocks, _, err := readSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale)
+	if err != nil {
+		return fmt.Errorf("read blocks: %w", err)
+	}
+
+	// Capture the round-trip skeleton (best effort).
+	var skeletons []klz.SkeletonDoc
+	skelMember := ""
+	if skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, data, task.ctx.SourceLocale); serr == nil && len(skel) > 0 {
+		skelMember = klz.SkeletonDir + filepath.Base(task.source.Relative)
+		skeletons = append(skeletons, klz.SkeletonDoc{
+			Path: skelMember, SourcePath: task.source.Relative, FormatID: task.source.Format,
+			ContentHash: sourceHash, Data: skel,
+		})
+	}
+
+	// TM pre-fill the target as a per-block overlay (keyed by block ID, so
+	// `kapi merge`'s hydrate step applies it the same way the workspace flow
+	// does). Also gather the TM entries actually consulted as inline context.
+	threshold := float64(task.ctx.Project.Defaults.TM.ResolvedFuzzyThreshold()) / 100.0
+	srcArchive := "source/" + filepath.Base(task.source.Relative)
+	var overlays []klz.OverlayDoc
+	contextEntries := map[string]sievepen.TMEntry{}
+	for _, b := range blocks {
+		if !b.Translatable || b.ID == "" {
+			continue
+		}
+		if task.tm != nil {
+			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 {
+				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
+					payload, _ := json.Marshal(map[string]string{"text": text})
+					overlays = append(overlays, klz.OverlayDoc{
+						Kind: "targets/" + string(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,
+					})
+				}
+				contextEntries[matches[0].Entry.ID] = matches[0].Entry
+			}
+		}
+	}
+
+	// TM context subset (the consulted entries) so the package is
+	// self-contained for offline review.
+	var tmFile *klftm.File
+	if len(contextEntries) > 0 {
+		entries := make([]sievepen.TMEntry, 0, len(contextEntries))
+		for _, e := range contextEntries {
+			entries = append(entries, e)
+		}
+		tmFile = klftm.FromModel(entries, nil)
+	}
+
+	// Termbase context: the whole bound termbase (terms are small and the
+	// reviewer needs the glossary).
+	var tbFile *klftb.File
+	if task.tb != nil {
+		if concepts, cerr := task.tb.Concepts(ctx); cerr == nil && len(concepts) > 0 {
+			tbFile = klftb.FromConcepts(concepts)
+		}
+	}
+
+	recipe := newInterchangeRecipe(string(task.ctx.SourceLocale), string(task.targetLocale))
+
+	pkg := &klz.Package{
+		Kind:      klz.KindInterchange,
+		Generator: &klz.GeneratorInfo{ID: "kapi", Version: version.Version},
+		Recipe:    recipe,
+		Skeletons: skeletons,
+		Overlays:  overlays,
+		TM:        tmFile,
+		Termbase:  tbFile,
+		Sources: []klz.SourceIdentity{{
+			SourcePath: task.source.Relative, FormatID: task.source.Format,
+			ContentHash: sourceHash, SkeletonPath: skelMember,
+		}},
+		InterchangeTask: &klz.InterchangeTask{
+			SourceLocale: string(task.ctx.SourceLocale),
+			TargetLocale: string(task.targetLocale),
+			SourceFiles:  []string{task.source.Relative},
+		},
+	}
+	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
+		return err
+	}
+	return saveWorkspace(pkg, task.outputPath)
 }
 
 // Unused imports workaround — bytes/sort/io are here for helpers that

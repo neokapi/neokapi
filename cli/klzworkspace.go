@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/klz"
@@ -61,9 +63,16 @@ type toolChainBuilder func() ([]tool.Tool, func(), error)
 
 // ─── extract: ingest sources into a workspace ───────────────────
 
-// extractToKlz writes a fresh .klz from source files plus a recipe (target
-// locales + output layout) and builds its working cache. No tools run yet.
-func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, targetLang, outLayout string) error {
+// extractToKlz writes a fresh .klz from source files plus the full project
+// recipe (synthesized from source/target locales + output layout) and builds
+// its working cache. No tools run yet.
+//
+// Source retention follows AD-025 §6: each source's identity (path, format,
+// content hash) and its round-trip skeleton always travel; the raw source
+// bytes ride in the .klz only with withSource. The working cache always holds
+// the raw source locally (it is the runtime), so the extract → transform →
+// merge loop works regardless of the packed retention.
+func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, targetLang, outLayout string, withSource bool) error {
 	files, err := resolveFiles(sources)
 	if err != nil {
 		return err
@@ -75,11 +84,11 @@ func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, target
 		outKlz += WorkspaceExt
 	}
 
-	recipe := &klz.Recipe{SourceLang: a.SourceLang, Out: outLayout}
-	for _, tl := range splitLocales(targetLang) {
-		recipe.AddTargetLang(tl)
-	}
-	pkg := &klz.Package{Generator: &klz.GeneratorInfo{ID: "kapi"}, Recipe: recipe}
+	recipe := newWorkspaceRecipe(a.SourceLang, splitLocales(targetLang), outLayout)
+
+	// Build a full in-memory package (raw source always present) so the cache
+	// holds it. The packed .klz then drops raw source unless withSource.
+	full := &klz.Package{Generator: &klz.GeneratorInfo{ID: "kapi"}, Recipe: recipe}
 	for _, f := range files {
 		if isKlzPath(f) {
 			return errors.New("extract: source must be a document, not a .klz")
@@ -88,16 +97,101 @@ func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, target
 		if rerr != nil {
 			return fmt.Errorf("read %q: %w", filepath.Base(f), rerr)
 		}
-		pkg.Source = append(pkg.Source, klz.SourceDoc{Path: "source/" + filepath.Base(f), Data: data})
+		base := filepath.Base(f)
+		archivePath := "source/" + base
+		formatID := ""
+		if det := a.klzDetectFormat(f); det != nil {
+			formatID = string(det(f))
+		}
+		si := klz.SourceIdentity{
+			SourcePath:   base,
+			FormatID:     formatID,
+			ContentHash:  project.HashBytes(data),
+			HasRawSource: withSource,
+		}
+		// Capture the round-trip skeleton (default source-retention).
+		if formatID != "" {
+			if skel, serr := captureSkeletonBytes(ctx, a.FormatReg, registry.FormatID(formatID), f, data, model.LocaleID(a.SourceLang)); serr == nil && len(skel) > 0 {
+				skelPath := klz.SkeletonDir + base
+				full.Skeletons = append(full.Skeletons, klz.SkeletonDoc{
+					Path: skelPath, SourcePath: base, FormatID: formatID,
+					ContentHash: si.ContentHash, Data: skel,
+				})
+				si.SkeletonPath = skelPath
+			}
+		}
+		full.Source = append(full.Source, klz.SourceDoc{Path: archivePath, Data: data})
+		full.Sources = append(full.Sources, si)
 	}
-	if err := saveWorkspace(pkg, outKlz); err != nil {
+
+	// Build the working cache from the full package (raw source local).
+	if _, err := buildKlzCacheFromPackage(ctx, outKlz, full); err != nil {
 		return err
 	}
-	if _, err := buildKlzCache(ctx, outKlz); err != nil {
+
+	// Write the packed .klz: identical content, but drop the raw source members
+	// unless withSource. The cache is then re-synced to the packed rootHash.
+	packed := *full
+	if !withSource {
+		packed.Source = nil
+	}
+	if err := saveWorkspace(&packed, outKlz); err != nil {
 		return err
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(pkg.Source), outKlz))
+	// Re-open the cache and re-sync its PackedRootHash to the saved file so a
+	// fresh extract is "clean", not spuriously dirty.
+	if c, ok, oerr := openKlzCache(outKlz); oerr == nil && ok {
+		if root, rerr := packed.RootHash(); rerr == nil {
+			c.meta.PackedRootHash = root
+			_ = c.save()
+		}
+	}
+
+	a.printlnUnlessQuiet(fmt.Sprintf("Extracted %d document(s) → %s", len(full.Sources), outKlz))
 	return nil
+}
+
+// captureSkeletonBytes reads a source document through its format reader with
+// a SkeletonStore wired, returning the serialized skeleton stream (the
+// round-trip template merge reuses; AD-025 §6). Returns (nil, nil) when the
+// reader does not emit a skeleton (binary formats, etc.) — callers treat that
+// as "no skeleton, re-read source at merge time". The data argument is the raw
+// source bytes (so callers that already read the file don't read it twice).
+func captureSkeletonBytes(ctx context.Context, reg *registry.FormatRegistry, formatID registry.FormatID, path string, data []byte, srcLocale model.LocaleID) ([]byte, error) {
+	reader, err := reg.NewReader(formatID)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	emitter, ok := reader.(format.SkeletonStoreEmitter)
+	if !ok {
+		return nil, nil // format has no skeleton emitter
+	}
+	store, err := format.NewSkeletonStore()
+	if err != nil {
+		return nil, err
+	}
+	defer store.Close()
+	emitter.SetSkeletonStore(store)
+
+	doc := &model.RawDocument{
+		URI:          path,
+		SourceLocale: srcLocale,
+		FormatID:     string(formatID),
+		Reader:       io.NopCloser(bytes.NewReader(data)),
+	}
+	if err := reader.Open(ctx, doc); err != nil {
+		return nil, err
+	}
+	for res := range reader.Read(ctx) {
+		if res.Error != nil {
+			return nil, res.Error
+		}
+	}
+	if store.EntriesWritten() == 0 {
+		return nil, nil // reader registered but emitted nothing
+	}
+	return store.Bytes()
 }
 
 // ─── transform: run a tool/flow in place ────────────────────────
@@ -113,11 +207,12 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		return err
 	}
 	if c.meta.Recipe == nil {
-		c.meta.Recipe = &klz.Recipe{SourceLang: a.SourceLang}
+		c.meta.Recipe = newWorkspaceRecipe(a.SourceLang, nil, "")
 	}
+	targets := recipeTargetLangs(c.meta.Recipe)
 	locale := targetLang
-	if locale == "" && len(c.meta.Recipe.TargetLangs) > 0 {
-		locale = c.meta.Recipe.TargetLangs[0]
+	if locale == "" && len(targets) > 0 {
+		locale = targets[0]
 	}
 	if locale == "" {
 		locale = toolDefaultLocale
@@ -126,9 +221,9 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		return errors.New("transform: --target-lang is required (none recorded in the workspace)")
 	}
 	a.TargetLang = locale
-	c.meta.Recipe.AddTargetLang(locale)
-	if c.meta.Recipe.SourceLang != "" {
-		a.SourceLang = c.meta.Recipe.SourceLang
+	recipeAddTargetLang(c.meta.Recipe, locale)
+	if sl := recipeSourceLang(c.meta.Recipe); sl != "" {
+		a.SourceLang = sl
 	}
 
 	tools, cleanup, err := build()
@@ -162,10 +257,10 @@ func (a *App) transformKlzInPlace(ctx context.Context, klzPath, flowName string,
 		if err := c.pack(ctx); err != nil {
 			return err
 		}
-		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), locales: %s)", klzPath, len(c.meta.Sources), strings.Join(c.meta.Recipe.TargetLangs, ", ")))
+		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), locales: %s)", klzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", ")))
 		return nil
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s) — run `kapi pack %s` to share", klzPath, len(c.meta.Sources), strings.Join(c.meta.Recipe.TargetLangs, ", "), filepath.Base(klzPath)))
+	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s) — run `kapi pack %s` to share", klzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", "), filepath.Base(klzPath)))
 	return nil
 }
 
@@ -181,19 +276,16 @@ func (a *App) mergeFromKlz(ctx context.Context, klzPath, outOverride string) err
 	if err != nil {
 		return err
 	}
-	var locales []string
-	if c.meta.Recipe != nil {
-		locales = c.meta.Recipe.TargetLangs
-	}
+	locales := recipeTargetLangs(c.meta.Recipe)
 	if len(locales) == 0 {
 		return errors.New("merge: workspace has no translated locales yet — run a tool on it first")
 	}
 	layout := outOverride
-	if layout == "" && c.meta.Recipe != nil {
-		layout = c.meta.Recipe.Out
+	if layout == "" {
+		layout = recipeOut(c.meta.Recipe)
 	}
-	if c.meta.Recipe != nil && c.meta.Recipe.SourceLang != "" {
-		a.SourceLang = c.meta.Recipe.SourceLang
+	if sl := recipeSourceLang(c.meta.Recipe); sl != "" {
+		a.SourceLang = sl
 	}
 
 	written := 0
@@ -261,9 +353,9 @@ func (a *App) infoKlz(cmd *cobra.Command, klzPath string) error {
 		info.Documents = append(info.Documents, s.Name)
 	}
 	if c.meta.Recipe != nil {
-		info.SourceLang = c.meta.Recipe.SourceLang
-		info.TargetLangs = c.meta.Recipe.TargetLangs
-		info.Out = c.meta.Recipe.Out
+		info.SourceLang = recipeSourceLang(c.meta.Recipe)
+		info.TargetLangs = recipeTargetLangs(c.meta.Recipe)
+		info.Out = recipeOut(c.meta.Recipe)
 	}
 	// Per-locale translated-block counts (overlays of kind targets/<locale>).
 	pkg, err := c.toPackage(ctx)

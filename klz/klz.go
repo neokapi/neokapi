@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen/klftm"
 	"github.com/neokapi/neokapi/termbase/klftb"
 )
@@ -21,8 +22,20 @@ const (
 	// SchemaVersion is the package manifest version (MAJOR.MINOR, same
 	// forward-compatibility contract as core/klf).
 	SchemaVersion = "1.0"
-	// Kind is the magic string on the package manifest.
+	// Kind is the legacy magic string on the package manifest. It is the
+	// back-compat alias for KindProject (a whole-project snapshot) — older
+	// packages wrote this value and must still load.
 	Kind = "kapi-localization-package"
+
+	// KindProject marks a whole-project snapshot .klz (the pack/unpack
+	// profile, AD-025 §7): all locales, the full recipe, TM, termbase,
+	// overlays, and source identity + skeletons. The default Kind.
+	KindProject = "kapi-project"
+	// KindInterchange marks a task-scoped bilingual interchange .klz (the
+	// extract/merge profile, AD-025 §7): one source→target locale pair —
+	// blocks, skeleton, target overlays, and the relevant TM/term context.
+	// neokapi's lossless interchange format for a translator or reviewer.
+	KindInterchange = "kapi-interchange"
 
 	// ManifestPath is the manifest member's path within the archive.
 	ManifestPath = "manifest.json"
@@ -32,6 +45,12 @@ const (
 	ContentTypeTM          = "tm"
 	ContentTypeTermbase    = "termbase"
 	ContentTypeMedia       = "media"
+	// ContentTypeSkeleton carries one source document's round-trip skeleton
+	// (the derived extract template `merge` reuses), keyed by source. Members
+	// live under skeletons/<key> and ARE part of the content RootHash —
+	// retaining a source as identity + skeleton is the default; raw bytes are
+	// opt-in (AD-025 §6).
+	ContentTypeSkeleton = "skeleton"
 	// ContentTypeOverlays is the member kind carrying in-progress overlay
 	// layers (targets, annotations, segmentation, …) keyed by
 	// (kind, blockHash) — the substance of a resumable workspace. See
@@ -54,6 +73,9 @@ const (
 	OverlaysPath = "overlays.klfo"
 	// HistoryPath is the advisory history log's archive path.
 	HistoryPath = "history.jsonl"
+	// SkeletonDir is the archive directory holding per-source skeleton
+	// members.
+	SkeletonDir = "skeletons/"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -63,6 +85,10 @@ var zipEpoch = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 // Package is the in-memory form of a .klz: the authoritative content of a
 // project, grouped by content type. Any section may be empty.
 type Package struct {
+	// Kind is the package profile discriminator: KindProject (whole-project
+	// snapshot, the default) or KindInterchange (bilingual task slice). Empty
+	// means KindProject on marshal. See AD-025 §7.
+	Kind        string
 	Created     string
 	Generator   *GeneratorInfo
 	Blocks      []BlockDoc
@@ -70,6 +96,12 @@ type Package struct {
 	TM          *klftm.File
 	Termbase    *klftb.File
 	Media       []Media
+
+	// Skeletons carries each source document's round-trip skeleton (the
+	// derived extract template `merge` reuses) — the default source-retention
+	// payload (identity + skeleton, raw bytes opt-in; AD-025 §6). Members are
+	// content (part of the RootHash).
+	Skeletons []SkeletonDoc
 
 	// Overlays carries in-progress overlay layers (targets, annotations, …)
 	// when the package snapshots a project's working state rather than a
@@ -86,10 +118,55 @@ type Package struct {
 	// package for hand-off convenience but is excluded from RootHash and
 	// ignored by resume/status — deleting it loses no work. Empty by default.
 	History []byte
-	// Recipe is the workspace intent (target locales + output layout) a
-	// run-built .klz carries so config travels with the file. nil for a
-	// plain at-rest package. Stored in the manifest, not the RootHash.
-	Recipe *Recipe
+	// Recipe is the FULL project recipe — the same core/project.KapiProject
+	// schema a .kapi file uses — so a .klz is a runnable project in a file
+	// (AD-025 §6). nil for a package carrying no intent. Stored in the
+	// manifest (metadata), kept out of the content RootHash. Side-effecting
+	// Extras (server/hooks/automations) should be stripped via SanitizeRecipe
+	// before packing so they travel inert.
+	Recipe *project.KapiProject
+
+	// Sources records each source document's identity (logical path, format,
+	// content hash) plus whether its skeleton / raw bytes ride in the package.
+	// Manifest metadata (not in the RootHash) — the substance is the skeleton
+	// (content) and, opt-in, the raw source member.
+	Sources []SourceIdentity
+
+	// InterchangeTask, when set, scopes a KindInterchange package to one
+	// source→target locale pair (AD-025 §7). nil for a project snapshot.
+	// Manifest metadata, not part of the content RootHash.
+	InterchangeTask *InterchangeTask
+}
+
+// SourceIdentity records one source document's identity so a .klz can detect
+// drift, round-trip via the skeleton, and (opt-in) re-extract from raw bytes.
+type SourceIdentity struct {
+	// SourcePath is the source's logical path (relative to the project root,
+	// or its base name for an ad-hoc workspace).
+	SourcePath string `json:"sourcePath"`
+	// FormatID is the registry format the source was read with.
+	FormatID string `json:"formatId,omitempty"`
+	// ContentHash is the source's content hash (sha256:hex) at capture time,
+	// the staleness fingerprint.
+	ContentHash string `json:"contentHash,omitempty"`
+	// SkeletonPath names the skeletons/<key> member carrying this source's
+	// round-trip skeleton, when one was captured. Empty when the format has no
+	// skeleton emitter (merge re-reads the source instead).
+	SkeletonPath string `json:"skeletonPath,omitempty"`
+	// HasRawSource is true when the package also embeds this source's raw
+	// bytes (source/<name> member) — opt-in via --with-source.
+	HasRawSource bool `json:"hasRawSource,omitempty"`
+}
+
+// InterchangeTask scopes a KindInterchange package to one source→target locale
+// pair handed to a translator or reviewer (AD-025 §7).
+type InterchangeTask struct {
+	// SourceLocale is the source locale of the blocks.
+	SourceLocale string `json:"sourceLocale,omitempty"`
+	// TargetLocale is the locale being produced.
+	TargetLocale string `json:"targetLocale,omitempty"`
+	// SourceFiles lists the source logical paths covered by this task.
+	SourceFiles []string `json:"sourceFiles,omitempty"`
 }
 
 // GeneratorInfo identifies the tool that produced the package.
@@ -122,6 +199,23 @@ type SourceDoc struct {
 	Data []byte
 }
 
+// SkeletonDoc is one source document's round-trip skeleton member — the
+// derived extract template `merge` reuses to rebuild the localized file
+// without re-reading the original (AD-025 §6). Content (part of the RootHash).
+type SkeletonDoc struct {
+	// Path is the archive path under skeletons/, e.g. "skeletons/app.json".
+	Path string
+	// SourcePath is the logical source path this skeleton derives from.
+	SourcePath string
+	// FormatID is the format the source was read with (so merge picks the
+	// right writer).
+	FormatID string
+	// ContentHash is the source's content hash at capture time.
+	ContentHash string
+	// Data is the serialized skeleton stream (format.SkeletonStore bytes).
+	Data []byte
+}
+
 // OverlayDoc is one append-layer entry, mirroring blockstore.Overlay minus
 // the volatile UpdatedAt timestamp: a workspace's content identity is the
 // work itself, not when it was recorded (AD-025 §5). Payload is the
@@ -139,36 +233,6 @@ type OverlayDoc struct {
 	Source string `json:"source,omitempty"`
 }
 
-// Recipe is the small amount of intent a workspace .klz carries so config
-// travels with the file — the localization equivalent of a one-file .kapi
-// project. It lets `merge` emit without re-specifying locales or output
-// layout. Stored in the manifest (metadata, not a content member); it is
-// not part of the content RootHash.
-type Recipe struct {
-	// SourceLang is the source locale the documents were extracted in.
-	SourceLang string `json:"sourceLang,omitempty"`
-	// TargetLangs are the locales worked (and to emit on merge), in
-	// first-seen order.
-	TargetLangs []string `json:"targetLangs,omitempty"`
-	// Out is the output path template merge writes to (placeholders
-	// {name} {lang} {ext} {dir}); empty means the default per-locale layout.
-	Out string `json:"out,omitempty"`
-}
-
-// AddTargetLang appends a locale to the recipe if not already present,
-// preserving first-seen order.
-func (r *Recipe) AddTargetLang(locale string) {
-	if locale == "" {
-		return
-	}
-	for _, l := range r.TargetLangs {
-		if l == locale {
-			return
-		}
-	}
-	r.TargetLangs = append(r.TargetLangs, locale)
-}
-
 // Manifest is the package inventory written as manifest.json. RootHash is a
 // Merkle digest over the (sorted) member content hashes, giving the package a
 // stable content identity independent of zip framing.
@@ -179,9 +243,15 @@ type Manifest struct {
 	Generator     *GeneratorInfo `json:"generator,omitempty"`
 	Members       []Member       `json:"members"`
 	RootHash      string         `json:"rootHash"`
-	// Recipe is workspace intent (target locales + output layout). Metadata,
-	// kept out of the content RootHash (AD-025 §5).
-	Recipe *Recipe `json:"recipe,omitempty"`
+	// Recipe is the full project recipe (a JSON string holding its YAML
+	// encoding). Metadata, kept out of the content RootHash (AD-025 §6).
+	Recipe json.RawMessage `json:"recipe,omitempty"`
+	// Sources records per-source identity (path, format, hash, skeleton
+	// pointer, raw-source flag). Metadata, not in the RootHash.
+	Sources []SourceIdentity `json:"sources,omitempty"`
+	// Task scopes a KindInterchange package to one locale pair. Metadata,
+	// not in the RootHash.
+	Task *InterchangeTask `json:"task,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -204,13 +274,23 @@ func (p *Package) Marshal() ([]byte, error) {
 	}
 	sort.Slice(members, func(i, j int) bool { return members[i].Path < members[j].Path })
 
+	recipe, err := marshalRecipe(p.Recipe)
+	if err != nil {
+		return nil, err
+	}
+	kind := p.Kind
+	if kind == "" {
+		kind = KindProject
+	}
 	manifest := Manifest{
 		SchemaVersion: SchemaVersion,
-		Kind:          Kind,
+		Kind:          kind,
 		Created:       p.Created,
 		Generator:     p.Generator,
 		RootHash:      rootHash(members),
-		Recipe:        p.Recipe,
+		Recipe:        recipe,
+		Sources:       p.Sources,
+		Task:          p.InterchangeTask,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -310,6 +390,12 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		}
 		add(s.Path, ContentTypeSource, s.Data)
 	}
+	for _, s := range p.Skeletons {
+		if s.Path == "" {
+			return nil, errors.New("klz: skeleton needs Path")
+		}
+		add(s.Path, ContentTypeSkeleton, s.Data)
+	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
 		if err != nil {
@@ -367,8 +453,16 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("klz: decode manifest: %w", err)
 	}
-	if manifest.Kind != Kind {
-		return nil, fmt.Errorf("klz: unexpected kind %q (want %q)", manifest.Kind, Kind)
+	// Accept the project profile (KindProject), its legacy alias (Kind), and
+	// the interchange profile (KindInterchange); reject any other kind.
+	kind := manifest.Kind
+	switch kind {
+	case Kind, KindProject:
+		kind = KindProject
+	case KindInterchange:
+		// keep
+	default:
+		return nil, fmt.Errorf("klz: unknown kind %q (want %q or %q)", manifest.Kind, KindProject, KindInterchange)
 	}
 	major, vok := majorVersion(manifest.SchemaVersion)
 	if !vok {
@@ -378,7 +472,26 @@ func Unmarshal(data []byte) (*Package, error) {
 		return nil, fmt.Errorf("klz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 
-	pkg := &Package{Created: manifest.Created, Generator: manifest.Generator, Recipe: manifest.Recipe}
+	recipe, err := unmarshalRecipe(manifest.Recipe)
+	if err != nil {
+		return nil, err
+	}
+	pkg := &Package{
+		Kind:            kind,
+		Created:         manifest.Created,
+		Generator:       manifest.Generator,
+		Recipe:          recipe,
+		Sources:         manifest.Sources,
+		InterchangeTask: manifest.Task,
+	}
+	// Index source identities by skeleton member path so skeleton members can
+	// recover their (sourcePath, formatId, contentHash) metadata on load.
+	skelMeta := make(map[string]SourceIdentity, len(manifest.Sources))
+	for _, si := range manifest.Sources {
+		if si.SkeletonPath != "" {
+			skelMeta[si.SkeletonPath] = si
+		}
+	}
 	verify := make([]memberBytes, 0, len(manifest.Members))
 
 	for _, m := range manifest.Members {
@@ -425,6 +538,15 @@ func Unmarshal(data []byte) (*Package, error) {
 			pkg.Media = append(pkg.Media, Media{Path: m.Path, Data: body})
 		case ContentTypeSource:
 			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Data: body})
+		case ContentTypeSkeleton:
+			si := skelMeta[m.Path]
+			pkg.Skeletons = append(pkg.Skeletons, SkeletonDoc{
+				Path:        m.Path,
+				SourcePath:  si.SourcePath,
+				FormatID:    si.FormatID,
+				ContentHash: si.ContentHash,
+				Data:        body,
+			})
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:

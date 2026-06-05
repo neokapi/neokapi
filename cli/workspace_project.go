@@ -49,6 +49,7 @@ machine and "kapi unpack" it to resume work there.`,
 	AddProjectFlag(cmd)
 	cmd.Flags().StringP("output", "o", "", "output .klz snapshot path")
 	cmd.Flags().Bool("log", false, "stamp a tamper-evident provenance line into the snapshot's advisory history")
+	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .klz (default: identity + skeleton only)")
 	return cmd
 }
 
@@ -112,7 +113,24 @@ func (a *App) runPack(cmd *cobra.Command) error {
 		return err
 	}
 	ctx := cmd.Context()
-	pkg := &klz.Package{Generator: &klz.GeneratorInfo{ID: "kapi"}}
+	withSource, _ := cmd.Flags().GetBool("with-source")
+	pkg := &klz.Package{Kind: klz.KindProject, Generator: &klz.GeneratorInfo{ID: "kapi"}}
+
+	// Full project recipe — the one source of truth for intent (AD-025 §6).
+	// Side-effecting Extras (server/hooks/automations) are stripped so they
+	// travel inert; secrets never live in a recipe (keychain).
+	if recipe, lerr := project.Load(projectPath); lerr == nil {
+		pkg.Recipe = klz.SanitizeRecipe(recipe)
+	} else {
+		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
+	}
+
+	// Source identity + per-source skeletons collected from the project's
+	// extraction manifests (deduped by source hash). Raw bytes only with
+	// --with-source.
+	if err := a.collectProjectSources(pkg, layout, projectPath, withSource); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: pack: collect sources: %v\n", err)
+	}
 
 	// Block store (blocks + overlays).
 	if blocksPath := layout.BlockStorePath(); fileExists(blocksPath) {
@@ -183,16 +201,80 @@ func (a *App) runPack(cmd *cobra.Command) error {
 	return outputPrint(cmd, "Packed project working state → "+outPath)
 }
 
+// collectProjectSources gathers per-source identity + round-trip skeletons
+// from the project's extraction manifests, deduped by source content hash
+// (AD-025 §6). The skeleton (the derived extract template) always travels;
+// raw source bytes ride only with withSource. Sources whose format had no
+// skeleton emitter at extract time contribute identity only.
+func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, projectPath string, withSource bool) error {
+	manifests, err := project.ListExtractionManifests(layout)
+	if err != nil {
+		return err
+	}
+	seen := make(map[string]bool) // source rel path → already added
+	for _, m := range manifests {
+		for _, pair := range m.Pairs {
+			for _, ef := range pair.Files {
+				if ef.Source == "" || seen[ef.Source] {
+					continue
+				}
+				seen[ef.Source] = true
+				si := klz.SourceIdentity{
+					SourcePath:  ef.Source,
+					FormatID:    ef.Format,
+					ContentHash: ef.SourceHash,
+				}
+
+				// Skeleton: the per-source .bin captured at extract time.
+				if ef.Skeleton != "" {
+					skelPath := filepath.Join(project.ExtractionDir(layout, m.BatchID), ef.Skeleton)
+					if data, rerr := os.ReadFile(skelPath); rerr == nil {
+						member := klz.SkeletonDir + ef.Source
+						pkg.Skeletons = append(pkg.Skeletons, klz.SkeletonDoc{
+							Path: member, SourcePath: ef.Source, FormatID: ef.Format,
+							ContentHash: ef.SourceHash, Data: data,
+						})
+						si.SkeletonPath = member
+					}
+				}
+
+				// Raw source bytes (opt-in).
+				if withSource {
+					srcAbs := filepath.Join(layout.Root, ef.Source)
+					if data, rerr := os.ReadFile(srcAbs); rerr == nil {
+						pkg.Source = append(pkg.Source, klz.SourceDoc{Path: "source/" + ef.Source, Data: data})
+						si.HasRawSource = true
+					}
+				}
+				pkg.Sources = append(pkg.Sources, si)
+			}
+		}
+	}
+	return nil
+}
+
 // runUnpack rehydrates a project's working state from a .klz snapshot into
 // the local .kapi/ state dir, recreating the block store, TM, and termbase.
 // A workspace .klz (one carrying a Recipe) instead rebuilds its shadow cache.
 func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
-	if pkg, err := loadWorkspace(snapshotPath); err == nil && pkg.Recipe != nil {
-		return a.unpackKlz(cmd.Context(), snapshotPath)
-	}
-	projectPath, err := RequireProjectPath(cmd)
+	pkg, err := loadWorkspace(snapshotPath)
 	if err != nil {
 		return err
+	}
+	if isWorkspacePackage(pkg) {
+		return a.unpackKlz(cmd.Context(), snapshotPath)
+	}
+
+	// Resolve the destination project. When one is in scope use it; otherwise
+	// reconstitute a fresh <name>.kapi from the snapshot beside the .klz, since
+	// a project snapshot carries the full recipe (AD-025 §6) and can rebuild a
+	// complete project in a file.
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	if projectPath == "" {
+		projectPath = reconstitutedProjectPath(snapshotPath, pkg)
 	}
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -201,9 +283,16 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 	if err := project.EnsureLayout(layout); err != nil {
 		return err
 	}
-	pkg, err := loadWorkspace(snapshotPath)
-	if err != nil {
-		return err
+
+	// Write the recipe back as <name>.kapi (the authoritative intent). When a
+	// project already exists, its on-disk recipe is authoritative — do not
+	// overwrite it; only reconstitute when there was no recipe.
+	if pkg.Recipe != nil {
+		if !fileExists(layout.RecipePath) {
+			if serr := project.Save(layout.RecipePath, pkg.Recipe); serr != nil {
+				return fmt.Errorf("unpack: write recipe: %w", serr)
+			}
+		}
 	}
 	// Verify the advisory provenance chain if present. It is advisory, so a
 	// broken chain warns rather than blocks — the content is what matters.
@@ -258,10 +347,43 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 		_ = tb.Close()
 	}
 
+	// Restore per-source skeletons into an extraction cache dir so a later
+	// merge can reuse the round-trip templates without re-extracting (AD-025
+	// §6). One synthetic batch holds them all, keyed by source content hash
+	// (the same SkeletonFilename scheme extract uses).
+	if len(pkg.Skeletons) > 0 {
+		batchDir, derr := project.EnsureExtractionDir(layout, "unpacked")
+		if derr != nil {
+			return fmt.Errorf("unpack: create extraction dir: %w", derr)
+		}
+		for _, skel := range pkg.Skeletons {
+			hash := strings.TrimPrefix(skel.ContentHash, "sha256:")
+			if hash == "" {
+				hash = skel.SourcePath
+			}
+			dst := filepath.Join(batchDir, project.SkeletonFilename(hash))
+			if werr := os.WriteFile(dst, skel.Data, 0o644); werr != nil {
+				return fmt.Errorf("unpack: write skeleton: %w", werr)
+			}
+		}
+	}
+
 	if a.Quiet {
 		return nil
 	}
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
+}
+
+// reconstitutedProjectPath derives the <name>.kapi path to materialize when
+// unpacking a project snapshot with no project in scope: prefer the recipe's
+// name, else the snapshot's base name, placed beside the snapshot.
+func reconstitutedProjectPath(snapshotPath string, pkg *klz.Package) string {
+	dir := filepath.Dir(snapshotPath)
+	name := strings.TrimSuffix(filepath.Base(snapshotPath), filepath.Ext(snapshotPath))
+	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
+		name = pkg.Recipe.Name
+	}
+	return filepath.Join(dir, name+project.RecipeExt)
 }
 
 // blocksToKLF wraps exported block-store blocks into a single klf.File

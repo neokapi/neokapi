@@ -11,7 +11,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/klz"
+	"gopkg.in/yaml.v3"
 )
 
 // A .klz workspace is worked on through a persistent shadow cache — its
@@ -55,14 +57,38 @@ func klzCacheDir(klzPath string) string {
 type klzCacheMeta struct {
 	KlzPath        string           `json:"klzPath"`
 	PackedRootHash string           `json:"packedRootHash"`
-	Recipe         *klz.Recipe      `json:"recipe,omitempty"`
 	Sources        []klzCacheSource `json:"sources"`
+
+	// Recipe is the full project recipe (AD-025 §6). It is held in-memory as
+	// a *project.KapiProject but persisted to the cache meta.json via
+	// RecipeYAML, because KapiProject's Extras (which holds the klz output
+	// layout) are yaml-inline and JSON-excluded — JSON-encoding the struct
+	// directly would silently drop them. RecipeYAML is the YAML encoding,
+	// kept in sync by save()/load.
+	Recipe     *project.KapiProject `json:"-"`
+	RecipeYAML string               `json:"recipeYaml,omitempty"`
 }
 
 type klzCacheSource struct {
 	Path string `json:"path"` // archive path, e.g. "source/app.json"
 	Name string `json:"name"` // base name, e.g. "app.json"
 	Key  string `json:"key"`  // per-source store key
+
+	// Skeleton, FormatID, and ContentHash carry this source's identity +
+	// round-trip skeleton (AD-025 §6). Skeleton is the cache-local skeleton
+	// filename (under the cache's skeletons/ dir), empty when none was
+	// captured.
+	Skeleton    string `json:"skeleton,omitempty"`
+	FormatID    string `json:"formatId,omitempty"`
+	ContentHash string `json:"contentHash,omitempty"`
+
+	// RawPresent records that the raw source bytes are in the cache locally
+	// (the runtime needs them for transform/merge), distinct from whether they
+	// should be PACKED into the .klz. HasRawSource is the pack-retention flag:
+	// the raw bytes ride in the .klz only when it is set (extract/pack
+	// --with-source).
+	RawPresent   bool `json:"rawPresent,omitempty"`
+	HasRawSource bool `json:"hasRawSource,omitempty"`
 }
 
 // klzCache is an open workspace cache.
@@ -71,11 +97,33 @@ type klzCache struct {
 	meta klzCacheMeta
 }
 
-func (c *klzCache) metaPath() string              { return filepath.Join(c.dir, "meta.json") }
-func (c *klzCache) sourcePath(name string) string { return filepath.Join(c.dir, "sources", name) }
-func (c *klzCache) storePath(key string) string   { return filepath.Join(c.dir, "overlays", key+".db") }
+func (c *klzCache) metaPath() string                { return filepath.Join(c.dir, "meta.json") }
+func (c *klzCache) sourcePath(name string) string   { return filepath.Join(c.dir, "sources", name) }
+func (c *klzCache) storePath(key string) string     { return filepath.Join(c.dir, "overlays", key+".db") }
+func (c *klzCache) skeletonPath(name string) string { return filepath.Join(c.dir, "skeletons", name) }
+
+// hasSource reports whether the cache holds this source's raw bytes on disk
+// (the runtime needs them for transform/merge), regardless of pack retention.
+func (c *klzCache) hasSource(src klzCacheSource) bool {
+	if !src.RawPresent {
+		return false
+	}
+	_, err := os.Stat(c.sourcePath(src.Name))
+	return err == nil
+}
 
 func (c *klzCache) save() error {
+	// Persist the recipe as YAML so its Extras (the klz output layout) survive
+	// the JSON cache file — KapiProject Extras are yaml-inline/json-excluded.
+	if c.meta.Recipe != nil {
+		yml, err := yaml.Marshal(c.meta.Recipe)
+		if err != nil {
+			return fmt.Errorf("klz cache: marshal recipe: %w", err)
+		}
+		c.meta.RecipeYAML = string(yml)
+	} else {
+		c.meta.RecipeYAML = ""
+	}
 	data, err := json.MarshalIndent(c.meta, "", "  ")
 	if err != nil {
 		return err
@@ -99,6 +147,14 @@ func buildKlzCache(ctx context.Context, klzPath string) (*klzCache, error) {
 	if err != nil {
 		return nil, err
 	}
+	return buildKlzCacheFromPackage(ctx, klzPath, pkg)
+}
+
+// buildKlzCacheFromPackage builds a workspace cache from an in-memory package,
+// overwriting any existing cache for klzPath. Used both by buildKlzCache (after
+// loading from disk) and by extract (which holds the full package in memory,
+// raw source included, before the packed .klz drops it).
+func buildKlzCacheFromPackage(ctx context.Context, klzPath string, pkg *klz.Package) (*klzCache, error) {
 	rootHash, err := pkg.RootHash()
 	if err != nil {
 		return nil, err
@@ -113,25 +169,94 @@ func buildKlzCache(ctx context.Context, klzPath string) (*klzCache, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "overlays"), 0o755); err != nil {
 		return nil, err
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "skeletons"), 0o755); err != nil {
+		return nil, err
+	}
 	abs, _ := filepath.Abs(klzPath)
 	c := &klzCache{dir: dir, meta: klzCacheMeta{KlzPath: abs, PackedRootHash: rootHash, Recipe: pkg.Recipe}}
 
-	for _, src := range pkg.Source {
-		name := filepath.Base(src.Path)
-		key := sourceStoreKey(src.Path)
-		if err := os.WriteFile(c.sourcePath(name), src.Data, 0o644); err != nil {
-			return nil, fmt.Errorf("klz cache: write source: %w", err)
+	// Index raw source bytes + skeletons by archive/source path so each
+	// source's cache entry can be built whether it carries raw bytes, just a
+	// skeleton (the default source-retention), or both (AD-025 §6).
+	rawByPath := make(map[string]klz.SourceDoc, len(pkg.Source))
+	for _, s := range pkg.Source {
+		rawByPath[s.Path] = s
+	}
+	skelBySource := make(map[string]klz.SkeletonDoc, len(pkg.Skeletons))
+	for _, s := range pkg.Skeletons {
+		skelBySource[s.SourcePath] = s
+	}
+
+	// Build the per-source list. Prefer the manifest's Sources identities (the
+	// canonical inventory); fall back to raw Source docs for older packages
+	// that predate the identity list.
+	type srcEntry struct {
+		archivePath  string // "source/<name>" — overlay scoping key
+		sourcePath   string // logical source path
+		formatID     string
+		contentHash  string
+		hasRawSource bool
+	}
+	var entries []srcEntry
+	if len(pkg.Sources) > 0 {
+		for _, si := range pkg.Sources {
+			entries = append(entries, srcEntry{
+				archivePath:  "source/" + filepath.Base(si.SourcePath),
+				sourcePath:   si.SourcePath,
+				formatID:     si.FormatID,
+				contentHash:  si.ContentHash,
+				hasRawSource: si.HasRawSource,
+			})
 		}
+	} else {
+		for _, s := range pkg.Source {
+			entries = append(entries, srcEntry{archivePath: s.Path, sourcePath: s.Path, hasRawSource: true})
+		}
+	}
+
+	for _, e := range entries {
+		name := filepath.Base(e.sourcePath)
+		key := sourceStoreKey(e.archivePath)
+		cs := klzCacheSource{
+			Path: e.archivePath, Name: name, Key: key,
+			FormatID: e.formatID, ContentHash: e.contentHash,
+		}
+
+		// Raw source bytes: write them into the cache when present (the runtime
+		// needs them). Pack retention is tracked separately by hasRawSource.
+		if raw, ok := rawByPath[e.archivePath]; ok {
+			if err := os.WriteFile(c.sourcePath(name), raw.Data, 0o644); err != nil {
+				return nil, fmt.Errorf("klz cache: write source: %w", err)
+			}
+			cs.RawPresent = true
+		}
+		cs.HasRawSource = e.hasRawSource
+
+		// Skeleton (default source-retention): write it into the cache.
+		if skel, ok := skelBySource[e.sourcePath]; ok {
+			skelName := name + ".skel"
+			if err := os.WriteFile(c.skeletonPath(skelName), skel.Data, 0o644); err != nil {
+				return nil, fmt.Errorf("klz cache: write skeleton: %w", err)
+			}
+			cs.Skeleton = skelName
+			if cs.FormatID == "" {
+				cs.FormatID = skel.FormatID
+			}
+			if cs.ContentHash == "" {
+				cs.ContentHash = skel.ContentHash
+			}
+		}
+
 		store, err := sqlitestore.New(c.storePath(key))
 		if err != nil {
 			return nil, err
 		}
-		err = exporter.LoadOverlays(ctx, store, klzToStoreOverlays(overlaysForSource(pkg.Overlays, src.Path)))
+		err = exporter.LoadOverlays(ctx, store, klzToStoreOverlays(overlaysForSource(pkg.Overlays, e.archivePath)))
 		_ = store.Close()
 		if err != nil {
 			return nil, fmt.Errorf("klz cache: load overlays: %w", err)
 		}
-		c.meta.Sources = append(c.meta.Sources, klzCacheSource{Path: src.Path, Name: name, Key: key})
+		c.meta.Sources = append(c.meta.Sources, cs)
 	}
 	if err := c.save(); err != nil {
 		return nil, err
@@ -153,6 +278,13 @@ func openKlzCache(klzPath string) (*klzCache, bool, error) {
 	var meta klzCacheMeta
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return nil, false, err
+	}
+	if meta.RecipeYAML != "" {
+		var r project.KapiProject
+		if err := yaml.Unmarshal([]byte(meta.RecipeYAML), &r); err != nil {
+			return nil, false, fmt.Errorf("klz cache: parse recipe: %w", err)
+		}
+		meta.Recipe = &r
 	}
 	return &klzCache{dir: dir, meta: meta}, true, nil
 }
@@ -196,15 +328,47 @@ func klzFileRootHash(klzPath string) (string, error) {
 	return pkg.RootHash()
 }
 
-// toPackage assembles the cache's current state into a klz.Package.
+// toPackage assembles the cache's current state into a klz.Package. Source is
+// retained as identity + skeleton by default; the raw bytes ride only when the
+// cache holds them (the .klz was packed --with-source) (AD-025 §6).
 func (c *klzCache) toPackage(ctx context.Context) (*klz.Package, error) {
 	pkg := &klz.Package{Generator: &klz.GeneratorInfo{ID: "kapi"}, Recipe: c.meta.Recipe}
 	for _, src := range c.meta.Sources {
-		data, err := os.ReadFile(c.sourcePath(src.Name))
-		if err != nil {
-			return nil, fmt.Errorf("klz cache: read source: %w", err)
+		si := klz.SourceIdentity{
+			SourcePath:  src.Name,
+			FormatID:    src.FormatID,
+			ContentHash: src.ContentHash,
 		}
-		pkg.Source = append(pkg.Source, klz.SourceDoc{Path: src.Path, Data: data})
+
+		// Skeleton (default source-retention).
+		if src.Skeleton != "" {
+			data, err := os.ReadFile(c.skeletonPath(src.Skeleton))
+			if err != nil {
+				return nil, fmt.Errorf("klz cache: read skeleton: %w", err)
+			}
+			skelPath := klz.SkeletonDir + filepath.Base(src.Name)
+			pkg.Skeletons = append(pkg.Skeletons, klz.SkeletonDoc{
+				Path:        skelPath,
+				SourcePath:  src.Name,
+				FormatID:    src.FormatID,
+				ContentHash: src.ContentHash,
+				Data:        data,
+			})
+			si.SkeletonPath = skelPath
+		}
+
+		// Raw source bytes (opt-in retention): pack them only when the source
+		// is retained (--with-source) and the cache holds them.
+		if src.HasRawSource && c.hasSource(src) {
+			data, err := os.ReadFile(c.sourcePath(src.Name))
+			if err != nil {
+				return nil, fmt.Errorf("klz cache: read source: %w", err)
+			}
+			pkg.Source = append(pkg.Source, klz.SourceDoc{Path: src.Path, Data: data})
+			si.HasRawSource = true
+		}
+
+		pkg.Sources = append(pkg.Sources, si)
 
 		store, err := sqlitestore.New(c.storePath(src.Key))
 		if err != nil {

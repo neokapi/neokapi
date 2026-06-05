@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/klz"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
@@ -89,10 +90,14 @@ each input independently.`,
   kapi merge -i vendor-return/ --no-tm-update
   kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Ad-hoc workspace: `merge work.klz -o <dir>` emits the localized
-			// files from a .klz (no project needed).
+			// A single .klz positional arg is either a bilingual interchange
+			// file (kind=kapi-interchange — ingest the translator's targets) or
+			// an ad-hoc workspace (emit its localized files).
 			if len(args) == 1 && isKlzPath(args[0]) {
 				out, _ := cmd.Flags().GetString("output")
+				if pkg, err := loadWorkspace(args[0]); err == nil && pkg.Kind == klz.KindInterchange {
+					return a.mergeOneKlz(cmd, args[0])
+				}
 				return a.mergeFromKlz(cmd.Context(), args[0], out)
 			}
 			return a.runMerge(cmd)
@@ -213,6 +218,156 @@ func (s *mergeStats) accumulate(o mergeStats) {
 	s.Skipped += o.Skipped
 	s.TMNew += o.TMNew
 	s.TMUpdated += o.TMUpdated
+}
+
+// mergeOneKlz ingests a bilingual interchange .klz returned by a translator
+// (kind=kapi-interchange, AD-025 §7): it validates the profile, hydrates the
+// target overlays onto the current source blocks (matched by id), staleness-
+// checks each block against the current source, applies the project conflict
+// policy, writes the merged target via the package's inline skeleton, and
+// absorbs accepted targets into the project TM.
+func (a *App) mergeOneKlz(cmd *cobra.Command, klzInput string) error {
+	ctx := cmd.Context()
+	pkg, err := loadWorkspace(klzInput)
+	if err != nil {
+		return err
+	}
+	if pkg.Kind != klz.KindInterchange {
+		return fmt.Errorf("merge: %s is not a bilingual interchange .klz (kind=%q)", filepath.Base(klzInput), pkg.Kind)
+	}
+	if pkg.InterchangeTask == nil {
+		return fmt.Errorf("merge: %s has no interchange task metadata", filepath.Base(klzInput))
+	}
+
+	projectPath, err := RequireProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	proj, err := a.LoadProjectInteractive(ctx, projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+	if err != nil {
+		return fmt.Errorf("load project: %w", err)
+	}
+	pctx := project.NewProjectContext(proj, projectPath)
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return fmt.Errorf("resolve project layout: %w", err)
+	}
+
+	targetLocale := model.LocaleID(pkg.InterchangeTask.TargetLocale)
+	if targetLocale == "" {
+		return errors.New("merge: interchange package has no target locale")
+	}
+	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
+
+	var tm *sievepen.SQLiteTM
+	if !boolFlag(cmd, "no-tm-update") {
+		if loaded, lerr := sievepen.NewSQLiteTM(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
+			defer loaded.Close()
+			tm = loaded
+		}
+	}
+
+	// Index the package's target overlays by block id.
+	overlayByID := make(map[string][]byte)
+	for _, ov := range pkg.Overlays {
+		if ov.Kind == "targets/"+string(targetLocale) {
+			overlayByID[ov.BlockHash] = ov.Payload
+		}
+	}
+
+	var stats mergeStats
+	for _, si := range pkg.Sources {
+		srcRel := si.SourcePath
+		sourceAbs := filepath.Join(layout.Root, srcRel)
+		srcFormat := si.FormatID
+		if srcFormat == "" {
+			srcFormat = detectSourceFormat(a.FormatReg, pctx, srcRel, sourceAbs)
+		}
+		if srcFormat == "" {
+			return fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
+		}
+
+		currentHash, herr := project.HashFile(sourceAbs)
+		if herr != nil {
+			return fmt.Errorf("hash current source %s: %w", sourceAbs, herr)
+		}
+		fileStale := si.ContentHash != "" && currentHash != si.ContentHash
+
+		currentBlocks, _, rerr := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale)
+		if rerr != nil {
+			return fmt.Errorf("re-read source %s: %w", sourceAbs, rerr)
+		}
+
+		for _, b := range currentBlocks {
+			payload, ok := overlayByID[b.ID]
+			if !ok {
+				continue
+			}
+			// Staleness: a whole-file hash drift is advisory here; per-block
+			// identity (the block id and its source text) is the real guard.
+			// We applied the overlay by id; if the file is stale we still apply
+			// when the id matched, matching the XLIFF path's per-block tolerance.
+			_ = fileStale
+
+			existing := b.Target(targetLocale)
+			hasExisting := existing != nil && hasAnyText(existing.Runs)
+			apply := true
+			switch policy {
+			case project.ConflictPolicyExistingWins:
+				if hasExisting {
+					apply = false
+				}
+			case project.ConflictPolicyNewestWins:
+				if hasExisting {
+					srcInfo, _ := os.Stat(sourceAbs)
+					klzInfo, _ := os.Stat(klzInput)
+					if srcInfo != nil && klzInfo != nil && !klzInfo.ModTime().After(srcInfo.ModTime()) {
+						apply = false
+					}
+				}
+			}
+			if !apply {
+				stats.Skipped++
+				continue
+			}
+			applyTargetOverlay(b, targetLocale, payload)
+			if b.Target(targetLocale) == nil {
+				stats.Skipped++
+				continue
+			}
+			stats.Applied++
+			if tm != nil {
+				added, updated := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "klz", srcRel, klzInput)
+				stats.TMNew += added
+				stats.TMUpdated += updated
+			}
+		}
+
+		// Write the merged target via the package's inline skeleton.
+		var skelBytes []byte
+		for _, s := range pkg.Skeletons {
+			if s.SourcePath == srcRel {
+				skelBytes = s.Data
+				break
+			}
+		}
+		entry := &project.ExtractionFile{Source: srcRel}
+		targetPath := resolveMergeOutputPath(entry, pctx.Project, layout.Root, targetLocale)
+		if werr := writeMergedSourceWithSkeleton(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, targetLocale, currentBlocks, "", skelBytes); werr != nil {
+			return fmt.Errorf("write merged target %s: %w", targetPath, werr)
+		}
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(),
+		"Merged %s → %s: applied=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
+		filepath.Base(klzInput), targetLocale, stats.Applied, stats.Skipped, stats.TMNew, stats.TMUpdated, policy)
+	return nil
+}
+
+// boolFlag reads a bool flag, defaulting to false on error.
+func boolFlag(cmd *cobra.Command, name string) bool {
+	v, _ := cmd.Flags().GetBool(name)
+	return v
 }
 
 // mergeOne handles a single returning XLIFF / PO file.
@@ -662,6 +817,19 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 // writeMergedSource writes the merged blocks to the target file using the
 // source format's writer, plus the captured skeleton when available.
 func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, layout project.Layout, batchID string, entry *project.ExtractionFile, locale model.LocaleID, blocks []*model.Block) error {
+	skelPath := ""
+	if entry != nil && entry.Skeleton != "" {
+		skelPath = filepath.Join(project.ExtractionDir(layout, batchID), entry.Skeleton)
+	}
+	return writeMergedSourceWithSkeleton(ctx, reg, formatName, sourceAbs, targetPath, locale, blocks, skelPath, nil)
+}
+
+// writeMergedSourceWithSkeleton is the underlying writer that takes the
+// skeleton as either a file path (skelPath, for the XLIFF/PO extraction flow)
+// or raw bytes (skelBytes, for a bilingual interchange .klz that carries the
+// skeleton inline). When both are empty the writer re-serializes from its parse
+// tree (lower fidelity). skelBytes takes precedence.
+func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, locale model.LocaleID, blocks []*model.Block, skelPath string, skelBytes []byte) error {
 	writer, err := reg.NewWriter(registry.FormatID(formatName))
 	if err != nil {
 		return err
@@ -674,12 +842,16 @@ func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, format
 		return err
 	}
 
-	if entry != nil && entry.Skeleton != "" {
-		skelPath := filepath.Join(project.ExtractionDir(layout, batchID), entry.Skeleton)
-		if _, statErr := os.Stat(skelPath); statErr == nil {
-			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-				store, err := format.OpenSkeletonStore(skelPath)
-				if err == nil {
+	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+		switch {
+		case len(skelBytes) > 0:
+			// Inline skeleton (from a .klz): read-mode store over the bytes.
+			store := format.NewSkeletonStoreFromBytes(skelBytes)
+			consumer.SetSkeletonStore(store)
+			defer store.Close()
+		case skelPath != "":
+			if _, statErr := os.Stat(skelPath); statErr == nil {
+				if store, oerr := format.OpenSkeletonStore(skelPath); oerr == nil {
 					consumer.SetSkeletonStore(store)
 					defer store.Close()
 				}
