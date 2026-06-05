@@ -4,10 +4,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neoka
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
 
-/** Accent color for source-transform-capable tools (must match ToolNode). */
-const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
-const SOURCE_TRANSFORM_BG = "oklch(0.68 0.16 250 / 0.10)";
-
 interface ToolPaletteProps {
   tools: ToolInfo[];
   onAddTool: (toolName: string) => void;
@@ -100,7 +96,6 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                       <PaletteItem
                         key={tool.name}
                         tool={tool}
-                        categoryColor={cat.color}
                         onAdd={() => onAddTool(tool.name)}
                         onDragStart={(e) => handleDragStart(e, tool.name)}
                       />
@@ -147,12 +142,10 @@ function PaletteSearchBar({
 
 function PaletteItem({
   tool,
-  categoryColor,
   onAdd,
   onDragStart,
 }: {
   tool: ToolInfo;
-  categoryColor: string;
   onAdd: () => void;
   onDragStart: (e: React.DragEvent<HTMLButtonElement>) => void;
 }) {
@@ -173,12 +166,7 @@ function PaletteItem({
           <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
           {tool.isSourceTransform && (
             <span
-              className="inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold shrink-0"
-              style={{
-                background: SOURCE_TRANSFORM_BG,
-                color: SOURCE_TRANSFORM_COLOR,
-                border: `1px solid ${SOURCE_TRANSFORM_COLOR}`,
-              }}
+              className="inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/40 bg-sky-500/10 px-1 py-px text-[8px] font-semibold text-sky-600 dark:text-sky-400"
               title="Can run as a source transform — settles the model before main tools"
             >
               <Layers size={7} />
@@ -192,11 +180,7 @@ function PaletteItem({
           {tool.tags?.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="rounded-sm px-1 py-px text-[9px] font-medium"
-              style={{
-                background: `${categoryColor}22`,
-                color: categoryColor,
-              }}
+              className="rounded-sm bg-muted px-1 py-px text-[9px] font-medium text-muted-foreground"
             >
               {tag}
             </span>
