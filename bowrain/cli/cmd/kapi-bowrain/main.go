@@ -91,11 +91,14 @@ func buildCommandSubtree() *cobra.Command {
 		Hidden:        true, // not relevant for human users
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			app.Config = newBowrainAppConfig()
 			app.RegistryResolver = func() []cliconfig.RegistryEntry { return nil }
-			app.Init()
+			if err := app.Init(); err != nil {
+				return err
+			}
 			cli.ApplyAppInitializers(app)
+			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			app.Shutdown()
@@ -141,11 +144,14 @@ func buildMCPServerCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp-server",
 		Short: "Run as an MCP-over-stdio server",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			app.Config = newBowrainAppConfig()
 			app.RegistryResolver = func() []cliconfig.RegistryEntry { return nil }
-			app.Init()
+			if err := app.Init(); err != nil {
+				return err
+			}
 			cli.ApplyAppInitializers(app)
+			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			app.Shutdown()

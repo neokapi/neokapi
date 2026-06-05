@@ -117,13 +117,16 @@ func buildRoot() *cobra.Command {
 		Short:         "A localization and translation toolkit (browser build)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRun: func(*cobra.Command, []string) {
+		PersistentPreRunE: func(*cobra.Command, []string) error {
 			app.Config = config.NewAppConfig()
-			app.Init()
+			if err := app.Init(); err != nil {
+				return err
+			}
 			// App.Init installs a credential-resolution preprocessor; in the
 			// browser there are no credentials or network, so override it to
 			// coerce AI provider selection to the deterministic demo provider.
 			forceDemoProviders(app.ToolReg)
+			return nil
 		},
 	}
 

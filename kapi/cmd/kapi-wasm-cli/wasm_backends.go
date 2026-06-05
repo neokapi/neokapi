@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -32,7 +33,7 @@ func seedBackends() {
 			fmt.Fprintln(os.Stderr, "warning:", msg)
 		},
 	}
-	if _, err := sievepen.ImportTMXWithOptions(tm, bytes.NewReader(fixtureTMX), model.LocaleID("en"), model.LocaleID("fr"), opts); err != nil {
+	if _, err := sievepen.ImportTMXWithOptions(context.Background(), tm, bytes.NewReader(fixtureTMX), model.LocaleID("en"), model.LocaleID("fr"), opts); err != nil {
 		fmt.Fprintln(os.Stderr, "wasm: seed TM:", err)
 	}
 	app.TMBackend = tm
@@ -43,7 +44,7 @@ func seedBackends() {
 		TargetLocale: model.LocaleID("fr"),
 		HasHeader:    true,
 	}
-	if _, err := termbase.ImportCSV(tb, bytes.NewReader(fixtureGlossaryCSV), csvOpts); err != nil {
+	if _, err := termbase.ImportCSV(context.Background(), tb, bytes.NewReader(fixtureGlossaryCSV), csvOpts); err != nil {
 		fmt.Fprintln(os.Stderr, "wasm: seed termbase:", err)
 	}
 	app.TBBackend = tb

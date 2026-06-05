@@ -28,12 +28,9 @@ import (
 // Version bodies are lenient: a leading "v" is optional and pre-release /
 // build metadata ("-rc1", "+build42") is permitted and ignored for matching.
 
-// constraintOps lists the recognized operator prefixes, longest first so
-// ">=" / "<=" win over ">" / "<".
-var constraintOps = []string{"^", "~", ">=", "<=", ">", "<", "="}
-
 // splitConstraint splits a constraint string into its operator prefix (one of
-// constraintOps, or "" for a bare version) and the remaining version body.
+// ^ ~ >= <= > < =, or "" for a bare version) and the remaining version body.
+// Two-character operators are checked first so ">=" / "<=" win over ">" / "<".
 func splitConstraint(c string) (op, body string) {
 	for _, p := range []string{">=", "<="} {
 		if strings.HasPrefix(c, p) {
