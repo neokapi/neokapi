@@ -172,7 +172,7 @@ func main() {
 		}
 
 		in := make([]reflect.Value, mt.NumIn())
-		for i := 0; i < mt.NumIn(); i++ {
+		for i := range mt.NumIn() {
 			pv := reflect.New(mt.In(i))
 			if i < len(req.Args) && len(req.Args[i]) > 0 {
 				if err := json.Unmarshal(req.Args[i], pv.Interface()); err != nil {

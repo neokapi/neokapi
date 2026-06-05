@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -176,7 +177,11 @@ func (a *App) GetTermbaseStats(handle string) *TermbaseStats {
 	if !ok {
 		return nil
 	}
-	return &TermbaseStats{Count: tb.Count()}
+	count, err := tb.Count(context.Background())
+	if err != nil {
+		return nil
+	}
+	return &TermbaseStats{Count: count}
 }
 
 // GetTermbaseActivityStats returns daily concept counts over time.
@@ -185,7 +190,11 @@ func (a *App) GetTermbaseActivityStats(handle string) []termbase.ActivityStat {
 	if !ok {
 		return nil
 	}
-	return tb.ActivityStats()
+	stats, err := tb.ActivityStats(context.Background())
+	if err != nil {
+		return nil
+	}
+	return stats
 }
 
 // GetTermbaseLocaleStats returns term counts grouped by locale.
@@ -194,7 +203,11 @@ func (a *App) GetTermbaseLocaleStats(handle string) []termbase.LocaleStat {
 	if !ok {
 		return nil
 	}
-	return tb.LocaleStats()
+	stats, err := tb.LocaleStats(context.Background())
+	if err != nil {
+		return nil
+	}
+	return stats
 }
 
 // --- CRUD ---
@@ -205,7 +218,10 @@ func (a *App) SearchTerms(handle, query, srcLocale, tgtLocale string, offset, li
 	if !ok {
 		return &TermSearchResult{}
 	}
-	concepts, total := tb.Search(query, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), offset, limit)
+	concepts, total, err := tb.Search(context.Background(), query, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), offset, limit)
+	if err != nil {
+		return &TermSearchResult{}
+	}
 	dtos := make([]ConceptDTO, 0, len(concepts))
 	for _, c := range concepts {
 		dtos = append(dtos, conceptToDTO(c))
@@ -219,8 +235,8 @@ func (a *App) GetConcept(handle, conceptID string) *ConceptDTO {
 	if !ok {
 		return nil
 	}
-	concept, found := tb.GetConcept(conceptID)
-	if !found {
+	concept, found, err := tb.GetConcept(context.Background(), conceptID)
+	if err != nil || !found {
 		return nil
 	}
 	dto := conceptToDTO(concept)
@@ -243,7 +259,7 @@ func (a *App) AddConcept(handle string, req AddConceptRequest) error {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	return tb.AddConcept(concept)
+	return tb.AddConcept(context.Background(), concept)
 }
 
 // UpdateConcept updates an existing concept.
@@ -252,7 +268,10 @@ func (a *App) UpdateConcept(handle string, req UpdateConceptRequest) error {
 	if !ok {
 		return fmt.Errorf("termbase handle %q not found", handle)
 	}
-	existing, found := tb.GetConcept(req.ConceptID)
+	existing, found, err := tb.GetConcept(context.Background(), req.ConceptID)
+	if err != nil {
+		return err
+	}
 	if !found {
 		return fmt.Errorf("concept %q not found", req.ConceptID)
 	}
@@ -261,7 +280,7 @@ func (a *App) UpdateConcept(handle string, req UpdateConceptRequest) error {
 	existing.Definition = req.Definition
 	existing.Terms = dtoToTerms(req.Terms)
 	existing.UpdatedAt = time.Now()
-	return tb.AddConcept(existing) // AddConcept with same ID = update
+	return tb.AddConcept(context.Background(), existing) // AddConcept with same ID = update
 }
 
 // DeleteConcept deletes a single concept.
@@ -270,7 +289,7 @@ func (a *App) DeleteConcept(handle, conceptID string) error {
 	if !ok {
 		return fmt.Errorf("termbase handle %q not found", handle)
 	}
-	return tb.DeleteConcept(conceptID)
+	return tb.DeleteConcept(context.Background(), conceptID)
 }
 
 // DeleteConcepts deletes multiple concepts.
@@ -280,7 +299,7 @@ func (a *App) DeleteConcepts(handle string, conceptIDs []string) error {
 		return fmt.Errorf("termbase handle %q not found", handle)
 	}
 	for _, cid := range conceptIDs {
-		if err := tb.DeleteConcept(cid); err != nil {
+		if err := tb.DeleteConcept(context.Background(), cid); err != nil {
 			return err
 		}
 	}
@@ -316,7 +335,7 @@ func (a *App) ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain strin
 	}
 	defer f.Close()
 
-	count, err := termbase.ImportCSV(tb, f, termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(context.Background(), tb, f, termbase.CSVImportOptions{
 		SourceLocale: model.LocaleID(srcLocale),
 		TargetLocale: model.LocaleID(tgtLocale),
 		Domain:       domain,
@@ -355,7 +374,7 @@ func (a *App) ImportTermbaseJSONDialog(handle string) (*ImportResult, error) {
 	}
 	defer f.Close()
 
-	count, err := termbase.ImportJSON(tb, f)
+	count, err := termbase.ImportJSON(context.Background(), tb, f)
 	if err != nil {
 		return nil, fmt.Errorf("import JSON: %w", err)
 	}
@@ -392,5 +411,5 @@ func (a *App) ExportTermbaseJSONDialog(handle, name string) error {
 	}
 	defer f.Close()
 
-	return termbase.ExportJSON(tb, f, name)
+	return termbase.ExportJSON(context.Background(), tb, f, name)
 }

@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,7 +82,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	}
 
 	if len(inputPaths) == 0 {
-		return fmt.Errorf("no input files specified")
+		return errors.New("no input files specified")
 	}
 
 	if a.runState == nil {
@@ -91,7 +92,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	a.runState.mu.Lock()
 	if a.runState.running {
 		a.runState.mu.Unlock()
-		return fmt.Errorf("a flow is already running — cancel it first")
+		return errors.New("a flow is already running — cancel it first")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -391,7 +392,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	}
 
 	if sampleText == "" {
-		return nil, fmt.Errorf("sample text is required")
+		return nil, errors.New("sample text is required")
 	}
 
 	// Build tools from steps with config.

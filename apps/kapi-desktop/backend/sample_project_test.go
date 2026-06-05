@@ -33,11 +33,15 @@ func TestOpenProjectAutoOpensTM(t *testing.T) {
 	// Handles should be valid.
 	tm, ok := app.tmHandles.Get(op.tmHandle)
 	assert.True(t, ok)
-	assert.Greater(t, tm.Count(), 0)
+	tmCount, err := tm.Count(t.Context())
+	require.NoError(t, err)
+	assert.Greater(t, tmCount, 0)
 
 	tb, ok := app.tbHandles.Get(op.tbHandle)
 	assert.True(t, ok)
-	assert.Greater(t, tb.Count(), 0)
+	tbCount, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Greater(t, tbCount, 0)
 }
 
 func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {

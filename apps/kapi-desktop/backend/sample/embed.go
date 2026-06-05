@@ -6,6 +6,7 @@ package sample
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -107,7 +108,7 @@ func seedTM(dbPath string) error {
 	defer tm.Close()
 	// The TMX already has all target locales on each TU; a single import
 	// creates one multilingual entry per TU with every variant populated.
-	if _, _, err := sievepen.ImportTMXSession(tm, bytes.NewReader(tmxData),
+	if _, _, err := sievepen.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
 		sievepen.ImportTMXOptions{
 			OriginKey:     "tm-seed.tmx",
 			OriginAddedBy: "kapi-sample",
@@ -128,7 +129,7 @@ func seedTermbase(dbPath string) error {
 		return err
 	}
 	defer tb.Close()
-	if _, err := termbase.ImportJSON(tb, bytes.NewReader(tbData)); err != nil {
+	if _, err := termbase.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
 		return fmt.Errorf("import termbase: %w", err)
 	}
 	spreadTimestamps(tb.DB(), "tb_concepts", 30)
@@ -152,7 +153,7 @@ func seedTMv2(dbPath string) error {
 
 	// The TMX already has all target locales on each TU; a single import
 	// creates one multilingual entry per TU with every variant populated.
-	if _, _, err := sievepen.ImportTMXSession(tm, bytes.NewReader(tmxData),
+	if _, _, err := sievepen.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
 		sievepen.ImportTMXOptions{
 			OriginKey:     "tm-seed.tmx",
 			OriginAddedBy: "kapi-sample",
@@ -180,7 +181,7 @@ func seedTermbasev2(dbPath string) error {
 		return err
 	}
 	defer tb.Close()
-	if _, err := termbase.ImportJSON(tb, bytes.NewReader(tbData)); err != nil {
+	if _, err := termbase.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
 		return fmt.Errorf("import termbase: %w", err)
 	}
 	spreadTimestamps(tb.DB(), "tb_concepts", 90)
@@ -250,7 +251,7 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 				},
 			},
 		}
-		if err := tm.Add(entry); err != nil {
+		if err := tm.Add(context.Background(), entry); err != nil {
 			return fmt.Errorf("add enriched entry: %w", err)
 		}
 	}
@@ -307,16 +308,6 @@ func boldEntityRuns(before, bold, mid, entityType, entityValue, after string) []
 	runs = appendText(runs, mid)
 	runs = append(runs, model.Run{Ph: &model.PlaceholderRun{ID: "2", Type: "entity:" + entityType, Data: entityValue}})
 	return appendText(runs, after)
-}
-
-// Helper: plain text Run-sequence factory.
-func plain(text string) func() []model.Run {
-	return func() []model.Run {
-		if text == "" {
-			return nil
-		}
-		return []model.Run{{Text: &model.TextRun{Text: text}}}
-	}
 }
 
 // Helper: bold Run-sequence factory.

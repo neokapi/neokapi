@@ -52,7 +52,7 @@ type userFlowFile struct {
 }
 
 func userFlowsDir() string {
-	return filepath.Join(namedResourceDir("flows"))
+	return namedResourceDir("flows")
 }
 
 // ListUserFlows returns built-in + user-saved flows.

@@ -138,7 +138,7 @@ func TestFlowOperationsBadTab(t *testing.T) {
 	app := NewApp()
 	assert.Nil(t, app.ListFlows("bad"))
 	assert.Nil(t, app.GetFlow("bad", "x"))
-	assert.Error(t, app.SaveFlow("bad", "x", &flow.StepsSpec{}))
+	require.Error(t, app.SaveFlow("bad", "x", &flow.StepsSpec{}))
 	assert.Error(t, app.DeleteFlow("bad", "x"))
 }
 
@@ -189,7 +189,7 @@ func TestListProjectFormats_NoProject(t *testing.T) {
 	// No open project — should return all formats.
 	formats := app.ListProjectFormats("nonexistent")
 	assert.NotEmpty(t, formats)
-	assert.Equal(t, len(app.ListFormats()), len(formats))
+	assert.Len(t, formats, len(app.ListFormats()))
 }
 
 func TestListProjectTools_NoProject(t *testing.T) {
@@ -197,7 +197,7 @@ func TestListProjectTools_NoProject(t *testing.T) {
 	// No open project — should return all tools.
 	tools := app.ListProjectTools("nonexistent")
 	assert.NotEmpty(t, tools)
-	assert.Equal(t, len(app.ListTools()), len(tools))
+	assert.Len(t, tools, len(app.ListTools()))
 }
 
 func TestListFlows_ValidatesTools(t *testing.T) {

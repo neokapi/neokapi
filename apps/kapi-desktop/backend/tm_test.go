@@ -109,10 +109,10 @@ func TestTM_GetFacets_LocalesAndSessions(t *testing.T) {
 
 	// Seed a session and an entry tagged with it.
 	tm, _ := app.tmHandles.Get(handle)
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{
+	require.NoError(t, tm.CreateImportSession(t.Context(), sievepen.ImportSession{
 		ID: "s1", FileKey: "seed.tmx", ImportedAt: time.Now(),
 	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "hi"}}},
@@ -132,7 +132,7 @@ func TestTM_ListImportSessions(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestTM(t, app)
 	tm, _ := app.tmHandles.Get(handle)
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{
+	require.NoError(t, tm.CreateImportSession(t.Context(), sievepen.ImportSession{
 		ID: "s1", FileKey: "a.tmx", ImportedAt: time.Now(),
 	}))
 	sessions := app.ListTMImportSessions(handle)
@@ -150,10 +150,10 @@ func TestTM_DeleteImportSession_KeepsEntries(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestTM(t, app)
 	tm, _ := app.tmHandles.Get(handle)
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{
+	require.NoError(t, tm.CreateImportSession(t.Context(), sievepen.ImportSession{
 		ID: "s1", FileKey: "a.tmx", ImportedAt: time.Now(),
 	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "hi"}}},
@@ -165,7 +165,7 @@ func TestTM_DeleteImportSession_KeepsEntries(t *testing.T) {
 	got := app.GetTMEntry(handle, "e1")
 	require.NotNil(t, got)
 	require.Len(t, got.Origins, 1)
-	assert.Equal(t, "", got.Origins[0].SessionID)
+	assert.Empty(t, got.Origins[0].SessionID)
 }
 
 func TestTM_AnnotateEntities_ResolvesConceptID(t *testing.T) {
@@ -188,7 +188,7 @@ func TestTM_AnnotateEntities_ResolvesConceptID(t *testing.T) {
 	tbPath := filepath.Join(t.TempDir(), "tb.db")
 	tb, err := termbase.NewSQLiteTermBase(tbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
 		ID:     "concept-acme",
 		Domain: "brand",
 		Terms: []termbase.Term{
@@ -226,7 +226,7 @@ func TestTM_ResolveEntityConcepts(t *testing.T) {
 
 	// Add a TM entry with an entity that has no concept ID.
 	tm, _ := app.tmHandles.Get(tmHandle)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "hello"}}},
@@ -242,7 +242,7 @@ func TestTM_ResolveEntityConcepts(t *testing.T) {
 	tbPath := filepath.Join(t.TempDir(), "tb.db")
 	tb, err := termbase.NewSQLiteTermBase(tbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
 		ID: "concept-widget",
 		Terms: []termbase.Term{
 			{Text: "Widget", Locale: "en-US", Status: model.TermApproved},

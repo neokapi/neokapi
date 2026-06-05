@@ -52,7 +52,7 @@ func TestScaffoldKapiMart(t *testing.T) {
 
 	// Output directory should exist.
 	_, err = os.Stat(filepath.Join(dir, "output"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// TM should have 200+ entries. Under the multilingual model each TU
 	// becomes a single entry with N variants instead of N entries per TU,
@@ -60,13 +60,17 @@ func TestScaffoldKapiMart(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
 	require.NoError(t, err)
 	defer tm.Close()
-	assert.GreaterOrEqual(t, tm.Count(), 200, "TM should have at least 200 multilingual entries")
+	tmCount, err := tm.Count(t.Context())
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, tmCount, 200, "TM should have at least 200 multilingual entries")
 
 	// Termbase should have 100+ concepts.
 	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))
 	require.NoError(t, err)
 	defer tb.Close()
-	assert.GreaterOrEqual(t, tb.Count(), 100, "termbase should have at least 100 concepts")
+	tbCount, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, tbCount, 100, "termbase should have at least 100 concepts")
 }
 
 func TestScaffoldOkapiMart(t *testing.T) {
@@ -83,7 +87,7 @@ func TestScaffoldOkapiMart(t *testing.T) {
 
 func TestScaffoldUnknown(t *testing.T) {
 	err := Scaffold("unknown", t.TempDir())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown sample project")
 }
 
@@ -111,21 +115,25 @@ func assertOkapiMartProject(t *testing.T, dir string) {
 	}
 	for _, f := range expectedFiles {
 		_, err := os.Stat(filepath.Join(dir, "input", f))
-		assert.NoError(t, err, "missing input file: %s", f)
+		require.NoError(t, err, "missing input file: %s", f)
 	}
 
 	_, err = os.Stat(filepath.Join(dir, "output"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
 	require.NoError(t, err)
 	defer tm.Close()
-	assert.Greater(t, tm.Count(), 0, "TM should have entries")
+	tmCount, err := tm.Count(t.Context())
+	require.NoError(t, err)
+	assert.Greater(t, tmCount, 0, "TM should have entries")
 
 	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))
 	require.NoError(t, err)
 	defer tb.Close()
-	assert.Greater(t, tb.Count(), 0, "termbase should have concepts")
+	tbCount, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Greater(t, tbCount, 0, "termbase should have concepts")
 }
 
 func assertDirCount(t *testing.T, dir string, expectedCount int) {

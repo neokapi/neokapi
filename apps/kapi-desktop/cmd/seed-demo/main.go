@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -158,7 +159,7 @@ func seedTermbase(path string) {
 		// updated_at stays near-now (small offsets) to drive display order.
 		c.CreatedAt = hoursAgo(i*42 + 18)
 		c.UpdatedAt = hoursAgo(i * 3) // i=0 newest → first
-		must(tb.AddConcept(c))
+		must(tb.AddConcept(context.Background(), c))
 	}
 }
 
@@ -180,7 +181,7 @@ func seedSecondaryTermbase(path string) {
 		c.Source = termbase.TermSourceTerminology
 		c.CreatedAt = hoursAgo(72)
 		c.UpdatedAt = hoursAgo(48)
-		must(tb.AddConcept(c))
+		must(tb.AddConcept(context.Background(), c))
 	}
 }
 
@@ -225,7 +226,7 @@ func seedTM(path string) {
 		},
 	}
 	for i, v := range variants {
-		must(tm.Add(sievepen.TMEntry{
+		must(tm.Add(context.Background(), sievepen.TMEntry{
 			ID:          fmt.Sprintf("tm-%02d", i+1),
 			Variants:    v,
 			HintSrcLang: "en-US",
@@ -241,7 +242,7 @@ func seedSecondaryTM(path string) {
 	_ = os.Remove(path)
 	tm, err := sievepen.NewSQLiteTM(path)
 	must(err)
-	must(tm.Add(sievepen.TMEntry{
+	must(tm.Add(context.Background(), sievepen.TMEntry{
 		ID:          "g-01",
 		Variants:    map[model.LocaleID][]model.Run{"en-US": {text("Save changes")}, "fr-FR": {text("Enregistrer les modifications")}},
 		HintSrcLang: "en-US",

@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -78,10 +79,10 @@ func (a *App) DetectFormat(path string) string {
 // ValidateContentPath checks if a content path pattern is safe (no .., no absolute).
 func (a *App) ValidateContentPath(path string) error {
 	if strings.Contains(path, "..") {
-		return fmt.Errorf("path must not contain '..' — all paths are relative to the project directory")
+		return errors.New("path must not contain '..' — all paths are relative to the project directory")
 	}
 	if filepath.IsAbs(path) {
-		return fmt.Errorf("path must be relative to the project directory")
+		return errors.New("path must be relative to the project directory")
 	}
 	return nil
 }
@@ -192,7 +193,7 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 	}
 	basePath := a.GetBasePath(tabID)
 	if basePath == "" {
-		return fmt.Errorf("project has no base path")
+		return errors.New("project has no base path")
 	}
 	switch template {
 	case "input-output":
@@ -225,11 +226,11 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 func (a *App) CopyFileToProject(tabID, srcPath, destDir string) (string, error) {
 	basePath := a.GetBasePath(tabID)
 	if basePath == "" {
-		return "", fmt.Errorf("project has no base path")
+		return "", errors.New("project has no base path")
 	}
 	// Safety: reject destDir with ..
 	if strings.Contains(destDir, "..") {
-		return "", fmt.Errorf("destination must not contain '..'")
+		return "", errors.New("destination must not contain '..'")
 	}
 	targetDir := basePath
 	if destDir != "" {

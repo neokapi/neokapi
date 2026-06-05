@@ -112,7 +112,7 @@ func TestValidateContentPath(t *testing.T) {
 	app := NewApp()
 	assert.NoError(t, app.ValidateContentPath("locales/*.json"))
 	assert.NoError(t, app.ValidateContentPath("src/i18n/en.json"))
-	assert.Error(t, app.ValidateContentPath("../secret"))
+	require.Error(t, app.ValidateContentPath("../secret"))
 
 	// Absolute paths are rejected. Use /etc/passwd on Unix and C:\etc on Windows.
 	if filepath.Separator == '/' {
@@ -222,9 +222,9 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 
 	// Directories should exist.
 	_, err := os.Stat(filepath.Join(dir, "input"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(dir, "output"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Content pattern should be set.
 	proj := app.GetProject(tab.ID)

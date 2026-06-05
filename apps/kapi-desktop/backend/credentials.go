@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/cli/credentials"
@@ -41,7 +42,7 @@ func (a *App) ListProviders() []ProviderInfo {
 // SaveProvider saves a provider config and optionally stores the API key in the OS keychain.
 func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 	if a.credentials == nil {
-		return nil, fmt.Errorf("credential store not initialized")
+		return nil, errors.New("credential store not initialized")
 	}
 
 	cfg, err := a.credentials.Upsert(credentials.ProviderConfig{
@@ -68,7 +69,7 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 // DeleteProvider removes a provider config and its API key.
 func (a *App) DeleteProvider(id string) error {
 	if a.credentials == nil {
-		return fmt.Errorf("credential store not initialized")
+		return errors.New("credential store not initialized")
 	}
 	_ = a.credentials.DeleteAPIKey(id) // ignore keychain errors
 	return a.credentials.Remove(id)
@@ -77,7 +78,7 @@ func (a *App) DeleteProvider(id string) error {
 // TestProvider verifies that a provider's API key is accessible from the keychain.
 func (a *App) TestProvider(id string) (bool, error) {
 	if a.credentials == nil {
-		return false, fmt.Errorf("credential store not initialized")
+		return false, errors.New("credential store not initialized")
 	}
 	_, err := a.credentials.Get(id)
 	if err != nil {

@@ -91,7 +91,7 @@ func TestTermbase_BatchDelete(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestTermbase(t, app)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		require.NoError(t, app.AddConcept(handle, AddConceptRequest{
 			Domain: "Domain " + string(rune('A'+i)),
 			Terms: []TermDTO{
@@ -103,7 +103,7 @@ func TestTermbase_BatchDelete(t *testing.T) {
 
 	result := app.SearchTerms(handle, "", "", "", 0, 50)
 	ids := make([]string, 0, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ids = append(ids, result.Concepts[i].ID)
 	}
 

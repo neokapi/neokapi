@@ -3,6 +3,7 @@ package backend
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -202,10 +203,10 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 		return fmt.Errorf("tab %q not found", tabID)
 	}
 	if blockID == "" {
-		return fmt.Errorf("a block id is required to apply a fix")
+		return errors.New("a block id is required to apply a fix")
 	}
 	if original == "" || replacement == "" {
-		return fmt.Errorf("both the original text and its replacement are required")
+		return errors.New("both the original text and its replacement are required")
 	}
 	if field != "source" && field != "target" {
 		return fmt.Errorf("field must be %q or %q, got %q", "source", "target", field)
@@ -560,7 +561,11 @@ func (a *App) resolveProjectDNTTerms(op *openProject, sourceLang string) []strin
 	srcLoc := model.LocaleID(sourceLang)
 	seen := make(map[string]bool)
 	var terms []string
-	for _, c := range tb.Concepts() {
+	concepts, err := tb.Concepts(context.Background())
+	if err != nil {
+		return nil
+	}
+	for _, c := range concepts {
 		if !dntConcept(c.Properties) {
 			continue
 		}

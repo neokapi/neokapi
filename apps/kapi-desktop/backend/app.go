@@ -7,11 +7,13 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -227,7 +229,7 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 	// Default save location: ~/KapiProjects/{name}/project.kapi
 	if savePath == "" {
 		if name == "" {
-			return nil, fmt.Errorf("project name or save path is required")
+			return nil, errors.New("project name or save path is required")
 		}
 		home, err := userHomeDir()
 		if err != nil {
@@ -418,7 +420,7 @@ func (a *App) SaveProject(tabID string) error {
 		return fmt.Errorf("tab %q not found", tabID)
 	}
 	if op.Path == "" {
-		return fmt.Errorf("project has no file path (use SaveProjectAs)")
+		return errors.New("project has no file path (use SaveProjectAs)")
 	}
 	return project.Save(op.Path, op.Project)
 }
@@ -653,16 +655,16 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 		name := string(info.Name)
 		scope := "tools." + name
 		infos[i] = ToolInfo{
-			Name:          name,
-			DisplayName:   t.T(i18n.Scope(scope+".displayName"), info.DisplayName),
-			Description:   t.T(i18n.Scope(scope+".description"), info.Description),
-			Category:      info.Category,
-			Source:        info.Source,
-			HasSchema:     info.HasSchema,
-			Inputs:        info.Inputs,
-			Outputs:       info.Outputs,
-			Tags:          info.Tags,
-			Requires:      info.Requires,
+			Name:              name,
+			DisplayName:       t.T(i18n.Scope(scope+".displayName"), info.DisplayName),
+			Description:       t.T(i18n.Scope(scope+".description"), info.Description),
+			Category:          info.Category,
+			Source:            info.Source,
+			HasSchema:         info.HasSchema,
+			Inputs:            info.Inputs,
+			Outputs:           info.Outputs,
+			Tags:              info.Tags,
+			Requires:          info.Requires,
 			Cardinality:       string(info.Cardinality),
 			DefaultLocale:     string(info.DefaultLocale),
 			Produces:          produces,
@@ -1051,7 +1053,7 @@ func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 // SaveFormatPreset saves a user format preset to ~/.config/kapi/format-presets/{format}/{name}.json.
 func (a *App) SaveFormatPreset(formatName, presetName string, config map[string]any) error {
 	if formatName == "" || presetName == "" {
-		return fmt.Errorf("format name and preset name are required")
+		return errors.New("format name and preset name are required")
 	}
 	dir := a.userPresetDir(formatName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -1068,7 +1070,7 @@ func (a *App) SaveFormatPreset(formatName, presetName string, config map[string]
 // DeleteFormatPreset deletes a user format preset.
 func (a *App) DeleteFormatPreset(formatName, presetName string) error {
 	if formatName == "" || presetName == "" {
-		return fmt.Errorf("format name and preset name are required")
+		return errors.New("format name and preset name are required")
 	}
 	path := filepath.Join(a.userPresetDir(formatName), presetName+".json")
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
@@ -1184,10 +1186,10 @@ type FormatPartInfo struct {
 // RunFormatReader runs a format reader on a file and returns the parts.
 func (a *App) RunFormatReader(formatName string, filePath string, config map[string]any) ([]FormatPartInfo, error) {
 	if formatName == "" {
-		return nil, fmt.Errorf("format name is required")
+		return nil, errors.New("format name is required")
 	}
 	if filePath == "" {
-		return nil, fmt.Errorf("file path is required")
+		return nil, errors.New("file path is required")
 	}
 
 	reader, err := a.formatReg.NewReader(registry.FormatID(formatName))
@@ -1239,7 +1241,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 // RunFormatReaderDialog shows a file dialog then runs the reader.
 func (a *App) RunFormatReaderDialog(formatName string, config map[string]any) ([]FormatPartInfo, error) {
 	if a.app == nil {
-		return nil, fmt.Errorf("no application context")
+		return nil, errors.New("no application context")
 	}
 
 	path, err := a.app.Dialog.OpenFile().
@@ -1274,7 +1276,7 @@ func partToInfo(p *model.Part) FormatPartInfo {
 		}
 	case model.PartLayerStart:
 		if l, ok := p.Resource.(*model.Layer); ok {
-			info.Summary = fmt.Sprintf("Layer: %s", l.ResourceID())
+			info.Summary = "Layer: " + l.ResourceID()
 			info.Properties = map[string]string{
 				"name": l.Name,
 			}
@@ -1307,7 +1309,7 @@ func blockSourceText(b *model.Block) string {
 func blockProperties(b *model.Block) map[string]string {
 	props := make(map[string]string)
 	if n := countInlineCodeRuns(b.Source); n > 0 {
-		props["inline_codes"] = fmt.Sprintf("%d", n)
+		props["inline_codes"] = strconv.Itoa(n)
 	}
 	for _, loc := range b.TargetLocales() {
 		props["target_"+string(loc)] = "present"

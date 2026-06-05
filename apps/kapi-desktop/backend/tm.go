@@ -2,6 +2,7 @@ package backend
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -342,27 +343,6 @@ func entitiesToDTO(in []sievepen.EntityMapping) []EntityMappingDTO {
 	return out
 }
 
-// entitiesFromDTO converts request entities to the stored shape.
-func entitiesFromDTO(in []EntityMappingDTO) []sievepen.EntityMapping {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make([]sievepen.EntityMapping, 0, len(in))
-	for _, em := range in {
-		values := make(map[model.LocaleID]sievepen.EntityValue, len(em.Values))
-		for loc, v := range em.Values {
-			values[model.LocaleID(loc)] = sievepen.EntityValue{Text: v.Text, Start: v.Start, End: v.End}
-		}
-		out = append(out, sievepen.EntityMapping{
-			PlaceholderID: em.PlaceholderID,
-			Type:          model.EntityType(em.Type),
-			Values:        values,
-			ConceptID:     em.ConceptID,
-		})
-	}
-	return out
-}
-
 func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 	variants := make(map[string]VariantDTO, len(entry.Variants))
 	for loc, runs := range entry.Variants {
@@ -495,7 +475,11 @@ func (a *App) GetTMStats(handle string) *TMStats {
 	if !ok {
 		return nil
 	}
-	return &TMStats{Count: tm.Count()}
+	count, err := tm.Count(context.Background())
+	if err != nil {
+		return nil
+	}
+	return &TMStats{Count: count}
 }
 
 // GetTMActivityStats returns daily entry counts over time.
@@ -504,7 +488,11 @@ func (a *App) GetTMActivityStats(handle string) []sievepen.ActivityStat {
 	if !ok {
 		return nil
 	}
-	return tm.ActivityStats()
+	stats, err := tm.ActivityStats(context.Background())
+	if err != nil {
+		return nil
+	}
+	return stats
 }
 
 // GetTMLocaleStats returns per-locale entry counts. The legacy API name is
@@ -515,7 +503,11 @@ func (a *App) GetTMLocaleStats(handle string) []sievepen.LocaleFacet {
 	if !ok {
 		return nil
 	}
-	return tm.LocaleStats()
+	stats, err := tm.LocaleStats(context.Background())
+	if err != nil {
+		return nil
+	}
+	return stats
 }
 
 // --- CRUD ---
@@ -528,7 +520,16 @@ func (a *App) SearchTMEntries(handle, query, anyLocale, requireLocale string, of
 	if !ok {
 		return &TMSearchResult{}
 	}
-	entries, total := tm.SearchEntries(query, anyLocale, requireLocale, offset, limit)
+	entries, total, err := tm.SearchEntries(context.Background(), sievepen.SearchParams{
+		Query:         query,
+		AnyLocale:     anyLocale,
+		RequireLocale: requireLocale,
+		Offset:        offset,
+		Limit:         limit,
+	})
+	if err != nil {
+		return &TMSearchResult{}
+	}
 	dtos := make([]TMEntryDTO, 0, len(entries))
 	for _, e := range entries {
 		dtos = append(dtos, tmEntryToDTO(e))
@@ -542,7 +543,17 @@ func (a *App) SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale st
 	if !ok {
 		return &TMSearchResult{}
 	}
-	entries, total := tm.SearchEntriesFiltered(query, anyLocale, requireLocale, toSearchFilter(filter), offset, limit)
+	entries, total, err := tm.SearchEntriesFiltered(context.Background(), sievepen.SearchParams{
+		Query:         query,
+		AnyLocale:     anyLocale,
+		RequireLocale: requireLocale,
+		Filter:        toSearchFilter(filter),
+		Offset:        offset,
+		Limit:         limit,
+	})
+	if err != nil {
+		return &TMSearchResult{}
+	}
 	dtos := make([]TMEntryDTO, 0, len(entries))
 	for _, e := range entries {
 		dtos = append(dtos, tmEntryToDTO(e))
@@ -556,8 +567,8 @@ func (a *App) GetTMEntry(handle, entryID string) *TMEntryDTO {
 	if !ok {
 		return nil
 	}
-	entry, found := tm.GetEntry(entryID)
-	if !found {
+	entry, found, err := tm.GetEntry(context.Background(), entryID)
+	if err != nil || !found {
 		return nil
 	}
 	dto := tmEntryToDTO(entry)
@@ -581,7 +592,7 @@ func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	return tm.Add(entry)
+	return tm.Add(context.Background(), entry)
 }
 
 // UpdateTMEntry updates an existing multilingual TM entry.
@@ -590,7 +601,10 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 	if !ok {
 		return fmt.Errorf("TM handle %q not found", handle)
 	}
-	existing, found := tm.GetEntry(req.EntryID)
+	existing, found, err := tm.GetEntry(context.Background(), req.EntryID)
+	if err != nil {
+		return err
+	}
 	if !found {
 		return fmt.Errorf("entry %q not found", req.EntryID)
 	}
@@ -606,7 +620,7 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 		existing.Origins = originsFromDTO(req.Origins)
 	}
 	existing.UpdatedAt = time.Now()
-	return tm.Add(existing)
+	return tm.Add(context.Background(), existing)
 }
 
 // DeleteTMEntry deletes a single TM entry.
@@ -615,7 +629,7 @@ func (a *App) DeleteTMEntry(handle, entryID string) error {
 	if !ok {
 		return fmt.Errorf("TM handle %q not found", handle)
 	}
-	return tm.Delete(entryID)
+	return tm.Delete(context.Background(), entryID)
 }
 
 // DeleteTMEntries deletes multiple TM entries.
@@ -625,7 +639,7 @@ func (a *App) DeleteTMEntries(handle string, entryIDs []string) error {
 		return fmt.Errorf("TM handle %q not found", handle)
 	}
 	for _, eid := range entryIDs {
-		if err := tm.Delete(eid); err != nil {
+		if err := tm.Delete(context.Background(), eid); err != nil {
 			return err
 		}
 	}
@@ -668,7 +682,7 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		opts.MaxResults = 10
 	}
 
-	matches, err := tm.Lookup(block, model.LocaleID(req.SourceLocale), model.LocaleID(req.TargetLocale), opts)
+	matches, err := tm.Lookup(context.Background(), block, model.LocaleID(req.SourceLocale), model.LocaleID(req.TargetLocale), opts)
 	if err != nil {
 		a.logger.Printf("TM lookup error: %v", err)
 		return nil
@@ -772,7 +786,7 @@ func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	}
 	defer f.Close()
 
-	sid, count, err := sievepen.ImportTMXSession(tm, f, sievepen.ImportTMXOptions{
+	sid, count, err := sievepen.ImportTMXSession(context.Background(), tm, f, sievepen.ImportTMXOptions{
 		OriginKey:     filepath.Base(path),
 		OriginAddedBy: "tmx-import",
 	})
@@ -817,7 +831,7 @@ func (a *App) ExportTMXDialog(handle string, locales []string) error {
 	for _, l := range locales {
 		localeIDs = append(localeIDs, model.LocaleID(l))
 	}
-	return sievepen.ExportTMX(tm, f, localeIDs)
+	return sievepen.ExportTMX(context.Background(), tm, f, localeIDs)
 }
 
 // --- Facets ---
@@ -831,7 +845,15 @@ func (a *App) GetTMFacetsFiltered(handle, query, anyLocale, requireLocale string
 	if !ok {
 		return nil
 	}
-	data := tm.FacetStatsFiltered(query, anyLocale, requireLocale, toSearchFilter(filter))
+	data, err := tm.FacetStatsFiltered(context.Background(), sievepen.SearchParams{
+		Query:         query,
+		AnyLocale:     anyLocale,
+		RequireLocale: requireLocale,
+		Filter:        toSearchFilter(filter),
+	})
+	if err != nil {
+		return nil
+	}
 	return buildTMFacetsDTO(data)
 }
 
@@ -883,7 +905,10 @@ func (a *App) ListTMImportSessions(handle string) []ImportSessionDTO {
 	if !ok {
 		return nil
 	}
-	sessions := tm.ListImportSessions()
+	sessions, err := tm.ListImportSessions(context.Background())
+	if err != nil {
+		return nil
+	}
 	out := make([]ImportSessionDTO, 0, len(sessions))
 	for _, s := range sessions {
 		out = append(out, importSessionToDTO(s))
@@ -897,8 +922,8 @@ func (a *App) GetTMImportSession(handle, sessionID string) *ImportSessionDTO {
 	if !ok {
 		return nil
 	}
-	s, found := tm.GetImportSession(sessionID)
-	if !found {
+	s, found, err := tm.GetImportSession(context.Background(), sessionID)
+	if err != nil || !found {
 		return nil
 	}
 	dto := importSessionToDTO(s)
@@ -912,7 +937,7 @@ func (a *App) DeleteTMImportSession(handle, sessionID string) error {
 	if !ok {
 		return fmt.Errorf("TM handle %q not found", handle)
 	}
-	return tm.DeleteImportSession(sessionID)
+	return tm.DeleteImportSession(context.Background(), sessionID)
 }
 
 func importSessionToDTO(s sievepen.ImportSession) ImportSessionDTO {
@@ -961,8 +986,8 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 	var entriesUpdated, entitiesAdded int
 
 	for _, eid := range req.EntryIDs {
-		entry, found := tm.GetEntry(eid)
-		if !found {
+		entry, found, err := tm.GetEntry(context.Background(), eid)
+		if err != nil || !found {
 			continue
 		}
 
@@ -989,7 +1014,7 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 			resolveConceptIDs(entry.Entities, tb)
 		}
 		entry.UpdatedAt = time.Now()
-		if err := tm.Add(entry); err != nil {
+		if err := tm.Add(context.Background(), entry); err != nil {
 			return nil, fmt.Errorf("update entry %q: %w", eid, err)
 		}
 		entriesUpdated++
@@ -1017,8 +1042,8 @@ func (a *App) ResolveEntityConcepts(tmHandle, tbHandle string, entryIDs []string
 
 	updated := 0
 	for _, eid := range entryIDs {
-		entry, found := tm.GetEntry(eid)
-		if !found || len(entry.Entities) == 0 {
+		entry, found, err := tm.GetEntry(context.Background(), eid)
+		if err != nil || !found || len(entry.Entities) == 0 {
 			continue
 		}
 		changed := false
@@ -1036,7 +1061,7 @@ func (a *App) ResolveEntityConcepts(tmHandle, tbHandle string, entryIDs []string
 			continue
 		}
 		entry.UpdatedAt = time.Now()
-		if err := tm.Add(entry); err != nil {
+		if err := tm.Add(context.Background(), entry); err != nil {
 			return updated, fmt.Errorf("update entry %q: %w", eid, err)
 		}
 		updated++
@@ -1183,13 +1208,13 @@ func resolveOneConceptID(em *sievepen.EntityMapping, tb *termbase.SQLiteTermBase
 		if val.Text == "" {
 			continue
 		}
-		matches := tb.Lookup(val.Text, termbase.LookupOptions{
+		matches, err := tb.Lookup(context.Background(), val.Text, termbase.LookupOptions{
 			SourceLocale:  loc,
 			CaseSensitive: false,
 			MinScore:      1.0, // exact or normalized match only
 			MatchModes:    []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized},
 		})
-		if len(matches) > 0 {
+		if err == nil && len(matches) > 0 {
 			em.ConceptID = matches[0].Concept.ID
 			return
 		}
