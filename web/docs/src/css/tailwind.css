@@ -139,4 +139,17 @@
   .kapi-reference [type="reset"] {
     cursor: pointer;
   }
+
+  /*
+   * Tailwind preflight is disabled here (it would clobber Infima), so bare
+   * <button> elements keep the user-agent button background/border. Restore the
+   * preflight reset, scoped to .kapi-reference, so unstyled buttons (e.g. the
+   * lab's tree toggles and collapsible triggers) are transparent. shadcn Button
+   * variants re-apply their own background/border via utilities, which win.
+   */
+  .kapi-reference button {
+    background-color: transparent;
+    background-image: none;
+    border: 0 solid;
+  }
 }
