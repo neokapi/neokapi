@@ -136,7 +136,14 @@ else
   # order the single-pass GNU linker requires.
   CGO_LDFLAGS_VAL="-L${TOKENIZERS_LIB}"
   if [ "$GOOS" = "windows" ]; then
-    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -lntdll"
+    # Statically link the C/C++/unwind runtimes so kapi-sat.exe is self-contained.
+    # Without -static it dynamically links the toolchain runtime DLLs (mingw
+    # libstdc++/libgcc/libwinpthread on amd64; CLANGARM64 libc++/libunwind/
+    # libwinpthread on arm64), none of which exist on a clean Windows box — so the
+    # OS loader fails the process before main() runs (no stdout/stderr, exit
+    # 0xC0000135). -static works for both the gcc and clang mingw toolchains and
+    # matches what the kapi CLI/desktop windows builds do.
+    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -static -lntdll"
   fi
   echo "package-sat-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH} (-tags onnx)"
   (
