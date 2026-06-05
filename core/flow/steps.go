@@ -17,6 +17,18 @@ type FlowStep struct {
 // StepsSpec is the steps-based flow format that humans author.
 // It compiles to a FlowDefinition (nodes + edges) for execution.
 type StepsSpec struct {
+	// Source and Sink declare the flow's I/O bindings (AD-026). They hold a
+	// binding locator — a scheme such as "store" or "none", optionally with a
+	// path. A flow sets these only when a binding is intrinsic to what it is
+	// (e.g. Sink "none" for an analysis flow); otherwise the binding is supplied
+	// at invocation (the -i/-o flags, the project, or auto-detection). The flow
+	// never names a concrete file path here — locations come from the run.
+	Source string `json:"source,omitempty" yaml:"source,omitempty"`
+	Sink   string `json:"sink,omitempty" yaml:"sink,omitempty"`
+
+	// Input and Output name the reader/writer formats for the file binding. They
+	// are the format-hint shorthand for `source`/`sink` over a file; an explicit
+	// Source/Sink takes precedence.
 	Input  string `json:"input,omitempty" yaml:"input,omitempty"`
 	Output string `json:"output,omitempty" yaml:"output,omitempty"`
 	// SourceTransforms is the leading source-transform stage: tools that settle
@@ -24,6 +36,24 @@ type StepsSpec struct {
 	// main steps run. Each must be a source-transform-capable tool. See AD-006.
 	SourceTransforms []FlowStep `json:"sourceTransforms,omitempty" yaml:"source_transforms,omitempty"`
 	Steps            []FlowStep `json:"steps" yaml:"steps"`
+}
+
+// SourceLocator returns the flow's declared source binding and true when the
+// flow names one; false means the source is supplied at invocation.
+func (s *StepsSpec) SourceLocator() (Locator, bool) {
+	if s.Source == "" {
+		return Locator{}, false
+	}
+	return ParseLocator(s.Source), true
+}
+
+// SinkLocator returns the flow's declared sink binding and true when the flow
+// names one; false means the sink is supplied at invocation.
+func (s *StepsSpec) SinkLocator() (Locator, bool) {
+	if s.Sink == "" {
+		return Locator{}, false
+	}
+	return ParseLocator(s.Sink), true
 }
 
 // StepsToGraph compiles a steps-based spec into FlowDefinition nodes and edges.
