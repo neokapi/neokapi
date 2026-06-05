@@ -153,6 +153,66 @@ export interface SegmentSpan {
   end: number;
 }
 
+// ── Rich block detail (mirrors the extended anatomy serializer) ──────────────
+// These optional fields let the Block inspector show everything the content
+// model carries — committed-target provenance, stand-off overlays and
+// block-level annotations — not just the run sequences. They are omitted by
+// older engine builds, so every consumer treats them as optional.
+
+/** Provenance of a committed translation (mirrors model.Origin). */
+export interface Origin {
+  kind?: string; // human | tm | mt | ai
+  engine?: string;
+  tool?: string;
+  reference?: string;
+  timestamp?: string;
+}
+
+/** Lifecycle + provenance metadata for one target variant. */
+export interface TargetMeta {
+  status?: string; // "" | draft | translated | reviewed | signed-off
+  score?: number;
+  origin?: Origin;
+  tone?: string;
+  channel?: string;
+}
+
+export interface RunRange {
+  startRun: number;
+  startOffset: number;
+  endRun: number;
+  endOffset: number;
+}
+
+/** One run-anchored span within an overlay, with its extracted text. */
+export interface OverlaySpan {
+  id?: string;
+  range: RunRange;
+  props?: Record<string, string>;
+  /** The source/target text the span covers (extracted by the engine). */
+  text?: string;
+  ignorable?: boolean;
+}
+
+export type OverlayType = "segmentation" | "term" | "entity" | "qa" | "alignment";
+
+/** A typed stand-off interpretation layered over one side of a block. */
+export interface OverlayView {
+  type: OverlayType;
+  /** "source" or the target variant key (e.g. "fr-FR"). */
+  side: string;
+  layer?: string;
+  spans: OverlaySpan[];
+}
+
+/** A block-level annotation (alt-translation, note, or generic). */
+export interface AnnotationView {
+  key: string;
+  type: string; // alt-translation | note | <generic kind>
+  summary?: string;
+  fields?: Record<string, unknown>;
+}
+
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
 
 export interface ContentNode {
@@ -165,11 +225,23 @@ export interface ContentNode {
   locale?: string;
   parentId?: string;
   // block
+  type?: string;
   translatable?: boolean;
+  sourceLocale?: string;
   source?: Run[];
   targets?: Record<string, Run[]>;
+  /** Per-variant lifecycle + provenance, keyed like `targets`. */
+  targetMeta?: Record<string, TargetMeta>;
   segments?: SegmentSpan[];
+  /** Stand-off overlays (terms, entities, QA, alignment, extra segmentation). */
+  overlays?: OverlayView[];
+  /** Block-level annotations. */
+  annotations?: AnnotationView[];
   hasSkeleton?: boolean;
+  isReferent?: boolean;
+  preserveWhitespace?: boolean;
+  /** Content-addressable identity hash, when present. */
+  identity?: string;
   // data / media
   mimeType?: string;
   summary?: string;

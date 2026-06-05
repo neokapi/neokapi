@@ -17,11 +17,11 @@ interface StepControlsProps {
 const SPEEDS = [1, 2, 4, 8];
 
 const LEGEND_ITEMS = [
-  { label: "Block", color: "#3b82f6" },
-  { label: "Layer", color: "#22c55e" },
-  { label: "Group", color: "#a855f7" },
-  { label: "Data", color: "#94a3b8" },
-  { label: "Media", color: "#f59e0b" },
+  { label: "Block", cls: "bg-blue-500" },
+  { label: "Layer", cls: "bg-emerald-500" },
+  { label: "Group", cls: "bg-violet-500" },
+  { label: "Data", cls: "bg-slate-400" },
+  { label: "Media", cls: "bg-amber-500" },
 ];
 
 export default function StepControls({
@@ -102,7 +102,7 @@ export default function StepControls({
       <div className={styles.legend}>
         {LEGEND_ITEMS.map((item) => (
           <span key={item.label} className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ backgroundColor: item.color }} />
+            <span className={`inline-block size-2.5 rounded-full ${item.cls}`} />
             {item.label}
           </span>
         ))}

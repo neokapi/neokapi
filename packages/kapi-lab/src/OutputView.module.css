@@ -1,0 +1,21 @@
+/* One-shot "this file was just written" flash for the output viewer header.
+   The only thing here is the keyframe — there is no primitive for a transient
+   write pulse, and it is central to seeing what a run produced. */
+.writePulse {
+  animation: writePulse 1.5s ease-out 1;
+}
+
+@keyframes writePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning, #f59e0b) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writePulse {
+    animation: none;
+  }
+}

@@ -1,0 +1,91 @@
+/* Syntax token palette + change accent for CodeView. Everything else (border,
+   background, gutter) is handled by Tailwind design tokens on the component, so
+   this file only carries what there is no primitive for: the per-token colours
+   and the one-shot "this line changed" wash. Dark overrides cover both the
+   Storybook (.dark) and Docusaurus ([data-theme="dark"]) theme switches. */
+.code {
+  --tok-key: #1d4ed8;
+  --tok-string: #0f766e;
+  --tok-number: #b45309;
+  --tok-keyword: #7c3aed;
+  --tok-tag: #1d4ed8;
+  --tok-attr: #9333ea;
+  --tok-comment: #6b7280;
+  --tok-section: #be185d;
+  --tok-heading: #1d4ed8;
+  --change-accent: #f59e0b;
+}
+
+:global(.dark) .code,
+:global([data-theme="dark"]) .code {
+  --tok-key: #7dd3fc;
+  --tok-string: #6ee7b7;
+  --tok-number: #fcd34d;
+  --tok-keyword: #c4b5fd;
+  --tok-tag: #7dd3fc;
+  --tok-attr: #f0abfc;
+  --tok-comment: #8b94a3;
+  --tok-section: #f9a8d4;
+  --tok-heading: #7dd3fc;
+}
+
+.changed {
+  background: color-mix(in srgb, var(--change-accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--change-accent);
+  animation: changeWash 1.4s ease-out 1;
+}
+
+@keyframes changeWash {
+  0% {
+    background: color-mix(in srgb, var(--change-accent) 38%, transparent);
+  }
+  100% {
+    background: color-mix(in srgb, var(--change-accent) 12%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .changed {
+    animation: none;
+  }
+}
+
+.t_key {
+  color: var(--tok-key);
+}
+.t_string {
+  color: var(--tok-string);
+}
+.t_number {
+  color: var(--tok-number);
+}
+.t_boolean,
+.t_null {
+  color: var(--tok-keyword);
+  font-weight: 600;
+}
+.t_tag {
+  color: var(--tok-tag);
+}
+.t_attr {
+  color: var(--tok-attr);
+}
+.t_comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+.t_punct {
+  color: inherit;
+  opacity: 0.7;
+}
+.t_section {
+  color: var(--tok-section);
+  font-weight: 600;
+}
+.t_heading {
+  color: var(--tok-heading);
+  font-weight: 700;
+}
+.t_meta {
+  color: var(--tok-comment);
+}

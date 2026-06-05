@@ -1,7 +1,7 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
-import { AnatomyExplorer, PipelineExplorer } from "@site/src/components/Lab";
+import { AnatomyExplorer, BatchExplorer, PipelineExplorer } from "@site/src/components/Lab";
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
@@ -156,6 +156,24 @@ export default function LabPage(): React.ReactElement {
           }
         >
           <ScriptLab defaultSampleId="messages-json" />
+        </Section>
+
+        <Section
+          step="08 · Files & output"
+          title="Run a tool across a selection, inspect what it wrote"
+          intro={
+            <>
+              Pick one file, several, or a glob like <code>*.json</code> across the
+              samples and anything you upload, then run a tool over the whole
+              selection. Each output is shown three ways — the content-model{" "}
+              <strong>Blocks</strong> (with targets, overlays and annotations),
+              the <strong>Structure</strong>, and the syntax-highlighted{" "}
+              <strong>Native</strong> bytes — downloadable, with the changed
+              blocks and lines highlighted.
+            </>
+          }
+        >
+          <BatchExplorer defaultPattern="*.json" />
         </Section>
       </main>
     </Layout>

@@ -25,6 +25,11 @@
 @source "../pages/formats";
 @source "../pages/tools";
 @source "../components/reference";
+/* The interactive lab explorers (@neokapi/kapi-lab) render shadcn primitives
+ * inside `.kapi-reference` scopes, so scan their source + the docs adapters. */
+@source "../../../../packages/kapi-lab/src";
+@source "../components/Lab";
+@source "../pages/lab";
 
 /* Map the ui-primitives `dark:` variant onto Docusaurus's data-theme switch. */
 @custom-variant dark (&:is([data-theme="dark"] *));
@@ -133,5 +138,32 @@
   .kapi-reference [type="submit"],
   .kapi-reference [type="reset"] {
     cursor: pointer;
+  }
+
+  /*
+   * Tailwind preflight is disabled here (it would clobber Infima), so bare
+   * <button> elements keep the user-agent button background/border. Restore the
+   * preflight reset, scoped to .kapi-reference, so unstyled buttons (e.g. the
+   * lab's tree toggles and collapsible triggers) are transparent. shadcn Button
+   * variants re-apply their own background/border via utilities, which win.
+   */
+  .kapi-reference button {
+    background-color: transparent;
+    background-image: none;
+    border: 0 solid;
+  }
+
+  /*
+   * shadcn's base layer normally sets `* { border-color: var(--border) }`, but
+   * we don't import shadcn/tailwind.css here. Without it, the bare `border`
+   * utility falls back to currentColor (the dark foreground), so panels render
+   * with harsh black borders instead of the subtle --border token (the way
+   * kapi-desktop shows them). Restore it, scoped to .kapi-reference; explicit
+   * border-* utilities still win via the utilities layer.
+   */
+  .kapi-reference *,
+  .kapi-reference *::before,
+  .kapi-reference *::after {
+    border-color: var(--border);
   }
 }
