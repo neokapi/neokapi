@@ -153,7 +153,7 @@ export default function OutputView({
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
         <FileIcon filename={name} size={16} />
         <span className="font-mono text-sm">{name}</span>
-        <Badge variant="outline" style={{ color: ft.color }}>
+        <Badge variant="outline" className={cn("border-current/35", ft.colorClass)}>
           {ft.label}
         </Badge>
         {bytes && (

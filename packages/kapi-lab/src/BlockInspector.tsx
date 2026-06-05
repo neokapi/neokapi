@@ -28,12 +28,12 @@ const STATUS_TONE: Record<string, string> = {
   "signed-off": "text-emerald-600 dark:text-emerald-400",
 };
 
-const OVERLAY_TONE: Record<string, string> = {
-  segmentation: "#64748b",
-  term: "#0f766e",
-  entity: "#7c3aed",
-  qa: "#dc2626",
-  alignment: "#2563eb",
+const OVERLAY_CLASS: Record<string, string> = {
+  segmentation: "bg-slate-500 text-white",
+  term: "bg-teal-600 text-white",
+  entity: "bg-violet-600 text-white",
+  qa: "bg-red-600 text-white",
+  alignment: "bg-blue-600 text-white",
 };
 
 function runsText(runs: Run[] | undefined): string {
@@ -83,7 +83,7 @@ export default function BlockInspector({
         ) : (
           <ChevronRight className="size-3.5 text-muted-foreground" />
         )}
-        <Badge className="bg-[#3b82f6] text-white">block</Badge>
+        <Badge className="bg-blue-500 text-white">block</Badge>
         <span className="font-mono text-xs text-foreground/80">{node.id}</span>
         {node.type && <span className="text-[0.7rem] text-muted-foreground">{node.type}</span>}
         {!open && (
@@ -232,11 +232,10 @@ function TargetRow({
 }
 
 function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {
-  const tone = OVERLAY_TONE[overlay.type] ?? "#64748b";
   return (
     <div className="rounded-md border bg-background/60 px-2 py-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge style={{ backgroundColor: tone }} className="text-white">
+        <Badge className={OVERLAY_CLASS[overlay.type] ?? "bg-slate-500 text-white"}>
           {overlay.type}
         </Badge>
         <span className="text-muted-foreground">{overlay.side}</span>

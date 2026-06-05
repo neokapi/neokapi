@@ -3,6 +3,7 @@ import { cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSelectorField from "./FileSelectorField";
+import ActiveFileSwitcher from "./ActiveFileSwitcher";
 import ContentTreeView from "./ContentTreeView";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
 import type { FileSelection } from "./fileLibrary";
@@ -33,14 +34,20 @@ export default function AnatomyExplorer({
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   const [selection, setSelection] = useState<FileSelection>({
-    mode: "single",
+    mode: "multi",
     paths: [initial.filename],
   });
+  const [activePath, setActivePath] = useState<string | null>(null);
   const [tree, setTree] = useState<ContentTree | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const file = useMemo(() => resolveSelection(selection, library)[0], [selection, library]);
+  // The chooser builds the working set; the switcher picks which one to inspect.
+  const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
+  const file = useMemo(
+    () => selected.find((f) => f.path === activePath) ?? selected[0],
+    [selected, activePath],
+  );
 
   // Re-inspect whenever the runtime becomes ready or the selected file changes.
   useEffect(() => {
@@ -68,13 +75,14 @@ export default function AnatomyExplorer({
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <FileSelectorField
-        label="File"
+        label="Files"
         library={library}
         selection={selection}
         onSelectionChange={setSelection}
-        multiple={false}
         sampleIds={sampleIds}
       />
+
+      <ActiveFileSwitcher files={selected} activePath={file?.path} onChange={setActivePath} />
 
       <div
         className={cn("min-h-[1.4rem] text-sm text-muted-foreground", error && "text-destructive")}

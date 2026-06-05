@@ -80,12 +80,18 @@ export default function FileSelectorField({
         </DialogTrigger>
         <DialogContent
           showCloseButton={false}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className="kapi-reference w-[min(60rem,95vw)] max-w-none sm:max-w-none"
         >
           <DialogHeader className="flex-row items-center justify-between gap-4">
-            <DialogTitle>Choose files</DialogTitle>
+            <DialogTitle>{multiple ? "Choose files" : "Choose a file"}</DialogTitle>
             <DialogClose asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close"
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X />
               </Button>
             </DialogClose>

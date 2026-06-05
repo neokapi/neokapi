@@ -11,6 +11,7 @@ import {
   Languages,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
 import type { Lang } from "./highlight";
 
 // fileTypes maps a filename's extension to the metadata the file explorer and
@@ -34,8 +35,8 @@ export interface FileTypeInfo {
   ext: string;
   /** Short human label, e.g. "JSON", "XLIFF", "Java properties". */
   label: string;
-  /** CSS colour for the icon + accents (a CSS custom-property reference or hex). */
-  color: string;
+  /** Tailwind text-colour class for the icon + type accents. */
+  colorClass: string;
   group: FileGroup;
   /** Highlighter language; "text" when no highlighting applies. */
   lang: Lang;
@@ -44,16 +45,18 @@ export interface FileTypeInfo {
   icon: LucideIcon;
 }
 
-// The accent vocabulary, reused from the kind/run palette in styles.module.css.
-const C = {
-  data: "#0ea5e9", // sky — structured data
-  markup: "#3b82f6", // blue — tag documents (matches block/pc colour)
-  bilingual: "#22c55e", // green — localisation exchange (matches layer colour)
-  catalog: "#a855f7", // violet — string catalogs (matches group colour)
-  doc: "#f59e0b", // amber — office docs (matches media colour)
-  image: "#ec4899",
-  text: "#94a3b8", // slate — plain text (matches data colour)
-} as const;
+// The accent vocabulary as Tailwind text-colour classes, shared with the
+// content-model "kind" palette so a learner builds one colour vocabulary across
+// the lab (bilingual = emerald, markup = blue, catalog = violet, data = sky, …).
+const GROUP_CLASS: Record<FileGroup, string> = {
+  data: "text-sky-600 dark:text-sky-400",
+  markup: "text-blue-600 dark:text-blue-400",
+  bilingual: "text-emerald-600 dark:text-emerald-400",
+  catalog: "text-violet-600 dark:text-violet-400",
+  doc: "text-amber-600 dark:text-amber-400",
+  image: "text-pink-600 dark:text-pink-400",
+  text: "text-slate-500 dark:text-slate-400",
+};
 
 interface Spec {
   label: string;
@@ -61,7 +64,6 @@ interface Spec {
   lang: Lang;
   icon: LucideIcon;
   binary?: boolean;
-  color?: string;
 }
 
 // Extension table. Keep entries terse; unknown extensions fall back to plain
@@ -141,7 +143,7 @@ export function fileType(filename: string): FileTypeInfo {
     return {
       ext,
       label: ext ? ext.toUpperCase() : "File",
-      color: C.text,
+      colorClass: GROUP_CLASS.text,
       group: "text",
       lang: "text",
       binary: false,
@@ -151,7 +153,7 @@ export function fileType(filename: string): FileTypeInfo {
   return {
     ext,
     label: spec.label,
-    color: spec.color ?? C[spec.group],
+    colorClass: GROUP_CLASS[spec.group],
     group: spec.group,
     lang: spec.lang,
     binary: spec.binary ?? false,
@@ -177,12 +179,5 @@ export function FileIcon({
 }: FileIconProps): React.ReactElement {
   const t = fileType(filename);
   const Icon = t.icon;
-  return (
-    <Icon
-      size={size}
-      className={className}
-      style={tinted ? { color: t.color } : undefined}
-      aria-hidden
-    />
-  );
+  return <Icon size={size} className={cn(tinted && t.colorClass, className)} aria-hidden />;
 }

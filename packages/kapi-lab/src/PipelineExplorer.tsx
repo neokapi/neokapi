@@ -4,6 +4,7 @@ import { Button, ToggleGroup, ToggleGroupItem, cn } from "@neokapi/ui-primitives
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSelectorField from "./FileSelectorField";
+import ActiveFileSwitcher from "./ActiveFileSwitcher";
 import OutputView from "./OutputView";
 import FlowTracePlayer from "./FlowTracePlayer";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
@@ -59,9 +60,10 @@ export default function PipelineExplorer({
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   const [selection, setSelection] = useState<FileSelection>({
-    mode: "single",
+    mode: "multi",
     paths: [initial.filename],
   });
+  const [activePath, setActivePath] = useState<string | null>(null);
   const [pipelineId, setPipelineId] = useState(defaultPipelineId ?? PIPELINES[0].id);
   const [trace, setTrace] = useState<FlowTrace | null>(null);
   const [outPath, setOutPath] = useState<string | null>(null);
@@ -69,7 +71,12 @@ export default function PipelineExplorer({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const file = useMemo(() => resolveSelection(selection, library)[0], [selection, library]);
+  // The chooser builds the working set; the switcher picks which one to run.
+  const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
+  const file = useMemo(
+    () => selected.find((f) => f.path === activePath) ?? selected[0],
+    [selected, activePath],
+  );
 
   const runPipeline = useCallback(async () => {
     if (!runtime.ready || !file) return;
@@ -116,11 +123,10 @@ export default function PipelineExplorer({
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <div className="flex flex-wrap items-center gap-3">
         <FileSelectorField
-          label="Input"
+          label="Inputs"
           library={library}
           selection={selection}
           onSelectionChange={setSelection}
-          multiple={false}
           sampleIds={sampleIds}
         />
         <ToggleGroup
@@ -139,6 +145,8 @@ export default function PipelineExplorer({
           <Play /> Run
         </Button>
       </div>
+
+      <ActiveFileSwitcher files={selected} activePath={file?.path} onChange={setActivePath} />
 
       <div
         className={cn("min-h-[1.4rem] text-sm text-muted-foreground", error && "text-destructive")}

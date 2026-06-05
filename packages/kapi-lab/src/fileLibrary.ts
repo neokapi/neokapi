@@ -174,8 +174,32 @@ export function useFileLibrary(opts: UseFileLibraryOptions = {}): FileLibrary {
   // callback dependency arrays; an unstable identity would re-fire those every
   // render and can loop.
   return useMemo(
-    () => ({ files, paths, folders, get, addSample, addFile, upload, setOutput, remove, removeFolder, clearOutputs }),
-    [files, paths, folders, get, addSample, addFile, upload, setOutput, remove, removeFolder, clearOutputs],
+    () => ({
+      files,
+      paths,
+      folders,
+      get,
+      addSample,
+      addFile,
+      upload,
+      setOutput,
+      remove,
+      removeFolder,
+      clearOutputs,
+    }),
+    [
+      files,
+      paths,
+      folders,
+      get,
+      addSample,
+      addFile,
+      upload,
+      setOutput,
+      remove,
+      removeFolder,
+      clearOutputs,
+    ],
   );
 }
 

@@ -85,7 +85,16 @@ export default function BatchExplorer({
     setOutputs(produced);
     setVersion((v) => v + 1);
     setBusy(false);
-  }, [runtime.ready, runtime.mkdir, runtime.writeFile, runtime.run, runtime.readBytes, library, selected, toolId]);
+  }, [
+    runtime.ready,
+    runtime.mkdir,
+    runtime.writeFile,
+    runtime.run,
+    runtime.readBytes,
+    library,
+    selected,
+    toolId,
+  ]);
 
   // Auto-run once ready so the explorer shows results immediately.
   useEffect(() => {

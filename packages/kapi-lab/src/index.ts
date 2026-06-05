@@ -47,6 +47,8 @@ export { default as FileExplorer } from "./FileExplorer";
 export type { FileExplorerProps } from "./FileExplorer";
 export { default as FileSelectorField } from "./FileSelectorField";
 export type { FileSelectorFieldProps } from "./FileSelectorField";
+export { default as ActiveFileSwitcher } from "./ActiveFileSwitcher";
+export type { ActiveFileSwitcherProps } from "./ActiveFileSwitcher";
 export { useFileLibrary, resolveSelection, selectionSummary, EMPTY_SELECTION } from "./fileLibrary";
 export type {
   FileLibrary,

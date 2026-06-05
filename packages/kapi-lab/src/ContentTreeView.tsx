@@ -15,11 +15,11 @@ export interface ContentTreeViewProps {
   className?: string;
 }
 
-const KIND_BG: Record<string, string> = {
-  layer: "#22c55e",
-  group: "#a855f7",
-  data: "#94a3b8",
-  media: "#f59e0b",
+const KIND_CLASS: Record<string, string> = {
+  layer: "bg-emerald-500 text-white",
+  group: "bg-violet-500 text-white",
+  data: "bg-slate-400 text-white dark:bg-slate-500",
+  media: "bg-amber-500 text-white",
 };
 
 // ContentTreeView renders the hierarchical content model: Layers and Groups
@@ -100,11 +100,7 @@ function NodeView({
     );
   }
 
-  const badge = (
-    <Badge style={{ backgroundColor: KIND_BG[node.kind] }} className="text-white">
-      {node.kind}
-    </Badge>
-  );
+  const badge = <Badge className={KIND_CLASS[node.kind]}>{node.kind}</Badge>;
 
   if (isContainer) {
     const meta = [node.format, node.locale].filter(Boolean).join(" · ");

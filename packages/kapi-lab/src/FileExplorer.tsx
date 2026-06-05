@@ -250,14 +250,7 @@ export default function FileExplorer({
           >
             {f.origin}
           </Badge>
-          <Badge
-            variant="outline"
-            className="text-[0.65rem]"
-            style={{
-              color: t.color,
-              borderColor: "color-mix(in srgb, currentColor 35%, transparent)",
-            }}
-          >
+          <Badge variant="outline" className={cn("border-current/35 text-[0.65rem]", t.colorClass)}>
             {t.label}
           </Badge>
           <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
