@@ -1514,7 +1514,7 @@ func TestConfig_CodeFinderRules(t *testing.T) {
 		"codeFinderRules": []string{`\bVAR\d\b`},
 	})
 	require.NoError(t, err)
-	patterns := cfg.GetCodeFinderPatterns()
+	patterns := cfg.CodeFinderPatterns()
 	require.Len(t, patterns, 1)
 	assert.True(t, patterns[0].MatchString("VAR1"))
 	assert.False(t, patterns[0].MatchString("variable"))

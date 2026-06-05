@@ -66,11 +66,11 @@ type Config struct {
 	compiledCodeFinder []*regexp.Regexp
 }
 
-// GetCodeFinderPatterns returns the compiled regex patterns when
+// CodeFinderPatterns returns the compiled regex patterns when
 // UseCodeFinder is on, lazily building (and caching) them on first
 // call. Patterns that fail to compile are skipped silently — matching
 // the behaviour of other format readers (po/markdown).
-func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+func (c *Config) CodeFinderPatterns() []*regexp.Regexp {
 	if c.compiledCodeFinder != nil {
 		return c.compiledCodeFinder
 	}

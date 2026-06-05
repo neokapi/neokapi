@@ -166,8 +166,8 @@ func (c *Config) shouldExtractKey(key string) bool {
 	return !matches
 }
 
-// GetCodeFinderPatterns returns compiled regex patterns for code finder.
-func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+// CodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) CodeFinderPatterns() []*regexp.Regexp {
 	if c.compiledCodeFinder != nil {
 		return c.compiledCodeFinder
 	}

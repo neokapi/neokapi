@@ -199,8 +199,8 @@ func (c *Config) applyAttributeRules(m map[string]any) error {
 	return nil
 }
 
-// GetCodeFinderPatterns returns compiled regex patterns for code finder.
-func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+// CodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) CodeFinderPatterns() []*regexp.Regexp {
 	if c.compiledCodeFinder != nil {
 		return c.compiledCodeFinder
 	}

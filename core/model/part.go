@@ -4,9 +4,9 @@ package model
 type PartType int
 
 const (
-	// PartTypeUnknown is the zero value, ensuring uninitialized PartType fields
+	// PartUnknown is the zero value, ensuring uninitialized PartType fields
 	// are not silently treated as a valid type.
-	PartTypeUnknown PartType = 0
+	PartUnknown PartType = 0
 
 	// Explicit integer values preserve wire compatibility (JSON plugin DTOs,
 	// protobuf PartMessage.part_type). Do NOT renumber existing constants.
@@ -28,7 +28,7 @@ const (
 // String returns the name of the PartType.
 func (pt PartType) String() string {
 	switch pt {
-	case PartTypeUnknown:
+	case PartUnknown:
 		return "Unknown"
 	case PartLayerStart:
 		return "LayerStart"

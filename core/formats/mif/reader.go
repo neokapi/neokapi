@@ -2749,7 +2749,7 @@ func (r *Reader) applyCodeFinderWithExtras(block *model.Block, extras []*regexp.
 	if block == nil {
 		return
 	}
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	merged := make([]*regexp.Regexp, 0, len(patterns)+len(extras))
 	merged = append(merged, patterns...)
 	merged = append(merged, extras...)
@@ -3243,7 +3243,7 @@ func (r *Reader) splitFormatValueOnHardReturns(value string) []string {
 }
 
 func (r *Reader) applyCodeFinderCtx(block *model.Block, ctx codeFinderCtx) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 || block == nil {
 		return
 	}

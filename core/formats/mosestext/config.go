@@ -60,9 +60,9 @@ func (c *Config) ApplyMap(values map[string]any) error {
 	return nil
 }
 
-// GetCodeFinderPatterns returns compiled regex patterns for the code
+// CodeFinderPatterns returns compiled regex patterns for the code
 // finder. Compilation is lazy and cached.
-func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+func (c *Config) CodeFinderPatterns() []*regexp.Regexp {
 	if c.compiledCodeFinder != nil {
 		return c.compiledCodeFinder
 	}

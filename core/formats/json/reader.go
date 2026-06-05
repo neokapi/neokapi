@@ -503,7 +503,7 @@ func (r *Reader) consumePendingState(state *readState, block *model.Block) {
 // rewriting their Run sequences with placeholder runs at matched
 // positions.
 func (r *Reader) applyCodeFinder(block *model.Block) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}
