@@ -147,12 +147,12 @@ A typical production flow chains TM, MT, and AI refinement:
 
 <PipelineDiagram
   stages={[
-    { label: "Reader", role: "io" },
+    { label: "Source", role: "io" },
     { label: "tm-leverage", role: "translate" },
     { label: "deepl-translate", role: "translate" },
     { label: "ai-review", role: "qa" },
     { label: "qa-check", role: "qa" },
-    { label: "Writer", role: "io" },
+    { label: "Sink", role: "io" },
   ]}
 />
 

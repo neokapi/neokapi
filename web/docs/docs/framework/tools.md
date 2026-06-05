@@ -147,10 +147,10 @@ start, a block, a layer end — flowing through a two-tool chain look like this:
 <PipelineDiagram
   animated
   stages={[
-    { label: "reader", role: "io" },
+    { label: "source", role: "io" },
     { label: "segmentation", role: "annotate", note: "handles Block · passes Layer*" },
     { label: "ai-translate", role: "translate", note: "handles Block · passes Layer*" },
-    { label: "writer", role: "io" },
+    { label: "sink", role: "io" },
   ]}
 />
 

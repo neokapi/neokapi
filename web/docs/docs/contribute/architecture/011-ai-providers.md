@@ -185,13 +185,13 @@ Because AI tools are ordinary Tools, they compose naturally:
 
 <PipelineDiagram
   stages={[
-    { label: "Reader", role: "io" },
+    { label: "Source", role: "io" },
     { label: "tm-leverage", role: "translate" },
     { label: "term-lookup", role: "annotate" },
     { label: "ai-translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
     { label: "ai-qa", role: "qa" },
-    { label: "Writer", role: "io" },
+    { label: "Sink", role: "io" },
   ]}
 />
 
