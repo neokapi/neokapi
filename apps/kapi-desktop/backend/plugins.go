@@ -18,6 +18,13 @@ type AvailablePlugin struct {
 	Description string `json:"description"`
 	Type        string `json:"type"`
 	Installed   bool   `json:"installed"`
+	// Available is true when the registry has a stable, kapi-compatible build
+	// of this plugin for the running OS/arch. When false the UI disables the
+	// Install button — e.g. a plugin with no windows/arm64 tarball.
+	Available bool `json:"available"`
+	// Platform is the running OS/arch ("windows/arm64"), for the UI to explain
+	// why an unavailable plugin can't be installed.
+	Platform string `json:"platform"`
 }
 
 // PluginUpdate represents a plugin with an available update.
@@ -147,18 +154,25 @@ func (a *App) fetchIndex() (*pluginhostreg.IndexV2, error) {
 // plugins. Each plugin is represented by its highest-versioned entry.
 func (a *App) matchPlugins(idx *pluginhostreg.IndexV2, query string) []AvailablePlugin {
 	installed := a.installedNames()
+	platform := pluginhostreg.PlatformKey()
 	var out []AvailablePlugin
 	for name, entry := range idx.Plugins {
 		if query != "" && !matchPluginQuery(name, entry.Description, query) {
 			continue
 		}
 		latest := highestVersion(entry)
+		// Mirror the install path's resolution (constraint "", channel
+		// "stable", this kapi version): if it can't resolve a build for the
+		// running platform, the plugin isn't installable here.
+		_, _, resErr := idx.Resolve(name, "", "stable", version.Version)
 		out = append(out, AvailablePlugin{
 			Name:        name,
 			Version:     latest,
 			Description: entry.Description,
 			Type:        "manifest",
 			Installed:   installed[name],
+			Available:   resErr == nil,
+			Platform:    platform,
 		})
 	}
 	return out

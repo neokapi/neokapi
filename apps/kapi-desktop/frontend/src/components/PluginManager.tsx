@@ -34,6 +34,10 @@ interface AvailablePlugin {
   description: string;
   type: string;
   installed: boolean;
+  /** False when the registry has no build of this plugin for the running OS/arch. */
+  available: boolean;
+  /** Running OS/arch ("windows/arm64"), shown when the plugin is unavailable. */
+  platform: string;
 }
 
 interface PluginUpdate {
@@ -374,6 +378,20 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                         </span>
                         <Button variant="link" size="xs" onClick={() => handleInstall(plugin.name)}>
                           Retry
+                        </Button>
+                      </div>
+                    ) : !plugin.available ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          {t("No build for")} {plugin.platform}
+                        </span>
+                        <Button
+                          size="sm"
+                          disabled
+                          data-testid={`install-${plugin.name}`}
+                          title={t("This plugin has no build for your platform")}
+                        >
+                          <Download size={12} /> Install
                         </Button>
                       </div>
                     ) : (
