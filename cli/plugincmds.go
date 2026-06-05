@@ -290,6 +290,7 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			platform := pluginreg.PlatformKey()
 			for name, entry := range idx.Plugins {
 				if query != "" && !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(entry.Description), query) {
 					continue
@@ -300,7 +301,14 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 						latest = v
 					}
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", name, latest, entry.Description)
+				line := fmt.Sprintf("%-20s %-10s %s", name, latest, entry.Description)
+				// Flag plugins with no installable build for this OS/arch, mirroring
+				// the install path's resolution — so `install` won't fail with a raw
+				// "no version ... for platform" error after a misleading listing.
+				if _, _, err := idx.Resolve(name, "", "stable", version.Version); err != nil {
+					line += fmt.Sprintf("  (no build for %s)", platform)
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), line)
 			}
 			return nil
 		},
