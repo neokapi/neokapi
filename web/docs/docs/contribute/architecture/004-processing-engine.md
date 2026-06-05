@@ -194,20 +194,18 @@ of a flow from its runtime execution.
 Each `FlowNode` has:
 
 - **ID** — unique identifier within the definition
-- **Type** — one of `"tool"`, `"reader"`, or `"writer"`
-- **Name** — the registered name of the tool/format (e.g.,
-  `"pseudo-translate"`, `"html"`)
+- **Type** — `tool` (a processing step). A flow's I/O ends are not nodes; they
+  are `source` / `sink` **bindings** ([AD-026](026-flow-io-binding.md))
+- **Name** — the registered name of the tool (e.g., `"pseudo-translate"`)
 - **Label** — optional display label for UI rendering
 - **Config** — optional key-value configuration map
 - **Position** — x/y coordinates for visual layout in the flow editor
 
-> **Direction ([AD-026](026-flow-io-binding.md)).** The `reader` / `writer` node
-> types are the flow's I/O ends. AD-026 reframes them as **bindings** resolved
-> from invocation context (file · project store / `.klz` · interchange
-> import/export · none) rather than nodes baked into the graph, so the same flow
-> runs over a file, the project store, or a `.klz` unchanged. A flow then becomes
-> *composition only*; the reader/writer ends move to the binding layer, and a
-> single tool is invoked directly rather than wrapped in a one-tool flow.
+> **Bindings ([AD-026](026-flow-io-binding.md)).** A flow's source and sink are
+> bindings resolved from invocation context — file, the project store, a `.klz`,
+> interchange import/export, or none — so the same flow runs over any origin. The
+> graph is composition; a single tool is invoked directly, not wrapped in a
+> one-tool flow.
 
 Each `FlowEdge` connects a source node to a target node.
 `TopologicalOrder()` computes the execution order using Kahn's algorithm,
@@ -248,8 +246,6 @@ kind: FlowDefinition
 metadata:
   name: Production Pipeline
 spec:
-  input: auto
-  output: auto
   steps:
     - tool: tm-leverage
       config: { fuzzyThreshold: 75 }
@@ -263,10 +259,10 @@ parser auto-detects the format (steps vs graph) and compiles steps to
 nodes+edges via `StepsToGraph()`. Both formats produce the same runnable
 executor.
 
-The `input:` / `output:` fields name the reader/writer formats. Under
-[AD-026: Flow I/O Binding](026-flow-io-binding.md) these move out of the steps
-graph into context-resolved `source:` / `sink:` bindings, so the flow carries only
-its steps and never a concrete I/O location.
+The steps carry only the composition. A flow's source and sink are bindings
+resolved at invocation — file, the project store, a `.klz`, interchange, or none
+([AD-026: Flow I/O Binding](026-flow-io-binding.md)) — not fields of the flow
+document.
 
 ### Fan-out and batching
 

@@ -311,11 +311,9 @@ Both profiles are parcels — neither is a workspace.
   project's state. Progress is derived from the overlays present (no journal); the
   optional advisory `history.jsonl` (hash-chained, opt-in `pack --log`, verified
   on `unpack`) is
-  excluded from the content `rootHash`. The current implementation embeds raw
-  `source/<name>` and records a minimal recipe; the §6 parity model — full-recipe
-  embedding (side-effecting `Extras` inert), identity + skeleton source retention
-  with raw bytes behind `--with-source` — is the specified target for this
-  capability and is not yet landed. Covered by unit tests (klz overlays +
+  excluded from the content `rootHash`. The package embeds the full project recipe
+  (§6, side-effecting `Extras` inert) and retains source as identity + skeleton,
+  with raw bytes behind `--with-source` (§7). Covered by unit tests (klz overlays +
   history-chain round-trip and tamper detection; the exporter store round-trip),
   the `kapi/e2e` suite (pack/unpack round-trip, cached-resume byte-equality,
   pack determinism, provenance log), and the `make klz-smoke` headless gate.

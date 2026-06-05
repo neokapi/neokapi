@@ -2,18 +2,11 @@
 id: 026-flow-io-binding
 sidebar_position: 26
 title: "AD-026: Flow I/O Binding — Source → Flow → Sink"
-description: "Architecture decision: a flow is a pure transformation over a stream of Blocks backed by a block-store session; where content enters (the source binding) and where results go (the sink binding) are resolved from invocation context rather than baked into the flow graph. The same flow runs unchanged over a file, a .klz workspace, the project block store, or an imported interchange file, and a sink is optional — a process-only run lands its work as overlays in the project/.klz and defers materialization to a later merge/export."
+description: "Architecture decision: a flow is a pure transformation over a stream of Blocks backed by a block-store session; where content enters (the source binding) and where results go (the sink binding) are resolved from invocation context rather than baked into the flow graph. The same flow runs over a file, a .klz workspace, the project block store, or an imported interchange file, and a sink is optional — a process-only run lands its work as overlays in the project/.klz and defers materialization to a later merge/export."
 keywords: [flow, source, sink, binding, block store, klz, process-only, source-transform, redaction, segmentation, reader, writer, pipeline, architecture decision]
-status: Proposed
 ---
 
 # AD-026: Flow I/O Binding — Source → Flow → Sink
-
-> **Status: Proposed.** This AD records the target architecture for flow I/O
-> binding. It is being iterated on; the runtime executor already matches the
-> model (it orchestrates tools over a block-store session), but the authoring
-> graph and the file glue still assume file-in / file-out. Implementation is
-> tracked in a GitHub issue.
 
 ## Summary
 
@@ -23,21 +16,21 @@ content enters and leaves. A flow is a **pure transformation over a stream of
 Blocks** backed by a block-store session: it owns no I/O, and a single tool is
 not a flow. *Where content enters* (the **source binding**) and *where results
 go* (the **sink binding**) are resolved from invocation context, not encoded in
-the flow graph. The same flow definition runs unchanged whether its
-content comes from a file read, the `.klz` workspace cache, the project block
-store, or an imported interchange file — and whether its results are written to
-a file, committed as overlays to the store, or both.
+the flow graph. The same flow definition runs whether its content comes from a
+file, the `.klz` workspace cache, the project block store, or an imported
+interchange file — and whether its results are written to a file, committed as
+overlays to the store, or both.
 
 A sink is **optional**. A *process-only* run lands its work as overlays in the
 project / `.klz` and emits no file; materialization is a separate, later sink
-operation (`merge` / `export` / `pack`). This makes the `.klz` lifecycle
-first-class: `extract` (source → store), `run` / transform (store → store),
+operation (`merge` / `export` / `pack`). This gives the `.klz` lifecycle a
+first-class shape: `extract` (source → store), `run` / transform (store → store),
 `merge` (store → file).
 
-The leading **source-transform stage** ([AD-004](004-processing-engine.md))
-splits into two kinds: *idempotent model-settling transforms* that run **once at
-ingest** and persist to the store, and *round-trip-paired brackets*
-(redact … unredact) that stay part of a **run's** source/sink wiring.
+The leading **source-transform stage** ([AD-004](004-processing-engine.md)) is of
+two kinds: *idempotent model-settling transforms* that run **once at ingest** and
+persist to the store, and *round-trip-paired brackets* (redact … unredact) that
+are part of a **run's** source/sink wiring.
 
 Bindings are named by one scheme vocabulary across the CLI, the flow document,
 and the existing resource URIs. A concrete binding resolves by precedence —
@@ -48,47 +41,29 @@ auto-detection — and `kapi run --explain` always shows the resolved
 
 ## Context
 
-The runtime executor is **already** source/sink-agnostic. `DefaultExecutor`
-(`core/flow/executor.go`) knows nothing about readers or writers — it wires
-channels between tools, opens a `blockstore.Session`, and commits or rolls it
-back. Reader and writer are attached *externally* by `FileRunner`
-(`core/flow/filerunner.go`), which performs `read file → feed parts → executor →
-drain → write file`.
+A localization pipeline runs at many origins and destinations. The same
+translation flow processes a loose file on a laptop, the blocks already held in a
+project's store, a `.klz` workspace, or content imported from an interchange
+file; and its results land in a translated file, as overlays committed to the
+store, or in an interchange file bound for a translator. The work the flow does —
+leverage, translate, check — is the same in every case; only where the content
+enters and leaves differs.
 
-The mismatch lives one layer up, in **authoring**:
+The processing engine is built around that fact. `DefaultExecutor`
+(`core/flow/executor.go`) orchestrates tools over a `blockstore.Session` and has
+no notion of files, readers, or writers — I/O lives at the edges, outside the
+flow. This AD names those edges and settles two questions:
 
-- The flow graph bakes I/O into the model. `FlowDefinition` has explicit
-  `NodeReader` / `NodeWriter` node types (`core/flow/definition.go`), and
-  `StepsSpec` has `input:` / `output:` fields whose reader/writer nodes are
-  *auto-inserted* around the steps (`core/flow/steps.go`, `StepsToGraph`). So the
-  model a human (or the flow editor) authors against assumes a file is read and a
-  file is written.
-
-The `.klz` package ([AD-025](025-klf-package.md)) introduced content that does
-**not** originate from a fresh file read:
-
-- A workspace run reads existing blocks and prior overlays from a persistent
-  per-source block store. Today `cli/klzworkspace.go` reuses `FileRunner.RunFile`
-  with the cache's extracted source bytes *plus* a `Store` side-channel — the
-  `reader` node still re-parses the original format each run while the real
-  working state enters through a side door.
-- `merge` has **no incoming content at all** — it hydrates `targets/<locale>`
-  overlays. It is implemented as a synthetic `"merge"` flow whose only tool is a
-  `hydrateTargetsTool` (`cli/klzhydrate.go`). The `NodeReader` concept is
-  conceptually wrong here: the input *is* the cached blocks.
-
-Two questions this AD settles:
-
-1. Is read → process → write the right shape, or should source and sink be
-   **context-wired ends** — `Start → {flow} → End`?
-2. Must every run produce an output, or can a run be **process-only**, landing
-   its work in the store?
+1. The flow's shape is `source → {flow} → sink`: the ends are context-wired
+   bindings, not a fixed read → process → write baked into the graph.
+2. A run need not produce a file: it can be **process-only**, landing its work in
+   the store.
 
 ## Decision
 
 ### Three nouns: tool, flow, binding
 
-Separating I/O from the flow leaves three concepts, each with exactly one job:
+I/O sits outside the flow, leaving three concepts, each with exactly one job:
 
 - **Tool** — the unit of work. A single capability-typed transformation over the
   Part stream — `Annotate`, `Translate`, or `Transform`
@@ -112,9 +87,9 @@ carrying the four things a flat list of tool names cannot:
   graph shapes a sequence cannot express.
 - **Identity and reuse** — a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,
-  versioned with the recipe and shared like any other artifact. Because a flow is
-  portable, declarative intent and owns no I/O, it travels in a project's portable
-  twin — the `.klz` package — like any other recipe field
+  versioned with the recipe and shared like any other artifact. A flow is
+  portable, declarative intent and owns no I/O, so it travels in a project's
+  portable twin — the `.klz` package — like any other recipe field
   ([AD-025](025-klf-package.md) §6).
 - **Phase structure** — the leading settle stage and the round-trip brackets
   (§4) are a typed two-phase shape, not a flat run of tools.
@@ -132,22 +107,22 @@ a small, separate **binding** vocabulary, resolved from invocation context:
 | --- | --- | --- |
 | `file` | `DataFormatReader` over file bytes | `DataFormatWriter` + skeleton round-trip ([AD-005](005-format-system.md)) |
 | `store` / `klz` | existing blocks + overlays from a persistent store | commit overlays — no materialization |
-| `import` / `export` | overlays landed from an interchange file ([AD-017](017-bilingual-format-interop.md)) | emit interchange (XLIFF / PO / TMX / TBX) |
+| `import` / `export` | overlays landed from an interchange file ([AD-017](017-bilingual-format-interop.md)) | emit interchange (bilingual `.klz`, XLIFF / PO / TMX / TBX) |
 | `none` | — | discard (observation/metrics only) |
 
 The defining property: **a flow definition is identical across bindings.** The
 same `ai-translate-qa` flow runs in the file CLI, against a `.klz` workspace, and
 against a project — only the binding differs.
 
-### 2. Reader and writer stop being graph nodes
+### 2. Reader and writer are bindings, not graph nodes
 
-`input:` / `output:` are promoted **out of** `StepsSpec.steps` into a top-level
-`source:` / `sink:` spec, and `NodeReader` / `NodeWriter` cease to be tool-graph
-nodes. The `file` binder remains the **default**, so an unqualified
-`kapi run flow -i file.json -o out.json` is unchanged — it is sugar for
-`source: file`, `sink: file`. `FileRunner` becomes **one binder among several**
-behind a common binder interface; the klz workspace's store wiring and the
-synthetic merge flow collapse into `source: store` + `sink: file`.
+The flow document carries only its steps. Where content enters and leaves is a
+top-level `source:` / `sink:` spec, not a node in the tool graph. The `file`
+binding is the default, so an unqualified
+`kapi run flow -i file.json -o out.json` is `source: file`, `sink: file`. A
+`.klz` workspace is `source: store`; `merge` is `source: store` with
+`sink: file`. A single binder interface backs them all, so the engine never
+special-cases an origin.
 
 ```yaml
 apiVersion: v1
@@ -166,10 +141,10 @@ spec:
 ### 3. Sink is optional → process-only runs
 
 A run whose `sink` is `store` (or absent) commits its overlays to the project /
-`.klz` block store and **emits no file**. Materialization becomes a distinct sink
+`.klz` block store and **emits no file**. Materialization is a distinct sink
 operation — `merge` (store → file via skeleton), `export` (store → interchange),
 or `pack` (store → `.klz`). This separates *doing the work* from *handing it
-out*, and makes the workspace lifecycle the natural grain:
+out*, and gives the workspace lifecycle its natural grain:
 
 ```
 extract  sources → store        (source: file,  sink: store)
@@ -182,43 +157,41 @@ is **idempotent and resumable**: re-running skips work whose overlay already
 exists, anchored to the current block hashes ([AD-025](025-klf-package.md) §5).
 The store *is* the workspace.
 
-### 4. Split the source-transform stage
+### 4. The source-transform stage: settlers and brackets
 
 The leading source-transform stage ([AD-004](004-processing-engine.md)) settles
-a single canonical model before the main tools run. In a workspace world its two
-uses pull apart:
+a single canonical model before the main tools run. Its two uses are distinct:
 
 - **Ingest-time settlers** — *idempotent, model-settling* transforms
   (segmentation, normalization) belong to **bringing content into the store**,
   not to each flow. They run **once at ingest** and persist as overlays; later
-  flows see the settled model and never recompute it. This removes redundant
+  flows see the settled model and never recompute it. This avoids redundant
   per-run work and the drift hazard of re-settling the canonical model on every
   run.
 - **Run brackets** — *paired, policy-bearing* transforms (redact … unredact,
   [AD-020](020-redaction.md)) bracket a single run and may vary per run or
-  provider. They stay part of the **run's** source/sink wiring: the `Start`
+  provider. They are part of the **run's** source/sink wiring: the `Start`
   redacts the source binding, the `End` restores in the sink binding. The
   built-in `secure-translate` flow (redact · ai-translate · unredact) is exactly
   this `Start(redact) → {translate} → End(unredact)` shape.
 
 A transform that is genuinely both (idempotent *and* recoverable) may be declared
-at ingest; the run-bracket form is reserved for transforms whose restore must
-happen inside the run.
+at ingest; the run-bracket form is for transforms whose restore must happen
+inside the run.
 
 ### 5. Resolving a binding across the CLI and flow surfaces
 
 A binding is named by the same small scheme vocabulary (§1) on every surface —
-the CLI, the flow document, and the resource URIs the tool resolver already
-understands (`tm:`, `termbase:`, `srx:` in `core/flow/resolve.go`). This mirrors
-two conventions a user already knows: *detect-by-extension with an explicit
-override* (as in format-converting tools) and *scheme-prefixed endpoints* (as in
-file-sync tools).
+the CLI, the flow document, and the resource URIs the tool resolver understands
+(`tm:`, `termbase:`, `srx:` in `core/flow/resolve.go`). This follows two
+conventions a user already knows: *detect-by-extension with an explicit override*
+(as in format-converting tools) and *scheme-prefixed endpoints* (as in file-sync
+tools).
 
-**Precedence.** A concrete binding is resolved from the first source that names
-one, in order: an explicit CLI flag, the project / `.klz` context, the flow's
-declared intent, then auto-detection. `kapi run --explain` prints the resolved
-`source → sink` and executes nothing, so the chosen binding is always visible
-rather than inferred.
+**Precedence.** A concrete binding resolves from the first source that names one,
+in order: an explicit CLI flag, the project / `.klz` context, the flow's declared
+intent, then auto-detection. `kapi run --explain` prints the resolved
+`source → sink` and executes nothing, so the chosen binding is always visible.
 
 **The CLI carries the locator; bare paths are detected, schemes are explicit.**
 `-i` / `-o` accept either a plain path or a `scheme:` locator. A plain path is
@@ -227,7 +200,7 @@ store, `.xliff` / `.po` → interchange, a plain document → `file`, a director
 inside a project → the project store). A `scheme:` locator forces the binding and
 removes any ambiguity: `-o store:` is the block store, while `-o l10n/` is a
 directory of files. `file:` forces a path that would otherwise read as a scheme.
-Each example below shows the resolved `source → sink`:
+Each example shows the resolved `source → sink`:
 
 ```bash
 kapi run translate -i a.json -o b.json          # file(a.json)    → file(b.json)
@@ -248,8 +221,8 @@ report the same `--explain` line.
 only when it is *intrinsic to what the flow is*, and then only the *kind* — never
 a path or a concrete store. A translation flow materializes, so it leaves its
 sink unset and lets the invocation place the result; an analysis or QA flow
-inherently produces no document, so it declares `sink: none`; a flow that only
-makes sense over an existing workspace may declare `source: store`.
+produces no document, so it declares `sink: none`; a flow that only makes sense
+over an existing workspace may declare `source: store`.
 
 ```yaml
 # A translate flow: binding-agnostic. The ends come from where it is run.
@@ -268,10 +241,9 @@ spec:
     - tool: qa-check
 ```
 
-Because a flow's only binding is intrinsic intent, there is no per-flow output
-path for a reader to be surprised by; the same flow document runs over a loose
-file, a `.klz` workspace, or a project without edit, and `--explain` shows where
-a given run's content actually lands.
+A flow's only binding is intrinsic intent, so there is no per-flow output path to
+surprise a reader; the same flow document runs over a loose file, a `.klz`
+workspace, or a project, and `--explain` shows where a given run's content lands.
 
 **In a project, a run lands in the store.** When a `.kapi` recipe is in scope, a
 run with no explicit sink commits its work as overlays to the project block store
@@ -285,45 +257,43 @@ already present and recomputes only what changed
 - A flow definition is portable across origins: the same flow runs in the file
   CLI, a `.klz` workspace, and a project, because it only ever sees a session of
   Blocks.
-- The synthetic `"merge"` flow, the `hydrateTargetsTool`, and the `Store`
-  side-channel in `cli/klzworkspace.go` collapse into ordinary `source` / `sink`
-  bindings.
-- Process-only runs make incremental, resumable workflows the default rather than
-  a special case; materialization is deferred and explicit.
-- `kapi run flow -i file.json -o out.json` is unchanged — the `file` binder is
-  the default, so there is no CLI regression.
-- Ingest-time settling removes per-run segmentation/normalization recomputation
+- A `.klz` workspace, `extract`, and `merge` are ordinary `source` / `sink`
+  bindings, not special cases.
+- Process-only runs make incremental, resumable workflows the default; a file is
+  materialized only when a sink asks for it.
+- `kapi run flow -i file.json -o out.json` is the `file` binding on both ends —
+  the zero-ceremony common case.
+- Ingest-time settling avoids per-run segmentation/normalization recomputation
   and keeps the canonical model stable across a project's lifetime.
 - The flow editor surfaces source/sink as **endpoint pickers** (file · store ·
-  import/export · none), not arbitrary reader/writer nodes; capability gating for
-  the source-transform stage ([AD-002](002-content-model.md) overlays,
-  segmentation) is unaffected.
-- The runtime executor is unchanged — it already binds nothing. This is a model,
-  naming, and glue refactor, not an engine rewrite.
-- The flow noun sharpens to mean *composition*: removing I/O strips the one job
-  that diluted it, leaving configuration, topology, identity, and phase
-  structure. A single tool is a tool, not a flow — so the concept is load-bearing
-  exactly where it is used and absent where it was overkill.
+  import/export · none) rather than reader/writer nodes; capability gating for the
+  source-transform stage ([AD-002](002-content-model.md) overlays, segmentation)
+  is independent of bindings.
+- The executor binds nothing: it orchestrates tools over a session, and the
+  bindings sit outside it.
+- The flow noun means *composition*: with I/O at the edges, a flow carries
+  configuration, topology, identity, and phase structure. A single tool is a
+  tool, not a flow — the concept is load-bearing where it is used and absent where
+  it would be overkill.
 - One scheme vocabulary spans the CLI locator, the flow document, and the tool
   resolver, so a binding reads the same wherever it appears. Bare paths keep the
   zero-ceremony common case; `scheme:` is the unambiguous escape hatch.
 - A documented precedence plus `--explain` keeps the resolved binding visible, so
-  layered defaults (flow intent under project context under an explicit flag) do
-  not become hidden configuration.
+  layered defaults (flow intent under project context under an explicit flag) are
+  never hidden configuration.
 
 ## Related
 
-- [AD-004: Processing Engine](004-processing-engine.md) — the executor is already
-  the pure middle; this AD names the endpoints it was always agnostic to.
-- [AD-005: Format System](005-format-system.md) — readers/writers become the
-  `file` binding's implementation; skeleton round-trip is a sink concern.
+- [AD-004: Processing Engine](004-processing-engine.md) — the executor is the pure
+  middle; this AD names its endpoints.
+- [AD-005: Format System](005-format-system.md) — readers/writers are the `file`
+  binding's implementation; skeleton round-trip is a sink concern.
 - [AD-008: Project Model](008-project-model.md) — the project block store as a
   source and sink.
 - [AD-025: KLF Family and the .klz Package](025-klf-package.md) — the `.klz`
   workspace; process-only = the `store` sink; content-derived cached resume.
-- [AD-020: Content Redaction](020-redaction.md) — redact/unredact as run
-  brackets rather than ingest settlers.
+- [AD-020: Content Redaction](020-redaction.md) — redact/unredact as run brackets
+  rather than ingest settlers.
 - [AD-002: Content Model](002-content-model.md) — overlays are the unit a sink
   commits and a source rehydrates.
 </content>
-</invoke>

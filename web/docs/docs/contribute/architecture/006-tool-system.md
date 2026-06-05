@@ -547,9 +547,9 @@ Flows are authored as a YAML step list (compiled to the internal graph by
 the executor, see
 [AD-004: Processing Engine](004-processing-engine.md)):
 
-> The `input:` / `output:` fields are reframed as context-resolved `source:` /
-> `sink:` bindings in [AD-026: Flow I/O Binding](026-flow-io-binding.md); a flow
-> itself carries only its steps.
+> A flow's source and sink are context-resolved bindings
+> ([AD-026: Flow I/O Binding](026-flow-io-binding.md)), not fields of the flow
+> document; the steps carry only the composition.
 
 ```yaml
 apiVersion: v1
@@ -557,8 +557,6 @@ kind: FlowDefinition
 metadata:
   name: Production Pipeline
 spec:
-  input: auto
-  output: auto
   steps:
     - tool: tm-leverage
       config:

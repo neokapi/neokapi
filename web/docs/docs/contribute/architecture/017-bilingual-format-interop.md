@@ -122,20 +122,18 @@ Interchange has two tiers, chosen by **who receives the file**:
   neokapi review tool. It is lossless where XLIFF is lossy, carries TM and term
   context inline rather than as separate TMX/TBX attachments, and — being
   Merkle-hashable — gives **integrity-verified, diffable** review (exactly what
-  changed is visible and tamper-evident). It is *ecosystem* interchange today
-  (both ends need a neokapi reader); making it a cross-vendor standard is a
-  deliberate open-spec + second-implementation effort, not a property of the bytes.
+  changed is visible and tamper-evident). It is *ecosystem* interchange (both ends
+  need a neokapi reader); making it a cross-vendor standard is an open-spec +
+  second-implementation effort, not a property of the bytes.
 - **Industry interop — XLIFF 2.x / PO.** For any recipient on a third-party CAT
   tool. neokapi stays an excellent citizen of the existing standard: maximally
   faithful, lossless-as-the-format-allows round-trip. You can never opt out of
   XLIFF, only offer something better alongside it.
 
 Both tiers flow through the same `extract` / `merge` verbs; `--format` selects the
-carrier (`klz` native, `xliff` / `po` interop). Until the standalone neokapi
-reader ships broadly, `kapi extract` emits **XLIFF 2.2 by default** for safe
-interop, and the bilingual `.klz` is selected with `--format klz`; the native
-format is the recommended default for kapi-equipped recipients once the reader is
-in their hands.
+carrier (`klz` native, `xliff` / `po` interop). `kapi extract` emits **XLIFF 2.2
+by default** for safe interop with any recipient; the bilingual `.klz` is selected
+with `--format klz` for recipients working in kapi or the neokapi review tool.
 
 **XLIFF 2.x** is the default *industry-interop* carrier. The reader accepts all
 three 2.x namespaces as a compatible family (`…:2.0`, `…:2.1`,
