@@ -66,11 +66,14 @@ export default function BatchExplorer({
     const tool = TOOLS.find((t) => t.id === toolId) ?? TOOLS[0];
     setBusy(true);
     setError(null);
+    // memfs has no auto-mkdir: create the output directory before the tool (and
+    // our own writes) target paths inside it.
+    runtime.mkdir("out");
     const produced: string[] = [];
     for (const f of selected) {
       const inPath = runtime.writeFile(f.path, f.bytes);
       const outPath = `out/${f.name}`;
-      const absOut = runtime.writeFile(outPath, new Uint8Array(0));
+      const absOut = `/project/${outPath}`;
       const code = await runtime.run(tool.build(inPath, absOut));
       const bytes = runtime.readBytes(absOut);
       if (code === 0 && bytes && bytes.length > 0) {
@@ -82,7 +85,7 @@ export default function BatchExplorer({
     setOutputs(produced);
     setVersion((v) => v + 1);
     setBusy(false);
-  }, [runtime.ready, runtime.writeFile, runtime.run, runtime.readBytes, library, selected, toolId]);
+  }, [runtime.ready, runtime.mkdir, runtime.writeFile, runtime.run, runtime.readBytes, library, selected, toolId]);
 
   // Auto-run once ready so the explorer shows results immediately.
   useEffect(() => {
