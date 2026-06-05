@@ -76,7 +76,9 @@ OutFile "..\..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the i
 !if "${WAILS_INSTALL_SCOPE}" == "user"
     InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
 !else
-    InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
+    # Install flat under Program Files (e.g. "Kapi"), not nested under a company
+    # folder ("neokapi\Kapi"), matching the per-user layout above.
+    InstallDir "$PROGRAMFILES64\${INFO_PRODUCTNAME}"
 !endif
 ShowInstDetails show # This will always show the installation details.
 
