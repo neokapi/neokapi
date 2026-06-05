@@ -2,7 +2,7 @@
 id: 025-klf-package
 sidebar_position: 25
 title: "AD-025: KLF Family and the .klz Package"
-description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal."
+description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source."
 keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
 ---
 
@@ -114,8 +114,9 @@ rather than a step-by-step CLI verb family:
   portable *bundle*; the runtime is a persistent **shadow cache** under
   `$XDG_CACHE_HOME/kapi/klz/<key>`, keyed by the `.klz`'s absolute path, so the
   working directory stays a single file. Three pipeline-stage verbs (no project):
-  `extract <sources> -o work.klz` ingests the sources and records a `Recipe`
-  (target locales + output layout); running any tool or `run` flow *on* the `.klz`
+  `extract <sources> -o work.klz` ingests the sources and records a recipe (§6 —
+  the same schema as a `.kapi` file; an ad-hoc extract fills only target locales +
+  output layout, but the slot holds a full recipe); running any tool or `run` flow *on* the `.klz`
   **transforms it in place** against the cache's persistent per-source block stores
   — incrementally, *without rewriting the `.klz`*; and `merge work.klz` emits the
   finished documents from the cache (hydrating stored target overlays, one file per
@@ -134,9 +135,12 @@ rather than a step-by-step CLI verb family:
   later run. Re-running a flow therefore **skips work already done**; the store
   *is* the workspace, resume is just running again.
 - **Project snapshot (`pack` / `unpack`).** For the whole project, `pack` exports
-  the block-store overlays plus the authoritative TM and termbase into a portable
-  `.klz`; `unpack` rehydrates it into another machine's `.kapi/` state dir. A
-  `.klz` is to the state directory what a git *bundle* is to `.git`.
+  the block-store overlays, the authoritative TM and termbase, the source
+  identity + skeletons, and the **full project recipe** (flows, plugins,
+  defaults, content — §6) into a portable `.klz`; `unpack` rehydrates it into
+  another machine's `.kapi/` state dir, reconstituting a complete, runnable
+  `<name>.kapi`. A `.klz` is to the state directory what a git *bundle* is to
+  `.git` — and, because it carries the recipe, a *runnable* one.
 
 **Progress is derived from content, not recorded in an authoritative journal.**
 Because the store is content-addressed, "has step X run?" is a pure function of
@@ -162,6 +166,62 @@ where an action has effects outside the content — sent mail, a charged card, a
 paid API call; those belong to the authz/audit subsystem, not to progress
 tracking, whose state is wholly in the overlays.)
 
+### 6. What a `.klz` carries: parity with a `.kapi` project
+
+A `.klz` is the portable twin of a `.kapi` project, so it carries the project's
+**portable authoritative state** — both its content and its committed intent —
+and nothing environment-specific. One principle decides membership:
+
+> Pack authoritative state, not caches or secrets. **Content** defines the
+> package identity (the Merkle `rootHash`); the **recipe** is metadata (excluded
+> from `rootHash`, as the workspace recipe already is). Secrets never travel —
+> they live in the OS keychain, never in a recipe. Caches are regenerated on
+> unpack. A `.klz` has no runtime, so any side-effecting recipe (`hooks`,
+> `automations`, a `server:` binding) travels **inert** and re-activates only when
+> unpacked into a project, with explicit re-auth and opt-in re-arming.
+
+**Intent travels as the whole recipe.** A `.klz` embeds the project recipe
+verbatim — `flows`, `plugins` / `requires`, `defaults`, `content`, `preset`, and
+the platform `Extras` — using the same schema as a `.kapi` file, so there is one
+source of truth and no parallel intent model. Flows are ordinary framework intent
+(`flow.StepsSpec`), so they travel like any other recipe field: a standalone
+`.klz` is runnable with its own named flows (`kapi run <flow> work.klz`), and
+`unpack` reconstitutes a complete `<name>.kapi`. This is what makes a `.klz` a
+**project in a file** ([AD-026](026-flow-io-binding.md) — a flow is portable
+composition, carrying no I/O of its own).
+
+**Source travels as identity + skeleton; raw bytes are opt-in.** A `.klz` always
+records each source's **identity** (logical path, format, content hash) and the
+per-source **skeleton** — the round-trip template `merge` reuses. That is enough
+for the core loop: `transform`-in-place reads only blocks and overlays, `merge`
+rebuilds the localized files from the skeleton, and `info` / `status` detects
+drift from the source hash. The **raw source bytes** are needed only to
+*re-extract* (re-derive blocks under different settings), so they are embedded
+only on request (`pack --with-source` / `extract --with-source`), keeping a
+default `.klz` from duplicating git-tracked source. The skeleton is the *derived
+extract*, not the original document.
+
+| Concern | In a `.kapi` project | In a `.klz` | Disposition |
+| --- | --- | --- | --- |
+| flows | `flows:` + `.kapi/flows/` | recipe `flows` | **travels** |
+| plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
+| defaults, content, preset | recipe | recipe | travels |
+| `server:` / `hooks:` / `automations:` (Extras) | recipe Extras | recipe Extras | travels **inert** |
+| TM / termbase | `tm.db` / `termbase.db` (authoritative) | `tm.klftm` / `termbase.klftb` | travels (lossless) |
+| blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.klf`, `annotations/*.klfl`, `overlays.klfo` (authoritative) | travels |
+| source identity (path, format, hash) | working tree | `manifest.json` | travels |
+| source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
+| raw source bytes | working tree `src/` | `source/<name>` | opt-in (`--with-source`) |
+| secrets (auth tokens, API keys) | OS keychain | — | **never travels** |
+| caches (`blocks.db`, `sync-cache.json`, extractions, collections) | `cache/` | — | regenerated on unpack |
+| plugin binaries | user / system install | — | re-resolved via `requires` / registry |
+| provenance | — | `history.jsonl` (opt-in) | travels (excluded from `rootHash`) |
+
+**Source of truth on round-trip.** When a `.klz` is unpacked into or sits beside a
+`.kapi` project, the on-disk recipe is authoritative and the package is a
+snapshot; a standalone `.klz` (the ad-hoc workspace) is authoritative in itself.
+Intent therefore never has two live homes that can drift.
+
 ## Consequences
 
 - A project's full content can be serialized losslessly and rehydrated into
@@ -178,6 +238,13 @@ tracking, whose state is wholly in the overlays.)
   can be handed off (`pack`/`unpack`) and a flow resumed against the warm
   block-store cache — with progress derived from content rather than a journal,
   the server-less twin of the platform's stateful project.
+- Because a `.klz` carries the full recipe (§6), it is a **project in a file**: a
+  standalone package runs its own flows and `unpack` rebuilds a complete `.kapi`.
+  Near-full parity with a `.kapi` project follows, the deliberate gaps being
+  secrets (never), caches (regenerated), plugin binaries (re-resolved), and raw
+  source (opt-in). Side-effecting recipe travels inert, so receiving a `.klz`
+  cannot trigger a server call, hook, or automation until it is adopted into a
+  project.
 
 ## Implementation
 
@@ -195,7 +262,11 @@ tracking, whose state is wholly in the overlays.)
   project's state. Progress is derived from the overlays present (no journal); the
   optional advisory `history.jsonl` (hash-chained, opt-in `pack --log`, verified
   on `unpack`) is
-  excluded from the content `rootHash`. Covered by unit tests (klz overlays +
+  excluded from the content `rootHash`. The current implementation embeds raw
+  `source/<name>` and records a minimal recipe; the §6 parity model — full-recipe
+  embedding (side-effecting `Extras` inert), identity + skeleton source retention
+  with raw bytes behind `--with-source` — is the specified target for this
+  capability and is not yet landed. Covered by unit tests (klz overlays +
   history-chain round-trip and tamper detection; the exporter store round-trip),
   the `kapi/e2e` suite (pack/unpack round-trip, cached-resume byte-equality,
   pack determinism, provenance log), and the `make klz-smoke` headless gate.

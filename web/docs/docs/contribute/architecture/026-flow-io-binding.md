@@ -112,7 +112,10 @@ carrying the four things a flat list of tool names cannot:
   graph shapes a sequence cannot express.
 - **Identity and reuse** — a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,
-  versioned with the recipe and shared like any other artifact.
+  versioned with the recipe and shared like any other artifact. Because a flow is
+  portable, declarative intent and owns no I/O, it travels in a project's portable
+  twin — the `.klz` package — like any other recipe field
+  ([AD-025](025-klf-package.md) §6).
 - **Phase structure** — the leading settle stage and the round-trip brackets
   (§4) are a typed two-phase shape, not a flat run of tools.
 
