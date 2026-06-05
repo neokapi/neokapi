@@ -5,7 +5,7 @@
 #
 # Build: docker build -f bowrain/docker/keycloak/Dockerfile .
 
-FROM quay.io/keycloak/keycloak:26.6.2
+FROM quay.io/keycloak/keycloak:26.6.3
 
 # Install custom theme JAR (pre-built by `make keycloak-theme`).
 COPY bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar /opt/keycloak/providers/keycloak-theme.jar
