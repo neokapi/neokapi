@@ -9,17 +9,25 @@ keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff,
 
 # Work in a `.klz` workspace
 
-A `.klz` is a **single-file, serverless localization workspace** — the portable
-equivalent of a `.kapi` project's working state. You build it up and emit from it
-with three verbs that map to the pipeline stages:
+A `.klz` is a **single-file, serverless** carrier — the portable equivalent of a
+`.kapi` project's working state. It is a *parcel*, not the place you normally
+work: the day-to-day working model is the ambient
+[`.kapi` project](/contribute/architecture/008-project-model). This recipe is the
+serverless convenience where there is no project — you open a `.klz` into a
+working cache, run tools against it, and pack it back. The bindings are the same
+ones any flow uses ([AD-026](/contribute/architecture/026-flow-io-binding)):
 
-| Stage | Verb |
-|---|---|
-| **reader** — ingest sources | `kapi extract <sources> -o work.klz` |
-| **transform** — run tools, in place | `kapi <tool> work.klz` · `kapi run <flow> -i work.klz` |
-| **writer** — emit finished files | `kapi merge work.klz -o <dir>` |
-| **eject** — write the shareable `.klz` | `kapi pack work.klz` · transform `--pack` |
-| **inspect** — dirty? | `kapi info work.klz` |
+| Step | Binding | Verb |
+|---|---|---|
+| **ingest sources** | file → store | `kapi extract <sources> -o work.klz` |
+| **transform** (open → work, in place) | store → store | `kapi <tool> work.klz` · `kapi run <flow> -i work.klz` |
+| **emit finished files** | store → file | `kapi merge work.klz -o <dir>` |
+| **eject** — write the shareable `.klz` | store → `.klz` | `kapi pack work.klz` · transform `--pack` |
+| **inspect** — dirty? | — | `kapi info work.klz` |
+
+The "in place" transform is the shadow cache (keyed by the `.klz` path) making
+open → work → pack cheap; conceptually you are still opening a parcel into a
+working copy, not editing inside the file.
 
 ```bash
 kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest

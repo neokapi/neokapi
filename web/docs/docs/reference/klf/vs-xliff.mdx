@@ -31,10 +31,15 @@ Glossary, Validation, Plural/Gender/Select, and more). Where a capability lives
 in an Extended module rather than Core, that is called out, because older
 XLIFF 2.0 / 2.1 tools and some CAT tools support only a subset of the modules.
 
-KLF does not replace XLIFF. neokapi reads and writes XLIFF as an **interchange**
-format (see the [bilingual workflow](/kapi/bilingual-workflow)) so content can
-move to and from external CAT tools and TMS platforms; KLF is the internal
-content-exchange representation the pipeline operates on.
+The two are interchange formats for **different recipients**. A task-scoped
+**bilingual `.klz`** (the `kind: kapi-interchange` profile of the package) is
+neokapi's *native* interchange format — lossless, with inline codes and TM/term
+context in one file — for a translator or reviewer working in kapi or the neokapi
+review tool. **XLIFF** is the *industry-interop* tier: neokapi reads and writes it
+so content can move to and from third-party CAT tools and TMS platforms that
+cannot read `.klz`. Both travel through `kapi extract` / `kapi merge` (see the
+[bilingual workflow](/kapi/bilingual-workflow)); `--format` picks the carrier.
+KLF is also the internal content representation the pipeline operates on.
 
 ## Concept mapping
 

@@ -50,15 +50,15 @@ steps:
 
 `StepsToGraph(spec)` generates:
 
-1. A reader node (using `spec.input`, default "auto")
-2. Source-transform tool nodes from `spec.source_transforms`, chained after the
-   reader and marked `stage: source-transform`
-3. Tool nodes from `steps`, chained sequentially after the source-transform stage
-4. Parallel branches for `parallel:` blocks (tee from previous, join at next)
-5. A writer node (using `spec.output`, default "auto")
+1. Source-transform tool nodes from `spec.source_transforms`, chained first and
+   marked `stage: source-transform`
+2. Tool nodes from `steps`, chained sequentially after the source-transform stage
+3. Parallel branches for `parallel:` blocks (tee from previous, join at next)
 
 Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right,
-so the graph order is reader → source-transforms → main tools → writer.
+so the graph order is source-transforms → main tools. The graph is tool nodes
+only; the flow's source and sink are bindings resolved at run time
+([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
 
 ## Examples
 

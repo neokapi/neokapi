@@ -42,13 +42,22 @@ who they talk to and where the durable state lives:
 | Boundary | What crosses | Driven by | Counterpart |
 | --- | --- | --- | --- |
 | **Format conversion** (ad-hoc, one-way) | one file, no round-trip state | `kapi run -i` + a format writer | none — just the pipeline |
-| **Bilingual round-trip** _(this page)_ | a document as XLIFF 2.x / PO, worked elsewhere, merged back | `kapi extract` / `kapi merge` | external TMS / CAT tool |
+| **Bilingual round-trip** _(this page)_ | a document as a bilingual `.klz` (native) or XLIFF 2.x / PO (interop), worked elsewhere, merged back | `kapi extract` / `kapi merge` | a translator/reviewer, or an external TMS / CAT tool |
 | **Asset interchange** | accumulated TM and terminology | `kapi tm import`/`export` (TMX), `kapi termbase import`/`export` (TBX) | corporate TM / term archives |
 
 The bright line: **bilingual round-trip and asset interchange both hand a
-standard file to an external tool and bring the result back, with project
-state holding the way back; format conversion is one-way.** This page is the
-bilingual round-trip — the standards-based handoff to a translator or TMS.
+file to a counterpart and bring the result back, with project state holding the
+way back; format conversion is one-way.** This page is the bilingual round-trip —
+the handoff to a translator or TMS.
+
+**Two carriers, chosen by recipient.** neokapi's native interchange format is the
+lossless **bilingual `.klz`** (`kapi extract --format klz`) — for a translator or
+reviewer working in kapi or the neokapi review tool; it carries inline codes, TM
+matches, and term context in one file and gives integrity-verified, diffable
+review. For a recipient on a third-party CAT tool, `kapi extract` emits **XLIFF
+2.x / PO** (the default), the industry-interop tier this page focuses on. Both go
+out and come back through the same `extract` / `merge` verbs. See
+[KLF vs XLIFF](/reference/klf/vs-xliff).
 
 For architectural context and design decisions see [AD-017: Bilingual
 Format Interop](/contribute/architecture/017-bilingual-format-interop).

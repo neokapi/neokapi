@@ -64,8 +64,22 @@ project.klz
 └── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
 
-(A workspace `.klz` also carries a `recipe` block in `manifest.json` — its target
-locales and output layout — kept out of the `rootHash`.)
+(A `.klz` also carries the project **recipe** in `manifest.json` — flows, plugins,
+defaults, content — kept out of the `rootHash`, so the package is a *runnable
+project in a file*. Side-effecting recipe like `server:`/`hooks:` travels inert.)
+
+The same container serves **two profiles**, set by the manifest `kind`:
+
+- `kind: kapi-project` — the whole project (all locales, full recipe, TM,
+  termbase, overlays, source identity + skeletons). The snapshot / transport
+  parcel, moved by `pack` / `unpack`.
+- `kind: kapi-interchange` — a task-scoped **bilingual** slice for one locale
+  pair (blocks, inline codes, segmentation, skeleton, TM/term context). This is
+  neokapi's interchange format, sent to a translator/reviewer by `extract` and
+  ingested by `merge` (see [KLF vs XLIFF](/reference/klf/vs-xliff)).
+
+Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kapi`
+project ([AD-025](/contribute/architecture/025-klf-package) §7).
 
 Because every member is a native lossless format, the whole package is lossless:
 unpacking can seed a fresh translation memory, termbase, and block store, and the

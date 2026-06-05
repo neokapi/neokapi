@@ -23,18 +23,24 @@ steps:
       suffix: "]"
 ```
 
-### Input and output formats
+### Source and sink
 
-Specify input/output formats at the top level. When omitted, both default to `auto` (format detection from file extension and content):
+A flow carries only its steps. Where content enters and leaves are **bindings**
+resolved when the flow runs — a file, the project store, a `.klz` workspace, an
+interchange import/export, or `none` — not fields of the flow document. A flow
+declares a binding only when it is intrinsic to the flow (e.g. a check flow that
+produces no document sets `sink: none`), and never a path:
 
 ```yaml
-input: json
-output: json
+sink: none        # only when intrinsic; otherwise omit and let the run decide
 steps:
-  - tool: pseudo-translate
-    config:
-      targetLocale: fr
+  - tool: qa-check
 ```
+
+At the CLI the binding comes from `-i` / `-o` (a plain path is detected, a
+`scheme:` is explicit), the project / `.klz` you are in, or auto-detection;
+`kapi run <flow> --explain` shows the resolved `source → sink`. See
+[AD-026: Flow I/O Binding](architecture/026-flow-io-binding).
 
 ### Step labels
 
@@ -135,12 +141,13 @@ for the immutability model behind the stage.
 
 The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `FlowEdge` slices:
 
-1. A **reader** node is created from the `input` format (default: `auto`)
-2. Each `source_transforms:` entry becomes a stage-marked **tool** node, chained directly after the reader so the source is settled first
-3. Each sequential step becomes a **tool** node, chained by edges
-4. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
-5. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
-6. A **writer** node is created from the `output` format (default: `auto`)
+1. Each `source_transforms:` entry becomes a stage-marked **tool** node, chained first so the source is settled before the main tools
+2. Each sequential step becomes a **tool** node, chained by edges
+3. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
+4. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
+
+The graph is tool nodes only. The flow's source and sink are bindings supplied at
+run time ([AD-026](architecture/026-flow-io-binding)), not nodes in the graph.
 
 The resulting graph is what the `Executor` runs -- each node becomes a goroutine connected by buffered channels.
 

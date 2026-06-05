@@ -62,8 +62,6 @@ The **steps** format is a YAML list of tools. It is the form people write by
 hand:
 
 ```yaml
-input: json
-output: json
 steps:
   - tool: tm-leverage
     label: Apply TM matches
@@ -77,10 +75,10 @@ steps:
     label: Quality checks
 ```
 
-Each step names a tool and optionally configures it. `input` and `output` name
-the formats to read and write; when omitted they default to `auto`, which means
-detect from the file. Steps run sequentially: each tool's output channel feeds
-the next tool's input channel.
+Each step names a tool and optionally configures it. Steps run sequentially: each
+tool's output channel feeds the next tool's input channel. A flow carries only
+its steps — *where content comes from and goes to* is a binding decided when you
+run it, not part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
 
 A [check](/framework/checks) such as `qa-check` is just a read-only stage: it
 attaches findings to each block as annotations rather than rewriting content, so
@@ -125,26 +123,25 @@ entity spans) is attached — see
 
 ### Graph — the canonical form
 
-Internally a flow is a directed graph of **nodes** (a reader, tool nodes, a
-writer) connected by **edges**:
+Internally a flow is a directed graph of **tool nodes** connected by **edges**:
 
 ```go
 type FlowDefinition struct {
     ID    string
     Name  string
-    Nodes []FlowNode // reader / tool / writer
+    Nodes []FlowNode // tool nodes
     Edges []FlowEdge // directed connections
 }
 ```
 
 The graph is what the visual flow editor reads and writes, and it is the form
 that survives to execution. Compilation from steps to graph is mechanical:
-`StepsToGraph` creates a reader node from the `input` format, a tool node for
-each step (chained by edges), a fan-out for each `parallel:` block, and a writer
-node from the `output` format. A `parallel:` block becomes several tool nodes
-all connected from the previous node; the step after it connects from every
-branch endpoint (fan-in). Cycles are rejected — the executor runs nodes in
-topological order.
+`StepsToGraph` creates a tool node for each step (chained by edges) and a fan-out
+for each `parallel:` block. A `parallel:` block becomes several tool nodes all
+connected from the previous node; the step after it connects from every branch
+endpoint (fan-in). Cycles are rejected — the executor runs nodes in topological
+order. The flow's ends — where content enters and leaves — are not nodes; they
+are bindings, covered next.
 
 Because both forms compile to the same graph, the steps you write by hand and
 the graph you build in the editor are interchangeable: a hand-written flow opens
@@ -160,12 +157,39 @@ flow that runs.
 
 <FlowBuilderRunner defaultSampleId="support-reply" />
 
+## Source and sink: the flow's ends
+
+A flow processes a stream of blocks; *where that stream comes from and where the
+result goes* are its **source** and **sink** bindings. The same flow runs over a
+loose file, the blocks already in a project, a `.klz` workspace, or content
+imported from an interchange file — only the binding changes:
+
+| Binding | As source | As sink |
+| --- | --- | --- |
+| `file` (default) | read + parse a file | write a file (round-trip via skeleton) |
+| `store` / `klz` | existing blocks + overlays | commit overlays — no file |
+| interchange | import from XLIFF / PO / a bilingual `.klz` | emit interchange for a translator |
+| `none` | — | discard (analysis / checks only) |
+
+Bindings are resolved when you run the flow, by precedence: an explicit `-i` / `-o`
+flag, then the project or `.klz` you're in, then the flow's own intent, then
+auto-detection from the path. A plain path is detected (`.klz` → workspace,
+`.xliff` → interchange, a document → `file`); a `scheme:` is explicit
+(`-o store:`, `-o xliff:hand.xliff`). `kapi run <flow> --explain` prints the
+resolved `source → sink` without running anything.
+
+A flow only ever declares *intrinsic* intent — a check flow that produces no
+document sets `sink: none` — never a path. Inside a project, a run with no `-o`
+lands its work in the store (process-only); `kapi merge` materializes files when
+you're ready. See [AD-026](/contribute/architecture/026-flow-io-binding) for the
+full model.
+
 ## Running a flow
 
-A flow is run against one or more input files. The runner detects each file's
-format, creates the reader and writer, instantiates the tool chain, and hands it
-to the executor. Composed (multi-tool) flows run with `kapi run`; single-tool
-flows are exposed directly as their tool's command:
+A flow is run against a source. The runner resolves the source and sink bindings,
+instantiates the tool chain, and hands it to the executor. Composed (multi-tool)
+flows run with `kapi run`; single-tool flows are exposed directly as their tool's
+command:
 
 ```bash
 # Run a composed flow (two or more tools) on a file
@@ -175,8 +199,8 @@ kapi run ai-translate-qa -i app.xliff --target-lang fr
 kapi flows
 ```
 
-The demo below runs the `pseudo-translate` flow — `reader → pseudo-translate →
-writer`. Because it is a single-tool flow, it is invoked directly as `kapi
+The demo below runs the `pseudo-translate` flow — `source → pseudo-translate →
+sink`. Because it is a single-tool flow, it is invoked directly as `kapi
 pseudo-translate`. The left pane is the CLI invocation; the right pane is the
 framework's result, the same file with its source strings replaced by accented
 look-alikes:
@@ -190,7 +214,7 @@ look-alikes:
     command: "kapi pseudo-translate messages.json -o out.json --target-lang fr",
     outputPath: "out.json",
   }}
-  caption="The pseudo-translate flow: read → pseudo-translate → write."
+  caption="The pseudo-translate flow over the file binding: file → pseudo-translate → file."
 />
 
 ## Built-in flows
