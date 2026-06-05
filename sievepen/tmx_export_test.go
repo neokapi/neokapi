@@ -2,6 +2,7 @@ package sievepen_test
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -13,9 +14,9 @@ import (
 
 func TestExportTMX_Multilingual(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
-	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMX(tm, &buf, nil))
+	require.NoError(t, sievepen.ExportTMX(context.Background(), tm, &buf, nil))
 	out := buf.String()
 	assert.Contains(t, out, `<tmx version="1.4">`)
 	assert.Contains(t, out, `xml:lang="en"`)
@@ -28,9 +29,9 @@ func TestExportTMX_Multilingual(t *testing.T) {
 
 func TestExportTMX_LocalesFilter(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
-	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMX(tm, &buf, []model.LocaleID{"en", "fr"}))
+	require.NoError(t, sievepen.ExportTMX(context.Background(), tm, &buf, []model.LocaleID{"en", "fr"}))
 	out := buf.String()
 	assert.Contains(t, out, `xml:lang="en"`)
 	assert.Contains(t, out, `xml:lang="fr"`)
@@ -39,9 +40,9 @@ func TestExportTMX_LocalesFilter(t *testing.T) {
 
 func TestExportTMX_BilingualShim(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
-	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMXBilingual(tm, &buf, "en", "de"))
+	require.NoError(t, sievepen.ExportTMXBilingual(context.Background(), tm, &buf, "en", "de"))
 	out := buf.String()
 	assert.Contains(t, out, "Hello")
 	assert.Contains(t, out, "Hallo")
@@ -50,7 +51,7 @@ func TestExportTMX_BilingualShim(t *testing.T) {
 
 func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "A & B < C > D"}}},
@@ -58,7 +59,7 @@ func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 		},
 	}))
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMX(tm, &buf, nil))
+	require.NoError(t, sievepen.ExportTMX(context.Background(), tm, &buf, nil))
 	out := buf.String()
 	assert.Contains(t, out, "A &amp; B &lt; C &gt; D")
 }
@@ -71,18 +72,18 @@ func TestTMXRoundtrip_Bilingual(t *testing.T) {
 <body><tu tuid="x1"><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>Bonjour</seg></tuv></tu></body></tmx>`
 
 	tm1 := sievepen.NewInMemoryTM()
-	_, n, err := sievepen.ImportTMXSession(tm1, strings.NewReader(body), sievepen.ImportTMXOptions{})
+	_, n, err := sievepen.ImportTMXSession(context.Background(), tm1, strings.NewReader(body), sievepen.ImportTMXOptions{})
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMX(tm1, &buf, nil))
+	require.NoError(t, sievepen.ExportTMX(context.Background(), tm1, &buf, nil))
 
 	tm2 := sievepen.NewInMemoryTM()
-	_, _, err = sievepen.ImportTMXSession(tm2, &buf, sievepen.ImportTMXOptions{})
+	_, _, err = sievepen.ImportTMXSession(context.Background(), tm2, &buf, sievepen.ImportTMXOptions{})
 	require.NoError(t, err)
 
-	e := tm2.Entries()[0]
+	e := mustEntries(t, tm2)[0]
 	assert.Equal(t, "Hello", e.VariantText("en"))
 	assert.Equal(t, "Bonjour", e.VariantText("fr"))
 }
@@ -93,16 +94,16 @@ func TestTMXRoundtrip_Multilingual(t *testing.T) {
 <body><tu><tuv xml:lang="en"><seg>A</seg></tuv><tuv xml:lang="fr"><seg>B</seg></tuv><tuv xml:lang="de"><seg>C</seg></tuv><tuv xml:lang="es"><seg>D</seg></tuv></tu></body></tmx>`
 
 	tm1 := sievepen.NewInMemoryTM()
-	_, _, err := sievepen.ImportTMXSession(tm1, strings.NewReader(body), sievepen.ImportTMXOptions{})
+	_, _, err := sievepen.ImportTMXSession(context.Background(), tm1, strings.NewReader(body), sievepen.ImportTMXOptions{})
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	require.NoError(t, sievepen.ExportTMX(tm1, &buf, nil))
+	require.NoError(t, sievepen.ExportTMX(context.Background(), tm1, &buf, nil))
 
 	tm2 := sievepen.NewInMemoryTM()
-	_, _, err = sievepen.ImportTMXSession(tm2, &buf, sievepen.ImportTMXOptions{})
+	_, _, err = sievepen.ImportTMXSession(context.Background(), tm2, &buf, sievepen.ImportTMXOptions{})
 	require.NoError(t, err)
 
-	e := tm2.Entries()[0]
+	e := mustEntries(t, tm2)[0]
 	assert.Len(t, e.Variants, 4)
 }

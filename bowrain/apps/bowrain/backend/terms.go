@@ -153,7 +153,10 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	results, total := tb.Search(query, model.LocaleID(sourceLocale), model.LocaleID(targetLocale), offset, limit)
+	results, total, err := tb.Search(context.Background(), query, model.LocaleID(sourceLocale), model.LocaleID(targetLocale), offset, limit)
+	if err != nil {
+		return nil, err
+	}
 	infos := make([]ConceptInfo, len(results))
 	for i, c := range results {
 		infos[i] = conceptToInfo(c)
@@ -181,7 +184,7 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("init termbase: %w", err)
 	}
-	return tb.Count(), nil
+	return tb.Count(context.Background())
 }
 
 // AddConcept adds a new concept to the termbase.
@@ -211,12 +214,12 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 		Terms:      termsFromInfo(req.Terms),
 	}
 
-	if err := tb.AddConcept(concept); err != nil {
+	if err := tb.AddConcept(context.Background(), concept); err != nil {
 		return nil, err
 	}
 
 	// Retrieve to get normalized timestamps.
-	stored, _ := tb.GetConcept(concept.ID)
+	stored, _, _ := tb.GetConcept(context.Background(), concept.ID)
 	info := conceptToInfo(stored)
 	return &info, nil
 }
@@ -248,7 +251,7 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 		Terms:      termsFromInfo(req.Terms),
 	}
 
-	return tb.AddConcept(concept)
+	return tb.AddConcept(context.Background(), concept)
 }
 
 // DeleteConcept removes a concept from the termbase.
@@ -271,7 +274,7 @@ func (a *App) DeleteConcept(projectID, conceptID string) error {
 	if err != nil {
 		return fmt.Errorf("init termbase: %w", err)
 	}
-	return tb.DeleteConcept(conceptID)
+	return tb.DeleteConcept(context.Background(), conceptID)
 }
 
 // LookupTerms looks up terms matching the given text.
@@ -280,9 +283,12 @@ func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches, err := tb.LookupAll(context.Background(), text, termbase.LookupOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	infos := make([]TermMatchInfo, len(matches))
 	for i, m := range matches {
@@ -327,7 +333,7 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 	if err != nil {
 		return 0, fmt.Errorf("init termbase: %w", err)
 	}
-	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 		TargetLocale: model.LocaleID(targetLocale),
 		Domain:       domain,
@@ -357,7 +363,7 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("init termbase: %w", err)
 	}
-	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
+	count, err := termbase.ImportJSON(context.Background(), tb, strings.NewReader(jsonContent))
 	if err != nil {
 		return 0, fmt.Errorf("import JSON: %w", err)
 	}
@@ -383,7 +389,7 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 		return "", fmt.Errorf("init termbase: %w", err)
 	}
 	var buf bytes.Buffer
-	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
+	if err := termbase.ExportJSON(context.Background(), tb, &buf, name); err != nil {
 		return "", fmt.Errorf("export JSON: %w", err)
 	}
 
@@ -402,7 +408,9 @@ func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermE
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	if tb.Count() == 0 {
+	if count, cerr := tb.Count(ctx); cerr != nil {
+		return nil, cerr
+	} else if count == 0 {
 		return nil, nil
 	}
 
@@ -430,10 +438,13 @@ func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermE
 		sourceText := block.SourceText()
 		targetText := block.TargetText(tgtLocale)
 
-		matches := tb.LookupAll(sourceText, termbase.LookupOptions{
+		matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
 			SourceLocale: srcLocale,
 			StatusFilter: []model.TermStatus{model.TermPreferred, model.TermApproved},
 		})
+		if err != nil {
+			return nil, err
+		}
 
 		for _, m := range matches {
 			targetTerms := m.Concept.TargetTerms(tgtLocale)

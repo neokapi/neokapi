@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -104,7 +105,16 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
 
-	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+	entries, total, err := tm.SearchEntries(context.Background(), sievepen.SearchParams{
+		Query:         query,
+		AnyLocale:     sourceLocale,
+		RequireLocale: targetLocale,
+		Offset:        offset,
+		Limit:         limit,
+	})
+	if err != nil {
+		return nil, err
+	}
 	infos := make([]TMEntryInfo, len(entries))
 	for i, e := range entries {
 		infos[i] = entryToInfo(e, sourceLocale, targetLocale)
@@ -134,7 +144,7 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 		return 0, fmt.Errorf("init TM: %w", err)
 	}
 
-	return tm.Count(), nil
+	return tm.Count(context.Background())
 }
 
 // UpdateTMEntry updates an existing TM entry.
@@ -158,7 +168,10 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 		return fmt.Errorf("init TM: %w", err)
 	}
 
-	entry, ok := tm.GetEntry(req.EntryID)
+	entry, ok, err := tm.GetEntry(context.Background(), req.EntryID)
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return fmt.Errorf("TM entry %q not found", req.EntryID)
 	}
@@ -175,7 +188,7 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 	}
 	entry.UpdatedAt = time.Now()
 
-	return tm.Add(entry)
+	return tm.Add(context.Background(), entry)
 }
 
 // DeleteTMEntry deletes a TM entry by ID.
@@ -199,7 +212,7 @@ func (a *App) DeleteTMEntry(projectID, entryID string) error {
 		return fmt.Errorf("init TM: %w", err)
 	}
 
-	return tm.Delete(entryID)
+	return tm.Delete(context.Background(), entryID)
 }
 
 // AddTMEntry adds a new entry to the TM.
@@ -242,7 +255,7 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 		UpdatedAt:   now,
 	}
 
-	if err := tm.Add(entry); err != nil {
+	if err := tm.Add(context.Background(), entry); err != nil {
 		return nil, err
 	}
 

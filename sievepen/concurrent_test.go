@@ -1,6 +1,7 @@
 package sievepen_test
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -67,10 +68,13 @@ func TestSQLiteTM_ConcurrentLookup(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for _, e := range entries {
-		require.NoError(t, tm.Add(e))
+		require.NoError(t, tm.Add(ctx, e))
 	}
-	require.Equal(t, len(entries), tm.Count(), "seed count")
+	seedCount, err := tm.Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(entries), seedCount, "seed count")
 
 	const goroutines = 16
 	opts := sievepen.DefaultLookupOptions()
@@ -93,7 +97,7 @@ func TestSQLiteTM_ConcurrentLookup(t *testing.T) {
 			for round := range 5 {
 				// Rotate probes round-robin across workers.
 				probe := probeBlocks[(workerID+round)%len(probeBlocks)]
-				matches, err := tm.Lookup(probe, "en", "fr", opts)
+				matches, err := tm.Lookup(context.Background(), probe, "en", "fr", opts)
 				if err != nil {
 					return fmt.Errorf("worker %d Lookup: %w", workerID, err)
 				}
@@ -105,14 +109,17 @@ func TestSQLiteTM_ConcurrentLookup(t *testing.T) {
 
 				// LookupText on a rotating probe.
 				text := probeTexts[(workerID+round)%len(probeTexts)]
-				textMatches, err := tm.LookupText(text, "en", "fr", opts)
+				textMatches, err := tm.LookupText(context.Background(), text, "en", "fr", opts)
 				if err != nil {
 					return fmt.Errorf("worker %d LookupText(%q): %w", workerID, text, err)
 				}
 				totalTextLookups.Add(int64(len(textMatches)))
 
 				// Count must always return the seeded value.
-				count := tm.Count()
+				count, err := tm.Count(context.Background())
+				if err != nil {
+					return fmt.Errorf("worker %d Count: %w", workerID, err)
+				}
 				if count != len(entries) {
 					return fmt.Errorf("worker %d Count = %d, want %d", workerID, count, len(entries))
 				}
@@ -138,7 +145,7 @@ func TestSQLiteTM_ConcurrentFacetStats(t *testing.T) {
 	t.Cleanup(func() { tm.Close() })
 
 	for i := range 10 {
-		require.NoError(t, tm.Add(sievepen.TMEntry{
+		require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 			ID: fmt.Sprintf("entry-%d", i),
 			Variants: map[model.LocaleID][]model.Run{
 				"en": {{Text: &model.TextRun{Text: fmt.Sprintf("Source text %d", i)}}},
@@ -154,7 +161,10 @@ func TestSQLiteTM_ConcurrentFacetStats(t *testing.T) {
 		workerID := i
 		g.Go(func() error {
 			for range 3 {
-				stats := tm.FacetStatsFiltered("", "en", "fr", sievepen.SearchFilter{})
+				stats, err := tm.FacetStatsFiltered(context.Background(), sievepen.SearchParams{AnyLocale: "en", RequireLocale: "fr"})
+				if err != nil {
+					return fmt.Errorf("worker %d: FacetStatsFiltered: %w", workerID, err)
+				}
 				if len(stats.Locales) == 0 {
 					return fmt.Errorf("worker %d: FacetStatsFiltered returned no locale facets", workerID)
 				}

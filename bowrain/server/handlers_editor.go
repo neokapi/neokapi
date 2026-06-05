@@ -712,14 +712,32 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 	}
 
 	stream := c.QueryParam("stream")
+	ctx := c.Request().Context()
 	var entries []sievepen.TMEntry
 	var total int
 	if stream != "" && stream != "main" && s.ContentStore != nil {
 		pid := c.QueryParam("project_id")
-		chain := buildStreamChain(c.Request().Context(), s.ContentStore, pid, stream)
-		entries, total = tm.SearchEntriesForStream(query, sourceLocale, targetLocale, stream, chain[1:], offset, limit)
+		chain := buildStreamChain(ctx, s.ContentStore, pid, stream)
+		entries, total, err = tm.SearchEntriesForStream(ctx, sievepen.SearchParams{
+			Query:         query,
+			AnyLocale:     sourceLocale,
+			RequireLocale: targetLocale,
+			Stream:        stream,
+			StreamChain:   chain[1:],
+			Offset:        offset,
+			Limit:         limit,
+		})
 	} else {
-		entries, total = tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+		entries, total, err = tm.SearchEntries(ctx, sievepen.SearchParams{
+			Query:         query,
+			AnyLocale:     sourceLocale,
+			RequireLocale: targetLocale,
+			Offset:        offset,
+			Limit:         limit,
+		})
+	}
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	// Post-filter by project_id if specified.
@@ -755,7 +773,11 @@ func (s *Server) HandleGetTMCount(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]int{"count": tm.Count()})
+	count, err := tm.Count(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]int{"count": count})
 }
 
 // HandleAddTMEntry adds a new TM entry.
@@ -794,9 +816,9 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 	}
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
-		err = tm.AddWithStream(entry, stream)
+		err = tm.AddWithStream(c.Request().Context(), entry, stream)
 	} else {
-		err = tm.Add(entry)
+		err = tm.Add(c.Request().Context(), entry)
 	}
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -827,13 +849,16 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	existing, ok := tm.GetEntry(eid)
+	existing, ok, err := tm.GetEntry(c.Request().Context(), eid)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("TM entry %q not found", eid)})
 	}
 
 	// Delete old and add updated.
-	if err := tm.Delete(eid); err != nil {
+	if err := tm.Delete(c.Request().Context(), eid); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -849,7 +874,7 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 	}
 	existing.UpdatedAt = time.Now()
 
-	if err := tm.Add(existing); err != nil {
+	if err := tm.Add(c.Request().Context(), existing); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -873,7 +898,7 @@ func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	if err := tm.Delete(eid); err != nil {
+	if err := tm.Delete(c.Request().Context(), eid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
@@ -903,15 +928,19 @@ func (s *Server) HandleGetTerms(c echo.Context) error {
 	}
 
 	stream := c.QueryParam("stream")
+	ctx := c.Request().Context()
 	srcLocaleID := model.LocaleID(sourceLocale)
 	tgtLocaleID := model.LocaleID(targetLocale)
 	var concepts []termbase.Concept
 	var total int
 	if stream != "" && stream != "main" && s.ContentStore != nil {
-		chain := buildStreamChain(c.Request().Context(), s.ContentStore, projectID, stream)
-		concepts, total = tb.SearchForStream(query, srcLocaleID, tgtLocaleID, stream, chain[1:], offset, limit)
+		chain := buildStreamChain(ctx, s.ContentStore, projectID, stream)
+		concepts, total, err = tb.SearchForStream(ctx, query, srcLocaleID, tgtLocaleID, stream, chain[1:], offset, limit)
 	} else {
-		concepts, total = tb.Search(query, srcLocaleID, tgtLocaleID, offset, limit)
+		concepts, total, err = tb.Search(ctx, query, srcLocaleID, tgtLocaleID, offset, limit)
+	}
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	// Post-filter by project_id if specified.
@@ -946,7 +975,11 @@ func (s *Server) HandleGetTermCount(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]int{"count": tb.Count()})
+	count, err := tb.Count(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]int{"count": count})
 }
 
 // HandleAddConcept adds a new terminology concept.
@@ -980,9 +1013,9 @@ func (s *Server) HandleAddConcept(c echo.Context) error {
 	}
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
-		err = tb.AddConceptWithStream(concept, stream)
+		err = tb.AddConceptWithStream(c.Request().Context(), concept, stream)
 	} else {
-		err = tb.AddConcept(concept)
+		err = tb.AddConcept(c.Request().Context(), concept)
 	}
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -1013,7 +1046,10 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
 
-	existing, ok := tb.GetConcept(cid)
+	existing, ok, err := tb.GetConcept(c.Request().Context(), cid)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
 	}
@@ -1023,7 +1059,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 	existing.Terms = editorTermsFromInfo(req.Terms)
 	existing.UpdatedAt = time.Now()
 
-	if err := tb.AddConcept(existing); err != nil {
+	if err := tb.AddConcept(c.Request().Context(), existing); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -1046,7 +1082,7 @@ func (s *Server) HandleDeleteConcept(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	if err := tb.DeleteConcept(cid); err != nil {
+	if err := tb.DeleteConcept(c.Request().Context(), cid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
@@ -1073,7 +1109,7 @@ func (s *Server) HandleImportTermsCSV(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	count, err := termbase.ImportCSV(tb, strings.NewReader(req.CSVContent), termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), termbase.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
@@ -1106,7 +1142,7 @@ func (s *Server) HandleImportTermsJSON(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	count, err := termbase.ImportJSON(tb, strings.NewReader(req.JSONContent))
+	count, err := termbase.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -1128,7 +1164,7 @@ func (s *Server) HandleExportTermsJSON(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
 	var buf strings.Builder
-	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
+	if err := termbase.ExportJSON(c.Request().Context(), tb, &buf, name); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

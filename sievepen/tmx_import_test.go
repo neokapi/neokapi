@@ -2,6 +2,7 @@ package sievepen_test
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 
 func importString(t *testing.T, tm sievepen.TMStore, body string, opts sievepen.ImportTMXOptions) (string, int) {
 	t.Helper()
-	sid, n, err := sievepen.ImportTMXSession(tm, strings.NewReader(body), opts)
+	sid, n, err := sievepen.ImportTMXSession(context.Background(), tm, strings.NewReader(body), opts)
 	require.NoError(t, err)
 	return sid, n
 }
@@ -34,7 +35,7 @@ func TestImportTMX_PlainBilingual(t *testing.T) {
 	assert.NotEmpty(t, sid)
 	assert.Equal(t, 1, n)
 
-	entries := tm.Entries()
+	entries := mustEntries(t, tm)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "Hello", entries[0].VariantText("en"))
 	assert.Equal(t, "Bonjour", entries[0].VariantText("fr"))
@@ -59,7 +60,7 @@ func TestImportTMX_Multilingual(t *testing.T) {
 </tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{OriginKey: "eurlex.tmx"})
 	assert.Equal(t, 1, n)
-	entries := tm.Entries()
+	entries := mustEntries(t, tm)
 	require.Len(t, entries, 1)
 	assert.Len(t, entries[0].Variants, 5)
 }
@@ -72,7 +73,7 @@ func TestImportTMX_ElementPH(t *testing.T) {
 </body></tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	runs := e.Variant("en")
 	require.NotNil(t, runs)
 	codeCount := 0
@@ -95,7 +96,7 @@ func TestImportTMX_ElementBPT_EPT(t *testing.T) {
 </body></tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	runs := e.Variant("en")
 	require.NotNil(t, runs)
 	var open *model.PcOpenRun
@@ -124,7 +125,7 @@ func TestImportTMX_ElementIT(t *testing.T) {
 </body></tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	runs := e.Variant("en")
 	var pcOpens, pcCloses int
 	for _, r := range runs {
@@ -147,7 +148,7 @@ func TestImportTMX_ElementHI(t *testing.T) {
 </body></tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	runs := e.Variant("en")
 	var hiSubTypes int
 	for _, r := range runs {
@@ -170,7 +171,7 @@ func TestImportTMX_ElementUT(t *testing.T) {
 </body></tmx>`
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	runs := e.Variant("en")
 	var phs int
 	for _, r := range runs {
@@ -197,7 +198,7 @@ func TestImportTMX_HeaderMetadata(t *testing.T) {
   </body>
 </tmx>`
 	sid, _ := importString(t, tm, body, sievepen.ImportTMXOptions{OriginKey: "bitextor.tmx"})
-	s, ok := tm.GetImportSession(sid)
+	s, ok := mustGetImportSession(t, tm, sid)
 	require.True(t, ok)
 	assert.Equal(t, "bitextor", s.ToolName)
 	assert.Equal(t, "8.0", s.ToolVersion)
@@ -220,7 +221,7 @@ func TestImportTMX_SourceDocumentProp(t *testing.T) {
   </body>
 </tmx>`
 	_, _ = importString(t, tm, body, sievepen.ImportTMXOptions{OriginKey: "bitextor.tmx"})
-	entries := tm.Entries()
+	entries := mustEntries(t, tm)
 	require.Len(t, entries, 1)
 	require.Len(t, entries[0].Origins, 1)
 	assert.Equal(t, "https://example.com/en/doc", entries[0].Origins[0].Reference)
@@ -239,7 +240,7 @@ func TestImportTMX_DuplicateHashWarn(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{OriginKey: "f.tmx", WarnFunc: warnFn})
 	assert.Equal(t, 1, n) // proceeds anyway
 	assert.Contains(t, warned, "previously imported")
-	assert.Len(t, tm.ListImportSessions(), 2)
+	assert.Len(t, mustListImportSessions(t, tm), 2)
 }
 
 func TestImportTMX_LocaleFilter(t *testing.T) {
@@ -250,7 +251,7 @@ func TestImportTMX_LocaleFilter(t *testing.T) {
 <tu><tuv xml:lang="en"><seg>a</seg></tuv><tuv xml:lang="fr"><seg>b</seg></tuv><tuv xml:lang="de"><seg>c</seg></tuv></tu>
 </body></tmx>`
 	_, _ = importString(t, tm, body, sievepen.ImportTMXOptions{Locales: []model.LocaleID{"en", "fr"}})
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	assert.Len(t, e.Variants, 2)
 	assert.True(t, e.HasLocale("en"))
 	assert.True(t, e.HasLocale("fr"))
@@ -273,10 +274,10 @@ func TestImportTMXWithOptions_LegacyBilingual(t *testing.T) {
 	body := bytes.NewBufferString(`<?xml version="1.0"?>
 <tmx version="1.4"><header creationtool="t" creationtoolversion="1" segtype="sentence" adminlang="en" srclang="en" datatype="plaintext"/>
 <body><tu><tuv xml:lang="en"><seg>hello</seg></tuv><tuv xml:lang="fr"><seg>bonjour</seg></tuv></tu></body></tmx>`)
-	n, err := sievepen.ImportTMXWithOptions(tm, body, "en", "fr", sievepen.ImportTMXOptions{OriginKey: "legacy.tmx"})
+	n, err := sievepen.ImportTMXWithOptions(context.Background(), tm, body, "en", "fr", sievepen.ImportTMXOptions{OriginKey: "legacy.tmx"})
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
-	e := tm.Entries()[0]
+	e := mustEntries(t, tm)[0]
 	assert.Equal(t, "hello", e.VariantText("en"))
 	assert.Equal(t, "bonjour", e.VariantText("fr"))
 }

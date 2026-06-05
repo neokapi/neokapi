@@ -62,7 +62,10 @@ func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolReque
 		limit = 10
 	}
 
-	concepts, total := tb.Search(input.Query, model.LocaleID(input.Locale), "", 0, limit)
+	concepts, total, err := tb.Search(ctx, input.Query, model.LocaleID(input.Locale), "", 0, limit)
+	if err != nil {
+		return nil, termSearchOutput{}, fmt.Errorf("search termbase: %w", err)
+	}
 
 	var results []termResult
 	for _, c := range concepts {
@@ -123,7 +126,7 @@ func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest,
 				},
 			},
 		}
-		if err := tb.AddConcept(concept); err != nil {
+		if err := tb.AddConcept(ctx, concept); err != nil {
 			return nil, termAddOutput{}, fmt.Errorf("add term: %w", err)
 		}
 		added++

@@ -1,6 +1,7 @@
 package termbase
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -106,7 +107,7 @@ type tbxTermNote struct {
 // It detects the dialect from the root element (<tbx> for TBX-Basic/v3,
 // <martif> for legacy TBX 2008/MARTIF) and maps each conceptEntry/termEntry
 // to a termbase Concept. Returns the number of concepts imported.
-func ImportTBX(tb TermBase, reader io.Reader, opts TBXImportOptions) (int, error) {
+func ImportTBX(ctx context.Context, tb TermBase, reader io.Reader, opts TBXImportOptions) (int, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil {
 		return 0, fmt.Errorf("read TBX: %w", err)
@@ -168,7 +169,7 @@ func ImportTBX(tb TermBase, reader io.Reader, opts TBXImportOptions) (int, error
 			continue
 		}
 
-		if err := tb.AddConcept(concept); err != nil {
+		if err := tb.AddConcept(ctx, concept); err != nil {
 			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
 		}
 		imported++

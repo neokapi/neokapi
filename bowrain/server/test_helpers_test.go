@@ -292,10 +292,10 @@ type testTermStore struct {
 	*termbase.InMemoryTermBase
 }
 
-func (t *testTermStore) AddConceptWithStream(concept termbase.Concept, _ string) error {
-	return t.AddConcept(concept)
+func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept termbase.Concept, _ string) error {
+	return t.AddConcept(ctx, concept)
 }
 
-func (t *testTermStore) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]termbase.Concept, int) {
-	return t.Search(query, sourceLocale, targetLocale, offset, limit)
+func (t *testTermStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]termbase.Concept, int, error) {
+	return t.Search(ctx, query, sourceLocale, targetLocale, offset, limit)
 }

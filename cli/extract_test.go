@@ -189,7 +189,7 @@ func TestExtract_TMExactPrefillFillsTarget(t *testing.T) {
 	tmPath := filepath.Join(real, project.StateDirName, "tm.db")
 	tm, err := sievepen.NewSQLiteTM(tmPath)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},
@@ -221,7 +221,7 @@ func TestExtract_NoTMSkipsPrefill(t *testing.T) {
 	tmPath := filepath.Join(real, project.StateDirName, "tm.db")
 	tm, err := sievepen.NewSQLiteTM(tmPath)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},

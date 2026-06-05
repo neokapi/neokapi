@@ -2,6 +2,7 @@ package cli
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -138,7 +139,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			}
 			defer tm.Close()
 
-			count, err := importTMXFile(tm, args[0], srcLocale, tgtLocale, allPairs, parseLocaleList(localesRaw))
+			count, err := importTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, parseLocaleList(localesRaw))
 			if err != nil {
 				return err
 			}
@@ -152,10 +153,14 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if a.Quiet {
 				return nil
 			}
+			tmTotal, err := tm.Count(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("count TM entries: %w", err)
+			}
 			return output.Print(cmd, output.TMImportOutput{
 				Imported: count,
 				DBPath:   dbPath,
-				Total:    tm.Count(),
+				Total:    tmTotal,
 			})
 		},
 	}
@@ -226,7 +231,7 @@ Examples:
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := importTMXFile(tm, path, srcLocale, tgtLocale, allPairs, locales)
+				n, err := importTMXFile(cmd.Context(), tm, path, srcLocale, tgtLocale, allPairs, locales)
 				if err != nil {
 					failed++
 					if !a.Quiet {
@@ -249,12 +254,16 @@ Examples:
 			if a.Quiet {
 				return nil
 			}
+			tmTotal, err := tm.Count(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("count TM entries: %w", err)
+			}
 			fmt.Fprintf(os.Stderr, "\nDone. %d files processed (%d failed), %d entries imported, TM now has %d entries\n",
-				len(files), failed, totalImported, tm.Count())
+				len(files), failed, totalImported, tmTotal)
 			return output.Print(cmd, output.TMImportOutput{
 				Imported: totalImported,
 				DBPath:   dbPath,
-				Total:    tm.Count(),
+				Total:    tmTotal,
 			})
 		},
 	}
@@ -287,7 +296,7 @@ func parseLocaleList(raw string) []model.LocaleID {
 
 // importTMXFile imports a single TMX file (plain or .gz) into the TM.
 // Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func importTMXFile(tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
+func importTMXFile(ctx context.Context, tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -313,9 +322,9 @@ func importTMXFile(tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPa
 	}
 
 	if allPairs {
-		return sievepen.ImportTMXLocalePairs(tm, reader, locales, opts)
+		return sievepen.ImportTMXLocalePairs(ctx, tm, reader, locales, opts)
 	}
-	return sievepen.ImportTMXWithOptions(tm, reader,
+	return sievepen.ImportTMXWithOptions(ctx, tm, reader,
 		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
 }
 
@@ -412,13 +421,17 @@ restrict to a subset (comma-separated).`,
 			}
 
 			locales := parseLocaleList(localesRaw)
-			if err := sievepen.ExportTMX(tm, w, locales); err != nil {
+			if err := sievepen.ExportTMX(cmd.Context(), tm, w, locales); err != nil {
 				return fmt.Errorf("export TMX: %w", err)
 			}
 
 			if !a.Quiet && outputPath != "" {
+				total, err := tm.Count(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("count TM entries: %w", err)
+				}
 				return output.Print(cmd, output.TMExportOutput{
-					Count:      tm.Count(),
+					Count:      total,
 					OutputPath: outputPath,
 				})
 			}
@@ -456,7 +469,7 @@ func (a *App) newTMLookupCmd() *cobra.Command {
 				MaxResults: maxResults,
 			}
 
-			matches, err := tm.LookupText(args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+			matches, err := tm.LookupText(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
 			if err != nil {
 				return fmt.Errorf("lookup: %w", err)
 			}
@@ -507,7 +520,15 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 			}
 			defer tm.Close()
 
-			entries, total := tm.SearchEntries(args[0], srcLocale, tgtLocale, 0, limit)
+			entries, total, err := tm.SearchEntries(cmd.Context(), sievepen.SearchParams{
+				Query:         args[0],
+				AnyLocale:     srcLocale,
+				RequireLocale: tgtLocale,
+				Limit:         limit,
+			})
+			if err != nil {
+				return fmt.Errorf("search: %w", err)
+			}
 
 			results := make([]output.TMSearchEntry, len(entries))
 			srcLoc := model.LocaleID(srcLocale)
@@ -566,13 +587,21 @@ func (a *App) newTMStatsCmd() *cobra.Command {
 			// locale pairs. Keep the legacy LocalePairs map populated with
 			// a single-locale summary for backward compatibility.
 			localePairs := make(map[string]int)
-			for _, lf := range tm.LocaleStats() {
+			localeStats, err := tm.LocaleStats(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("locale stats: %w", err)
+			}
+			for _, lf := range localeStats {
 				localePairs[lf.Locale] = lf.Count
 			}
 
+			total, err := tm.Count(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("count TM entries: %w", err)
+			}
 			return output.Print(cmd, output.TMStatsOutput{
 				DBPath:      dbPath,
-				Entries:     tm.Count(),
+				Entries:     total,
 				LocalePairs: localePairs,
 			})
 		},
@@ -628,7 +657,10 @@ that added them so you can filter the TM by import source.`,
 				return err
 			}
 			defer tm.Close()
-			sessions := tm.ListImportSessions()
+			sessions, err := tm.ListImportSessions(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("list import sessions: %w", err)
+			}
 			if len(sessions) == 0 {
 				if !a.Quiet {
 					fmt.Fprintln(os.Stdout, "No import sessions.")
@@ -654,7 +686,10 @@ that added them so you can filter the TM by import source.`,
 				return err
 			}
 			defer tm.Close()
-			s, ok := tm.GetImportSession(args[0])
+			s, ok, err := tm.GetImportSession(cmd.Context(), args[0])
+			if err != nil {
+				return fmt.Errorf("get import session: %w", err)
+			}
 			if !ok {
 				return fmt.Errorf("session not found: %s", args[0])
 			}
@@ -692,7 +727,7 @@ that added them so you can filter the TM by import source.`,
 				return err
 			}
 			defer tm.Close()
-			if err := tm.DeleteImportSession(args[0]); err != nil {
+			if err := tm.DeleteImportSession(cmd.Context(), args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}
 			if !a.Quiet {

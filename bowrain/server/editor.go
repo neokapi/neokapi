@@ -856,7 +856,9 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
-	if tm.Count() == 0 {
+	if count, err := tm.Count(ctx); err != nil {
+		return nil, err
+	} else if count == 0 {
 		return nil, nil
 	}
 
@@ -868,7 +870,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 	opts := sievepen.DefaultLookupOptions()
 	opts.MaxResults = 5
 	opts.ProjectID = projectID // for scoring boost
-	matches, err := tm.Lookup(sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
+	matches, err := tm.Lookup(ctx, sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -899,7 +901,9 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	if tb.Count() == 0 {
+	if count, err := tb.Count(ctx); err != nil {
+		return nil, err
+	} else if count == 0 {
 		return nil, nil
 	}
 
@@ -913,11 +917,14 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, nil
 	}
 
-	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
+	matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 		ProjectID:    projectID,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	result := make([]BlockTermMatchResponse, 0, len(matches))
 	for _, m := range matches {

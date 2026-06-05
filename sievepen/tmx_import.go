@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
@@ -74,7 +75,7 @@ type ImportTMXOptions struct {
 // ImportTMXWithOptions imports a TMX file into the TM, supports recording an Origin
 // and filtering to a specific (src, tgt) bilingual pair when both locales
 // are set. Other TUVs are dropped.
-func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
+func ImportTMXWithOptions(ctx context.Context, tm TranslationMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(TMStore)
 	if !ok {
 		return 0, errors.New("TM does not support import sessions")
@@ -82,7 +83,7 @@ func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, 
 	if sourceLocale != "" && targetLocale != "" {
 		opts.Locales = []model.LocaleID{sourceLocale, targetLocale}
 	}
-	_, imported, err := ImportTMXSession(store, reader, opts)
+	_, imported, err := ImportTMXSession(ctx, store, reader, opts)
 	return imported, err
 }
 
@@ -93,13 +94,13 @@ func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, 
 // This is a multilingual import — each TU becomes one entry with N variants.
 // The "locale pairs" in the name is a historical artifact; the old behavior
 // of emitting a separate entry per (src, tgt) pair has been removed.
-func ImportTMXLocalePairs(tm TranslationMemory, reader io.Reader, locales []model.LocaleID, opts ImportTMXOptions) (int, error) {
+func ImportTMXLocalePairs(ctx context.Context, tm TranslationMemory, reader io.Reader, locales []model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(TMStore)
 	if !ok {
 		return 0, errors.New("TM does not support import sessions")
 	}
 	opts.Locales = locales
-	_, imported, err := ImportTMXSession(store, reader, opts)
+	_, imported, err := ImportTMXSession(ctx, store, reader, opts)
 	return imported, err
 }
 
@@ -110,7 +111,7 @@ func ImportTMXLocalePairs(tm TranslationMemory, reader io.Reader, locales []mode
 // When the file SHA-256 matches a previous session's hash, opts.WarnFunc is
 // invoked but the import proceeds — a new session is created so that the
 // caller can distinguish re-imports.
-func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (string, int, error) {
+func ImportTMXSession(ctx context.Context, store TMStore, reader io.Reader, opts ImportTMXOptions) (string, int, error) {
 	// 1. Read everything so we can hash and rewind.
 	buf, err := io.ReadAll(reader)
 	if err != nil {
@@ -121,7 +122,11 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 
 	// 2. Warn on duplicate hash.
 	if opts.WarnFunc != nil {
-		if prev, ok := store.FindImportSessionByHash(hash); ok {
+		prev, ok, err := store.FindImportSessionByHash(ctx, hash)
+		if err != nil {
+			return "", 0, fmt.Errorf("find import session by hash: %w", err)
+		}
+		if ok {
 			opts.WarnFunc(fmt.Sprintf(
 				"file hash %s was previously imported as session %s (%d entries, imported %s)",
 				hash[:16], prev.ID, prev.EntryCount, prev.ImportedAt.Format(time.RFC3339)))
@@ -166,7 +171,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 	if session.FileKey == "" {
 		session.FileKey = "tmx-import"
 	}
-	if err := store.CreateImportSession(session); err != nil {
+	if err := store.CreateImportSession(ctx, session); err != nil {
 		return "", 0, err
 	}
 
@@ -259,20 +264,20 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 	//    amount of time.
 	imported := 0
 	if bulk, ok := store.(BulkAdder); ok {
-		if err := bulk.BulkAddWithStream(entries, ""); err != nil {
+		if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
 			return session.ID, 0, err
 		}
 		imported = len(entries)
 	} else {
 		for _, entry := range entries {
-			if err := store.Add(entry); err != nil {
+			if err := store.Add(ctx, entry); err != nil {
 				return session.ID, imported, fmt.Errorf("add entry %s: %w", entry.ID, err)
 			}
 			imported++
 		}
 	}
 
-	if err := store.UpdateImportSessionCount(session.ID, imported); err != nil {
+	if err := store.UpdateImportSessionCount(ctx, session.ID, imported); err != nil {
 		return session.ID, imported, err
 	}
 	return session.ID, imported, nil

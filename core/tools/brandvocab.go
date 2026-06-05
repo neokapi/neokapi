@@ -120,9 +120,12 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	// If termBase is available, also look up brand vocabulary terms.
 	if t.termBase != nil {
-		matches := t.termBase.LookupAll(sourceText, termbase.LookupOptions{
+		matches, err := t.termBase.LookupAll(v.Context(), sourceText, termbase.LookupOptions{
 			SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
 		})
+		if err != nil {
+			return err
+		}
 		for _, m := range matches {
 			if m.Term.CompetitorTerm {
 				findings = append(findings, brand.BrandVoiceFinding{

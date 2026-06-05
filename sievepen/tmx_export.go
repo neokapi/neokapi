@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -14,13 +15,13 @@ import (
 
 // EntryProvider is implemented by TM backends that can list all entries.
 type EntryProvider interface {
-	Entries() []TMEntry
+	Entries(ctx context.Context) ([]TMEntry, error)
 }
 
 // ExportTMX writes multilingual TMX to writer. locales filters which
 // variants are emitted (empty = every variant present on the entry). Each
 // entry becomes a single <tu> with one <tuv> per selected variant.
-func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID) error {
+func ExportTMX(ctx context.Context, tm TranslationMemory, writer io.Writer, locales []model.LocaleID) error {
 	provider, ok := tm.(EntryProvider)
 	if !ok {
 		return errors.New("TM does not support entry listing")
@@ -32,7 +33,10 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 	}
 	filter := len(allowed) > 0
 
-	entries := provider.Entries()
+	entries, err := provider.Entries(ctx)
+	if err != nil {
+		return fmt.Errorf("list entries: %w", err)
+	}
 
 	bw := bufio.NewWriter(writer)
 	defer bw.Flush()
@@ -121,8 +125,8 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 // ExportTMXBilingual writes a bilingual TMX containing only variants for
 // the given source and target locales. Preserved for callers still passing
 // a (src, tgt) pair.
-func ExportTMXBilingual(tm TranslationMemory, writer io.Writer, src, tgt model.LocaleID) error {
-	return ExportTMX(tm, writer, []model.LocaleID{src, tgt})
+func ExportTMXBilingual(ctx context.Context, tm TranslationMemory, writer io.Writer, src, tgt model.LocaleID) error {
+	return ExportTMX(ctx, tm, writer, []model.LocaleID{src, tgt})
 }
 
 // runsToTMXSeg serializes a Run sequence back to TMX inline markup.

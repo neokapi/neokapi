@@ -65,6 +65,7 @@ func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest
 	}
 
 	matches, err := tm.LookupText(
+		ctx,
 		input.Text,
 		model.LocaleID(input.SourceLocale),
 		model.LocaleID(input.TargetLocale),
@@ -141,7 +142,7 @@ func (s *MCPServer) handleTMImport(ctx context.Context, req *mcp.CallToolRequest
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
-		if err := tm.Add(entry); err != nil {
+		if err := tm.Add(ctx, entry); err != nil {
 			return nil, tmImportOutput{}, fmt.Errorf("add TM entry: %w", err)
 		}
 		imported++

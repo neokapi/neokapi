@@ -31,10 +31,10 @@ func TestSQLiteTM_MultilingualAdd(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
-	assert.Equal(t, 1, tm.Count())
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
+	assert.Equal(t, 1, mustCount(t, tm))
 
-	got, ok := tm.GetEntry("e1")
+	got, ok := mustGetEntry(t, tm, "e1")
 	require.True(t, ok)
 	assert.Equal(t, "Hello", got.VariantText("en"))
 	assert.Equal(t, "Bonjour", got.VariantText("fr"))
@@ -47,7 +47,7 @@ func TestSQLiteTM_MultilingualUpdate(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
 	// Replace: add Italian, drop German.
 	entry := sievepen.TMEntry{
 		ID: "e1",
@@ -57,8 +57,8 @@ func TestSQLiteTM_MultilingualUpdate(t *testing.T) {
 			"it": {{Text: &model.TextRun{Text: "Ciao"}}},
 		},
 	}
-	require.NoError(t, tm.Add(entry))
-	got, _ := tm.GetEntry("e1")
+	require.NoError(t, tm.Add(context.Background(), entry))
+	got, _ := mustGetEntry(t, tm, "e1")
 	assert.Equal(t, []model.LocaleID{"en", "fr", "it"}, got.Locales())
 	assert.Equal(t, "Ciao", got.VariantText("it"))
 }
@@ -67,11 +67,11 @@ func TestSQLiteTM_DeleteCascades(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
-	require.NoError(t, tm.Delete("e1"))
-	_, ok := tm.GetEntry("e1")
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "a", "b", "c")))
+	require.NoError(t, tm.Delete(context.Background(), "e1"))
+	_, ok := mustGetEntry(t, tm, "e1")
 	assert.False(t, ok)
-	assert.Equal(t, 0, tm.Count())
+	assert.Equal(t, 0, mustCount(t, tm))
 }
 
 // fullEntry builds an entry that touches every child table that Delete must
@@ -133,9 +133,9 @@ func TestSQLiteTM_DeleteRemovesAllChildRows(t *testing.T) {
 	require.NoError(t, db.QueryRowContext(context.Background(), "PRAGMA foreign_keys").Scan(&fk))
 	require.Equal(t, 0, fk, "foreign_keys must be OFF to prove independence from cascade")
 
-	require.NoError(t, tm.Add(fullEntry("e1")))
+	require.NoError(t, tm.Add(context.Background(), fullEntry("e1")))
 	// A second entry that must remain untouched by the delete.
-	require.NoError(t, tm.Add(fullEntry("e2")))
+	require.NoError(t, tm.Add(context.Background(), fullEntry("e2")))
 
 	childTables := []string{
 		"tm_variants",
@@ -151,10 +151,10 @@ func TestSQLiteTM_DeleteRemovesAllChildRows(t *testing.T) {
 		require.Positivef(t, childTableCount(t, db, tbl, "e1"), "%s should have rows for e1 before delete", tbl)
 	}
 
-	require.NoError(t, tm.Delete("e1"))
+	require.NoError(t, tm.Delete(context.Background(), "e1"))
 
 	// Main row gone.
-	_, ok := tm.GetEntry("e1")
+	_, ok := mustGetEntry(t, tm, "e1")
 	assert.False(t, ok)
 
 	// Every child table is empty for e1, despite foreign_keys=OFF.
@@ -166,7 +166,7 @@ func TestSQLiteTM_DeleteRemovesAllChildRows(t *testing.T) {
 	for _, tbl := range childTables {
 		assert.Positivef(t, childTableCount(t, db, tbl, "e2"), "%s lost rows for the unrelated entry e2", tbl)
 	}
-	got, ok := tm.GetEntry("e2")
+	got, ok := mustGetEntry(t, tm, "e2")
 	require.True(t, ok)
 	assert.Equal(t, "John works at Acme", got.VariantText("en"))
 }
@@ -179,22 +179,22 @@ func TestSQLiteTM_DeleteMissingEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(fullEntry("keep")))
+	require.NoError(t, tm.Add(context.Background(), fullEntry("keep")))
 
-	err = tm.Delete("nope")
+	err = tm.Delete(context.Background(), "nope")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 
-	_, ok := tm.GetEntry("keep")
+	_, ok := mustGetEntry(t, tm, "keep")
 	assert.True(t, ok)
-	assert.Equal(t, 1, tm.Count())
+	assert.Equal(t, 1, mustCount(t, tm))
 }
 
 func TestSQLiteTM_NoVariantsError(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	err = tm.Add(sievepen.TMEntry{ID: "e1"})
+	err = tm.Add(context.Background(), sievepen.TMEntry{ID: "e1"})
 	assert.ErrorIs(t, err, sievepen.ErrEntryNoVariants)
 }
 
@@ -204,9 +204,9 @@ func TestSQLiteTM_LookupPlain(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "Save", "Enregistrer", "Speichern")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Save", "Enregistrer", "Speichern")))
 
-	matches, err := tm.LookupText("Save", "en", "fr", sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText(context.Background(), "Save", "en", "fr", sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Enregistrer", matches[0].Entry.VariantText("fr"))
@@ -217,10 +217,10 @@ func TestSQLiteTM_LookupCrossDirection(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "Save", "Enregistrer", "Speichern")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Save", "Enregistrer", "Speichern")))
 
 	// Lookup from fr → de, using the fr variant as the source.
-	matches, err := tm.LookupText("Enregistrer", "fr", "de", sievepen.LookupOptions{MinScore: 1.0, MaxResults: 5})
+	matches, err := tm.LookupText(context.Background(), "Enregistrer", "fr", "de", sievepen.LookupOptions{MinScore: 1.0, MaxResults: 5})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Speichern", matches[0].Entry.VariantText("de"))
@@ -230,7 +230,7 @@ func TestSQLiteTM_LookupMissingTarget(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "Save"}}},
@@ -239,7 +239,7 @@ func TestSQLiteTM_LookupMissingTarget(t *testing.T) {
 	}))
 
 	// Target locale "de" not present.
-	matches, err := tm.LookupText("Save", "en", "de", sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText(context.Background(), "Save", "en", "de", sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	assert.Empty(t, matches)
 }
@@ -248,12 +248,12 @@ func TestSQLiteTM_LookupFuzzy(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1",
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1",
 		"The file was saved successfully",
 		"Le fichier a été sauvegardé",
 		"Die Datei wurde gespeichert")))
 
-	matches, err := tm.LookupText("The file was saved", "en", "fr",
+	matches, err := tm.LookupText(context.Background(), "The file was saved", "en", "fr",
 		sievepen.LookupOptions{MinScore: 0.5, MaxResults: 5})
 	require.NoError(t, err)
 	require.NotEmpty(t, matches)
@@ -268,16 +268,16 @@ func TestSQLiteTM_SearchAnyLocale(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "hello world", "bonjour monde", "hallo welt")))
-	require.NoError(t, tm.Add(trilingual("e2", "goodbye", "au revoir", "auf wiedersehen")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "hello world", "bonjour monde", "hallo welt")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e2", "goodbye", "au revoir", "auf wiedersehen")))
 
-	entries, total := tm.SearchEntries("hello", "", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "hello", AnyLocale: "", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "e1", entries[0].ID)
 
 	// "monde" is only in the fr variant.
-	entries, total = tm.SearchEntries("monde", "", "", 0, 10)
+	entries, total, _ = tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "monde", AnyLocale: "", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total)
 	assert.Equal(t, "e1", entries[0].ID)
 }
@@ -287,14 +287,14 @@ func TestSQLiteTM_SearchRequireLocale(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "hello"}}},
 			"fr": {{Text: &model.TextRun{Text: "bonjour"}}},
 		},
 	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e2",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "hello"}}},
@@ -302,7 +302,7 @@ func TestSQLiteTM_SearchRequireLocale(t *testing.T) {
 	}))
 
 	// Require fr variant — excludes e2.
-	entries, total := tm.SearchEntries("hello", "en", "fr", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "hello", AnyLocale: "en", RequireLocale: "fr", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "e1", entries[0].ID)
@@ -314,20 +314,24 @@ func TestSQLiteTM_SearchFilterSession(t *testing.T) {
 	defer tm.Close()
 
 	// Create sessions and tag entries with them.
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{ID: "s1", FileKey: "a.tmx"}))
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{ID: "s2", FileKey: "b.tmx"}))
+	require.NoError(t, tm.CreateImportSession(context.Background(), sievepen.ImportSession{ID: "s1", FileKey: "a.tmx"}))
+	require.NoError(t, tm.CreateImportSession(context.Background(), sievepen.ImportSession{ID: "s2", FileKey: "b.tmx"}))
 
 	e1 := trilingual("e1", "one", "un", "eins")
 	e1.Origins = []sievepen.Origin{{Source: "import", Key: "a.tmx", SessionID: "s1"}}
 	e2 := trilingual("e2", "two", "deux", "zwei")
 	e2.Origins = []sievepen.Origin{{Source: "import", Key: "b.tmx", SessionID: "s2"}}
 
-	require.NoError(t, tm.Add(e1))
-	require.NoError(t, tm.Add(e2))
+	require.NoError(t, tm.Add(context.Background(), e1))
+	require.NoError(t, tm.Add(context.Background(), e2))
 
-	entries, total := tm.SearchEntriesFiltered("", "", "", sievepen.SearchFilter{
-		SessionIDs: []string{"s1"},
-	}, 0, 10)
+	entries, total, _ := tm.SearchEntriesFiltered(context.Background(), sievepen.SearchParams{
+		Filter: sievepen.SearchFilter{
+			SessionIDs: []string{"s1"},
+		},
+		Offset: 0,
+		Limit:  10,
+	})
 	assert.Equal(t, 1, total)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "e1", entries[0].ID)
@@ -339,8 +343,8 @@ func TestSQLiteTM_FacetLocales(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "a", "b", "c")))
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e2",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "d"}}},
@@ -348,7 +352,7 @@ func TestSQLiteTM_FacetLocales(t *testing.T) {
 		},
 	}))
 
-	facets := tm.FacetStats()
+	facets := mustFacetStats(t, tm)
 	counts := map[string]int{}
 	for _, lf := range facets.Locales {
 		counts[lf.Locale] = lf.Count
@@ -363,12 +367,12 @@ func TestSQLiteTM_FacetImportSessions(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{ID: "s1", FileKey: "norwegian.tmx", ToolName: "bitextor"}))
+	require.NoError(t, tm.CreateImportSession(context.Background(), sievepen.ImportSession{ID: "s1", FileKey: "norwegian.tmx", ToolName: "bitextor"}))
 	e := trilingual("e1", "one", "un", "eins")
 	e.Origins = []sievepen.Origin{{Source: "import", SessionID: "s1"}}
-	require.NoError(t, tm.Add(e))
+	require.NoError(t, tm.Add(context.Background(), e))
 
-	facets := tm.FacetStats()
+	facets := mustFacetStats(t, tm)
 	require.Len(t, facets.ImportSessions, 1)
 	assert.Equal(t, "s1", facets.ImportSessions[0].SessionID)
 	assert.Equal(t, 1, facets.ImportSessions[0].Count)
@@ -387,29 +391,29 @@ func TestSQLiteTM_ImportSessionCRUD(t *testing.T) {
 		ToolName: "tmx-import", EntryCount: 0,
 		Properties: map[string]string{"foo": "bar"},
 	}
-	require.NoError(t, tm.CreateImportSession(s))
+	require.NoError(t, tm.CreateImportSession(context.Background(), s))
 
-	got, ok := tm.GetImportSession("s1")
+	got, ok := mustGetImportSession(t, tm, "s1")
 	require.True(t, ok)
 	assert.Equal(t, "a.tmx", got.FileKey)
 	assert.Equal(t, "bar", got.Properties["foo"])
 
-	_, ok = tm.GetImportSession("missing")
+	_, ok = mustGetImportSession(t, tm, "missing")
 	assert.False(t, ok)
 
-	found, ok := tm.FindImportSessionByHash("deadbeef")
+	found, ok := mustFindImportSessionByHash(t, tm, "deadbeef")
 	require.True(t, ok)
 	assert.Equal(t, "s1", found.ID)
 
-	require.NoError(t, tm.UpdateImportSessionCount("s1", 42))
-	got, _ = tm.GetImportSession("s1")
+	require.NoError(t, tm.UpdateImportSessionCount(context.Background(), "s1", 42))
+	got, _ = mustGetImportSession(t, tm, "s1")
 	assert.Equal(t, 42, got.EntryCount)
 
-	list := tm.ListImportSessions()
+	list := mustListImportSessions(t, tm)
 	require.Len(t, list, 1)
 
-	require.NoError(t, tm.DeleteImportSession("s1"))
-	_, ok = tm.GetImportSession("s1")
+	require.NoError(t, tm.DeleteImportSession(context.Background(), "s1"))
+	_, ok = mustGetImportSession(t, tm, "s1")
 	assert.False(t, ok)
 }
 
@@ -418,14 +422,14 @@ func TestSQLiteTM_DeleteSessionKeepsOrigins(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{ID: "s1", FileKey: "a.tmx"}))
+	require.NoError(t, tm.CreateImportSession(context.Background(), sievepen.ImportSession{ID: "s1", FileKey: "a.tmx"}))
 	e := trilingual("e1", "one", "un", "eins")
 	e.Origins = []sievepen.Origin{{Source: "import", SessionID: "s1"}}
-	require.NoError(t, tm.Add(e))
+	require.NoError(t, tm.Add(context.Background(), e))
 
-	require.NoError(t, tm.DeleteImportSession("s1"))
+	require.NoError(t, tm.DeleteImportSession(context.Background(), "s1"))
 
-	got, ok := tm.GetEntry("e1")
+	got, ok := mustGetEntry(t, tm, "e1")
 	require.True(t, ok)
 	require.Len(t, got.Origins, 1)
 	assert.Empty(t, got.Origins[0].SessionID)
@@ -450,9 +454,9 @@ func TestSQLiteTM_EntityMappingRoundtrip(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, tm.Add(entry))
+	require.NoError(t, tm.Add(context.Background(), entry))
 
-	got, ok := tm.GetEntry("e1")
+	got, ok := mustGetEntry(t, tm, "e1")
 	require.True(t, ok)
 	require.Len(t, got.Entities, 1)
 	assert.Equal(t, "e1", got.Entities[0].PlaceholderID)
@@ -479,9 +483,9 @@ func TestSQLiteTM_EntityConceptIDRoundtrip(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, tm.Add(entry))
+	require.NoError(t, tm.Add(context.Background(), entry))
 
-	got, ok := tm.GetEntry("e1")
+	got, ok := mustGetEntry(t, tm, "e1")
 	require.True(t, ok)
 	require.Len(t, got.Entities, 1)
 	assert.Equal(t, "concept-acme-corp", got.Entities[0].ConceptID, "concept_id should round-trip")
@@ -501,7 +505,7 @@ func TestSQLiteTM_SearchArabic(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"ar-SA": {{Text: &model.TextRun{Text: "اختبار البحث باللغة العربية"}}},
@@ -510,7 +514,7 @@ func TestSQLiteTM_SearchArabic(t *testing.T) {
 		HintSrcLang: "ar-SA",
 	}))
 
-	entries, total := tm.SearchEntries("البحث", "ar-SA", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "البحث", AnyLocale: "ar-SA", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should handle Arabic search")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)
@@ -522,7 +526,7 @@ func TestSQLiteTM_SearchKorean(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"ko-KR": {{Text: &model.TextRun{Text: "한국어 번역 테스트입니다"}}},
@@ -531,7 +535,7 @@ func TestSQLiteTM_SearchKorean(t *testing.T) {
 		HintSrcLang: "ko-KR",
 	}))
 
-	entries, total := tm.SearchEntries("번역", "ko-KR", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "번역", AnyLocale: "ko-KR", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should handle Korean search")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)
@@ -545,14 +549,14 @@ func TestSQLiteTM_SearchLatinRegression(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(trilingual("e1", "hello world", "bonjour monde", "hallo welt")))
-	require.NoError(t, tm.Add(trilingual("e2", "goodbye", "au revoir", "auf wiedersehen")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "hello world", "bonjour monde", "hallo welt")))
+	require.NoError(t, tm.Add(context.Background(), trilingual("e2", "goodbye", "au revoir", "auf wiedersehen")))
 
-	entries, _ := tm.SearchEntries("hello", "", "", 0, 10)
+	entries, _, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "hello", AnyLocale: "", RequireLocale: "", Offset: 0, Limit: 10})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "e1", entries[0].ID)
 
-	entries, _ = tm.SearchEntries("revoir", "", "", 0, 10)
+	entries, _, _ = tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "revoir", AnyLocale: "", RequireLocale: "", Offset: 0, Limit: 10})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "e2", entries[0].ID)
 }
@@ -563,8 +567,8 @@ func TestSQLiteTM_LocaleStats(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 	defer tm.Close()
-	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
-	stats := tm.LocaleStats()
+	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "a", "b", "c")))
+	stats := mustLocaleStats(t, tm)
 	require.Len(t, stats, 3)
 	for _, s := range stats {
 		assert.Equal(t, 1, s.Count)

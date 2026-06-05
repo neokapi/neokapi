@@ -338,9 +338,26 @@ func (g *EditorGRPCServer) GetTMEntries(ctx context.Context, req *pb.TMEntriesRe
 	var total int
 	if req.Stream != "" && req.Stream != "main" && g.srv.ContentStore != nil {
 		chain := buildStreamChain(ctx, g.srv.ContentStore, "", req.Stream)
-		entries, total = tm.SearchEntriesForStream(req.Query, req.SourceLocale, req.TargetLocale, req.Stream, chain[1:], int(req.Offset), limit)
+		entries, total, err = tm.SearchEntriesForStream(ctx, sievepen.SearchParams{
+			Query:         req.Query,
+			AnyLocale:     req.SourceLocale,
+			RequireLocale: req.TargetLocale,
+			Stream:        req.Stream,
+			StreamChain:   chain[1:],
+			Offset:        int(req.Offset),
+			Limit:         limit,
+		})
 	} else {
-		entries, total = tm.SearchEntries(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+		entries, total, err = tm.SearchEntries(ctx, sievepen.SearchParams{
+			Query:         req.Query,
+			AnyLocale:     req.SourceLocale,
+			RequireLocale: req.TargetLocale,
+			Offset:        int(req.Offset),
+			Limit:         limit,
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	resp := &pb.TMEntriesResponse{TotalCount: int32(total)}
@@ -360,7 +377,11 @@ func (g *EditorGRPCServer) GetTMCount(ctx context.Context, req *pb.TMCountReques
 		return nil, status.Errorf(codes.Internal, "init TM: %v", err)
 	}
 
-	return &pb.TMCountResponse{Count: int32(tm.Count())}, nil
+	count, err := tm.Count(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "count TM: %v", err)
+	}
+	return &pb.TMCountResponse{Count: int32(count)}, nil
 }
 
 func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryRequest) (*pb.TMEntryResponse, error) {
@@ -387,9 +408,9 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 		UpdatedAt:   time.Now(),
 	}
 	if req.Stream != "" && req.Stream != "main" {
-		err = tm.AddWithStream(entry, req.Stream)
+		err = tm.AddWithStream(ctx, entry, req.Stream)
 	} else {
-		err = tm.Add(entry)
+		err = tm.Add(ctx, entry)
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "add TM entry: %v", err)
@@ -408,12 +429,15 @@ func (g *EditorGRPCServer) UpdateTMEntry(ctx context.Context, req *pb.UpdateTMEn
 		return nil, status.Errorf(codes.Internal, "init TM: %v", err)
 	}
 
-	existing, ok := tm.GetEntry(req.EntryId)
+	existing, ok, err := tm.GetEntry(ctx, req.EntryId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get TM entry: %v", err)
+	}
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "TM entry %q not found", req.EntryId)
 	}
 
-	if err := tm.Delete(req.EntryId); err != nil {
+	if err := tm.Delete(ctx, req.EntryId); err != nil {
 		return nil, status.Errorf(codes.Internal, "delete old TM entry: %v", err)
 	}
 
@@ -429,7 +453,7 @@ func (g *EditorGRPCServer) UpdateTMEntry(ctx context.Context, req *pb.UpdateTMEn
 	}
 	existing.UpdatedAt = time.Now()
 
-	if err := tm.Add(existing); err != nil {
+	if err := tm.Add(ctx, existing); err != nil {
 		return nil, status.Errorf(codes.Internal, "re-add TM entry: %v", err)
 	}
 
@@ -446,7 +470,7 @@ func (g *EditorGRPCServer) DeleteTMEntry(ctx context.Context, req *pb.DeleteTMEn
 		return nil, status.Errorf(codes.Internal, "init TM: %v", err)
 	}
 
-	if err := tm.Delete(req.EntryId); err != nil {
+	if err := tm.Delete(ctx, req.EntryId); err != nil {
 		return nil, status.Errorf(codes.NotFound, "TM entry not found: %v", err)
 	}
 
@@ -476,9 +500,12 @@ func (g *EditorGRPCServer) GetTerms(ctx context.Context, req *pb.TermsRequest) (
 	tgtLocaleID := model.LocaleID(req.TargetLocale)
 	if req.Stream != "" && req.Stream != "main" && g.srv.ContentStore != nil {
 		chain := buildStreamChain(ctx, g.srv.ContentStore, "", req.Stream)
-		concepts, total = tb.SearchForStream(req.Query, srcLocaleID, tgtLocaleID, req.Stream, chain[1:], int(req.Offset), limit)
+		concepts, total, err = tb.SearchForStream(ctx, req.Query, srcLocaleID, tgtLocaleID, req.Stream, chain[1:], int(req.Offset), limit)
 	} else {
-		concepts, total = tb.Search(req.Query, srcLocaleID, tgtLocaleID, int(req.Offset), limit)
+		concepts, total, err = tb.Search(ctx, req.Query, srcLocaleID, tgtLocaleID, int(req.Offset), limit)
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "search termbase: %v", err)
 	}
 
 	resp := &pb.TermsResponse{TotalCount: int32(total)}
@@ -497,7 +524,11 @@ func (g *EditorGRPCServer) GetTermCount(ctx context.Context, req *pb.TermCountRe
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
-	return &pb.TermCountResponse{Count: int32(tb.Count())}, nil
+	count, err := tb.Count(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "count termbase: %v", err)
+	}
+	return &pb.TermCountResponse{Count: int32(count)}, nil
 }
 
 func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptRequest) (*pb.ConceptResponse, error) {
@@ -520,9 +551,9 @@ func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptReq
 		UpdatedAt:  time.Now(),
 	}
 	if req.Stream != "" && req.Stream != "main" {
-		err = tb.AddConceptWithStream(concept, req.Stream)
+		err = tb.AddConceptWithStream(ctx, concept, req.Stream)
 	} else {
-		err = tb.AddConcept(concept)
+		err = tb.AddConcept(ctx, concept)
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "add concept: %v", err)
@@ -541,7 +572,10 @@ func (g *EditorGRPCServer) UpdateConcept(ctx context.Context, req *pb.UpdateConc
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
 
-	existing, ok := tb.GetConcept(req.ConceptId)
+	existing, ok, err := tb.GetConcept(ctx, req.ConceptId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get concept: %v", err)
+	}
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "concept %q not found", req.ConceptId)
 	}
@@ -552,7 +586,7 @@ func (g *EditorGRPCServer) UpdateConcept(ctx context.Context, req *pb.UpdateConc
 	existing.ProjectID = req.ProjectId
 	existing.UpdatedAt = time.Now()
 
-	if err := tb.AddConcept(existing); err != nil {
+	if err := tb.AddConcept(ctx, existing); err != nil {
 		return nil, status.Errorf(codes.Internal, "update concept: %v", err)
 	}
 
@@ -568,7 +602,7 @@ func (g *EditorGRPCServer) DeleteConcept(ctx context.Context, req *pb.DeleteConc
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
-	if err := tb.DeleteConcept(req.ConceptId); err != nil {
+	if err := tb.DeleteConcept(ctx, req.ConceptId); err != nil {
 		return nil, status.Errorf(codes.NotFound, "concept not found: %v", err)
 	}
 
@@ -584,7 +618,7 @@ func (g *EditorGRPCServer) ImportTermsCSV(ctx context.Context, req *pb.ImportTer
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
-	count, err := termbase.ImportCSV(tb, strings.NewReader(req.CsvContent), termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(ctx, tb, strings.NewReader(req.CsvContent), termbase.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
@@ -606,7 +640,7 @@ func (g *EditorGRPCServer) ImportTermsJSON(ctx context.Context, req *pb.ImportTe
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
-	count, err := termbase.ImportJSON(tb, strings.NewReader(req.JsonContent))
+	count, err := termbase.ImportJSON(ctx, tb, strings.NewReader(req.JsonContent))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "import JSON: %v", err)
 	}
@@ -624,7 +658,7 @@ func (g *EditorGRPCServer) ExportTermsJSON(ctx context.Context, req *pb.ExportTe
 		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
 	}
 	var buf strings.Builder
-	if err := termbase.ExportJSON(tb, &buf, req.Name); err != nil {
+	if err := termbase.ExportJSON(ctx, tb, &buf, req.Name); err != nil {
 		return nil, status.Errorf(codes.Internal, "export JSON: %v", err)
 	}
 

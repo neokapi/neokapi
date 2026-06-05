@@ -1,6 +1,7 @@
 package termbase
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ type CSVImportOptions struct {
 // ImportCSV reads a CSV file with source/target term pairs and imports them.
 // Expected format: source_term, target_term[, domain][, definition][, status]
 // Returns the number of concepts imported.
-func ImportCSV(tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error) {
+func ImportCSV(ctx context.Context, tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error) {
 	csvReader := csv.NewReader(reader)
 	if opts.Delimiter != 0 {
 		csvReader.Comma = opts.Delimiter
@@ -114,7 +115,7 @@ func ImportCSV(tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error
 			},
 		}
 
-		if err := tb.AddConcept(concept); err != nil {
+		if err := tb.AddConcept(ctx, concept); err != nil {
 			return imported, fmt.Errorf("add concept %s: %w", conceptID, err)
 		}
 		imported++
@@ -124,7 +125,7 @@ func ImportCSV(tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error
 }
 
 // ExportCSV writes all concepts as CSV source/target pairs.
-func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.LocaleID, includeHeader bool) error {
+func ExportCSV(ctx context.Context, tb TermBase, writer io.Writer, sourceLocale, targetLocale model.LocaleID, includeHeader bool) error {
 	csvWriter := csv.NewWriter(writer)
 	defer csvWriter.Flush()
 
@@ -134,7 +135,11 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 		}
 	}
 
-	for _, concept := range tb.Concepts() {
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("list concepts: %w", err)
+	}
+	for _, concept := range concepts {
 		sourceTerm := concept.SourceTerm(sourceLocale)
 		if sourceTerm == nil {
 			continue

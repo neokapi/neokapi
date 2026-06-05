@@ -2,10 +2,11 @@ package termbase
 
 import (
 	"cmp"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -96,12 +97,12 @@ var tbMigrationsPg = []storage.Migration{
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
-func (tb *PostgresTermBase) AddConcept(concept fw.Concept) error {
-	return tb.AddConceptWithStream(concept, "")
+func (tb *PostgresTermBase) AddConcept(ctx context.Context, concept fw.Concept) error {
+	return tb.AddConceptWithStream(ctx, concept, "")
 }
 
 // AddConceptWithStream inserts or updates a concept associated with a stream.
-func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream string) error {
+func (tb *PostgresTermBase) AddConceptWithStream(ctx context.Context, concept fw.Concept, stream string) error {
 	if concept.ID == "" {
 		return errors.New("concept ID is required")
 	}
@@ -119,13 +120,13 @@ func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream stri
 		propsJSON, _ = json.Marshal(concept.Properties)
 	}
 
-	tx, err := tb.db.Begin()
+	tx, err := tb.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
@@ -142,13 +143,13 @@ func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream stri
 	}
 
 	// Replace all terms for this concept.
-	_, err = tx.Exec("DELETE FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2", tb.workspaceID, concept.ID)
+	_, err = tx.ExecContext(ctx, "DELETE FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2", tb.workspaceID, concept.ID)
 	if err != nil {
 		return fmt.Errorf("delete old terms: %w", err)
 	}
 
 	for _, term := range concept.Terms {
-		_, err = tx.Exec(`
+		_, err = tx.ExecContext(ctx, `
 			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		`, tb.workspaceID, concept.ID, term.Text, strings.ToLower(term.Text),
@@ -163,17 +164,20 @@ func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream stri
 }
 
 // GetConcept retrieves a concept by ID.
-func (tb *PostgresTermBase) GetConcept(id string) (fw.Concept, bool) {
-	concept, err := tb.scanConcept(id)
-	if err != nil {
-		return fw.Concept{}, false
+func (tb *PostgresTermBase) GetConcept(ctx context.Context, id string) (fw.Concept, bool, error) {
+	concept, err := tb.scanConcept(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fw.Concept{}, false, nil
 	}
-	return concept, true
+	if err != nil {
+		return fw.Concept{}, false, err
+	}
+	return concept, true, nil
 }
 
 // DeleteConcept removes a concept by ID.
-func (tb *PostgresTermBase) DeleteConcept(id string) error {
-	result, err := tb.db.Exec("DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+func (tb *PostgresTermBase) DeleteConcept(ctx context.Context, id string) error {
+	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
 	if err != nil {
 		return fmt.Errorf("delete concept: %w", err)
 	}
@@ -188,9 +192,9 @@ func (tb *PostgresTermBase) DeleteConcept(id string) error {
 }
 
 // Lookup finds terms matching the source text.
-func (tb *PostgresTermBase) Lookup(sourceText string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) Lookup(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = fw.ApplyLookupDefaults(opts)
@@ -199,37 +203,49 @@ func (tb *PostgresTermBase) Lookup(sourceText string, opts fw.LookupOptions) []f
 	var matches []fw.TermMatch
 
 	if modeEnabled[model.MatchStrategyExact] {
-		matches = append(matches, tb.queryExactTerms(sourceText, opts)...)
+		m, err := tb.queryExactTerms(ctx, sourceText, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
-		matches = append(matches, tb.queryNormalizedTerms(normalizedSource, opts)...)
+		m, err := tb.queryNormalizedTerms(ctx, normalizedSource, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	if modeEnabled[model.MatchStrategyFuzzy] && len(matches) == 0 {
-		matches = append(matches, tb.queryFuzzyTerms(normalizedSource, opts)...)
+		m, err := tb.queryFuzzyTerms(ctx, normalizedSource, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	slices.SortFunc(matches, func(a, b fw.TermMatch) int {
 		return cmp.Compare(b.Score, a.Score)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // LookupAll finds all terms appearing in the given text.
-func (tb *PostgresTermBase) LookupAll(sourceText string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) LookupAll(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = fw.ApplyLookupDefaults(opts)
 	var matches []fw.TermMatch
 	lowerSource := strings.ToLower(sourceText)
 
-	terms, err := tb.queryTermsByLocale(opts.SourceLocale, opts.Domains, opts.StatusFilter)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	for _, entry := range terms {
@@ -265,22 +281,22 @@ func (tb *PostgresTermBase) LookupAll(sourceText string, opts fw.LookupOptions) 
 		return cmp.Compare(b.Position.End, a.Position.End)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
 // Uses pg_trgm for term matching when a query is provided, falls back to LIKE.
-func (tb *PostgresTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
 	if query != "" {
-		concepts, total, err := tb.pgSearchTrgm(query, sourceLocale, targetLocale, offset, limit)
+		concepts, total, err := tb.pgSearchTrgm(ctx, query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
-			return concepts, total
+			return concepts, total, nil
 		}
 	}
-	return tb.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
+	return tb.pgSearchLike(ctx, query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
+func (tb *PostgresTermBase) pgSearchTrgm(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
 	where := "t.workspace_id = $1 AND t.text_lower % $2"
 	args := []any{tb.workspaceID, strings.ToLower(query)}
 	argN := 3
@@ -303,7 +319,7 @@ func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocal
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	var total int
-	if err := tb.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+	if err := tb.db.QueryRowContext(ctx, countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -318,7 +334,7 @@ func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocal
 		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -330,7 +346,7 @@ func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocal
 		if err := rows.Scan(&id); err != nil {
 			continue
 		}
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
@@ -340,7 +356,7 @@ func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocal
 	return concepts, total, nil
 }
 
-func (tb *PostgresTermBase) pgSearchLike(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) pgSearchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
 	where := "workspace_id = $1"
 	args := []any{tb.workspaceID}
 	argN := 2
@@ -367,15 +383,15 @@ func (tb *PostgresTermBase) pgSearchLike(query string, sourceLocale, targetLocal
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	_ = tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
 	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
 	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -388,33 +404,33 @@ func (tb *PostgresTermBase) pgSearchLike(query string, sourceLocale, targetLocal
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
 	var concepts []fw.Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts, total
+	return concepts, total, nil
 }
 
 // SearchForStream performs a ranked full-text search with stream inheritance.
 // Uses pg_trgm when a query is provided, falls back to LIKE.
 // The streamChain is an ordered list of ancestor streams to search.
 // Concepts from earlier streams take priority.
-func (tb *PostgresTermBase) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
 	if query != "" {
-		concepts, total, err := tb.pgSearchTrgmForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+		concepts, total, err := tb.pgSearchTrgmForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {
-			return concepts, total
+			return concepts, total, nil
 		}
 	}
-	return tb.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+	return tb.pgSearchLikeForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 }
 
-func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
+func (tb *PostgresTermBase) pgSearchTrgmForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -450,7 +466,7 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, ta
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -468,7 +484,7 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, ta
 	// status/updated_at ORDER BY illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -488,14 +504,14 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, ta
 
 	var concepts []fw.Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
 	return concepts, total, nil
 }
 
-func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) pgSearchLikeForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -534,7 +550,7 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, ta
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	_ = tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
 	// Build CASE expression for stream priority ordering.
 	var caseExpr strings.Builder
@@ -550,9 +566,9 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, ta
 	// status/updated_at ORDER BY illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -565,33 +581,32 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, ta
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
 	var concepts []fw.Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts, total
+	return concepts, total, nil
 }
 
 // Count returns the total number of concepts for this workspace.
-func (tb *PostgresTermBase) Count() int {
+func (tb *PostgresTermBase) Count(ctx context.Context) (int, error) {
 	var count int
-	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
-		slog.Warn("termbase count query failed", "workspace", tb.workspaceID, "error", err)
-		return 0
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count concepts: %w", err)
 	}
-	return count
+	return count, nil
 }
 
 // Concepts returns all concepts for this workspace.
-func (tb *PostgresTermBase) Concepts() []fw.Concept {
-	rows, err := tb.db.Query("SELECT id FROM tb_concepts WHERE workspace_id = $1 ORDER BY id", tb.workspaceID)
+func (tb *PostgresTermBase) Concepts(ctx context.Context) ([]fw.Concept, error) {
+	rows, err := tb.db.QueryContext(ctx, "SELECT id FROM tb_concepts WHERE workspace_id = $1 ORDER BY id", tb.workspaceID)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("list concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -604,16 +619,16 @@ func (tb *PostgresTermBase) Concepts() []fw.Concept {
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil
+		return nil, fmt.Errorf("iterate concepts: %w", err)
 	}
 
 	var concepts []fw.Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts
+	return concepts, nil
 }
 
 // Close is a no-op for PostgresTermBase since the connection is shared.
@@ -623,11 +638,11 @@ func (tb *PostgresTermBase) Close() error {
 
 // --- internal helpers ---
 
-func (tb *PostgresTermBase) scanConcept(id string) (fw.Concept, error) {
+func (tb *PostgresTermBase) scanConcept(ctx context.Context, id string) (fw.Concept, error) {
 	var c fw.Concept
 	var propsJSON *string
 
-	err := tb.db.QueryRow(`
+	err := tb.db.QueryRowContext(ctx, `
 		SELECT id, domain, definition, properties, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id = $2
 	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &c.CreatedAt, &c.UpdatedAt)
@@ -639,12 +654,12 @@ func (tb *PostgresTermBase) scanConcept(id string) (fw.Concept, error) {
 		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
 	}
 
-	rows, err := tb.db.Query(`
+	rows, err := tb.db.QueryContext(ctx, `
 		SELECT text, locale, status, part_of_speech, gender, note
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2
 	`, tb.workspaceID, id)
 	if err != nil {
-		return c, nil
+		return c, fmt.Errorf("query terms for concept %s: %w", id, err)
 	}
 	defer rows.Close()
 
@@ -670,7 +685,7 @@ type pgTermWithConcept struct {
 	term    fw.Term
 }
 
-func (tb *PostgresTermBase) queryExactTerms(sourceText string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) queryExactTerms(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	searchText := sourceText
 	column := "t.text"
 	if !opts.CaseSensitive {
@@ -684,55 +699,59 @@ func (tb *PostgresTermBase) queryExactTerms(sourceText string, opts fw.LookupOpt
 		WHERE t.workspace_id = $1 AND %s = $2 AND t.locale = $3
 	`, column)
 
-	rows, err := tb.db.Query(q, tb.workspaceID, searchText, string(opts.SourceLocale))
+	rows, err := tb.db.QueryContext(ctx, q, tb.workspaceID, searchText, string(opts.SourceLocale))
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query exact terms: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(rows, 1.0, model.MatchStrategyExact, opts)
+	return tb.scanTermMatches(ctx, rows, 1.0, model.MatchStrategyExact, opts), nil
 }
 
-func (tb *PostgresTermBase) queryNormalizedTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
-	rows, err := tb.db.Query(`
+func (tb *PostgresTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
+	rows, err := tb.db.QueryContext(ctx, `
 		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.text_lower = $2 AND t.locale = $3
 	`, tb.workspaceID, normalizedSource, string(opts.SourceLocale))
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query normalized terms: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(rows, 0.95, model.MatchStrategyNormalized, opts)
+	return tb.scanTermMatches(ctx, rows, 0.95, model.MatchStrategyNormalized, opts), nil
 }
 
-func (tb *PostgresTermBase) queryFuzzyTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	// Try pg_trgm candidate retrieval first, fall back to full scan.
-	matches := tb.queryFuzzyTrigramCandidates(normalizedSource, opts)
-	if matches != nil {
-		return matches
+	matches, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
+	if err != nil {
+		return nil, err
 	}
-	return tb.queryFuzzyFullScan(normalizedSource, opts)
+	if matches != nil {
+		return matches, nil
+	}
+	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
 }
 
-func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	// Use pg_trgm similarity operator (%) with GIN index.
-	rows, err := tb.db.Query(`
+	rows, err := tb.db.QueryContext(ctx, `
 		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND t.text_lower % $3
 		LIMIT 200
 	`, tb.workspaceID, string(opts.SourceLocale), normalizedSource)
 	if err != nil {
-		return nil // pg_trgm unavailable, signal fallback.
+		// pg_trgm unavailable; signal fallback to the full scan (not an error).
+		return nil, nil
 	}
 	defer rows.Close()
 
-	return tb.pgScoreFuzzyCandidates(rows, normalizedSource, opts)
+	return tb.pgScoreFuzzyCandidates(ctx, rows, normalizedSource, opts), nil
 }
 
-func (tb *PostgresTermBase) queryFuzzyFullScan(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+func (tb *PostgresTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	keyLen := len([]rune(normalizedSource))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
@@ -740,21 +759,21 @@ func (tb *PostgresTermBase) queryFuzzyFullScan(normalizedSource string, opts fw.
 		minLen = 0
 	}
 
-	rows, err := tb.db.Query(`
+	rows, err := tb.db.QueryContext(ctx, `
 		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_lower) BETWEEN $3 AND $4
 		LIMIT 500
 	`, tb.workspaceID, string(opts.SourceLocale), minLen, maxLen)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("fuzzy full scan: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.pgScoreFuzzyCandidates(rows, normalizedSource, opts)
+	return tb.pgScoreFuzzyCandidates(ctx, rows, normalizedSource, opts), nil
 }
 
-func (tb *PostgresTermBase) pgScoreFuzzyCandidates(rows interface {
+func (tb *PostgresTermBase) pgScoreFuzzyCandidates(ctx context.Context, rows interface {
 	Next() bool
 	Scan(...any) error
 }, normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
@@ -777,7 +796,7 @@ func (tb *PostgresTermBase) pgScoreFuzzyCandidates(rows interface {
 
 	var matches []fw.TermMatch
 	for _, c := range candidates {
-		concept, err := tb.scanConcept(c.row.conceptID)
+		concept, err := tb.scanConcept(ctx, c.row.conceptID)
 		if err != nil {
 			continue
 		}
@@ -799,7 +818,7 @@ func (tb *PostgresTermBase) pgScoreFuzzyCandidates(rows interface {
 	return matches
 }
 
-func (tb *PostgresTermBase) queryTermsByLocale(locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]pgTermWithConcept, error) {
+func (tb *PostgresTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]pgTermWithConcept, error) {
 	where := "t.workspace_id = $1 AND t.locale = $2"
 	args := []any{tb.workspaceID, string(locale)}
 	argN := 3
@@ -824,7 +843,7 @@ func (tb *PostgresTermBase) queryTermsByLocale(locale model.LocaleID, domains []
 		where += " AND t.status IN (" + strings.Join(placeholders, ",") + ")"
 	}
 
-	rows, err := tb.db.Query(fmt.Sprintf(`
+	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
@@ -862,7 +881,7 @@ type pgScanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
 }
 
-func (tb *PostgresTermBase) scanTermMatches(rows interface {
+func (tb *PostgresTermBase) scanTermMatches(ctx context.Context, rows interface {
 	Next() bool
 	Scan(...any) error
 }, score float64, matchType model.MatchStrategy, opts fw.LookupOptions) []fw.TermMatch {
@@ -879,7 +898,7 @@ func (tb *PostgresTermBase) scanTermMatches(rows interface {
 
 	var matches []fw.TermMatch
 	for _, r := range raw {
-		concept, err := tb.scanConcept(r.conceptID)
+		concept, err := tb.scanConcept(ctx, r.conceptID)
 		if err != nil {
 			continue
 		}

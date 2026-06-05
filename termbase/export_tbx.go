@@ -1,6 +1,7 @@
 package termbase
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -74,7 +75,7 @@ type tbxOutTermNote struct {
 
 // ExportTBX writes all concepts as a TBX-Basic v3 document (root <tbx>).
 // The output round-trips through ImportTBX to yield equivalent concepts.
-func ExportTBX(tb TermBase, writer io.Writer, opts TBXExportOptions) error {
+func ExportTBX(ctx context.Context, tb TermBase, writer io.Writer, opts TBXExportOptions) error {
 	doc := tbxOut{
 		Style: "dca",
 		Type:  "TBX-Basic",
@@ -86,7 +87,11 @@ func ExportTBX(tb TermBase, writer io.Writer, opts TBXExportOptions) error {
 		},
 	}
 
-	for _, concept := range tb.Concepts() {
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("list concepts: %w", err)
+	}
+	for _, concept := range concepts {
 		if !opts.SourceLocale.IsEmpty() {
 			if concept.SourceTerm(opts.SourceLocale) == nil {
 				continue

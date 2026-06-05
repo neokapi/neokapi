@@ -57,10 +57,15 @@ func TestTMImportSingleFile_RebuildsSearchIndex(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.Equal(t, 1, tm.Count(), "exactly one TU should be imported")
+	count, err := tm.Count(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, 1, count, "exactly one TU should be imported")
 
 	// FTS5-backed search — the surface `kapi tm search` exercises.
-	entries, total := tm.SearchEntries("dashboard", "en", "fr", 0, 25)
+	entries, total, err := tm.SearchEntries(t.Context(), sievepen.SearchParams{
+		Query: "dashboard", AnyLocale: "en", RequireLocale: "fr", Limit: 25,
+	})
+	require.NoError(t, err)
 	require.Positive(t, total, "FTS search must find the imported entry after single-file import")
 	require.NotEmpty(t, entries, "search must return the imported entry, not an empty FTS index")
 	assert.Equal(t, "Welcome to the dashboard", entries[0].VariantText("en"))
@@ -77,7 +82,7 @@ func TestTMImportSingleFile_FuzzyLookup(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	matches, err := tm.LookupText("Welcome to the dashboard!", "en", "fr", sievepen.LookupOptions{
+	matches, err := tm.LookupText(t.Context(), "Welcome to the dashboard!", "en", "fr", sievepen.LookupOptions{
 		MinScore:   0.5,
 		MaxResults: 5,
 	})

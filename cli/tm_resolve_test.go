@@ -101,7 +101,7 @@ func TestOpenToolTM_LeveragesProjectTM(t *testing.T) {
 	// Seed the project TM with one en→fr exact match.
 	tm, err := sievepen.NewSQLiteTM(tmPath)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "Welcome back"}}},
@@ -142,7 +142,7 @@ func TestOpenToolTM_ExplicitFileFlag(t *testing.T) {
 	explicit := filepath.Join(dir, "named.db")
 	tm, err := sievepen.NewSQLiteTM(explicit)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "Save"}}},

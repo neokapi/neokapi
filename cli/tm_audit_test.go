@@ -45,7 +45,7 @@ func TestTMAudit_FiltersByBatchID(t *testing.T) {
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
-		require.NoError(t, tm.Add(e))
+		require.NoError(t, tm.Add(t.Context(), e))
 	}
 	mustAdd("a1", "batch-A", "src/a1.json")
 	mustAdd("a2", "batch-A", "src/a2.json")

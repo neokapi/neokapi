@@ -1,6 +1,7 @@
 package sievepen
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"time"
@@ -301,13 +302,42 @@ type EntityValueFilter struct {
 	Type  string // entity:person, entity:organization, etc.
 }
 
+// SearchParams groups the parameters of the TMStore search and facet
+// methods into a single struct. This replaces the previous four-adjacent
+// string signature (query, anyLocale, requireLocale, stream) so callers
+// can no longer transpose query and locale arguments at the call site.
+//
+// Field semantics:
+//   - Query:        text search query (empty = no text filter)
+//   - AnyLocale:    require matches in this locale's variant (empty = any locale)
+//   - RequireLocale: additionally require the entry to have this locale variant
+//     (empty = no additional requirement)
+//   - Stream:       the originating stream (e.g. a git branch name), for the
+//     stream-inheritance variant
+//   - StreamChain:  ordered ancestor streams to search; earlier streams win
+//   - Filter:       optional facet filter (used by the *Filtered variants)
+//   - Offset/Limit: pagination
+//
+// Callers doing bilingual browsing typically set (AnyLocale: src, RequireLocale: tgt);
+// monolingual browsing sets (AnyLocale: locale); fully open search leaves both empty.
+type SearchParams struct {
+	Query         string
+	AnyLocale     string
+	RequireLocale string
+	Stream        string
+	StreamChain   []string
+	Filter        SearchFilter
+	Offset        int
+	Limit         int
+}
+
 // TranslationMemory defines the interface for a content-aware translation
 // memory store. The interface is directional at the call site — callers
 // ask "match this source in locale X and return the target in locale Y"
 // — but entries themselves are multilingual peers.
 type TranslationMemory interface {
 	// Add inserts or updates a TM entry with full Fragment representation.
-	Add(entry TMEntry) error
+	Add(ctx context.Context, entry TMEntry) error
 
 	// Lookup searches for matches using tiered matching
 	// (generalized → structural → plain). The source Block's entity
@@ -321,24 +351,24 @@ type TranslationMemory interface {
 	// segmentation is off (one segment per Block — the verbatim lookup
 	// case). For sentence-level leverage when segmentation is on, use
 	// LookupSegment.
-	Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
+	Lookup(ctx context.Context, source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
 
 	// LookupSegment searches for matches using a specific segment of the
 	// source block, for sentence-level TM leverage when segmentation is
 	// on. Returns nil, nil if segmentIdx is out of range or the segment
 	// has no content. The block's entity annotations are reused so
 	// generalized (entity-aware) matching still works inside a segment.
-	LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
+	LookupSegment(ctx context.Context, source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
 
 	// LookupText searches for matches using plain text only.
 	// This is a convenience method for cases where no Block is available.
-	LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
+	LookupText(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
 
 	// Delete removes an entry by ID.
-	Delete(id string) error
+	Delete(ctx context.Context, id string) error
 
 	// Count returns the total number of entries.
-	Count() int
+	Count(ctx context.Context) (int, error)
 
 	// Close releases any resources held by the translation memory.
 	Close() error

@@ -137,8 +137,11 @@ func (a *App) runPack(cmd *cobra.Command) error {
 		if err != nil {
 			return fmt.Errorf("open project TM: %w", err)
 		}
-		entries := tm.Entries()
+		entries, err := tm.Entries(cmd.Context())
 		_ = tm.Close()
+		if err != nil {
+			return fmt.Errorf("read project TM: %w", err)
+		}
 		if len(entries) > 0 {
 			pkg.TM = klftm.FromModel(entries, nil)
 		}
@@ -150,8 +153,11 @@ func (a *App) runPack(cmd *cobra.Command) error {
 		if err != nil {
 			return fmt.Errorf("open project termbase: %w", err)
 		}
-		concepts := tb.Concepts()
+		concepts, err := tb.Concepts(cmd.Context())
 		_ = tb.Close()
+		if err != nil {
+			return fmt.Errorf("read project termbase: %w", err)
+		}
 		if len(concepts) > 0 {
 			pkg.Termbase = klftb.FromConcepts(concepts)
 		}
@@ -229,7 +235,7 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 			return fmt.Errorf("open project TM: %w", err)
 		}
 		for _, e := range pkg.TM.ModelEntries() {
-			if aerr := tm.Add(e); aerr != nil {
+			if aerr := tm.Add(cmd.Context(), e); aerr != nil {
 				_ = tm.Close()
 				return fmt.Errorf("restore TM entry: %w", aerr)
 			}
@@ -244,7 +250,7 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 			return fmt.Errorf("open project termbase: %w", err)
 		}
 		for _, c := range pkg.Termbase.Concepts {
-			if aerr := tb.AddConcept(c); aerr != nil {
+			if aerr := tb.AddConcept(cmd.Context(), c); aerr != nil {
 				_ = tb.Close()
 				return fmt.Errorf("restore concept: %w", aerr)
 			}

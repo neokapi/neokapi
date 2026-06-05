@@ -457,7 +457,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		if !b.Translatable {
 			continue
 		}
-		outcome := applyTMPrefill(task.tm, b, task.ctx.SourceLocale, task.targetLocale, threshold)
+		outcome := applyTMPrefill(ctx, task.tm, b, task.ctx.SourceLocale, task.targetLocale, threshold)
 		switch outcome {
 		case prefillExact:
 			leverage.Exact++
@@ -560,7 +560,7 @@ const (
 // the unit of lookup — one lookup per span — and the pre-filled target is
 // written as a run sequence plus a target segmentation overlay index-aligned
 // to the source spans (so a segmented block round-trips per-segment targets).
-func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
+func applyTMPrefill(ctx context.Context, tm sievepen.TranslationMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
 	if tm == nil || block == nil || len(block.Source) == 0 {
 		return prefillNone
 	}
@@ -579,7 +579,7 @@ func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, t
 			spanID = srcSeg.Spans[i].ID
 		}
 		start := len(targetRuns)
-		if matches, err := tm.LookupSegment(block, i, source, target, opts); err == nil && len(matches) > 0 {
+		if matches, err := tm.LookupSegment(ctx, block, i, source, target, opts); err == nil && len(matches) > 0 {
 			if text := matches[0].Entry.VariantText(target); text != "" {
 				targetRuns = append(targetRuns, model.Run{Text: &model.TextRun{Text: text}})
 				matched++

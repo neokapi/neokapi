@@ -1,6 +1,7 @@
 package termbase
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +15,7 @@ type JSONTermBase struct {
 }
 
 // ImportJSON reads a JSON termbase file and imports all concepts.
-func ImportJSON(tb TermBase, reader io.Reader) (int, error) {
+func ImportJSON(ctx context.Context, tb TermBase, reader io.Reader) (int, error) {
 	var doc JSONTermBase
 	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(&doc); err != nil {
@@ -26,7 +27,7 @@ func ImportJSON(tb TermBase, reader io.Reader) (int, error) {
 		if concept.ID == "" {
 			concept.ID = fmt.Sprintf("json-%d", imported+1)
 		}
-		if err := tb.AddConcept(concept); err != nil {
+		if err := tb.AddConcept(ctx, concept); err != nil {
 			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
 		}
 		imported++
@@ -36,11 +37,15 @@ func ImportJSON(tb TermBase, reader io.Reader) (int, error) {
 }
 
 // ExportJSON writes all concepts as a JSON termbase.
-func ExportJSON(tb TermBase, writer io.Writer, name string) error {
+func ExportJSON(ctx context.Context, tb TermBase, writer io.Writer, name string) error {
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("list concepts: %w", err)
+	}
 	doc := JSONTermBase{
 		Name:     name,
 		Version:  "1.0",
-		Concepts: tb.Concepts(),
+		Concepts: concepts,
 	}
 
 	encoder := json.NewEncoder(writer)

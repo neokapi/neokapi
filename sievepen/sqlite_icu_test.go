@@ -3,6 +3,7 @@
 package sievepen_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -25,7 +26,7 @@ func TestSQLiteTM_SearchCJK(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"zh-CN": {{Text: &model.TextRun{Text: "中国经济发展报告"}}},
@@ -33,7 +34,7 @@ func TestSQLiteTM_SearchCJK(t *testing.T) {
 		},
 		HintSrcLang: "zh-CN",
 	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e2",
 		Variants: map[model.LocaleID][]model.Run{
 			"zh-CN": {{Text: &model.TextRun{Text: "国际贸易协定"}}},
@@ -43,14 +44,14 @@ func TestSQLiteTM_SearchCJK(t *testing.T) {
 	}))
 
 	// Search for "经济" (economy) in Chinese — ICU segments at word boundaries.
-	entries, total := tm.SearchEntries("经济", "zh-CN", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "经济", AnyLocale: "zh-CN", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should segment Chinese and find 经济")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)
 	}
 
 	// Search for "贸易" (trade) — should find e2.
-	entries, total = tm.SearchEntries("贸易", "zh-CN", "", 0, 10)
+	entries, total, _ = tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "贸易", AnyLocale: "zh-CN", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total)
 	if len(entries) > 0 {
 		assert.Equal(t, "e2", entries[0].ID)
@@ -62,7 +63,7 @@ func TestSQLiteTM_SearchJapanese(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"ja-JP": {{Text: &model.TextRun{Text: "日本語のテストです"}}},
@@ -71,7 +72,7 @@ func TestSQLiteTM_SearchJapanese(t *testing.T) {
 		HintSrcLang: "ja-JP",
 	}))
 
-	entries, total := tm.SearchEntries("テスト", "ja-JP", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "テスト", AnyLocale: "ja-JP", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should segment Japanese and find テスト")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)
@@ -83,7 +84,7 @@ func TestSQLiteTM_SearchThai(t *testing.T) {
 	require.NoError(t, err)
 	defer tm.Close()
 
-	require.NoError(t, tm.Add(sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"th-TH": {{Text: &model.TextRun{Text: "การทดสอบภาษาไทยในระบบค้นหา"}}},
@@ -92,7 +93,7 @@ func TestSQLiteTM_SearchThai(t *testing.T) {
 		HintSrcLang: "th-TH",
 	}))
 
-	entries, total := tm.SearchEntries("ภาษา", "th-TH", "", 0, 10)
+	entries, total, _ := tm.SearchEntries(context.Background(), sievepen.SearchParams{Query: "ภาษา", AnyLocale: "th-TH", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should segment Thai and find ภาษา")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)

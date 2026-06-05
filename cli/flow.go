@@ -898,7 +898,8 @@ func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale mo
 		MaxResults: 1,
 		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
 	}
-	matches, err := p.tm.LookupText(source, sourceLocale, targetLocale, opts)
+	// TODO: thread a real context once tools.TMProvider carries one.
+	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", false
 	}
@@ -911,7 +912,8 @@ func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale mo
 		MinScore:   minScore,
 		MaxResults: 1,
 	}
-	matches, err := p.tm.LookupText(source, sourceLocale, targetLocale, opts)
+	// TODO: thread a real context once tools.TMProvider carries one.
+	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", 0, false
 	}
@@ -1158,8 +1160,12 @@ func (a *App) resolveProjectGlossary(cmd *cobra.Command, targetLang string) ([]c
 		target = model.LocaleID(a.TargetLang)
 	}
 
+	concepts, err := tb.Concepts(cmd.Context())
+	if err != nil {
+		return nil, fmt.Errorf("list termbase concepts: %w", err)
+	}
 	var glossary []coretools.GlossaryEntry
-	for _, c := range tb.Concepts() {
+	for _, c := range concepts {
 		concept := c
 		src := concept.SourceTerm(source)
 		if src == nil || src.Text == "" {

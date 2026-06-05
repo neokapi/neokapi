@@ -391,7 +391,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 		// TM absorb with provenance.
 		if task.tm != nil {
-			added, updated := absorbBlockIntoTM(task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
+			added, updated := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
 			stats.TMNew += added
 			stats.TMUpdated += updated
 		}
@@ -503,7 +503,7 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		stats.Applied++
 
 		if task.tm != nil {
-			added, updated := absorbBlockIntoTM(task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
+			added, updated := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
 			stats.TMNew += added
 			stats.TMUpdated += updated
 		}
@@ -711,7 +711,7 @@ func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, format
 // with kapi-merge provenance. Returns (new, updated) counts. Today both
 // are 1-or-0 since we write one entry per block; tracking them separately
 // matters once we widen to per-segment.
-func absorbBlockIntoTM(tm *sievepen.SQLiteTM, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int) {
+func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int) {
 	srcText := block.SourceText()
 	tgtText := block.TargetText(target)
 	if srcText == "" || tgtText == "" {
@@ -749,13 +749,13 @@ func absorbBlockIntoTM(tm *sievepen.SQLiteTM, block *model.Block, source, target
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if _, existed := tm.GetEntry(entry.ID); existed {
-		if err := tm.Add(entry); err == nil {
+	if _, existed, _ := tm.GetEntry(ctx, entry.ID); existed {
+		if err := tm.Add(ctx, entry); err == nil {
 			return 0, 1
 		}
 		return 0, 0
 	}
-	if err := tm.Add(entry); err == nil {
+	if err := tm.Add(ctx, entry); err == nil {
 		return 1, 0
 	}
 	return 0, 0
