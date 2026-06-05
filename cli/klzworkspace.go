@@ -33,9 +33,13 @@ import (
 // by `kapi pack` (or a transform's --pack), the git-bundle eject. `kapi info`
 // shows whether the cache is dirty (diverged from the packed .klz).
 
-// isKlzPath reports whether a path names a .klz package.
+// isKlzPath reports whether a bare path names a .klz package. Detection routes
+// through the binding resolver (AD-026): a bare path with a .klz extension binds
+// to the block store. Scheme-prefixed locators (store:/klz:) are handled by the
+// binding layer, not here, so this stays equivalent to a plain extension check.
 func isKlzPath(p string) bool {
-	return strings.EqualFold(filepath.Ext(p), WorkspaceExt)
+	l := flow.ParseLocator(p)
+	return l.Scheme == "" && l.Kind() == flow.BindingStore
 }
 
 // klzWorkspaceInput reports whether the inputs are a single .klz workspace —
