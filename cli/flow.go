@@ -253,14 +253,6 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		stopProgress = startStepProgress(os.Stderr, metrics)
 	}
 
-	// Resolve output path.
-	outputPath, _ := cmd.Flags().GetString("output")
-	if outputPath == "" {
-		ext := filepath.Ext(inputPath)
-		base := inputPath[:len(inputPath)-len(ext)]
-		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
-	}
-
 	// In project mode, run against the project's persistent block store
 	// (.kapi/cache/blocks.db) so SessionTools cache per-block work as
 	// overlays — that is what lets a later run skip already-done steps and
@@ -274,29 +266,64 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		}
 	}
 
+	// Process-only default in a project (AD-026 §3/§5): when a .kapi recipe is
+	// in scope AND the user did not pass an explicit -o, the run commits its
+	// `targets/<locale>` overlays to the project store and emits no file.
+	// Materializing the localized files is then a separate `kapi merge`. An
+	// explicit -o (or no project) keeps the file-writing path below.
+	processOnly := a.projectContext != nil && projStore != nil && !cmd.Flags().Changed("output")
+
 	// Build reader configuration callback: applies preset config + project defaults.
+	configureReader := func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
+		if len(mergedConfig) > 0 {
+			if cfg := reader.Config(); cfg != nil {
+				if err := cfg.ApplyMap(mergedConfig); err != nil {
+					return fmt.Errorf("apply format config: %w", err)
+				}
+			}
+		}
+		if a.projectContext != nil {
+			if err := a.projectContext.ConfigureReader(reader, string(detectedFmt)); err != nil {
+				return fmt.Errorf("apply project format config: %w", err)
+			}
+		}
+		return nil
+	}
+
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
-		FormatReg:    a.FormatReg,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
-		Recorder:     recorder,
-		Store:        projStore,
-		ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
-			if len(mergedConfig) > 0 {
-				if cfg := reader.Config(); cfg != nil {
-					if err := cfg.ApplyMap(mergedConfig); err != nil {
-						return fmt.Errorf("apply format config: %w", err)
-					}
-				}
-			}
-			if a.projectContext != nil {
-				if err := a.projectContext.ConfigureReader(reader, string(detectedFmt)); err != nil {
-					return fmt.Errorf("apply project format config: %w", err)
-				}
-			}
-			return nil
-		},
+		FormatReg:       a.FormatReg,
+		SourceLocale:    model.LocaleID(a.SourceLang),
+		Encoding:        a.Encoding,
+		Recorder:        recorder,
+		Store:           projStore,
+		ConfigureReader: configureReader,
 	})
+
+	if processOnly {
+		if err := runner.RunFileProcessOnly(ctx, flowName, flowTools, inputPath, a.TargetLang); err != nil {
+			if stopProgress != nil {
+				stopProgress()
+			}
+			return err
+		}
+		if stopProgress != nil {
+			stopProgress()
+		}
+		if !a.Quiet {
+			fmt.Fprintf(cmd.OutOrStdout(),
+				"Committed overlays for %s to the project store — run `kapi merge` to write localized files.\n",
+				filepath.Base(inputPath))
+		}
+		return nil
+	}
+
+	// Resolve output path.
+	outputPath, _ := cmd.Flags().GetString("output")
+	if outputPath == "" {
+		ext := filepath.Ext(inputPath)
+		base := inputPath[:len(inputPath)-len(ext)]
+		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
+	}
 
 	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
 		if stopProgress != nil {

@@ -9,12 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/klz"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
@@ -77,15 +81,23 @@ func (a *App) NewMergeCmd(_ MergeCmdOptions) *cobra.Command {
 		Use:     "merge",
 		Short:   "Apply a translator's XLIFF back onto the project source",
 		GroupID: "content",
-		Long: `Apply one or more bilingual files returned by a translator back onto
-the project's source locales, using the skeleton captured by kapi
-extract (AD-017).
+		Long: `Materialize localized files for a project, or apply bilingual files
+returned by a translator back onto the project's source locales.
 
-Each input carries the extraction batch id in a file-level <note>, so
-merge finds the right extraction manifest without guessing from the
-filename. Mixed target locales in one batch are fine — merge handles
-each input independently.`,
-		Example: `  kapi merge -i out/app.en-US-to-fr-FR.xliff
+With no -i in a project, merge writes the localized files from the
+project block store: a process-only "kapi run" (in a project, no -o)
+commits its work as targets/<locale> overlays, and merge is the matching
+sink — it reads each source, applies the stored overlays, and writes the
+localized file via the source format's skeleton round-trip (AD-026 §3).
+
+With -i, merge applies one or more bilingual files returned by a
+translator back onto the project's source locales, using the skeleton
+captured by kapi extract (AD-017). Each input carries the extraction
+batch id in a file-level <note>, so merge finds the right extraction
+manifest without guessing from the filename. Mixed target locales in one
+batch are fine — merge handles each input independently.`,
+		Example: `  kapi merge                     # materialize localized files from the project store
+  kapi merge -i out/app.en-US-to-fr-FR.xliff
   kapi merge -i file1.xliff -i file2.xliff
   kapi merge -i vendor-return/ --no-tm-update
   kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace`,
@@ -99,6 +111,13 @@ each input independently.`,
 					return a.mergeOneKlz(cmd, args[0])
 				}
 				return a.mergeFromKlz(cmd.Context(), args[0], out)
+			}
+			// In a project with no -i input, materialize the localized files
+			// from the project block store: a process-only `kapi run` lands its
+			// work as `targets/<locale>` overlays, and this is the matching sink
+			// (AD-026 §3). Explicit -i keeps the XLIFF/PO/dir merge path below.
+			if inputs, _ := cmd.Flags().GetStringArray("input"); len(inputs) == 0 {
+				return a.mergeFromProjectStore(cmd)
 			}
 			return a.runMerge(cmd)
 		},
@@ -190,6 +209,140 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 		return fmt.Errorf("merge: %d input file(s) failed — see errors above", failures)
 	}
 	return nil
+}
+
+// mergeFromProjectStore materializes localized files from the project block
+// store (AD-026 §3): for each project source × target locale it reads the
+// source, applies the stored `targets/<locale>` overlays via the
+// hydrateTargetsTool (recomputing nothing), and writes the localized file to
+// the source's output template. This is the sink half of the process-only
+// loop — `kapi run flow -i src.json` (in a project, no -o) commits overlays;
+// `kapi merge` (no -i) writes the files.
+func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
+	ctx := cmd.Context()
+	projectPath, err := RequireProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	proj, err := a.LoadProjectInteractive(ctx, projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+	if err != nil {
+		return fmt.Errorf("load project: %w", err)
+	}
+	pctx := project.NewProjectContext(proj, projectPath)
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return fmt.Errorf("resolve project layout: %w", err)
+	}
+
+	locales := proj.Defaults.TargetLanguages
+	if len(locales) == 0 {
+		return errors.New("merge: project declares no target languages (defaults.target_languages)")
+	}
+
+	if err := project.EnsureLayout(layout); err != nil {
+		return fmt.Errorf("merge: ensure project layout: %w", err)
+	}
+	store, err := sqlitestore.New(layout.BlockStorePath())
+	if err != nil {
+		return fmt.Errorf("merge: open project block store: %w", err)
+	}
+	defer store.Close()
+
+	files, err := pctx.ResolveContent(a.FormatReg)
+	if err != nil {
+		return fmt.Errorf("merge: resolve project content: %w", err)
+	}
+	if len(files) == 0 {
+		return errors.New("merge: project has no source files to materialize (check content patterns)")
+	}
+
+	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	var tm *sievepen.SQLiteTM
+	if !noTMUpdate {
+		tmPath := filepath.Join(layout.StateDir, "tm.db")
+		if loaded, lerr := sievepen.NewSQLiteTM(tmPath); lerr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
+		} else {
+			defer loaded.Close()
+			tm = loaded
+		}
+	}
+
+	written := 0
+	for _, f := range files {
+		srcFormat := f.Format
+		if srcFormat == "" {
+			srcFormat = detectSourceFormat(a.FormatReg, pctx, f.Relative, f.Path)
+		}
+		if srcFormat == "" {
+			return fmt.Errorf("merge: cannot detect format for source %s", f.Path)
+		}
+		for _, locale := range locales {
+			entry := &project.ExtractionFile{Source: f.Relative}
+			targetPath := resolveMergeOutputPath(entry, proj, layout.Root, locale)
+
+			runner := flow.NewFileRunner(flow.FileRunnerConfig{
+				FormatReg:    a.FormatReg,
+				SourceLocale: pctx.SourceLocale,
+				Encoding:     pctx.Encoding,
+				Store:        store,
+				DetectFormat: func(string) registry.FormatID { return registry.FormatID(srcFormat) },
+				ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
+					return pctx.ConfigureReader(reader, string(detectedFmt))
+				},
+			})
+			tools := []tool.Tool{newHydrateTargetsTool(locale)}
+			if rerr := runner.RunFile(ctx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
+				return fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
+			}
+			written++
+
+			// Absorb the materialized targets into the project TM with merge
+			// provenance, mirroring the XLIFF/PO/.klz merge paths.
+			if tm != nil {
+				if added, updated, aerr := absorbStoreTargets(ctx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr == nil {
+					_ = added
+					_ = updated
+				}
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Merged %s → %s\n", f.Relative, targetPath)
+		}
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "\nMerge complete. wrote=%d file(s) from the project store.\n", written)
+	return nil
+}
+
+// absorbStoreTargets reads the source blocks, applies the stored
+// `targets/<locale>` overlays, and writes accepted source+target pairs into
+// the project TM with kapi-merge provenance. Returns (new, updated) counts.
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *sievepen.SQLiteTM, sourceRel string) (int, int, error) {
+	blocks, _, err := readSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target)
+	if err != nil {
+		return 0, 0, err
+	}
+	sess, err := store.Begin(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer sess.Close()
+	kind := "targets/" + string(target)
+	newCount, updatedCount := 0, 0
+	for _, b := range blocks {
+		if !b.Translatable || b.ID == "" {
+			continue
+		}
+		o, oerr := sess.GetOverlay(kind, b.ID)
+		if oerr != nil || len(o.Payload) == 0 {
+			continue
+		}
+		applyTargetOverlay(b, target, o.Payload)
+		n, u := absorbBlockIntoTM(ctx, tm, b, source, target, "store", sourceRel, sourceAbs)
+		newCount += n
+		updatedCount += u
+	}
+	return newCount, updatedCount, nil
 }
 
 type mergeTask struct {

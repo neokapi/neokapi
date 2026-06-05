@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/klf"
@@ -152,6 +154,85 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, output, "emit-on-Close writer output must be flushed, not truncated to empty")
 	assert.Contains(t, string(output), "documents", "KLF payload must be present in the flushed file")
+}
+
+// TestFileRunner_RunFileProcessOnly_CommitsOverlaysNoFile verifies the
+// process-only run path (AD-026 §3): the tool chain runs against a persistent
+// store, SessionTools commit `targets/<locale>` overlays, the session is
+// committed, and NO output file is produced.
+func TestFileRunner_RunFileProcessOnly_CommitsOverlaysNoFile(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.json")
+	require.NoError(t, os.WriteFile(inputPath, []byte(`{"greeting":"Hello World"}`), 0o644))
+
+	storePath := filepath.Join(dir, "blocks.db")
+	store, err := sqlitestore.New(storePath)
+	require.NoError(t, err)
+	defer store.Close()
+	require.True(t, store.Capabilities().Persistent, "sqlite store must be persistent")
+
+	pseudoTool, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+	require.NoError(t, err)
+
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    reg,
+		SourceLocale: "en-US",
+		Store:        store,
+	})
+	require.NoError(t, runner.RunFileProcessOnly(context.Background(),
+		"pseudo-translate", []tool.Tool{pseudoTool}, inputPath, "qps"))
+
+	// No sibling/output file anywhere in the dir except the input + the store.
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.NotContains(t, e.Name(), "qps", "process-only run must write no localized file; found %s", e.Name())
+	}
+
+	// The store holds at least one targets/qps overlay.
+	sess, err := store.Begin(context.Background())
+	require.NoError(t, err)
+	defer sess.Close()
+	n := 0
+	for ov, err := range sess.ListOverlays("targets/qps") {
+		require.NoError(t, err)
+		assert.NotEmpty(t, ov.Payload)
+		n++
+	}
+	assert.Positive(t, n, "process-only run must commit targets/qps overlays")
+}
+
+// TestFileRunner_RunFileToStore_RequiresPersistentStore verifies that a
+// process-only run errors clearly when no store (or an ephemeral one) is
+// configured — the work would otherwise be discarded.
+func TestFileRunner_RunFileToStore_RequiresPersistentStore(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.json")
+	require.NoError(t, os.WriteFile(inputPath, []byte(`{"a":"b"}`), 0o644))
+
+	pseudoTool, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+	require.NoError(t, err)
+
+	t.Run("nil store", func(t *testing.T) {
+		err := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: reg, SourceLocale: "en-US"}).
+			RunFileProcessOnly(context.Background(), "pseudo-translate", []tool.Tool{pseudoTool}, inputPath, "qps")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "persistent block store")
+	})
+
+	t.Run("ephemeral store", func(t *testing.T) {
+		err := flow.NewFileRunner(flow.FileRunnerConfig{
+			FormatReg: reg, SourceLocale: "en-US", Store: blockstore.NewMemoryStore(),
+		}).RunFileProcessOnly(context.Background(), "pseudo-translate", []tool.Tool{pseudoTool}, inputPath, "qps")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "persistent block store")
+	})
 }
 
 // erroringTool returns an error after passing through n parts. Used to
