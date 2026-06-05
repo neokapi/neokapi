@@ -68,10 +68,11 @@ export interface FlowNodePosition {
   y: number;
 }
 
-/** Flow node in a flow definition */
+/** Flow node in a flow definition. The graph is tool nodes only (AD-026); the
+ *  I/O ends are bindings, not nodes. */
 export interface FlowNodeInfo {
   id: string;
-  type: "tool" | "reader" | "writer";
+  type: "tool";
   name: string;
   label?: string;
   /** Pipeline stage: "" or undefined = main chain; "source-transform" = leading rewrite stage. */
@@ -97,6 +98,10 @@ export interface FlowDefinitionInfo {
   source: "built-in" | "user" | "project";
   created_at?: string;
   modified_at?: string;
+  /** Source/sink binding intent (AD-026), as wire-format string locators
+   *  ("file"/"store"/"none"/"xliff"/…). Nested to avoid colliding with `source`
+   *  (the provenance field). Omitted = file binding. */
+  binding?: { source?: string; sink?: string };
 }
 
 /** Plugin descriptor */

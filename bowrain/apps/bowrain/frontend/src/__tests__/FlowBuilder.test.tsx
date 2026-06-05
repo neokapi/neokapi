@@ -39,35 +39,23 @@ describe("FlowBuilder adapter — stage serialization round-trip", () => {
     description: "Redact then translate",
     source: "built-in",
     nodes: [
-      { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
       {
         id: "redact",
         type: "tool",
         name: "redact",
         label: "Redact",
         stage: STAGE_SOURCE_TRANSFORM,
-        position: { x: 250, y: 100 },
+        position: { x: 0, y: 100 },
       },
       {
         id: "ai-translate",
         type: "tool",
         name: "ai-translate",
         label: "AI Translate",
-        position: { x: 500, y: 100 },
-      },
-      {
-        id: "writer",
-        type: "writer",
-        name: "auto",
-        label: "Output",
-        position: { x: 750, y: 100 },
+        position: { x: 250, y: 100 },
       },
     ],
-    edges: [
-      { id: "e1", source: "reader", target: "redact" },
-      { id: "e2", source: "redact", target: "ai-translate" },
-      { id: "e3", source: "ai-translate", target: "writer" },
-    ],
+    edges: [{ id: "e2", source: "redact", target: "ai-translate" }],
   };
 
   it("defToSpec collects the redact node into sourceTransforms", () => {
@@ -110,15 +98,15 @@ describe("FlowBuilder adapter — stage serialization round-trip", () => {
     expect(spec2.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
   });
 
-  it("reader and writer nodes serialize with the 'auto' name", () => {
+  it("serializes a tool-only graph — no reader/writer nodes (AD-026)", () => {
     const spec = defToSpec(secureDef);
     const serialized = specToDef(
       spec,
       { id: "secure-translate", name: "Secure Translate", source: "user" },
       tools,
     );
-    expect(serialized.nodes.find((n) => n.type === "reader")!.name).toBe("auto");
-    expect(serialized.nodes.find((n) => n.type === "writer")!.name).toBe("auto");
+    expect(serialized.nodes.length).toBeGreaterThan(0);
+    expect(serialized.nodes.every((n) => n.type === "tool")).toBe(true);
   });
 });
 
