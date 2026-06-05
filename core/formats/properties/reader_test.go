@@ -245,7 +245,7 @@ func TestReadEmptyValue(t *testing.T) {
 
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "key", blocks[0].Name)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
@@ -520,7 +520,7 @@ func TestReadKeyOnly(t *testing.T) {
 
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "keyonly", blocks[0].Name)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 }
 
 func TestReadMixedFormats(t *testing.T) {

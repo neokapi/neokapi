@@ -20,7 +20,7 @@ func TestRunCmd_ProjectFlag(t *testing.T) {
 	f := cmd.Flags().Lookup("project")
 	require.NotNil(t, f, "expected --project flag")
 	assert.Equal(t, "p", f.Shorthand)
-	assert.Equal(t, "", f.DefValue)
+	assert.Empty(t, f.DefValue)
 }
 
 func TestRunFromProject_LoadsDefaults(t *testing.T) {
@@ -187,8 +187,8 @@ flows:
 
 	assert.Equal(t, "Acme App Localization", proj.Name)
 	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
-	assert.Equal(t, 3, len(proj.Defaults.TargetLanguages))
-	assert.Equal(t, 2, len(proj.Content))
+	assert.Len(t, proj.Defaults.TargetLanguages, 3)
+	assert.Len(t, proj.Content, 2)
 	assert.Equal(t, "nextjs", proj.Preset)
 
 	// Plugins.
@@ -201,7 +201,7 @@ flows:
 	assert.Equal(t, "strict-extraction", proj.Defaults.Formats["okf_html"].Preset)
 
 	// Flows
-	assert.Equal(t, 2, len(proj.Flows))
+	assert.Len(t, proj.Flows, 2)
 
 	translate := proj.GetFlow("translate")
 	require.NotNil(t, translate)
@@ -227,5 +227,5 @@ flows:
 	require.NoError(t, err)
 	assert.Equal(t, proj.Name, proj2.Name)
 	assert.Equal(t, proj.Defaults.TargetLanguages, proj2.Defaults.TargetLanguages)
-	assert.Equal(t, len(proj.Flows), len(proj2.Flows))
+	assert.Len(t, proj2.Flows, len(proj.Flows))
 }

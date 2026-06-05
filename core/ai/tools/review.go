@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -100,7 +99,7 @@ Suggestion: <improved translation if needed, or "none">`,
 		t.targetLocale, targetText,
 	)
 
-	resp, err := t.provider.Chat(context.Background(), []aiprovider.Message{
+	resp, err := t.provider.Chat(v.Context(), []aiprovider.Message{
 		{Role: "user", Content: prompt},
 	})
 	if err != nil {

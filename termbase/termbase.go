@@ -1,6 +1,7 @@
 package termbase
 
 import (
+	"context"
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
@@ -127,29 +128,29 @@ type TermDesignation struct {
 // TermBase defines the interface for a terminology database.
 type TermBase interface {
 	// AddConcept inserts or updates a concept with all its terms.
-	AddConcept(concept Concept) error
+	AddConcept(ctx context.Context, concept Concept) error
 
 	// GetConcept retrieves a concept by ID.
-	GetConcept(id string) (Concept, bool)
+	GetConcept(ctx context.Context, id string) (Concept, bool, error)
 
 	// DeleteConcept removes a concept by ID.
-	DeleteConcept(id string) error
+	DeleteConcept(ctx context.Context, id string) error
 
 	// Lookup finds terms matching the source text.
-	Lookup(sourceText string, opts LookupOptions) []TermMatch
+	Lookup(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error)
 
 	// LookupAll finds all terms that appear in the given text.
 	// Returns matches sorted by position in the text.
-	LookupAll(sourceText string, opts LookupOptions) []TermMatch
+	LookupAll(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error)
 
 	// Search performs a text search across terms and definitions.
-	Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int)
+	Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error)
 
 	// Count returns the total number of concepts.
-	Count() int
+	Count(ctx context.Context) (int, error)
 
 	// Concepts returns all concepts (for export).
-	Concepts() []Concept
+	Concepts(ctx context.Context) ([]Concept, error)
 
 	// Close releases resources.
 	Close() error

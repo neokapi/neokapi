@@ -221,7 +221,10 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 	// Group blocks by item.
 	itemGroups := map[string][]*model.Block{}
 	for _, sb := range chunk.Blocks {
-		b := bowsync.ProtoToBlock(sb)
+		b, err := bowsync.ProtoToBlock(sb)
+		if err != nil {
+			return 0, nil, fmt.Errorf("decode block %s in %s: %w", sb.Id, sb.ItemName, err)
+		}
 		itemGroups[sb.ItemName] = append(itemGroups[sb.ItemName], b)
 	}
 

@@ -2,10 +2,11 @@ package termbase
 
 import (
 	"cmp"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -117,12 +118,12 @@ var tbMigrations = []storage.Migration{
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
-func (tb *SQLiteTermBase) AddConcept(concept Concept) error {
-	return tb.AddConceptWithStream(concept, "")
+func (tb *SQLiteTermBase) AddConcept(ctx context.Context, concept Concept) error {
+	return tb.AddConceptWithStream(ctx, concept, "")
 }
 
 // AddConceptWithStream inserts or updates a concept associated with a stream.
-func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) error {
+func (tb *SQLiteTermBase) AddConceptWithStream(ctx context.Context, concept Concept, stream string) error {
 	if concept.ID == "" {
 		return ErrConceptIDRequired
 	}
@@ -140,7 +141,7 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 		propsJSON, _ = json.Marshal(concept.Properties)
 	}
 
-	tx, err := tb.db.Begin()
+	tx, err := tb.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -151,7 +152,7 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 		source = TermSourceTerminology
 	}
 
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, source, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
@@ -170,7 +171,7 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 		return fmt.Errorf("upsert concept: %w", err)
 	}
 
-	_, err = tx.Exec("DELETE FROM tb_terms WHERE concept_id = ?", concept.ID)
+	_, err = tx.ExecContext(ctx, "DELETE FROM tb_terms WHERE concept_id = ?", concept.ID)
 	if err != nil {
 		return fmt.Errorf("delete old terms: %w", err)
 	}
@@ -180,7 +181,7 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 		if term.CompetitorTerm {
 			competitorInt = 1
 		}
-		_, err = tx.Exec(`
+		_, err = tx.ExecContext(ctx, `
 			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, concept.ID, term.Text, strings.ToLower(term.Text),
@@ -195,17 +196,20 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 }
 
 // GetConcept retrieves a concept by ID.
-func (tb *SQLiteTermBase) GetConcept(id string) (Concept, bool) {
-	concept, err := tb.scanConcept(id)
-	if err != nil {
-		return Concept{}, false
+func (tb *SQLiteTermBase) GetConcept(ctx context.Context, id string) (Concept, bool, error) {
+	concept, err := tb.scanConcept(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Concept{}, false, nil
 	}
-	return concept, true
+	if err != nil {
+		return Concept{}, false, err
+	}
+	return concept, true, nil
 }
 
 // DeleteConcept removes a concept by ID.
-func (tb *SQLiteTermBase) DeleteConcept(id string) error {
-	result, err := tb.db.Exec("DELETE FROM tb_concepts WHERE id = ?", id)
+func (tb *SQLiteTermBase) DeleteConcept(ctx context.Context, id string) error {
+	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_concepts WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete concept: %w", err)
 	}
@@ -220,9 +224,9 @@ func (tb *SQLiteTermBase) DeleteConcept(id string) error {
 }
 
 // Lookup finds terms matching the source text.
-func (tb *SQLiteTermBase) Lookup(sourceText string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) Lookup(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = ApplyLookupDefaults(opts)
@@ -231,37 +235,49 @@ func (tb *SQLiteTermBase) Lookup(sourceText string, opts LookupOptions) []TermMa
 	var matches []TermMatch
 
 	if modeEnabled[model.MatchStrategyExact] {
-		matches = append(matches, tb.queryExactTerms(sourceText, opts)...)
+		m, err := tb.queryExactTerms(ctx, sourceText, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
-		matches = append(matches, tb.queryNormalizedTerms(normalizedSource, opts)...)
+		m, err := tb.queryNormalizedTerms(ctx, normalizedSource, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	if modeEnabled[model.MatchStrategyFuzzy] && len(matches) == 0 {
-		matches = append(matches, tb.queryFuzzyTerms(normalizedSource, opts)...)
+		m, err := tb.queryFuzzyTerms(ctx, normalizedSource, opts)
+		if err != nil {
+			return nil, err
+		}
+		matches = append(matches, m...)
 	}
 
 	slices.SortFunc(matches, func(a, b TermMatch) int {
 		return cmp.Compare(b.Score, a.Score)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // LookupAll finds all terms appearing in the given text.
-func (tb *SQLiteTermBase) LookupAll(sourceText string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) LookupAll(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = ApplyLookupDefaults(opts)
 	var matches []TermMatch
 	lowerSource := strings.ToLower(sourceText)
 
-	terms, err := tb.queryTermsByLocale(opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
+	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	type matchKey struct {
@@ -316,21 +332,21 @@ func (tb *SQLiteTermBase) LookupAll(sourceText string, opts LookupOptions) []Ter
 		return cmp.Compare(b.Position.End, a.Position.End)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
-func (tb *SQLiteTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	if query != "" {
-		concepts, total, err := tb.searchFTS5(query, sourceLocale, targetLocale, offset, limit)
+		concepts, total, err := tb.searchFTS5(ctx, query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
-			return concepts, total
+			return concepts, total, nil
 		}
 	}
-	return tb.searchLike(query, sourceLocale, targetLocale, offset, limit)
+	return tb.searchLike(ctx, query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (tb *SQLiteTermBase) searchFTS5(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
+func (tb *SQLiteTermBase) searchFTS5(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	trigramQuery := `"` + strings.ReplaceAll(query, `"`, `""`) + `"`
 
 	localeWhere := ""
@@ -350,7 +366,7 @@ func (tb *SQLiteTermBase) searchFTS5(query string, sourceLocale, targetLocale mo
 		WHERE t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)` + localeWhere
 	countArgs := append([]any{trigramQuery}, localeArgs...)
 	var total int
-	if err := tb.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+	if err := tb.db.QueryRowContext(ctx, countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -362,7 +378,7 @@ func (tb *SQLiteTermBase) searchFTS5(query string, sourceLocale, targetLocale mo
 	args := append([]any{trigramQuery}, localeArgs...)
 	args = append(args, limit, offset)
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -382,14 +398,14 @@ func (tb *SQLiteTermBase) searchFTS5(query string, sourceLocale, targetLocale mo
 
 	var concepts []Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
 	return concepts, total, nil
 }
 
-func (tb *SQLiteTermBase) searchLike(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) searchLike(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	where := "1=1"
 	var args []any
 
@@ -412,13 +428,15 @@ func (tb *SQLiteTermBase) searchLike(query string, sourceLocale, targetLocale mo
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count search results: %w", err)
+	}
 
 	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, where)
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -431,30 +449,30 @@ func (tb *SQLiteTermBase) searchLike(query string, sourceLocale, targetLocale mo
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, total
+		return nil, total, err
 	}
 
 	var concepts []Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts, total
+	return concepts, total, nil
 }
 
 // SearchForStream performs a ranked full-text search with stream inheritance.
-func (tb *SQLiteTermBase) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
 	if query != "" {
-		concepts, total, err := tb.searchFTS5ForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+		concepts, total, err := tb.searchFTS5ForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {
-			return concepts, total
+			return concepts, total, nil
 		}
 	}
-	return tb.searchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+	return tb.searchLikeForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 }
 
-func (tb *SQLiteTermBase) searchFTS5ForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
+func (tb *SQLiteTermBase) searchFTS5ForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -483,7 +501,7 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query string, sourceLocale, target
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -497,7 +515,7 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query string, sourceLocale, target
 
 	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT ? OFFSET ?`, where, caseExpr.String())
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -517,14 +535,14 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query string, sourceLocale, target
 
 	var concepts []Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
 	return concepts, total, nil
 }
 
-func (tb *SQLiteTermBase) searchLikeForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) searchLikeForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -556,7 +574,9 @@ func (tb *SQLiteTermBase) searchLikeForStream(query string, sourceLocale, target
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count search results: %w", err)
+	}
 
 	var caseExpr strings.Builder
 	caseExpr.WriteString("CASE c.stream")
@@ -568,9 +588,9 @@ func (tb *SQLiteTermBase) searchLikeForStream(query string, sourceLocale, target
 
 	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT ? OFFSET ?`, where, caseExpr.String())
 	args = append(args, limit, offset)
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("search concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -583,33 +603,32 @@ func (tb *SQLiteTermBase) searchLikeForStream(query string, sourceLocale, target
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, total
+		return nil, total, err
 	}
 
 	var concepts []Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts, total
+	return concepts, total, nil
 }
 
 // Count returns the total number of concepts.
-func (tb *SQLiteTermBase) Count() int {
+func (tb *SQLiteTermBase) Count(ctx context.Context) (int, error) {
 	var count int
-	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
-		slog.Warn("termbase count query failed", "error", err)
-		return 0
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
+		return 0, fmt.Errorf("count concepts: %w", err)
 	}
-	return count
+	return count, nil
 }
 
 // Concepts returns all concepts.
-func (tb *SQLiteTermBase) Concepts() []Concept {
-	rows, err := tb.db.Query("SELECT id FROM tb_concepts ORDER BY id")
+func (tb *SQLiteTermBase) Concepts(ctx context.Context) ([]Concept, error) {
+	rows, err := tb.db.QueryContext(ctx, "SELECT id FROM tb_concepts ORDER BY id")
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("list concepts: %w", err)
 	}
 	defer rows.Close()
 
@@ -622,16 +641,16 @@ func (tb *SQLiteTermBase) Concepts() []Concept {
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil
+		return nil, err
 	}
 
 	var concepts []Concept
 	for _, id := range ids {
-		if c, err := tb.scanConcept(id); err == nil {
+		if c, err := tb.scanConcept(ctx, id); err == nil {
 			concepts = append(concepts, c)
 		}
 	}
-	return concepts
+	return concepts, nil
 }
 
 // LocaleStat holds the term count for a single locale.
@@ -641,13 +660,12 @@ type LocaleStat struct {
 }
 
 // LocaleStats returns the number of terms grouped by locale.
-func (tb *SQLiteTermBase) LocaleStats() []LocaleStat {
-	rows, err := tb.db.Query(
+func (tb *SQLiteTermBase) LocaleStats(ctx context.Context) ([]LocaleStat, error) {
+	rows, err := tb.db.QueryContext(ctx,
 		"SELECT locale, COUNT(*) FROM tb_terms GROUP BY locale ORDER BY COUNT(*) DESC",
 	)
 	if err != nil {
-		slog.Warn("termbase locale stats query failed", "error", err)
-		return nil
+		return nil, fmt.Errorf("locale stats: %w", err)
 	}
 	defer rows.Close()
 	var stats []LocaleStat
@@ -658,7 +676,7 @@ func (tb *SQLiteTermBase) LocaleStats() []LocaleStat {
 		}
 		stats = append(stats, s)
 	}
-	return stats
+	return stats, rows.Err()
 }
 
 // ActivityStat holds the concept count for a date bucket.
@@ -668,13 +686,12 @@ type ActivityStat struct {
 }
 
 // ActivityStats returns daily concept counts over time based on created_at.
-func (tb *SQLiteTermBase) ActivityStats() []ActivityStat {
-	rows, err := tb.db.Query(
+func (tb *SQLiteTermBase) ActivityStats(ctx context.Context) ([]ActivityStat, error) {
+	rows, err := tb.db.QueryContext(ctx,
 		"SELECT DATE(created_at) AS day, COUNT(*) FROM tb_concepts GROUP BY day ORDER BY day",
 	)
 	if err != nil {
-		slog.Warn("termbase activity stats query failed", "error", err)
-		return nil
+		return nil, fmt.Errorf("activity stats: %w", err)
 	}
 	defer rows.Close()
 	var stats []ActivityStat
@@ -685,7 +702,7 @@ func (tb *SQLiteTermBase) ActivityStats() []ActivityStat {
 		}
 		stats = append(stats, s)
 	}
-	return stats
+	return stats, rows.Err()
 }
 
 // DB returns the underlying database for direct access (e.g., seeding).
@@ -698,12 +715,12 @@ func (tb *SQLiteTermBase) Close() error {
 
 // --- internal helpers ---
 
-func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
+func (tb *SQLiteTermBase) scanConcept(ctx context.Context, id string) (Concept, error) {
 	var c Concept
 	var propsJSON *string
 	var createdStr, updatedStr, source string
 
-	err := tb.db.QueryRow(`
+	err := tb.db.QueryRowContext(ctx, `
 		SELECT id, project_id, domain, definition, properties, source, created_at, updated_at
 		FROM tb_concepts WHERE id = ?
 	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &source, &createdStr, &updatedStr)
@@ -719,12 +736,12 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
 	}
 
-	rows, err := tb.db.Query(`
+	rows, err := tb.db.QueryContext(ctx, `
 		SELECT text, locale, status, part_of_speech, gender, note, competitor_term
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
-		return c, nil
+		return c, fmt.Errorf("query terms for concept %s: %w", id, err)
 	}
 	defer rows.Close()
 
@@ -752,7 +769,7 @@ type termWithConcept struct {
 	term    Term
 }
 
-func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) queryExactTerms(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	searchText := sourceText
 	column := "t.text"
 	if !opts.CaseSensitive {
@@ -794,16 +811,16 @@ func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts LookupOptions)
 		`, where)
 	}
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query exact terms: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(rows, 1.0, model.MatchStrategyExact, opts)
+	return tb.scanTermMatches(ctx, rows, 1.0, model.MatchStrategyExact, opts)
 }
 
-func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
 	where := "t.text_lower = ? AND t.locale = ?"
 	args := []any{normalizedSource, string(opts.SourceLocale)}
 
@@ -838,24 +855,27 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts Loo
 		`, where)
 	}
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("query normalized terms: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(rows, 0.95, model.MatchStrategyNormalized, opts)
+	return tb.scanTermMatches(ctx, rows, 0.95, model.MatchStrategyNormalized, opts)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyTerms(normalizedSource string, opts LookupOptions) []TermMatch {
-	matches := tb.queryFuzzyTrigramCandidates(normalizedSource, opts)
-	if matches != nil {
-		return matches
+func (tb *SQLiteTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
+	matches, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
+	if err != nil {
+		return nil, err
 	}
-	return tb.queryFuzzyFullScan(normalizedSource, opts)
+	if matches != nil {
+		return matches, nil
+	}
+	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(normalizedSource string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
 	trigramQuery := `"` + strings.ReplaceAll(normalizedSource, `"`, `""`) + `"`
 
 	where := `t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)
@@ -893,16 +913,18 @@ func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(normalizedSource string, o
 		`, where)
 	}
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil
+		// A query error is not the same as "no candidates"; surface it
+		// instead of silently returning an empty match set.
+		return nil, fmt.Errorf("query fuzzy trigram candidates: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scoreFuzzyCandidates(rows, normalizedSource, opts)
+	return tb.scoreFuzzyCandidates(ctx, rows, normalizedSource, opts)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyFullScan(normalizedSource string, opts LookupOptions) []TermMatch {
+func (tb *SQLiteTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
 	keyLen := len([]rune(normalizedSource))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
@@ -944,19 +966,21 @@ func (tb *SQLiteTermBase) queryFuzzyFullScan(normalizedSource string, opts Looku
 		`, where)
 	}
 
-	rows, err := tb.db.Query(q, args...)
+	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil
+		// A query error is not the same as "no candidates"; surface it
+		// instead of silently returning an empty match set.
+		return nil, fmt.Errorf("query fuzzy full scan: %w", err)
 	}
 	defer rows.Close()
 
-	return tb.scoreFuzzyCandidates(rows, normalizedSource, opts)
+	return tb.scoreFuzzyCandidates(ctx, rows, normalizedSource, opts)
 }
 
-func (tb *SQLiteTermBase) scoreFuzzyCandidates(rows interface {
+func (tb *SQLiteTermBase) scoreFuzzyCandidates(ctx context.Context, rows interface {
 	Next() bool
 	Scan(...any) error
-}, normalizedSource string, opts LookupOptions) []TermMatch {
+}, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
 	type fuzzyCandidate struct {
 		row   scanTermRow
 		score float64
@@ -976,7 +1000,7 @@ func (tb *SQLiteTermBase) scoreFuzzyCandidates(rows interface {
 
 	var matches []TermMatch
 	for _, c := range candidates {
-		concept, err := tb.scanConcept(c.row.conceptID)
+		concept, err := tb.scanConcept(ctx, c.row.conceptID)
 		if err != nil {
 			continue
 		}
@@ -995,10 +1019,10 @@ func (tb *SQLiteTermBase) scoreFuzzyCandidates(rows interface {
 		})
 	}
 
-	return matches
+	return matches, nil
 }
 
-func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]termWithConcept, error) {
+func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]termWithConcept, error) {
 	where := "t.locale = ?"
 	args := []any{string(locale)}
 
@@ -1031,7 +1055,7 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 
 	where, args, _ = sourceFilterSQL(where, args, opts.SourceFilter)
 
-	rows, err := tb.db.Query(fmt.Sprintf(`
+	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
@@ -1071,10 +1095,10 @@ type scanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
 }
 
-func (tb *SQLiteTermBase) scanTermMatches(rows interface {
+func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
 	Next() bool
 	Scan(...any) error
-}, score float64, matchType model.MatchStrategy, opts LookupOptions) []TermMatch {
+}, score float64, matchType model.MatchStrategy, opts LookupOptions) ([]TermMatch, error) {
 	var raw []scanTermRow
 	for rows.Next() {
 		var r scanTermRow
@@ -1088,7 +1112,7 @@ func (tb *SQLiteTermBase) scanTermMatches(rows interface {
 
 	var matches []TermMatch
 	for _, r := range raw {
-		concept, err := tb.scanConcept(r.conceptID)
+		concept, err := tb.scanConcept(ctx, r.conceptID)
 		if err != nil {
 			continue
 		}
@@ -1106,7 +1130,7 @@ func (tb *SQLiteTermBase) scanTermMatches(rows interface {
 			MatchType: matchType,
 		})
 	}
-	return matches
+	return matches, nil
 }
 
 // sourceFilterSQL appends a WHERE clause for SourceFilter and returns updated args.

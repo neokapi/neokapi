@@ -32,6 +32,14 @@ var ErrQualityGate = errors.New("quality gate failed")
 // responsible for writing any output of its own before returning it.
 var ErrSilentExit = errors.New("")
 
+// exitCoder is implemented by any error that carries an explicit process exit
+// code. ExitCode checks for this interface via errors.As so that packages
+// inside cli/ (e.g. cli/pluginhost) can return a conforming type without
+// importing the cli package directly (which would create a cycle).
+type exitCoder interface {
+	ExitCode() int
+}
+
 // exitCodeError wraps an error with an explicit process exit code. A command
 // returns one (via WithExitCode) when it needs a specific code — e.g. the
 // toolbox utilities' grep-style "2 on trouble" — while still printing the
@@ -43,6 +51,7 @@ type exitCodeError struct {
 
 func (e *exitCodeError) Error() string { return e.err.Error() }
 func (e *exitCodeError) Unwrap() error { return e.err }
+func (e *exitCodeError) ExitCode() int { return e.code }
 
 // WithExitCode tags err with an explicit process exit code for ExitCode to
 // return. It returns nil when err is nil.
@@ -80,10 +89,12 @@ func ExitCode(_ *cobra.Command, err error) int {
 	}
 
 	// An explicit exit code requested by the command (e.g. a toolbox utility
-	// mapping operational trouble to ExitUsage).
-	var coded *exitCodeError
+	// mapping operational trouble to ExitUsage). The check uses the exitCoder
+	// interface so that sub-packages (e.g. pluginhost) can return their own
+	// conforming error type without importing cli and causing a cycle.
+	var coded exitCoder
 	if errors.As(err, &coded) {
-		return coded.code
+		return coded.ExitCode()
 	}
 
 	return ExitError

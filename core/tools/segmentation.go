@@ -161,14 +161,13 @@ func NewSegmentationFromConfig(config map[string]any, targetLang string) (tool.T
 }
 
 // SegmentationTool produces a stand-off segmentation overlay for a Block by
-// delegating to a pluggable segment.Segmenter chosen by config. It overrides
-// Process only to capture the pipeline context so provider-backed engines
-// (llm, sat) can honor cancellation; the segmentation itself is a read-only
+// delegating to a pluggable segment.Segmenter chosen by config. Provider-backed
+// engines (llm, sat) honor cancellation via the dispatch context the annotate
+// handler reads from its view; the segmentation itself is a read-only
 // annotation (it never rewrites runs).
 type SegmentationTool struct {
 	tool.BaseTool
 	cfg *SegmentationConfig
-	ctx context.Context
 
 	srcOnce sync.Once
 	srcSeg  segment.Segmenter
@@ -192,19 +191,12 @@ func NewSegmentationTool(cfg *SegmentationConfig) *SegmentationTool {
 		cfg.SegmentSource = true
 	}
 
-	t := &SegmentationTool{cfg: cfg, ctx: context.Background()}
+	t := &SegmentationTool{cfg: cfg}
 	t.ToolName = "segmentation"
 	t.ToolDescription = "Splits content into a stand-off segmentation overlay"
 	t.Cfg = cfg
 	t.Annotate = t.annotate
 	return t
-}
-
-// Process captures the pipeline context, then runs the standard read-only
-// annotation dispatch.
-func (t *SegmentationTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	t.ctx = ctx
-	return t.BaseTool.Process(ctx, in, out)
 }
 
 // sourceSegmenter / targetSegmenter build (once) the segmenter for each side.
@@ -252,7 +244,7 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 		}
 		layer := t.layerFor(seg)
 		if v.SegmentationLayerFor(nil, layer) == nil || cfg.OverwriteSegmentation {
-			spans, err := seg.Segment(t.ctx, v.SourceRuns(), v.SourceLocale())
+			spans, err := seg.Segment(v.Context(), v.SourceRuns(), v.SourceLocale())
 			if err != nil {
 				return fmt.Errorf("segmentation (source): %w", err)
 			}
@@ -271,7 +263,7 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 		layer := t.layerFor(seg)
 		key := model.Variant(cfg.TargetLocale)
 		if v.SegmentationLayerFor(&key, layer) == nil || cfg.OverwriteSegmentation {
-			spans, err := seg.Segment(t.ctx, v.TargetRuns(cfg.TargetLocale), cfg.TargetLocale)
+			spans, err := seg.Segment(v.Context(), v.TargetRuns(cfg.TargetLocale), cfg.TargetLocale)
 			if err != nil {
 				return fmt.Errorf("segmentation (target): %w", err)
 			}

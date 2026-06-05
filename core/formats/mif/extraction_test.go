@@ -235,7 +235,7 @@ func TestV10IsUsingV9Encoding(t *testing.T) {
 	}
 	v9 := read("TestEncoding-v9.mif")
 	v10 := read("TestEncoding-v10.mif")
-	require.Equal(t, len(v9), len(v10), "v9 and v10 must decode to the same number of blocks")
+	require.Len(t, v10, len(v9), "v9 and v10 must decode to the same number of blocks")
 	assert.Equal(t, v9, v10, "v9 and v10 source content must be identical")
 }
 

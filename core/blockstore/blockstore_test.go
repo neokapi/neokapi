@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -211,7 +212,7 @@ func TestMemoryStore_Capabilities(t *testing.T) {
 func TestCacheStore(t *testing.T) {
 	runStoreSuite(t, func() blockstore.Store {
 		path := filepath.Join(t.TempDir(), "cache.db")
-		store, err := blockstore.NewCacheStore(path)
+		store, err := sqlitestore.New(path)
 		require.NoError(t, err)
 		return store
 	})
@@ -221,7 +222,7 @@ func TestCacheStore_PersistenceAcrossOpens(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache.db")
 
 	// First process: write a block.
-	s1, err := blockstore.NewCacheStore(path)
+	s1, err := sqlitestore.New(path)
 	require.NoError(t, err)
 	sess, err := s1.Begin(context.Background())
 	require.NoError(t, err)
@@ -230,7 +231,7 @@ func TestCacheStore_PersistenceAcrossOpens(t *testing.T) {
 	require.NoError(t, s1.Close())
 
 	// Second process: read it back.
-	s2, err := blockstore.NewCacheStore(path)
+	s2, err := sqlitestore.New(path)
 	require.NoError(t, err)
 	defer s2.Close()
 	sess2, err := s2.Begin(context.Background())
@@ -243,7 +244,7 @@ func TestCacheStore_PersistenceAcrossOpens(t *testing.T) {
 
 func TestCacheStore_Capabilities(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache.db")
-	s, err := blockstore.NewCacheStore(path)
+	s, err := sqlitestore.New(path)
 	require.NoError(t, err)
 	defer s.Close()
 	caps := s.Capabilities()

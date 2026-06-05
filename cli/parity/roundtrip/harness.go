@@ -134,7 +134,7 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 
 	var divergences []Divergence
 	for _, e := range entries {
-		e := e
+
 		t.Run(e.name, func(t *testing.T) {
 			required := requiredTier(c.MinTier, e.name)
 			if skipSet[e.name] {
@@ -160,10 +160,10 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 				dumpDivergentArtifacts(dir, formatID, c.Name, e.name, out, reference)
 				if c.Normalizer != nil {
 					if gn, err := c.Normalizer.Normalize(out); err == nil {
-						_ = os.WriteFile(filepath.Join(dir, string(formatID), c.Name+"."+e.name+".norm.bin"), gn, 0o644)
+						_ = os.WriteFile(filepath.Join(dir, formatID, c.Name+"."+e.name+".norm.bin"), gn, 0o644)
 					}
 					if rn, err := c.Normalizer.Normalize(reference); err == nil {
-						_ = os.WriteFile(filepath.Join(dir, string(formatID), c.Name+".reference.norm.bin"), rn, 0o644)
+						_ = os.WriteFile(filepath.Join(dir, formatID, c.Name+".reference.norm.bin"), rn, 0o644)
 					}
 				}
 			}

@@ -15,13 +15,16 @@ type ServerKnownTermsLoader struct {
 }
 
 // LoadKnownTerms returns all term texts for the given locale from the workspace termbase.
-func (l *ServerKnownTermsLoader) LoadKnownTerms(_ context.Context, _ string, locale string) ([]string, error) {
+func (l *ServerKnownTermsLoader) LoadKnownTerms(ctx context.Context, _ string, locale string) ([]string, error) {
 	tb, err := l.wsStores.getTB(l.workspaceSlug)
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
 
-	concepts := tb.Concepts()
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list concepts: %w", err)
+	}
 	seen := make(map[string]struct{})
 	var terms []string
 

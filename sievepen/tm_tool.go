@@ -71,7 +71,7 @@ func (t *TMLeverageTool) translate(v tool.TargetView) error {
 		Annotations:  v.Annotations(),
 		Translatable: true,
 	}
-	matches, err := t.tm.Lookup(snapshot, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
+	matches, err := t.tm.Lookup(v.Context(), snapshot, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
 		MinScore:   t.cfg.MinScore,
 		MaxResults: t.cfg.MaxResults,
 	})

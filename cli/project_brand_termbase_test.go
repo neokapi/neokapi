@@ -152,7 +152,7 @@ func seedProjectTermbase(t *testing.T, root string) {
 	tb, err := termbase.NewSQLiteTermBase(dbPath)
 	require.NoError(t, err)
 	defer tb.Close()
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
 		ID: "c1",
 		Terms: []termbase.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
@@ -199,7 +199,7 @@ defaults:
 	dbPath := filepath.Join(root, "glossary.db")
 	tb, err := termbase.NewSQLiteTermBase(dbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
 		ID: "c1",
 		Terms: []termbase.Term{
 			{Text: "Cancel", Locale: model.LocaleEnglish, Status: model.TermPreferred},

@@ -2,8 +2,11 @@ name: Security
 
 on:
   schedule:
-    - cron: "0 3 * * 1" # Monday 3 AM UTC
+    - cron: "0 3 * * 1" # Monday 3 AM UTC (exhaustive weekly pass)
   workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -22,6 +25,8 @@ jobs:
           - apps/kapi-desktop
           - bowrain/core
           - bowrain/cli
+          - bowrain/plugin
+          - bowrain/plugin/schema
           - bowrain
     steps:
       - uses: actions/checkout@v6
@@ -32,5 +37,7 @@ jobs:
 
       - name: Run govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          # Pinned (not @latest) so the scanner version is reproducible and
+          # dependabot-trackable rather than drifting between runs.
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           cd ${{ matrix.module }} && govulncheck ./...

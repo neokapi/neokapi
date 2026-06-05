@@ -81,7 +81,7 @@ content:
 	tbPath := filepath.Join(root, ".kapi", "termbase.db")
 	tb, err := termbase.NewSQLiteTermBase(tbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
 		ID: "c1",
 		Terms: []termbase.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},

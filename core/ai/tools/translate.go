@@ -262,7 +262,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		return t.translate(tool.NewTargetView(block))
+		return t.translate(tool.NewTargetViewWithContext(ctx, block))
 	}
 
 	// Skip if already cached.
@@ -276,7 +276,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewTargetView(block)); err != nil {
+	if err := t.translate(tool.NewTargetViewWithContext(ctx, block)); err != nil {
 		return err
 	}
 
@@ -316,9 +316,15 @@ func (t *AITranslateTool) processBatchedWithSession(
 
 	// Filter: split cached vs. needs-translation.
 	toTranslate := make(chan *model.Part, t.batchSize*2)
-	translated := make(chan *model.Part, t.batchSize*2)
 
-	var filterErr error
+	forward := func(p *model.Part) bool {
+		select {
+		case toTranslate <- p:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
 	go func() {
 		defer close(toTranslate)
 		for {
@@ -331,7 +337,9 @@ func (t *AITranslateTool) processBatchedWithSession(
 				}
 				block, ok := part.Resource.(*model.Block)
 				if !ok || block == nil || !block.Translatable || block.ID == "" {
-					toTranslate <- part
+					if !forward(part) {
+						return
+					}
 					continue
 				}
 				if caps.RandomAccess {
@@ -348,22 +356,15 @@ func (t *AITranslateTool) processBatchedWithSession(
 						}
 					}
 				}
-				toTranslate <- part
+				if !forward(part) {
+					return
+				}
 			}
 		}
 	}()
 
-	// Capture translated parts and write overlays before forwarding.
-	go func() {
-		defer close(translated)
-		for part := range translated {
-			out <- part
-		}
-	}()
-
-	// processBatched writes to `translated`; we need the overlay write
-	// wrapped around its output. Simpler: collect translated parts
-	// inline rather than adding a second goroutine chain.
+	// processBatched writes the translated parts to batchOut; we wrap each
+	// with the overlay write before forwarding to the caller.
 	batchOut := make(chan *model.Part, t.batchSize*2)
 	done := make(chan error, 1)
 	go func() {
@@ -398,7 +399,6 @@ func (t *AITranslateTool) processBatchedWithSession(
 	if err := <-done; err != nil {
 		return err
 	}
-	_ = filterErr
 	return nil
 }
 
@@ -442,7 +442,7 @@ func (t *AITranslateTool) translate(v tool.TargetView) error {
 	}
 
 	// Plain text translation.
-	resp, err := t.translateBlock(context.Background(), aiprovider.TranslateRequest{
+	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
 		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -508,7 +508,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.TargetView, sourceRuns
 		t.sourceLocale, t.targetLocale, sourceText,
 	)
 
-	resp, err := t.translateBlock(context.Background(), aiprovider.TranslateRequest{
+	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
 		Source:         prompt,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -719,7 +719,7 @@ type batchResult struct {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		return t.translate(tool.NewTargetView(entries[0].block))
+		return t.translate(tool.NewTargetViewWithContext(ctx, entries[0].block))
 	}
 
 	// Build numbered prompt.
@@ -777,13 +777,13 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i+1]
 		if !ok || text == "" {
-			if err := t.translate(tool.NewTargetView(entry.block)); err != nil {
+			if err := t.translate(tool.NewTargetViewWithContext(ctx, entry.block)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		ev := tool.NewTargetView(entry.block)
+		ev := tool.NewTargetViewWithContext(ctx, entry.block)
 		if entry.hasInlineCodes {
 			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
 			ev.SetTargetRuns(t.targetLocale, targetRuns)

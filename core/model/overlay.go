@@ -81,13 +81,7 @@ type Overlay struct {
 func (o *Overlay) OnSource() bool { return o == nil || o.Variant == nil }
 
 func clampInt(v, lo, hi int) int {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
+	return min(max(v, lo), hi)
 }
 
 // ExtractRuns returns the sub-sequence of runs covered by this half-open

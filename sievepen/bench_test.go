@@ -1,6 +1,7 @@
 package sievepen_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -31,7 +32,7 @@ func BenchmarkSQLiteTM_LookupExact(b *testing.B) {
 	}
 	for i := range 100 {
 		base := sentences[i%len(sentences)]
-		err := tm.Add(sievepen.TMEntry{
+		err := tm.Add(context.Background(), sievepen.TMEntry{
 			ID: fmt.Sprintf("entry-%d", i),
 			Variants: map[model.LocaleID][]model.Run{
 				model.LocaleEnglish: {{Text: &model.TextRun{Text: fmt.Sprintf("%s (variant %d)", base, i)}}},
@@ -53,7 +54,7 @@ func BenchmarkSQLiteTM_LookupExact(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_, _ = tm.LookupText("The file was saved successfully (variant 0)", model.LocaleEnglish, model.LocaleFrench, opts)
+		_, _ = tm.LookupText(context.Background(), "The file was saved successfully (variant 0)", model.LocaleEnglish, model.LocaleFrench, opts)
 	}
 }
 
@@ -74,7 +75,7 @@ func BenchmarkTMMatch(b *testing.B) {
 	}
 	for i := range 100 {
 		base := sentences[i%len(sentences)]
-		err := tm.Add(sievepen.TMEntry{
+		err := tm.Add(context.Background(), sievepen.TMEntry{
 			ID: fmt.Sprintf("entry-%d", i),
 			Variants: map[model.LocaleID][]model.Run{
 				model.LocaleEnglish: {{Text: &model.TextRun{Text: fmt.Sprintf("%s (variant %d)", base, i)}}},
@@ -94,6 +95,6 @@ func BenchmarkTMMatch(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = tm.LookupText("The file was saved", model.LocaleEnglish, model.LocaleFrench, opts)
+		_, _ = tm.LookupText(context.Background(), "The file was saved", model.LocaleEnglish, model.LocaleFrench, opts)
 	}
 }

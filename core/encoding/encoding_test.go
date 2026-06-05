@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewEncoderManager(t *testing.T) {
+	t.Parallel()
 	em := NewEncoderManager()
 	names := em.Names()
 	assert.NotEmpty(t, names)
@@ -21,6 +22,7 @@ func TestNewEncoderManager(t *testing.T) {
 }
 
 func TestEncoderManager_GetUnknown(t *testing.T) {
+	t.Parallel()
 	em := NewEncoderManager()
 	_, err := em.Get("nonexistent-encoding")
 	require.Error(t, err)
@@ -28,6 +30,7 @@ func TestEncoderManager_GetUnknown(t *testing.T) {
 }
 
 func TestEncoderManager_DecodeEncode_Latin1(t *testing.T) {
+	t.Parallel()
 	em := NewEncoderManager()
 
 	// "café" in ISO-8859-1: 0x63 0x61 0x66 0xe9
@@ -43,6 +46,7 @@ func TestEncoderManager_DecodeEncode_Latin1(t *testing.T) {
 }
 
 func TestEncoderManager_DecodeEncode_UTF8Passthrough(t *testing.T) {
+	t.Parallel()
 	em := NewEncoderManager()
 
 	input := []byte("Hello, world!")
@@ -57,6 +61,7 @@ func TestEncoderManager_DecodeEncode_UTF8Passthrough(t *testing.T) {
 }
 
 func TestEncoderManager_DecodeEncode_Windows1252(t *testing.T) {
+	t.Parallel()
 	em := NewEncoderManager()
 
 	// "smart quotes" in Windows-1252: 0x93 = left double, 0x94 = right double

@@ -128,7 +128,7 @@ func TestEncodingConvertConfigReset(t *testing.T) {
 	}
 	cfg.Reset()
 
-	assert.Equal(t, "", cfg.TargetEncoding)
+	assert.Empty(t, cfg.TargetEncoding)
 	assert.False(t, cfg.ApplySource)
 	assert.True(t, cfg.ApplyTarget)
 	assert.True(t, cfg.TargetLocale.IsEmpty())

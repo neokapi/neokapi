@@ -566,7 +566,9 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
-	if tm.Count() == 0 {
+	if count, err := tm.Count(ctx); err != nil {
+		return nil, err
+	} else if count == 0 {
 		return nil, nil
 	}
 
@@ -577,7 +579,7 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 
 	opts := sievepen.DefaultLookupOptions()
 	opts.MaxResults = 5
-	matches, err := tm.Lookup(sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
+	matches, err := tm.Lookup(ctx, sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +632,9 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	if tb.Count() == 0 {
+	if count, err := tb.Count(ctx); err != nil {
+		return nil, err
+	} else if count == 0 {
 		return nil, nil
 	}
 
@@ -644,10 +648,13 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 		return nil, nil
 	}
 
-	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
+	matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	var result []BlockTermMatch
 	for _, m := range matches {

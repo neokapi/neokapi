@@ -168,19 +168,20 @@ type brandVoiceLLMResult struct {
 	Findings []brandVoiceLLMFinding `json:"findings"`
 }
 
-func (t *BrandVoiceCheckTool) resolveOnce() {
+func (t *BrandVoiceCheckTool) resolveOnce(ctx context.Context) {
 	if t.resolved || t.resolver == nil {
 		return
 	}
 	t.resolved = true
-	profile, err := t.resolver.ResolveProfile(context.Background(), t.rc)
+	profile, err := t.resolver.ResolveProfile(ctx, t.rc)
 	if err == nil && profile != nil {
 		t.profile = profile
 	}
 }
 
 func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
-	t.resolveOnce()
+	ctx := v.Context()
+	t.resolveOnce(ctx)
 
 	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
@@ -189,7 +190,7 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 
 	prompt := t.buildPrompt(sourceText)
 
-	resp, err := t.provider.ChatStructured(context.Background(), []aiprovider.Message{
+	resp, err := t.provider.ChatStructured(ctx, []aiprovider.Message{
 		{Role: "user", Content: prompt},
 	}, brandVoiceSchema())
 	if err != nil {

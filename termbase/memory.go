@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -52,7 +53,7 @@ func NewInMemoryTermBase(opts ...InMemoryTermBaseOption) *InMemoryTermBase {
 }
 
 // AddConcept inserts or updates a concept.
-func (tb *InMemoryTermBase) AddConcept(concept Concept) error {
+func (tb *InMemoryTermBase) AddConcept(_ context.Context, concept Concept) error {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
 
@@ -106,19 +107,19 @@ func (tb *InMemoryTermBase) MaxConcepts() int {
 }
 
 // GetConcept retrieves a concept by ID.
-func (tb *InMemoryTermBase) GetConcept(id string) (Concept, bool) {
+func (tb *InMemoryTermBase) GetConcept(_ context.Context, id string) (Concept, bool, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
 	idx, exists := tb.byID[id]
 	if !exists {
-		return Concept{}, false
+		return Concept{}, false, nil
 	}
-	return tb.concepts[idx], true
+	return tb.concepts[idx], true, nil
 }
 
 // DeleteConcept removes a concept by ID.
-func (tb *InMemoryTermBase) DeleteConcept(id string) error {
+func (tb *InMemoryTermBase) DeleteConcept(_ context.Context, id string) error {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
 
@@ -139,12 +140,12 @@ func (tb *InMemoryTermBase) DeleteConcept(id string) error {
 }
 
 // Lookup finds terms matching the source text.
-func (tb *InMemoryTermBase) Lookup(sourceText string, opts LookupOptions) []TermMatch {
+func (tb *InMemoryTermBase) Lookup(_ context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = ApplyLookupDefaults(opts)
@@ -214,16 +215,16 @@ func (tb *InMemoryTermBase) Lookup(sourceText string, opts LookupOptions) []Term
 		return cmp.Compare(b.Score, a.Score)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // LookupAll finds all terms that appear in the given text.
-func (tb *InMemoryTermBase) LookupAll(sourceText string, opts LookupOptions) []TermMatch {
+func (tb *InMemoryTermBase) LookupAll(_ context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
 	if sourceText == "" {
-		return nil
+		return nil, nil
 	}
 
 	opts = ApplyLookupDefaults(opts)
@@ -283,11 +284,11 @@ func (tb *InMemoryTermBase) LookupAll(sourceText string, opts LookupOptions) []T
 		return cmp.Compare(b.Position.End, a.Position.End)
 	})
 
-	return matches
+	return matches, nil
 }
 
 // Search performs a case-insensitive text search across terms and definitions.
-func (tb *InMemoryTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
+func (tb *InMemoryTermBase) Search(_ context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
@@ -302,26 +303,26 @@ func (tb *InMemoryTermBase) Search(query string, sourceLocale, targetLocale mode
 
 	total := len(matched)
 	if offset >= total {
-		return nil, total
+		return nil, total, nil
 	}
 	end := min(offset+limit, total)
-	return matched[offset:end], total
+	return matched[offset:end], total, nil
 }
 
 // Count returns the total number of concepts.
-func (tb *InMemoryTermBase) Count() int {
+func (tb *InMemoryTermBase) Count(_ context.Context) (int, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
-	return len(tb.concepts)
+	return len(tb.concepts), nil
 }
 
 // Concepts returns a copy of all concepts.
-func (tb *InMemoryTermBase) Concepts() []Concept {
+func (tb *InMemoryTermBase) Concepts(_ context.Context) ([]Concept, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 	out := make([]Concept, len(tb.concepts))
 	copy(out, tb.concepts)
-	return out
+	return out, nil
 }
 
 // Close releases resources. For InMemoryTermBase, this is a no-op.
@@ -331,6 +332,8 @@ func (tb *InMemoryTermBase) Close() error {
 
 // --- helpers ---
 
+// ApplyLookupDefaults fills unset LookupOptions fields with their defaults: a
+// non-positive MinScore becomes 0.8.
 func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
 	if opts.MinScore <= 0 {
 		opts.MinScore = 0.8
@@ -338,6 +341,8 @@ func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
 	return opts
 }
 
+// MatchModesEnabled returns the set of enabled match strategies. An empty modes
+// slice enables all of exact, normalized, and fuzzy matching.
 func MatchModesEnabled(modes []model.MatchStrategy) map[model.MatchStrategy]bool {
 	if len(modes) == 0 {
 		return map[model.MatchStrategy]bool{
@@ -381,6 +386,8 @@ func matchesDomain(c Concept, domains []string) bool {
 	return false
 }
 
+// MatchesStatus reports whether status is in the filter. An empty filter
+// matches any status.
 func MatchesStatus(status model.TermStatus, filter []model.TermStatus) bool {
 	if len(filter) == 0 {
 		return true

@@ -150,8 +150,8 @@ func ParseRunsSemanticHTML(html string, sourceRuns []Run, reg *VocabularyRegistr
 
 		isClosing := html[loc[2]:loc[3]] == "/"
 		tagName := html[loc[4]:loc[5]]
-		isSelfClosing := loc[6] < loc[7] && html[loc[6]:loc[7]] == "/" ||
-			isSelfClosingTag(tagName)
+		hasSlash := loc[6] < loc[7] && html[loc[6]:loc[7]] == "/"
+		isSelfClosing := hasSlash || isSelfClosingTag(tagName)
 
 		switch {
 		case isClosing:

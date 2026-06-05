@@ -5,6 +5,7 @@ package parity
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -60,7 +61,7 @@ func RunNative(t *testing.T, req NativeRequest) []*model.Part {
 func TryRunNative(t *testing.T, req NativeRequest) ([]*model.Part, error) {
 	t.Helper()
 	if req.NewReader == nil {
-		return nil, fmt.Errorf("NewReader is required")
+		return nil, errors.New("NewReader is required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -72,7 +73,7 @@ func TryRunNative(t *testing.T, req NativeRequest) ([]*model.Part, error) {
 				return nil, fmt.Errorf("ApplyMap: %w", err)
 			}
 		} else {
-			return nil, fmt.Errorf("Params set but reader has no Config()")
+			return nil, errors.New("params set but reader has no Config()")
 		}
 	}
 	doc := &model.RawDocument{

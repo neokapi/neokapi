@@ -266,7 +266,7 @@ func TestAIEntityExtractTool_SkipsEmptyBlocks(t *testing.T) {
 	// Both blocks should pass through without LLM calls.
 	<-out
 	<-out
-	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
+	assert.Empty(t, mock.ChatStructuredCalls)
 }
 
 func TestAIEntityExtractTool_PassesThroughNonBlocks(t *testing.T) {
@@ -347,7 +347,7 @@ func TestAIEntityExtractTool_BatchMode(t *testing.T) {
 	require.Len(t, parts, 3)
 
 	// One ChatStructured call for the batch.
-	assert.Equal(t, 1, len(mock.ChatStructuredCalls))
+	assert.Len(t, mock.ChatStructuredCalls, 1)
 
 	// Block 1: entity.
 	b1 := parts[0].Resource.(*model.Block)

@@ -204,7 +204,7 @@ func TestSubfilter_Roundtrip(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read the output (without subfiltering, to verify structure)
 	reader2 := odf.NewReader()

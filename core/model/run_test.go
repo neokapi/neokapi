@@ -117,7 +117,7 @@ func TestBlockRunsRoundTrip(t *testing.T) {
 	}
 	b := NewRunsBlock("block-1", runs)
 	got := b.SourceRuns()
-	assert.Equal(t, len(runs), len(got))
+	assert.Len(t, got, len(runs))
 	assert.Equal(t, "Files ", got[0].Text.Text)
 
 	// Round-trip through the canonical JSON wire form (no coded-text bridge).

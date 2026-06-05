@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,16 +31,19 @@ func NewAppConfig() *AppConfig {
 	v.AddConfigPath("$HOME/.config/kapi")
 	v.AddConfigPath("/etc/kapi")
 	v.SetEnvPrefix("KAPI")
+	// Translate dots to underscores so dotted keys like "plugins.directory"
+	// resolve from env vars like KAPI_PLUGINS_DIRECTORY (not KAPI_PLUGINS.DIRECTORY).
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
 	// Set defaults
-	v.SetDefault("flow.channelBuffer", 64)
+	v.SetDefault(KeyFlowChannelBuffer, 64)
 	pluginDir := "./plugins"
 	if configDir, err := os.UserConfigDir(); err == nil {
 		pluginDir = filepath.Join(configDir, "kapi", "plugins")
 	}
-	v.SetDefault("plugins.directory", pluginDir)
-	v.SetDefault("plugins.registry", "https://neokapi.github.io/registry/manifest-plugins.json")
+	v.SetDefault(KeyPluginsDirectory, pluginDir)
+	v.SetDefault(KeyPluginsRegistry, DefaultRegistryURL)
 
 	return &AppConfig{v: v}
 }
@@ -56,9 +60,15 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 		overlay := viper.New()
 		overlay.SetConfigFile(overlayPath)
 		overlay.SetConfigType("yaml")
-		if err := overlay.ReadInConfig(); err == nil {
-			for _, key := range overlay.AllKeys() {
-				cfg.v.Set(key, overlay.Get(key))
+		if err := overlay.ReadInConfig(); err != nil {
+			// A present-but-unreadable overlay config is a real error; only
+			// a missing file (filtered by os.Stat above) is acceptable.
+			fmt.Fprintf(os.Stderr, "Warning: overlay config %s: %v\n", overlayPath, err)
+		} else {
+			// Merge into the file-layer (not Set) so env vars still beat the
+			// overlay file and flag > env > file precedence is preserved.
+			if err := cfg.v.MergeConfigMap(overlay.AllSettings()); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: merge overlay config %s: %v\n", overlayPath, err)
 			}
 		}
 	}
@@ -109,24 +119,24 @@ func (c *AppConfig) Set(key string, value any) {
 
 // ChannelBuffer returns the configured channel buffer size.
 func (c *AppConfig) ChannelBuffer() int {
-	return c.v.GetInt("flow.channelBuffer")
+	return c.v.GetInt(KeyFlowChannelBuffer)
 }
 
 // PluginDirectory returns the configured plugin directory.
 func (c *AppConfig) PluginDirectory() string {
-	return c.v.GetString("plugins.directory")
+	return c.v.GetString(KeyPluginsDirectory)
 }
 
 // Language returns the configured target locale for CLI/UI output
 // (BCP-47, e.g. "fr-FR"). Empty when unset — the i18n.Resolve chain
 // then falls back to KAPI_LANG / LC_ALL / LANG.
 func (c *AppConfig) Language() string {
-	return c.v.GetString("language")
+	return c.v.GetString(KeyLanguage)
 }
 
 // RegistryURL returns the URL of the remote plugin registry.
 func (c *AppConfig) RegistryURL() string {
-	return c.v.GetString("plugins.registry")
+	return c.v.GetString(KeyPluginsRegistry)
 }
 
 // RegistryEntry represents a named plugin registry.
@@ -139,6 +149,15 @@ type RegistryEntry struct {
 // DefaultRegistryURL is the official neokapi plugin registry.
 const DefaultRegistryURL = "https://neokapi.github.io/registry/manifest-plugins.json"
 
+// Config key constants for use with Get/Set/BindEnv to avoid scattered magic strings.
+const (
+	KeyFlowChannelBuffer = "flow.channelBuffer"
+	KeyPluginsDirectory  = "plugins.directory"
+	KeyPluginsRegistry   = "plugins.registry"
+	KeyFormatsPriorities = "formats.priorities"
+	KeyLanguage          = "language"
+)
+
 // Registries returns the configured list of plugin registries.
 // If the "registries" key is set, those entries are returned.
 // Otherwise, falls back to "plugins.registry" wrapped as a single entry named "default".
@@ -150,7 +169,7 @@ func (c *AppConfig) Registries() []RegistryEntry {
 		}
 	}
 	// Fallback to single registry URL.
-	url := c.v.GetString("plugins.registry")
+	url := c.v.GetString(KeyPluginsRegistry)
 	if url == "" {
 		url = DefaultRegistryURL
 	}

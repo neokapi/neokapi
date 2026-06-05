@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"bytes"
+	"context"
 	"sort"
 	"strings"
 	"testing"
@@ -82,7 +83,8 @@ const martifDoc = `<?xml version="1.0" encoding="UTF-8"?>
 
 func conceptByID(t *testing.T, tb TermBase, id string) Concept {
 	t.Helper()
-	c, ok := tb.GetConcept(id)
+	c, ok, err := tb.GetConcept(context.Background(), id)
+	require.NoError(t, err)
 	require.True(t, ok, "concept %q should exist", id)
 	return c
 }
@@ -182,10 +184,12 @@ func TestImportTBX(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tb := NewInMemoryTermBase()
-			n, err := ImportTBX(tb, strings.NewReader(tt.doc), tt.opts)
+			n, err := ImportTBX(context.Background(), tb, strings.NewReader(tt.doc), tt.opts)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantNum, n)
-			assert.Equal(t, tt.wantNum, tb.Count())
+			gotCount, err := tb.Count(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantNum, gotCount)
 			if tt.check != nil {
 				tt.check(t, tb)
 			}
@@ -205,12 +209,14 @@ func TestImportTBXGeneratedIDs(t *testing.T) {
 </body></text></tbx>`
 
 	tb := NewInMemoryTermBase()
-	n, err := ImportTBX(tb, strings.NewReader(doc), TBXImportOptions{IDPrefix: "gen"})
+	n, err := ImportTBX(context.Background(), tb, strings.NewReader(doc), TBXImportOptions{IDPrefix: "gen"})
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
-	_, ok := tb.GetConcept("gen-1")
+	_, ok, err := tb.GetConcept(context.Background(), "gen-1")
+	require.NoError(t, err)
 	assert.True(t, ok)
-	_, ok = tb.GetConcept("gen-2")
+	_, ok, err = tb.GetConcept(context.Background(), "gen-2")
+	require.NoError(t, err)
 	assert.True(t, ok)
 }
 
@@ -227,17 +233,19 @@ func TestImportTBXMalformed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tb := NewInMemoryTermBase()
-			n, err := ImportTBX(tb, strings.NewReader(tt.doc), TBXImportOptions{})
+			n, err := ImportTBX(context.Background(), tb, strings.NewReader(tt.doc), TBXImportOptions{})
 			require.Error(t, err)
 			assert.Equal(t, 0, n)
-			assert.Equal(t, 0, tb.Count())
+			gotCount, cerr := tb.Count(context.Background())
+			require.NoError(t, cerr)
+			assert.Equal(t, 0, gotCount)
 		})
 	}
 }
 
 func TestExportTBXRoundTrip(t *testing.T) {
 	src := NewInMemoryTermBase()
-	require.NoError(t, src.AddConcept(Concept{
+	require.NoError(t, src.AddConcept(context.Background(), Concept{
 		ID:         "rt1",
 		Domain:     "software",
 		Definition: "A piece of software for editing text.",
@@ -247,7 +255,7 @@ func TestExportTBXRoundTrip(t *testing.T) {
 			{Text: "éditeur de texte", Locale: "fr", Status: model.TermApproved, Gender: "masculine", Note: "common usage"},
 		},
 	}))
-	require.NoError(t, src.AddConcept(Concept{
+	require.NoError(t, src.AddConcept(context.Background(), Concept{
 		ID: "rt2",
 		Terms: []Term{
 			{Text: "obsolete", Locale: "en", Status: model.TermDeprecated},
@@ -257,7 +265,7 @@ func TestExportTBXRoundTrip(t *testing.T) {
 	}))
 
 	var buf bytes.Buffer
-	require.NoError(t, ExportTBX(src, &buf, TBXExportOptions{}))
+	require.NoError(t, ExportTBX(context.Background(), src, &buf, TBXExportOptions{}))
 
 	// The export must be a TBX-Basic v3 document.
 	assert.True(t, strings.Contains(buf.String(), "<tbx"), "export should use <tbx> root")
@@ -265,7 +273,7 @@ func TestExportTBXRoundTrip(t *testing.T) {
 
 	// Re-import the exported document.
 	dst := NewInMemoryTermBase()
-	n, err := ImportTBX(dst, bytes.NewReader(buf.Bytes()), TBXImportOptions{})
+	n, err := ImportTBX(context.Background(), dst, bytes.NewReader(buf.Bytes()), TBXImportOptions{})
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 
@@ -276,12 +284,15 @@ func TestExportTBXRoundTrip(t *testing.T) {
 // (ignoring timestamps and term ordering within a locale).
 func assertConceptsEquivalent(t *testing.T, a, b TermBase) {
 	t.Helper()
-	ac := a.Concepts()
-	bc := b.Concepts()
-	require.Equal(t, len(ac), len(bc), "concept counts must match")
+	ac, err := a.Concepts(context.Background())
+	require.NoError(t, err)
+	bc, err := b.Concepts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, bc, len(ac), "concept counts must match")
 
 	for _, want := range ac {
-		got, ok := b.GetConcept(want.ID)
+		got, ok, err := b.GetConcept(context.Background(), want.ID)
+		require.NoError(t, err)
 		require.True(t, ok, "concept %q missing after round-trip", want.ID)
 		assert.Equal(t, want.Definition, got.Definition, "definition for %s", want.ID)
 		assert.Equal(t, want.Domain, got.Domain, "domain for %s", want.ID)
@@ -291,7 +302,7 @@ func assertConceptsEquivalent(t *testing.T, a, b TermBase) {
 
 func assertTermsEquivalent(t *testing.T, conceptID string, want, got []Term) {
 	t.Helper()
-	require.Equal(t, len(want), len(got), "term count for %s", conceptID)
+	require.Len(t, got, len(want), "term count for %s", conceptID)
 
 	key := func(tm Term) string {
 		return string(tm.Locale) + "|" + tm.Text
@@ -316,17 +327,17 @@ func assertTermsEquivalent(t *testing.T, conceptID string, want, got []Term) {
 
 func TestExportTBXSourceLocaleFilter(t *testing.T) {
 	tb := NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), Concept{
 		ID:    "has-en",
 		Terms: []Term{{Text: "hello", Locale: "en", Status: model.TermApproved}},
 	}))
-	require.NoError(t, tb.AddConcept(Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), Concept{
 		ID:    "no-en",
 		Terms: []Term{{Text: "bonjour", Locale: "fr", Status: model.TermApproved}},
 	}))
 
 	var buf bytes.Buffer
-	require.NoError(t, ExportTBX(tb, &buf, TBXExportOptions{SourceLocale: "en"}))
+	require.NoError(t, ExportTBX(context.Background(), tb, &buf, TBXExportOptions{SourceLocale: "en"}))
 
 	out := buf.String()
 	assert.Contains(t, out, `id="has-en"`)

@@ -24,7 +24,7 @@ func TestCreateTargetTool(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	require.True(t, resultBlock.HasTarget(model.LocaleFrench))
-	assert.Equal(t, "", resultBlock.TargetText(model.LocaleFrench))
+	assert.Empty(t, resultBlock.TargetText(model.LocaleFrench))
 }
 
 func TestCreateTargetToolCopySource(t *testing.T) {

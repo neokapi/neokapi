@@ -4,10 +4,33 @@ package mtprovider
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
 )
+
+// sendAndRead executes an HTTP request and returns the response body, mapping a
+// transport error, a read error, or a non-200 status into the same wrapped
+// errors each MT provider previously repeated inline.
+func sendAndRead(client *http.Client, req *http.Request) ([]byte, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode, string(body))
+	}
+	return body, nil
+}
 
 // ProviderID is a type-safe identifier for an MT provider.
 type ProviderID string

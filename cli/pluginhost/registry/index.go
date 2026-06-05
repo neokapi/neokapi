@@ -65,6 +65,10 @@ func PlatformKey() string {
 	return runtime.GOOS + "/" + runtime.GOARCH
 }
 
+// maxIndexBytes is the maximum size of a registry index download.
+// A compromised or redirected registry could otherwise exhaust client memory.
+const maxIndexBytes = 32 << 20 // 32 MB
+
 // FetchIndex downloads the registry index from indexURL.
 func FetchIndex(ctx context.Context, indexURL string) (*IndexV2, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, indexURL, nil)
@@ -79,9 +83,15 @@ func FetchIndex(ctx context.Context, indexURL string) (*IndexV2, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("fetch index %s: HTTP %d", indexURL, resp.StatusCode)
 	}
-	data, err := io.ReadAll(resp.Body)
+	if resp.ContentLength > maxIndexBytes {
+		return nil, fmt.Errorf("fetch index %s: Content-Length %d exceeds limit %d", indexURL, resp.ContentLength, maxIndexBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxIndexBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("fetch index %s: read body: %w", indexURL, err)
+	}
+	if int64(len(data)) > maxIndexBytes {
+		return nil, fmt.Errorf("fetch index %s: response exceeds limit %d bytes", indexURL, maxIndexBytes)
 	}
 	var idx IndexV2
 	if err := json.Unmarshal(data, &idx); err != nil {
@@ -155,6 +165,12 @@ func Download(ctx context.Context, url string) ([]byte, error) {
 	return DownloadWithProgress(ctx, url, nil)
 }
 
+// maxArtifactBytes is the maximum size of a plugin artifact download.
+// A compromised or redirected registry could otherwise exhaust client memory.
+// SHA256/cosign verification happens after the full read, so the cap is the
+// only protection against a memory-exhaustion attack.
+const maxArtifactBytes = 512 << 20 // 512 MB
+
 // DownloadWithProgress is Download with an optional progress callback, invoked
 // as bytes arrive with (bytesSoFar, totalBytes). total is -1 when the server
 // sends no Content-Length. The callback runs on the download goroutine, so it
@@ -172,13 +188,19 @@ func DownloadWithProgress(ctx context.Context, url string, onProgress func(downl
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
 	}
-	var reader io.Reader = resp.Body
+	if resp.ContentLength > maxArtifactBytes {
+		return nil, fmt.Errorf("download %s: Content-Length %d exceeds limit %d", url, resp.ContentLength, maxArtifactBytes)
+	}
+	var reader = io.LimitReader(resp.Body, maxArtifactBytes+1)
 	if onProgress != nil {
-		reader = &progressReader{r: resp.Body, total: resp.ContentLength, onProgress: onProgress}
+		reader = &progressReader{r: reader, total: resp.ContentLength, onProgress: onProgress}
 	}
 	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("download %s: read body: %w", url, err)
+	}
+	if int64(len(data)) > maxArtifactBytes {
+		return nil, fmt.Errorf("download %s: response exceeds limit %d bytes", url, maxArtifactBytes)
 	}
 	return data, nil
 }

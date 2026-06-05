@@ -290,10 +290,11 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # workflow; only the shell bodies live here. Commands mirror the YAML verbatim
 # (e.g. bare `go build`, no fts5 tag) so local == CI.
 #
-# The lint jobs are deliberately NOT mirrored: they run the pinned
-# golangci-lint-action WITHOUT the fts5 tag and post PR annotations, whereas
-# `make lint` adds `-tags fts5` by design — so they are not equivalent and must
-# not be conflated. gha-lint stays inline (it bootstraps actionlint).
+# The lint jobs are not mirrored here (they post PR annotations via the pinned
+# golangci-lint-action and gha-lint bootstraps actionlint), but `make lint` and
+# CI lint are otherwise equivalent: the fts5/parity build tags live in
+# .golangci.yml (run.build-tags), so both analyze the same cgo/FTS5/parity code
+# — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
 	cd bowrain/packages/ui && vp check

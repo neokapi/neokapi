@@ -177,9 +177,13 @@ func (a *App) newBrandCheckCmd() *cobra.Command {
 	}
 	addProfileFlags(cmd)
 	addBrandAIFlags(cmd)
-	cmd.Flags().String("text", "", `text to check (use "-" or omit to read stdin)`)
+	// --input-text avoids colliding with the persistent --text bool (output-format)
+	// flag registered by AddPersistentFlags on the root command. The old --text
+	// String flag shadowed the persistent Bool so GetBool("text") silently broke
+	// output-format resolution on all brand subcommands.
+	cmd.Flags().String("input-text", "", `text to check (use "-" or omit to read stdin)`)
 	cmd.Flags().Int("min-score", 0, "fail (non-zero exit) when the score is below this threshold")
-	// Only --json here (not output.AddFlags) to avoid colliding with --text.
+	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd
 }
@@ -231,8 +235,9 @@ func (a *App) newBrandRewriteCmd() *cobra.Command {
 	}
 	addProfileFlags(cmd)
 	addBrandAIFlags(cmd)
-	cmd.Flags().String("text", "", `text to rewrite (use "-" or omit to read stdin)`)
-	// Only --json here (not output.AddFlags) to avoid colliding with --text.
+	// --input-text avoids colliding with the persistent --text bool output-format flag.
+	cmd.Flags().String("input-text", "", `text to rewrite (use "-" or omit to read stdin)`)
+	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd
 }
@@ -717,10 +722,10 @@ func (a *App) buildBrandProvider(cmd *cobra.Command) (aiprovider.LLMProvider, er
 	return aitools.ProviderFromConfig(pName, aiprovider.Config{APIKey: key, Model: mdl})
 }
 
-// readSubjectText reads the text to check/rewrite from --text, a positional
-// file argument, or stdin (when --text is empty or "-").
+// readSubjectText reads the text to check/rewrite from --input-text, a positional
+// file argument, or stdin (when --input-text is empty or "-").
 func readSubjectText(cmd *cobra.Command, args []string) (string, error) {
-	text, _ := cmd.Flags().GetString("text")
+	text, _ := cmd.Flags().GetString("input-text")
 	if text != "" && text != "-" {
 		return text, nil
 	}

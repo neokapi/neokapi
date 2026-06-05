@@ -178,7 +178,7 @@ func TestReadSimpleODT(t *testing.T) {
 	parts := readParts(t, data)
 
 	// Should have layer start, blocks, layer end
-	require.True(t, len(parts) >= 3, "expected at least 3 parts, got %d", len(parts))
+	require.GreaterOrEqual(t, len(parts), 3, "expected at least 3 parts, got %d", len(parts))
 
 	// First part should be root layer start
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -614,7 +614,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and compare blocks
 	reader2 := odf.NewReader()
@@ -674,7 +674,7 @@ func TestSkeletonRoundTripWithTranslation(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and verify translations appear
 	reader2 := odf.NewReader()

@@ -1,6 +1,7 @@
 package termbase_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -50,7 +51,7 @@ func sqliteSoftwareConcepts() []termbase.Concept {
 func sqlitePopulateTB(t *testing.T, tb termbase.TermBase) {
 	t.Helper()
 	for _, c := range sqliteSoftwareConcepts() {
-		require.NoError(t, tb.AddConcept(c))
+		require.NoError(t, tb.AddConcept(context.Background(), c))
 	}
 }
 
@@ -60,9 +61,9 @@ func TestSQLiteTermBase_AddAndGet(t *testing.T) {
 	defer tb.Close()
 
 	sqlitePopulateTB(t, tb)
-	assert.Equal(t, 3, tb.Count())
+	assert.Equal(t, 3, mustCount(t, tb))
 
-	c, ok := tb.GetConcept("c1")
+	c, ok := mustGetConcept(t, tb, "c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software", c.Domain)
 	assert.Len(t, c.Terms, 3)
@@ -75,11 +76,11 @@ func TestSQLiteTermBase_Delete(t *testing.T) {
 
 	sqlitePopulateTB(t, tb)
 
-	err = tb.DeleteConcept("c2")
+	err = tb.DeleteConcept(context.Background(), "c2")
 	require.NoError(t, err)
-	assert.Equal(t, 2, tb.Count())
+	assert.Equal(t, 2, mustCount(t, tb))
 
-	_, ok := tb.GetConcept("c2")
+	_, ok := mustGetConcept(t, tb, "c2")
 	assert.False(t, ok)
 }
 
@@ -90,7 +91,7 @@ func TestSQLiteTermBase_Update(t *testing.T) {
 
 	sqlitePopulateTB(t, tb)
 
-	err = tb.AddConcept(termbase.Concept{
+	err = tb.AddConcept(context.Background(), termbase.Concept{
 		ID:         "c1",
 		Domain:     "software-ui",
 		Definition: "Updated",
@@ -99,9 +100,9 @@ func TestSQLiteTermBase_Update(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 3, tb.Count())
+	assert.Equal(t, 3, mustCount(t, tb))
 
-	c, ok := tb.GetConcept("c1")
+	c, ok := mustGetConcept(t, tb, "c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software-ui", c.Domain)
 	assert.Len(t, c.Terms, 1)
@@ -114,7 +115,7 @@ func TestSQLiteTermBase_Lookup(t *testing.T) {
 
 	sqlitePopulateTB(t, tb)
 
-	matches := tb.Lookup("Save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	require.Len(t, matches, 1)
@@ -130,7 +131,7 @@ func TestSQLiteTermBase_LookupAll(t *testing.T) {
 	sqlitePopulateTB(t, tb)
 
 	text := "Click Save or Cancel"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	require.GreaterOrEqual(t, len(matches), 2)
@@ -143,7 +144,7 @@ func TestSQLiteTermBase_Search(t *testing.T) {
 
 	sqlitePopulateTB(t, tb)
 
-	results, total := tb.Search("save", "", "", 0, 100)
+	results, total := mustSearch(t, tb, "save", "", "", 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, results, 1)
 }
@@ -173,7 +174,7 @@ func TestSQLiteTermBase_NoDeadSearchTable(t *testing.T) {
 
 	// The trigram path must still serve ranked search after the removal.
 	sqlitePopulateTB(t, tb)
-	results, total := tb.Search("repo", "", "", 0, 100)
+	results, total := mustSearch(t, tb, "repo", "", "", 0, 100)
 	assert.Equal(t, 1, total)
 	require.Len(t, results, 1)
 	assert.Equal(t, "c3", results[0].ID)
@@ -201,7 +202,7 @@ func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
 			{Text: "Datei", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConceptWithStream(mainConcept, "main"))
+	require.NoError(t, tb.AddConceptWithStream(context.Background(), mainConcept, "main"))
 
 	featureConcept := termbase.Concept{
 		ID:     "c-feat",
@@ -211,7 +212,7 @@ func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
 			{Text: "Dokument", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConceptWithStream(featureConcept, "feature/rebrand"))
+	require.NoError(t, tb.AddConceptWithStream(context.Background(), featureConcept, "feature/rebrand"))
 
 	wsConcept := termbase.Concept{
 		ID:     "c-ws",
@@ -221,20 +222,20 @@ func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
 			{Text: "Speichern", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConcept(wsConcept))
+	require.NoError(t, tb.AddConcept(context.Background(), wsConcept))
 
-	concepts, total := tb.SearchForStream("", "", "",
+	concepts, total := mustSearchForStream(t, tb, "", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
 	assert.Equal(t, 3, total)
 	assert.Len(t, concepts, 3)
 	assert.Equal(t, "c-feat", concepts[0].ID)
 
-	concepts, total = tb.SearchForStream("", "", "", "", nil, 0, 100)
+	concepts, total = mustSearchForStream(t, tb, "", "", "", "", nil, 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
 
-	concepts, total = tb.SearchForStream("save", "", "",
+	concepts, total = mustSearchForStream(t, tb, "save", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
@@ -246,14 +247,14 @@ func TestSQLiteTermBase_FuzzyLookup(t *testing.T) {
 	require.NoError(t, err)
 	defer tb.Close()
 
-	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c1", Domain: "IT",
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{ID: "c1", Domain: "IT",
 		Terms: []termbase.Term{{Text: "computer", Locale: "en-US", Status: "approved"}}}))
-	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c2", Domain: "IT",
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{ID: "c2", Domain: "IT",
 		Terms: []termbase.Term{{Text: "computing", Locale: "en-US", Status: "approved"}}}))
-	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c3", Domain: "IT",
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{ID: "c3", Domain: "IT",
 		Terms: []termbase.Term{{Text: "unrelated", Locale: "en-US", Status: "approved"}}}))
 
-	matches := tb.Lookup("computers", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "computers", termbase.LookupOptions{
 		SourceLocale: "en-US",
 		MinScore:     0.7,
 	})
@@ -274,7 +275,7 @@ func TestSQLiteTermBase_ScaleTest(t *testing.T) {
 	defer tb.Close()
 
 	for i := range 500 {
-		require.NoError(t, tb.AddConcept(termbase.Concept{
+		require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 			ID:     fmt.Sprintf("c%d", i),
 			Domain: "domain",
 			Terms: []termbase.Term{
@@ -284,15 +285,15 @@ func TestSQLiteTermBase_ScaleTest(t *testing.T) {
 		}))
 	}
 
-	assert.Equal(t, 500, tb.Count())
+	assert.Equal(t, 500, mustCount(t, tb))
 
-	matches := tb.Lookup("terminology entry number 42", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "terminology entry number 42", termbase.LookupOptions{
 		SourceLocale: "en-US",
 		MinScore:     0.7,
 	})
 	assert.GreaterOrEqual(t, len(matches), 1)
 
-	concepts, total := tb.Search("terminology", "", "", 0, 10)
+	concepts, total := mustSearch(t, tb, "terminology", "", "", 0, 10)
 	assert.GreaterOrEqual(t, total, 1)
 	assert.GreaterOrEqual(t, len(concepts), 1)
 }
@@ -303,7 +304,7 @@ func TestSQLiteTermBase_TermSourceField(t *testing.T) {
 	defer tb.Close()
 
 	// Add a terminology concept (default source).
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "term-1",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -312,7 +313,7 @@ func TestSQLiteTermBase_TermSourceField(t *testing.T) {
 	}))
 
 	// Add a brand vocabulary concept.
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "brand-1",
 		Domain: "brand",
 		Source: termbase.TermSourceBrandVocabulary,
@@ -322,11 +323,11 @@ func TestSQLiteTermBase_TermSourceField(t *testing.T) {
 	}))
 
 	// Verify source is persisted.
-	c, ok := tb.GetConcept("term-1")
+	c, ok := mustGetConcept(t, tb, "term-1")
 	assert.True(t, ok)
 	assert.Equal(t, termbase.TermSourceTerminology, c.Source)
 
-	c, ok = tb.GetConcept("brand-1")
+	c, ok = mustGetConcept(t, tb, "brand-1")
 	assert.True(t, ok)
 	assert.Equal(t, termbase.TermSourceBrandVocabulary, c.Source)
 }
@@ -336,7 +337,7 @@ func TestSQLiteTermBase_SourceFilterLookup(t *testing.T) {
 	require.NoError(t, err)
 	defer tb.Close()
 
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "term-1",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -344,7 +345,7 @@ func TestSQLiteTermBase_SourceFilterLookup(t *testing.T) {
 		},
 	}))
 
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "brand-1",
 		Domain: "brand",
 		Source: termbase.TermSourceBrandVocabulary,
@@ -354,13 +355,13 @@ func TestSQLiteTermBase_SourceFilterLookup(t *testing.T) {
 	}))
 
 	// No filter: both match.
-	matches := tb.Lookup("Deploy", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Deploy", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	assert.Len(t, matches, 2)
 
 	// Filter brand_vocabulary only.
-	matches = tb.Lookup("Deploy", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Deploy", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
 	})
@@ -368,7 +369,7 @@ func TestSQLiteTermBase_SourceFilterLookup(t *testing.T) {
 	assert.Equal(t, "brand-1", matches[0].Concept.ID)
 
 	// Filter terminology only.
-	matches = tb.Lookup("Deploy", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Deploy", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		SourceFilter: []termbase.TermSource{termbase.TermSourceTerminology},
 	})
@@ -381,14 +382,14 @@ func TestSQLiteTermBase_SourceFilterLookupAll(t *testing.T) {
 	require.NoError(t, err)
 	defer tb.Close()
 
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "term-1",
 		Domain: "software",
 		Terms: []termbase.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "brand-1",
 		Domain: "brand",
 		Source: termbase.TermSourceBrandVocabulary,
@@ -397,7 +398,7 @@ func TestSQLiteTermBase_SourceFilterLookupAll(t *testing.T) {
 		},
 	}))
 
-	matches := tb.LookupAll("Click Save", termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, "Click Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
 	})
@@ -410,7 +411,7 @@ func TestSQLiteTermBase_CompetitorTermField(t *testing.T) {
 	require.NoError(t, err)
 	defer tb.Close()
 
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "brand-1",
 		Domain: "brand",
 		Source: termbase.TermSourceBrandVocabulary,
@@ -420,7 +421,7 @@ func TestSQLiteTermBase_CompetitorTermField(t *testing.T) {
 		},
 	}))
 
-	c, ok := tb.GetConcept("brand-1")
+	c, ok := mustGetConcept(t, tb, "brand-1")
 	assert.True(t, ok)
 	require.Len(t, c.Terms, 2)
 	assert.False(t, c.Terms[0].CompetitorTerm)

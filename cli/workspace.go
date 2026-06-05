@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/klz"
 )
@@ -34,7 +35,7 @@ func (a *App) openProjectBlockStore() blockstore.Store {
 	if err := project.EnsureLayout(layout); err != nil {
 		return nil
 	}
-	store, err := blockstore.NewCacheStore(layout.BlockStorePath())
+	store, err := sqlitestore.New(layout.BlockStorePath())
 	if err != nil {
 		return nil
 	}

@@ -23,8 +23,10 @@ func BlockToProto(b *model.Block, itemName string) *syncv1.SyncBlock {
 }
 
 // ProtoToBlock converts a SyncBlock protobuf message to a model.Block.
-// Re-exported from bowrain/core/sync.
-func ProtoToBlock(sb *syncv1.SyncBlock) *model.Block {
+// Re-exported from bowrain/core/sync. Returns an error if an optional
+// extension field (skeleton, annotations, display hint, content ref) fails
+// to decode, instead of silently yielding a zero value.
+func ProtoToBlock(sb *syncv1.SyncBlock) (*model.Block, error) {
 	return coresync.ProtoToBlock(sb)
 }
 

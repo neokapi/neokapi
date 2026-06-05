@@ -51,7 +51,7 @@ func softwareConcepts() []termbase.Concept {
 func populateTB(t *testing.T, tb termbase.TermBase) {
 	t.Helper()
 	for _, c := range softwareConcepts() {
-		require.NoError(t, tb.AddConcept(c))
+		require.NoError(t, tb.AddConcept(context.Background(), c))
 	}
 }
 
@@ -61,9 +61,9 @@ func TestInMemoryTermBase_AddAndGet(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	assert.Equal(t, 3, tb.Count())
+	assert.Equal(t, 3, mustCount(t, tb))
 
-	c, ok := tb.GetConcept("c1")
+	c, ok := mustGetConcept(t, tb, "c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software", c.Domain)
 	assert.Equal(t, "To store data persistently", c.Definition)
@@ -74,14 +74,14 @@ func TestInMemoryTermBase_Delete(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	err := tb.DeleteConcept("c2")
+	err := tb.DeleteConcept(context.Background(), "c2")
 	require.NoError(t, err)
-	assert.Equal(t, 2, tb.Count())
+	assert.Equal(t, 2, mustCount(t, tb))
 
-	_, ok := tb.GetConcept("c2")
+	_, ok := mustGetConcept(t, tb, "c2")
 	assert.False(t, ok)
 
-	err = tb.DeleteConcept("nonexistent")
+	err = tb.DeleteConcept(context.Background(), "nonexistent")
 	require.Error(t, err)
 }
 
@@ -90,7 +90,7 @@ func TestInMemoryTermBase_Update(t *testing.T) {
 	populateTB(t, tb)
 
 	// Update concept c1.
-	err := tb.AddConcept(termbase.Concept{
+	err := tb.AddConcept(context.Background(), termbase.Concept{
 		ID:         "c1",
 		Domain:     "software-ui",
 		Definition: "Updated definition",
@@ -99,9 +99,9 @@ func TestInMemoryTermBase_Update(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 3, tb.Count()) // count unchanged
+	assert.Equal(t, 3, mustCount(t, tb)) // count unchanged
 
-	c, ok := tb.GetConcept("c1")
+	c, ok := mustGetConcept(t, tb, "c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software-ui", c.Domain)
 	assert.Equal(t, "Updated definition", c.Definition)
@@ -112,7 +112,7 @@ func TestInMemoryTermBase_LookupExact(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	matches := tb.Lookup("Save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
@@ -127,7 +127,7 @@ func TestInMemoryTermBase_LookupCaseInsensitive(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	matches := tb.Lookup("save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "save", termbase.LookupOptions{
 		SourceLocale:  model.LocaleEnglish,
 		CaseSensitive: false,
 	})
@@ -140,7 +140,7 @@ func TestInMemoryTermBase_LookupCaseSensitive(t *testing.T) {
 	populateTB(t, tb)
 
 	// Should not match with wrong case.
-	matches := tb.Lookup("save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "save", termbase.LookupOptions{
 		SourceLocale:  model.LocaleEnglish,
 		CaseSensitive: true,
 		MatchModes:    []model.MatchStrategy{model.MatchStrategyExact},
@@ -148,7 +148,7 @@ func TestInMemoryTermBase_LookupCaseSensitive(t *testing.T) {
 	assert.Empty(t, matches)
 
 	// Should match with correct case.
-	matches = tb.Lookup("Save", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale:  model.LocaleEnglish,
 		CaseSensitive: true,
 		MatchModes:    []model.MatchStrategy{model.MatchStrategyExact},
@@ -161,7 +161,7 @@ func TestInMemoryTermBase_LookupFuzzy(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	matches := tb.Lookup("Repositor", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Repositor", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		MinScore:     0.7,
 		MatchModes:   []model.MatchStrategy{model.MatchStrategyFuzzy},
@@ -176,7 +176,7 @@ func TestInMemoryTermBase_LookupAll(t *testing.T) {
 	populateTB(t, tb)
 
 	text := "Click Save to save changes or Cancel to abort"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 
@@ -192,7 +192,7 @@ func TestInMemoryTermBase_LookupAll(t *testing.T) {
 func TestInMemoryTermBase_LookupWithDomainFilter(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "med-1",
 		Domain: "medical",
 		Terms: []termbase.Term{
@@ -201,13 +201,13 @@ func TestInMemoryTermBase_LookupWithDomainFilter(t *testing.T) {
 	}))
 
 	// Without domain filter, find both.
-	matches := tb.Lookup("Save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	assert.Len(t, matches, 2)
 
 	// With domain filter, find only software.
-	matches = tb.Lookup("Save", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		Domains:      []string{"software"},
 	})
@@ -220,20 +220,20 @@ func TestInMemoryTermBase_LookupWithStatusFilter(t *testing.T) {
 	populateTB(t, tb)
 
 	// Should find both "Repository" (preferred) and "Repo" (admitted).
-	matches := tb.Lookup("Repository", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Repository", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	assert.Len(t, matches, 1)
 
 	// Filter to preferred only should still find "Repository".
-	matches = tb.Lookup("Repository", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Repository", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		StatusFilter: []model.TermStatus{model.TermPreferred},
 	})
 	assert.Len(t, matches, 1)
 
 	// Filter to admitted only should not find "Repository".
-	matches = tb.Lookup("Repository", termbase.LookupOptions{
+	matches = mustLookup(t, tb, "Repository", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 		StatusFilter: []model.TermStatus{model.TermAdmitted},
 	})
@@ -245,25 +245,25 @@ func TestInMemoryTermBase_Search(t *testing.T) {
 	populateTB(t, tb)
 
 	// Search by term text.
-	results, total := tb.Search("save", "", "", 0, 100)
+	results, total := mustSearch(t, tb, "save", "", "", 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, results, 1)
 
 	// Search by definition.
-	results, total = tb.Search("abort", "", "", 0, 100)
+	results, total = mustSearch(t, tb, "abort", "", "", 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Equal(t, "c2", results[0].ID)
 
 	// Search by domain.
-	_, total = tb.Search("software", "", "", 0, 100)
+	_, total = mustSearch(t, tb, "software", "", "", 0, 100)
 	assert.Equal(t, 3, total)
 
 	// Filter by locale.
-	_, total = tb.Search("", "de", "", 0, 100)
+	_, total = mustSearch(t, tb, "", "de", "", 0, 100)
 	assert.Equal(t, 3, total)
 
 	// Pagination.
-	results, total = tb.Search("", "", "", 0, 2)
+	results, total = mustSearch(t, tb, "", "", "", 0, 2)
 	assert.Equal(t, 3, total)
 	assert.Len(t, results, 2)
 }
@@ -272,7 +272,7 @@ func TestInMemoryTermBase_Concepts(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
 
-	concepts := tb.Concepts()
+	concepts := mustConcepts(t, tb)
 	assert.Len(t, concepts, 3)
 }
 
@@ -302,7 +302,7 @@ func TestInMemoryTermBase_ConceptHelpers(t *testing.T) {
 
 func TestInMemoryTermBase_WordBoundaryDetection(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "src-concept",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -316,7 +316,7 @@ func TestInMemoryTermBase_WordBoundaryDetection(t *testing.T) {
 	// This documents the current behavior. The Okapi SimpleTB uses Unicode word
 	// boundary detection and would NOT match here. This is a known difference.
 	text := "WithinWordsrcWord has src at word boundary"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 
@@ -335,7 +335,7 @@ func TestInMemoryTermBase_WordBoundaryDetection(t *testing.T) {
 
 func TestInMemoryTermBase_LongestMatchFirst(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "sc",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -343,7 +343,7 @@ func TestInMemoryTermBase_LongestMatchFirst(t *testing.T) {
 			{Text: "code source", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "c",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -353,7 +353,7 @@ func TestInMemoryTermBase_LongestMatchFirst(t *testing.T) {
 	}))
 
 	text := "Review the source code carefully"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 
@@ -386,7 +386,7 @@ func TestInMemoryTermBase_LongestMatchFirst(t *testing.T) {
 
 func TestInMemoryTermBase_NonOverlappingMatches(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "ab",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -397,7 +397,7 @@ func TestInMemoryTermBase_NonOverlappingMatches(t *testing.T) {
 	// Text: "ababab" contains "ab" at positions 0, 2, 4.
 	// The current implementation advances past each match, so it finds non-overlapping matches.
 	text := "ababab"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 
@@ -414,7 +414,7 @@ func TestInMemoryTermBase_MultiWordTermPrecedence(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 
 	// Add multi-word term and its constituent single-word term.
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "src1-src2",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -422,7 +422,7 @@ func TestInMemoryTermBase_MultiWordTermPrecedence(t *testing.T) {
 			{Text: "Quelle1 quelle2", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "src2-only",
 		Domain: "software",
 		Terms: []termbase.Term{
@@ -432,7 +432,7 @@ func TestInMemoryTermBase_MultiWordTermPrecedence(t *testing.T) {
 	}))
 
 	text := "Here is Src1 src2 in context"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches := mustLookupAll(t, tb, text, termbase.LookupOptions{
 		SourceLocale:  model.LocaleEnglish,
 		CaseSensitive: false,
 	})
@@ -482,17 +482,17 @@ Repository,Depot,software,Code repository,approved
 `
 
 	tb := termbase.NewInMemoryTermBase()
-	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		IDPrefix:     "csv",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
-	assert.Equal(t, 3, tb.Count())
+	assert.Equal(t, 3, mustCount(t, tb))
 
 	// Verify imported data.
-	matches := tb.Lookup("Save", termbase.LookupOptions{
+	matches := mustLookup(t, tb, "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
 	require.Len(t, matches, 1)
@@ -500,7 +500,7 @@ Repository,Depot,software,Code repository,approved
 
 	// Export.
 	var buf bytes.Buffer
-	err = termbase.ExportCSV(tb, &buf, model.LocaleEnglish, model.LocaleFrench, true)
+	err = termbase.ExportCSV(context.Background(), tb, &buf, model.LocaleEnglish, model.LocaleFrench, true)
 	require.NoError(t, err)
 
 	exported := buf.String()
@@ -516,7 +516,7 @@ Cancel,Annuler,software
 `
 
 	tb := termbase.NewInMemoryTermBase()
-	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		HasHeader:    true,
@@ -533,7 +533,7 @@ func TestJSONImportExport(t *testing.T) {
 
 	// Export.
 	var buf bytes.Buffer
-	err := termbase.ExportJSON(tb, &buf, "test-termbase")
+	err := termbase.ExportJSON(context.Background(), tb, &buf, "test-termbase")
 	require.NoError(t, err)
 
 	exported := buf.String()
@@ -542,11 +542,11 @@ func TestJSONImportExport(t *testing.T) {
 
 	// Re-import.
 	tb2 := termbase.NewInMemoryTermBase()
-	count, err := termbase.ImportJSON(tb2, strings.NewReader(exported))
+	count, err := termbase.ImportJSON(context.Background(), tb2, strings.NewReader(exported))
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
 
-	c, ok := tb2.GetConcept("c1")
+	c, ok := mustGetConcept(t, tb2, "c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software", c.Domain)
 }
@@ -637,7 +637,7 @@ func TestTermLookupTool_NonTranslatable(t *testing.T) {
 func TestTermLookupTool_DomainFilter(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	populateTB(t, tb)
-	require.NoError(t, tb.AddConcept(termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
 		ID:     "med-1",
 		Domain: "medical",
 		Terms: []termbase.Term{

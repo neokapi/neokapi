@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -204,27 +203,25 @@ var tmMigrationsPg = []storage.Migration{
 func (tm *PostgresTM) Close() error { return nil }
 
 // Count returns the total number of entries for this workspace.
-func (tm *PostgresTM) Count() int {
-	ctx := context.Background()
+func (tm *PostgresTM) Count(ctx context.Context) (int, error) {
 	var count int
 	if err := tm.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1",
 		tm.workspaceID).Scan(&count); err != nil {
-		slog.Warn("TM count query failed", "workspace", tm.workspaceID, "error", err)
-		return 0
+		return 0, fmt.Errorf("count entries: %w", err)
 	}
-	return count
+	return count, nil
 }
 
 // --- writes ---
 
 // Add inserts or updates a multilingual TM entry.
-func (tm *PostgresTM) Add(entry fw.TMEntry) error {
-	return tm.AddWithStream(entry, "")
+func (tm *PostgresTM) Add(ctx context.Context, entry fw.TMEntry) error {
+	return tm.AddWithStream(ctx, entry, "")
 }
 
 // AddWithStream inserts or updates a multilingual TM entry on a given stream.
-func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
+func (tm *PostgresTM) AddWithStream(ctx context.Context, entry fw.TMEntry, stream string) error {
 	if entry.ID == "" {
 		return errors.New("entry ID is required")
 	}
@@ -239,8 +236,6 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	if entry.UpdatedAt.IsZero() {
 		entry.UpdatedAt = now
 	}
-
-	ctx := context.Background()
 
 	propsJSON := []byte("{}")
 	if len(entry.Properties) > 0 {
@@ -341,8 +336,7 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 }
 
 // Delete removes an entry by ID.
-func (tm *PostgresTM) Delete(id string) error {
-	ctx := context.Background()
+func (tm *PostgresTM) Delete(ctx context.Context, id string) error {
 	result, err := tm.db.ExecContext(ctx,
 		"DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2",
 		tm.workspaceID, id)
@@ -362,7 +356,7 @@ func (tm *PostgresTM) Delete(id string) error {
 // --- lookup ---
 
 // Lookup searches for matches using tiered matching.
-func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) Lookup(ctx context.Context, source *model.Block, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -375,12 +369,12 @@ func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 	structKey := fw.NormalizeText(model.RunsStructuralText(runs))
 	generalKey := fw.NormalizeText(model.RunsGeneralizedText(runs))
 	entityAnnotations := fw.ExtractEntityAnnotations(source)
-	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
+	return tm.tieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
 
 // LookupSegment searches for matches against a specific segment of the
 // source block. See TranslationMemory.LookupSegment for the contract.
-func (tm *PostgresTM) LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) LookupSegment(ctx context.Context, source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -393,18 +387,18 @@ func (tm *PostgresTM) LookupSegment(source *model.Block, segmentIdx int, sourceL
 	structKey := fw.NormalizeText(model.RunsStructuralText(runs))
 	generalKey := fw.NormalizeText(model.RunsGeneralizedText(runs))
 	entityAnnotations := fw.ExtractEntityAnnotations(source)
-	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
+	return tm.tieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
 
 // LookupText searches for plain-text matches.
-func (tm *PostgresTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) LookupText(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	opts = fw.ApplyDefaults(opts)
 	opts.MatchModes = []fw.MatchMode{fw.MatchModePlain}
 	normalized := fw.NormalizeText(source)
-	return tm.tieredLookup(normalized, normalized, normalized, nil, sourceLocale, targetLocale, opts)
+	return tm.tieredLookup(ctx, normalized, normalized, normalized, nil, sourceLocale, targetLocale, opts)
 }
 
-func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) tieredLookup(ctx context.Context, plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	var matches []fw.TMMatch
 	seen := make(map[string]bool)
 	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
@@ -431,7 +425,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 	}
 
 	if modeEnabled[fw.MatchModeGeneralized] {
-		entries, err := tm.queryExactVariant("general_key", generalKey, sourceLocale, opts)
+		entries, err := tm.queryExactVariant(ctx, "general_key", generalKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -440,7 +434,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		}
 	}
 	if modeEnabled[fw.MatchModeStructural] {
-		entries, err := tm.queryExactVariant("struct_key", structKey, sourceLocale, opts)
+		entries, err := tm.queryExactVariant(ctx, "struct_key", structKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -449,7 +443,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		}
 	}
 	if modeEnabled[fw.MatchModePlain] {
-		entries, err := tm.queryExactVariant("plain", plainKey, sourceLocale, opts)
+		entries, err := tm.queryExactVariant(ctx, "plain", plainKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -462,7 +456,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
-	candidates, err := tm.queryFuzzyCandidates(plainKey, structKey, generalKey, sourceLocale, opts)
+	candidates, err := tm.queryFuzzyCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +514,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
-func (tm *PostgresTM) queryExactVariant(column, key string, sourceLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryExactVariant(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
 	q := fmt.Sprintf(`
 		SELECT DISTINCT v.entry_id
 		FROM tm_variants v
@@ -538,7 +532,7 @@ func (tm *PostgresTM) queryExactVariant(column, key string, sourceLocale model.L
 		args = append(args, opts.ProjectID)
 	}
 	q += " LIMIT 200"
-	rows, err := tm.db.QueryContext(context.Background(), q, args...)
+	rows, err := tm.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query exact variant: %w", err)
 	}
@@ -547,37 +541,37 @@ func (tm *PostgresTM) queryExactVariant(column, key string, sourceLocale model.L
 	if err != nil {
 		return nil, err
 	}
-	return tm.loadEntriesByIDs(ids)
+	return tm.loadEntriesByIDs(ctx, ids)
 }
 
-func (tm *PostgresTM) queryFuzzyCandidates(plainKey, structKey, generalKey string, sourceLocale model.LocaleID, _ fw.LookupOptions) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryFuzzyCandidates(ctx context.Context, plainKey, structKey, generalKey string, sourceLocale model.LocaleID, _ fw.LookupOptions) ([]fw.TMEntry, error) {
 	q := `
 		SELECT DISTINCT entry_id FROM tm_variants
 		WHERE workspace_id = $1 AND locale = $2
 			AND (plain % $3 OR struct_key % $4 OR general_key % $5)
 		LIMIT 200
 	`
-	rows, err := tm.db.QueryContext(context.Background(), q,
+	rows, err := tm.db.QueryContext(ctx, q,
 		tm.workspaceID, string(sourceLocale), plainKey, structKey, generalKey)
 	if err != nil {
-		return tm.queryLengthFiltered(plainKey, sourceLocale)
+		return tm.queryLengthFiltered(ctx, plainKey, sourceLocale)
 	}
 	defer rows.Close()
 	ids, err := scanStringColumn(rows)
 	if err != nil {
 		return nil, err
 	}
-	return tm.loadEntriesByIDs(ids)
+	return tm.loadEntriesByIDs(ctx, ids)
 }
 
-func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale model.LocaleID) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryLengthFiltered(ctx context.Context, plainKey string, sourceLocale model.LocaleID) ([]fw.TMEntry, error) {
 	keyLen := len([]rune(plainKey))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
 	if minLen < 0 {
 		minLen = 0
 	}
-	rows, err := tm.db.QueryContext(context.Background(), `
+	rows, err := tm.db.QueryContext(ctx, `
 		SELECT DISTINCT entry_id FROM tm_variants
 		WHERE workspace_id = $1 AND locale = $2 AND CHAR_LENGTH(plain) BETWEEN $3 AND $4
 		LIMIT 500
@@ -590,45 +584,43 @@ func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale model.Lo
 	if err != nil {
 		return nil, err
 	}
-	return tm.loadEntriesByIDs(ids)
+	return tm.loadEntriesByIDs(ctx, ids)
 }
 
 // --- entry loading ---
 
 // GetEntry fetches a single entry by ID.
-func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
-	entries, err := tm.loadEntriesByIDs([]string{id})
-	if err != nil || len(entries) == 0 {
-		return fw.TMEntry{}, false
+func (tm *PostgresTM) GetEntry(ctx context.Context, id string) (fw.TMEntry, bool, error) {
+	entries, err := tm.loadEntriesByIDs(ctx, []string{id})
+	if err != nil {
+		return fw.TMEntry{}, false, err
 	}
-	return entries[0], true
+	if len(entries) == 0 {
+		return fw.TMEntry{}, false, nil
+	}
+	return entries[0], true, nil
 }
 
 // Entries returns all entries for this workspace.
-func (tm *PostgresTM) Entries() []fw.TMEntry {
-	rows, err := tm.db.QueryContext(context.Background(),
+func (tm *PostgresTM) Entries(ctx context.Context) ([]fw.TMEntry, error) {
+	rows, err := tm.db.QueryContext(ctx,
 		"SELECT id FROM tm_entries WHERE workspace_id = $1 ORDER BY id",
 		tm.workspaceID)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("list entry ids: %w", err)
 	}
 	defer rows.Close()
 	ids, err := scanStringColumn(rows)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	entries, err := tm.loadEntriesByIDs(ids)
-	if err != nil {
-		return nil
-	}
-	return entries
+	return tm.loadEntriesByIDs(ctx, ids)
 }
 
-func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) loadEntriesByIDs(ctx context.Context, ids []string) ([]fw.TMEntry, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	ctx := context.Background()
 
 	// Build placeholders $2..$N for IDs; $1 is workspace.
 	placeholders := make([]string, len(ids))
@@ -788,22 +780,34 @@ func scanStringColumn(rows *sql.Rows) ([]string, error) {
 // --- search ---
 
 // SearchEntries performs a ranked full-text search across variant text.
-func (tm *PostgresTM) SearchEntries(query, anyLocale, requireLocale string, offset, limit int) ([]fw.TMEntry, int) {
-	return tm.SearchEntriesFiltered(query, anyLocale, requireLocale, fw.SearchFilter{}, offset, limit)
+func (tm *PostgresTM) SearchEntries(ctx context.Context, params fw.SearchParams) ([]fw.TMEntry, int, error) {
+	params.Stream = ""
+	params.StreamChain = nil
+	params.Filter = fw.SearchFilter{}
+	return tm.searchInternal(ctx, params)
 }
 
 // SearchEntriesFiltered applies additional facet filters.
-func (tm *PostgresTM) SearchEntriesFiltered(query, anyLocale, requireLocale string, filter fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
-	return tm.searchInternal(query, anyLocale, requireLocale, "", nil, filter, offset, limit)
+func (tm *PostgresTM) SearchEntriesFiltered(ctx context.Context, params fw.SearchParams) ([]fw.TMEntry, int, error) {
+	params.Stream = ""
+	params.StreamChain = nil
+	return tm.searchInternal(ctx, params)
 }
 
 // SearchEntriesForStream performs a search with stream inheritance.
-func (tm *PostgresTM) SearchEntriesForStream(query, anyLocale, requireLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
-	return tm.searchInternal(query, anyLocale, requireLocale, stream, streamChain, fw.SearchFilter{}, offset, limit)
+func (tm *PostgresTM) SearchEntriesForStream(ctx context.Context, params fw.SearchParams) ([]fw.TMEntry, int, error) {
+	return tm.searchInternal(ctx, params)
 }
 
-func (tm *PostgresTM) searchInternal(query, anyLocale, requireLocale, stream string, streamChain []string, filter fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
-	ctx := context.Background()
+func (tm *PostgresTM) searchInternal(ctx context.Context, params fw.SearchParams) ([]fw.TMEntry, int, error) {
+	query := params.Query
+	anyLocale := params.AnyLocale
+	requireLocale := params.RequireLocale
+	stream := params.Stream
+	streamChain := params.StreamChain
+	filter := params.Filter
+	offset := params.Offset
+	limit := params.Limit
 	args := []any{tm.workspaceID}
 	argN := 2
 	clauses := []string{"e.workspace_id = $1"}
@@ -877,10 +881,10 @@ func (tm *PostgresTM) searchInternal(query, anyLocale, requireLocale, stream str
 	if err := tm.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM tm_entries e WHERE "+where,
 		countArgs...).Scan(&total); err != nil {
-		return nil, 0
+		return nil, 0, fmt.Errorf("count search entries: %w", err)
 	}
 	if total == 0 {
-		return nil, 0
+		return nil, 0, nil
 	}
 
 	orderBy := "e.updated_at DESC"
@@ -899,18 +903,18 @@ func (tm *PostgresTM) searchInternal(query, anyLocale, requireLocale, stream str
 		where, orderBy, limitN, offsetN)
 	rows, err := tm.db.QueryContext(ctx, q, pageArgs...)
 	if err != nil {
-		return nil, total
+		return nil, total, fmt.Errorf("query search entries: %w", err)
 	}
 	defer rows.Close()
 	ids, err := scanStringColumn(rows)
 	if err != nil {
-		return nil, total
+		return nil, total, err
 	}
-	entries, err := tm.loadEntriesByIDs(ids)
+	entries, err := tm.loadEntriesByIDs(ctx, ids)
 	if err != nil {
-		return nil, total
+		return nil, total, err
 	}
-	return orderByIDs(entries, ids), total
+	return orderByIDs(entries, ids), total, nil
 }
 
 func orderByIDs(entries []fw.TMEntry, ids []string) []fw.TMEntry {
@@ -989,14 +993,13 @@ func pgFilterWhere(filter fw.SearchFilter, startN int) (string, []any, int) {
 // --- facets ---
 
 // FacetStats returns aggregated facet data across the workspace.
-func (tm *PostgresTM) FacetStats() fw.FacetData {
-	return tm.FacetStatsFiltered("", "", "", fw.SearchFilter{})
+func (tm *PostgresTM) FacetStats(ctx context.Context) (fw.FacetData, error) {
+	return tm.FacetStatsFiltered(ctx, fw.SearchParams{})
 }
 
 // FacetStatsFiltered returns facet counts scoped to matching entries.
-func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string, filter fw.SearchFilter) fw.FacetData {
-	ctx := context.Background()
-	where, args := tm.buildFacetSubquery(query, anyLocale, requireLocale, filter)
+func (tm *PostgresTM) FacetStatsFiltered(ctx context.Context, params fw.SearchParams) (fw.FacetData, error) {
+	where, args := tm.buildFacetSubquery(params.Query, params.AnyLocale, params.RequireLocale, params.Filter)
 
 	data := fw.FacetData{}
 
@@ -1013,6 +1016,8 @@ func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 			}
 		}
 		rows.Close()
+	} else {
+		return data, fmt.Errorf("facet locales: %w", err)
 	}
 
 	projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + where + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
@@ -1024,6 +1029,8 @@ func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 			}
 		}
 		rows.Close()
+	} else {
+		return data, fmt.Errorf("facet projects: %w", err)
 	}
 
 	etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
@@ -1039,6 +1046,8 @@ func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 			}
 		}
 		rows.Close()
+	} else {
+		return data, fmt.Errorf("facet entity types: %w", err)
 	}
 
 	sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
@@ -1056,6 +1065,8 @@ func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 			}
 		}
 		rows.Close()
+	} else {
+		return data, fmt.Errorf("facet import sessions: %w", err)
 	}
 
 	codeQ := `SELECT
@@ -1070,9 +1081,11 @@ func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 			AND (POSITION(E'\ue001' IN v.coded) > 0 OR POSITION(E'\ue002' IN v.coded) > 0 OR POSITION(E'\ue003' IN v.coded) > 0)
 		) THEN e.id END)
 		FROM tm_entries e WHERE ` + where
-	_ = tm.db.QueryRowContext(ctx, codeQ, args...).Scan(&data.HasCodes, &data.NoCodes)
+	if err := tm.db.QueryRowContext(ctx, codeQ, args...).Scan(&data.HasCodes, &data.NoCodes); err != nil {
+		return data, fmt.Errorf("facet code counts: %w", err)
+	}
 
-	return data
+	return data, nil
 }
 
 func (tm *PostgresTM) buildFacetSubquery(query, anyLocale, requireLocale string, filter fw.SearchFilter) (string, []any) {
@@ -1113,14 +1126,14 @@ func (tm *PostgresTM) buildFacetSubquery(query, anyLocale, requireLocale string,
 }
 
 // LocaleStats returns per-locale entry counts across the workspace.
-func (tm *PostgresTM) LocaleStats() []fw.LocaleFacet {
-	rows, err := tm.db.QueryContext(context.Background(), `
+func (tm *PostgresTM) LocaleStats(ctx context.Context) ([]fw.LocaleFacet, error) {
+	rows, err := tm.db.QueryContext(ctx, `
 		SELECT locale, COUNT(DISTINCT entry_id) FROM tm_variants
 		WHERE workspace_id = $1
 		GROUP BY locale ORDER BY COUNT(DISTINCT entry_id) DESC
 	`, tm.workspaceID)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("locale stats: %w", err)
 	}
 	defer rows.Close()
 	var out []fw.LocaleFacet
@@ -1130,18 +1143,18 @@ func (tm *PostgresTM) LocaleStats() []fw.LocaleFacet {
 			out = append(out, lf)
 		}
 	}
-	return out
+	return out, rows.Err()
 }
 
 // ActivityStats returns daily entry counts.
-func (tm *PostgresTM) ActivityStats() []fw.ActivityStat {
-	rows, err := tm.db.QueryContext(context.Background(), `
+func (tm *PostgresTM) ActivityStats(ctx context.Context) ([]fw.ActivityStat, error) {
+	rows, err := tm.db.QueryContext(ctx, `
 		SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS day, COUNT(*)
 		FROM tm_entries WHERE workspace_id = $1
 		GROUP BY day ORDER BY day
 	`, tm.workspaceID)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("activity stats: %w", err)
 	}
 	defer rows.Close()
 	var out []fw.ActivityStat
@@ -1151,14 +1164,17 @@ func (tm *PostgresTM) ActivityStats() []fw.ActivityStat {
 			out = append(out, s)
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Date < out[j].Date })
-	return out
+	return out, nil
 }
 
 // --- import sessions ---
 
 // CreateImportSession inserts a new session row.
-func (tm *PostgresTM) CreateImportSession(session fw.ImportSession) error {
+func (tm *PostgresTM) CreateImportSession(ctx context.Context, session fw.ImportSession) error {
 	if session.ID == "" {
 		return errors.New("import session ID is required")
 	}
@@ -1174,7 +1190,7 @@ func (tm *PostgresTM) CreateImportSession(session fw.ImportSession) error {
 			propsJSON = b
 		}
 	}
-	_, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_import_sessions
+	_, err := tm.db.ExecContext(ctx, `INSERT INTO tm_import_sessions
 		(workspace_id, id, file_key, file_hash, file_size_bytes, imported_at, imported_by,
 		 tool_name, tool_version, seg_type, admin_lang, src_lang, data_type,
 		 original_format, original_encoding, entry_count, properties)
@@ -1192,31 +1208,33 @@ func (tm *PostgresTM) CreateImportSession(session fw.ImportSession) error {
 }
 
 // GetImportSession fetches a session by ID.
-func (tm *PostgresTM) GetImportSession(id string) (fw.ImportSession, bool) {
-	row := tm.db.QueryRowContext(context.Background(),
+func (tm *PostgresTM) GetImportSession(ctx context.Context, id string) (fw.ImportSession, bool, error) {
+	row := tm.db.QueryRowContext(ctx,
 		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 AND id = $2",
 		tm.workspaceID, id)
-	return scanPgSession(row)
+	s, ok := scanPgSession(row)
+	return s, ok, nil
 }
 
 // FindImportSessionByHash returns the most recent session matching the hash.
-func (tm *PostgresTM) FindImportSessionByHash(hash string) (fw.ImportSession, bool) {
+func (tm *PostgresTM) FindImportSessionByHash(ctx context.Context, hash string) (fw.ImportSession, bool, error) {
 	if hash == "" {
-		return fw.ImportSession{}, false
+		return fw.ImportSession{}, false, nil
 	}
-	row := tm.db.QueryRowContext(context.Background(),
+	row := tm.db.QueryRowContext(ctx,
 		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 AND file_hash = $2 ORDER BY imported_at DESC LIMIT 1",
 		tm.workspaceID, hash)
-	return scanPgSession(row)
+	s, ok := scanPgSession(row)
+	return s, ok, nil
 }
 
 // ListImportSessions returns all sessions ordered by imported_at DESC.
-func (tm *PostgresTM) ListImportSessions() []fw.ImportSession {
-	rows, err := tm.db.QueryContext(context.Background(),
+func (tm *PostgresTM) ListImportSessions(ctx context.Context) ([]fw.ImportSession, error) {
+	rows, err := tm.db.QueryContext(ctx,
 		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 ORDER BY imported_at DESC",
 		tm.workspaceID)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("list import sessions: %w", err)
 	}
 	defer rows.Close()
 	var out []fw.ImportSession
@@ -1225,12 +1243,12 @@ func (tm *PostgresTM) ListImportSessions() []fw.ImportSession {
 			out = append(out, s)
 		}
 	}
-	return out
+	return out, rows.Err()
 }
 
 // UpdateImportSessionCount sets the entry_count on a session.
-func (tm *PostgresTM) UpdateImportSessionCount(id string, count int) error {
-	res, err := tm.db.ExecContext(context.Background(),
+func (tm *PostgresTM) UpdateImportSessionCount(ctx context.Context, id string, count int) error {
+	res, err := tm.db.ExecContext(ctx,
 		"UPDATE tm_import_sessions SET entry_count = $1 WHERE workspace_id = $2 AND id = $3",
 		count, tm.workspaceID, id)
 	if err != nil {
@@ -1244,13 +1262,13 @@ func (tm *PostgresTM) UpdateImportSessionCount(id string, count int) error {
 }
 
 // DeleteImportSession removes a session row and clears origin.session_id.
-func (tm *PostgresTM) DeleteImportSession(id string) error {
-	if _, err := tm.db.ExecContext(context.Background(),
+func (tm *PostgresTM) DeleteImportSession(ctx context.Context, id string) error {
+	if _, err := tm.db.ExecContext(ctx,
 		"UPDATE tm_entry_origins SET session_id = '' WHERE workspace_id = $1 AND session_id = $2",
 		tm.workspaceID, id); err != nil {
 		return fmt.Errorf("clear origin session_id: %w", err)
 	}
-	res, err := tm.db.ExecContext(context.Background(),
+	res, err := tm.db.ExecContext(ctx,
 		"DELETE FROM tm_import_sessions WHERE workspace_id = $1 AND id = $2",
 		tm.workspaceID, id)
 	if err != nil {

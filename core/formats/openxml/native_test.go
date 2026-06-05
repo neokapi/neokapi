@@ -519,7 +519,7 @@ func TestNative_DocxLayerStructure(t *testing.T) {
 			ends++
 		}
 	}
-	assert.True(t, starts > 0, "should have LayerStart")
+	assert.Greater(t, starts, 0, "should have LayerStart")
 	assert.Equal(t, starts, ends, "layer starts and ends should be balanced")
 }
 

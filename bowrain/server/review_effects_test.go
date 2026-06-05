@@ -46,7 +46,8 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 	s.processDecisionSideEffects(t.Context(), item, "test-ws")
 
 	// Verify term was added to termbase.
-	concepts := tb.Concepts()
+	concepts, err := tb.Concepts(t.Context())
+	require.NoError(t, err)
 	require.Len(t, concepts, 1)
 	assert.Equal(t, "Main screen of the application", concepts[0].Definition)
 	assert.Equal(t, "ui", concepts[0].Domain)
@@ -91,7 +92,8 @@ func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
 	s.processDecisionSideEffects(t.Context(), item, "ws")
 
 	// Verify term was added with Preferred status.
-	concepts := tb.Concepts()
+	concepts, err := tb.Concepts(t.Context())
+	require.NoError(t, err)
 	require.Len(t, concepts, 1)
 	assert.Equal(t, model.TermPreferred, concepts[0].Terms[0].Status)
 

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
 
@@ -52,10 +53,12 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		}
 	}
 
-	// Annotations (serialized as JSON bytes for extensibility).
+	// Annotations (serialized as type-discriminated JSON so the polymorphic
+	// model.Annotation interface can be reconstructed on decode).
 	if len(b.Annotations) > 0 {
-		data, _ := json.Marshal(b.Annotations)
-		sb.AnnotationsJson = data
+		if data, err := marshalAnnotations(b.Annotations); err == nil {
+			sb.AnnotationsJson = data
+		}
 	}
 
 	// Skeleton.
@@ -84,7 +87,10 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 }
 
 // ProtoToBlock converts a SyncBlock protobuf message to a model.Block.
-func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
+// Returns an error if any of the optional JSON extension fields (Annotations,
+// Skeleton, DisplayHint, ContentRef) cannot be decoded; all other fields are
+// still populated in the returned block.
+func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	b := &model.Block{
 		ID:                 sb.Id,
 		Name:               sb.Name,
@@ -129,28 +135,38 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 
 	// Annotations.
 	if len(sb.AnnotationsJson) > 0 {
-		_ = json.Unmarshal(sb.AnnotationsJson, &b.Annotations)
+		anns, err := unmarshalAnnotations(sb.AnnotationsJson)
+		if err != nil {
+			return b, fmt.Errorf("decode annotations: %w", err)
+		}
+		b.Annotations = anns
 	}
 
 	// Skeleton.
 	if len(sb.SkeletonJson) > 0 {
 		b.Skeleton = &model.Skeleton{}
-		_ = json.Unmarshal(sb.SkeletonJson, b.Skeleton)
+		if err := json.Unmarshal(sb.SkeletonJson, b.Skeleton); err != nil {
+			return b, fmt.Errorf("decode skeleton: %w", err)
+		}
 	}
 
 	// Display hint.
 	if len(sb.DisplayHintJson) > 0 {
 		b.DisplayHint = &model.DisplayHint{}
-		_ = json.Unmarshal(sb.DisplayHintJson, b.DisplayHint)
+		if err := json.Unmarshal(sb.DisplayHintJson, b.DisplayHint); err != nil {
+			return b, fmt.Errorf("decode display hint: %w", err)
+		}
 	}
 
 	// Content ref.
 	if len(sb.ContentRefJson) > 0 {
 		b.ContentRef = &model.ContentRef{}
-		_ = json.Unmarshal(sb.ContentRefJson, b.ContentRef)
+		if err := json.Unmarshal(sb.ContentRefJson, b.ContentRef); err != nil {
+			return b, fmt.Errorf("decode content ref: %w", err)
+		}
 	}
 
-	return b
+	return b, nil
 }
 
 // runsToSyncSegment wraps a flat run sequence in a single wire segment.
@@ -236,116 +252,133 @@ func syncSegmentToTarget(runs []model.Run, first *pb.SyncSegment) *model.Target 
 
 // runsToSyncProto converts a run sequence into the wire form.
 func runsToSyncProto(runs []model.Run) []*pb.SyncRun {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]*pb.SyncRun, len(runs))
-	for i, r := range runs {
-		out[i] = runToSyncProto(r)
-	}
-	return out
+	return model.BuildRuns[*pb.SyncRun, *pb.SyncRunList](runs, syncProtoRunBuilder{})
 }
 
 // syncProtoToRuns converts wire runs into model.Run form.
 func syncProtoToRuns(msgs []*pb.SyncRun) []model.Run {
-	if len(msgs) == 0 {
-		return nil
-	}
-	out := make([]model.Run, len(msgs))
-	for i, m := range msgs {
-		out[i] = syncProtoToRun(m)
-	}
-	return out
+	return model.ParseRuns[*pb.SyncRun, *pb.SyncRunList](msgs, syncProtoRunParser{})
 }
 
-func runToSyncProto(r model.Run) *pb.SyncRun {
-	switch {
-	case r.Text != nil:
-		return &pb.SyncRun{Kind: &pb.SyncRun_Text{Text: &pb.SyncTextRun{Text: r.Text.Text}}}
-	case r.Ph != nil:
-		return &pb.SyncRun{Kind: &pb.SyncRun_Ph{Ph: &pb.SyncPlaceholderRun{
-			Id: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
-			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
-			Constraints: runConstraintsToSyncProto(r.Ph.Constraints),
-		}}}
-	case r.PcOpen != nil:
-		return &pb.SyncRun{Kind: &pb.SyncRun_PcOpen{PcOpen: &pb.SyncPcOpenRun{
-			Id: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
-			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
-			Constraints: runConstraintsToSyncProto(r.PcOpen.Constraints),
-		}}}
-	case r.PcClose != nil:
-		return &pb.SyncRun{Kind: &pb.SyncRun_PcClose{PcClose: &pb.SyncPcCloseRun{
-			Id: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
-			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
-		}}}
-	case r.Sub != nil:
-		return &pb.SyncRun{Kind: &pb.SyncRun_Sub{Sub: &pb.SyncSubRun{
-			Id: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv,
-		}}}
-	case r.Plural != nil:
-		forms := make(map[string]*pb.SyncRunList, len(r.Plural.Forms))
-		for form, runs := range r.Plural.Forms {
-			forms[string(form)] = &pb.SyncRunList{Runs: runsToSyncProto(runs)}
-		}
-		return &pb.SyncRun{Kind: &pb.SyncRun_Plural{Plural: &pb.SyncPluralRun{
-			Pivot: r.Plural.Pivot, Forms: forms,
-		}}}
-	case r.Select != nil:
-		cases := make(map[string]*pb.SyncRunList, len(r.Select.Cases))
-		for key, runs := range r.Select.Cases {
-			cases[key] = &pb.SyncRunList{Runs: runsToSyncProto(runs)}
-		}
-		return &pb.SyncRun{Kind: &pb.SyncRun_Select{Select: &pb.SyncSelectRun{
-			Pivot: r.Select.Pivot, Cases: cases,
-		}}}
-	}
-	return nil
+// syncProtoRunBuilder maps model runs onto the sync-protocol proto SyncRun /
+// SyncRunList types. The discriminator dispatch and the Plural/Select
+// recursion live in model.BuildRun.
+type syncProtoRunBuilder struct{}
+
+func (syncProtoRunBuilder) Text(t *model.TextRun) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_Text{Text: &pb.SyncTextRun{Text: t.Text}}}
 }
 
-func syncProtoToRun(msg *pb.SyncRun) model.Run {
-	if msg == nil {
-		return model.Run{}
+func (syncProtoRunBuilder) Ph(p *model.PlaceholderRun) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_Ph{Ph: &pb.SyncPlaceholderRun{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: runConstraintsToSyncProto(p.Constraints),
+	}}}
+}
+
+func (syncProtoRunBuilder) PcOpen(p *model.PcOpenRun) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_PcOpen{PcOpen: &pb.SyncPcOpenRun{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: runConstraintsToSyncProto(p.Constraints),
+	}}}
+}
+
+func (syncProtoRunBuilder) PcClose(p *model.PcCloseRun) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_PcClose{PcClose: &pb.SyncPcCloseRun{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv,
+	}}}
+}
+
+func (syncProtoRunBuilder) Sub(s *model.SubRun) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_Sub{Sub: &pb.SyncSubRun{
+		Id: s.ID, Ref: s.Ref, Equiv: s.Equiv,
+	}}}
+}
+
+func (syncProtoRunBuilder) Plural(pivot string, forms map[string]*pb.SyncRunList) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_Plural{Plural: &pb.SyncPluralRun{
+		Pivot: pivot, Forms: forms,
+	}}}
+}
+
+func (syncProtoRunBuilder) Select(pivot string, cases map[string]*pb.SyncRunList) *pb.SyncRun {
+	return &pb.SyncRun{Kind: &pb.SyncRun_Select{Select: &pb.SyncSelectRun{
+		Pivot: pivot, Cases: cases,
+	}}}
+}
+
+func (syncProtoRunBuilder) List(runs []*pb.SyncRun) *pb.SyncRunList {
+	return &pb.SyncRunList{Runs: runs}
+}
+func (syncProtoRunBuilder) Zero() *pb.SyncRun { return nil }
+
+// syncProtoRunParser is the reverse of syncProtoRunBuilder.
+type syncProtoRunParser struct{}
+
+func (syncProtoRunParser) Text(m *pb.SyncRun) (*model.TextRun, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_Text); ok {
+		return &model.TextRun{Text: k.Text.GetText()}, true
 	}
-	switch k := msg.Kind.(type) {
-	case *pb.SyncRun_Text:
-		return model.Run{Text: &model.TextRun{Text: k.Text.GetText()}}
-	case *pb.SyncRun_Ph:
-		return model.Run{Ph: &model.PlaceholderRun{
+	return nil, false
+}
+
+func (syncProtoRunParser) Ph(m *pb.SyncRun) (*model.PlaceholderRun, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_Ph); ok {
+		return &model.PlaceholderRun{
 			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
 			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
 			Constraints: syncProtoToRunConstraints(k.Ph.GetConstraints()),
-		}}
-	case *pb.SyncRun_PcOpen:
-		return model.Run{PcOpen: &model.PcOpenRun{
+		}, true
+	}
+	return nil, false
+}
+
+func (syncProtoRunParser) PcOpen(m *pb.SyncRun) (*model.PcOpenRun, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_PcOpen); ok {
+		return &model.PcOpenRun{
 			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
 			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
 			Constraints: syncProtoToRunConstraints(k.PcOpen.GetConstraints()),
-		}}
-	case *pb.SyncRun_PcClose:
-		return model.Run{PcClose: &model.PcCloseRun{
+		}, true
+	}
+	return nil, false
+}
+
+func (syncProtoRunParser) PcClose(m *pb.SyncRun) (*model.PcCloseRun, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_PcClose); ok {
+		return &model.PcCloseRun{
 			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
 			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
-		}}
-	case *pb.SyncRun_Sub:
-		return model.Run{Sub: &model.SubRun{
-			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
-		}}
-	case *pb.SyncRun_Plural:
-		forms := make(map[model.PluralForm][]model.Run, len(k.Plural.GetForms()))
-		for form, runList := range k.Plural.GetForms() {
-			forms[model.PluralForm(form)] = syncProtoToRuns(runList.GetRuns())
-		}
-		return model.Run{Plural: &model.PluralRun{Pivot: k.Plural.GetPivot(), Forms: forms}}
-	case *pb.SyncRun_Select:
-		cases := make(map[string][]model.Run, len(k.Select.GetCases()))
-		for key, runList := range k.Select.GetCases() {
-			cases[key] = syncProtoToRuns(runList.GetRuns())
-		}
-		return model.Run{Select: &model.SelectRun{Pivot: k.Select.GetPivot(), Cases: cases}}
+		}, true
 	}
-	return model.Run{}
+	return nil, false
 }
+
+func (syncProtoRunParser) Sub(m *pb.SyncRun) (*model.SubRun, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_Sub); ok {
+		return &model.SubRun{ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv()}, true
+	}
+	return nil, false
+}
+
+func (syncProtoRunParser) Plural(m *pb.SyncRun) (string, map[string]*pb.SyncRunList, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_Plural); ok {
+		return k.Plural.GetPivot(), k.Plural.GetForms(), true
+	}
+	return "", nil, false
+}
+
+func (syncProtoRunParser) Select(m *pb.SyncRun) (string, map[string]*pb.SyncRunList, bool) {
+	if k, ok := m.GetKind().(*pb.SyncRun_Select); ok {
+		return k.Select.GetPivot(), k.Select.GetCases(), true
+	}
+	return "", nil, false
+}
+
+func (syncProtoRunParser) ListRuns(l *pb.SyncRunList) []*pb.SyncRun { return l.GetRuns() }
 
 func runConstraintsToSyncProto(c *model.RunConstraints) *pb.SyncRunConstraints {
 	if c == nil {
@@ -392,4 +425,54 @@ func ComputeRootHash(itemHashes map[string]string) string {
 		h.Write([]byte(itemHashes[name]))
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// annotationEnvelope carries an annotation's concrete type alongside its JSON
+// payload so the polymorphic model.Annotation interface can be reconstructed.
+// A plain json.Marshal of map[string]model.Annotation cannot round-trip,
+// because json.Unmarshal has no way to pick the concrete type for an interface.
+type annotationEnvelope struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+// marshalAnnotations encodes a block's annotations as type-discriminated
+// envelopes.
+func marshalAnnotations(anns map[string]model.Annotation) ([]byte, error) {
+	env := make(map[string]annotationEnvelope, len(anns))
+	for k, a := range anns {
+		if a == nil {
+			continue
+		}
+		data, err := json.Marshal(a)
+		if err != nil {
+			return nil, fmt.Errorf("marshal annotation %q: %w", k, err)
+		}
+		env[k] = annotationEnvelope{Type: a.AnnotationType(), Data: data}
+	}
+	return json.Marshal(env)
+}
+
+// unmarshalAnnotations reconstructs typed annotations from the discriminated
+// envelopes written by marshalAnnotations, falling back to GenericAnnotation
+// for unregistered types.
+func unmarshalAnnotations(data []byte) (map[string]model.Annotation, error) {
+	var env map[string]annotationEnvelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		return nil, err
+	}
+	out := make(map[string]model.Annotation, len(env))
+	for k, e := range env {
+		a, ok := model.NewAnnotation(e.Type)
+		if !ok {
+			a = &model.GenericAnnotation{Kind: e.Type}
+		}
+		if len(e.Data) > 0 {
+			if err := json.Unmarshal(e.Data, a); err != nil {
+				return nil, fmt.Errorf("decode annotation %q (%s): %w", k, e.Type, err)
+			}
+		}
+		out[k] = a
+	}
+	return out, nil
 }

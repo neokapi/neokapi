@@ -1,10 +1,19 @@
-package spec
+// Package spectest provides test helpers for driving a format Spec
+// through a neokapi DataFormatReader. It is a sibling to core/format/spec
+// and lives in a separate package so that importing testing does not taint
+// the core/format/spec package's normal (non-test) build graph.
+//
+// Callers import this package only from *_test.go files:
+//
+//	import "github.com/neokapi/neokapi/core/format/spectest"
+package spectest
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 )
 
 // NativeRunner runs every Example in a Spec through a neokapi
@@ -13,7 +22,7 @@ import (
 // runner: the spec describes WHAT the format does, NativeRunner
 // verifies the Go reader honors that.
 type NativeRunner struct {
-	Spec *Spec
+	Spec *spec.Spec
 
 	// NewReader builds the reader for a given variant. The variant is
 	// the empty string for monolithic formats. For multi-variant
@@ -44,13 +53,13 @@ func (r *NativeRunner) Run(t *testing.T) {
 	}
 }
 
-func (r *NativeRunner) runExample(t *testing.T, feat Feature, ex Example) {
+func (r *NativeRunner) runExample(t *testing.T, feat spec.Feature, ex spec.Example) {
 	t.Helper()
 	if ex.BridgeOnly {
 		t.Skip("bridge_only example — skipped by native runner")
 		return
 	}
-	input, err := ResolveInput(r.Spec, ex)
+	input, err := spec.ResolveInput(r.Spec, ex)
 	if err != nil {
 		// Skip cleanly when an upstream-testdata fixture isn't fetched
 		// — the spec itself is fine, the corpus just isn't available.
@@ -65,7 +74,7 @@ func (r *NativeRunner) runExample(t *testing.T, feat Feature, ex Example) {
 		t.Fatalf("NewReader returned nil for variant %q", ex.Variant)
 	}
 
-	cfg := MergeConfig(feat.Config, ex.Config)
+	cfg := spec.MergeConfig(feat.Config, ex.Config)
 	if len(cfg) > 0 {
 		c := reader.Config()
 		if c == nil {
@@ -76,7 +85,7 @@ func (r *NativeRunner) runExample(t *testing.T, feat Feature, ex Example) {
 		}
 	}
 
-	parts, err := ReadParts(reader, input)
+	parts, err := spec.ReadParts(reader, input)
 	if err != nil {
 		if ex.ExpectedFail != "" {
 			t.Logf("expected_fail (%s): read error %v", ex.ExpectedFail, err)
@@ -84,7 +93,7 @@ func (r *NativeRunner) runExample(t *testing.T, feat Feature, ex Example) {
 		}
 		t.Fatalf("read: %v", err)
 	}
-	failed := EvalAssertions(parts, ex.Assertions)
+	failed := spec.EvalAssertions(parts, ex.Assertions)
 	if ex.ExpectedFail != "" {
 		if len(failed) == 0 {
 			t.Logf("expected_fail (%s): assertions now pass — remove the expected_fail tag", ex.ExpectedFail)

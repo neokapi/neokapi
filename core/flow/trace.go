@@ -342,7 +342,11 @@ func (t *TracingTool) trace(ctx context.Context, in <-chan *model.Part, out chan
 			id := part.Resource.ResourceID()
 			t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
 			t.recorder.Record(TraceExit, t.nodeID, id, nil)
-			out <- part
+			select {
+			case out <- part:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

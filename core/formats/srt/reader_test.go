@@ -187,7 +187,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	blocks1 := testutil.FilterBlocks(parts1)
 	blocks2 := testutil.FilterBlocks(parts2)
 	require.NotEmpty(t, blocks1, "first extraction should produce blocks")
-	require.Equal(t, len(blocks1), len(blocks2), "double extraction should produce same block count")
+	require.Len(t, blocks2, len(blocks1), "double extraction should produce same block count")
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(), "block %d source mismatch", i)
 		assert.Equal(t, blocks1[i].Properties["timecode"], blocks2[i].Properties["timecode"], "block %d timecode mismatch", i)

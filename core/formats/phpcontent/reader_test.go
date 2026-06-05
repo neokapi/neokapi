@@ -1132,7 +1132,7 @@ func TestFileRoundTrip_Reextractable(t *testing.T) {
 	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
 	reader2.Close()
 
-	assert.Equal(t, len(blocks1), len(blocks2),
+	assert.Len(t, blocks2, len(blocks1),
 		"second pass must yield the same number of blocks as the first; output:\n%s", output)
 	assert.Equal(t, sources1, testutil.BlockTexts(blocks2),
 		"second pass must yield the same source texts as the first; output:\n%s", output)

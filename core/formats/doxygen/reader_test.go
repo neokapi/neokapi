@@ -242,7 +242,7 @@ func TestExtract_OpenTwiceWithString(t *testing.T) {
 	parts2 := readDoxygen(t, input)
 	blocks2 := collectBlocks(parts2)
 
-	require.Equal(t, len(blocks1), len(blocks2),
+	require.Len(t, blocks2, len(blocks1),
 		"double extraction should produce same number of blocks")
 	if len(blocks1) > 0 && len(blocks2) > 0 {
 		assert.Equal(t, blocks1[0].SourceText(), blocks2[0].SourceText(),
@@ -414,7 +414,7 @@ func assertDoubleExtraction(t *testing.T, content string) {
 	parts2 := readDoxygen(t, content)
 	blocks2 := collectBlocks(parts2)
 
-	require.Equal(t, len(blocks1), len(blocks2),
+	require.Len(t, blocks2, len(blocks1),
 		"double extraction should produce same number of blocks")
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),

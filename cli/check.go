@@ -104,7 +104,7 @@ operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.
 	cmd.Flags().Int("max-critical", 0, "fail if critical findings exceed this count")
 	cmd.Flags().Int("max-major", -1, "fail if major findings exceed this count (-1 = no limit)")
 	cmd.Flags().Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate)")
-	cmd.Flags().Bool("json", false, "output the structured result as JSON")
+	// --json is inherited from the persistent root output flags; no local redefinition needed.
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when the gate fails")
 	cmd.Flags().Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
 	cmd.Flags().Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")

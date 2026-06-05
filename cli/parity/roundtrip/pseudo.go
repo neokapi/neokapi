@@ -51,28 +51,6 @@ func pseudoText(s string) string {
 	return string(out)
 }
 
-// applyPseudoToBlock mirrors Okapi's TextModificationStep with
-// TYPE_EXTREPLACE + SCRIPT_EXT_LATIN: for each translatable Block,
-// every TextRun has its text rune-substituted via extLatinMap.
-// Non-text runs (Ph, PcOpen, PcClose, Sub, Plural, Select) pass
-// through unchanged so inline codes survive the round-trip.
-//
-// Target preference matches TextModificationStep semantics: if the
-// Block already has a target for the locale (e.g. a PO file's
-// existing msgstr, an XLIFF target, or a TMX tuv), the substitution
-// runs against THAT target, mirroring Okapi's "modify the existing
-// translation if one exists, otherwise use the source." Without this
-// preference the bridge would always pseudo the English source while
-// the okapi reference engine pseudos the existing French
-// translation — same fixture, divergent outputs.
-//
-// The Block is shared with the native writer (NativeEngine) and
-// echoed back over gRPC for the bridge writer (BridgeEngine), so the
-// same target shape drives both engines.
-func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
-	applyPseudoToBlockOpts(b, spec, false)
-}
-
 // baseSeg is one segment of the pseudo base: its overlay-local id, its
 // props (carrying the xliff2 <ignorable> marker or the ts numerus-form
 // index), its runs, and — for xliff2 — the inline IR keyed by this id.
@@ -143,7 +121,7 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 	var allRuns []model.Run
 
 	for _, bs := range baseSegs {
-		runs := bs.runs
+		var runs []model.Run
 		switch {
 		case bs.ignorable:
 			// Ignorable segments are not pseudo-translated — okapi's

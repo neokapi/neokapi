@@ -1,6 +1,11 @@
 //go:build !wasm
 
-package blockstore
+// Package sqlitestore provides the SQLite-backed implementation of the
+// blockstore.Store interface. It is split out of core/blockstore so the
+// interface package (and its importers such as core/flow) stay free of the
+// cgo SQLite driver: only callers that actually construct a persistent,
+// on-disk block store import this leaf package and pull in core/storage.
+package sqlitestore
 
 import (
 	"context"
@@ -13,18 +18,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
-// NewCacheStore opens (or creates) a SQLite-backed block store at the
-// given path. Intended use: project-local persistence at
-// `.kapi/cache/blocks.db`, full random access, append-friendly for concurrent
-// overlay writes.
+// New opens (or creates) a SQLite-backed block store at the given path.
+// Intended use: project-local persistence at `.kapi/cache/blocks.db`, full
+// random access, append-friendly for concurrent overlay writes.
 //
 // The database schema is internal to this package and versioned by
 // `cache_migrations`. Safe to delete and rebuild from another source
 // (the file is a cache in the "easily reconstructable" sense).
-func NewCacheStore(path string) (Store, error) {
+func New(path string) (blockstore.Store, error) {
 	db, err := storage.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("blockstore: open cache: %w", err)
@@ -41,11 +46,11 @@ type cacheStore struct {
 	mu sync.Mutex // guards Close; write transactions serialize via SQLite WAL
 }
 
-func (k *cacheStore) Capabilities() Capabilities {
-	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true, Persistent: true}
+func (k *cacheStore) Capabilities() blockstore.Capabilities {
+	return blockstore.Capabilities{RandomAccess: true, Concurrent: true, Writable: true, Persistent: true}
 }
 
-func (k *cacheStore) Begin(ctx context.Context) (Session, error) {
+func (k *cacheStore) Begin(ctx context.Context) (blockstore.Session, error) {
 	tx, err := k.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("blockstore: begin tx: %w", err)
@@ -73,12 +78,12 @@ type cacheSession struct {
 	done  bool
 }
 
-func (s *cacheSession) Capabilities() Capabilities { return s.store.Capabilities() }
+func (s *cacheSession) Capabilities() blockstore.Capabilities { return s.store.Capabilities() }
 
-func (s *cacheSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
-	return func(yield func(*Block, error) bool) {
+func (s *cacheSession) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Block, error] {
+	return func(yield func(*blockstore.Block, error) bool) {
 		if s.done {
-			yield(nil, ErrClosed)
+			yield(nil, blockstore.ErrClosed)
 			return
 		}
 		q := strings.Builder{}
@@ -109,7 +114,7 @@ func (s *cacheSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
 				yield(nil, fmt.Errorf("blockstore: scan block: %w", err))
 				return
 			}
-			var b Block
+			var b blockstore.Block
 			if err := json.Unmarshal(payload, &b); err != nil {
 				yield(nil, fmt.Errorf("blockstore: decode block: %w", err))
 				return
@@ -124,28 +129,28 @@ func (s *cacheSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
 	}
 }
 
-func (s *cacheSession) GetBlock(hash string) (*Block, error) {
+func (s *cacheSession) GetBlock(hash string) (*blockstore.Block, error) {
 	if s.done {
-		return nil, ErrClosed
+		return nil, blockstore.ErrClosed
 	}
 	var payload []byte
 	err := s.tx.QueryRowContext(s.ctx, `SELECT payload FROM blocks WHERE hash = ?`, hash).Scan(&payload)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, blockstore.ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("blockstore: get block: %w", err)
 	}
-	var b Block
+	var b blockstore.Block
 	if err := json.Unmarshal(payload, &b); err != nil {
 		return nil, fmt.Errorf("blockstore: decode block: %w", err)
 	}
 	return &b, nil
 }
 
-func (s *cacheSession) PutBlock(collection string, b *Block) error {
+func (s *cacheSession) PutBlock(collection string, b *blockstore.Block) error {
 	if s.done {
-		return ErrClosed
+		return blockstore.ErrClosed
 	}
 	if b == nil || b.Hash == "" {
 		return errors.New("blockstore: block must have a non-empty Hash")
@@ -168,27 +173,27 @@ func (s *cacheSession) PutBlock(collection string, b *Block) error {
 	return nil
 }
 
-func (s *cacheSession) GetOverlay(kind, blockHash string) (Overlay, error) {
+func (s *cacheSession) GetOverlay(kind, blockHash string) (blockstore.Overlay, error) {
 	if s.done {
-		return Overlay{}, ErrClosed
+		return blockstore.Overlay{}, blockstore.ErrClosed
 	}
-	var sc Overlay
+	var sc blockstore.Overlay
 	err := s.tx.QueryRowContext(s.ctx, `
 		SELECT kind, block_hash, payload, updated_at
 		FROM overlays WHERE kind = ? AND block_hash = ?
 	`, kind, blockHash).Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Overlay{}, ErrNotFound
+		return blockstore.Overlay{}, blockstore.ErrNotFound
 	}
 	if err != nil {
-		return Overlay{}, fmt.Errorf("blockstore: get overlay: %w", err)
+		return blockstore.Overlay{}, fmt.Errorf("blockstore: get overlay: %w", err)
 	}
 	return sc, nil
 }
 
-func (s *cacheSession) PutOverlay(sc Overlay) error {
+func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 	if s.done {
-		return ErrClosed
+		return blockstore.ErrClosed
 	}
 	if sc.Kind == "" || sc.BlockHash == "" {
 		return errors.New("blockstore: overlay needs both Kind and BlockHash")
@@ -209,10 +214,10 @@ func (s *cacheSession) PutOverlay(sc Overlay) error {
 	return nil
 }
 
-func (s *cacheSession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
-	return func(yield func(Overlay, error) bool) {
+func (s *cacheSession) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
+	return func(yield func(blockstore.Overlay, error) bool) {
 		if s.done {
-			yield(Overlay{}, ErrClosed)
+			yield(blockstore.Overlay{}, blockstore.ErrClosed)
 			return
 		}
 		rows, err := s.tx.QueryContext(s.ctx, `
@@ -220,14 +225,14 @@ func (s *cacheSession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 			FROM overlays WHERE kind = ? ORDER BY block_hash
 		`, kind)
 		if err != nil {
-			yield(Overlay{}, fmt.Errorf("blockstore: list overlays: %w", err))
+			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: list overlays: %w", err))
 			return
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var sc Overlay
+			var sc blockstore.Overlay
 			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
-				yield(Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
+				yield(blockstore.Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
 				return
 			}
 			if !yield(sc, nil) {
@@ -235,15 +240,15 @@ func (s *cacheSession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
 			}
 		}
 		if err := rows.Err(); err != nil {
-			yield(Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
+			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
 		}
 	}
 }
 
-func (s *cacheSession) AllOverlays() iter.Seq2[Overlay, error] {
-	return func(yield func(Overlay, error) bool) {
+func (s *cacheSession) AllOverlays() iter.Seq2[blockstore.Overlay, error] {
+	return func(yield func(blockstore.Overlay, error) bool) {
 		if s.done {
-			yield(Overlay{}, ErrClosed)
+			yield(blockstore.Overlay{}, blockstore.ErrClosed)
 			return
 		}
 		rows, err := s.tx.QueryContext(s.ctx, `
@@ -251,14 +256,14 @@ func (s *cacheSession) AllOverlays() iter.Seq2[Overlay, error] {
 			FROM overlays ORDER BY kind, block_hash
 		`)
 		if err != nil {
-			yield(Overlay{}, fmt.Errorf("blockstore: list all overlays: %w", err))
+			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: list all overlays: %w", err))
 			return
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var sc Overlay
+			var sc blockstore.Overlay
 			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
-				yield(Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
+				yield(blockstore.Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
 				return
 			}
 			if !yield(sc, nil) {
@@ -266,14 +271,14 @@ func (s *cacheSession) AllOverlays() iter.Seq2[Overlay, error] {
 			}
 		}
 		if err := rows.Err(); err != nil {
-			yield(Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
+			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
 		}
 	}
 }
 
 func (s *cacheSession) Commit() error {
 	if s.done {
-		return ErrClosed
+		return blockstore.ErrClosed
 	}
 	s.done = true
 	return s.tx.Commit()

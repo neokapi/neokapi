@@ -206,7 +206,7 @@ func TestUntranslatedModeling(t *testing.T) {
 	doneEs := byName["Done/es"]
 	require.NotNil(t, doneEs)
 	assert.Equal(t, "new", doneEs.Properties["state"])
-	assert.Equal(t, "", doneEs.TargetText("es"))
+	assert.Empty(t, doneEs.TargetText("es"))
 
 	welcome := byName["Welcome to %@/es"]
 	require.NotNil(t, welcome)

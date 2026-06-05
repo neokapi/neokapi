@@ -1,12 +1,29 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/viper"
 )
+
+// readConfigOrInit reads the config file, returning an error only when the
+// file exists but cannot be read or parsed (not-found is silently ignored).
+func readConfigOrInit(v *viper.Viper) error {
+	if err := v.ReadInConfig(); err != nil {
+		// A missing config file is fine — we're about to create it. With an
+		// explicit SetConfigFile, viper surfaces that as an os not-exist error
+		// rather than ConfigFileNotFoundError, so check both. Any other error
+		// (malformed YAML, permission denied) is real and must not be ignored.
+		var nf viper.ConfigFileNotFoundError
+		if !errors.As(err, &nf) && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("reading config: %w", err)
+		}
+	}
+	return nil
+}
 
 // AddGlobalRegistry adds a named registry to the global config file.
 // Returns an error if a registry with the same name already exists.
@@ -17,7 +34,9 @@ func AddGlobalRegistry(name, url string, channels []string) error {
 	v := viper.New()
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
-	_ = v.ReadInConfig()
+	if err := readConfigOrInit(v); err != nil {
+		return err
+	}
 
 	entries := parseRegistryEntries(v.Get("registries"))
 	for _, e := range entries {
@@ -43,7 +62,9 @@ func RemoveGlobalRegistry(name string) error {
 	v := viper.New()
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
-	_ = v.ReadInConfig()
+	if err := readConfigOrInit(v); err != nil {
+		return err
+	}
 
 	entries := parseRegistryEntries(v.Get("registries"))
 	var filtered []RegistryEntry
@@ -71,7 +92,9 @@ func ListGlobalRegistries() ([]RegistryEntry, error) {
 	v := viper.New()
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
-	_ = v.ReadInConfig()
+	if err := readConfigOrInit(v); err != nil {
+		return nil, err
+	}
 
 	entries := parseRegistryEntries(v.Get("registries"))
 	if len(entries) > 0 {
@@ -79,7 +102,7 @@ func ListGlobalRegistries() ([]RegistryEntry, error) {
 	}
 
 	// Fallback to plugins.registry or default URL.
-	url := v.GetString("plugins.registry")
+	url := v.GetString(KeyPluginsRegistry)
 	if url == "" {
 		url = DefaultRegistryURL
 	}

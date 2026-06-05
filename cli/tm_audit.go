@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -48,7 +49,10 @@ merge do?".
 			}
 			defer tm.Close()
 
-			rows := collectAuditRows(tm, batch, limit)
+			rows, err := collectAuditRows(cmd.Context(), tm, batch, limit)
+			if err != nil {
+				return err
+			}
 
 			if len(rows) == 0 {
 				fmt.Fprintf(cmd.OutOrStdout(), "No TM entries found for batch %s (in %s)\n", batch, dbPath)
@@ -97,9 +101,13 @@ type auditRow struct {
 // collectAuditRows iterates the TM, keeping only entries with an Origin
 // whose Source="merge" and Reference matches the given batch id. Results
 // are capped at `limit` when > 0.
-func collectAuditRows(tm sievepen.TMStore, batch string, limit int) []auditRow {
+func collectAuditRows(ctx context.Context, tm sievepen.TMStore, batch string, limit int) ([]auditRow, error) {
 	var rows []auditRow
-	for _, entry := range tm.Entries() {
+	entries, err := tm.Entries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read TM entries: %w", err)
+	}
+	for _, entry := range entries {
 		matched := false
 		var origin sievepen.Origin
 		for _, o := range entry.Origins {
@@ -126,7 +134,7 @@ func collectAuditRows(tm sievepen.TMStore, batch string, limit int) []auditRow {
 			break
 		}
 	}
-	return rows
+	return rows, nil
 }
 
 func truncate(s string, max int) string {

@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/klz"
 )
 
@@ -122,7 +122,7 @@ func buildKlzCache(ctx context.Context, klzPath string) (*klzCache, error) {
 		if err := os.WriteFile(c.sourcePath(name), src.Data, 0o644); err != nil {
 			return nil, fmt.Errorf("klz cache: write source: %w", err)
 		}
-		store, err := blockstore.NewCacheStore(c.storePath(key))
+		store, err := sqlitestore.New(c.storePath(key))
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +206,7 @@ func (c *klzCache) toPackage(ctx context.Context) (*klz.Package, error) {
 		}
 		pkg.Source = append(pkg.Source, klz.SourceDoc{Path: src.Path, Data: data})
 
-		store, err := blockstore.NewCacheStore(c.storePath(src.Key))
+		store, err := sqlitestore.New(c.storePath(src.Key))
 		if err != nil {
 			return nil, err
 		}

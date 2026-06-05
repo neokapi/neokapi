@@ -44,20 +44,25 @@ type CachedPlugin struct {
 	BinaryPath string             `json:"binary_path"`
 }
 
+// xdgCacheDir returns the effective XDG cache base directory, falling back to
+// ~/.cache or a tmp dir when neither XDG_CACHE_HOME nor $HOME is available.
+// Extracted so every cache/registry/install path resolves via one code path.
+func xdgCacheDir() string {
+	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
+		return dir
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".cache")
+	}
+	return filepath.Join(os.TempDir(), "kapi-cache")
+}
+
 // CacheLocation returns the path to the dispatch cache file.
 func CacheLocation() string {
 	if v := os.Getenv("KAPI_PLUGIN_CACHE"); v != "" {
 		return v
 	}
-	xdg := os.Getenv("XDG_CACHE_HOME")
-	if xdg == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			xdg = filepath.Join(home, ".cache")
-		} else {
-			xdg = filepath.Join(os.TempDir(), "kapi-cache")
-		}
-	}
-	return filepath.Join(xdg, "kapi", "plugins-cache.json")
+	return filepath.Join(xdgCacheDir(), "kapi", "plugins-cache.json")
 }
 
 // LoadCache reads the cache file. Returns nil and a nil error when the

@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"cmp"
+	"context"
 	"slices"
 	"sort"
 	"strings"
@@ -68,20 +69,20 @@ func (tm *InMemoryTM) MaxEntries() int { return tm.maxEntries }
 func (tm *InMemoryTM) Close() error { return nil }
 
 // Count returns the total number of entries.
-func (tm *InMemoryTM) Count() int {
+func (tm *InMemoryTM) Count(_ context.Context) (int, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
-	return len(tm.entries)
+	return len(tm.entries), nil
 }
 
 // Add inserts or updates a TM entry.
-func (tm *InMemoryTM) Add(entry TMEntry) error {
-	return tm.AddWithStream(entry, "")
+func (tm *InMemoryTM) Add(ctx context.Context, entry TMEntry) error {
+	return tm.AddWithStream(ctx, entry, "")
 }
 
 // AddWithStream inserts or updates a TM entry. InMemoryTM ignores the
 // stream parameter — it's a persistence concern for on-disk backends only.
-func (tm *InMemoryTM) AddWithStream(entry TMEntry, _ string) error {
+func (tm *InMemoryTM) AddWithStream(_ context.Context, entry TMEntry, _ string) error {
 	if entry.ID == "" {
 		return ErrEntryIDRequired
 	}
@@ -142,7 +143,7 @@ func (tm *InMemoryTM) evictOldest() {
 }
 
 // Delete removes an entry by ID.
-func (tm *InMemoryTM) Delete(id string) error {
+func (tm *InMemoryTM) Delete(_ context.Context, id string) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 	idx, ok := tm.byID[id]
@@ -164,7 +165,7 @@ func (tm *InMemoryTM) Delete(id string) error {
 // Lookup searches for matches using tiered matching against the source-locale
 // variant of each stored entry. Entries lacking the target-locale variant
 // are skipped. Returns TMMatch results ordered by match priority and score.
-func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+func (tm *InMemoryTM) Lookup(_ context.Context, source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -184,7 +185,7 @@ func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 
 // LookupSegment searches for matches against a specific segment of the
 // source block. See TranslationMemory.LookupSegment for the contract.
-func (tm *InMemoryTM) LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+func (tm *InMemoryTM) LookupSegment(_ context.Context, source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -203,7 +204,7 @@ func (tm *InMemoryTM) LookupSegment(source *model.Block, segmentIdx int, sourceL
 }
 
 // LookupText searches for matches using plain text only.
-func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+func (tm *InMemoryTM) LookupText(_ context.Context, source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
 	opts = ApplyDefaults(opts)
 	opts.MatchModes = []MatchMode{MatchModePlain}
 	normalized := NormalizeText(source)
@@ -366,45 +367,52 @@ func projectAllowed(entryProject string, opts LookupOptions) bool {
 // --- Retrieval ---
 
 // GetEntry fetches a single entry by ID.
-func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
+func (tm *InMemoryTM) GetEntry(_ context.Context, id string) (TMEntry, bool, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	idx, ok := tm.byID[id]
 	if !ok {
-		return TMEntry{}, false
+		return TMEntry{}, false, nil
 	}
-	return tm.entries[idx].entry, true
+	return tm.entries[idx].entry, true, nil
 }
 
 // Entries returns a snapshot of all entries.
-func (tm *InMemoryTM) Entries() []TMEntry {
+func (tm *InMemoryTM) Entries(_ context.Context) ([]TMEntry, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	out := make([]TMEntry, len(tm.entries))
 	for i, se := range tm.entries {
 		out[i] = se.entry
 	}
-	return out
+	return out, nil
 }
 
 // --- Search ---
 
 // SearchEntries performs a case-insensitive substring search.
-func (tm *InMemoryTM) SearchEntries(query, anyLocale, requireLocale string, offset, limit int) ([]TMEntry, int) {
-	return tm.SearchEntriesFiltered(query, anyLocale, requireLocale, SearchFilter{}, offset, limit)
+func (tm *InMemoryTM) SearchEntries(ctx context.Context, params SearchParams) ([]TMEntry, int, error) {
+	return tm.searchInternal(ctx, params)
 }
 
 // SearchEntriesFiltered applies additional facet filters.
-func (tm *InMemoryTM) SearchEntriesFiltered(query, anyLocale, requireLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
-	return tm.searchInternal(query, anyLocale, requireLocale, "", nil, filter, offset, limit)
+func (tm *InMemoryTM) SearchEntriesFiltered(ctx context.Context, params SearchParams) ([]TMEntry, int, error) {
+	return tm.searchInternal(ctx, params)
 }
 
 // SearchEntriesForStream performs a search with stream priority ordering.
-func (tm *InMemoryTM) SearchEntriesForStream(query, anyLocale, requireLocale, stream string, streamChain []string, offset, limit int) ([]TMEntry, int) {
-	return tm.searchInternal(query, anyLocale, requireLocale, stream, streamChain, SearchFilter{}, offset, limit)
+func (tm *InMemoryTM) SearchEntriesForStream(ctx context.Context, params SearchParams) ([]TMEntry, int, error) {
+	return tm.searchInternal(ctx, params)
 }
 
-func (tm *InMemoryTM) searchInternal(query, anyLocale, requireLocale, _ string, _ []string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
+func (tm *InMemoryTM) searchInternal(_ context.Context, params SearchParams) ([]TMEntry, int, error) {
+	query := params.Query
+	anyLocale := params.AnyLocale
+	requireLocale := params.RequireLocale
+	filter := params.Filter
+	offset := params.Offset
+	limit := params.Limit
+
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
@@ -433,13 +441,13 @@ func (tm *InMemoryTM) searchInternal(query, anyLocale, requireLocale, _ string, 
 	})
 	total := len(matched)
 	if offset >= total {
-		return nil, total
+		return nil, total, nil
 	}
 	end := offset + limit
 	if end > total {
 		end = total
 	}
-	return matched[offset:end], total
+	return matched[offset:end], total, nil
 }
 
 // variantTextContains checks if any variant's plain text contains the
@@ -551,13 +559,18 @@ func entryHasCodes(entry TMEntry) bool {
 // --- Facets & stats ---
 
 // FacetStats returns aggregated facet data for filtering UI.
-func (tm *InMemoryTM) FacetStats() FacetData {
-	return tm.FacetStatsFiltered("", "", "", SearchFilter{})
+func (tm *InMemoryTM) FacetStats(ctx context.Context) (FacetData, error) {
+	return tm.FacetStatsFiltered(ctx, SearchParams{})
 }
 
 // FacetStatsFiltered returns facet counts scoped to entries matching the
 // given search query and filter.
-func (tm *InMemoryTM) FacetStatsFiltered(query, anyLocale, requireLocale string, filter SearchFilter) FacetData {
+func (tm *InMemoryTM) FacetStatsFiltered(_ context.Context, params SearchParams) (FacetData, error) {
+	query := params.Query
+	anyLocale := params.AnyLocale
+	requireLocale := params.RequireLocale
+	filter := params.Filter
+
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	lowerQuery := strings.ToLower(query)
@@ -648,11 +661,11 @@ func (tm *InMemoryTM) FacetStatsFiltered(query, anyLocale, requireLocale string,
 	sort.Slice(data.ImportSessions, func(i, j int) bool {
 		return data.ImportSessions[i].Count > data.ImportSessions[j].Count
 	})
-	return data
+	return data, nil
 }
 
 // LocaleStats returns per-locale entry counts across the full TM.
-func (tm *InMemoryTM) LocaleStats() []LocaleFacet {
+func (tm *InMemoryTM) LocaleStats(_ context.Context) ([]LocaleFacet, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	counts := make(map[string]int)
@@ -671,11 +684,11 @@ func (tm *InMemoryTM) LocaleStats() []LocaleFacet {
 		}
 		return out[i].Locale < out[j].Locale
 	})
-	return out
+	return out, nil
 }
 
 // ActivityStats returns daily entry counts over time based on CreatedAt.
-func (tm *InMemoryTM) ActivityStats() []ActivityStat {
+func (tm *InMemoryTM) ActivityStats(_ context.Context) ([]ActivityStat, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	counts := make(map[string]int)
@@ -688,13 +701,13 @@ func (tm *InMemoryTM) ActivityStats() []ActivityStat {
 		out = append(out, ActivityStat{Date: d, Count: c})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Date < out[j].Date })
-	return out
+	return out, nil
 }
 
 // --- Import session CRUD ---
 
 // CreateImportSession inserts a new session.
-func (tm *InMemoryTM) CreateImportSession(session ImportSession) error {
+func (tm *InMemoryTM) CreateImportSession(_ context.Context, session ImportSession) error {
 	if session.ID == "" {
 		return ErrSessionIDRequired
 	}
@@ -718,17 +731,17 @@ func (tm *InMemoryTM) CreateImportSession(session ImportSession) error {
 }
 
 // GetImportSession fetches a session by ID.
-func (tm *InMemoryTM) GetImportSession(id string) (ImportSession, bool) {
+func (tm *InMemoryTM) GetImportSession(_ context.Context, id string) (ImportSession, bool, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	s, ok := tm.sessions[id]
-	return s, ok
+	return s, ok, nil
 }
 
 // FindImportSessionByHash returns the most recent session matching the hash.
-func (tm *InMemoryTM) FindImportSessionByHash(hash string) (ImportSession, bool) {
+func (tm *InMemoryTM) FindImportSessionByHash(_ context.Context, hash string) (ImportSession, bool, error) {
 	if hash == "" {
-		return ImportSession{}, false
+		return ImportSession{}, false, nil
 	}
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
@@ -742,13 +755,13 @@ func (tm *InMemoryTM) FindImportSessionByHash(hash string) (ImportSession, bool)
 		}
 	}
 	if best == nil {
-		return ImportSession{}, false
+		return ImportSession{}, false, nil
 	}
-	return *best, true
+	return *best, true, nil
 }
 
 // ListImportSessions returns all sessions ordered by imported_at DESC.
-func (tm *InMemoryTM) ListImportSessions() []ImportSession {
+func (tm *InMemoryTM) ListImportSessions(_ context.Context) ([]ImportSession, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	out := make([]ImportSession, 0, len(tm.sessions))
@@ -756,11 +769,11 @@ func (tm *InMemoryTM) ListImportSessions() []ImportSession {
 		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ImportedAt.After(out[j].ImportedAt) })
-	return out
+	return out, nil
 }
 
 // UpdateImportSessionCount sets the entry_count on a session.
-func (tm *InMemoryTM) UpdateImportSessionCount(id string, count int) error {
+func (tm *InMemoryTM) UpdateImportSessionCount(_ context.Context, id string, count int) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 	s, ok := tm.sessions[id]
@@ -774,7 +787,7 @@ func (tm *InMemoryTM) UpdateImportSessionCount(id string, count int) error {
 
 // DeleteImportSession removes a session; any origins referencing it have
 // their session_id cleared.
-func (tm *InMemoryTM) DeleteImportSession(id string) error {
+func (tm *InMemoryTM) DeleteImportSession(_ context.Context, id string) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 	if _, ok := tm.sessions[id]; !ok {

@@ -41,7 +41,7 @@ func TestCalculateScoreLengthNormalized(t *testing.T) {
 
 	short := CalculateScore(one, WithWordCount(5))  // 1*100/5 = 20 → 80
 	long := CalculateScore(one, WithWordCount(200)) // 1*100/200 = 0.5 → 1 → 99
-	assert.True(t, short.Overall < long.Overall, "short=%d long=%d", short.Overall, long.Overall)
+	assert.Less(t, short.Overall, long.Overall, "short=%d long=%d", short.Overall, long.Overall)
 	assert.Equal(t, 80, short.Overall)
 	assert.Equal(t, 99, long.Overall)
 	assert.True(t, short.Normalized)

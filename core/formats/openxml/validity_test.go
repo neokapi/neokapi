@@ -79,7 +79,7 @@ func TestValidity_XlsxFormulaPreservation(t *testing.T) {
 	origFormulas := extractRawFormulaElements(t, original)
 	outFormulas := extractRawFormulaElements(t, output)
 
-	require.Equal(t, len(origFormulas), len(outFormulas),
+	require.Len(t, outFormulas, len(origFormulas),
 		"formula element count should be preserved")
 
 	for i, orig := range origFormulas {
@@ -199,7 +199,7 @@ func skeletonRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0)
+	require.Greater(t, buf.Len(), 0)
 	return buf.Bytes()
 }
 
@@ -247,7 +247,7 @@ func translateRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0)
+	require.Greater(t, buf.Len(), 0)
 	return buf.Bytes()
 }
 

@@ -132,7 +132,7 @@ func TestNonVerseLine(t *testing.T) {
 
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "A line without verse marker.", blocks[0].SourceText())
-	assert.Equal(t, "", blocks[0].Properties["verse"])
+	assert.Empty(t, blocks[0].Properties["verse"])
 }
 
 func TestReadEmpty(t *testing.T) {
@@ -327,7 +327,7 @@ func TestMixedContent(t *testing.T) {
 
 	require.Len(t, blocks, 4)
 	assert.Equal(t, "Title of the poem", blocks[0].SourceText())
-	assert.Equal(t, "", blocks[0].Properties["verse"])
+	assert.Empty(t, blocks[0].Properties["verse"])
 	assert.Equal(t, "First verse.", blocks[1].SourceText())
 	assert.Equal(t, "1", blocks[1].Properties["verse"])
 }

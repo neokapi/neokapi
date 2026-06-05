@@ -114,7 +114,7 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		slog.Error("review-effects: failed to init termbase", "workspace", wsSlug, "error", tbErr)
 		return
 	}
-	if err := tb.AddConcept(concept); err != nil {
+	if err := tb.AddConcept(ctx, concept); err != nil {
 		slog.Info("review-effects: failed to add concept for", "id", candidate.Text, "error", err)
 		return
 	}

@@ -91,8 +91,12 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 			TargetLocale: model.LocaleID(in.TargetLang),
 			MatchModes:   []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized},
 		}
+		matches, err := tb.Lookup(ctx, in.Term, opts)
+		if err != nil {
+			return nil, TermLookupMCPOutput{}, fmt.Errorf("term lookup: %w", err)
+		}
 		var out TermLookupMCPOutput
-		for _, m := range tb.Lookup(in.Term, opts) {
+		for _, m := range matches {
 			out.Matches = append(out.Matches, TermMatchMCP{
 				Term:      m.Term.Text,
 				Locale:    string(m.Term.Locale),
@@ -123,7 +127,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		}
 		src := model.LocaleID(in.SourceLang)
 		tgt := model.LocaleID(in.TargetLang)
-		matches, err := tm.LookupText(in.Text, src, tgt, sievepen.LookupOptions{MinScore: minScore, MaxResults: 10})
+		matches, err := tm.LookupText(ctx, in.Text, src, tgt, sievepen.LookupOptions{MinScore: minScore, MaxResults: 10})
 		if err != nil {
 			return nil, TMSearchMCPOutput{}, fmt.Errorf("tm lookup: %w", err)
 		}

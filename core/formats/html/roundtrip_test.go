@@ -820,7 +820,7 @@ func TestRoundtrip_OutputNotEmpty(t *testing.T) {
 	output := roundtrip(t, input)
 
 	// The output should be a complete HTML document, not just block text.
-	assert.True(t, len(output) > 200,
+	assert.Greater(t, len(output), 200,
 		"output should be a complete HTML document, got %d bytes", len(output))
 	assert.True(t, strings.Contains(output, "<html") || strings.Contains(output, "<!DOCTYPE"),
 		"output should contain HTML structure")

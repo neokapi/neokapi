@@ -151,7 +151,7 @@ func TestMultipleEntities(t *testing.T) {
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Equal(t, 3, len(blocks))
+	require.Len(t, blocks, 3)
 
 	texts := testutil.BlockTexts(blocks)
 	assert.Contains(t, texts, "Hello")
@@ -183,7 +183,7 @@ func TestEmptyEntity(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	if len(blocks) > 0 {
-		assert.Equal(t, "", blocks[0].SourceText())
+		assert.Empty(t, blocks[0].SourceText())
 	}
 }
 

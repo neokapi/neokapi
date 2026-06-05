@@ -44,7 +44,7 @@ func TestBaseToolPassThrough(t *testing.T) {
 		result = append(result, p)
 	}
 
-	assert.Equal(t, len(parts), len(result))
+	require.Len(t, result, len(parts))
 	for i, p := range result {
 		assert.Equal(t, parts[i].Type, p.Type)
 		assert.Equal(t, parts[i].Resource, p.Resource)

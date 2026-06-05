@@ -569,7 +569,6 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	// positional fallback recovers the correspondence the DOM lacks.
 	patched := false
 	domSegIdx := 0
-	segIDCounter := 0
 	for _, segEl := range unitEl.ChildElements() {
 		if segEl.Tag != "segment" && segEl.Tag != "ignorable" {
 			continue
@@ -585,26 +584,13 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		}
 		domSegIdx++
 
-		// xliff2 segment ids are optional in source, but okapi
-		// XLIFF2Filter materializes them on round-trip ("s1", "s2", …
-		// for unkeyed <segment>). Mirror that here so re-emitted
-		// segments match okapi byte-for-byte. Ignorable id synthesis is
-		// deferred to a second pass below so it only fires when the
-		// unit was already going to be patched anyway — otherwise the
-		// byte-equal-on-untouched contract breaks for fixtures with
-		// unkeyed ignorables that the model didn't modify.
-		//
-		// The counter increments only on UNKEYED segments — segments
-		// with an explicit id (e.g. "1239bca", "abc") don't consume a
-		// slot, mirroring okapi's Store.suggestId(false) which only
-		// numbers segments that need a synthesized id. Without this,
-		// the second unkeyed segment after an explicit-id one would
-		// land on "s2" while okapi emits "s1".
-		if segEl.Tag == "segment" && segID == "" {
-			segIDCounter++
-			segEl.CreateAttr("id", fmt.Sprintf("s%d", segIDCounter))
-			patched = true
-		}
+		// xliff2 segment ids are optional in source. Synthesizing "s1",
+		// "s2", … for unkeyed <segment> elements is deferred to a second
+		// pass below so it only fires when the unit was already going to
+		// be patched for a real content reason — preserving the v2
+		// byte-equal-on-untouched contract for fixtures whose source has
+		// unkeyed segments the model didn't modify (otherwise re-emitting
+		// the original id-less `<segment>` verbatim would diverge).
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
 			if !segmentMatchesDOM(srcEl, modelSrc) {
@@ -674,6 +660,31 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		// that may legitimately be empty-but-present.
 		if patched && segEl.Tag == "segment" && tgtEl != nil && segmentTargetIsEmpty(modelTgt, tgtEl) {
 			segEl.RemoveChild(tgtEl)
+		}
+	}
+
+	// Deferred segment-id synthesis — runs only when the unit is already
+	// being re-serialised for a real content change (patched is true). xliff2
+	// segment ids are optional in source, but okapi's XLIFF2Filter
+	// materializes them on round-trip ("s1", "s2", … for unkeyed <segment>).
+	// Mirroring that here keeps re-emitted modified segments byte-aligned with
+	// okapi, while gating on `patched` preserves the byte-equal-on-untouched
+	// contract: an unmodified unit keeps its original id-less <segment>
+	// verbatim. The counter increments only on UNKEYED segments — segments
+	// with an explicit id (e.g. "1239bca", "abc") don't consume a slot,
+	// mirroring okapi's Store.suggestId(false) which only numbers segments
+	// that need a synthesized id.
+	if patched {
+		segIDCounter := 0
+		for _, segEl := range unitEl.ChildElements() {
+			if segEl.Tag != "segment" {
+				continue
+			}
+			if attrValue(segEl, "id") != "" {
+				continue
+			}
+			segIDCounter++
+			segEl.CreateAttr("id", fmt.Sprintf("s%d", segIDCounter))
 		}
 	}
 

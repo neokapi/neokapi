@@ -353,6 +353,6 @@ func TestScriptConfigValidation(t *testing.T) {
 	// Reset clears values and sets source to inline.
 	cfg.Reset()
 	assert.Equal(t, "inline", cfg.Source)
-	assert.Equal(t, "", cfg.Code)
-	assert.Equal(t, "", cfg.ScriptFile)
+	assert.Empty(t, cfg.Code)
+	assert.Empty(t, cfg.ScriptFile)
 }

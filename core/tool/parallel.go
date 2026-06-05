@@ -80,6 +80,13 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 		return p.inner.Process(ctx, in, out)
 	}
 
+	// Own a cancellable child context so that any early return (worker error
+	// or downstream cancel) unblocks the dispatcher and in-flight workers
+	// parked on the results channel, instead of leaking them until some
+	// external cancel arrives.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// results channel carries sequenced parts from workers and passthrough.
 	results := make(chan sequencedPart, p.concurrency*2)
 
@@ -124,7 +131,7 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 						// Route through the dispatcher so the tool's typed
 						// handler (and the immutability backstop) applies; each
 						// worker handles a distinct block, so no shared state.
-						result, err := baseTool.handleBlock(part)
+						result, err := baseTool.handleBlock(ctx, part)
 						select {
 						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 						case <-ctx.Done():
@@ -132,7 +139,7 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 					})
 				} else {
 					// Non-Block: dispatch to inner tool's handler, then send result.
-					result, err := baseTool.dispatch(part)
+					result, err := baseTool.dispatch(ctx, part)
 					select {
 					case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 					case <-ctx.Done():

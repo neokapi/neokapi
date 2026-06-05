@@ -94,7 +94,7 @@ func TestCommentsAndBlanks(t *testing.T) {
 	m.AddPattern("real-pattern")
 
 	assert.True(t, m.Match("real-pattern", false))
-	assert.Equal(t, len(defaultPatterns)+1, len(m.rules), "should only add 1 real rule")
+	assert.Len(t, m.rules, len(defaultPatterns)+1, "should only add 1 real rule")
 }
 
 func TestLoadFile(t *testing.T) {

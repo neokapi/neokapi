@@ -84,7 +84,7 @@ func TestKnownProviderTypes(t *testing.T) {
 	known := knownProviderTypes()
 
 	// The list is sorted and deduplicated.
-	require.True(t, len(known) > 0, "expected at least one known provider")
+	require.NotEmpty(t, known, "expected at least one known provider")
 	for i := 1; i < len(known); i++ {
 		assert.Less(t, known[i-1], known[i], "expected sorted, deduplicated providers")
 	}

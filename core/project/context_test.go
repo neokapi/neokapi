@@ -105,7 +105,7 @@ func TestDetectFormat_BuiltInOnly(t *testing.T) {
 	ctx := NewProjectContext(proj, "/tmp/test/project.kapi")
 
 	assert.Equal(t, "json", ctx.DetectFormat(reg, "file.json"))
-	assert.Equal(t, "", ctx.DetectFormat(reg, "file.unknown"))
+	assert.Empty(t, ctx.DetectFormat(reg, "file.unknown"))
 }
 
 func TestDetectFormat_PluginFiltered(t *testing.T) {
@@ -133,7 +133,7 @@ func TestDetectFormat_PluginFiltered(t *testing.T) {
 func TestDetectFormat_EmptyExtension(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	ctx := NewProjectContext(&KapiProject{Version: CurrentVersion}, "/tmp/test/project.kapi")
-	assert.Equal(t, "", ctx.DetectFormat(reg, "noext"))
+	assert.Empty(t, ctx.DetectFormat(reg, "noext"))
 }
 
 // --- ResolveContent ---

@@ -17,8 +17,16 @@ type Claims struct {
 	Name  string `json:"name"`
 }
 
+// ErrEmptySecret is returned when a JWT operation is attempted with an empty
+// HMAC secret. Signing or validating with "" is a misconfiguration that would
+// otherwise produce trivially forgeable tokens, so we fail closed.
+var ErrEmptySecret = errors.New("jwt: empty signing secret")
+
 // GenerateToken creates a signed JWT for the given user.
 func GenerateToken(user *User, secret string, expiry time.Duration) (string, error) {
+	if secret == "" {
+		return "", ErrEmptySecret
+	}
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -39,6 +47,9 @@ func GenerateToken(user *User, secret string, expiry time.Duration) (string, err
 
 // ValidateToken verifies a JWT string and returns the embedded claims.
 func ValidateToken(tokenString, secret string) (*Claims, error) {
+	if secret == "" {
+		return nil, ErrEmptySecret
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])

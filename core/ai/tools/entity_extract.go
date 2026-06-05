@@ -121,7 +121,7 @@ func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
 	// Run NER if available.
 	var nerEntities []ner.DetectedEntity
 	if t.nerProvider != nil {
-		resp, err := t.nerProvider.DetectEntities(context.Background(), ner.Request{
+		resp, err := t.nerProvider.DetectEntities(v.Context(), ner.Request{
 			Text:   sourceText,
 			Locale: t.locale,
 		})
@@ -131,7 +131,7 @@ func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
 	}
 
 	// Run LLM extraction.
-	llmResult, err := t.extractWithLLM(context.Background(), []extractionEntry{
+	llmResult, err := t.extractWithLLM(v.Context(), []extractionEntry{
 		{blockID: v.ID(), text: sourceText},
 	})
 	if err != nil {

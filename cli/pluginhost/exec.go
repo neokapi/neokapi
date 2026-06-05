@@ -188,15 +188,39 @@ func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return fmt.Errorf("plugin %q: %w", p.Name(), ctxErr)
 		}
-		// Propagate exit codes cleanly: cobra surfaces *exec.ExitError
-		// with the right exit code through SilenceErrors+SilenceUsage.
+		// Propagate exit codes cleanly: return an error that carries the
+		// plugin's exit code so cli.Run's ExitCode() emits the right code
+		// via the exitCoder interface, without bypassing App.Shutdown.
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			os.Exit(exitErr.ExitCode())
+			return withPluginExitCode(exitErr.ExitCode(), fmt.Errorf("plugin %q: %w", p.Name(), err))
 		}
 		return fmt.Errorf("plugin %q: %w", p.Name(), err)
 	}
 	return nil
+}
+
+// pluginExitError carries the exit code from a plugin subprocess so that
+// cli.ExitCode (which checks for the exitCoder interface) can propagate it
+// through the normal cobra error path — avoiding os.Exit inside RunE.
+// Implementing ExitCode() satisfies cli.exitCoder without importing the cli
+// package (which would create an import cycle).
+type pluginExitError struct {
+	code int
+	err  error
+}
+
+func (e *pluginExitError) Error() string { return e.err.Error() }
+func (e *pluginExitError) Unwrap() error { return e.err }
+func (e *pluginExitError) ExitCode() int { return e.code }
+
+// withPluginExitCode wraps err with an exit code, mirroring cli.WithExitCode
+// but defined here to avoid an import cycle with the parent cli package.
+func withPluginExitCode(code int, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &pluginExitError{code: code, err: err}
 }
 
 // FormatHelpLine returns a single-line summary of a command route used

@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -72,11 +73,7 @@ func (req TranslateRequest) Directives() string {
 	}
 	if len(req.Glossary) > 0 {
 		b.WriteString("\n\nGlossary:\n")
-		keys := make([]string, 0, len(req.Glossary))
-		for k := range req.Glossary {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := slices.Sorted(maps.Keys(req.Glossary))
 		for _, k := range keys {
 			fmt.Fprintf(&b, "- %s → %s\n", k, req.Glossary[k])
 		}
@@ -309,4 +306,32 @@ func (c *Config) Validate() error {
 		return errors.New("model is required")
 	}
 	return nil
+}
+
+// standardTranslate runs the common "translate this text, return only the
+// translation" prompt through a provider's Chat method and wraps the response.
+// Most LLM providers share this exact flow, differing only in the confidence
+// they report; providers needing a different prompt strategy (e.g. Azure's
+// system-prompted variant) implement Translate directly.
+func standardTranslate(
+	ctx context.Context,
+	chat func(context.Context, []Message) (*ChatResponse, error),
+	req TranslateRequest,
+	confidence float64,
+) (*TranslateResponse, error) {
+	prompt := fmt.Sprintf(
+		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
+		req.SourceLanguage, req.TargetLocale, req.Source,
+	) + req.Directives()
+
+	resp, err := chat(ctx, []Message{{Role: "user", Content: prompt}})
+	if err != nil {
+		return nil, err
+	}
+	return &TranslateResponse{
+		Translation: resp.Content,
+		Confidence:  confidence,
+		Model:       resp.Model,
+		Usage:       resp.Usage,
+	}, nil
 }

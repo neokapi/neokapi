@@ -538,7 +538,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	blocks1 := readVTTBlocks(t, snippet)
 	blocks2 := readVTTBlocks(t, output)
 
-	require.Equal(t, len(blocks1), len(blocks2),
+	require.Len(t, blocks2, len(blocks1),
 		"double extraction should produce the same number of blocks")
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),
@@ -809,7 +809,7 @@ func TestExtract_OpenTwice(t *testing.T) {
 	blocks2 := readVTTBlocks(t, snippet)
 
 	require.NotEmpty(t, blocks1, "first read should produce blocks")
-	require.Equal(t, len(blocks1), len(blocks2),
+	require.Len(t, blocks2, len(blocks1),
 		"reading the same content twice should produce the same number of blocks")
 
 	for i := range blocks1 {

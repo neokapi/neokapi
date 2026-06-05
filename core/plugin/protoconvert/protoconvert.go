@@ -33,7 +33,14 @@ func jsonToMap(data []byte) map[string]any {
 
 // AnnotationToProto converts a model.Annotation to a proto AnnotationEntry.
 func AnnotationToProto(a model.Annotation) *pb.AnnotationEntry {
-	data, _ := json.Marshal(a)
+	data, err := json.Marshal(a)
+	if err != nil {
+		// A model.Annotation that can't be JSON-encoded is a programming error
+		// (a non-serializable field), not a runtime condition. Fail loudly here
+		// rather than emitting a silently-empty entry that would corrupt the
+		// block on the other side of the bridge.
+		panic(fmt.Sprintf("protoconvert: marshal annotation %q: %v", a.AnnotationType(), err))
+	}
 	return &pb.AnnotationEntry{
 		Type: a.AnnotationType(),
 		Data: data,
@@ -224,51 +231,128 @@ func ProtoToDisplayHint(msg *pb.DisplayHintMessage) *model.DisplayHint {
 // Proto ↔ Model: Run
 // ────────────────────────────────────────────────────────────────────────────
 
+// protoRunBuilder maps model runs onto the v2 plugin proto RunMessage /
+// RunList types. The 7-arm dispatch and the Plural/Select recursion live in
+// model.BuildRun; this builder only constructs each kind's proto payload.
+type protoRunBuilder struct{}
+
+func (protoRunBuilder) Text(t *model.TextRun) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: t.Text}}}
+}
+
+func (protoRunBuilder) Ph(p *model.PlaceholderRun) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_Ph{Ph: &pb.PlaceholderRunMessage{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: constraintsToProto(p.Constraints),
+	}}}
+}
+
+func (protoRunBuilder) PcOpen(p *model.PcOpenRun) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_PcOpen{PcOpen: &pb.PcOpenRunMessage{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: constraintsToProto(p.Constraints),
+	}}}
+}
+
+func (protoRunBuilder) PcClose(p *model.PcCloseRun) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_PcClose{PcClose: &pb.PcCloseRunMessage{
+		Id: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv,
+	}}}
+}
+
+func (protoRunBuilder) Sub(s *model.SubRun) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_Sub{Sub: &pb.SubRunMessage{
+		Id: s.ID, Ref: s.Ref, Equiv: s.Equiv,
+	}}}
+}
+
+func (protoRunBuilder) Plural(pivot string, forms map[string]*pb.RunList) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_Plural{Plural: &pb.PluralRunMessage{
+		Pivot: pivot, Forms: forms,
+	}}}
+}
+
+func (protoRunBuilder) Select(pivot string, cases map[string]*pb.RunList) *pb.RunMessage {
+	return &pb.RunMessage{Kind: &pb.RunMessage_Select{Select: &pb.SelectRunMessage{
+		Pivot: pivot, Cases: cases,
+	}}}
+}
+
+func (protoRunBuilder) List(runs []*pb.RunMessage) *pb.RunList { return &pb.RunList{Runs: runs} }
+func (protoRunBuilder) Zero() *pb.RunMessage                   { return nil }
+
+// protoRunParser is the reverse of protoRunBuilder.
+type protoRunParser struct{}
+
+func (protoRunParser) Text(m *pb.RunMessage) (*model.TextRun, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_Text); ok {
+		return &model.TextRun{Text: k.Text.GetText()}, true
+	}
+	return nil, false
+}
+
+func (protoRunParser) Ph(m *pb.RunMessage) (*model.PlaceholderRun, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_Ph); ok {
+		return &model.PlaceholderRun{
+			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
+			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Constraints: protoToConstraints(k.Ph.GetConstraints()),
+		}, true
+	}
+	return nil, false
+}
+
+func (protoRunParser) PcOpen(m *pb.RunMessage) (*model.PcOpenRun, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_PcOpen); ok {
+		return &model.PcOpenRun{
+			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
+			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Constraints: protoToConstraints(k.PcOpen.GetConstraints()),
+		}, true
+	}
+	return nil, false
+}
+
+func (protoRunParser) PcClose(m *pb.RunMessage) (*model.PcCloseRun, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_PcClose); ok {
+		return &model.PcCloseRun{
+			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
+			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
+		}, true
+	}
+	return nil, false
+}
+
+func (protoRunParser) Sub(m *pb.RunMessage) (*model.SubRun, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_Sub); ok {
+		return &model.SubRun{ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv()}, true
+	}
+	return nil, false
+}
+
+func (protoRunParser) Plural(m *pb.RunMessage) (string, map[string]*pb.RunList, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_Plural); ok {
+		return k.Plural.GetPivot(), k.Plural.GetForms(), true
+	}
+	return "", nil, false
+}
+
+func (protoRunParser) Select(m *pb.RunMessage) (string, map[string]*pb.RunList, bool) {
+	if k, ok := m.GetKind().(*pb.RunMessage_Select); ok {
+		return k.Select.GetPivot(), k.Select.GetCases(), true
+	}
+	return "", nil, false
+}
+
+func (protoRunParser) ListRuns(l *pb.RunList) []*pb.RunMessage { return l.GetRuns() }
+
 // RunToProto converts a model.Run to a proto RunMessage, dispatching
 // on the discriminator set on r.
 func RunToProto(r model.Run) *pb.RunMessage {
-	switch {
-	case r.Text != nil:
-		return &pb.RunMessage{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: r.Text.Text}}}
-	case r.Ph != nil:
-		return &pb.RunMessage{Kind: &pb.RunMessage_Ph{Ph: &pb.PlaceholderRunMessage{
-			Id: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
-			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
-			Constraints: constraintsToProto(r.Ph.Constraints),
-		}}}
-	case r.PcOpen != nil:
-		return &pb.RunMessage{Kind: &pb.RunMessage_PcOpen{PcOpen: &pb.PcOpenRunMessage{
-			Id: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
-			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
-			Constraints: constraintsToProto(r.PcOpen.Constraints),
-		}}}
-	case r.PcClose != nil:
-		return &pb.RunMessage{Kind: &pb.RunMessage_PcClose{PcClose: &pb.PcCloseRunMessage{
-			Id: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
-			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
-		}}}
-	case r.Sub != nil:
-		return &pb.RunMessage{Kind: &pb.RunMessage_Sub{Sub: &pb.SubRunMessage{
-			Id: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv,
-		}}}
-	case r.Plural != nil:
-		forms := make(map[string]*pb.RunList, len(r.Plural.Forms))
-		for form, runs := range r.Plural.Forms {
-			forms[string(form)] = &pb.RunList{Runs: RunsToProto(runs)}
-		}
-		return &pb.RunMessage{Kind: &pb.RunMessage_Plural{Plural: &pb.PluralRunMessage{
-			Pivot: r.Plural.Pivot, Forms: forms,
-		}}}
-	case r.Select != nil:
-		cases := make(map[string]*pb.RunList, len(r.Select.Cases))
-		for key, runs := range r.Select.Cases {
-			cases[key] = &pb.RunList{Runs: RunsToProto(runs)}
-		}
-		return &pb.RunMessage{Kind: &pb.RunMessage_Select{Select: &pb.SelectRunMessage{
-			Pivot: r.Select.Pivot, Cases: cases,
-		}}}
-	}
-	return nil
+	return model.BuildRun[*pb.RunMessage, *pb.RunList](r, protoRunBuilder{})
 }
 
 // ProtoToRun converts a proto RunMessage into its model.Run form.
@@ -276,68 +360,17 @@ func ProtoToRun(msg *pb.RunMessage) model.Run {
 	if msg == nil {
 		return model.Run{}
 	}
-	switch k := msg.Kind.(type) {
-	case *pb.RunMessage_Text:
-		return model.Run{Text: &model.TextRun{Text: k.Text.GetText()}}
-	case *pb.RunMessage_Ph:
-		return model.Run{Ph: &model.PlaceholderRun{
-			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
-			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
-			Constraints: protoToConstraints(k.Ph.GetConstraints()),
-		}}
-	case *pb.RunMessage_PcOpen:
-		return model.Run{PcOpen: &model.PcOpenRun{
-			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
-			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
-			Constraints: protoToConstraints(k.PcOpen.GetConstraints()),
-		}}
-	case *pb.RunMessage_PcClose:
-		return model.Run{PcClose: &model.PcCloseRun{
-			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
-			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
-		}}
-	case *pb.RunMessage_Sub:
-		return model.Run{Sub: &model.SubRun{
-			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
-		}}
-	case *pb.RunMessage_Plural:
-		forms := make(map[model.PluralForm][]model.Run, len(k.Plural.GetForms()))
-		for form, runList := range k.Plural.GetForms() {
-			forms[model.PluralForm(form)] = ProtoToRuns(runList.GetRuns())
-		}
-		return model.Run{Plural: &model.PluralRun{Pivot: k.Plural.GetPivot(), Forms: forms}}
-	case *pb.RunMessage_Select:
-		cases := make(map[string][]model.Run, len(k.Select.GetCases()))
-		for key, runList := range k.Select.GetCases() {
-			cases[key] = ProtoToRuns(runList.GetRuns())
-		}
-		return model.Run{Select: &model.SelectRun{Pivot: k.Select.GetPivot(), Cases: cases}}
-	}
-	return model.Run{}
+	return model.ParseRun[*pb.RunMessage, *pb.RunList](msg, protoRunParser{})
 }
 
 // RunsToProto converts a slice of model.Run to proto RunMessages.
 func RunsToProto(runs []model.Run) []*pb.RunMessage {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]*pb.RunMessage, len(runs))
-	for i, r := range runs {
-		out[i] = RunToProto(r)
-	}
-	return out
+	return model.BuildRuns[*pb.RunMessage, *pb.RunList](runs, protoRunBuilder{})
 }
 
 // ProtoToRuns converts proto RunMessages to a slice of model.Run.
 func ProtoToRuns(msgs []*pb.RunMessage) []model.Run {
-	if len(msgs) == 0 {
-		return nil
-	}
-	out := make([]model.Run, len(msgs))
-	for i, m := range msgs {
-		out[i] = ProtoToRun(m)
-	}
-	return out
+	return model.ParseRuns[*pb.RunMessage, *pb.RunList](msgs, protoRunParser{})
 }
 
 func constraintsToProto(c *model.RunConstraints) *pb.RunConstraints {

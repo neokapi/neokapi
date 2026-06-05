@@ -303,7 +303,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					Concurrency:    conc,
 					JSONOutput:     jsonOut,
 					JQ:             jqFilter,
-					Colorize:       output.Colorize(cmd),
+					Colorize:       output.Colorize(cmd, cmd.OutOrStdout()),
 					FailOnUnknown:  failUnknown,
 					NoWarn:         noWarn,
 					Progress:       progress,

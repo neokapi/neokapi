@@ -1,9 +1,6 @@
 package project
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -124,74 +121,5 @@ func AllowedFormatSources(proj *KapiProject) []string {
 	return sources
 }
 
-// --- Version constraint matching ---
-
-// MatchVersionConstraint checks whether an installed version satisfies a
-// version constraint string. Supported constraint forms:
-//
-//   - "" or "*"    → any version satisfies
-//   - "^1.2.3"    → compatible: same major version, installed >= constraint
-//   - ">=1.2.3"   → installed >= constraint
-//   - "1.2.3"     → exact match
-func MatchVersionConstraint(constraint, installed string) bool {
-	if constraint == "" || constraint == "*" {
-		return true
-	}
-	if strings.HasPrefix(constraint, "^") {
-		return compatibleVersion(strings.TrimPrefix(constraint, "^"), installed)
-	}
-	if strings.HasPrefix(constraint, ">=") {
-		return compareVersions(installed, strings.TrimPrefix(constraint, ">=")) >= 0
-	}
-	// Exact match.
-	return normalizeVersion(installed) == normalizeVersion(constraint)
-}
-
-// compatibleVersion checks semver compatibility: same major version and
-// installed >= required.
-func compatibleVersion(required, installed string) bool {
-	rParts := parseVersion(required)
-	iParts := parseVersion(installed)
-	if rParts[0] != iParts[0] {
-		return false // major version mismatch
-	}
-	return compareVersions(installed, required) >= 0
-}
-
-// compareVersions returns -1, 0, or 1 comparing two version strings.
-func compareVersions(a, b string) int {
-	ap := parseVersion(a)
-	bp := parseVersion(b)
-	for i := range 3 {
-		if ap[i] < bp[i] {
-			return -1
-		}
-		if ap[i] > bp[i] {
-			return 1
-		}
-	}
-	return 0
-}
-
-// parseVersion splits "1.2.3" into [1, 2, 3]. Missing parts default to 0.
-func parseVersion(v string) [3]int {
-	v = normalizeVersion(v)
-	parts := strings.SplitN(v, ".", 3)
-	var result [3]int
-	for i := 0; i < len(parts) && i < 3; i++ {
-		result[i], _ = strconv.Atoi(parts[i])
-	}
-	return result
-}
-
-// normalizeVersion strips leading "v" and any pre-release/build metadata.
-func normalizeVersion(v string) string {
-	v = strings.TrimPrefix(v, "v")
-	if idx := strings.IndexByte(v, '-'); idx >= 0 {
-		v = v[:idx]
-	}
-	if idx := strings.IndexByte(v, '+'); idx >= 0 {
-		v = v[:idx]
-	}
-	return v
-}
+// MatchVersionConstraint lives in constraint.go, alongside the shared
+// version-constraint grammar it uses.

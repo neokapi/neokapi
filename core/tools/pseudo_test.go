@@ -51,7 +51,7 @@ func TestPseudoTranslateTool(t *testing.T) {
 	targetText := resultBlock.TargetText("qps")
 
 	// Should be wrapped in brackets.
-	assert.True(t, len(targetText) > 0)
+	assert.NotEmpty(t, targetText)
 	assert.Equal(t, '[', rune(targetText[0]))
 	assert.Equal(t, ']', rune(targetText[len(targetText)-1]))
 
@@ -104,7 +104,7 @@ func TestPseudoTranslateToolWithExpansion(t *testing.T) {
 	// With 50% expansion on 5 chars, should add padding of 2 tildes + space.
 	// Total should be longer than just accented + brackets.
 	assert.Contains(t, targetText, "~~")
-	assert.True(t, len([]rune(targetText)) > len([]rune("[Ĥéļļö]")))
+	assert.Greater(t, len([]rune(targetText)), len([]rune("[Ĥéļļö]")))
 }
 
 func TestPseudoTranslateToolSkipsNonTranslatable(t *testing.T) {
@@ -141,7 +141,7 @@ func TestPseudoTranslateToolCustomPrefixSuffix(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	targetText := resultBlock.TargetText("qps")
 
-	assert.True(t, len(targetText) >= 4)
+	assert.GreaterOrEqual(t, len(targetText), 4)
 	assert.Equal(t, "<<", targetText[:2])
 	assert.Equal(t, ">>", targetText[len(targetText)-2:])
 }

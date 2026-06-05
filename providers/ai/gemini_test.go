@@ -39,8 +39,9 @@ func TestGeminiProviderChat(t *testing.T) {
 
 		var req geminiRequest
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-		assert.Len(t, req.Contents, 1)
-		assert.Equal(t, "user", req.Contents[0].Role)
+		if assert.Len(t, req.Contents, 1) {
+			assert.Equal(t, "user", req.Contents[0].Role)
+		}
 
 		resp := geminiResponse{
 			Candidates: []geminiCandidate{{
@@ -160,10 +161,13 @@ func TestGeminiProviderSystemMessage(t *testing.T) {
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// System message should be prepended to first user message.
-		assert.Len(t, req.Contents, 1)
-		assert.Equal(t, "user", req.Contents[0].Role)
-		assert.Contains(t, req.Contents[0].Parts[0].Text, "You are a translator")
-		assert.Contains(t, req.Contents[0].Parts[0].Text, "Translate this")
+		if assert.Len(t, req.Contents, 1) {
+			assert.Equal(t, "user", req.Contents[0].Role)
+			if assert.NotEmpty(t, req.Contents[0].Parts) {
+				assert.Contains(t, req.Contents[0].Parts[0].Text, "You are a translator")
+				assert.Contains(t, req.Contents[0].Parts[0].Text, "Translate this")
+			}
+		}
 
 		resp := geminiResponse{
 			Candidates: []geminiCandidate{{

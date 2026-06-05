@@ -1,6 +1,14 @@
 version: "2"
 run:
   timeout: 5m
+  # Analyze the code behind these build constraints too — without them the
+  # FTS5 TM path, the cgo ICU tokenizer, and the parity harness are silently
+  # excluded from staticcheck/govet/errcheck. The cgo files additionally need
+  # pkg-config icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs
+  # libicu-dev, mirroring the test job).
+  build-tags:
+    - fts5
+    - parity
 linters:
   enable:
     - errorlint
@@ -19,6 +27,9 @@ linters:
     staticcheck:
       checks:
         - "all"
+        # -QF* disables the staticcheck "quickfix" family (QFxxxx): stylistic
+        # auto-rewrites (e.g. tagged-switch suggestions) that are noisy and not
+        # correctness issues. The real checks (SA/S/ST) stay on.
         - "-QF*"
     nolintlint:
       require-explanation: true
@@ -33,13 +44,16 @@ linters:
         - singleCaseSwitch
         - unlambda
     testifylint:
+      # Only the checks below stay disabled, each for a reason:
+      #   contains/encoded-compare/negative-positive — too many false positives
+      #     on this codebase's assertion styles.
+      #   float-compare — InDelta is not wanted; exact float asserts are
+      #     intentional in the parity/scoring tests.
+      # len/empty/compares are enabled (mechanically auto-fixable, no downside).
       disable:
-        - compares
         - contains
-        - empty
         - encoded-compare
         - float-compare
-        - len
         - negative-positive
   exclusions:
     generated: lax

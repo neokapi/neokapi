@@ -60,7 +60,7 @@ func TestGet_ByID(t *testing.T) {
 	assert.Equal(t, "Test", got.Name)
 
 	_, err = s.Get("nonexistent")
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "not found")
 }
 
 func TestGetByName_CaseInsensitive(t *testing.T) {
@@ -79,7 +79,7 @@ func TestGetByName_CaseInsensitive(t *testing.T) {
 
 	// Not found.
 	_, err = s.GetByName("nonexistent")
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "not found")
 }
 
 func TestFindByType_FiltersCorrectly(t *testing.T) {

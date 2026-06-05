@@ -89,10 +89,10 @@ func (r *ParityRunner) Run(t *testing.T) {
 		return
 	}
 	for _, feat := range r.Spec.Features {
-		feat := feat
+
 		t.Run(feat.ID, func(t *testing.T) {
 			for _, ex := range feat.Examples {
-				ex := ex
+
 				t.Run(ex.Name, func(t *testing.T) {
 					r.runExample(t, feat, ex)
 				})

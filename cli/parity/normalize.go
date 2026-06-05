@@ -85,7 +85,7 @@ func Canonicalize(parts []*model.Part) []CanonicalPart {
 func renderBlockSource(b *model.Block) string {
 	var buf strings.Builder
 	n := b.SourceSegmentCount()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i > 0 {
 			buf.WriteByte(' ')
 		}

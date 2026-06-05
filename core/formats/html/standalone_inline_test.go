@@ -123,8 +123,8 @@ func TestStandaloneInline_PathsAgree(t *testing.T) {
 			assert.Equal(t, tc.wantTexts, domTexts, "DOM path block texts")
 			assert.Equal(t, tc.wantTexts, tokTexts, "tokenizer path block texts")
 			assert.Equal(t, domTexts, tokTexts, "DOM and tokenizer paths must agree on the block set")
-			assert.Equal(t, len(tc.wantTexts), len(dom), "DOM path block count")
-			assert.Equal(t, len(tc.wantTexts), len(tok), "tokenizer path block count")
+			assert.Len(t, dom, len(tc.wantTexts), "DOM path block count")
+			assert.Len(t, tok, len(tc.wantTexts), "tokenizer path block count")
 		})
 	}
 }

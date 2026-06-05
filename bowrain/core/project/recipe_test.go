@@ -175,7 +175,7 @@ func TestRecipe_SetDefaultCollection_PersistsThroughSave(t *testing.T) {
 
 	r3, err := LoadRecipe(path)
 	require.NoError(t, err)
-	assert.Equal(t, "", r3.DefaultCollection())
+	assert.Empty(t, r3.DefaultCollection())
 }
 
 func TestFindRecipe_WalksUpward(t *testing.T) {

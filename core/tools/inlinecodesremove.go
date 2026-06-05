@@ -2,6 +2,7 @@ package tools
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -81,28 +82,28 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 // inline codes inside structured constructs are also stripped.
 func stripInlineRuns(runs []model.Run, replaceWithSpace bool) []model.Run {
 	var out []model.Run
-	var buf string
+	var buf strings.Builder
 	flush := func() {
-		if buf == "" {
+		if buf.Len() == 0 {
 			return
 		}
-		out = append(out, model.Run{Text: &model.TextRun{Text: buf}})
-		buf = ""
+		out = append(out, model.Run{Text: &model.TextRun{Text: buf.String()}})
+		buf.Reset()
 	}
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			buf += r.Text.Text
+			buf.WriteString(r.Text.Text)
 		case r.Ph != nil:
 			if replaceWithSpace && isLineBreakType(r.Ph.Type, r.Ph.SubType) {
-				buf += " "
+				buf.WriteByte(' ')
 			}
 		case r.PcOpen != nil, r.PcClose != nil:
 			// Drop paired codes; their content (text runs between
 			// them) is already in the stream.
 		case r.Sub != nil:
 			if replaceWithSpace {
-				buf += " "
+				buf.WriteByte(' ')
 			}
 		case r.Plural != nil:
 			flush()

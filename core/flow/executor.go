@@ -74,7 +74,7 @@ func WithCollectors(c ...Collector) ExecutorOption {
 
 // WithBlockStore sets the BlockStore used for SessionTool dispatch.
 // Defaults to blockstore.NewMemoryStore(). Pass a persistent store
-// (e.g. NewCacheStore for a project's .kapi/cache/blocks.db) to enable
+// (e.g. sqlitestore.New for a project's .kapi/cache/blocks.db) to enable
 // incremental work across runs.
 func WithBlockStore(store blockstore.Store) ExecutorOption {
 	return func(cfg *ExecutorConfig) {
@@ -258,7 +258,7 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 // The executor opens a single session per item (processItemCollect) or per
 // channel pipeline (ExecuteWithChannels) and hands it to every tool. Tools
 // run in their own goroutines, so when a persistent store is wired (e.g.
-// blockstore.NewCacheStore via WithBlockStore) two SessionTools can call
+// sqlitestore.New via WithBlockStore) two SessionTools can call
 // SessionProcess against the same session — and a persistent session is
 // backed by a single *sql.Tx, which database/sql does not allow to be used
 // concurrently (concurrent statements on one transaction corrupt the
@@ -429,7 +429,7 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 
 	// Open the session with the parent context, NOT the errgroup's derived
 	// context: errgroup cancels its context the moment Wait() returns, and a
-	// persistent session backed by a *sql.Tx (blockstore.NewCacheStore) is
+	// persistent session backed by a *sql.Tx (sqlitestore.New) is
 	// aborted by database/sql when its context is cancelled — which would
 	// roll back every overlay the SessionTools wrote, right before Commit.
 	// The tool goroutines still observe cancellation through the errgroup
@@ -474,7 +474,7 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 		}
 		// Commit BEFORE cancelling the pipeline context. A persistent
 		// session is backed by a *sql.Tx opened with this context
-		// (blockstore.NewCacheStore via WithBlockStore); database/sql aborts
+		// (sqlitestore.New via WithBlockStore); database/sql aborts
 		// that tx when its context is cancelled, so cancelling first would
 		// roll back every overlay the SessionTools just wrote. The tool
 		// goroutines have already finished (g.Wait returned), so deferring

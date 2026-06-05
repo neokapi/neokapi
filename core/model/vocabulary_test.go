@@ -132,10 +132,10 @@ func TestVocabularyAllTypes(t *testing.T) {
 	require.NoError(t, reg.LoadDefaults())
 
 	types := reg.AllTypes()
-	assert.True(t, len(types) > 10, "expected at least 10 types, got %d", len(types))
+	assert.Greater(t, len(types), 10, "expected at least 10 types, got %d", len(types))
 	// Should be sorted
 	for i := 1; i < len(types); i++ {
-		assert.True(t, types[i-1] < types[i], "types not sorted: %s >= %s", types[i-1], types[i])
+		assert.Less(t, types[i-1], types[i], "types not sorted: %s >= %s", types[i-1], types[i])
 	}
 }
 

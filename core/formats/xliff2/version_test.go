@@ -200,7 +200,7 @@ func TestConfig_ApplyMapVersion(t *testing.T) {
 	assert.Equal(t, "2.1", c.Version)
 
 	require.NoError(t, c.ApplyMap(map[string]any{"version": ""}))
-	assert.Equal(t, "", c.Version)
+	assert.Empty(t, c.Version)
 
 	require.Error(t, c.ApplyMap(map[string]any{"version": "1.2"}))
 	require.Error(t, c.ApplyMap(map[string]any{"version": 22}))

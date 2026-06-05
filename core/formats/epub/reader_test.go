@@ -351,7 +351,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and compare
 	reader2 := epub.NewReader()
@@ -362,7 +362,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 	parts2 := testutil.CollectParts(t, reader2.Read(ctx))
 	blocks2 := collectBlockTexts(parts2)
 
-	assert.Equal(t, len(blocks1), len(blocks2), "block count should match")
+	assert.Len(t, blocks2, len(blocks1), "block count should match")
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i], blocks2[i], "block[%d] text mismatch", i)
 	}
@@ -409,7 +409,7 @@ func TestSkeletonRoundTripWithTranslation(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and verify translations appear
 	reader2 := epub.NewReader()

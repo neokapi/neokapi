@@ -20,21 +20,26 @@ type CachedIndex struct {
 	Index     IndexV2 `json:"index"`
 }
 
+// xdgCacheDir returns the effective XDG cache base directory.
+// Mirrors the helper in the pluginhost package; duplicated here to avoid an
+// import cycle (registry is a sub-package of pluginhost).
+func xdgCacheDir() string {
+	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
+		return dir
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".cache")
+	}
+	return filepath.Join(os.TempDir(), "kapi-cache")
+}
+
 // CacheLocation returns the on-disk path of the registry index cache.
 // Defaults to $XDG_CACHE_HOME/kapi/registry-index.json.
 func CacheLocation() string {
 	if v := os.Getenv("KAPI_REGISTRY_CACHE"); v != "" {
 		return v
 	}
-	xdg := os.Getenv("XDG_CACHE_HOME")
-	if xdg == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			xdg = filepath.Join(home, ".cache")
-		} else {
-			xdg = filepath.Join(os.TempDir(), "kapi-cache")
-		}
-	}
-	return filepath.Join(xdg, "kapi", "registry-index.json")
+	return filepath.Join(xdgCacheDir(), "kapi", "registry-index.json")
 }
 
 // LoadCache returns the cached entry for url, or (nil, nil) when none

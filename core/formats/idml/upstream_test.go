@@ -542,6 +542,7 @@ func TestParallel_InMultipleThreads(t *testing.T) {
 // runOnce performs a single concurrent-safe extraction. It uses a fresh
 // Reader per call (the documented usage) and returns the block texts.
 func runOnce(t *testing.T, data []byte) []string {
+	t.Helper()
 	ctx := t.Context()
 	reader := NewReader()
 	if err := reader.Open(ctx, &model.RawDocument{
@@ -550,6 +551,7 @@ func runOnce(t *testing.T, data []byte) []string {
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(data)),
 	}); err != nil {
+		t.Errorf("runOnce: reader.Open failed: %v", err)
 		return nil
 	}
 	defer reader.Close()

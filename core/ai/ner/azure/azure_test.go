@@ -84,7 +84,10 @@ func TestProvider_DetectEntities(t *testing.T) {
 func TestProvider_DetectEntitiesBatch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req analyzeRequest
-		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
 		results := make([]documentResult, len(req.AnalysisInput.Documents))
 		for i, doc := range req.AnalysisInput.Documents {

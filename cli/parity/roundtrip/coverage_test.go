@@ -115,7 +115,7 @@ func TestRoundTrip_Coverage(t *testing.T) {
 		t.Fatal("okapi test resources tarball not present in sandbox — run `make parity-test` from repo root")
 	}
 	for _, scan := range coverageScans() {
-		scan := scan
+
 		t.Run(string(scan.formatID), func(t *testing.T) {
 			files := discoverFiles(t, s.OkapiTestDataDir, scan)
 			if len(files) == 0 {
@@ -139,7 +139,7 @@ func TestRoundTrip_Coverage(t *testing.T) {
 			okapiCache := roundtrip.RunOkapiBatch(t, scan.filterClass, scan.okapiParamConfig, "", "", batchInputs)
 
 			for _, f := range files {
-				f := f
+
 				t.Run(filepath.Base(f), func(t *testing.T) {
 					runOneFixture(t, scan, f, okapiCache)
 				})

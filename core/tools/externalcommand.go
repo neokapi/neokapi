@@ -79,7 +79,7 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 
 		// Process source text.
 		if conf.ApplySource {
-			result, exitCode, err := runCommand(conf, v.SourceText(), timeout)
+			result, exitCode, err := runCommand(v.Context(), conf, v.SourceText(), timeout)
 			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
@@ -90,7 +90,7 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 
 		// Process target text.
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			result, exitCode, err := runCommand(conf, v.TargetText(conf.TargetLocale), timeout)
+			result, exitCode, err := runCommand(v.Context(), conf, v.TargetText(conf.TargetLocale), timeout)
 			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
@@ -106,8 +106,8 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 
 // runCommand executes the configured command with the given text input.
 // It returns the stdout output, exit code, and any error.
-func runCommand(cfg *ExternalCommandConfig, text string, timeoutSec int) (string, int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSec)*time.Second)
+func runCommand(ctx context.Context, cfg *ExternalCommandConfig, text string, timeoutSec int) (string, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 
 	// Build args with placeholder replacement.

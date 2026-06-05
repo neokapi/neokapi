@@ -39,27 +39,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	var prompt strings.Builder
-	prompt.WriteString(fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	))
-
-	prompt.WriteString(req.Directives())
-
-	resp, err := p.Chat(ctx, []Message{
-		{Role: "user", Content: prompt.String()},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &TranslateResponse{
-		Translation: resp.Content,
-		Confidence:  0.85,
-		Model:       resp.Model,
-		Usage:       resp.Usage,
-	}, nil
+	return standardTranslate(ctx, p.Chat, req, 0.85)
 }
 
 func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {

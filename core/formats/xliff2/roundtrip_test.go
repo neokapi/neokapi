@@ -194,13 +194,10 @@ func TestRoundTrip_ByteEqualUntouched(t *testing.T) {
 func notExpectedByteEqual() map[string]string {
 	return map[string]string{
 		// XML 1.1 declaration coerced to 1.0 on read (XLIFF 2 mandates 1.0).
+		// The `<?xml version="1.1"?>` ProcInst is normalized to 1.0 by the
+		// reader, so the byte form of the declaration can't round-trip; the
+		// rest of the document is byte-identical.
 		"integration-tests/okapi/src/test/resources/xliff2/original_en.xlf": "XML 1.1→1.0 coercion",
-		// translated.xlf and translated_with_mrk.xlf use 5-digit CR refs
-		// (`&#x000D;`); the writer round-trips them as the canonical
-		// 3-digit form (`&#13;`). Same code point, different byte form;
-		// idempotency still holds (TestRoundTrip_AllFixtures verifies).
-		"integration-tests/okapi/src/test/resources/xliff2/translated.xlf":          "&#x000D; canonicalized to &#13;",
-		"integration-tests/okapi/src/test/resources/xliff2/translated_with_mrk.xlf": "&#x000D; canonicalized to &#13;",
 	}
 }
 

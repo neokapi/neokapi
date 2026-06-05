@@ -354,7 +354,7 @@ func TestDoubleExtractionFixtures(t *testing.T) {
 			rewritten := snippetRoundtripWithSkeleton(t, string(data))
 			second := extractWithSkeleton(t, rewritten)
 
-			require.Equal(t, len(first), len(second), "block count must be stable across roundtrip")
+			require.Len(t, second, len(first), "block count must be stable across roundtrip")
 			for i := range first {
 				require.Equal(t, first[i].SourceSegmentCount(), second[i].SourceSegmentCount(),
 					"block %d: source segment count must be stable", i)
@@ -363,7 +363,7 @@ func TestDoubleExtractionFixtures(t *testing.T) {
 					secondRuns := second[i].SourceSegmentRuns(s)
 					assert.Equal(t, model.RunsText(firstRuns), model.RunsText(secondRuns),
 						"block %d segment %d: source text must be stable", i, s)
-					assert.Equal(t, len(firstRuns), len(secondRuns),
+					assert.Len(t, secondRuns, len(firstRuns),
 						"block %d segment %d: inline-code run structure must be stable", i, s)
 				}
 			}

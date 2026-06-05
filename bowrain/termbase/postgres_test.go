@@ -42,7 +42,7 @@ func openTestPostgresTermBase(t *testing.T) *pgtb.PostgresTermBase {
 func populatePgTB(t *testing.T, tb termbase.TermBase) {
 	t.Helper()
 	for _, c := range softwareConcepts() {
-		require.NoError(t, tb.AddConcept(c))
+		require.NoError(t, tb.AddConcept(t.Context(), c))
 	}
 }
 
@@ -50,9 +50,12 @@ func TestPostgresTermBase_IntegrationAddAndGet(t *testing.T) {
 	tb := openTestPostgresTermBase(t)
 
 	populatePgTB(t, tb)
-	assert.Equal(t, 3, tb.Count())
+	count, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
 
-	c, ok := tb.GetConcept("c1")
+	c, ok, err := tb.GetConcept(t.Context(), "c1")
+	require.NoError(t, err)
 	assert.True(t, ok)
 	assert.Equal(t, "software", c.Domain)
 	assert.Len(t, c.Terms, 3)
@@ -63,11 +66,14 @@ func TestPostgresTermBase_IntegrationDelete(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	err := tb.DeleteConcept("c2")
+	err := tb.DeleteConcept(t.Context(), "c2")
 	require.NoError(t, err)
-	assert.Equal(t, 2, tb.Count())
+	count, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
 
-	_, ok := tb.GetConcept("c2")
+	_, ok, err := tb.GetConcept(t.Context(), "c2")
+	require.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -76,7 +82,7 @@ func TestPostgresTermBase_IntegrationUpdate(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	err := tb.AddConcept(termbase.Concept{
+	err := tb.AddConcept(t.Context(), termbase.Concept{
 		ID:         "c1",
 		Domain:     "software-ui",
 		Definition: "Updated",
@@ -85,9 +91,12 @@ func TestPostgresTermBase_IntegrationUpdate(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 3, tb.Count())
+	count, err := tb.Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
 
-	c, ok := tb.GetConcept("c1")
+	c, ok, err := tb.GetConcept(t.Context(), "c1")
+	require.NoError(t, err)
 	assert.True(t, ok)
 	assert.Equal(t, "software-ui", c.Domain)
 	assert.Len(t, c.Terms, 1)
@@ -98,9 +107,10 @@ func TestPostgresTermBase_IntegrationLookup(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	matches := tb.Lookup("Save", termbase.LookupOptions{
+	matches, err := tb.Lookup(t.Context(), "Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
+	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Save", matches[0].Term.Text)
 	assert.Equal(t, 1.0, matches[0].Score)
@@ -112,9 +122,10 @@ func TestPostgresTermBase_IntegrationLookupAll(t *testing.T) {
 	populatePgTB(t, tb)
 
 	text := "Click Save or Cancel"
-	matches := tb.LookupAll(text, termbase.LookupOptions{
+	matches, err := tb.LookupAll(t.Context(), text, termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
 	})
+	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(matches), 2)
 }
 
@@ -123,7 +134,8 @@ func TestPostgresTermBase_IntegrationSearch(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	results, total := tb.Search("save", "", "", 0, 100)
+	results, total, err := tb.Search(t.Context(), "save", "", "", 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	assert.Len(t, results, 1)
 }
@@ -141,16 +153,19 @@ func TestPostgresTermBase_IntegrationSearchListAll(t *testing.T) {
 
 	// Empty query = list all (the term-explorer default). Before the fix this
 	// returned zero rows with a non-zero total.
-	all, total := tb.Search("", "", "", 0, 100)
+	all, total, err := tb.Search(t.Context(), "", "", "", 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 3, total)
 	assert.Len(t, all, 3)
 	// Pagination still applies.
-	page, total := tb.Search("", "", "", 0, 2)
+	page, total, err := tb.Search(t.Context(), "", "", "", 0, 2)
+	require.NoError(t, err)
 	assert.Equal(t, 3, total)
 	assert.Len(t, page, 2)
 
 	// Trgm search path returns matches (not an empty slice on a query error).
-	hits, htotal := tb.Search("save", "", "", 0, 100)
+	hits, htotal, err := tb.Search(t.Context(), "save", "", "", 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 1, htotal)
 	assert.Len(t, hits, 1)
 }
@@ -173,7 +188,7 @@ func TestPostgresTermBase_IntegrationAddConceptWithStream(t *testing.T) {
 			{Text: "Datei", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConceptWithStream(mainConcept, "main"))
+	require.NoError(t, tb.AddConceptWithStream(t.Context(), mainConcept, "main"))
 
 	featureConcept := termbase.Concept{
 		ID:     "c-feat",
@@ -183,7 +198,7 @@ func TestPostgresTermBase_IntegrationAddConceptWithStream(t *testing.T) {
 			{Text: "Dokument", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConceptWithStream(featureConcept, "feature/rebrand"))
+	require.NoError(t, tb.AddConceptWithStream(t.Context(), featureConcept, "feature/rebrand"))
 
 	wsConcept := termbase.Concept{
 		ID:     "c-ws",
@@ -193,7 +208,7 @@ func TestPostgresTermBase_IntegrationAddConceptWithStream(t *testing.T) {
 			{Text: "Speichern", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConcept(wsConcept))
+	require.NoError(t, tb.AddConcept(t.Context(), wsConcept))
 
 	concepts, total := tb.SearchForStream("", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)

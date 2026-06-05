@@ -79,7 +79,7 @@ func TestReadSimpleDocx(t *testing.T) {
 	parts := readDocx(t, "testdata/simple.docx")
 
 	// Should have layer start, blocks, layer end (nested)
-	require.True(t, len(parts) >= 3, "expected at least 3 parts, got %d", len(parts))
+	require.GreaterOrEqual(t, len(parts), 3, "expected at least 3 parts, got %d", len(parts))
 
 	// First part should be root layer start
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -338,7 +338,7 @@ func TestReaderLayerStructure(t *testing.T) {
 	}
 
 	assert.Equal(t, layerStarts, layerEnds, "layer starts should match layer ends")
-	assert.True(t, layerStarts >= 2, "should have at least root + one XML part layer")
+	assert.GreaterOrEqual(t, layerStarts, 2, "should have at least root + one XML part layer")
 }
 
 func TestReaderNilDocument(t *testing.T) {

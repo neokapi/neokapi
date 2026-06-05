@@ -163,7 +163,11 @@ func (m *MetricsTool) intercept(ctx context.Context, in <-chan *model.Part, out 
 		defer interceptors.Done()
 		for part := range metricsOut {
 			m.metrics.PartsOut.Add(1)
-			out <- part
+			select {
+			case out <- part:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

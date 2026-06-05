@@ -124,11 +124,11 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 				} else if format == "tsv" {
 					opts.Delimiter = '\t'
 				}
-				count, err = termbase.ImportCSV(tb, f, opts)
+				count, err = termbase.ImportCSV(cmd.Context(), tb, f, opts)
 			case "json":
-				count, err = termbase.ImportJSON(tb, f)
+				count, err = termbase.ImportJSON(cmd.Context(), tb, f)
 			case "tbx":
-				count, err = termbase.ImportTBX(tb, f, termbase.TBXImportOptions{
+				count, err = termbase.ImportTBX(cmd.Context(), tb, f, termbase.TBXImportOptions{
 					Domain: domain,
 				})
 			default:
@@ -142,10 +142,14 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 			if a.Quiet {
 				return nil
 			}
+			total, err := tb.Count(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("count terms: %w", err)
+			}
 			return output.Print(cmd, output.TermbaseImportOutput{
 				Imported: count,
 				DBPath:   dbPath,
-				Total:    tb.Count(),
+				Total:    total,
 			})
 		},
 	}
@@ -188,14 +192,14 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 
 			switch strings.ToLower(format) {
 			case "csv":
-				err = termbase.ExportCSV(tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
+				err = termbase.ExportCSV(cmd.Context(), tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
 			case "json":
 				if tbName == "" {
 					tbName = dbPath
 				}
-				err = termbase.ExportJSON(tb, w, tbName)
+				err = termbase.ExportJSON(cmd.Context(), tb, w, tbName)
 			case "tbx":
-				err = termbase.ExportTBX(tb, w, termbase.TBXExportOptions{
+				err = termbase.ExportTBX(cmd.Context(), tb, w, termbase.TBXExportOptions{
 					SourceLocale: model.LocaleID(srcLocale),
 				})
 			default:
@@ -207,8 +211,12 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 			}
 
 			if !a.Quiet && outputPath != "" {
+				total, err := tb.Count(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("count terms: %w", err)
+				}
 				return output.Print(cmd, output.TermbaseExportOutput{
-					Count:      tb.Count(),
+					Count:      total,
 					OutputPath: outputPath,
 				})
 			}
@@ -264,7 +272,10 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 				}
 			}
 
-			matches := tb.Lookup(args[0], opts)
+			matches, err := tb.Lookup(cmd.Context(), args[0], opts)
+			if err != nil {
+				return fmt.Errorf("lookup: %w", err)
+			}
 
 			entries := make([]output.TermbaseLookupEntry, len(matches))
 			for i, m := range matches {
@@ -321,7 +332,10 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 			}
 			defer tb.Close()
 
-			results, total := tb.Search(args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
+			results, total, err := tb.Search(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
+			if err != nil {
+				return fmt.Errorf("search: %w", err)
+			}
 
 			entries := make([]output.TermbaseSearchEntry, len(results))
 			for i, c := range results {
@@ -367,7 +381,10 @@ func (a *App) newTermbaseStatsCmd() *cobra.Command {
 			}
 			defer tb.Close()
 
-			concepts := tb.Concepts()
+			concepts, err := tb.Concepts(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("list concepts: %w", err)
+			}
 			totalTerms := 0
 			locales := make(map[string]int)
 			domains := make(map[string]int)

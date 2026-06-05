@@ -415,9 +415,10 @@ func demoUsage(in, out string) TokenUsage {
 // and expected to be set once at startup before any provider runs.
 var demoNoticeWriter io.Writer = os.Stderr
 
-// demoNoticeOnce ensures the honesty notice is printed at most once per process,
-// regardless of how many demo calls (or providers) are made.
-var demoNoticeOnce sync.Once
+// noticeOnce prints DemoNotice to demoNoticeWriter the first time it is called.
+var noticeOnce = sync.OnceFunc(func() {
+	_, _ = io.WriteString(demoNoticeWriter, DemoNotice+"\n")
+})
 
 // SetDemoNoticeWriter overrides where the one-time demo notice is written. Pass
 // io.Discard to suppress it. Intended for the wasm entrypoint and tests.
@@ -425,11 +426,4 @@ func SetDemoNoticeWriter(w io.Writer) {
 	if w != nil {
 		demoNoticeWriter = w
 	}
-}
-
-// noticeOnce prints DemoNotice to demoNoticeWriter the first time it is called.
-func noticeOnce() {
-	demoNoticeOnce.Do(func() {
-		_, _ = io.WriteString(demoNoticeWriter, DemoNotice+"\n")
-	})
 }

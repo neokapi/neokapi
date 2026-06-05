@@ -70,11 +70,14 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 	}
 
 	// Find all term occurrences in the source text.
-	matches := t.tb.LookupAll(sourceText, LookupOptions{
+	matches, err := t.tb.LookupAll(v.Context(), sourceText, LookupOptions{
 		SourceLocale: t.cfg.SourceLocale,
 		Domains:      t.cfg.Domains,
 		MinScore:     t.cfg.MinScore,
 	})
+	if err != nil {
+		return err
+	}
 
 	if len(matches) == 0 {
 		return nil
@@ -183,12 +186,15 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 	}
 
 	// Find terms in source.
-	matches := t.tb.LookupAll(sourceText, LookupOptions{
+	matches, err := t.tb.LookupAll(v.Context(), sourceText, LookupOptions{
 		SourceLocale:  t.cfg.SourceLocale,
 		CaseSensitive: t.cfg.CaseSensitive,
 		Domains:       t.cfg.Domains,
 		StatusFilter:  t.cfg.CheckStatuses,
 	})
+	if err != nil {
+		return err
+	}
 
 	if len(matches) == 0 {
 		return nil
