@@ -7,7 +7,7 @@ import type { FlowSpec, ToolInfo } from "../types";
 // ---------------------------------------------------------------------------
 
 describe("stepsToGraph — source-transform stage", () => {
-  it("emits source-transform nodes before main nodes (after reader)", () => {
+  it("emits source-transform nodes before main nodes (no reader/writer)", () => {
     const spec: FlowSpec = {
       sourceTransforms: [{ tool: "redact" }],
       steps: [{ tool: "ai-translate" }],
@@ -15,14 +15,13 @@ describe("stepsToGraph — source-transform stage", () => {
 
     const { nodes } = stepsToGraph(spec);
 
-    expect(nodes[0].type).toBe("reader");
+    expect(nodes).toHaveLength(2);
+    expect(nodes[0].type).toBe("tool");
+    expect(nodes[0].data.toolName).toBe("redact");
+    expect(nodes[0].data.stage).toBe("source-transform");
     expect(nodes[1].type).toBe("tool");
-    expect(nodes[1].data.toolName).toBe("redact");
-    expect(nodes[1].data.stage).toBe("source-transform");
-    expect(nodes[2].type).toBe("tool");
-    expect(nodes[2].data.toolName).toBe("ai-translate");
-    expect(nodes[2].data.stage).toBeUndefined();
-    expect(nodes[3].type).toBe("writer");
+    expect(nodes[1].data.toolName).toBe("ai-translate");
+    expect(nodes[1].data.stage).toBeUndefined();
   });
 
   it("assigns tool-0… IDs to source-transform nodes first", () => {
@@ -68,7 +67,7 @@ describe("stepsToGraph — source-transform stage", () => {
     expect(redact.position.x).toBeLessThan(translate.position.x);
   });
 
-  it("edges chain reader → ST nodes → main nodes → writer", () => {
+  it("edges chain ST nodes → main nodes (no reader/writer)", () => {
     const spec: FlowSpec = {
       sourceTransforms: [{ tool: "redact" }],
       steps: [{ tool: "ai-translate" }],
@@ -76,9 +75,8 @@ describe("stepsToGraph — source-transform stage", () => {
 
     const { edges } = stepsToGraph(spec);
 
-    expect(edges[0]).toMatchObject({ source: "reader", target: "tool-0" });
-    expect(edges[1]).toMatchObject({ source: "tool-0", target: "tool-1" });
-    expect(edges[2]).toMatchObject({ source: "tool-1", target: "writer" });
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ source: "tool-0", target: "tool-1" });
   });
 
   it("handles flow with only source-transform steps (no main steps)", () => {
@@ -89,10 +87,9 @@ describe("stepsToGraph — source-transform stage", () => {
 
     const { nodes, edges } = stepsToGraph(spec);
 
-    expect(nodes).toHaveLength(3); // reader + redact + writer
-    expect(nodes[1].data.stage).toBe("source-transform");
-    expect(edges[0]).toMatchObject({ source: "reader", target: "tool-0" });
-    expect(edges[1]).toMatchObject({ source: "tool-0", target: "writer" });
+    expect(nodes).toHaveLength(1); // redact only, no reader/writer
+    expect(nodes[0].data.stage).toBe("source-transform");
+    expect(edges).toHaveLength(0);
   });
 
   it("handles flow with no source-transform steps (backward compat)", () => {

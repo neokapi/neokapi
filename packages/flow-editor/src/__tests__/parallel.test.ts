@@ -18,8 +18,8 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { nodes } = stepsToGraph(spec, undefined, "horizontal");
 
-    // reader + ai-translate + ai-qa + tm-leverage + merge-results + writer = 6 nodes
-    expect(nodes).toHaveLength(6);
+    // ai-translate + ai-qa + tm-leverage + merge-results = 4 tool nodes (no reader/writer)
+    expect(nodes).toHaveLength(4);
 
     const toolNodes = nodes.filter((n) => n.type === "tool");
     expect(toolNodes).toHaveLength(4);
@@ -50,8 +50,8 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { edges } = stepsToGraph(spec);
 
-    // reader → translate, translate → qa, translate → tm, qa → writer, tm → writer = 5
-    expect(edges).toHaveLength(5);
+    // translate → qa, translate → tm = 2 (no reader/writer edges)
+    expect(edges).toHaveLength(2);
 
     // translate fans out to both qa and tm
     const fanOutEdges = edges.filter((e) => e.source === "tool-0");
@@ -93,13 +93,9 @@ describe("stepsToGraph with parallel branches", () => {
     const toolNodes = nodes.filter((n) => n.type === "tool");
     expect(toolNodes).toHaveLength(3);
 
-    // All three should fan out from reader
-    const fromReader = edges.filter((e) => e.source === "reader");
-    expect(fromReader).toHaveLength(3);
-
-    // All three should merge to writer
-    const toWriter = edges.filter((e) => e.target === "writer");
-    expect(toWriter).toHaveLength(3);
+    // A lone parallel group has no preceding or following node, so there are no
+    // fan-out or merge edges — the three branches are all entry and exit points.
+    expect(edges).toHaveLength(0);
   });
 
   it("preserves labels and configs in parallel branches", () => {

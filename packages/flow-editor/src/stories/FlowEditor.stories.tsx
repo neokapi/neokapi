@@ -218,6 +218,48 @@ export const SingleStep: Story = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// I/O binding (endpoint picker) stories — a flow owns no I/O; source/sink are
+// fixed endpoint terminals, not nodes (AD-026).
+// ---------------------------------------------------------------------------
+
+export const InterchangeSource: Story = {
+  name: "Binding: Interchange → Files",
+  args: {
+    flow: {
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      // Wire-format string locators: `xliff` parses to an interchange binding;
+      // `file` is the default, so the sink is simply omitted.
+      source: "xliff",
+    },
+    tools,
+  },
+};
+
+export const StoreToStore: Story = {
+  name: "Binding: Store → Store",
+  args: {
+    flow: {
+      steps: [{ tool: "ai-translate" }],
+      source: "store",
+      sink: "store",
+    },
+    tools,
+  },
+};
+
+export const NoSinkBinding: Story = {
+  name: "Binding: Files → None (annotate in place)",
+  args: {
+    flow: {
+      steps: [{ tool: "qa-check" }],
+      // Files is the default source (omitted); sink `none` = annotate in place.
+      sink: "none",
+    },
+    tools,
+  },
+};
+
 export const MultiStep: Story = {
   args: {
     flow: {

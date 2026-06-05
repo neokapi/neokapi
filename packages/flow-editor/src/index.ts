@@ -5,9 +5,8 @@ export type { FlowTemplate } from "./templates";
 export { ToolPalette } from "./ToolPalette";
 export { stepsToGraph, graphToSteps } from "./conversion";
 export type { LayoutDirection } from "./conversion";
-export { defToSpec, specToDef } from "./defAdapter";
-export { ReaderNode } from "./nodes/ReaderNode";
-export { WriterNode } from "./nodes/WriterNode";
+export { defToSpec, specToDef, parseBinding, formatBinding } from "./defAdapter";
+export { SourcePicker, SinkPicker } from "./nodes/EndpointPicker";
 export { ToolNode } from "./nodes/ToolNode";
 export { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "./category";
 export { suggestParallelGroups, isCategoryParallelizable } from "./parallelChecker";
@@ -32,6 +31,8 @@ export type {
   FlowDefinitionInfo,
   FlowNodeInfo,
   FlowEdgeInfo,
+  FlowBinding,
+  FlowBindingKind,
   ToolInfo,
   ToolCategory,
   ComponentSchema,

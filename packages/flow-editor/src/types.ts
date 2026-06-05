@@ -6,12 +6,45 @@ export interface FlowDefinitionInfo {
   description?: string;
   nodes: FlowNodeInfo[];
   edges: FlowEdgeInfo[];
+  /** Provenance of the flow definition (built-in, user, or project). */
   source: "built-in" | "user" | "project";
+  /**
+   * Where content enters/leaves the flow, as wire-format string *locators*
+   * (AD-026). Nested under `binding` because `source` on the definition is
+   * already the provenance field. Each value is a string: `file` | `store` |
+   * `none`, or an interchange format id (`xliff` | `po` | `tmx` | `tbx`).
+   * Omitted = file binding (the default). Parse/format via the codecs in
+   * defAdapter.ts (`parseBinding` / `formatBinding`).
+   */
+  binding?: { source?: string; sink?: string };
+}
+
+/**
+ * A flow I/O binding (AD-026) — the *internal* UI representation. A flow owns
+ * no I/O; reader/writer are no longer graph nodes. Where content enters (source)
+ * and leaves (sink) is expressed as a binding alongside the steps spec, not as a
+ * node.
+ *
+ * On the wire this is a string locator (see `FlowSpec.source` / `sink` and
+ * `FlowDefinitionInfo.binding`); the editor parses it into this object for the
+ * endpoint pickers and serializes it back. Kinds:
+ *  - `file`        — read/write the project's files (the default when omitted)
+ *  - `store`       — read/write the content store
+ *  - `interchange` — read/write a bilingual interchange format (xliff, po, …);
+ *                    `format` names which one
+ *  - `none`        — no binding (e.g. a flow that only annotates in place)
+ */
+export type FlowBindingKind = "file" | "store" | "interchange" | "none";
+
+export interface FlowBinding {
+  kind: FlowBindingKind;
+  /** Interchange format id (e.g. "xliff", "po") — only when kind is "interchange". */
+  format?: string;
 }
 
 export interface FlowNodeInfo {
   id: string;
-  type: "tool" | "reader" | "writer";
+  type: "tool";
   name: string;
   label?: string;
   config?: Record<string, unknown>;
@@ -60,6 +93,18 @@ export interface FlowSpec {
   /** Leading tools that rewrite the source/model before the main steps run. */
   sourceTransforms?: FlowStep[];
   steps: FlowStep[];
+  /**
+   * Where content enters the flow, as a wire-format string locator (AD-026). A
+   * flow owns no I/O; this names the input: `file` | `store` | `none`, or an
+   * interchange format id (`xliff` | `po` | `tmx` | `tbx`). Omitted = `file`
+   * (the default). Parse/format via `parseBinding` / `formatBinding`.
+   */
+  source?: string;
+  /**
+   * Where content leaves the flow, as a wire-format string locator (AD-026).
+   * Same value space as `source`. Omitted = `file` (the default).
+   */
+  sink?: string;
 }
 
 // ─── Schema Language Types ─────────────────────────────────────────────────

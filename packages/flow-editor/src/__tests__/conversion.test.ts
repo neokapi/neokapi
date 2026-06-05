@@ -3,24 +3,20 @@ import { stepsToGraph, graphToSteps } from "../conversion";
 import type { FlowSpec, ToolInfo } from "../types";
 
 describe("stepsToGraph", () => {
-  it("converts single-step flow to reader → tool → writer", () => {
+  it("converts single-step flow to a single tool node with no I/O nodes", () => {
     const spec: FlowSpec = {
       steps: [{ tool: "ai-translate" }],
     };
 
     const { nodes, edges } = stepsToGraph(spec);
 
-    expect(nodes).toHaveLength(3);
-    expect(nodes[0].type).toBe("reader");
-    expect(nodes[1].type).toBe("tool");
-    expect(nodes[1].data.toolName).toBe("ai-translate");
-    expect(nodes[2].type).toBe("writer");
+    // A flow owns no I/O (AD-026): tool nodes only, no reader/writer.
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type).toBe("tool");
+    expect(nodes[0].data.toolName).toBe("ai-translate");
 
-    expect(edges).toHaveLength(2);
-    expect(edges[0].source).toBe("reader");
-    expect(edges[0].target).toBe("tool-0");
-    expect(edges[1].source).toBe("tool-0");
-    expect(edges[1].target).toBe("writer");
+    // The single tool has no incoming/outgoing edge (it is both first and last).
+    expect(edges).toHaveLength(0);
   });
 
   it("converts multi-step flow with correct chaining", () => {
@@ -30,13 +26,28 @@ describe("stepsToGraph", () => {
 
     const { nodes, edges } = stepsToGraph(spec);
 
-    expect(nodes).toHaveLength(5); // reader + 3 tools + writer
-    expect(edges).toHaveLength(4); // reader→t0, t0→t1, t1→t2, t2→writer
+    expect(nodes).toHaveLength(3); // 3 tools, no reader/writer
+    expect(edges).toHaveLength(2); // t0→t1, t1→t2
 
-    expect(edges[0]).toMatchObject({ id: "e-reader-tool-0", source: "reader", target: "tool-0" });
-    expect(edges[1]).toMatchObject({ id: "e-tool-0-tool-1", source: "tool-0", target: "tool-1" });
-    expect(edges[2]).toMatchObject({ id: "e-tool-1-tool-2", source: "tool-1", target: "tool-2" });
-    expect(edges[3]).toMatchObject({ id: "e-tool-2-writer", source: "tool-2", target: "writer" });
+    expect(edges[0]).toMatchObject({ id: "e-tool-0-tool-1", source: "tool-0", target: "tool-1" });
+    expect(edges[1]).toMatchObject({ id: "e-tool-1-tool-2", source: "tool-1", target: "tool-2" });
+  });
+
+  it("carries source/sink binding locators through graphToSteps", () => {
+    const spec: FlowSpec = {
+      steps: [{ tool: "ai-translate" }],
+      source: "xliff",
+      sink: "store",
+    };
+
+    const { nodes } = stepsToGraph(spec);
+    const result = graphToSteps(nodes, "vertical", {
+      source: spec.source,
+      sink: spec.sink,
+    });
+
+    expect(result.source).toBe("xliff");
+    expect(result.sink).toBe("store");
   });
 
   it("auto-layouts nodes left to right in horizontal mode", () => {
@@ -73,12 +84,10 @@ describe("stepsToGraph", () => {
     expect(toolNode.data.config).toEqual({ provider: "anthropic" });
   });
 
-  it("handles empty steps (just reader → writer)", () => {
+  it("handles empty steps (no nodes, no edges)", () => {
     const { nodes, edges } = stepsToGraph({ steps: [] });
-    expect(nodes).toHaveLength(2);
-    expect(nodes[0].type).toBe("reader");
-    expect(nodes[1].type).toBe("writer");
-    expect(edges).toHaveLength(1);
+    expect(nodes).toHaveLength(0);
+    expect(edges).toHaveLength(0);
   });
 
   it("enriches tool nodes with category and description from toolMap", () => {
@@ -160,8 +169,9 @@ describe("graphToSteps", () => {
     expect(result.steps[1].tool).toBe("qa-check");
   });
 
-  it("ignores reader and writer nodes", () => {
+  it("reconstructs steps from tool nodes only", () => {
     const { nodes } = stepsToGraph({ steps: [{ tool: "x" }] });
+    expect(nodes.every((n) => n.type === "tool")).toBe(true);
     const result = graphToSteps(nodes);
     expect(result.steps).toHaveLength(1);
     expect(result.steps[0].tool).toBe("x");

@@ -69,12 +69,18 @@ function makeToolNodeData(
 /**
  * Convert a steps-based FlowSpec into React Flow nodes and edges with auto-layout.
  *
- * Sequential steps produce a chain: reader → tool1 → tool2 → writer
+ * A flow is composition only and owns no I/O (AD-026): reader and writer are no
+ * longer graph nodes. The graph contains tool nodes only — the first tool(s)
+ * have no incoming edge and the last no outgoing edge. Where content enters and
+ * leaves is a binding (`spec.source` / `spec.sink`) rendered as fixed endpoint
+ * pickers by the editor, not as nodes.
+ *
+ * Sequential steps produce a chain: tool1 → tool2 → tool3
  * Parallel steps produce fan-out/merge: prev → [branchA, branchB] → next
  *
- * Source-transform steps are emitted first (after the reader, before the main
- * steps) and carry `stage: "source-transform"` on their node data so the UI
- * can render them with a distinct visual treatment.
+ * Source-transform steps are emitted first (before the main steps) and carry
+ * `stage: "source-transform"` on their node data so the UI can render them with
+ * a distinct visual treatment.
  */
 export function stepsToGraph(
   spec: FlowSpec,
@@ -91,16 +97,9 @@ export function stepsToGraph(
   const pos = (main: number, cross: number) =>
     isVertical ? { x: cross, y: main } : { x: main, y: cross };
 
-  // Reader node
-  nodes.push({
-    id: "reader",
-    type: "reader",
-    position: pos(primary, CENTER),
-    data: { label: "Input", formatName: "auto" },
-  });
-  primary += NODE_SIZE + NODE_GAP;
-
-  let prevIds = ["reader"];
+  // No reader node: the first tool(s) are the entry point. `prevIds` starts empty
+  // so the leading tools get no incoming edge.
+  let prevIds: string[] = [];
 
   // --- Source-transform stage (leading, before main steps) ---
   (spec.sourceTransforms ?? []).forEach((step, stIndex) => {
@@ -197,17 +196,8 @@ export function stepsToGraph(
     }
   });
 
-  // Writer node
-  nodes.push({
-    id: "writer",
-    type: "writer",
-    position: pos(primary, CENTER),
-    data: { label: "Output", formatName: "auto" },
-  });
-  for (const prev of prevIds) {
-    const prevNode = nodes.find((n) => n.id === prev);
-    edges.push(makeEdge(prev, "writer", partLabel(prevNode?.data.outputs as string[] | undefined)));
-  }
+  // No writer node: the last tool(s) are the exit point and get no outgoing edge.
+  // `prevIds` is intentionally left dangling.
 
   // Inject layout direction into all nodes so handles render correctly.
   for (const node of nodes) {
@@ -225,15 +215,28 @@ export function stepsToGraph(
  *
  * Nodes whose `data.stage` is "source-transform" are collected into
  * `spec.sourceTransforms` (in primary-axis order); the rest become `spec.steps`.
+ *
+ * The graph holds tool nodes only; the `source` / `sink` bindings are not nodes,
+ * so the caller passes them via `bindings` to carry them through unchanged.
  */
-export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertical"): FlowSpec {
+export function graphToSteps(
+  nodes: Node[],
+  direction: LayoutDirection = "vertical",
+  bindings?: { source?: string; sink?: string },
+): FlowSpec {
+  const withBindings = (spec: FlowSpec): FlowSpec => {
+    if (bindings?.source) spec.source = bindings.source;
+    if (bindings?.sink) spec.sink = bindings.sink;
+    return spec;
+  };
+
   const isVertical = direction === "vertical";
   const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
   const cross = (n: Node) => (isVertical ? n.position.x : n.position.y);
 
   const toolNodes = nodes.filter((n) => n.type === "tool").sort((a, b) => primary(a) - primary(b));
 
-  if (toolNodes.length === 0) return { steps: [] };
+  if (toolNodes.length === 0) return withBindings({ steps: [] });
 
   // Partition into source-transform nodes and main nodes.
   const stNodes = toolNodes.filter((n) => n.data.stage === "source-transform");
@@ -249,7 +252,7 @@ export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertic
   if (mainNodes.length === 0) {
     const result: FlowSpec = { steps: [] };
     if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
-    return result;
+    return withBindings(result);
   }
 
   // Group main nodes by primary-axis position (with tolerance for layout jitter).
@@ -293,5 +296,5 @@ export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertic
 
   const result: FlowSpec = { steps };
   if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
-  return result;
+  return withBindings(result);
 }

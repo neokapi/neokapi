@@ -38,8 +38,9 @@ describe("FLOW_TEMPLATES", () => {
   it("all templates produce valid graphs", () => {
     for (const t of FLOW_TEMPLATES) {
       const { nodes, edges } = stepsToGraph(t.spec);
-      // At minimum: reader + writer = 2 nodes
-      expect(nodes.length).toBeGreaterThanOrEqual(2);
+      // Tool nodes only (a flow owns no I/O); every template has at least one step.
+      expect(nodes.length).toBeGreaterThanOrEqual(1);
+      expect(nodes.every((n) => n.type === "tool")).toBe(true);
       // All edges reference existing node IDs
       const nodeIds = new Set(nodes.map((n) => n.id));
       for (const e of edges) {

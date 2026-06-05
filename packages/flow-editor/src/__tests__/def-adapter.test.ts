@@ -1,6 +1,62 @@
 import { describe, it, expect } from "vitest";
-import { defToSpec, specToDef } from "../defAdapter";
+import { defToSpec, specToDef, parseBinding, formatBinding } from "../defAdapter";
 import type { FlowDefinitionInfo, ToolInfo } from "../types";
+
+describe("parseBinding (wire locator → internal FlowBinding)", () => {
+  it("maps file/store/none kinds", () => {
+    expect(parseBinding("file")).toEqual({ kind: "file" });
+    expect(parseBinding("store")).toEqual({ kind: "store" });
+    expect(parseBinding("none")).toEqual({ kind: "none" });
+  });
+
+  it("maps interchange format locators to interchange bindings", () => {
+    expect(parseBinding("xliff")).toEqual({ kind: "interchange", format: "xliff" });
+    expect(parseBinding("po")).toEqual({ kind: "interchange", format: "po" });
+    expect(parseBinding("tmx")).toEqual({ kind: "interchange", format: "tmx" });
+    expect(parseBinding("tbx")).toEqual({ kind: "interchange", format: "tbx" });
+  });
+
+  it("defaults to file for omitted / empty / unknown locators", () => {
+    expect(parseBinding(undefined)).toEqual({ kind: "file" });
+    expect(parseBinding(null)).toEqual({ kind: "file" });
+    expect(parseBinding("")).toEqual({ kind: "file" });
+    expect(parseBinding("bogus")).toEqual({ kind: "file" });
+  });
+
+  it("is case-insensitive and trims whitespace", () => {
+    expect(parseBinding(" XLIFF ")).toEqual({ kind: "interchange", format: "xliff" });
+    expect(parseBinding("Store")).toEqual({ kind: "store" });
+  });
+});
+
+describe("formatBinding (internal FlowBinding → wire locator)", () => {
+  it("omits the file default (returns undefined)", () => {
+    expect(formatBinding({ kind: "file" })).toBeUndefined();
+    expect(formatBinding(undefined)).toBeUndefined();
+    expect(formatBinding(null)).toBeUndefined();
+  });
+
+  it("serializes store/none kinds", () => {
+    expect(formatBinding({ kind: "store" })).toBe("store");
+    expect(formatBinding({ kind: "none" })).toBe("none");
+  });
+
+  it("serializes interchange bindings as their format id", () => {
+    expect(formatBinding({ kind: "interchange", format: "xliff" })).toBe("xliff");
+    expect(formatBinding({ kind: "interchange", format: "po" })).toBe("po");
+  });
+
+  it("degrades a malformed interchange binding to the file default", () => {
+    expect(formatBinding({ kind: "interchange" })).toBeUndefined();
+    expect(formatBinding({ kind: "interchange", format: "weird" })).toBeUndefined();
+  });
+
+  it("round-trips through parseBinding for every non-default locator", () => {
+    for (const locator of ["store", "none", "xliff", "po", "tmx", "tbx"]) {
+      expect(formatBinding(parseBinding(locator))).toBe(locator);
+    }
+  });
+});
 
 const tools: ToolInfo[] = [
   { name: "ai-translate", description: "Translate with AI", category: "translate" },
@@ -18,14 +74,13 @@ const tools: ToolInfo[] = [
 const base = { id: "f1", name: "My Flow", source: "user" as const };
 
 describe("defToSpec", () => {
-  it("converts a reader → tool → writer definition into a single-step spec", () => {
+  it("converts a tool-only definition into a single-step spec", () => {
     const def: FlowDefinitionInfo = {
       id: "ai-translate",
       name: "AI Translate",
       description: "Translate content",
       source: "built-in",
       nodes: [
-        { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
         {
           id: "ai-translate",
           type: "tool",
@@ -33,18 +88,8 @@ describe("defToSpec", () => {
           label: "AI Translate",
           position: { x: 250, y: 100 },
         },
-        {
-          id: "writer",
-          type: "writer",
-          name: "auto",
-          label: "Output",
-          position: { x: 500, y: 100 },
-        },
       ],
-      edges: [
-        { id: "e1", source: "reader", target: "ai-translate" },
-        { id: "e2", source: "ai-translate", target: "writer" },
-      ],
+      edges: [],
     };
 
     const spec = defToSpec(def, "horizontal");
@@ -60,7 +105,6 @@ describe("defToSpec", () => {
       name: "Secure Translate",
       source: "built-in",
       nodes: [
-        { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
         {
           id: "redact",
           type: "tool",
@@ -75,13 +119,6 @@ describe("defToSpec", () => {
           name: "ai-translate",
           label: "AI Translate",
           position: { x: 500, y: 100 },
-        },
-        {
-          id: "writer",
-          type: "writer",
-          name: "auto",
-          label: "Output",
-          position: { x: 750, y: 100 },
         },
       ],
       edges: [],
@@ -100,7 +137,6 @@ describe("defToSpec", () => {
       name: "f",
       source: "user",
       nodes: [
-        { id: "reader", type: "reader", name: "auto", position: { x: 0, y: 0 } },
         {
           id: "t",
           type: "tool",
@@ -108,30 +144,46 @@ describe("defToSpec", () => {
           config: { provider: "anthropic", model: "claude" },
           position: { x: 250, y: 0 },
         },
-        { id: "writer", type: "writer", name: "auto", position: { x: 500, y: 0 } },
       ],
       edges: [],
     };
     const spec = defToSpec(def, "horizontal");
     expect(spec.steps[0].config).toEqual({ provider: "anthropic", model: "claude" });
   });
+
+  it("carries the I/O binding (string locators) through to spec.source / spec.sink", () => {
+    const def: FlowDefinitionInfo = {
+      id: "f",
+      name: "f",
+      source: "user",
+      // Wire format: nested binding with string locators.
+      binding: {
+        source: "xliff",
+        sink: "store",
+      },
+      nodes: [{ id: "t", type: "tool", name: "ai-translate", position: { x: 0, y: 0 } }],
+      edges: [],
+    };
+    const spec = defToSpec(def, "horizontal");
+    // Steps spec uses the same flat string locators.
+    expect(spec.source).toBe("xliff");
+    expect(spec.sink).toBe("store");
+  });
 });
 
 describe("specToDef", () => {
-  it("produces reader/tool/writer nodes with auto reader+writer names", () => {
+  it("produces tool-only nodes (no reader/writer)", () => {
     const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools, "horizontal");
     expect(def.id).toBe("f1");
     expect(def.name).toBe("My Flow");
     expect(def.source).toBe("user");
 
-    const reader = def.nodes.find((n) => n.type === "reader")!;
-    const writer = def.nodes.find((n) => n.type === "writer")!;
-    expect(reader.name).toBe("auto");
-    expect(writer.name).toBe("auto");
-
-    const tool = def.nodes.find((n) => n.type === "tool")!;
-    expect(tool.name).toBe("ai-translate");
-    expect(def.edges.length).toBeGreaterThanOrEqual(2);
+    // A flow owns no I/O (AD-026): every node is a tool node.
+    expect(def.nodes.every((n) => n.type === "tool")).toBe(true);
+    expect(def.nodes).toHaveLength(1);
+    expect(def.nodes[0].name).toBe("ai-translate");
+    // A single tool is both entry and exit, so no edges.
+    expect(def.edges).toHaveLength(0);
   });
 
   it("marks source-transform tool nodes with stage", () => {
@@ -146,6 +198,28 @@ describe("specToDef", () => {
     const aiTranslate = def.nodes.find((n) => n.name === "ai-translate")!;
     expect(aiTranslate.stage).toBeUndefined();
   });
+
+  it("carries spec.source / spec.sink (string locators) onto def.binding", () => {
+    const def = specToDef(
+      {
+        steps: [{ tool: "ai-translate" }],
+        source: "po",
+        sink: "none",
+      },
+      base,
+      tools,
+      "horizontal",
+    );
+    expect(def.binding).toEqual({
+      source: "po",
+      sink: "none",
+    });
+  });
+
+  it("omits def.binding when the spec has no source/sink", () => {
+    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools, "horizontal");
+    expect(def.binding).toBeUndefined();
+  });
 });
 
 describe("round-trip def → spec → def", () => {
@@ -156,7 +230,6 @@ describe("round-trip def → spec → def", () => {
       description: "Redact then translate",
       source: "user",
       nodes: [
-        { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
         {
           id: "tool-0",
           type: "tool",
@@ -178,13 +251,6 @@ describe("round-trip def → spec → def", () => {
           name: "unredact",
           label: "Unredact",
           position: { x: 750, y: 100 },
-        },
-        {
-          id: "writer",
-          type: "writer",
-          name: "auto",
-          label: "Output",
-          position: { x: 1000, y: 100 },
         },
       ],
       edges: [],

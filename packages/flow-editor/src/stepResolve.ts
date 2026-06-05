@@ -36,8 +36,8 @@ function asIndex(value: unknown): number | undefined {
 /**
  * Resolve the FlowSpec location of a node from its `data`.
  *
- * Returns null when the node carries no resolvable index (e.g. a reader/writer
- * node, or stale data). Operate on the returned `index`/`branchIndex` — never
+ * Returns null when the node carries no resolvable index (e.g. stale data, or a
+ * node not produced by stepsToGraph). Operate on the returned `index`/`branchIndex` — never
  * on tool name — so duplicate tools and parallel branches stay distinct.
  */
 export function resolveStepLocation(data: NodeStepData | null | undefined): StepLocation | null {

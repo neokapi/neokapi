@@ -25,9 +25,16 @@ import {
 } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
-import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
-import { ReaderNode } from "./nodes/ReaderNode";
-import { WriterNode } from "./nodes/WriterNode";
+import type {
+  FlowEditorProps,
+  FlowSpec,
+  FlowStep,
+  FlowBinding,
+  ToolInfo,
+  ComponentSchema,
+} from "./types";
+import { SourcePicker, SinkPicker } from "./nodes/EndpointPicker";
+import { parseBinding, formatBinding } from "./defAdapter";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
@@ -49,8 +56,6 @@ import { computeNodeStats } from "./traceTypes";
 import type { ToolDoc, ToolDocParam } from "./types";
 
 const nodeTypes: NodeTypes = {
-  reader: ReaderNode,
-  writer: WriterNode,
   tool: ToolNode,
 };
 
@@ -721,11 +726,43 @@ export function FlowEditor({
     e.dataTransfer.dropEffect = "copy";
   }, []);
 
-  // Sync graph changes back to steps format on drag end.
+  // Sync graph changes back to steps format on drag end. The source/sink
+  // bindings are not nodes, so carry them through unchanged.
   const handleNodeDragStop = useCallback(() => {
-    const updated = graphToSteps(nodes, layoutDirection);
+    const updated = graphToSteps(nodes, layoutDirection, {
+      source: flow.source,
+      sink: flow.sink,
+    });
     onChange(updated);
-  }, [nodes, onChange, layoutDirection]);
+  }, [nodes, onChange, layoutDirection, flow.source, flow.sink]);
+
+  // Update a source/sink binding (from the endpoint pickers). The pickers work
+  // in the internal FlowBinding object; serialize it to the wire-format string
+  // locator (`file` → omitted, the default). Spreading then deleting keeps the
+  // file default out of the spec entirely.
+  const handleSourceChange = useCallback(
+    (binding: FlowBinding) => {
+      if (readOnly) return;
+      const locator = formatBinding(binding);
+      const next: FlowSpec = { ...flow };
+      if (locator) next.source = locator;
+      else delete next.source;
+      onChange(next);
+    },
+    [flow, onChange, readOnly],
+  );
+
+  const handleSinkChange = useCallback(
+    (binding: FlowBinding) => {
+      if (readOnly) return;
+      const locator = formatBinding(binding);
+      const next: FlowSpec = { ...flow };
+      if (locator) next.sink = locator;
+      else delete next.sink;
+      onChange(next);
+    },
+    [flow, onChange, readOnly],
+  );
 
   // Connection validation -- only allow connecting compatible port types.
   const isValidConnection = useCallback(
@@ -874,6 +911,27 @@ export function FlowEditor({
                 size={1}
                 color="var(--border)"
               />
+
+              {/* Fixed Source endpoint terminal — pinned before the tool chain.
+                  Top for vertical layout, left for horizontal. */}
+              <Panel position={layoutDirection === "vertical" ? "top-center" : "top-left"}>
+                <SourcePicker
+                  binding={parseBinding(flow.source)}
+                  onChange={handleSourceChange}
+                  readOnly={readOnly}
+                />
+              </Panel>
+
+              {/* Fixed Sink endpoint terminal — pinned after the tool chain.
+                  Bottom for vertical layout, right for horizontal. */}
+              <Panel position={layoutDirection === "vertical" ? "bottom-center" : "bottom-right"}>
+                <SinkPicker
+                  binding={parseBinding(flow.sink)}
+                  onChange={handleSinkChange}
+                  readOnly={readOnly}
+                />
+              </Panel>
+
               <Panel position="bottom-left">
                 <Button
                   variant="outline"

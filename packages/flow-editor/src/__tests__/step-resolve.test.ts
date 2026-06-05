@@ -72,7 +72,7 @@ describe("stepsToGraph carries step identity on node data", () => {
 });
 
 describe("resolveStepLocation", () => {
-  it("returns null for reader/writer/empty data", () => {
+  it("returns null for nodes with no resolvable index / empty data", () => {
     expect(resolveStepLocation(undefined)).toBeNull();
     expect(resolveStepLocation({ toolName: "x" })).toBeNull();
   });
