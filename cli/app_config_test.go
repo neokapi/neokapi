@@ -29,7 +29,7 @@ formats:
 	require.NoError(t, os.WriteFile(cfgPath, []byte(cfgBody), 0o644))
 
 	a := &App{CfgFile: cfgPath}
-	a.Init()
+	require.NoError(t, a.Init())
 
 	// Raw value from the explicit file is loaded.
 	assert.Equal(t, "fr-FR", a.Config.GetString("language"),
@@ -60,7 +60,7 @@ func TestInitIgnoresSearchPathWhenCfgFileSet(t *testing.T) {
 	require.NoError(t, os.WriteFile(cfgPath, []byte("language: ja-JP\n"), 0o644))
 
 	a := &App{CfgFile: cfgPath}
-	a.Init()
+	require.NoError(t, a.Init())
 
 	assert.Equal(t, "ja-JP", a.Config.GetString("language"),
 		"explicit --config file should win over the search-path config")
@@ -79,7 +79,7 @@ func TestInitWithoutCfgFileUsesSearchPath(t *testing.T) {
 		[]byte("language: es-ES\n"), 0o644))
 
 	a := &App{} // no CfgFile
-	a.Init()
+	require.NoError(t, a.Init())
 
 	assert.Equal(t, "es-ES", a.Config.GetString("language"),
 		"search-path config should still load when no --config is set")

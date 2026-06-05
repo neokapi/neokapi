@@ -37,7 +37,7 @@ func canonicalDiff(want, got []CanonicalPart) string {
 		if len(got) > n {
 			n = len(got)
 		}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			var w, g string
 			if i < len(want) {
 				w = canonicalLine(want[i])
@@ -189,7 +189,7 @@ func firstDiff(a, b []byte) string {
 	if len(b) < n {
 		n = len(b)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if a[i] != b[i] {
 			lo := max(i-8, 0)
 			hi := min(i+24, n)

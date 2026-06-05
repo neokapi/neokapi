@@ -22,7 +22,7 @@ import (
 // dashboard's per-filter status reflects the latest run.
 func TestParityFormats(t *testing.T) {
 	for _, spec := range formatSpecs {
-		spec := spec
+
 		t.Run(strings.TrimPrefix(spec.ID, "okf_"), func(t *testing.T) {
 			runFormatSpec(t, spec)
 		})
@@ -53,7 +53,7 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 	}
 
 	for _, in := range spec.Inputs {
-		in := in
+
 		t.Run(in.Name, func(t *testing.T) {
 			// When the fixture is tagged with a Java test ref, emit a
 			// per-fixture parity row so the contract-audit dashboard
@@ -77,7 +77,7 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 			}
 			bridgeReq := parity.BridgeRequest{
 				FilterClass:  bridgeClass(spec),
-				ConfigId:     spec.ConfigId,
+				ConfigID:     spec.ConfigID,
 				InputBytes:   in.Content,
 				MimeType:     spec.MimeType,
 				FilterParams: parity.StringifyParams(spec.Params),
@@ -193,7 +193,7 @@ func runTikalSpec(t *testing.T, spec FormatSpec) {
 			return
 		}
 		for _, in := range spec.Inputs {
-			in := in
+
 			// Tikal is a filter-level signal too; skip the
 			// Informational fixtures for the same reason as
 			// runRoundTripSpec.
@@ -242,7 +242,7 @@ func runRoundTripSpec(t *testing.T, spec FormatSpec) {
 			return
 		}
 		for _, in := range spec.Inputs {
-			in := in
+
 			// Round-trip is a filter-level signal, so skip the
 			// auto-generated Informational fixtures here — they exist
 			// to surface per-test read-parity divergence and would
@@ -262,7 +262,7 @@ func runRoundTripSpec(t *testing.T, spec FormatSpec) {
 				})
 				bridge := parity.RunBridgeRoundTrip(t, parity.BridgeRequest{
 					FilterClass:  bridgeClass(spec),
-					ConfigId:     spec.ConfigId,
+					ConfigID:     spec.ConfigID,
 					InputBytes:   in.Content,
 					MimeType:     spec.MimeType,
 					FilterParams: parity.StringifyParams(spec.Params),

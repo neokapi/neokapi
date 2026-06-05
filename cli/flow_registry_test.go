@@ -44,7 +44,7 @@ func TestBuiltinComposedFlows_OnlyMultiTool(t *testing.T) {
 func TestBuiltinComposedFlowNames_MatchesComposedFlows(t *testing.T) {
 	names := builtinComposedFlowNames()
 	composed := builtinComposedFlows()
-	assert.Equal(t, len(composed), len(names))
+	assert.Len(t, names, len(composed))
 	for _, cf := range composed {
 		assert.True(t, names[cf.Name], "composed flow %q should be in names map", cf.Name)
 	}

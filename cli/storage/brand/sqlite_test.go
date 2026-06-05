@@ -164,7 +164,7 @@ func TestScoreStorage(t *testing.T) {
 	// No scores for different locale
 	scores, err = store.GetScores(ctx, "proj1", "fr-FR")
 	require.NoError(t, err)
-	assert.Len(t, scores, 0)
+	assert.Empty(t, scores)
 }
 
 // TestScoreLocaleNormalization verifies scores are stored and queried under the
@@ -297,7 +297,7 @@ func TestProfileTags(t *testing.T) {
 	require.NoError(t, store.DeleteProfileTag(ctx, "p1", "v1-release"))
 	tags, err = store.ListProfileTags(ctx, "p1")
 	require.NoError(t, err)
-	assert.Len(t, tags, 0)
+	assert.Empty(t, tags)
 
 	// Delete nonexistent tag.
 	require.Error(t, store.DeleteProfileTag(ctx, "p1", "nonexistent"))
@@ -406,7 +406,7 @@ func TestCorrectionStorage(t *testing.T) {
 	// With higher threshold: no results
 	rules, err = store.GetSuggestedRules(ctx, "ws1", 5)
 	require.NoError(t, err)
-	assert.Len(t, rules, 0)
+	assert.Empty(t, rules)
 }
 
 func TestRuleDecisions(t *testing.T) {

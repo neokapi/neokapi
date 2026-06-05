@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -276,7 +277,7 @@ func collapseBlockquoteMarkers(s string) string {
 done:
 	rest := s[i:]
 	var b strings.Builder
-	for k := 0; k < depth; k++ {
+	for k := range depth {
 		b.WriteByte('>')
 		if k < depth-1 {
 			b.WriteByte(' ')
@@ -636,7 +637,7 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 	preserveWSElement := n.StripIDMLACEPIs || n.MergeAdjacentCSRs
 	for {
 		tok, err := dec.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -1062,11 +1063,6 @@ func buildXMLNode(tokens []xml.Token, idx *int, topLevel bool) *xmlNode {
 			node.children = append(node.children, xmlChild{raw: tok})
 			*idx++
 		}
-	}
-	if !topLevel {
-		// Stream ended mid-element — return what we have. The encoder
-		// will fail on an unbalanced End anyway, so signalling via the
-		// returned node is enough.
 	}
 	return node
 }
@@ -1576,7 +1572,7 @@ func normalizeAttrValue(v string) string {
 		return v
 	}
 	out := make([]byte, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		c := v[i]
 		if c == '\r' || c == '\n' || c == '\t' {
 			out[i] = ' '
@@ -1641,7 +1637,7 @@ func (YAMLCanonical) Normalize(in []byte) ([]byte, error) {
 	for {
 		var v any
 		if err := dec.Decode(&v); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("yaml-canonical: parse: %w", err)
@@ -2044,7 +2040,7 @@ func stripEscapedMetaText(s string) string {
 // for ASCII letters and accepts the common pseudo-translation
 // substitutions for M/E/T/A.
 func indexEscapedMetaTag(s string) int {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] != '<' {
 			continue
 		}
@@ -2537,7 +2533,7 @@ func canonicalizeDTDBody(body string, entities map[string]string) string {
 	// other (rare in practice; bound to 8 passes to avoid infinite
 	// loops on cycles).
 	if len(entities) > 0 {
-		for pass := 0; pass < 8; pass++ {
+		for range 8 {
 			expanded := paramEntitySubst(body, entities)
 			if expanded == body {
 				break
@@ -2554,7 +2550,7 @@ func canonicalizeDTDBody(body string, entities map[string]string) string {
 	// Collapse whitespace runs to single space.
 	var b strings.Builder
 	prevWS := false
-	for i := 0; i < len(body); i++ {
+	for i := range len(body) {
 		c := body[i]
 		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
 			if !prevWS {
@@ -2630,7 +2626,7 @@ func foldDTDQuotes(s string) string {
 // DTDCanonical to normalise content-model spacing.
 func stripDTDDelimWS(s string) string {
 	var b strings.Builder
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c == ' ' {
 			// Drop if adjacent to a delim.
@@ -2665,7 +2661,7 @@ func isDTDDelim(c byte) bool {
 // on the format internals.
 func indexCloseAngleQuotedDTDNorm(s string) int {
 	var inQuote byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if inQuote != 0 {
 			if c == inQuote {

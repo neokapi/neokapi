@@ -20,16 +20,16 @@
 //     work brings them online.
 package tools
 
-// SKIP_NEEDS_CONTEXT marks steps that ProcessStep alone cannot exercise
+// SkipNeedsContext marks steps that ProcessStep alone cannot exercise
 // because they depend on pipeline-wide state (TM matches, batch
 // statistics, multi-doc inputs, RawDocument access, …). Tracked
 // upstream as #454.
-const SKIP_NEEDS_CONTEXT = "step needs pipeline context not provided by ProcessStep — see #454"
+const SkipNeedsContext = "step needs pipeline context not provided by ProcessStep — see #454"
 
-// SKIP_NEEDS_PARAMS marks steps whose default parameters force an
+// SkipNeedsParams marks steps whose default parameters force an
 // unconfigured fast-failure (e.g. XSLT needs a stylesheet path; search
 // & replace needs a pattern). Tracked under #454.
-const SKIP_NEEDS_PARAMS = "step needs required parameters — see #454"
+const SkipNeedsParams = "step needs required parameters — see #454"
 
 // ToolSpec describes one step parity row.
 type ToolSpec struct {
@@ -43,8 +43,8 @@ type ToolSpec struct {
 // intent.
 var toolSpecs = []ToolSpec{
 	{ID: "b-o-m-conversion"},
-	{ID: "batch-tm-leveraging", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "batch-translation", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "batch-tm-leveraging", Skip: SkipNeedsContext},
+	{ID: "batch-translation", Skip: SkipNeedsContext},
 	{ID: "char-listing"},
 	{ID: "character-count"},
 	{ID: "characters-checker"},
@@ -54,13 +54,13 @@ var toolSpecs = []ToolSpec{
 	{ID: "concordance-character-count"},
 	{ID: "concordance-word-count"},
 	{ID: "convert-segments-to-text-units"},
-	{ID: "copy-or-move", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "copy-or-move", Skip: SkipNeedsContext},
 	{ID: "copy-source-on-empty-target"},
 	{ID: "create-target"},
 	{ID: "desegmentation"},
-	{ID: "diff-leverage", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "diff-leverage", Skip: SkipNeedsContext},
 	{ID: "encoding-conversion"},
-	{ID: "enrycher", Skip: SKIP_NEEDS_PARAMS},
+	{ID: "enrycher", Skip: SkipNeedsParams},
 	{ID: "exact-document-context-match-character-count"},
 	{ID: "exact-document-context-match-word-count"},
 	{ID: "exact-local-context-match-character-count"},
@@ -81,11 +81,11 @@ var toolSpecs = []ToolSpec{
 	{ID: "exact-text-only-word-count"},
 	{ID: "exact-unique-id-match-character-count"},
 	{ID: "exact-unique-id-match-word-count"},
-	{ID: "external-command", Skip: SKIP_NEEDS_PARAMS},
-	{ID: "extraction-verification", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "extraction", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "filter-events-to-raw-document", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "filter-events-writer", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "external-command", Skip: SkipNeedsParams},
+	{ID: "extraction-verification", Skip: SkipNeedsContext},
+	{ID: "extraction", Skip: SkipNeedsContext},
+	{ID: "filter-events-to-raw-document", Skip: SkipNeedsContext},
+	{ID: "filter-events-writer", Skip: SkipNeedsContext},
 	{ID: "format-conversion"},
 	{ID: "full-width-conversion"},
 	{ID: "fuzzy-match-character-count"},
@@ -113,46 +113,46 @@ var toolSpecs = []ToolSpec{
 	{ID: "g-m-x-repetition-matched-character-count"},
 	{ID: "g-m-x-repetition-matched-word-count"},
 	{ID: "general-checker"},
-	{ID: "id-based-aligner", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "id-based-copy", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "image-modification", Skip: SKIP_NEEDS_PARAMS},
+	{ID: "id-based-aligner", Skip: SkipNeedsContext},
+	{ID: "id-based-copy", Skip: SkipNeedsContext},
+	{ID: "image-modification", Skip: SkipNeedsParams},
 	{ID: "inconsistency-check"},
 	{ID: "inline-codes-checker"},
 	{ID: "length-checker"},
-	{ID: "leveraging", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "leveraging", Skip: SkipNeedsContext},
 	{ID: "line-break-conversion"},
 	{ID: "localizable-checker"},
-	{ID: "m-s-batch-translation", Skip: SKIP_NEEDS_PARAMS},
+	{ID: "m-s-batch-translation", Skip: SkipNeedsParams},
 	{ID: "m-t-character-count"},
 	{ID: "m-t-word-count"},
-	{ID: "merging", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "paragraph-aligner", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "merging", Skip: SkipNeedsContext},
+	{ID: "paragraph-aligner", Skip: SkipNeedsContext},
 	{ID: "patterns-checker"},
 	{ID: "phrase-assembled-character-count"},
 	{ID: "phrase-assembled-word-count"},
 	{ID: "post-segmentation-code-simplifier"},
 	{ID: "quality-check"},
 	{ID: "r-t-f-conversion"},
-	{ID: "raw-document-to-filter-events", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "raw-document-to-output-stream", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "raw-document-writer", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "raw-document-to-filter-events", Skip: SkipNeedsContext},
+	{ID: "raw-document-to-output-stream", Skip: SkipNeedsContext},
+	{ID: "raw-document-writer", Skip: SkipNeedsContext},
 	{ID: "remove-target"},
 	{ID: "repetition-analysis"},
 	{ID: "resource-simplifier"},
-	{ID: "scoping-report", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "search-and-replace", Skip: SKIP_NEEDS_PARAMS},
+	{ID: "scoping-report", Skip: SkipNeedsContext},
+	{ID: "search-and-replace", Skip: SkipNeedsParams},
 	{ID: "segmentation"},
-	{ID: "sentence-aligner", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "sentence-aligner", Skip: SkipNeedsContext},
 	{ID: "simple-word-count"},
 	{ID: "space-check"},
-	{ID: "t-m-import", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "t-t-x-joiner", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "t-t-x-splitter", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "t-m-import", Skip: SkipNeedsContext},
+	{ID: "t-t-x-joiner", Skip: SkipNeedsContext},
+	{ID: "t-t-x-splitter", Skip: SkipNeedsContext},
 	{ID: "term-extraction"},
-	{ID: "terminology-leveraging", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "terminology-leveraging", Skip: SkipNeedsContext},
 	{ID: "text-modification"},
 	{ID: "tokenization"},
-	{ID: "translation-comparison", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "translation-comparison", Skip: SkipNeedsContext},
 	{ID: "tu-filtering"},
 	{ID: "uri-conversion"},
 	{ID: "whitespace-correction"},
@@ -160,8 +160,8 @@ var toolSpecs = []ToolSpec{
 	{ID: "x-m-l-analysis"},
 	{ID: "x-m-l-char-fixing"},
 	{ID: "x-m-l-validation"},
-	{ID: "x-s-l-transform", Skip: SKIP_NEEDS_PARAMS},
-	{ID: "xliff-joiner", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "xliff-splitter", Skip: SKIP_NEEDS_CONTEXT},
-	{ID: "xliff-w-c-splitter", Skip: SKIP_NEEDS_CONTEXT},
+	{ID: "x-s-l-transform", Skip: SkipNeedsParams},
+	{ID: "xliff-joiner", Skip: SkipNeedsContext},
+	{ID: "xliff-splitter", Skip: SkipNeedsContext},
+	{ID: "xliff-w-c-splitter", Skip: SkipNeedsContext},
 }

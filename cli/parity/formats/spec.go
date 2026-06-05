@@ -18,7 +18,7 @@
 //	              does not compare against a native implementation.
 //	Skip          if non-empty, the test skips with this reason
 //	              (used for filters that need binary corpus we don't
-//	              ship in the repo — see SKIP_BINARY).
+//	              ship in the repo — see SkipBinary).
 package formats
 
 import (
@@ -62,7 +62,7 @@ import (
 	yamlfmt "github.com/neokapi/neokapi/core/formats/yaml"
 )
 
-// SKIP_BINARY is the standard skip reason for filters whose only
+// SkipBinary is the standard skip reason for filters whose only
 // realistic input is a binary container (DOCX, IDML, MIF, ICML, PDF,
 // archive zips, SDL packages, …). We do not commit binary corpus to
 // the neokapi repo per the constraint on parity test data; these
@@ -70,26 +70,26 @@ import (
 // gap. Resolution path: ship a tiny corpus inside okapi-bridge's
 // plugin tarball (under testdata/) and adapt the spec to read from
 // there.
-const SKIP_BINARY = "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
+const SkipBinary = "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 
-// SKIP_DIVERGENCE_453 marks filters whose Go port and Okapi filter
+// SkipDivergence453 marks filters whose Go port and Okapi filter
 // agree the file is parseable but disagree on which segments are
 // translatable. Each row has a per-filter line in #453 explaining
 // the gap. Flip Skip back to "" once aligned.
-const SKIP_DIVERGENCE_453 = "documented divergence — see #453"
+const SkipDivergence453 = "documented divergence — see #453"
 
-// SKIP_BRIDGE_BUG_452 marks rows where the bridge daemon errors out
+// SkipBridgeBug452 marks rows where the bridge daemon errors out
 // on a valid input. The first one filed is okf_ttml (NPE in Jericho).
-const SKIP_BRIDGE_BUG_452 = "bridge crash — see #452"
+const SkipBridgeBug452 = "bridge crash — see #452"
 
-// SKIP_BRIDGE_CONFIG marks the okf_xml/okf_xmlstream config-preset formats
+// SkipBridgeConfig marks the okf_xml/okf_xmlstream config-preset formats
 // (DITA, DocBook, ResX) whose native side is wired (xml reader + the Go
 // config preset) but whose bridge side can't yet load the equivalent named
 // Okapi config: the okapi-bridge okf_xml/okf_xmlstream schema exposes no
 // configId/rules parameter, so a head-to-head comparison would run the
 // bridge with default rules against the native preset (a false divergence).
 // Head-to-head enables once okapi-bridge gains config-by-name support (#613).
-const SKIP_BRIDGE_CONFIG = "native xml config preset wired; bridge config-by-name not yet supported — see okapi-bridge #613"
+const SkipBridgeConfig = "native xml config preset wired; bridge config-by-name not yet supported — see okapi-bridge #613"
 
 // FormatInput is one named sample input.
 //
@@ -144,16 +144,16 @@ type FormatSpec struct {
 	// BridgeFilterClass overrides the FilterClass sent to the bridge when it
 	// differs from ID. Config-preset formats use the manifest id as ID (e.g.
 	// "okf_dita") for the dashboard join, but dispatch to the base filter on
-	// the bridge (e.g. "okf_xmlstream") plus ConfigId. Empty = use ID.
+	// the bridge (e.g. "okf_xmlstream") plus ConfigID. Empty = use ID.
 	BridgeFilterClass string
 
-	// ConfigId names a built-in Okapi filter configuration the bridge loads
+	// ConfigID names a built-in Okapi filter configuration the bridge loads
 	// before opening (e.g. "okf_xmlstream-dita"). Native side configures via
 	// NewReader+SetConfig; the bridge applies the same named config so the
 	// comparison is head-to-head. Empty = filter defaults.
-	ConfigId string
-	TikalExt      string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
-	TikalConfig   string // optional -fc filter id (e.g. "okf_properties").
+	ConfigID    string
+	TikalExt    string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
+	TikalConfig string // optional -fc filter id (e.g. "okf_properties").
 
 	// Params holds the configuration applied to both sides of the
 	// comparison. Native filters receive these via the existing
@@ -275,13 +275,13 @@ var formatSpecs = []FormatSpec{
 	// okf_xml / okf_xmlstream config-preset formats. Native runs the xml
 	// reader with the Go config preset (DitaConfig/DocBookConfig/ResXConfig in
 	// core/formats/xml/presets.go); the bridge runs the base filter with the
-	// matching built-in Okapi config via ConfigId (#613) — head-to-head. The
+	// matching built-in Okapi config via ConfigID (#613) — head-to-head. The
 	// dashboard joins on the okf_<id> manifest id. Native behaviour is also
 	// regression-tested in core/formats/xml/presets_test.go vs the gold XLIFF.
 	{
 		ID:                "okf_dita",
 		BridgeFilterClass: "okf_xmlstream",
-		ConfigId:          "okf_xmlstream-dita",
+		ConfigID:          "okf_xmlstream-dita",
 		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
@@ -295,7 +295,7 @@ var formatSpecs = []FormatSpec{
 	{
 		ID:                "okf_docbook",
 		BridgeFilterClass: "okf_xml",
-		ConfigId:          "okf_xml-docbook",
+		ConfigID:          "okf_xml-docbook",
 		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
@@ -314,7 +314,7 @@ var formatSpecs = []FormatSpec{
 	{
 		ID:                "okf_resx",
 		BridgeFilterClass: "okf_xml",
-		ConfigId:          "okf_xml-resx",
+		ConfigID:          "okf_xml-resx",
 		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
@@ -393,7 +393,7 @@ msgstr ""
 		ID:        "okf_phpcontent",
 		MimeType:  "application/x-php",
 		NewReader: func() format.DataFormatReader { return phpcontentfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:          "okf_plaintext",
@@ -447,13 +447,13 @@ msgstr ""
 		ID:        "okf_regexplaintext",
 		MimeType:  "text/plain",
 		NewReader: func() format.DataFormatReader { return regexfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_doxygen",
 		MimeType:  "text/x-doxygen-txt",
 		NewReader: func() format.DataFormatReader { return doxygenfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_markdown",
@@ -483,7 +483,7 @@ msgstr ""
 		ID:        "okf_tex",
 		MimeType:  "text/x-tex-text",
 		NewReader: func() format.DataFormatReader { return texfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_mosestext",
@@ -497,19 +497,19 @@ msgstr ""
 		ID:        "okf_transtable",
 		MimeType:  "text/x-transtable",
 		NewReader: func() format.DataFormatReader { return transtablefmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_commaseparatedvalues",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_tabseparatedvalues",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:       "okf_basetable",
@@ -517,19 +517,19 @@ msgstr ""
 		// basetable is the abstract parent for csv/fixedwidth/tsv —
 		// csv covers it for parity.
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_fixedwidthcolumns",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return fixedwidthfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_table",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 
 	// ── XLIFF family ─────────────────────────────────────────────────
@@ -588,19 +588,19 @@ msgstr ""
 		ID:        "okf_ttx",
 		MimeType:  "application/x-ttx+xml",
 		NewReader: func() format.DataFormatReader { return ttxfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_txml",
 		MimeType:  "text/xml",
 		NewReader: func() format.DataFormatReader { return txmlfmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 	{
 		ID:        "okf_ttml",
 		MimeType:  "application/ttml+xml",
 		NewReader: func() format.DataFormatReader { return ttmlfmt.NewReader() },
-		Skip:      SKIP_BRIDGE_BUG_452,
+		Skip:      SkipBridgeBug452,
 	},
 	{
 		ID:        "okf_ts",
@@ -632,67 +632,67 @@ msgstr ""
 		ID:        "okf_vignette",
 		MimeType:  "text/xml",
 		NewReader: func() format.DataFormatReader { return vignettefmt.NewReader() },
-		Skip:      SKIP_DIVERGENCE_453,
+		Skip:      SkipDivergence453,
 	},
 
 	// ── Office / archive (binary, snapshotted as bridge-only) ────────
 	{
 		ID:       "okf_idml",
 		MimeType: "application/vnd.adobe.indesign-idml-package",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_icml",
 		MimeType: "application/x-icml+xml",
 		// Need binary ICML; treat as skipped until corpus is shipped.
-		Skip: SKIP_BINARY,
+		Skip: SkipBinary,
 	},
 	{
 		ID:       "okf_openxml",
 		MimeType: "text/xml",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_odf",
 		MimeType: "text/x-odf",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_openoffice",
 		MimeType: "application/x-openoffice",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_archive",
 		MimeType: "application/x-archive",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_mif",
 		MimeType: "application/vnd.mif",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_pdf",
 		MimeType: "application/pdf",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_rtf",
 		MimeType: "application/rtf",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_sdlpackage",
 		MimeType: "application/x-sdlpackage",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 
 	// ── Bridge-only or specialized (no native Go port) ───────────────
 	{
 		ID:       "okf_pensieve",
 		MimeType: "application/x-pensieve-tm",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:        "okf_multiparsers",
@@ -705,22 +705,22 @@ msgstr ""
 	{
 		ID:       "okf_rainbowkit",
 		MimeType: "application/x-rainbowkit",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_xini",
 		MimeType: "text/x-xini",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_xinirainbowkit",
 		MimeType: "text/x-xini",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_transifex",
 		MimeType: "application/x-transifex",
-		Skip:     SKIP_BINARY,
+		Skip:     SkipBinary,
 	},
 }
 

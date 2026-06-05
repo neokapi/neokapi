@@ -4,6 +4,7 @@ package parity
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,7 +45,6 @@ type Outcome struct {
 var (
 	reportMu sync.Mutex
 	report   []Outcome
-	reportCh = make(chan struct{}, 1)
 )
 
 // Report records one row in the parity report. Tests typically call this
@@ -83,7 +83,7 @@ func FlushReport() error {
 	if dest == "" {
 		root := os.Getenv("KAPI_PARITY_SANDBOX")
 		if root == "" {
-			return fmt.Errorf("FlushReport: neither $KAPI_PARITY_REPORT nor $KAPI_PARITY_SANDBOX is set")
+			return errors.New("FlushReport: neither $KAPI_PARITY_REPORT nor $KAPI_PARITY_SANDBOX is set")
 		}
 		dest = filepath.Join(root, "test-comparison.json")
 	}

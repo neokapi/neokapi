@@ -191,7 +191,7 @@ func DownloadWithProgress(ctx context.Context, url string, onProgress func(downl
 	if resp.ContentLength > maxArtifactBytes {
 		return nil, fmt.Errorf("download %s: Content-Length %d exceeds limit %d", url, resp.ContentLength, maxArtifactBytes)
 	}
-	var reader io.Reader = io.LimitReader(resp.Body, maxArtifactBytes+1)
+	var reader = io.LimitReader(resp.Body, maxArtifactBytes+1)
 	if onProgress != nil {
 		reader = &progressReader{r: reader, total: resp.ContentLength, onProgress: onProgress}
 	}

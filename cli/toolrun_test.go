@@ -196,6 +196,6 @@ func TestMatchFormatMapping(t *testing.T) {
 }
 
 func TestMatchFormatMappingEmpty(t *testing.T) {
-	assert.Equal(t, "", matchFormatMapping("/some/file.docx", nil))
-	assert.Equal(t, "", matchFormatMapping("/some/file.docx", []FormatMapping{}))
+	assert.Empty(t, matchFormatMapping("/some/file.docx", nil))
+	assert.Empty(t, matchFormatMapping("/some/file.docx", []FormatMapping{}))
 }

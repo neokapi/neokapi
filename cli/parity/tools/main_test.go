@@ -17,6 +17,10 @@ import (
 // sandbox first so its path is captured against the original CWD, then
 // chdir to a fresh temp dir so the JVM inherits it.
 func TestMain(m *testing.M) {
+	os.Exit(runTests(m))
+}
+
+func runTests(m *testing.M) int {
 	// Cache the sandbox path against the original CWD so a relative
 	// KAPI_PARITY_SANDBOX still resolves correctly after the chdir
 	// below. Errors are tolerated — RequireSandbox will SkipNow per
@@ -26,12 +30,12 @@ func TestMain(m *testing.M) {
 	tmp, err := os.MkdirTemp("", "parity-tools-cwd-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "parity: mktemp cwd: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 	defer os.RemoveAll(tmp)
 	if err := os.Chdir(tmp); err != nil {
 		fmt.Fprintf(os.Stderr, "parity: chdir cwd: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 
 	code := m.Run()
@@ -39,5 +43,5 @@ func TestMain(m *testing.M) {
 	if err := parity.FlushReport(); err != nil {
 		fmt.Fprintf(os.Stderr, "parity: flush report: %v\n", err)
 	}
-	os.Exit(code)
+	return code
 }

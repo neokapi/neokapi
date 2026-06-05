@@ -396,7 +396,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 
 	tgtRuns := target.Runs
 	seeded := false
-	for i := 0; i < srcCount; i++ {
+	for i := range srcCount {
 		var (
 			id    string
 			props map[string]string

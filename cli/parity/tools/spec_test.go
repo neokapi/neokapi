@@ -23,7 +23,7 @@ import (
 // dashboard's per-step status reflects the latest run.
 func TestParityTools(t *testing.T) {
 	for _, spec := range toolSpecs {
-		spec := spec
+
 		t.Run(strings.ReplaceAll(spec.ID, "-", "_"), func(t *testing.T) {
 			runToolSpec(t, spec)
 		})

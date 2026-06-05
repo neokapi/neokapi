@@ -54,7 +54,7 @@ func TikalAvailable() (string, error) {
 			tikalPath = found
 			return
 		}
-		tikalErr = errors.New("Tikal CLI not found — set $OKAPI_TIKAL or $OKAPI_HOME, or place tikal on PATH")
+		tikalErr = errors.New("tikal CLI not found — set $OKAPI_TIKAL or $OKAPI_HOME, or place tikal on PATH")
 	})
 	return tikalPath, tikalErr
 }

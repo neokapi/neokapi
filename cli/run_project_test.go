@@ -20,7 +20,7 @@ func TestRunCmd_ProjectFlag(t *testing.T) {
 	f := cmd.Flags().Lookup("project")
 	require.NotNil(t, f, "expected --project flag")
 	assert.Equal(t, "p", f.Shorthand)
-	assert.Equal(t, "", f.DefValue)
+	assert.Empty(t, f.DefValue)
 }
 
 func TestRunFromProject_LoadsDefaults(t *testing.T) {
@@ -227,5 +227,5 @@ flows:
 	require.NoError(t, err)
 	assert.Equal(t, proj.Name, proj2.Name)
 	assert.Equal(t, proj.Defaults.TargetLanguages, proj2.Defaults.TargetLanguages)
-	assert.Equal(t, len(proj.Flows), len(proj2.Flows))
+	assert.Len(t, proj2.Flows, len(proj.Flows))
 }

@@ -87,13 +87,6 @@ func RecordOkapiSkip(format, fixture, reason string) {
 	})
 }
 
-// resetParityRecords clears the buffer. Useful in tests.
-func resetParityRecords() {
-	parityRecordsMu.Lock()
-	defer parityRecordsMu.Unlock()
-	parityRecords = nil
-}
-
 // snapshotParityRecords returns a copy of the current records. The
 // caller can read it without holding the lock.
 func snapshotParityRecords() []parityRecord {
@@ -219,9 +212,9 @@ func FlushParityReport(w io.Writer) error {
 // native is *at least as spec-faithful as okapi*, so it counts toward
 // faithful parity even though the comparator couldn't fold it to canon:
 //   - cosmetic            — both producers spec-compliant, render identically
-//                           (e.g. native preserves a moot attribute okapi
-//                           strips; only the comparator's text-driven
-//                           content-category resolution is missing)
+//     (e.g. native preserves a moot attribute okapi
+//     strips; only the comparator's text-driven
+//     content-category resolution is missing)
 //   - native-more-correct — native is strictly more spec-correct than okapi
 //
 // A `bug` (native defect), `fixture-bug` (broken fixture), or an
@@ -741,7 +734,7 @@ func FlushParityFixturesJSON(w io.Writer) error {
 			Div:            v.Divergent,
 			Skip:           v.Skipped,
 		}
-		if dets, ok := groups[detailKey{k.Format, k.Engine}]; ok {
+		if dets, ok := groups[detailKey(k)]; ok {
 			sort.Slice(dets, func(i, j int) bool {
 				ri, rj := tierRank(dets[i].Achieved), tierRank(dets[j].Achieved)
 				if ri != rj {
