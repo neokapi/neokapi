@@ -2,7 +2,7 @@
 id: 025-klf-package
 sidebar_position: 25
 title: "AD-025: KLF Family and the .klz Package"
-description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source."
+description: "Architecture decision: a family of deterministic, lossless KLF formats (blocks, translation memory, termbase) and a .klz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .klz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source. The same container serves two profiles — a whole-project snapshot (pack/unpack) and a task-scoped bilingual interchange file (extract/merge), neokapi's lossless interchange format for a translator or reviewer. A .klz is always a parcel, never a workspace: day-to-day work is the ambient .kapi project."
 keywords: [KLF, klftm, klftb, klz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
 ---
 
@@ -126,7 +126,10 @@ rather than a step-by-step CLI verb family:
   Block ids are only unique within one document, so each source has its own store
   and each overlay is tagged with its source (`OverlayDoc.Source`). Transforming
   reuses overlays already present rather than recomputing (the cache is the cache),
-  so output equals a one-shot run.
+  so output equals a one-shot run. (§7 frames the mental model: a `.klz` is a
+  parcel *opened into* a working project, not a place you author in — the in-place
+  transform is just the shadow cache making open → work → pack cheap. Day-to-day
+  work is the ambient `.kapi` project.)
 - **Cached resume (project).** A project run executes against the project's
   persistent block store (`core/blockstore` at `.kapi/cache/blocks.db`, wired via
   `flow.WithBlockStore`). Because the store is append-only and content-addressed —
@@ -222,6 +225,46 @@ extract*, not the original document.
 snapshot; a standalone `.klz` (the ad-hoc workspace) is authoritative in itself.
 Intent therefore never has two live homes that can drift.
 
+### 7. Boundaries: workspace vs payload, and the two `.klz` profiles
+
+Day-to-day work happens in an **ambient `.kapi` project**, discovered by a
+git-style upward walk ([AD-008](008-project-model.md)) — never named on a command.
+A `.klz` is a **parcel**: a thing that crosses a boundary, named only at that
+boundary. You do not *work inside* a `.klz`; receiving one and working on it means
+opening it into a project (`unpack`, or an in-place open backed by the shadow
+cache of §5), then `pack` to ship again. This is git's split between a *working
+tree* (ambient) and a *bundle* (named only at create / clone), and it is why the
+everyday loop never types a `.klz` path.
+
+Which parcel crosses which boundary:
+
+| Boundary | Parcel | Fidelity | Verbs |
+| --- | --- | --- | --- |
+| Time / space, in-ecosystem (backup, transfer, seed a server) | **project `.klz`** (whole project, §6) | lossless native | `pack` / `unpack` |
+| To a translator or reviewer | **bilingual `.klz`** (one locale pair, below) | lossless native | `extract` / `merge` |
+| To a third-party CAT tool | XLIFF 2.x / PO ([AD-017](017-bilingual-format-interop.md)) | interoperable, lossy | `extract` / `merge` |
+| To the live server | sync wire protocol (the `.klz`'s over-the-wire twin) | lossless, streamed | `push` / `pull` |
+
+So one `.klz` container carries **two profiles**, distinguished by the manifest
+`kind`:
+
+- **Project profile** (`kind: kapi-project`) — the whole project: all locales,
+  full recipe, TM, termbase, overlays, source identity + skeletons (§6). The
+  *snapshot / ecosystem payload*, moved by `pack` / `unpack`.
+- **Bilingual profile** (`kind: kapi-interchange`) — a task-scoped slice for one
+  source→target pair: the blocks with faithful inline codes, the
+  segmentation/alignment overlays, the per-source skeleton for round-trip, and the
+  relevant TM-match + termbase context. It excludes other locales, the full
+  recipe, and raw source. This is **neokapi's interchange format** — the parcel
+  `extract` sends to a translator or reviewer and `merge` ingests back
+  ([AD-017](017-bilingual-format-interop.md)) — lossless where XLIFF is lossy, with
+  inline TM/term context and integrity-verified, diffable review. It is *ecosystem*
+  interchange (read by a neokapi tool); XLIFF / PO remain the industry-interop
+  tier, and turning this profile into a cross-vendor standard is an open-spec
+  effort, not a property of the format.
+
+Both profiles are parcels — neither is a workspace.
+
 ## Consequences
 
 - A project's full content can be serialized losslessly and rehydrated into
@@ -245,6 +288,12 @@ Intent therefore never has two live homes that can drift.
   source (opt-in). Side-effecting recipe travels inert, so receiving a `.klz`
   cannot trigger a server call, hook, or automation until it is adopted into a
   project.
+- The same `.klz` container serves two profiles (§7): a whole-project snapshot
+  (`pack`/`unpack`) and a task-scoped **bilingual interchange** file
+  (`extract`/`merge`) — neokapi's lossless interchange format for a translator or
+  reviewer. A `.klz` is always a *parcel*, never a *workspace*: day-to-day work is
+  the ambient `.kapi` project ([AD-008](008-project-model.md)), so the everyday
+  loop never names a `.klz`.
 
 ## Implementation
 
