@@ -17,10 +17,13 @@ status: Proposed
 
 ## Summary
 
-A flow is a **pure transformation over a stream of Blocks** backed by a
-block-store session. *Where content enters* (the **source binding**) and *where
-results go* (the **sink binding**) are resolved from invocation context, not
-encoded in the flow graph. The same flow definition runs unchanged whether its
+Three nouns divide the work cleanly: a **tool** is the unit of work, a **flow**
+is a named reusable *composition* of tools, and a **binding** is an end — where
+content enters and leaves. A flow is a **pure transformation over a stream of
+Blocks** backed by a block-store session: it owns no I/O, and a single tool is
+not a flow. *Where content enters* (the **source binding**) and *where results
+go* (the **sink binding**) are resolved from invocation context, not encoded in
+the flow graph. The same flow definition runs unchanged whether its
 content comes from a file read, the `.klz` workspace cache, the project block
 store, or an imported interchange file — and whether its results are written to
 a file, committed as overlays to the store, or both.
@@ -82,6 +85,40 @@ Two questions this AD settles:
    its work in the store?
 
 ## Decision
+
+### Three nouns: tool, flow, binding
+
+Separating I/O from the flow leaves three concepts, each with exactly one job:
+
+- **Tool** — the unit of work. A single capability-typed transformation over the
+  Part stream — `Annotate`, `Translate`, or `Transform`
+  ([AD-006](006-tool-system.md)). A tool runs on its own; it needs no flow.
+- **Flow** — a named, reusable **composition** of tools. A flow carries the
+  ordering, the branching (`parallel:`, tee, batch), the per-tool configuration,
+  and the settle/main phase split — and nothing else. It is *the recipe*.
+- **Binding** — the ends. Where content enters (source) and where results leave
+  (sink). A binding belongs to neither the tool nor the flow; it is supplied by
+  the invocation and the project (§1–§5).
+
+A flow is **composition, and only composition.** It owns no I/O, and a single
+tool is not a flow: a lone tool is invoked directly as a tool command, and
+`kapi flows` lists only the compositions. The flow noun earns its place by
+carrying the four things a flat list of tool names cannot:
+
+- **Configuration** — a flow pins each tool's settings, so it is a *configured*
+  recipe (`tm-leverage{fuzzy:75}` → `ai-translate{provider:anthropic}` →
+  `qa-check`), not merely an ordered set of tool names.
+- **Topology** — a flow is a DAG. `parallel:` fan-out, `tee`, and `batch` are
+  graph shapes a sequence cannot express.
+- **Identity and reuse** — a flow has a name and a source (built-in, user,
+  project). A project's `flows:` block is its vocabulary of named operations,
+  versioned with the recipe and shared like any other artifact.
+- **Phase structure** — the leading settle stage and the round-trip brackets
+  (§4) are a typed two-phase shape, not a flat run of tools.
+
+What a flow is **not**: it is not an I/O harness (that is the binding), it is not
+a runtime primitive beyond an ordered tool chain over a session
+([AD-004](004-processing-engine.md)), and it is never required to run one tool.
 
 ### 1. The flow is the middle; source and sink are bindings
 
@@ -260,6 +297,10 @@ already present and recomputes only what changed
   segmentation) is unaffected.
 - The runtime executor is unchanged — it already binds nothing. This is a model,
   naming, and glue refactor, not an engine rewrite.
+- The flow noun sharpens to mean *composition*: removing I/O strips the one job
+  that diluted it, leaving configuration, topology, identity, and phase
+  structure. A single tool is a tool, not a flow — so the concept is load-bearing
+  exactly where it is used and absent where it was overkill.
 - One scheme vocabulary spans the CLI locator, the flow document, and the tool
   resolver, so a binding reads the same wherever it appears. Bare paths keep the
   zero-ceremony common case; `scheme:` is the unambiguous escape hatch.
