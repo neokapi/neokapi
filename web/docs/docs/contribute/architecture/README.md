@@ -35,6 +35,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [006](006-tool-system.md)       | Tool System       | BaseTool, locale cardinality, annotations, side effects, schemas    |
 | [007](007-plugin-system.md)     | Plugin System     | manifest-driven out-of-process plugins, gRPC, presets, Okapi bridge |
 | [021](021-sat-segmenter-plugin.md) | SaT Segmenter Plugin | in-process ONNX SaT model, stdin/stdout protocol, native-stack isolation, `sat` engine |
+| [026](026-flow-io-binding.md)   | Flow I/O Binding  | source/sink bindings, file·store·klz·import/export, process-only runs, ingest vs run transforms |
 
 ## Project Model
 
