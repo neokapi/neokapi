@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -14,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // Compile-time assertion: this tool implements SessionTool.
@@ -623,46 +622,12 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	// Set total for progress reporting since we know the full count.
 	t.totalBlocks = len(entries)
 
-	// 3. Group into batches.
-	batches := make([][]blockEntry, 0, (len(entries)+t.batchSize-1)/t.batchSize)
-	for i := 0; i < len(entries); i += t.batchSize {
-		end := i + t.batchSize
-		if end > len(entries) {
-			end = len(entries)
-		}
-		batches = append(batches, entries[i:end])
-	}
-
-	// 4. Process batches concurrently.
-	var (
-		mu       sync.Mutex
-		firstErr error
-		wg       sync.WaitGroup
-	)
-	sem := make(chan struct{}, t.concurrency)
-
-	for _, batch := range batches {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case sem <- struct{}{}:
-		}
-
-		wg.Go(func() {
-			defer func() { <-sem }()
-			if err := t.translateBatch(ctx, batch); err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
-			}
-		})
-	}
-	wg.Wait()
-
-	if firstErr != nil {
-		return firstErr
+	// 3. Group into batches and translate them with bounded concurrency.
+	batches := chunkBlocks(entries, t.batchSize)
+	if err := goBatches(batches, t.concurrency, func(_ int, batch []blockEntry) error {
+		return t.translateBatch(ctx, batch)
+	}); err != nil {
+		return err
 	}
 
 	// 5. Write all parts to output in original order.
