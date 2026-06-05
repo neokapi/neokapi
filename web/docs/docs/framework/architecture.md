@@ -18,11 +18,15 @@ major design choice, see the [Architecture Decisions](/contribute/architecture/0
 
 <ArchitectureDiagram />
 
-A [reader](/framework/formats) turns source files of any format into a stream of
-[Parts](/framework/content-model); a [writer](/framework/formats) turns the
-stream back into translated files. Between them runs a [flow](/framework/flows):
-a serial chain of [tools](/framework/tools) connected by buffered channels of
-Parts. The tools divide by capability — **annotators** attach stand-off overlays
+The edges are the flow's **source** and **sink** — bindings that decide where
+content enters and leaves. The default, shown above, is the **file binding**: a
+[reader](/framework/formats) turns source files of any format into a stream of
+[Parts](/framework/content-model) and a [writer](/framework/formats) turns the
+stream back into translated files. The same flow can instead bind to the project
+store, a `.klz` workspace, or an interchange file — with no reader or writer
+([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
+Between the edges runs a [flow](/framework/flows): a serial chain of
+[tools](/framework/tools) connected by buffered channels of Parts. The tools divide by capability — **annotators** attach stand-off overlays
 (segmentation, terminology, entities), **translators** fill in targets, and **QA**
 tools check and enforce — while [translation memory](/framework/translation-memory)
 and the [termbase](/framework/terminology) feed the relevant stages.
