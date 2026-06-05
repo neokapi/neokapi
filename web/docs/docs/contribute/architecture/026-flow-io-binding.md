@@ -36,6 +36,13 @@ splits into two kinds: *idempotent model-settling transforms* that run **once at
 ingest** and persist to the store, and *round-trip-paired brackets*
 (redact … unredact) that stay part of a **run's** source/sink wiring.
 
+Bindings are named by one scheme vocabulary across the CLI, the flow document,
+and the existing resource URIs. A concrete binding resolves by precedence —
+explicit flag, then project / `.klz` context, then the flow's intent, then
+auto-detection — and `kapi run --explain` always shows the resolved
+`source → sink` so nothing is hidden. A flow declares only *intrinsic intent*
+(`sink: none` for an analysis flow), never a path.
+
 ## Context
 
 The runtime executor is **already** source/sink-agnostic. `DefaultExecutor`
@@ -158,6 +165,81 @@ A transform that is genuinely both (idempotent *and* recoverable) may be declare
 at ingest; the run-bracket form is reserved for transforms whose restore must
 happen inside the run.
 
+### 5. Resolving a binding across the CLI and flow surfaces
+
+A binding is named by the same small scheme vocabulary (§1) on every surface —
+the CLI, the flow document, and the resource URIs the tool resolver already
+understands (`tm:`, `termbase:`, `srx:` in `core/flow/resolve.go`). This mirrors
+two conventions a user already knows: *detect-by-extension with an explicit
+override* (as in format-converting tools) and *scheme-prefixed endpoints* (as in
+file-sync tools).
+
+**Precedence.** A concrete binding is resolved from the first source that names
+one, in order: an explicit CLI flag, the project / `.klz` context, the flow's
+declared intent, then auto-detection. `kapi run --explain` prints the resolved
+`source → sink` and executes nothing, so the chosen binding is always visible
+rather than inferred.
+
+**The CLI carries the locator; bare paths are detected, schemes are explicit.**
+`-i` / `-o` accept either a plain path or a `scheme:` locator. A plain path is
+bound by detection — its extension or kind decides it (`.klz` → the workspace
+store, `.xliff` / `.po` → interchange, a plain document → `file`, a directory
+inside a project → the project store). A `scheme:` locator forces the binding and
+removes any ambiguity: `-o store:` is the block store, while `-o l10n/` is a
+directory of files. `file:` forces a path that would otherwise read as a scheme.
+Each example below shows the resolved `source → sink`:
+
+```bash
+kapi run translate -i a.json -o b.json          # file(a.json)    → file(b.json)
+kapi run translate -i a.json                     # file(a.json)    → store        (in a project: process-only)
+kapi run translate -i work.klz                   # store(work.klz) → store        (.klz transformed in place)
+kapi run translate -i work.klz --pack            # store(work.klz) → store, then ejected to the .klz
+kapi run translate -i store: -o xliff:hand.xliff # store           → interchange(hand.xliff)
+kapi run qa-check  -i a.json -o none             # file(a.json)    → none         (analysis; report only)
+kapi extract src/*.json -o work.klz              # file(glob)      → store(work.klz)
+kapi merge -o l10n/{lang}/{name}.{ext}           # store           → file(template)
+```
+
+`extract`, `merge`, and `pack` are named presets for the bindings their names
+imply; `run` is the general form. All resolve through the same precedence and
+report the same `--explain` line.
+
+**The flow declares intent, never a location.** A flow document carries a binding
+only when it is *intrinsic to what the flow is*, and then only the *kind* — never
+a path or a concrete store. A translation flow materializes, so it leaves its
+sink unset and lets the invocation place the result; an analysis or QA flow
+inherently produces no document, so it declares `sink: none`; a flow that only
+makes sense over an existing workspace may declare `source: store`.
+
+```yaml
+# A translate flow: binding-agnostic. The ends come from where it is run.
+spec:
+  steps:
+    - tool: tm-leverage
+    - tool: ai-translate
+    - tool: qa-check
+```
+
+```yaml
+# A QA flow: intrinsically process-only. It never emits a document, anywhere.
+spec:
+  sink: none
+  steps:
+    - tool: qa-check
+```
+
+Because a flow's only binding is intrinsic intent, there is no per-flow output
+path for a reader to be surprised by; the same flow document runs over a loose
+file, a `.klz` workspace, or a project without edit, and `--explain` shows where
+a given run's content actually lands.
+
+**In a project, a run lands in the store.** When a `.kapi` recipe is in scope, a
+run with no explicit sink commits its work as overlays to the project block store
+and emits no document. Materializing the localized files is a separate, explicit
+step (`kapi merge`). The store is the working copy: a re-run reuses the overlays
+already present and recomputes only what changed
+([AD-025](025-klf-package.md) §5).
+
 ## Consequences
 
 - A flow definition is portable across origins: the same flow runs in the file
@@ -178,6 +260,12 @@ happen inside the run.
   segmentation) is unaffected.
 - The runtime executor is unchanged — it already binds nothing. This is a model,
   naming, and glue refactor, not an engine rewrite.
+- One scheme vocabulary spans the CLI locator, the flow document, and the tool
+  resolver, so a binding reads the same wherever it appears. Bare paths keep the
+  zero-ceremony common case; `scheme:` is the unambiguous escape hatch.
+- A documented precedence plus `--explain` keeps the resolved binding visible, so
+  layered defaults (flow intent under project context under an explicit flag) do
+  not become hidden configuration.
 
 ## Related
 
