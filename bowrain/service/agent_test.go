@@ -390,7 +390,7 @@ func TestAgentServiceCancelConversation_CleansUpPool(t *testing.T) {
 
 func TestToolNames(t *testing.T) {
 	names := ToolNames()
-	assert.True(t, len(names) > 20)
+	assert.Greater(t, len(names), 20)
 	assert.Contains(t, names, "list_projects")
 	assert.Contains(t, names, "execute_script")
 	assert.Contains(t, names, "check_vocabulary")

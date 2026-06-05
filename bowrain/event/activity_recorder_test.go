@@ -74,7 +74,7 @@ func TestActivityRecorder_SkipsUnmappedEvents(t *testing.T) {
 	ctx := t.Context()
 	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
-	assert.Len(t, result.Activities, 0)
+	assert.Empty(t, result.Activities)
 }
 
 func TestActivityRecorder_MultipleEventTypes(t *testing.T) {
@@ -119,5 +119,5 @@ func TestActivityRecorder_Close(t *testing.T) {
 	ctx := t.Context()
 	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
-	assert.Len(t, result.Activities, 0)
+	assert.Empty(t, result.Activities)
 }

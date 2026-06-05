@@ -229,7 +229,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	var toolsResp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &toolsResp))
 	tools := toolsResp["tools"].([]any)
-	assert.True(t, len(tools) > 0, "should return available tools when agent is enabled")
+	assert.NotEmpty(t, tools, "should return available tools when agent is enabled")
 
 	// Verify approval flags are set for configured tools.
 	approvalTools := make(map[string]bool)

@@ -18,7 +18,7 @@ func TestSSEWriterWriteEvent(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "event: content_delta\n")
 	assert.Contains(t, output, `"delta":"Hello"`)
-	assert.True(t, len(output) > 0)
+	assert.NotEmpty(t, output)
 }
 
 func TestSSEWriterMultipleEvents(t *testing.T) {

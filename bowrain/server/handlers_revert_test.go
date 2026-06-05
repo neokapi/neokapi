@@ -92,7 +92,7 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	sb, _ := cs.GetBlock(ctx, "p-rev2", "main", "bx")
-	assert.Equal(t, "", sb.TargetText(fr), "a batch-added target should be blanked on revert")
+	assert.Empty(t, sb.TargetText(fr), "a batch-added target should be blanked on revert")
 }
 
 // TestPhase4_RestoreToVersion proves point-in-time restore: a stream is rolled

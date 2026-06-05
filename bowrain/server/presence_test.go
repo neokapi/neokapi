@@ -62,7 +62,7 @@ func TestPresenceStoreMultipleProjects(t *testing.T) {
 
 	assert.Len(t, ps.List("proj-1"), 1)
 	assert.Len(t, ps.List("proj-2"), 1)
-	assert.Len(t, ps.List("proj-3"), 0)
+	assert.Empty(t, ps.List("proj-3"))
 }
 
 func TestPresenceStoreRemove(t *testing.T) {

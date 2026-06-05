@@ -44,7 +44,7 @@ func TestProjectServiceCRUD(t *testing.T) {
 
 	require.NoError(t, svc.DeleteProject(ctx, p.ID))
 	projects, _ = svc.ListProjects(ctx)
-	assert.Len(t, projects, 0)
+	assert.Empty(t, projects)
 }
 
 func TestProjectServiceBlocks(t *testing.T) {

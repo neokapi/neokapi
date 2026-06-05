@@ -13,7 +13,7 @@ func TestAgentTokenCreateAndValidate(t *testing.T) {
 
 	token, err := store.Create("user-1", "ws-1", "conv-1", "member", time.Hour)
 	require.NoError(t, err)
-	assert.True(t, len(token.Token) > len("bwt_bravo_"))
+	assert.Greater(t, len(token.Token), len("bwt_bravo_"))
 	assert.Equal(t, "bwt_bravo_", token.Token[:10])
 	assert.Equal(t, "user-1", token.UserID)
 	assert.Equal(t, "ws-1", token.WorkspaceID)

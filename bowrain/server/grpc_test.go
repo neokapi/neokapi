@@ -166,7 +166,7 @@ func TestGRPCFlowExecution(t *testing.T) {
 		messages = append(messages, resp)
 	}
 
-	require.True(t, len(messages) >= 2, "expected at least setup + complete messages")
+	require.GreaterOrEqual(t, len(messages), 2, "expected at least setup + complete messages")
 	assert.Equal(t, "setup", messages[0].Stage)
 
 	last := messages[len(messages)-1]

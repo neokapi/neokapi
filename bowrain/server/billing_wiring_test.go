@@ -156,7 +156,7 @@ func TestOwnerEmailResolver_NoOwner(t *testing.T) {
 
 	resolver := &ownerEmailResolver{authStore: store}
 	email := resolver.GetOwnerEmail(t.Context(), "ws-1")
-	assert.Equal(t, "", email)
+	assert.Empty(t, email)
 }
 
 func TestOwnerEmailResolver_ListMembersError(t *testing.T) {
@@ -165,5 +165,5 @@ func TestOwnerEmailResolver_ListMembersError(t *testing.T) {
 
 	resolver := &ownerEmailResolver{authStore: store}
 	email := resolver.GetOwnerEmail(t.Context(), "ws-1")
-	assert.Equal(t, "", email)
+	assert.Empty(t, email)
 }

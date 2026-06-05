@@ -195,7 +195,7 @@ func TestDockerSandboxExecutePython(t *testing.T) {
 	assert.Equal(t, 0, result.ExitCode)
 
 	// Verify container was created with the right image and command.
-	require.Len(t, state.containers, 0) // removed after execution
+	require.Empty(t, state.containers) // removed after execution
 	// The container was deleted by removeContainer, but we can verify creation
 	// happened by checking that the mock handled it (no error returned).
 }

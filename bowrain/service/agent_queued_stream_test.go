@@ -251,7 +251,7 @@ func TestQueuedStream_UserMessagePersistedBeforeEnqueue(t *testing.T) {
 
 	msgs, err := svc.ListMessages(ctx, conv.ID, 10, 0)
 	require.NoError(t, err)
-	require.True(t, len(msgs) >= 1)
+	require.GreaterOrEqual(t, len(msgs), 1)
 	// First message should be the user message.
 	assert.Equal(t, "My question", msgs[0].Content)
 }

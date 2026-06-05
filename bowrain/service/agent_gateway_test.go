@@ -79,7 +79,7 @@ func TestModePrefix(t *testing.T) {
 				assert.Empty(t, got)
 			} else {
 				assert.Contains(t, got, tt.contains)
-				assert.True(t, len(got) > 20, "prefix should be a substantial instruction")
+				assert.Greater(t, len(got), 20, "prefix should be a substantial instruction")
 			}
 		})
 	}

@@ -55,7 +55,7 @@ func TestActivityStore_CreateAndList(t *testing.T) {
 
 		result, err = store.List(ctx, ActivityQuery{WorkspaceID: "ws-1", ProjectID: "nonexistent"})
 		require.NoError(t, err)
-		assert.Len(t, result.Activities, 0)
+		assert.Empty(t, result.Activities)
 	})
 
 	t.Run("filter by actor", func(t *testing.T) {
@@ -65,7 +65,7 @@ func TestActivityStore_CreateAndList(t *testing.T) {
 
 		result, err = store.List(ctx, ActivityQuery{WorkspaceID: "ws-1", ActorID: "user-other"})
 		require.NoError(t, err)
-		assert.Len(t, result.Activities, 0)
+		assert.Empty(t, result.Activities)
 	})
 
 	t.Run("filter by type prefix", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestActivityStore_CreateAndList(t *testing.T) {
 
 		result, err = store.List(ctx, ActivityQuery{WorkspaceID: "ws-1", Type: "block"})
 		require.NoError(t, err)
-		assert.Len(t, result.Activities, 0)
+		assert.Empty(t, result.Activities)
 	})
 }
 

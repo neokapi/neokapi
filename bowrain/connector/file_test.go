@@ -60,7 +60,7 @@ func TestFileConnectorFetch(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.Equal(t, "test.html", items[0].Path)
-	assert.Greater(t, len(items[0].Blocks), 0, "should have extracted blocks")
+	assert.NotEmpty(t, items[0].Blocks, "should have extracted blocks")
 }
 
 func TestFileConnectorFetchAll(t *testing.T) {

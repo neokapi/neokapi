@@ -99,7 +99,7 @@ func TestRoundTrip_RunsKeysComputedFromRuns(t *testing.T) {
 // Adjacent TextRuns are compared individually (no coalescing).
 func assertRunsEqual(t *testing.T, expected, actual []model.Run) {
 	t.Helper()
-	require.Equal(t, len(expected), len(actual), "run count")
+	require.Len(t, actual, len(expected), "run count")
 	for i := range expected {
 		er, ar := expected[i], actual[i]
 		assert.Equal(t, er.Kind(), ar.Kind(), "run[%d] kind", i)

@@ -88,7 +88,7 @@ func TestNotificationStore_MarkRead(t *testing.T) {
 	// Unread only returns nothing.
 	notifs, err := ns.List(ctx, "user-1", 50, true)
 	require.NoError(t, err)
-	assert.Len(t, notifs, 0)
+	assert.Empty(t, notifs)
 
 	// All returns 1.
 	notifs, err = ns.List(ctx, "user-1", 50, false)
@@ -127,7 +127,7 @@ func TestNotificationStore_Delete(t *testing.T) {
 
 	notifs, err := ns.List(ctx, "user-1", 50, false)
 	require.NoError(t, err)
-	assert.Len(t, notifs, 0)
+	assert.Empty(t, notifs)
 }
 
 func TestNotificationStore_MarkReadByGroupKey(t *testing.T) {

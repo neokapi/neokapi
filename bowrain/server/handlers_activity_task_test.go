@@ -48,7 +48,7 @@ func TestHandleListActivities_Empty(t *testing.T) {
 
 	var resp bstore.ActivityResult
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp.Activities, 0)
+	assert.Empty(t, resp.Activities)
 }
 
 func TestHandleListActivities_WithData(t *testing.T) {

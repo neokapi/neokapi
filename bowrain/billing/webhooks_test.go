@@ -234,7 +234,7 @@ func TestHandleCheckoutCompleted_NoWorkspaceID(t *testing.T) {
 
 	err = handler.handleCheckoutCompleted(t.Context(), event)
 	require.NoError(t, err)
-	assert.Len(t, store.upsertedSubs, 0, "no subscription should be created without workspace_id")
+	assert.Empty(t, store.upsertedSubs, "no subscription should be created without workspace_id")
 }
 
 func TestHandleSubscriptionUpdated(t *testing.T) {
@@ -304,7 +304,7 @@ func TestHandleSubscriptionUpdated_NoWorkspaceID(t *testing.T) {
 
 	err = handler.handleSubscriptionUpdated(t.Context(), event)
 	require.NoError(t, err)
-	assert.Len(t, store.upsertedSubs, 0)
+	assert.Empty(t, store.upsertedSubs)
 }
 
 func TestHandleSubscriptionUpdated_MinSeatCount(t *testing.T) {
@@ -421,7 +421,7 @@ func TestHandleInvoicePaid_SkipsNonSubscription(t *testing.T) {
 
 	err = handler.handleInvoicePaid(t.Context(), event)
 	require.NoError(t, err)
-	assert.Len(t, store.recordedEvts, 0, "non-subscription invoice should be skipped")
+	assert.Empty(t, store.recordedEvts, "non-subscription invoice should be skipped")
 }
 
 func TestHandlePaymentFailed(t *testing.T) {
@@ -477,7 +477,7 @@ func TestHandlePaymentFailed_NoWorkspaceID(t *testing.T) {
 
 	err = handler.handlePaymentFailed(t.Context(), event)
 	require.NoError(t, err)
-	assert.Len(t, store.recordedEvts, 0)
+	assert.Empty(t, store.recordedEvts)
 }
 
 func TestNewWebhookHandler(t *testing.T) {

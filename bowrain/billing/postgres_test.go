@@ -103,7 +103,7 @@ func TestLedgerEntry_Fields(t *testing.T) {
 		ReferenceID:  "job-123",
 	}
 
-	assert.True(t, entry.Amount < 0, "debit should be negative")
+	assert.Less(t, entry.Amount, 0, "debit should be negative")
 	assert.Equal(t, "ai_translation", entry.Operation)
 }
 

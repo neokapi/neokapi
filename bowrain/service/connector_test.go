@@ -56,7 +56,7 @@ func TestConnectorServiceAddRemove(t *testing.T) {
 	assert.Equal(t, "test-1", got.ID())
 
 	require.NoError(t, svc.RemoveConnector("ws-a", "test-1"))
-	assert.Len(t, svc.ListActive("ws-a"), 0)
+	assert.Empty(t, svc.ListActive("ws-a"))
 }
 
 // TestConnectorServiceWorkspaceScoping verifies a connector added in one

@@ -141,6 +141,6 @@ func TestDefaultPath(t *testing.T) {
 
 	// On Linux the path includes .config; on macOS it uses ~/Library/Application Support.
 	configDir, _ := os.UserConfigDir()
-	assert.True(t, len(p) > 0)
+	assert.NotEmpty(t, p)
 	assert.Contains(t, p, configDir)
 }

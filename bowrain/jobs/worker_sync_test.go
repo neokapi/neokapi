@@ -108,7 +108,7 @@ func TestProcessSyncPush_BasicBlocks(t *testing.T) {
 	// Verify blocks were stored.
 	blocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main", ItemName: "en.json", Limit: 100})
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(blocks))
+	assert.Len(t, blocks, 2)
 
 	// Verify job is completed.
 	j, err := deps.JobStore.GetJob(ctx, job.ID)

@@ -805,7 +805,7 @@ func TestAssetCascadeDelete(t *testing.T) {
 
 	variants, err := s.ListAssetVariants(ctx, p.ID, asset.ID)
 	require.NoError(t, err)
-	assert.Len(t, variants, 0)
+	assert.Empty(t, variants)
 }
 
 func TestAssetChangeLog(t *testing.T) {
