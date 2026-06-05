@@ -296,4 +296,3 @@ already present and recomputes only what changed
   rather than ingest settlers.
 - [AD-002: Content Model](002-content-model.md) — overlays are the unit a sink
   commits and a source rehydrates.
-</content>
