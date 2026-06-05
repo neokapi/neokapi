@@ -72,13 +72,25 @@ jobs:
         with:
           go-version: "1.26.0"
 
+      # Tarball signing is only needed for publishing (tag pushes). Skip on the
+      # build-only workflow_dispatch — and on windows-11-arm the installer action
+      # has no arm64 build, so this would otherwise fail the dry run before the
+      # build even starts.
       - name: Install cosign (tarball signing)
+        if: startsWith(github.ref, 'refs/tags/sat-v')
         uses: sigstore/cosign-installer@v3
 
       - name: Extract version
         id: version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#sat-v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/sat-v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#sat-v}" >> "$GITHUB_OUTPUT"
+          else
+            # Build-only dispatch from a branch: use a filename-safe placeholder
+            # (the branch ref can contain "/", which breaks tarball paths).
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
 
       # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
       - name: Download onnxruntime (Unix)
@@ -330,6 +342,7 @@ jobs:
 
       # ── cosign keyless sign + upload ──────────────────────────────────────────
       - name: Cosign sign tarball (keyless)
+        if: startsWith(github.ref, 'refs/tags/sat-v')
         shell: bash
         env:
           TARBALL: ${{ steps.package.outputs.tarball }}
