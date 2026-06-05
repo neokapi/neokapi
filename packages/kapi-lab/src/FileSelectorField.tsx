@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { ChevronDown, Files, Regex } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ChevronDown, Files, Regex, X } from "lucide-react";
 import {
   Button,
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -41,6 +42,18 @@ export default function FileSelectorField({
   className,
 }: FileSelectorFieldProps): React.ReactElement {
   const [open, setOpen] = useState(false);
+  // Buffer the selection while the dialog is open so the embedded explorer edits
+  // a draft; the parent (and its live re-run) only updates when the user commits
+  // with "Done". Opening (re)syncs the draft to the committed selection.
+  const [draft, setDraft] = useState<FileSelection>(selection);
+  useEffect(() => {
+    if (open) setDraft(selection);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function commit() {
+    onSelectionChange(draft);
+    setOpen(false);
+  }
 
   const files = resolveSelection(selection, library);
   const summary = selectionSummary(selection, library);
@@ -65,20 +78,31 @@ export default function FileSelectorField({
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="kapi-reference max-w-3xl">
-          <DialogHeader>
+        <DialogContent
+          showCloseButton={false}
+          className="kapi-reference w-[min(60rem,95vw)] max-w-none sm:max-w-none"
+        >
+          <DialogHeader className="flex-row items-center justify-between gap-4">
             <DialogTitle>Choose files</DialogTitle>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Close">
+                <X />
+              </Button>
+            </DialogClose>
           </DialogHeader>
           <FileExplorer
             library={library}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
+            selection={draft}
+            onSelectionChange={setDraft}
             multiple={multiple}
             sampleIds={sampleIds}
             onPreview={onPreview}
           />
-          <div className="flex justify-end">
-            <Button onClick={() => setOpen(false)}>Done</Button>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={commit}>Done</Button>
           </div>
         </DialogContent>
       </Dialog>

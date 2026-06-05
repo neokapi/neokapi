@@ -29,10 +29,11 @@ function ExplorerHost() {
 describe("FileExplorer", () => {
   it("lists library files and selects on click", () => {
     render(<ExplorerHost />);
-    // messages.json shows in both the row and the selection summary footer.
-    expect(screen.getAllByText("messages.json").length).toBeGreaterThan(0);
-    expect(screen.getByText("app.xliff")).toBeTruthy();
-    fireEvent.click(screen.getByText("app.xliff"));
+    // Rows render the filename via FileLabel (base + dimmed extension), so query
+    // by the row's title attribute (the full path) rather than by split text.
+    expect(screen.getByTitle("messages.json")).toBeTruthy();
+    expect(screen.getByTitle("app.xliff")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("app.xliff"));
     expect(screen.getByTestId("sel").textContent).toBe("path:app.xliff");
   });
 });

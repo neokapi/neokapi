@@ -69,6 +69,28 @@ function countFiles(dir: TreeDir): number {
   return dir.files.length + dir.dirs.reduce((n, d) => n + countFiles(d), 0);
 }
 
+// FileLabel renders a filename with its dot-extension slightly dimmed, so the
+// base name reads first and the format suffix recedes.
+function FileLabel({
+  name,
+  title,
+  className,
+}: {
+  name: string;
+  title?: string;
+  className?: string;
+}): React.ReactElement {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  return (
+    <span className={cn("truncate font-mono", className)} title={title ?? name}>
+      {base}
+      {ext && <span className="text-muted-foreground/60">{ext}</span>}
+    </span>
+  );
+}
+
 const ORIGIN_VARIANT: Record<LibFile["origin"], "secondary" | "outline"> = {
   sample: "secondary",
   upload: "outline",
@@ -220,36 +242,43 @@ export default function FileExplorer({
           />
         )}
         <FileIcon filename={f.name} size={15} />
-        <span className="truncate font-mono" title={f.path}>
-          {f.name}
-        </span>
-        <Badge
-          variant={ORIGIN_VARIANT[f.origin]}
-          className="text-[0.62rem] uppercase tracking-wide"
-        >
-          {f.origin}
-        </Badge>
-        <span className="text-xs font-medium" style={{ color: t.color }}>
-          {t.label}
-        </span>
-        <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-          {formatBytes(f.bytes.length)}
-        </span>
-        <span
-          className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 data-[selected=true]:opacity-100"
-          data-selected={isSelected}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            title="Download"
-            aria-label={`Download ${f.name}`}
-            onClick={() => downloadBytes(f.name, f.bytes)}
+        <FileLabel name={f.name} title={f.path} className="min-w-0 flex-1" />
+        <span className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+          <Badge
+            variant={ORIGIN_VARIANT[f.origin]}
+            className="text-[0.6rem] uppercase tracking-wide"
           >
-            <Download />
-          </Button>
-          <ConfirmDeleteButton mode="icon" onDelete={() => library.remove(f.path)} />
+            {f.origin}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="text-[0.65rem]"
+            style={{
+              color: t.color,
+              borderColor: "color-mix(in srgb, currentColor 35%, transparent)",
+            }}
+          >
+            {t.label}
+          </Badge>
+          <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
+            {formatBytes(f.bytes.length)}
+          </span>
+          <span
+            className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/file:opacity-100 data-[selected=true]:opacity-100"
+            data-selected={isSelected}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="Download"
+              aria-label={`Download ${f.name}`}
+              onClick={() => downloadBytes(f.name, f.bytes)}
+            >
+              <Download />
+            </Button>
+            <ConfirmDeleteButton mode="icon" onDelete={() => library.remove(f.path)} />
+          </span>
         </span>
       </div>
     );
