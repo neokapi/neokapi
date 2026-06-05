@@ -49,6 +49,11 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
+	if explain, _ := cmd.Flags().GetBool("explain"); explain {
+		out, _ := cmd.Flags().GetString("output")
+		return explainBindings(cmd.OutOrStdout(), flowName, inputPaths, out)
+	}
+
 	if len(inputPaths) > 0 {
 		outputFlag, _ := cmd.Flags().GetString("output")
 		// Running a flow on a .klz transforms the workspace IN PLACE
@@ -110,6 +115,34 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
+	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
+}
+
+// explainBindings resolves and prints the source → sink bindings for a flow run
+// without executing it (kapi run --explain). It mirrors the precedence used at
+// run time: an explicit -i/-o locator wins; with no -i the source is the project
+// store; with no -o a store source stays in the store (process-only) and a file
+// source writes a file. See AD-026.
+func explainBindings(w io.Writer, flowName string, inputPaths []string, outputFlag string) error {
+	var src flow.Locator
+	if len(inputPaths) > 0 {
+		src = flow.ParseLocator(inputPaths[0])
+	} else {
+		src = flow.Locator{Scheme: flow.SchemeStore}
+	}
+
+	var sink flow.Locator
+	switch {
+	case outputFlag != "":
+		sink = flow.ParseLocator(outputFlag)
+	case src.Kind() == flow.BindingStore:
+		sink = flow.Locator{Scheme: flow.SchemeStore}
+	default:
+		sink = flow.Locator{Scheme: flow.SchemeFile}
+	}
+
+	_, err := fmt.Fprintf(w, "flow %s: %s → %s\n", flowName, src.Explain(), sink.Explain())
+	return err
 }
 
 // listFlows outputs the list of available flows.
