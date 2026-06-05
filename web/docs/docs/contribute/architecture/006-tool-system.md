@@ -409,14 +409,14 @@ Tools communicate through annotations on Blocks. A typical pipeline:
 
 <PipelineDiagram
   stages={[
-    { label: "reader", role: "io" },
+    { label: "source", role: "io" },
     { label: "ai-entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "ai-translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
     { label: "qa-check", role: "qa" },
-    { label: "writer", role: "io" },
+    { label: "sink", role: "io" },
   ]}
 />
 

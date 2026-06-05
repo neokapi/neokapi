@@ -44,18 +44,20 @@ Content flows through a channel-based concurrent pipeline:
 <PipelineDiagram
   animated
   stages={[
-    { label: "Source" },
-    { label: "Reader", sub: "DataFormat", role: "io" },
+    { label: "Source", sub: "binding", role: "io" },
     { label: "Tool 1", note: "goroutine" },
     { label: "Tool 2", note: "goroutine" },
     { label: "⋯" },
-    { label: "Writer", sub: "DataFormat", role: "io" },
-    { label: "Output" },
+    { label: "Sink", sub: "binding", role: "io" },
   ]}
 />
 
-Each tool runs in its own goroutine. Buffered channels (default size 64)
-provide backpressure. `errgroup.Group` coordinates error handling across
+Content enters through a **source** binding and leaves through a **sink** binding
+([AD-026](026-flow-io-binding.md)). For the default `file` binding these are a
+DataFormat reader and writer ([AD-005](005-format-system.md)); a project store, a
+`.klz`, or an interchange file bind the same stream with no reader or writer.
+Between the ends, each tool runs in its own goroutine. Buffered channels (default
+size 64) provide backpressure. `errgroup.Group` coordinates error handling across
 goroutines. Context cancellation propagates to all stages.
 
 Parts carry typed resources ([AD-002: Content Model](002-content-model.md)):
