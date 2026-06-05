@@ -56,6 +56,28 @@ type FlowDefinition struct {
 	Source      string     `json:"source"` // "built-in", "user", or "project"
 	CreatedAt   string     `json:"created_at,omitempty"`
 	ModifiedAt  string     `json:"modified_at,omitempty"`
+	// Binding carries the flow's source/sink binding intent (AD-026). The graph
+	// nodes are tools only; the I/O ends are bindings, not nodes. Nested to avoid
+	// colliding with Source (the provenance field).
+	Binding *FlowBinding `json:"binding,omitempty"`
+}
+
+// FlowBinding is a flow's declared source/sink binding intent (AD-026). Values
+// are binding locators — "file", "store", "none", "xliff", … — matching the
+// steps-format source:/sink: fields and the CLI locator vocabulary. An empty
+// field means the binding is supplied at invocation, not by the flow.
+type FlowBinding struct {
+	Source string `json:"source,omitempty"`
+	Sink   string `json:"sink,omitempty"`
+}
+
+// bindingFromSpec builds a FlowBinding from a steps spec's source/sink, or nil
+// when the flow declares neither (a binding-agnostic flow).
+func bindingFromSpec(spec *StepsSpec) *FlowBinding {
+	if spec.Source == "" && spec.Sink == "" {
+		return nil
+	}
+	return &FlowBinding{Source: spec.Source, Sink: spec.Sink}
 }
 
 // FlowNode represents a node in the flow graph.
@@ -471,9 +493,10 @@ func parseStepsFromSpec(env *config.Envelope) (*FlowDefinition, error) {
 	}
 
 	def := &FlowDefinition{
-		Name:  env.Metadata.Name,
-		Nodes: nodes,
-		Edges: edges,
+		Name:    env.Metadata.Name,
+		Nodes:   nodes,
+		Edges:   edges,
+		Binding: bindingFromSpec(&spec),
 	}
 	if env.Metadata.Description != "" {
 		def.Description = env.Metadata.Description
@@ -502,8 +525,9 @@ func parseStepsFromBare(data []byte) (*FlowDefinition, error) {
 	}
 
 	return &FlowDefinition{
-		Nodes: nodes,
-		Edges: edges,
+		Nodes:   nodes,
+		Edges:   edges,
+		Binding: bindingFromSpec(&spec),
 	}, nil
 }
 

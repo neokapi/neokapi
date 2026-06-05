@@ -11,12 +11,15 @@ func TestParseLocator(t *testing.T) {
 		{"a.json", "", "a.json"},
 		{"l10n/{lang}/{name}.{ext}", "", "l10n/{lang}/{name}.{ext}"},
 		{"store:", SchemeStore, ""},
+		{"store", SchemeStore, ""}, // bare scheme word (flow-intent form)
+		{"file", SchemeFile, ""},   // bare scheme word
+		{"xliff", SchemeXLIFF, ""}, // bare scheme word
 		{"klz:work.klz", SchemeKLZ, "work.klz"},
 		{"xliff:hand.xliff", SchemeXLIFF, "hand.xliff"},
 		{"file:store:", SchemeFile, "store:"}, // file: forces a path that reads as a scheme
 		{"none", SchemeNone, ""},
 		{"NONE", SchemeNone, ""},
-		{"  store:  ", SchemeStore, ""}, // surrounding space trimmed before the scheme split
+		{"  store:  ", SchemeStore, ""},        // surrounding space trimmed before the scheme split
 		{`C:\tmp\a.json`, "", `C:\tmp\a.json`}, // a drive letter is not a known scheme
 		{"unknown:thing", "", "unknown:thing"},
 	}
@@ -44,6 +47,10 @@ func TestLocatorKind(t *testing.T) {
 		{"mem.tmx", BindingInterchange},
 		{"terms.tbx", BindingInterchange},
 		{"l10n/", BindingFile}, // a directory of files, not the store
+		// bare scheme words (flow-intent form)
+		{"store", BindingStore},
+		{"xliff", BindingInterchange},
+		{"none", BindingNone},
 		// explicit schemes override detection
 		{"store:", BindingStore},
 		{"klz:work.klz", BindingStore},

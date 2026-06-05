@@ -85,8 +85,10 @@ type Locator struct {
 }
 
 // ParseLocator splits a locator into its scheme and path. A recognized
-// "scheme:" prefix is honored; the bare word "none" is the none sink; anything
-// else is a bare path (Scheme == "").
+// "scheme:" prefix is honored (the CLI locator form, e.g. "store:work.klz"); a
+// bare known-scheme word with no path is that binding kind (the flow-intent
+// form, e.g. "store", "none", "xliff"); anything else is a bare path that is
+// bound by detection.
 func ParseLocator(s string) Locator {
 	raw := s
 	s = strings.TrimSpace(s)
@@ -96,8 +98,8 @@ func ParseLocator(s string) Locator {
 			return Locator{Scheme: scheme, Path: s[i+1:], Raw: raw}
 		}
 	}
-	if strings.EqualFold(s, SchemeNone) {
-		return Locator{Scheme: SchemeNone, Raw: raw}
+	if knownSchemes[strings.ToLower(s)] {
+		return Locator{Scheme: strings.ToLower(s), Raw: raw}
 	}
 	return Locator{Path: s, Raw: raw}
 }
