@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -305,7 +305,7 @@ func (a *App) unpackKlz(ctx context.Context, klzPath string) error {
 // persistent, so SessionTools read prior overlays (skip recompute) and write
 // new ones directly — no per-invocation load/export.
 func (a *App) runCacheSource(ctx context.Context, c *klzCache, src klzCacheSource, flowName string, tools []tool.Tool, docOut, targetLang string) error {
-	store, err := blockstore.NewCacheStore(c.storePath(src.Key))
+	store, err := sqlitestore.New(c.storePath(src.Key))
 	if err != nil {
 		return fmt.Errorf("klz: open store: %w", err)
 	}

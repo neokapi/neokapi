@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func seed(t *testing.T, store blockstore.Store) {
 
 func TestExportLoadRoundTripCache(t *testing.T) {
 	ctx := context.Background()
-	src, err := blockstore.NewCacheStore(filepath.Join(t.TempDir(), "a.db"))
+	src, err := sqlitestore.New(filepath.Join(t.TempDir(), "a.db"))
 	require.NoError(t, err)
 	defer src.Close()
 	seed(t, src)
@@ -42,7 +43,7 @@ func TestExportLoadRoundTripCache(t *testing.T) {
 	assert.Equal(t, "b1", snap.Overlays[1].BlockHash)
 	assert.Zero(t, snap.Overlays[0].UpdatedAt, "export strips timestamps")
 
-	dst, err := blockstore.NewCacheStore(filepath.Join(t.TempDir(), "b.db"))
+	dst, err := sqlitestore.New(filepath.Join(t.TempDir(), "b.db"))
 	require.NoError(t, err)
 	defer dst.Close()
 	require.NoError(t, exporter.Load(ctx, dst, snap))

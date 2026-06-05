@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/klz"
@@ -116,7 +116,7 @@ func (a *App) runPack(cmd *cobra.Command) error {
 
 	// Block store (blocks + overlays).
 	if blocksPath := layout.BlockStorePath(); fileExists(blocksPath) {
-		store, err := blockstore.NewCacheStore(blocksPath)
+		store, err := sqlitestore.New(blocksPath)
 		if err != nil {
 			return fmt.Errorf("open block store: %w", err)
 		}
@@ -210,7 +210,7 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 
 	// Block store.
 	if len(pkg.Overlays) > 0 || len(pkg.Blocks) > 0 {
-		store, err := blockstore.NewCacheStore(layout.BlockStorePath())
+		store, err := sqlitestore.New(layout.BlockStorePath())
 		if err != nil {
 			return fmt.Errorf("open block store: %w", err)
 		}

@@ -242,104 +242,124 @@ func wireSegmentToTarget(runs []model.Run, first *SyncSegment) *model.Target {
 }
 
 func modelRunsToSync(runs []model.Run) []SyncRun {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]SyncRun, len(runs))
-	for i, r := range runs {
-		out[i] = modelRunToSync(r)
-	}
-	return out
+	return model.BuildRuns[SyncRun, []SyncRun](runs, syncRunBuilder{})
 }
 
 func syncRunsToModel(runs []SyncRun) []model.Run {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]model.Run, len(runs))
-	for i, r := range runs {
-		out[i] = syncRunToModel(r)
-	}
-	return out
+	return model.ParseRuns[SyncRun, []SyncRun](runs, syncRunParser{})
 }
 
-func modelRunToSync(r model.Run) SyncRun {
-	switch {
-	case r.Text != nil:
-		return SyncRun{Text: &SyncTextRun{Text: r.Text.Text}}
-	case r.Ph != nil:
-		return SyncRun{Ph: &SyncPlaceholderRun{
-			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
-			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
-			Constraints: modelRunConstraintsToSync(r.Ph.Constraints),
-		}}
-	case r.PcOpen != nil:
-		return SyncRun{PcOpen: &SyncPcOpenRun{
-			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
-			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
-			Constraints: modelRunConstraintsToSync(r.PcOpen.Constraints),
-		}}
-	case r.PcClose != nil:
-		return SyncRun{PcClose: &SyncPcCloseRun{
-			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
-			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
-		}}
-	case r.Sub != nil:
-		return SyncRun{Sub: &SyncSubRun{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
-	case r.Plural != nil:
-		forms := make(map[string][]SyncRun, len(r.Plural.Forms))
-		for form, runs := range r.Plural.Forms {
-			forms[string(form)] = modelRunsToSync(runs)
-		}
-		return SyncRun{Plural: &SyncPluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
-	case r.Select != nil:
-		cases := make(map[string][]SyncRun, len(r.Select.Cases))
-		for key, runs := range r.Select.Cases {
-			cases[key] = modelRunsToSync(runs)
-		}
-		return SyncRun{Select: &SyncSelectRun{Pivot: r.Select.Pivot, Cases: cases}}
-	}
-	return SyncRun{}
+// syncRunBuilder maps model runs onto the JSON sync SyncRun structs. The wire
+// "run list" is just []SyncRun, so List is the identity. The discriminator
+// dispatch and the Plural/Select recursion live in model.BuildRun.
+type syncRunBuilder struct{}
+
+func (syncRunBuilder) Text(t *model.TextRun) SyncRun {
+	return SyncRun{Text: &SyncTextRun{Text: t.Text}}
 }
 
-func syncRunToModel(r SyncRun) model.Run {
-	switch {
-	case r.Text != nil:
-		return model.Run{Text: &model.TextRun{Text: r.Text.Text}}
-	case r.Ph != nil:
-		return model.Run{Ph: &model.PlaceholderRun{
+func (syncRunBuilder) Ph(p *model.PlaceholderRun) SyncRun {
+	return SyncRun{Ph: &SyncPlaceholderRun{
+		ID: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: modelRunConstraintsToSync(p.Constraints),
+	}}
+}
+
+func (syncRunBuilder) PcOpen(p *model.PcOpenRun) SyncRun {
+	return SyncRun{PcOpen: &SyncPcOpenRun{
+		ID: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Constraints: modelRunConstraintsToSync(p.Constraints),
+	}}
+}
+
+func (syncRunBuilder) PcClose(p *model.PcCloseRun) SyncRun {
+	return SyncRun{PcClose: &SyncPcCloseRun{
+		ID: p.ID, Type: p.Type, SubType: p.SubType,
+		Data: p.Data, Equiv: p.Equiv,
+	}}
+}
+
+func (syncRunBuilder) Sub(s *model.SubRun) SyncRun {
+	return SyncRun{Sub: &SyncSubRun{ID: s.ID, Ref: s.Ref, Equiv: s.Equiv}}
+}
+
+func (syncRunBuilder) Plural(pivot string, forms map[string][]SyncRun) SyncRun {
+	return SyncRun{Plural: &SyncPluralRun{Pivot: pivot, Forms: forms}}
+}
+
+func (syncRunBuilder) Select(pivot string, cases map[string][]SyncRun) SyncRun {
+	return SyncRun{Select: &SyncSelectRun{Pivot: pivot, Cases: cases}}
+}
+
+func (syncRunBuilder) List(runs []SyncRun) []SyncRun { return runs }
+func (syncRunBuilder) Zero() SyncRun                 { return SyncRun{} }
+
+// syncRunParser is the reverse of syncRunBuilder.
+type syncRunParser struct{}
+
+func (syncRunParser) Text(r SyncRun) (*model.TextRun, bool) {
+	if r.Text != nil {
+		return &model.TextRun{Text: r.Text.Text}, true
+	}
+	return nil, false
+}
+
+func (syncRunParser) Ph(r SyncRun) (*model.PlaceholderRun, bool) {
+	if r.Ph != nil {
+		return &model.PlaceholderRun{
 			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
 			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
 			Constraints: syncRunConstraintsToModel(r.Ph.Constraints),
-		}}
-	case r.PcOpen != nil:
-		return model.Run{PcOpen: &model.PcOpenRun{
+		}, true
+	}
+	return nil, false
+}
+
+func (syncRunParser) PcOpen(r SyncRun) (*model.PcOpenRun, bool) {
+	if r.PcOpen != nil {
+		return &model.PcOpenRun{
 			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
 			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
 			Constraints: syncRunConstraintsToModel(r.PcOpen.Constraints),
-		}}
-	case r.PcClose != nil:
-		return model.Run{PcClose: &model.PcCloseRun{
+		}, true
+	}
+	return nil, false
+}
+
+func (syncRunParser) PcClose(r SyncRun) (*model.PcCloseRun, bool) {
+	if r.PcClose != nil {
+		return &model.PcCloseRun{
 			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
 			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
-		}}
-	case r.Sub != nil:
-		return model.Run{Sub: &model.SubRun{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
-	case r.Plural != nil:
-		forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
-		for form, runs := range r.Plural.Forms {
-			forms[model.PluralForm(form)] = syncRunsToModel(runs)
-		}
-		return model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
-	case r.Select != nil:
-		cases := make(map[string][]model.Run, len(r.Select.Cases))
-		for key, runs := range r.Select.Cases {
-			cases[key] = syncRunsToModel(runs)
-		}
-		return model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+		}, true
 	}
-	return model.Run{}
+	return nil, false
 }
+
+func (syncRunParser) Sub(r SyncRun) (*model.SubRun, bool) {
+	if r.Sub != nil {
+		return &model.SubRun{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}, true
+	}
+	return nil, false
+}
+
+func (syncRunParser) Plural(r SyncRun) (string, map[string][]SyncRun, bool) {
+	if r.Plural != nil {
+		return r.Plural.Pivot, r.Plural.Forms, true
+	}
+	return "", nil, false
+}
+
+func (syncRunParser) Select(r SyncRun) (string, map[string][]SyncRun, bool) {
+	if r.Select != nil {
+		return r.Select.Pivot, r.Select.Cases, true
+	}
+	return "", nil, false
+}
+
+func (syncRunParser) ListRuns(l []SyncRun) []SyncRun { return l }
 
 func modelRunConstraintsToSync(c *model.RunConstraints) *SyncRunConstraints {
 	if c == nil {
