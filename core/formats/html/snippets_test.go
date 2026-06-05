@@ -579,7 +579,7 @@ func TestSnippets_WithoutPreserveCharacterEntities(t *testing.T) {
 func TestSnippets_PlaceholderOnlySegments(t *testing.T) {
 	parts := readHTML(t, "<table><tr><td><br/></td></tr><tr><td><img src='...'></td></tr></table>")
 	blocks := translatableBlocks(parts)
-	assert.Equal(t, 2, len(blocks), "should produce 2 text units for placeholder-only segments")
+	assert.Len(t, blocks, 2, "should produce 2 text units for placeholder-only segments")
 }
 
 // --- Events Tests (from HtmlEventTest.java) ---
@@ -1033,7 +1033,7 @@ func TestFullFile_OpenTwiceWithString(t *testing.T) {
 	blocks2 := translatableBlocks(readHTML(t, htmlContent))
 
 	require.NotEmpty(t, blocks1)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	assert.Equal(t, blockTexts(blocks1), blockTexts(blocks2))
 }
 
@@ -1566,7 +1566,7 @@ func TestFullFile_OpenTwiceWithURI(t *testing.T) {
 	blocks1 := translatableBlocks(readHTML(t, content))
 	blocks2 := translatableBlocks(readHTML(t, content))
 	require.NotEmpty(t, blocks1)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	assert.Equal(t, blockTexts(blocks1), blockTexts(blocks2))
 }
 

@@ -155,7 +155,7 @@ func rereadStable(t *testing.T, cfg *xmlfmt.Config, data []byte) []byte {
 	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
 	reader2.Close()
 
-	assert.Equal(t, len(blocks1), len(blocks2),
+	assert.Len(t, blocks2, len(blocks1),
 		"re-read block count must match the original extraction")
 	return buf.Bytes()
 }

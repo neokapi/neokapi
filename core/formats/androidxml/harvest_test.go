@@ -148,7 +148,7 @@ func TestRichFixtureExtraction(t *testing.T) {
 	privacy := by["privacy_policy"]
 	require.NotNil(t, privacy)
 	assert.True(t, runsHaveInlineCodes(privacy.SourceRuns()), "CDATA should be a code")
-	assert.Equal(t, "", privacy.SourceText(), "CDATA contributes no translatable text")
+	assert.Empty(t, privacy.SourceText(), "CDATA contributes no translatable text")
 	assert.Equal(t,
 		`<![CDATA[Read our <a href="https://example.com/privacy">Privacy&nbsp;Policy</a> &amp; <b>Terms</b> before continuing.]]>`,
 		model.RenderRunsWithData(privacy.SourceRuns()))

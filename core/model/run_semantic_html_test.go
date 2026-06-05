@@ -57,7 +57,7 @@ func TestRunsSemanticHTMLUnknownType(t *testing.T) {
 
 func TestRunsSemanticHTMLNoRuns(t *testing.T) {
 	reg := newVocabRegistry(t)
-	assert.Equal(t, "", model.RunsSemanticHTML(nil, reg))
+	assert.Empty(t, model.RunsSemanticHTML(nil, reg))
 }
 
 func TestRunsSemanticHTMLPlainText(t *testing.T) {

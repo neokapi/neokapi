@@ -91,7 +91,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 		}
 		nodes, err := parse(raw)
 		if err != nil {
-			return fmt.Errorf("messageformat: line %d: %s", lineNum, err.Error())
+			return fmt.Errorf("messageformat: line %d: %w", lineNum, err)
 		}
 		r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw, nodes: nodes})
 	}
@@ -149,7 +149,7 @@ func (r *Reader) openWithSkeleton(_ context.Context, doc *model.RawDocument) err
 		}
 		nodes, err := parse(raw)
 		if err != nil {
-			return fmt.Errorf("messageformat: line %d: %s", lineNum, err.Error())
+			return fmt.Errorf("messageformat: line %d: %w", lineNum, err)
 		}
 		r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw, nodes: nodes})
 	}

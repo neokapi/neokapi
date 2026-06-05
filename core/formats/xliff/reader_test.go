@@ -2640,7 +2640,7 @@ func TestExtract_TransUnitEmptySource(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 }
 
 // --- Multi-level sub ---

@@ -1044,7 +1044,7 @@ func TestSnippet_DoubleExtraction(t *testing.T) {
 	blocks1 := readTSBlocks(t, snippet)
 	blocks2 := readTSBlocks(t, snippet)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText())
 	}

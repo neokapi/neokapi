@@ -325,7 +325,7 @@ func TestTranslatedTargetRoundTrip(t *testing.T) {
 
 	empty := byName["emptyMessage"]
 	require.NotNil(t, empty)
-	assert.Equal(t, "", empty.SourceText())
+	assert.Empty(t, empty.SourceText())
 
 	out := writeParts(t, parts, "")
 	assert.Equal(t, string(original), string(out))

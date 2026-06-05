@@ -496,7 +496,7 @@ func TestReadEmptyStringValue(t *testing.T) {
 	for _, b := range blocks {
 		names[b.Name] = b.SourceText()
 	}
-	assert.Equal(t, "", names["empty"])
+	assert.Empty(t, names["empty"])
 	assert.Equal(t, "value", names["notempty"])
 }
 

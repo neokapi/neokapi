@@ -278,7 +278,7 @@ func assertConceptsEquivalent(t *testing.T, a, b TermBase) {
 	t.Helper()
 	ac := a.Concepts()
 	bc := b.Concepts()
-	require.Equal(t, len(ac), len(bc), "concept counts must match")
+	require.Len(t, bc, len(ac), "concept counts must match")
 
 	for _, want := range ac {
 		got, ok := b.GetConcept(want.ID)
@@ -291,7 +291,7 @@ func assertConceptsEquivalent(t *testing.T, a, b TermBase) {
 
 func assertTermsEquivalent(t *testing.T, conceptID string, want, got []Term) {
 	t.Helper()
-	require.Equal(t, len(want), len(got), "term count for %s", conceptID)
+	require.Len(t, got, len(want), "term count for %s", conceptID)
 
 	key := func(tm Term) string {
 		return string(tm.Locale) + "|" + tm.Text

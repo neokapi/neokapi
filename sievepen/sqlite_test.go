@@ -428,7 +428,7 @@ func TestSQLiteTM_DeleteSessionKeepsOrigins(t *testing.T) {
 	got, ok := tm.GetEntry("e1")
 	require.True(t, ok)
 	require.Len(t, got.Origins, 1)
-	assert.Equal(t, "", got.Origins[0].SessionID)
+	assert.Empty(t, got.Origins[0].SessionID)
 }
 
 // --- Entity mapping (multilingual) ---

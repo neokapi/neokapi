@@ -405,7 +405,7 @@ func TestParseRunPropsFromRawCached(t *testing.T) {
 		m1 := map[string]bool{"color": true, "sz": true}
 		m2 := map[string]bool{"sz": true, "color": true}
 		assert.Equal(t, p.chainKeyFor(m1), p.chainKeyFor(m2))
-		assert.Equal(t, "", p.chainKeyFor(nil))
+		assert.Empty(t, p.chainKeyFor(nil))
 		assert.NotEqual(t, p.chainKeyFor(m1), p.chainKeyFor(map[string]bool{"color": true}))
 	})
 }

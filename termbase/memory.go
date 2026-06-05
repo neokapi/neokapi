@@ -331,6 +331,8 @@ func (tb *InMemoryTermBase) Close() error {
 
 // --- helpers ---
 
+// ApplyLookupDefaults fills unset LookupOptions fields with their defaults: a
+// non-positive MinScore becomes 0.8.
 func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
 	if opts.MinScore <= 0 {
 		opts.MinScore = 0.8
@@ -338,6 +340,8 @@ func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
 	return opts
 }
 
+// MatchModesEnabled returns the set of enabled match strategies. An empty modes
+// slice enables all of exact, normalized, and fuzzy matching.
 func MatchModesEnabled(modes []model.MatchStrategy) map[model.MatchStrategy]bool {
 	if len(modes) == 0 {
 		return map[model.MatchStrategy]bool{
@@ -381,6 +385,8 @@ func matchesDomain(c Concept, domains []string) bool {
 	return false
 }
 
+// MatchesStatus reports whether status is in the filter. An empty filter
+// matches any status.
 func MatchesStatus(status model.TermStatus, filter []model.TermStatus) bool {
 	if len(filter) == 0 {
 		return true

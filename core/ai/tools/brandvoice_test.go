@@ -200,7 +200,7 @@ func TestBrandVoiceCheckToolSkipsEmptyText(t *testing.T) {
 	require.NoError(t, err)
 
 	<-out
-	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
+	assert.Empty(t, mock.ChatStructuredCalls)
 }
 
 func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
@@ -311,7 +311,7 @@ func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
 	var score brand.BrandComplianceScore
 	err = json.Unmarshal([]byte(resultBlock.Properties["brand-voice-score"]), &score)
 	require.NoError(t, err)
-	assert.Equal(t, "", score.ProfileID)
+	assert.Empty(t, score.ProfileID)
 	assert.Equal(t, 100, score.Overall)
 }
 

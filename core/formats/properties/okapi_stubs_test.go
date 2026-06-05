@@ -181,7 +181,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			// Compare blocks from both extractions
 			blocks1 := testutil.FilterBlocks(parts1)
 			blocks2 := testutil.FilterBlocks(parts2)
-			require.Equal(t, len(blocks1), len(blocks2), "block count mismatch")
+			require.Len(t, blocks2, len(blocks1), "block count mismatch")
 			for i := range blocks1 {
 				assert.Equal(t, blocks1[i].Name, blocks2[i].Name, "block %d name mismatch", i)
 				assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(), "block %d text mismatch", i)

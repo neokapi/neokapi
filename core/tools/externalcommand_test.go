@@ -187,7 +187,7 @@ func TestExternalCommandConfigReset(t *testing.T) {
 	}
 	cfg.Reset()
 
-	assert.Equal(t, "", cfg.Command)
+	assert.Empty(t, cfg.Command)
 	assert.Nil(t, cfg.Args)
 	assert.False(t, cfg.ApplySource)
 	assert.True(t, cfg.ApplyTarget)

@@ -176,7 +176,7 @@ func TestBridgeResolveByKindCompatibility(t *testing.T) {
 			kind := OkapiFilterConfigKind(format)
 			s := string(kind)
 			// Bridge validates: starts with "Okf" and ends with "FilterConfig"
-			assert.True(t, len(s) > len("Okf")+len("FilterConfig"),
+			assert.Greater(t, len(s), len("Okf")+len("FilterConfig"),
 				"kind %q too short", s)
 			assert.Equal(t, "Okf", s[:3],
 				"kind %q must start with Okf", s)

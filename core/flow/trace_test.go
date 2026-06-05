@@ -66,7 +66,7 @@ func TestTraceRecorder(t *testing.T) {
 		ss := snapshots["b1"]
 		assert.Equal(t, "Block", ss.Initial.Type)
 		assert.Equal(t, "Hello World", ss.Initial.SourceText)
-		assert.Equal(t, "", ss.Initial.TargetText)
+		assert.Empty(t, ss.Initial.TargetText)
 		assert.Equal(t, "Hello World", ss.Initial.Summary)
 
 		require.Contains(t, ss.AfterNode, "pseudo")
@@ -313,7 +313,7 @@ func TestTracingTool(t *testing.T) {
 		snapshots := rec.Snapshots()
 		require.Contains(t, snapshots, "b1")
 		ss := snapshots["b1"]
-		assert.Equal(t, "", ss.Initial.TargetText)
+		assert.Empty(t, ss.Initial.TargetText)
 		require.Contains(t, ss.AfterNode, "upper-node")
 		assert.Equal(t, "HELLO WORLD", ss.AfterNode["upper-node"].TargetText)
 	})

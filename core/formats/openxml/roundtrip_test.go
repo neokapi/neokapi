@@ -109,7 +109,7 @@ func TestRoundtripWithTranslation(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	assert.True(t, buf.Len() > 0, "output should not be empty")
+	assert.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and verify translations appear
 	parts2 := readFromBytes(t, buf.Bytes())
@@ -262,14 +262,14 @@ func assertSkeletonRoundtrip(t *testing.T, original []byte, uri string) {
 	require.NoError(t, err)
 	writer.Close()
 
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	// Re-read and compare
 	parts2 := readFromBytes(t, buf.Bytes())
 	blocks2 := translatableBlocks(parts2)
 	texts2 := blockTexts(blocks2)
 
-	if !assert.Equal(t, len(texts1), len(texts2), "block count should match") {
+	if !assert.Len(t, texts2, len(texts1), "block count should match") {
 		// Log details for debugging
 		t.Logf("original blocks: %d, roundtrip blocks: %d", len(texts1), len(texts2))
 		if len(texts1) <= 20 {
@@ -325,7 +325,7 @@ func assertSkeletonRoundtripConfig(t *testing.T, original []byte, uri string, co
 	err = writer.Write(t.Context(), testutil.PartsToChannel(parts1))
 	require.NoError(t, err)
 	writer.Close()
-	require.True(t, buf.Len() > 0, "output should not be empty")
+	require.Greater(t, buf.Len(), 0, "output should not be empty")
 
 	reader2 := NewReader()
 	if configure != nil {

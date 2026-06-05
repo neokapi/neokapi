@@ -1228,7 +1228,7 @@ func TestEmptyTu(t *testing.T) {
 	blocks := readTMXBlocks(t, input)
 	// Empty TU should still produce a block (with empty source text)
 	require.NotEmpty(t, blocks)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 }
 
 // okapi: TmxFilterTest#testInvalidElementInTu
@@ -1336,7 +1336,7 @@ func TestDoubleExtraction(t *testing.T) {
     </tu>`)
 	blocks1 := readTMXBlocks(t, input)
 	blocks2 := readTMXBlocks(t, input)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),
 			"block %d source text should match", i)
@@ -1815,7 +1815,7 @@ func TestEmptySegment(t *testing.T) {
     </tu>`)
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 }
 
 func TestTUWithOnlyTarget(t *testing.T) {

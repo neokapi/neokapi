@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/spec"
+	"github.com/neokapi/neokapi/core/format/spectest"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 )
 
@@ -16,7 +17,7 @@ func TestSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load spec: %v", err)
 	}
-	r := &spec.NativeRunner{
+	r := &spectest.NativeRunner{
 		Spec:      s,
 		NewReader: func(_ string) format.DataFormatReader { return xliff2.NewReader() },
 	}

@@ -203,15 +203,10 @@ var translatableDescCommands = map[string]bool{
 	"since": true, "deprecated": true,
 }
 
-// inlineCommands enumerates Doxygen commands that produce inline
-// formatting (\e, \a, \b, \c, \p, \em). They mark up the next word.
-// The reader keeps them in the extracted text so the writer can
-// roundtrip the source verbatim — see processInlineCommands.
-//
-//nolint:unused // documents the recognised inline-command vocabulary
-var inlineCommands = map[string]bool{
-	"e": true, "a": true, "b": true, "c": true, "p": true, "em": true,
-}
+// The Doxygen inline-formatting commands (\e, \a, \b, \c, \p, \em) mark up the
+// next word. The reader keeps them in the extracted text so the writer can
+// roundtrip the source verbatim — see processInlineCommands, which deliberately
+// leaves the markers in place rather than matching against an enumerated set.
 
 // rawLine holds a line's content and its original line ending.
 type rawLine struct {

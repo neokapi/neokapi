@@ -71,7 +71,7 @@ func TestTranslateToolResetUsage(t *testing.T) {
 	require.NoError(t, err)
 	<-out
 
-	assert.True(t, tool.TotalUsage().TotalTokens() > 0)
+	assert.Greater(t, tool.TotalUsage().TotalTokens(), 0)
 
 	tool.ResetUsage()
 	assert.Equal(t, 0, tool.TotalUsage().TotalTokens())
@@ -258,5 +258,5 @@ func TestSkippedBlocksProduceZeroUsage(t *testing.T) {
 	<-out
 
 	assert.Equal(t, 0, tool.TotalUsage().TotalTokens())
-	assert.Equal(t, 0, len(mock.TranslateCalls))
+	assert.Empty(t, mock.TranslateCalls)
 }

@@ -166,7 +166,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Both extractions should produce the same blocks
 	blocks1 := readNativeBlocks(t, output1)
 	blocks2 := readNativeBlocks(t, output2)
-	require.Equal(t, len(blocks1), len(blocks2), "double extraction should produce same block count")
+	require.Len(t, blocks2, len(blocks1), "double extraction should produce same block count")
 
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),
@@ -597,7 +597,7 @@ func TestRoundTrip_NativeFiles(t *testing.T) {
 			output2 := roundtripNative(t, output)
 			blocks1 := readNativeBlocks(t, output)
 			blocks2 := readNativeBlocks(t, output2)
-			require.Equal(t, len(blocks1), len(blocks2),
+			require.Len(t, blocks2, len(blocks1),
 				"double extraction should produce same block count")
 			for i := range blocks1 {
 				assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),

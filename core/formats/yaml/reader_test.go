@@ -450,7 +450,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 	blocks1 := readYAML(t, input)
 	blocks2 := readYAML(t, input)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText())
 		assert.Equal(t, blocks1[i].Name, blocks2[i].Name)
@@ -467,7 +467,7 @@ key3: "Path\\to\\file"
 	blocks1 := readYAML(t, input)
 	blocks2 := readYAML(t, input)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText())
 	}
@@ -486,7 +486,7 @@ null_val: null
 	blocks1 := readYAMLWithConfig(t, input, params)
 	blocks2 := readYAMLWithConfig(t, input, params)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText())
 	}
@@ -501,7 +501,7 @@ func TestExtract_DoubleExtractionLongLine(t *testing.T) {
 	blocks1 := readYAML(t, input)
 	blocks2 := readYAML(t, input)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	assert.Equal(t, blocks1[0].SourceText(), blocks2[0].SourceText())
 }
 
@@ -520,7 +520,7 @@ literal: |
 	blocks1 := readYAML(t, input)
 	blocks2 := readYAML(t, input)
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 	for i := range blocks1 {
 		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText())
 	}
@@ -669,7 +669,7 @@ func TestParse_SingleFile(t *testing.T) {
 `
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
-	assert.True(t, len(blocks) >= 3)
+	assert.GreaterOrEqual(t, len(blocks), 3)
 }
 
 // okapi: YamlParserTest#singleArrayNoSpace

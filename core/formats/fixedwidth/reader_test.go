@@ -499,5 +499,5 @@ func TestFW_ContextCancellation(t *testing.T) {
 		}
 	}
 	// With a cancelled context, we may get 0 or partial parts
-	assert.True(t, len(parts) <= 4, "should not emit all parts when context is cancelled")
+	assert.LessOrEqual(t, len(parts), 4, "should not emit all parts when context is cancelled")
 }

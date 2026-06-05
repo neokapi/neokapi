@@ -47,7 +47,7 @@ func TestBlockSourceTarget(t *testing.T) {
 
 	// Initially no targets
 	assert.False(t, block.HasTarget(model.LocaleFrench))
-	assert.Equal(t, "", block.TargetText(model.LocaleFrench))
+	assert.Empty(t, block.TargetText(model.LocaleFrench))
 
 	// Set target
 	block.SetTargetText(model.LocaleFrench, "Bonjour")
@@ -308,13 +308,13 @@ func TestBlockText_TargetLocale(t *testing.T) {
 func TestBlockText_MissingLocale(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
-	assert.Equal(t, "", b.Text("de-DE"))
+	assert.Empty(t, b.Text("de-DE"))
 }
 
 func TestBlockText_NoSourceLocaleSet(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	// SourceLocale not set — Text("en-US") looks in targets, finds nothing.
-	assert.Equal(t, "", b.Text("en-US"))
+	assert.Empty(t, b.Text("en-US"))
 	// SourceText still works via the direct method.
 	assert.Equal(t, "Hello", b.SourceText())
 }

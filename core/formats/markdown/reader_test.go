@@ -513,7 +513,7 @@ func TestRead_ExcludeIndentedCodeBlock(t *testing.T) {
 	parts := readParts(t, input)
 	blocks := testutil.FilterBlocks(parts)
 	// Indented code should be Data, not a block
-	assert.Equal(t, 2, len(blocks))
+	assert.Len(t, blocks, 2)
 	assert.Equal(t, "Text", blocks[0].SourceText())
 	assert.Equal(t, "More text", blocks[1].SourceText())
 }
@@ -643,7 +643,7 @@ func TestRead_ThematicBreak(t *testing.T) {
 	input := "Above\n\n---\n\nBelow\n"
 	parts := readParts(t, input)
 	blocks := testutil.FilterBlocks(parts)
-	assert.Equal(t, 2, len(blocks))
+	assert.Len(t, blocks, 2)
 
 	hasBreak := false
 	for _, p := range parts {
@@ -702,7 +702,7 @@ func TestRead_DontTranslateMetadataHeader(t *testing.T) {
 		}
 	}
 	assert.True(t, hasFrontMatter, "front matter should be Data by default")
-	assert.Equal(t, 1, len(blocks), "only heading should be a block")
+	assert.Len(t, blocks, 1, "only heading should be a block")
 	assert.Equal(t, "Heading", blocks[0].SourceText())
 }
 
@@ -746,7 +746,7 @@ func TestRead_Table1TextUnits(t *testing.T) {
 func TestRead_Table2TextUnits(t *testing.T) {
 	input := "| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n"
 	blocks := readBlocks(t, input)
-	assert.Equal(t, 9, len(blocks), "3 headers + 6 cells")
+	assert.Len(t, blocks, 9, "3 headers + 6 cells")
 }
 
 // --- Strikethrough Tests (GFM) ---
@@ -864,7 +864,7 @@ func TestRead_HtmlCommentAtColumn1(t *testing.T) {
 	input := "<!-- comment -->\n\nParagraph\n"
 	parts := readParts(t, input)
 	blocks := testutil.FilterBlocks(parts)
-	assert.Equal(t, 1, len(blocks))
+	assert.Len(t, blocks, 1)
 	assert.Equal(t, "Paragraph", blocks[0].SourceText())
 }
 

@@ -183,7 +183,7 @@ func TestValidateAllPresets(t *testing.T) {
 
 	// Filtered to json (no schema)
 	errs = resolver.ValidateAllPresets(locals, "json")
-	assert.Len(t, errs, 0)
+	assert.Empty(t, errs)
 }
 
 func TestIsConfigFilePath(t *testing.T) {

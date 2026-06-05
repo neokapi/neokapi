@@ -1771,7 +1771,7 @@ func TestSpanTypes_Generic(t *testing.T) {
 			}
 		}
 	}
-	assert.Greater(t, len(codeTypes), 0, "should have distinct inline-code types")
+	assert.NotEmpty(t, codeTypes, "should have distinct inline-code types")
 }
 
 // ---------------------------------------------------------------------------
@@ -2109,7 +2109,7 @@ func TestDita_DoubleExtraction(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: DitaExtractionComparisionTest#testDoubleExtractionSingle
@@ -2120,7 +2120,7 @@ func TestDita_DoubleExtractionSingle(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: DitaExtractionComparisionTest#testReconstructFile
@@ -2150,7 +2150,7 @@ func TestDita_OpenTwice(t *testing.T) {
 	blocks2 := testutil.CollectBlocks(t, reader.Read(ctx))
 	reader.Close()
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // ---------------------------------------------------------------------------
@@ -2166,7 +2166,7 @@ func TestDocType_DoubleExtraction(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: DocTypeExtractionTest#testEvents
@@ -2195,7 +2195,7 @@ func TestPI_DoubleExtraction(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: PIExtractionTest#testDoubleExtraction2
@@ -2206,7 +2206,7 @@ func TestPI_DoubleExtraction2(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // ---------------------------------------------------------------------------
@@ -2231,7 +2231,7 @@ func TestPropertyXml_DoubleExtraction(t *testing.T) {
 	parts2 := readXML(t, input, nil)
 	blocks1 := filterBlocks(parts1)
 	blocks2 := filterBlocks(parts2)
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: PropertyXmlExtractionComparisionTest#testDoubleExtractionSingle
@@ -2240,7 +2240,7 @@ func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
 <properties><entry key="test">Test value</entry></properties>`
 	parts1 := readXML(t, input, nil)
 	parts2 := readXML(t, input, nil)
-	require.Equal(t, len(parts1), len(parts2))
+	require.Len(t, parts2, len(parts1))
 }
 
 // okapi: PropertyXmlExtractionComparisionTest#testReconstructFile
@@ -2269,7 +2269,7 @@ func TestPropertyXml_OpenTwice(t *testing.T) {
 	blocks2 := testutil.CollectBlocks(t, reader.Read(ctx))
 	reader.Close()
 
-	require.Equal(t, len(blocks1), len(blocks2))
+	require.Len(t, blocks2, len(blocks1))
 }
 
 // okapi: PropertyXmlExtractionComparisionTest#testAsSnippetNoCdata

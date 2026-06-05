@@ -42,7 +42,7 @@ func TestWriterBasic(t *testing.T) {
 	writer.Close()
 
 	// Output should be a valid ZIP
-	assert.True(t, buf.Len() > 0, "output should not be empty")
+	assert.Greater(t, buf.Len(), 0, "output should not be empty")
 	assert.Equal(t, byte(0x50), buf.Bytes()[0], "should start with PK")
 	assert.Equal(t, byte(0x4B), buf.Bytes()[1])
 }

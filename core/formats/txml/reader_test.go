@@ -229,7 +229,7 @@ func TestReadEmptySources(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "", blocks[0].SourceText())
+	assert.Empty(t, blocks[0].SourceText())
 	// Two empty <source></source> segments → two (zero-width) source
 	// segment spans over an empty Run sequence.
 	require.Equal(t, 2, blocks[0].SourceSegmentCount())
@@ -299,7 +299,7 @@ func TestReadThreeSegmentsWithEmptyThird(t *testing.T) {
 	require.Equal(t, 3, blocks[0].SourceSegmentCount())
 	assert.Equal(t, "textS1", model.RunsText(blocks[0].SourceSegmentRuns(0)))
 	assert.Equal(t, "textS2", model.RunsText(blocks[0].SourceSegmentRuns(1)))
-	assert.Equal(t, "", model.RunsText(blocks[0].SourceSegmentRuns(2)))
+	assert.Empty(t, model.RunsText(blocks[0].SourceSegmentRuns(2)))
 	assert.Equal(t, "textS1textS2", blocks[0].SourceText())
 
 	// Only the first segment carries a <target>: a single dense target span.

@@ -708,7 +708,7 @@ func TestSnippets_DoubleExtraction(t *testing.T) {
 			blocks2 := testutil.FilterBlocks(parts2)
 
 			// Compare: same number of blocks, same texts
-			require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+			require.Len(t, blocks2, len(blocks1), "block count mismatch on double extraction")
 			texts1 := testutil.BlockTexts(blocks1)
 			texts2 := testutil.BlockTexts(blocks2)
 			for _, t1 := range texts1 {
@@ -1034,7 +1034,7 @@ func TestSnippets_DoubleExtractionOnPreviousFailure(t *testing.T) {
 	blocks2 := testutil.FilterBlocks(parts2)
 
 	// Compare: same number of blocks, same texts
-	require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+	require.Len(t, blocks2, len(blocks1), "block count mismatch on double extraction")
 	texts1 := testutil.BlockTexts(blocks1)
 	texts2 := testutil.BlockTexts(blocks2)
 	for _, t1 := range texts1 {
@@ -1080,7 +1080,7 @@ func TestSnippets_DoubleExtractionOnInvalid(t *testing.T) {
 	blocks2 := testutil.FilterBlocks(parts2)
 
 	// Compare
-	require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+	require.Len(t, blocks2, len(blocks1), "block count mismatch on double extraction")
 	texts1 := testutil.BlockTexts(blocks1)
 	texts2 := testutil.BlockTexts(blocks2)
 	for _, t1 := range texts1 {

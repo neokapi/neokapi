@@ -357,7 +357,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 
 	require.NotEmpty(t, blocks1, "first extraction should produce blocks")
 	require.NotEmpty(t, blocks2, "second extraction should produce blocks")
-	assert.Equal(t, len(blocks1), len(blocks2), "double extraction should produce same block count")
+	assert.Len(t, blocks2, len(blocks1), "double extraction should produce same block count")
 }
 
 // okapi: WikiFilterTest#testOpenTwiceWithString

@@ -134,5 +134,5 @@ func TestTranslator_EmptySourceReturnsEmpty(t *testing.T) {
 		[3]string{"x", "Hello", "Bonjour"},
 	)
 	tr := NewTranslator("fr-FR", cat)
-	assert.Equal(t, "", tr.T("x", ""))
+	assert.Empty(t, tr.T("x", ""))
 }
