@@ -57,20 +57,13 @@ func (s *StepsSpec) SinkLocator() (Locator, bool) {
 }
 
 // StepsToGraph compiles a steps-based spec into FlowDefinition nodes and edges.
-// It auto-generates reader/writer nodes and chains steps sequentially,
-// with fan-out for parallel blocks.
+// The graph is tool nodes only (AD-026): the source-transform stage first, then
+// the main steps chained sequentially, with fan-out for parallel blocks. A flow's
+// I/O ends are bindings resolved at run time, not nodes — so no reader or writer
+// node is emitted, and the first tool has no incoming edge.
 func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	if len(spec.Steps) == 0 && len(spec.SourceTransforms) == 0 {
 		return nil, nil, errors.New("flow has no steps")
-	}
-
-	inputFormat := spec.Input
-	if inputFormat == "" {
-		inputFormat = "auto"
-	}
-	outputFormat := spec.Output
-	if outputFormat == "" {
-		outputFormat = "auto"
 	}
 
 	var nodes []FlowNode
@@ -82,22 +75,11 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 		return fmt.Sprintf("%s-%d", prefix, nodeCounter)
 	}
 
-	// Reader node
-	readerID := "reader"
-	nodes = append(nodes, FlowNode{
-		ID:       readerID,
-		Type:     NodeReader,
-		Name:     inputFormat,
-		Label:    "Input",
-		Position: NodePosition{X: 0, Y: 100},
-	})
+	// prevIDs is the set of node IDs the next tool connects from; empty for the
+	// first tool (it is a graph root — content arrives via the source binding).
+	var prevIDs []string
 
-	prevIDs := []string{readerID}
-	xPos := 250.0
-
-	// Source-transform stage: sequential tools that settle the source/model,
-	// emitted between the reader and the main steps and marked with the stage.
-	for _, step := range spec.SourceTransforms {
+	addTool := func(step FlowStep, stage FlowStage, x, y float64) string {
 		id := nextID("tool")
 		label := step.Label
 		if label == "" {
@@ -108,9 +90,9 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 			Type:     NodeTool,
 			Name:     step.Tool,
 			Label:    label,
-			Stage:    StageSourceTransform,
+			Stage:    stage,
 			Config:   step.Config,
-			Position: NodePosition{X: xPos, Y: 100},
+			Position: NodePosition{X: x, Y: y},
 		})
 		for _, prev := range prevIDs {
 			edges = append(edges, FlowEdge{
@@ -119,84 +101,36 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 				Target: id,
 			})
 		}
+		return id
+	}
+
+	xPos := 0.0
+
+	// Source-transform stage: sequential tools that settle the source/model
+	// ahead of the main steps.
+	for _, step := range spec.SourceTransforms {
+		id := addTool(step, StageSourceTransform, xPos, 100)
 		prevIDs = []string{id}
 		xPos += 250
 	}
 
 	for _, step := range spec.Steps {
 		if len(step.Parallel) > 0 {
-			// Fan-out: create parallel branches
+			// Fan-out: each branch connects from the same predecessors.
 			var branchEndIDs []string
 			yPos := 0.0
 			for _, branch := range step.Parallel {
-				id := nextID("tool")
-				label := branch.Label
-				if label == "" {
-					label = branch.Tool
-				}
-				nodes = append(nodes, FlowNode{
-					ID:       id,
-					Type:     NodeTool,
-					Name:     branch.Tool,
-					Label:    label,
-					Config:   branch.Config,
-					Position: NodePosition{X: xPos, Y: yPos},
-				})
-				// Each branch connects from all prev nodes
-				for _, prev := range prevIDs {
-					edges = append(edges, FlowEdge{
-						ID:     fmt.Sprintf("e-%s-%s", prev, id),
-						Source: prev,
-						Target: id,
-					})
-				}
+				id := addTool(branch, StageMain, xPos, yPos)
 				branchEndIDs = append(branchEndIDs, id)
 				yPos += 150
 			}
 			prevIDs = branchEndIDs
 			xPos += 250
 		} else {
-			// Sequential step
-			id := nextID("tool")
-			label := step.Label
-			if label == "" {
-				label = step.Tool
-			}
-			nodes = append(nodes, FlowNode{
-				ID:       id,
-				Type:     NodeTool,
-				Name:     step.Tool,
-				Label:    label,
-				Config:   step.Config,
-				Position: NodePosition{X: xPos, Y: 100},
-			})
-			for _, prev := range prevIDs {
-				edges = append(edges, FlowEdge{
-					ID:     fmt.Sprintf("e-%s-%s", prev, id),
-					Source: prev,
-					Target: id,
-				})
-			}
+			id := addTool(step, StageMain, xPos, 100)
 			prevIDs = []string{id}
 			xPos += 250
 		}
-	}
-
-	// Writer node
-	writerID := "writer"
-	nodes = append(nodes, FlowNode{
-		ID:       writerID,
-		Type:     NodeWriter,
-		Name:     outputFormat,
-		Label:    "Output",
-		Position: NodePosition{X: xPos, Y: 100},
-	})
-	for _, prev := range prevIDs {
-		edges = append(edges, FlowEdge{
-			ID:     fmt.Sprintf("e-%s-%s", prev, writerID),
-			Source: prev,
-			Target: writerID,
-		})
 	}
 
 	return nodes, edges, nil

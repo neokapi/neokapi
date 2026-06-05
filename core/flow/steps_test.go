@@ -9,8 +9,6 @@ import (
 
 func TestStepsToGraph_Linear(t *testing.T) {
 	spec := &StepsSpec{
-		Input:  "auto",
-		Output: "auto",
 		Steps: []FlowStep{
 			{Tool: "ai-translate", Config: map[string]any{"provider": "anthropic"}},
 			{Tool: "qa-check"},
@@ -20,25 +18,18 @@ func TestStepsToGraph_Linear(t *testing.T) {
 	nodes, edges, err := StepsToGraph(spec)
 	require.NoError(t, err)
 
-	// reader + 2 tools + writer = 4 nodes
-	assert.Len(t, nodes, 4)
-	assert.Equal(t, NodeReader, nodes[0].Type)
-	assert.Equal(t, "auto", nodes[0].Name)
+	// Tool-only graph: 2 tool nodes, no reader/writer (AD-026).
+	require.Len(t, nodes, 2)
+	assert.Equal(t, NodeTool, nodes[0].Type)
+	assert.Equal(t, "ai-translate", nodes[0].Name)
+	assert.Equal(t, map[string]any{"provider": "anthropic"}, nodes[0].Config)
 	assert.Equal(t, NodeTool, nodes[1].Type)
-	assert.Equal(t, "ai-translate", nodes[1].Name)
-	assert.Equal(t, map[string]any{"provider": "anthropic"}, nodes[1].Config)
-	assert.Equal(t, NodeTool, nodes[2].Type)
-	assert.Equal(t, "qa-check", nodes[2].Name)
-	assert.Equal(t, NodeWriter, nodes[3].Type)
+	assert.Equal(t, "qa-check", nodes[1].Name)
 
-	// reader->translate, translate->qa, qa->writer = 3 edges
-	assert.Len(t, edges, 3)
-	assert.Equal(t, "reader", edges[0].Source)
+	// One edge: translate -> qa. The first tool has no incoming edge.
+	require.Len(t, edges, 1)
+	assert.Equal(t, nodes[0].ID, edges[0].Source)
 	assert.Equal(t, nodes[1].ID, edges[0].Target)
-	assert.Equal(t, nodes[1].ID, edges[1].Source)
-	assert.Equal(t, nodes[2].ID, edges[1].Target)
-	assert.Equal(t, nodes[2].ID, edges[2].Source)
-	assert.Equal(t, "writer", edges[2].Target)
 }
 
 func TestStepsToGraph_Parallel(t *testing.T) {
@@ -57,10 +48,9 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 	nodes, edges, err := StepsToGraph(spec)
 	require.NoError(t, err)
 
-	// reader + 2 parallel tools + qa + writer = 5 nodes
-	assert.Len(t, nodes, 5)
+	// 2 parallel tools + qa = 3 nodes (no reader/writer).
+	require.Len(t, nodes, 3)
 
-	// Find parallel tool nodes
 	var parallelIDs []string
 	for _, n := range nodes {
 		if n.Name == "ai-translate" || n.Name == "word-count" {
@@ -69,11 +59,12 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 	}
 	assert.Len(t, parallelIDs, 2)
 
-	// reader fans out to both parallel branches
-	readerEdges := filterEdges(edges, "reader", "")
-	assert.Len(t, readerEdges, 2)
+	// The parallel tools are graph roots (no incoming edges).
+	for _, id := range parallelIDs {
+		assert.Empty(t, filterEdges(edges, "", id), "parallel root %s should have no incoming edge", id)
+	}
 
-	// Both branches connect to qa-check
+	// Both branches fan in to qa-check.
 	var qaNode FlowNode
 	for _, n := range nodes {
 		if n.Name == "qa-check" {
@@ -81,13 +72,11 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 			break
 		}
 	}
-	qaEdges := filterEdges(edges, "", qaNode.ID)
-	assert.Len(t, qaEdges, 2)
+	assert.Len(t, filterEdges(edges, "", qaNode.ID), 2)
 }
 
 func TestStepsToGraph_SingleStep(t *testing.T) {
 	spec := &StepsSpec{
-		Input: "json",
 		Steps: []FlowStep{
 			{Tool: "pseudo-translate"},
 		},
@@ -96,9 +85,30 @@ func TestStepsToGraph_SingleStep(t *testing.T) {
 	nodes, edges, err := StepsToGraph(spec)
 	require.NoError(t, err)
 
-	assert.Len(t, nodes, 3) // reader + tool + writer
-	assert.Len(t, edges, 2)
-	assert.Equal(t, "json", nodes[0].Name) // reader uses specified format
+	require.Len(t, nodes, 1) // the single tool only
+	assert.Equal(t, NodeTool, nodes[0].Type)
+	assert.Equal(t, "pseudo-translate", nodes[0].Name)
+	assert.Empty(t, edges)
+}
+
+func TestStepsToGraph_SourceTransformStage(t *testing.T) {
+	spec := &StepsSpec{
+		SourceTransforms: []FlowStep{{Tool: "redact"}},
+		Steps:            []FlowStep{{Tool: "ai-translate"}},
+	}
+
+	nodes, edges, err := StepsToGraph(spec)
+	require.NoError(t, err)
+
+	require.Len(t, nodes, 2)
+	assert.Equal(t, "redact", nodes[0].Name)
+	assert.Equal(t, StageSourceTransform, nodes[0].Stage)
+	assert.Equal(t, "ai-translate", nodes[1].Name)
+	assert.Equal(t, StageMain, nodes[1].Stage)
+	// redact -> ai-translate; redact is the root.
+	require.Len(t, edges, 1)
+	assert.Equal(t, nodes[0].ID, edges[0].Source)
+	assert.Equal(t, nodes[1].ID, edges[0].Target)
 }
 
 func TestStepsToGraph_Empty(t *testing.T) {
@@ -116,18 +126,8 @@ func TestStepsToGraph_CustomLabel(t *testing.T) {
 
 	nodes, _, err := StepsToGraph(spec)
 	require.NoError(t, err)
-	assert.Equal(t, "Filter long segments", nodes[1].Label)
-}
-
-func TestStepsToGraph_DefaultFormats(t *testing.T) {
-	spec := &StepsSpec{
-		Steps: []FlowStep{{Tool: "pseudo-translate"}},
-	}
-
-	nodes, _, err := StepsToGraph(spec)
-	require.NoError(t, err)
-	assert.Equal(t, "auto", nodes[0].Name)            // reader defaults to auto
-	assert.Equal(t, "auto", nodes[len(nodes)-1].Name) // writer defaults to auto
+	require.Len(t, nodes, 1)
+	assert.Equal(t, "Filter long segments", nodes[0].Label)
 }
 
 func TestStepsToGraph_ValidTopology(t *testing.T) {
@@ -147,7 +147,6 @@ func TestStepsToGraph_ValidTopology(t *testing.T) {
 	nodes, edges, err := StepsToGraph(spec)
 	require.NoError(t, err)
 
-	// Validate it produces a valid FlowDefinition
 	def := &FlowDefinition{
 		ID:    "test",
 		Name:  "test",
@@ -156,7 +155,6 @@ func TestStepsToGraph_ValidTopology(t *testing.T) {
 	}
 	require.NoError(t, def.Validate())
 
-	// Verify topological sort works (no cycles)
 	order, err := def.TopologicalOrder()
 	require.NoError(t, err)
 	assert.Len(t, order, len(nodes))
@@ -172,10 +170,9 @@ steps:
 `
 	def, err := parseFlowYAML([]byte(yaml))
 	require.NoError(t, err)
-	assert.Len(t, def.Nodes, 4) // reader + 2 tools + writer
-	assert.Len(t, def.Edges, 3)
+	assert.Len(t, def.Nodes, 2) // 2 tool nodes (no reader/writer)
+	assert.Len(t, def.Edges, 1)
 
-	// Verify tool configs preserved
 	var pseudoNode *FlowNode
 	for i := range def.Nodes {
 		if def.Nodes[i].Name == "pseudo-translate" {
@@ -187,6 +184,9 @@ steps:
 	assert.Equal(t, 30, pseudoNode.Config["expansion"])
 }
 
+// TestParseFlowYAML_GraphFormatStillWorks verifies legacy graphs that still
+// carry reader/writer nodes load (Validate tolerates them; execution ignores
+// non-tool nodes).
 func TestParseFlowYAML_GraphFormatStillWorks(t *testing.T) {
 	yaml := `
 id: test-flow

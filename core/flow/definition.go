@@ -210,7 +210,9 @@ func (d *FlowDefinition) StagedToolNodes() (sourceTransforms, main []string, err
 	return sourceTransforms, main, nil
 }
 
-// BuiltInFlows returns the default set of built-in flow definitions.
+// BuiltInFlows returns the default set of built-in flow definitions. The graphs
+// are tool nodes only; a flow's I/O ends are bindings resolved at run time, not
+// nodes (AD-026).
 func BuiltInFlows() []FlowDefinition {
 	return []FlowDefinition{
 		{
@@ -219,13 +221,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Translate content using AI/LLM",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
-			},
-			Edges: []FlowEdge{
-				{ID: "e-reader-translate", Source: "reader", Target: "ai-translate"},
-				{ID: "e-translate-writer", Source: "ai-translate", Target: "writer"},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -234,15 +230,11 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Translate content using AI/LLM then run quality check",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "ai-qa", Type: NodeTool, Name: "ai-qa", Label: "QA Check", Position: NodePosition{X: 500, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 750, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "ai-qa", Type: NodeTool, Name: "ai-qa", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-reader-translate", Source: "reader", Target: "ai-translate"},
 				{ID: "e-translate-qa", Source: "ai-translate", Target: "ai-qa"},
-				{ID: "e-qa-writer", Source: "ai-qa", Target: "writer"},
 			},
 		},
 		{
@@ -251,13 +243,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Generate pseudo-translations for testing",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "pseudo-translate", Type: NodeTool, Name: "pseudo-translate", Label: "Pseudo Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
-			},
-			Edges: []FlowEdge{
-				{ID: "e-reader-pseudo", Source: "reader", Target: "pseudo-translate"},
-				{ID: "e-pseudo-writer", Source: "pseudo-translate", Target: "writer"},
+				{ID: "pseudo-translate", Type: NodeTool, Name: "pseudo-translate", Label: "Pseudo Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -266,13 +252,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Run rule-based quality checks on translations",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "qa-check", Type: NodeTool, Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
-			},
-			Edges: []FlowEdge{
-				{ID: "e-reader-qa", Source: "reader", Target: "qa-check"},
-				{ID: "e-qa-writer", Source: "qa-check", Target: "writer"},
+				{ID: "qa-check", Type: NodeTool, Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -281,13 +261,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Pre-fill translations from translation memory",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "tm-leverage", Type: NodeTool, Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
-			},
-			Edges: []FlowEdge{
-				{ID: "e-reader-tm", Source: "reader", Target: "tm-leverage"},
-				{ID: "e-tm-writer", Source: "tm-leverage", Target: "writer"},
+				{ID: "tm-leverage", Type: NodeTool, Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -296,17 +270,13 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Redact sensitive content, AI-translate, then restore the originals locally",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Stage: StageSourceTransform, Position: NodePosition{X: 250, Y: 100}},
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 500, Y: 100}},
-				{ID: "unredact", Type: NodeTool, Name: "unredact", Label: "Unredact", Position: NodePosition{X: 750, Y: 100}},
-				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 1000, Y: 100}},
+				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Stage: StageSourceTransform, Position: NodePosition{X: 0, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "unredact", Type: NodeTool, Name: "unredact", Label: "Unredact", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-reader-redact", Source: "reader", Target: "redact"},
 				{ID: "e-redact-translate", Source: "redact", Target: "ai-translate"},
 				{ID: "e-translate-unredact", Source: "ai-translate", Target: "unredact"},
-				{ID: "e-unredact-writer", Source: "unredact", Target: "writer"},
 			},
 		},
 	}
