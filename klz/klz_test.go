@@ -149,19 +149,25 @@ func TestCacheInternalRoundTrip(t *testing.T) {
 	// 1. Populate real stores.
 	tm1 := sievepen.NewInMemoryTM()
 	for _, e := range sampleTM() {
-		require.NoError(t, tm1.Add(e))
+		require.NoError(t, tm1.Add(t.Context(), e))
 	}
-	require.NoError(t, tm1.CreateImportSession(sievepen.ImportSession{ID: "sess-1", FileKey: "x.tmx", ToolName: "neokapi", ImportedAt: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}))
+	require.NoError(t, tm1.CreateImportSession(t.Context(), sievepen.ImportSession{ID: "sess-1", FileKey: "x.tmx", ToolName: "neokapi", ImportedAt: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}))
 
 	tb1 := termbase.NewInMemoryTermBase()
 	for _, c := range sampleTermbase() {
-		require.NoError(t, tb1.AddConcept(c))
+		require.NoError(t, tb1.AddConcept(t.Context(), c))
 	}
 
 	// 2. Pack straight from the stores.
+	tm1Entries, err := tm1.Entries(t.Context())
+	require.NoError(t, err)
+	tm1Sessions, err := tm1.ListImportSessions(t.Context())
+	require.NoError(t, err)
+	tb1Concepts, err := tb1.Concepts(t.Context())
+	require.NoError(t, err)
 	pkg := &Package{
-		TM:       klftm.FromModel(tm1.Entries(), tm1.ListImportSessions()),
-		Termbase: klftb.FromConcepts(tb1.Concepts()),
+		TM:       klftm.FromModel(tm1Entries, tm1Sessions),
+		Termbase: klftb.FromConcepts(tb1Concepts),
 	}
 	data, err := pkg.Marshal()
 	require.NoError(t, err)
@@ -172,26 +178,32 @@ func TestCacheInternalRoundTrip(t *testing.T) {
 
 	tm2 := sievepen.NewInMemoryTM()
 	for _, e := range got.TM.ModelEntries() {
-		require.NoError(t, tm2.Add(e))
+		require.NoError(t, tm2.Add(t.Context(), e))
 	}
 	for _, s := range got.TM.ModelImportSessions() {
-		require.NoError(t, tm2.CreateImportSession(s))
+		require.NoError(t, tm2.CreateImportSession(t.Context(), s))
 	}
 	tb2 := termbase.NewInMemoryTermBase()
 	for _, c := range got.Termbase.Concepts {
-		require.NoError(t, tb2.AddConcept(c))
+		require.NoError(t, tb2.AddConcept(t.Context(), c))
 	}
 
 	// 4. Re-pack from the fresh stores; identical canonical bytes ⇒ the
 	//    store→pack→unpack→store cycle lost nothing.
+	tm2Entries, err := tm2.Entries(t.Context())
+	require.NoError(t, err)
+	tm2Sessions, err := tm2.ListImportSessions(t.Context())
+	require.NoError(t, err)
+	tb2Concepts, err := tb2.Concepts(t.Context())
+	require.NoError(t, err)
 	repacked, err := (&Package{
-		TM:       klftm.FromModel(tm2.Entries(), tm2.ListImportSessions()),
-		Termbase: klftb.FromConcepts(tb2.Concepts()),
+		TM:       klftm.FromModel(tm2Entries, tm2Sessions),
+		Termbase: klftb.FromConcepts(tb2Concepts),
 	}).Marshal()
 	require.NoError(t, err)
 	require.Equal(t, data, repacked, "store→pack→unpack→store must be lossless (byte-identical)")
 
 	// And the AI-native fields TMX/TBX would have dropped are present.
-	require.Equal(t, "c-1", tm2.Entries()[0].Entities[0].ConceptID, "TM↔termbase cross-link survived the store cycle")
-	require.True(t, tb2.Concepts()[0].Terms[1].CompetitorTerm || tb2.Concepts()[0].Terms[0].CompetitorTerm, "competitor flag survived the store cycle")
+	require.Equal(t, "c-1", tm2Entries[0].Entities[0].ConceptID, "TM↔termbase cross-link survived the store cycle")
+	require.True(t, tb2Concepts[0].Terms[1].CompetitorTerm || tb2Concepts[0].Terms[0].CompetitorTerm, "competitor flag survived the store cycle")
 }
