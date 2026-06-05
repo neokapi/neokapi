@@ -73,12 +73,23 @@ jobs:
           go-version: "1.26.0"
 
       # Tarball signing is only needed for publishing (tag pushes). Skip on the
-      # build-only workflow_dispatch — and on windows-11-arm the installer action
-      # has no arm64 build, so this would otherwise fail the dry run before the
-      # build even starts.
+      # build-only workflow_dispatch.
+      #
+      # The installer action has no windows/arm64 build, so use it for every
+      # other leg and `go install` cosign on windows/arm64. (On the build-only
+      # dispatch neither runs — signing is gated to tags.)
       - name: Install cosign (tarball signing)
-        if: startsWith(github.ref, 'refs/tags/sat-v')
+        if: startsWith(github.ref, 'refs/tags/sat-v') && !(runner.os == 'Windows' && matrix.build.goarch == 'arm64')
         uses: sigstore/cosign-installer@v3
+
+      - name: Install cosign via go (windows/arm64)
+        if: startsWith(github.ref, 'refs/tags/sat-v') && runner.os == 'Windows' && matrix.build.goarch == 'arm64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+          # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
+          cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Extract version
         id: version
@@ -470,7 +481,7 @@ jobs:
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           CERT_ID="https://github.com/${REPO}/.github/workflows/release-sat.yml@refs/tags/${REF_NAME}"
           declare -a ARGS
-          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64; do
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64 windows/arm64; do
             os=${plat%/*}
             arch=${plat#*/}
             file="kapi-sat_${VERSION}_${os}_${arch}.tar.gz"
