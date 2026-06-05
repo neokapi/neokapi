@@ -35,6 +35,13 @@ jobs:
         with:
           go-version: stable
 
+      # The wails desktop modules (bowrain, apps/kapi-desktop) are cgo and need
+      # the GTK/WebKit + ICU dev headers to build; govulncheck compiles the
+      # module, so without these it fails to load packages rather than scanning.
+      # Harmless for the non-GUI modules in the matrix.
+      - name: Install native build deps
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+
       - name: Run govulncheck
         run: |
           # Pinned (not @latest) so the scanner version is reproducible and
