@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIEntityExtractTool extracts named entities and term candidates from Blocks
@@ -198,82 +197,33 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 		}
 	}
 
-	// 4. LLM batch extraction.
-	batches := make([][]extractionEntry, 0, (len(entries)+t.batchSize-1)/t.batchSize)
-	for i := 0; i < len(entries); i += t.batchSize {
-		end := i + t.batchSize
-		if end > len(entries) {
-			end = len(entries)
+	// 4. Run LLM extraction over batches with bounded concurrency. Each batch
+	// writes its own result slot, so no mutex is needed; goBatches returns the
+	// first error.
+	batches := chunkBlocks(entries, t.batchSize)
+	llmResults := make([]*llmExtractionResult, len(batches))
+	if err := goBatches(batches, t.concurrency, func(idx int, batch []extractionEntry) error {
+		llmEntries := make([]extractionEntry, len(batch))
+		copy(llmEntries, batch)
+		result, err := t.extractWithLLM(ctx, llmEntries)
+		if err != nil {
+			return err
 		}
-		batches = append(batches, entries[i:end])
+		llmResults[idx] = result
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	type batchLLMResult struct {
-		startIdx int
-		result   *llmExtractionResult
-		err      error
-	}
-
-	var (
-		mu         sync.Mutex
-		llmResults []batchLLMResult
-		wg         sync.WaitGroup
-	)
-	sem := make(chan struct{}, t.concurrency)
-
-	batchOffset := 0
-	for _, batch := range batches {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case sem <- struct{}{}:
-		}
-
-		offset := batchOffset
-		wg.Go(func() {
-			defer func() { <-sem }()
-			llmEntries := make([]extractionEntry, len(batch))
-			copy(llmEntries, batch)
-			result, err := t.extractWithLLM(ctx, llmEntries)
-			mu.Lock()
-			llmResults = append(llmResults, batchLLMResult{startIdx: offset, result: result, err: err})
-			mu.Unlock()
-		})
-		batchOffset += len(batch)
-	}
-	wg.Wait()
-
-	// Check for errors.
-	for _, r := range llmResults {
-		if r.err != nil {
-			return r.err
-		}
-	}
-
-	// 5. Merge LLM results by entry index and attach annotations.
-	llmByEntry := make(map[int]*llmExtractionResult)
-	for _, r := range llmResults {
-		if r.result == nil {
-			continue
-		}
-		// The LLM result covers entries at indices [startIdx, startIdx+len(batch)).
-		// Each block result is keyed by block_id, so we map back.
-		llmByEntry[r.startIdx] = r.result
-	}
-
+	// 5. Merge each batch's LLM result with its NER results and attach.
 	entryOffset := 0
 	for batchIdx, batch := range batches {
-		_ = batchIdx
+		llmResult := llmResults[batchIdx]
 		for i, entry := range batch {
 			globalIdx := entryOffset + i
 			var nerEnts []ner.DetectedEntity
 			if ents, ok := nerResults[globalIdx]; ok {
 				nerEnts = ents
-			}
-			// Find LLM result for this batch.
-			var llmResult *llmExtractionResult
-			if r, ok := llmByEntry[entryOffset]; ok {
-				llmResult = r
 			}
 			t.attachAnnotationsFromBatch(tool.NewBlockView(entry.block), nerEnts, llmResult, entry.blockID)
 		}

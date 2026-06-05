@@ -149,7 +149,7 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	}
 
 	// Look up the flow in the project file.
-	spec := proj.GetFlow(flowName)
+	spec := proj.Flow(flowName)
 	if spec == nil {
 		// Try fallback (e.g. bowrain project flows).
 		if opts.FallbackRunE != nil {

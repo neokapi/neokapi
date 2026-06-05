@@ -205,7 +205,7 @@ func (r *Reader) newBlock(counter int, body string) *model.Block {
 	// contract is verbatim preservation, with the writer replaying
 	// everything as-is). When it is active, skip InlineText decoding and
 	// keep the raw body so the carved Data stays byte-exact.
-	if len(r.cfg.GetCodeFinderPatterns()) > 0 {
+	if len(r.cfg.CodeFinderPatterns()) > 0 {
 		block := model.NewBlock(fmt.Sprintf("tu%d", counter), body)
 		block.Name = fmt.Sprintf("line%d", counter)
 		block.PreserveWhitespace = true
@@ -286,7 +286,7 @@ func groupEntries(lines []rawLine) []entry {
 // is the original matched text — the writer replays it verbatim via
 // model.RenderRunsWithData.
 func (r *Reader) applyCodeFinder(block *model.Block) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}

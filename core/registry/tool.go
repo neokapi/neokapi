@@ -201,8 +201,8 @@ func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error) {
 	return reg.Factory(), nil
 }
 
-// GetToolInfo returns the metadata for a named tool, or nil if not found.
-func (r *ToolRegistry) GetToolInfo(name ToolID) *ToolInfo {
+// ToolInfo returns the metadata for a named tool, or nil if not found.
+func (r *ToolRegistry) ToolInfo(name ToolID) *ToolInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
@@ -243,8 +243,8 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 	return nil, fmt.Errorf("tool %s has no factory", name)
 }
 
-// GetSchema returns the schema for a tool, or nil if none is registered.
-func (r *ToolRegistry) GetSchema(name ToolID) *schema.ComponentSchema {
+// Schema returns the schema for a tool, or nil if none is registered.
+func (r *ToolRegistry) Schema(name ToolID) *schema.ComponentSchema {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]

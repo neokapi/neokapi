@@ -308,8 +308,8 @@ func (c *Config) getSubfilterRules() *regexp.Regexp {
 	return c.compiledSubfilterRules
 }
 
-// GetCodeFinderPatterns returns compiled regex patterns for code finder.
-func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+// CodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) CodeFinderPatterns() []*regexp.Regexp {
 	if c.compiledCodeFinder != nil {
 		return c.compiledCodeFinder
 	}

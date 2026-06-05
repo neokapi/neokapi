@@ -344,7 +344,7 @@ func (a *App) ListTools() []ToolInfo {
 			// IsSourceTransform comes from the registry metadata (probed at
 			// registration from tool.CapTransform capability).
 			var isSourceTransform bool
-			if info := a.toolReg.GetToolInfo(name); info != nil {
+			if info := a.toolReg.ToolInfo(name); info != nil {
 				isSourceTransform = info.IsSourceTransform
 			}
 			result = append(result, ToolInfo{

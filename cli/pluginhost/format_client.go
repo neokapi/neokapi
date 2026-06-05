@@ -13,6 +13,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // daemonReader implements format.DataFormatReader by routing the
@@ -164,7 +166,11 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 				// Continue: a ProcessComplete (or stream EOF) follows.
 			case *pb.ProcessResponse_Complete:
 				if m.Complete.Error != "" {
-					ch <- model.PartResult{Error: fmt.Errorf("daemon: %s", m.Complete.Error)}
+					// The daemon reports failures in-band as a plain string. Wrap
+					// it in a gRPC status so callers can inspect it the same way
+					// they would a transport-level recv error (status.Code etc.);
+					// the proto carries no code, so Internal is the honest default.
+					ch <- model.PartResult{Error: status.Errorf(codes.Internal, "daemon: %s", m.Complete.Error)}
 				}
 				return
 			}

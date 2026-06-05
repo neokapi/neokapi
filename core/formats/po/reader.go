@@ -1100,7 +1100,7 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 // specifiers like `%s` in the existing translation would be treated as
 // translatable text and corrupted.
 func (r *Reader) applyCodeFinder(block *model.Block) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}

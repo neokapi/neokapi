@@ -82,7 +82,7 @@ func (a *App) listTools(cmd *cobra.Command) error {
 
 func (a *App) toolSchema(_ *cobra.Command, name string) error {
 	if a.ToolReg != nil {
-		if s := a.ToolReg.GetSchema(registry.ToolID(name)); s != nil {
+		if s := a.ToolReg.Schema(registry.ToolID(name)); s != nil {
 			return printSchema(s)
 		}
 	}

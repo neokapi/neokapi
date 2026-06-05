@@ -274,7 +274,7 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 
 	targetLang := input.TargetLang
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
+		if info := a.ToolReg.ToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
 			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
@@ -322,7 +322,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 		targetLang = string(pctx.TargetLocales[0])
 	}
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
+		if info := a.ToolReg.ToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
 			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
@@ -331,7 +331,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 
 	// Resolve flow: check project flows first, then built-in.
 	flowName := input.FlowName
-	if spec := proj.GetFlow(flowName); spec != nil {
+	if spec := proj.Flow(flowName); spec != nil {
 		// Project flow — build tools from steps.
 		config := map[string]any{
 			"source_locale": sourceLang,
@@ -459,7 +459,7 @@ func handleListTools(a *cli.App) (*mcp.CallToolResult, ListToolsOutput, error) {
 func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 	targetLang := input.TargetLang
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo(registry.ToolID("pseudo-translate")); info != nil && info.DefaultLocale != "" {
+		if info := a.ToolReg.ToolInfo(registry.ToolID("pseudo-translate")); info != nil && info.DefaultLocale != "" {
 			targetLang = string(info.DefaultLocale)
 		} else {
 			targetLang = "qps"

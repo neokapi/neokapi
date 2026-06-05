@@ -541,7 +541,7 @@ func indexCloseAngleQuoted(s string) int {
 // calls codeFinder.process(tf) on a TextFragment whose structural refs are
 // already codes, so the finder only converts the remaining plain text.
 func (r *Reader) applyCodeFinder(block *model.Block) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}

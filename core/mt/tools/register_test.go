@@ -32,7 +32,7 @@ func TestRegisterAllRegistersAllMTTools(t *testing.T) {
 		assert.Truef(t, reg.Has(registry.ToolID(name)), "tool %q should be registered", name)
 
 		// Each tool must carry a schema.
-		s := reg.GetSchema(registry.ToolID(name))
+		s := reg.Schema(registry.ToolID(name))
 		require.NotNilf(t, s, "tool %q should have a schema", name)
 		require.NotNilf(t, s.ToolMeta, "tool %q schema should carry ToolMeta", name)
 
@@ -51,7 +51,7 @@ func TestRegisterAllMTToolMetadata(t *testing.T) {
 	tools.RegisterAll(reg)
 
 	for _, name := range mtToolNames {
-		info := reg.GetToolInfo(registry.ToolID(name))
+		info := reg.ToolInfo(registry.ToolID(name))
 		require.NotNilf(t, info, "tool %q should have info", name)
 
 		assert.Equalf(t, schema.CategoryTranslation, info.Category, "tool %q category", name)

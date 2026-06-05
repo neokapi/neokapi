@@ -842,7 +842,7 @@ func (r *Reader) isCommentStart(trimmed string) bool {
 
 // applyCodeFinder applies code finder patterns to a block's fragments.
 func (r *Reader) applyCodeFinder(block *model.Block) {
-	patterns := r.cfg.GetCodeFinderPatterns()
+	patterns := r.cfg.CodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}

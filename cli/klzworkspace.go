@@ -416,7 +416,7 @@ func (a *App) toolDefaultLocale(toolName string) string {
 	if a.ToolReg == nil {
 		return ""
 	}
-	if info := a.ToolReg.GetToolInfo(registry.ToolID(toolName)); info != nil {
+	if info := a.ToolReg.ToolInfo(registry.ToolID(toolName)); info != nil {
 		return string(info.DefaultLocale)
 	}
 	return ""
