@@ -18,6 +18,7 @@ import { RunningFlowDialog } from "./components/RunningFlowDialog";
 import { ViewSwitch } from "./components/ViewSwitch";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { useShortenHome } from "./hooks/useShortenHome";
+import { isMacDesktop } from "./lib/platform";
 import { Undo2, Redo2 } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
 
@@ -162,15 +163,22 @@ function AppInner() {
   });
 
   // --- Render ---
+  // macOS uses a hidden-inset titlebar (traffic lights overlay the top-left), so
+  // the sidebar reserves a top strip and the top bar insets its left content to
+  // clear them. Windows/Linux have a native frame — drop those insets so the
+  // sidebar's Home icon sits at the very top instead of an empty gap.
+  const isMac = isMacDesktop();
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
       <div className="flex min-h-0 flex-1">
         {/* Icon sidebar */}
         <div className="flex shrink-0 flex-col bg-sidebar">
-          <div
-            className="h-12 shrink-0"
-            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-          />
+          {isMac && (
+            <div
+              className="h-12 shrink-0"
+              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            />
+          )}
           <div className="flex-1 border-r border-border">
             <IconSidebar
               mode={tm.mode}
@@ -192,7 +200,7 @@ function AppInner() {
             {/* Undo / Redo */}
             {tm.mode === "projects" && tm.activeTab && (
               <div
-                className="flex shrink-0 items-center gap-0.5 pb-1.5 pl-16"
+                className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
                 <Button
@@ -221,7 +229,7 @@ function AppInner() {
             )}
             {/* Tabs or spacer */}
             <div
-              className={`flex-1 ${tm.mode === "projects" && tm.activeTab ? "pl-2" : "pl-16"}`}
+              className={`flex-1 ${tm.mode === "projects" && tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
               {tm.mode === "projects" && tm.tabs.length > 0 && (
