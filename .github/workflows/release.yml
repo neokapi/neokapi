@@ -84,7 +84,10 @@ jobs:
           # not a priority target.
           - { goos: linux, goarch: amd64, os: ubuntu-latest, icu: source }
           - { goos: linux, goarch: arm64, os: ubuntu-24.04-arm, icu: source }
-          - { goos: windows, goarch: amd64, os: windows-2025, icu: msys2 }
+          # Windows ICU comes from MSYS2: x86_64 uses the gcc MINGW64 env, arm64
+          # uses the clang CLANGARM64 env on a native windows-11-arm runner.
+          - { goos: windows, goarch: amd64, os: windows-2025, icu: msys2, msystem: MINGW64, mtriple: x86_64, cc: gcc, cgo_ldflags: "-static -static-libgcc -static-libstdc++", mroot: /mingw64 }
+          - { goos: windows, goarch: arm64, os: windows-11-arm, icu: msys2, msystem: CLANGARM64, mtriple: clang-aarch64, cc: clang, cgo_ldflags: "-static", mroot: /clangarm64 }
     runs-on: ${{ matrix.target.os }}
     steps:
       - uses: actions/checkout@v6
@@ -148,34 +151,36 @@ jobs:
         if: matrix.target.goos == 'windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.target.msystem }}
           # inherit so the Windows-native `go` (from setup-go) is on the msys2
-          # shell's PATH alongside the mingw gcc/pkg-config.
+          # shell's PATH alongside the mingw toolchain/pkg-config.
           path-type: inherit
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-icu
-            mingw-w64-x86_64-pkg-config
+            mingw-w64-${{ matrix.target.mtriple }}-${{ matrix.target.cc }}
+            mingw-w64-${{ matrix.target.mtriple }}-icu
+            mingw-w64-${{ matrix.target.mtriple }}-pkg-config
 
       - name: Build kapi + kapi-bowrain (Windows)
         if: matrix.target.goos == 'windows'
         shell: msys2 {0}
         env:
           GOOS: windows
-          GOARCH: amd64
+          GOARCH: ${{ matrix.target.goarch }}
           CGO_ENABLED: "1"
-          # Static C++/gcc runtimes so kapi.exe needs no mingw DLLs alongside it.
-          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
+          # Static C++/toolchain runtimes so kapi.exe needs no mingw DLLs beside it.
+          CGO_LDFLAGS: ${{ matrix.target.cgo_ldflags }}
+          CC: ${{ matrix.target.cc }}
+          MROOT: ${{ matrix.target.mroot }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          # go from the Windows runner (setup-go) is on PATH; CC = mingw gcc.
-          export CC=gcc
-          # mingw ICU lives under /mingw64, but the native gcc/ld can't open MSYS
-          # virtual paths (/mingw64/...). Feed gen-icu-static-pc.sh Windows-form
+          # go from the Windows runner (setup-go) is on PATH; CC = mingw/clang cc.
+          export CC
+          # mingw ICU lives under $MROOT, but the native cc/ld can't open MSYS
+          # virtual paths ($MROOT/...). Feed gen-icu-static-pc.sh Windows-form
           # paths (cygpath -m) so the .pc references archives ld can open, and
           # convert the generated .pc dir for the (native) pkg-config too.
-          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash scripts/gen-icu-static-pc.sh)
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           mkdir -p out
           ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi.exe ./cmd/kapi )
@@ -211,13 +216,13 @@ jobs:
       - name: Package Windows kapi CLI zip (out-of-band signing)
         if: matrix.target.goos == 'windows'
         shell: pwsh
-        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi_${{ steps.meta.outputs.VERSION }}_windows_amd64.zip" -Force
+        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi_${{ steps.meta.outputs.VERSION }}_windows_${{ matrix.target.goarch }}.zip" -Force
       - name: Upload Windows kapi zip
         if: matrix.target.goos == 'windows'
         uses: actions/upload-artifact@v7
         with:
-          name: kapi-cli-windows-amd64
-          path: out/kapi_*_windows_amd64.zip
+          name: kapi-cli-windows-${{ matrix.target.goarch }}
+          path: out/kapi_*_windows_${{ matrix.target.goarch }}.zip
           retention-days: 14
 
   # Package + publish the CLI binaries built by build-cli. This replaces the
@@ -557,7 +562,10 @@ jobs:
         build:
           - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
-          - { platform: windows/amd64, os: windows-2025, arch: amd64 }
+          # Windows ICU comes from MSYS2: x86_64 uses the gcc MINGW64 env, arm64
+          # uses the clang CLANGARM64 env on a native windows-11-arm runner.
+          - { platform: windows/amd64, os: windows-2025, arch: amd64, msystem: MINGW64, mtriple: x86_64, cc: gcc, cgo_ldflags: "-static -static-libgcc -static-libstdc++", mroot: /mingw64 }
+          - { platform: windows/arm64, os: windows-11-arm, arch: arm64, msystem: CLANGARM64, mtriple: clang-aarch64, cc: clang, cgo_ldflags: "-static", mroot: /clangarm64 }
           - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
@@ -624,12 +632,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.build.msystem }}
           path-type: inherit
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-icu
-            mingw-w64-x86_64-pkg-config
+            mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}
+            mingw-w64-${{ matrix.build.mtriple }}-icu
+            mingw-w64-${{ matrix.build.mtriple }}-pkg-config
 
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
@@ -694,15 +702,16 @@ jobs:
           GOOS: windows
           GOARCH: ${{ matrix.build.arch }}
           CGO_ENABLED: "1"
-          CC: gcc
-          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
+          CC: ${{ matrix.build.cc }}
+          CGO_LDFLAGS: ${{ matrix.build.cgo_ldflags }}
+          MROOT: ${{ matrix.build.mroot }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          # Native gcc/ld can't open MSYS virtual paths (/mingw64/...); feed
+          # Native cc/ld can't open MSYS virtual paths ($MROOT/...); feed
           # Windows-form paths (cygpath -m) and convert the .pc dir for the
           # native pkg-config too.
-          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
@@ -891,7 +900,10 @@ jobs:
         build:
           - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
-          - { platform: windows/amd64, os: windows-2025, arch: amd64 }
+          # Windows ICU comes from MSYS2: x86_64 uses the gcc MINGW64 env, arm64
+          # uses the clang CLANGARM64 env on a native windows-11-arm runner.
+          - { platform: windows/amd64, os: windows-2025, arch: amd64, msystem: MINGW64, mtriple: x86_64, cc: gcc, cgo_ldflags: "-static -static-libgcc -static-libstdc++", mroot: /mingw64 }
+          - { platform: windows/arm64, os: windows-11-arm, arch: arm64, msystem: CLANGARM64, mtriple: clang-aarch64, cc: clang, cgo_ldflags: "-static", mroot: /clangarm64 }
           - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
@@ -958,12 +970,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.build.msystem }}
           path-type: inherit
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-icu
-            mingw-w64-x86_64-pkg-config
+            mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}
+            mingw-w64-${{ matrix.build.mtriple }}-icu
+            mingw-w64-${{ matrix.build.mtriple }}-pkg-config
 
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
@@ -1023,15 +1035,16 @@ jobs:
           GOOS: windows
           GOARCH: ${{ matrix.build.arch }}
           CGO_ENABLED: "1"
-          CC: gcc
-          CGO_LDFLAGS: "-static -static-libgcc -static-libstdc++"
+          CC: ${{ matrix.build.cc }}
+          CGO_LDFLAGS: ${{ matrix.build.cgo_ldflags }}
+          MROOT: ${{ matrix.build.mroot }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          # Native gcc/ld can't open MSYS virtual paths (/mingw64/...); feed
+          # Native cc/ld can't open MSYS virtual paths ($MROOT/...); feed
           # Windows-form paths (cygpath -m) and convert the .pc dir for the
           # native pkg-config too.
-          PCDIR=$(ICU_LIBDIR="$(cygpath -m /mingw64/lib)" ICU_INCLUDEDIR="$(cygpath -m /mingw64/include)" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
