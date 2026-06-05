@@ -134,7 +134,11 @@ bindings. The main groups:
   with matched file counts, declared flows, declared plugins.
 - **Flow editor** — steps-based configuration with schema-driven forms;
   the `@neokapi/flow-editor` package provides a graph editor
-  (xyflow) for visual composition.
+  (xyflow) for visual composition. Under
+  [AD-026](026-flow-io-binding.md) the graph's two ends become **endpoint
+  pickers** (file · store · interchange · none) rather than draggable
+  reader/writer nodes, so the canvas edits composition and the bindings are
+  chosen at the edges.
 - **Flow runner** — live progress view with node highlighting, per-file
   progress, streaming tool logs, and cancellation.
 - **Tool runner** — ad-hoc single-tool execution for quick experiments

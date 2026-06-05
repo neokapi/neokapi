@@ -38,6 +38,12 @@ contract must accommodate this recursion without special cases.
 
 ### Reader and writer interfaces
 
+These interfaces implement the `file` *source* and *sink* binding in
+[AD-026: Flow I/O Binding](026-flow-io-binding.md). Other bindings — the project
+store, a `.klz` workspace, interchange import/export — feed and drain the same
+`Part` stream without a reader or writer, so a flow is agnostic to where its
+content enters and leaves.
+
 ```go
 type DataFormatReader interface {
     Open(ctx context.Context, doc *RawDocument) error
@@ -231,6 +237,7 @@ preferred skeleton strategy details.
 - [AD-002: Content Model](002-content-model.md) — Parts that readers produce and writers consume; the Run model that drives roundtrip fidelity
 - [AD-004: Processing Engine](004-processing-engine.md) — how readers and writers plug into the pipeline
 - [AD-006: Tool System](006-tool-system.md) — the tools that sit between reader and writer
+- [AD-026: Flow I/O Binding](026-flow-io-binding.md) — readers/writers as the `file` binding; other bindings (store, `.klz`, interchange) feed the same stream
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register
 - [Implementing Formats](/contribute/notes-internal/implementing-formats) — implementation walkthrough
 - [Skeleton Store](/contribute/notes-internal/skeleton-store) — binary skeleton format and wiring

@@ -547,6 +547,10 @@ Flows are authored as a YAML step list (compiled to the internal graph by
 the executor, see
 [AD-004: Processing Engine](004-processing-engine.md)):
 
+> The `input:` / `output:` fields are reframed as context-resolved `source:` /
+> `sink:` bindings in [AD-026: Flow I/O Binding](026-flow-io-binding.md); a flow
+> itself carries only its steps.
+
 ```yaml
 apiVersion: v1
 kind: FlowDefinition
@@ -667,4 +671,5 @@ rejects any tool in the stage that is not `tool.CapTransform`.
 - [AD-002: Content Model](002-content-model.md) — Blocks, Annotations, and Fragment projections
 - [AD-004: Processing Engine](004-processing-engine.md) — how Tools compose into Flows
 - [AD-005: Format System](005-format-system.md) — readers and writers bracket the tool chain
+- [AD-026: Flow I/O Binding](026-flow-io-binding.md) — a flow is composition only; tool = unit, binding = the ends
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — plugin tools

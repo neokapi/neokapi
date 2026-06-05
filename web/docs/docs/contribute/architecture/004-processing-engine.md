@@ -201,6 +201,14 @@ Each `FlowNode` has:
 - **Config** — optional key-value configuration map
 - **Position** — x/y coordinates for visual layout in the flow editor
 
+> **Direction ([AD-026](026-flow-io-binding.md)).** The `reader` / `writer` node
+> types are the flow's I/O ends. AD-026 reframes them as **bindings** resolved
+> from invocation context (file · project store / `.klz` · interchange
+> import/export · none) rather than nodes baked into the graph, so the same flow
+> runs over a file, the project store, or a `.klz` unchanged. A flow then becomes
+> *composition only*; the reader/writer ends move to the binding layer, and a
+> single tool is invoked directly rather than wrapped in a one-tool flow.
+
 Each `FlowEdge` connects a source node to a target node.
 `TopologicalOrder()` computes the execution order using Kahn's algorithm,
 returning an error if a cycle is detected so invalid flow graphs never
@@ -254,6 +262,11 @@ Steps are sequential by default. `parallel:` blocks provide fan-out. The
 parser auto-detects the format (steps vs graph) and compiles steps to
 nodes+edges via `StepsToGraph()`. Both formats produce the same runnable
 executor.
+
+The `input:` / `output:` fields name the reader/writer formats. Under
+[AD-026: Flow I/O Binding](026-flow-io-binding.md) these move out of the steps
+graph into context-resolved `source:` / `sink:` bindings, so the flow carries only
+its steps and never a concrete I/O location.
 
 ### Fan-out and batching
 
@@ -319,3 +332,4 @@ Okapi concepts as follows:
 - [AD-005: Format System](005-format-system.md) — readers that emit Parts, writers that consume them
 - [AD-006: Tool System](006-tool-system.md) — the tools that make up a Flow
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — plugin tools use the same executor contract
+- [AD-026: Flow I/O Binding](026-flow-io-binding.md) — reader/writer become source/sink bindings; a flow is composition only
