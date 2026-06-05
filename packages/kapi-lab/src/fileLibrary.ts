@@ -169,19 +169,14 @@ export function useFileLibrary(opts: UseFileLibraryOptions = {}): FileLibrary {
   const paths = useMemo(() => files.map((f) => f.path), [files]);
   const folders = useMemo(() => deriveFolders(paths), [paths]);
 
-  return {
-    files,
-    paths,
-    folders,
-    get,
-    addSample,
-    addFile,
-    upload,
-    setOutput,
-    remove,
-    removeFolder,
-    clearOutputs,
-  };
+  // Memoize the returned object so its identity is stable across renders and
+  // only changes when the file set does. Consumers put `library` in effect /
+  // callback dependency arrays; an unstable identity would re-fire those every
+  // render and can loop.
+  return useMemo(
+    () => ({ files, paths, folders, get, addSample, addFile, upload, setOutput, remove, removeFolder, clearOutputs }),
+    [files, paths, folders, get, addSample, addFile, upload, setOutput, remove, removeFolder, clearOutputs],
+  );
 }
 
 // ── Selection model ──────────────────────────────────────────────────────────

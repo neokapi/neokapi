@@ -103,10 +103,14 @@ export default function PipelineExplorer({
     pipelineId,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-run once ready, and whenever the file/pipeline changes.
+  // Auto-run once ready, and whenever the selected file or pipeline changes.
+  // Depend on stable primitives, not the runPipeline callback — that closes over
+  // the file library, whose identity changes every render, which would re-fire
+  // the effect on each render and loop.
   useEffect(() => {
     if (runtime.ready) void runPipeline();
-  }, [runtime.ready, runPipeline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime.ready, file?.path, file?.changedAt, pipelineId]);
 
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
