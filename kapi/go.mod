@@ -128,9 +128,5 @@ require (
 
 replace (
 	github.com/neokapi/neokapi => ../
-	github.com/neokapi/neokapi/bowrain => ../bowrain
-	github.com/neokapi/neokapi/bowrain/core => ../bowrain/core
-	github.com/neokapi/neokapi/bowrain/plugin => ../bowrain/plugin
-	github.com/neokapi/neokapi/bowrain/plugin/schema => ../bowrain/plugin/schema
 	github.com/neokapi/neokapi/cli => ../cli
 )

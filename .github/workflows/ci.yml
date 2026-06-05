@@ -547,6 +547,12 @@ jobs:
         with:
           go-version: "1.26.0"
 
+      # The .golangci.yml build-tags include fts5, so golangci-lint must compile
+      # the cgo ICU tokenizer / FTS5 path; that needs libicu-dev + pkg-config
+      # (mirroring the test jobs). Without it those files are silently skipped.
+      - name: Install cgo deps (ICU)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
       - name: Download modules
         run: |
           go mod download

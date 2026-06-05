@@ -72,6 +72,28 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gomod
+    directory: /bowrain/plugin
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, bowrain]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /bowrain/plugin/schema
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, bowrain]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
     directory: /bowrain
     schedule:
       interval: weekly
