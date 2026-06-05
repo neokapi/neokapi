@@ -23,6 +23,11 @@ const LazyPipeline = React.lazy(async () => {
   return { default: mod.PipelineExplorer };
 });
 
+const LazyBatch = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.BatchExplorer };
+});
+
 export interface AnatomyExplorerProps {
   defaultSampleId?: string;
   sampleIds?: string[];
@@ -62,6 +67,29 @@ export function PipelineExplorer(props: PipelineExplorerProps): React.ReactEleme
           return (
             <Suspense fallback={<Loading />}>
               <LazyPipeline assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface BatchExplorerProps {
+  sampleIds?: string[];
+  defaultPattern?: string;
+}
+
+export function BatchExplorer(props: BatchExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyBatch assets={assets} {...props} />
             </Suspense>
           );
         }

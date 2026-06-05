@@ -42,6 +42,39 @@ export { default as RunSequence } from "./RunSequence";
 export { default as FileSource } from "./FileSource";
 export type { FileSourceValue } from "./FileSource";
 
+// File management + selection.
+export { default as FileExplorer } from "./FileExplorer";
+export type { FileExplorerProps } from "./FileExplorer";
+export { default as FileSelectorField } from "./FileSelectorField";
+export type { FileSelectorFieldProps } from "./FileSelectorField";
+export { useFileLibrary, resolveSelection, selectionSummary, EMPTY_SELECTION } from "./fileLibrary";
+export type {
+  FileLibrary,
+  LibFile,
+  FileOrigin,
+  FileSelection,
+  SelectionMode,
+  UseFileLibraryOptions,
+} from "./fileLibrary";
+export { FileIcon, fileType, extOf } from "./fileTypes";
+export type { FileTypeInfo, FileGroup, FileIconProps } from "./fileTypes";
+export { isGlob, globToRegExp, matchGlob, globMatches } from "./glob";
+export { downloadBytes, downloadText, formatBytes } from "./download";
+
+// Code + content viewers.
+export { default as CodeView } from "./CodeView";
+export type { CodeViewProps } from "./CodeView";
+export { detectLang, tokenize } from "./highlight";
+export type { Lang, Token, TokenType } from "./highlight";
+export { default as BlockInspector } from "./BlockInspector";
+export type { BlockInspectorProps } from "./BlockInspector";
+export { default as ContentTreeView, Stats as ContentStatsBar } from "./ContentTreeView";
+export type { ContentTreeViewProps } from "./ContentTreeView";
+export { default as OutputView } from "./OutputView";
+export type { OutputViewProps } from "./OutputView";
+export { default as BatchExplorer } from "./BatchExplorer";
+export type { BatchExplorerProps } from "./BatchExplorer";
+
 export { useLabRuntime } from "./useLabRuntime";
 export type {
   LabRuntime,

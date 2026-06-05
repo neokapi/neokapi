@@ -1,6 +1,10 @@
 package editor
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"sort"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // ContentTree is a hierarchical, JSON-serializable view of a document's Part
 // stream, purpose-built for the "Anatomy" learning explorer in the docs site.
@@ -48,11 +52,24 @@ type ContentNode struct {
 
 	// Block fields. Source/Targets are flattened run sequences (the Block
 	// atom); Segments is the run-index boundary overlay view.
+	Type         string                 `json:"type,omitempty"`
 	Translatable bool                   `json:"translatable,omitempty"`
+	SourceLocale string                 `json:"sourceLocale,omitempty"`
 	Source       []model.Run            `json:"source,omitempty"`
 	Targets      map[string][]model.Run `json:"targets,omitempty"`
-	Segments     []SegmentSpan          `json:"segments,omitempty"`
-	HasSkeleton  bool                   `json:"hasSkeleton,omitempty"`
+	// TargetMeta carries each variant's lifecycle status and provenance,
+	// keyed identically to Targets.
+	TargetMeta map[string]*TargetMeta `json:"targetMeta,omitempty"`
+	Segments   []SegmentSpan          `json:"segments,omitempty"`
+	// Overlays are the block's stand-off interpretations (segmentation, terms,
+	// entities, QA findings, alignment), each with its spans' extracted text.
+	Overlays []OverlayView `json:"overlays,omitempty"`
+	// Annotations are block-level metadata (alt-translations, notes, generic).
+	Annotations        []AnnotationView `json:"annotations,omitempty"`
+	HasSkeleton        bool             `json:"hasSkeleton,omitempty"`
+	IsReferent         bool             `json:"isReferent,omitempty"`
+	PreserveWhitespace bool             `json:"preserveWhitespace,omitempty"`
+	Identity           string           `json:"identity,omitempty"`
 
 	// Leaf summary (data / media): a short human-readable label.
 	MimeType string `json:"mimeType,omitempty"`
@@ -69,6 +86,49 @@ type SegmentSpan struct {
 	ID    string `json:"id"`
 	Start int    `json:"start"` // first run index, inclusive
 	End   int    `json:"end"`   // one past the last run index
+}
+
+// TargetMeta is the lifecycle + provenance view of one committed target variant.
+type TargetMeta struct {
+	Status  string      `json:"status,omitempty"`
+	Score   float64     `json:"score,omitempty"`
+	Origin  *OriginView `json:"origin,omitempty"`
+	Tone    string      `json:"tone,omitempty"`
+	Channel string      `json:"channel,omitempty"`
+}
+
+// OriginView mirrors model.Origin for the wire.
+type OriginView struct {
+	Kind      string `json:"kind,omitempty"`
+	Engine    string `json:"engine,omitempty"`
+	Tool      string `json:"tool,omitempty"`
+	Reference string `json:"reference,omitempty"`
+	Timestamp string `json:"timestamp,omitempty"`
+}
+
+// OverlaySpanView is one run-anchored span of an overlay with its extracted text.
+type OverlaySpanView struct {
+	ID        string            `json:"id,omitempty"`
+	Range     model.RunRange    `json:"range"`
+	Props     map[string]string `json:"props,omitempty"`
+	Text      string            `json:"text,omitempty"`
+	Ignorable bool              `json:"ignorable,omitempty"`
+}
+
+// OverlayView is the wire view of a stand-off overlay over one side of a block.
+type OverlayView struct {
+	Type  string            `json:"type"`
+	Side  string            `json:"side"` // "source" or a variant key
+	Layer string            `json:"layer,omitempty"`
+	Spans []OverlaySpanView `json:"spans,omitempty"`
+}
+
+// AnnotationView is the wire view of a block-level annotation.
+type AnnotationView struct {
+	Key     string         `json:"key"`
+	Type    string         `json:"type"`
+	Summary string         `json:"summary,omitempty"`
+	Fields  map[string]any `json:"fields,omitempty"`
 }
 
 // BuildContentTree walks a Part stream (in document order, as emitted by a
@@ -186,25 +246,145 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 }
 
 // blockNode builds the leaf node for a translatable Block, capturing its run
-// sequence and (when the block is multi-segment) the segment boundary overlay.
+// sequence, every committed target variant (with lifecycle + provenance), the
+// segment boundary overlay, all stand-off overlays (with extracted span text)
+// and block-level annotations — the full content-model view of the part.
 func blockNode(b *model.Block) *ContentNode {
 	n := &ContentNode{
-		Kind:         "block",
-		ID:           b.ID,
-		Name:         b.Name,
-		Translatable: b.Translatable,
-		Properties:   nonEmptyProps(b.Properties),
-		HasSkeleton:  b.Skeleton != nil,
-		Source:       b.SourceRuns(),
-		Segments:     segmentSpans(b),
+		Kind:               "block",
+		ID:                 b.ID,
+		Name:               b.Name,
+		Type:               b.Type,
+		Translatable:       b.Translatable,
+		SourceLocale:       string(b.SourceLocale),
+		Properties:         nonEmptyProps(b.Properties),
+		HasSkeleton:        b.Skeleton != nil,
+		IsReferent:         b.IsReferent,
+		PreserveWhitespace: b.PreserveWhitespace,
+		Source:             b.SourceRuns(),
+		Segments:           segmentSpans(b),
+		Overlays:           overlayViews(b),
+		Annotations:        annotationViews(b),
+	}
+	if b.Identity != nil {
+		n.Identity = b.Identity.ContentHash
 	}
 	if len(b.Targets) > 0 {
 		n.Targets = make(map[string][]model.Run, len(b.Targets))
-		for _, loc := range b.TargetLocales() {
-			n.Targets[string(loc)] = b.TargetRuns(loc)
+		n.TargetMeta = make(map[string]*TargetMeta, len(b.Targets))
+		for _, key := range sortedVariantKeys(b.Targets) {
+			t := b.Targets[key]
+			if t == nil {
+				continue
+			}
+			label := variantLabel(key)
+			n.Targets[label] = t.Runs
+			n.TargetMeta[label] = targetMeta(key, t)
 		}
 	}
 	return n
+}
+
+// variantLabel renders a VariantKey as its wire/text form (locale, or
+// "locale;tone=…;channel=…"), matching the key used for Targets/TargetMeta.
+func variantLabel(k model.VariantKey) string {
+	b, err := k.MarshalText()
+	if err != nil {
+		return string(k.Locale)
+	}
+	return string(b)
+}
+
+// sortedVariantKeys returns the target variant keys in a stable order so the
+// serialized view is deterministic.
+func sortedVariantKeys(targets map[model.VariantKey]*model.Target) []model.VariantKey {
+	keys := make([]model.VariantKey, 0, len(targets))
+	for k := range targets {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return variantLabel(keys[i]) < variantLabel(keys[j]) })
+	return keys
+}
+
+func targetMeta(key model.VariantKey, t *model.Target) *TargetMeta {
+	m := &TargetMeta{Status: string(t.Status), Score: t.Score, Tone: key.Tone, Channel: key.Channel}
+	if o := t.Origin; o != (model.Origin{}) {
+		m.Origin = &OriginView{Kind: o.Kind, Engine: o.Engine, Tool: o.Tool, Reference: o.Reference, Timestamp: o.Timestamp}
+	}
+	return m
+}
+
+// overlayViews serializes every stand-off overlay on the block, resolving each
+// span's covered text from the side it annotates (source or a target variant).
+func overlayViews(b *model.Block) []OverlayView {
+	if len(b.Overlays) == 0 {
+		return nil
+	}
+	out := make([]OverlayView, 0, len(b.Overlays))
+	for i := range b.Overlays {
+		o := &b.Overlays[i]
+		side := "source"
+		runs := b.Source
+		if o.Variant != nil {
+			side = variantLabel(*o.Variant)
+			if t := b.Targets[*o.Variant]; t != nil {
+				runs = t.Runs
+			}
+		}
+		spans := make([]OverlaySpanView, 0, len(o.Spans))
+		for _, s := range o.Spans {
+			spans = append(spans, OverlaySpanView{
+				ID:        s.ID,
+				Range:     s.Range,
+				Props:     nonEmptyProps(s.Props),
+				Text:      model.RunsText(s.Range.ExtractRuns(runs)),
+				Ignorable: s.Ignorable(),
+			})
+		}
+		out = append(out, OverlayView{Type: string(o.Type), Side: side, Layer: o.Layer, Spans: spans})
+	}
+	return out
+}
+
+// annotationViews serializes the block's annotations, summarising the well-known
+// kinds (alt-translation, note) and passing generic ones through as fields.
+func annotationViews(b *model.Block) []AnnotationView {
+	if len(b.Annotations) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(b.Annotations))
+	for k := range b.Annotations {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]AnnotationView, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, annotationView(k, b.Annotations[k]))
+	}
+	return out
+}
+
+func annotationView(key string, a model.Annotation) AnnotationView {
+	v := AnnotationView{Key: key, Type: a.AnnotationType()}
+	switch t := a.(type) {
+	case *model.AltTranslation:
+		v.Summary = model.RunsText(t.Target)
+		v.Fields = map[string]any{
+			"locale":    string(t.Locale),
+			"matchType": string(t.MatchType),
+			"score":     t.Score,
+			"origin":    t.Origin,
+			"engine":    t.Engine,
+			"source":    model.RunsText(t.Source),
+		}
+	case *model.NoteAnnotation:
+		v.Summary = t.Text
+		v.Fields = map[string]any{"from": t.From, "priority": t.Priority, "annotates": t.Annotates}
+	case *model.GenericAnnotation:
+		v.Type = t.Kind
+		v.Fields = t.Fields
+	}
+	return v
 }
 
 // segmentSpans derives the run-index boundary spans from a Block's source

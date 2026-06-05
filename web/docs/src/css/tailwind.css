@@ -25,6 +25,11 @@
 @source "../pages/formats";
 @source "../pages/tools";
 @source "../components/reference";
+/* The interactive lab explorers (@neokapi/kapi-lab) render shadcn primitives
+ * inside `.kapi-reference` scopes, so scan their source + the docs adapters. */
+@source "../../../../packages/kapi-lab/src";
+@source "../components/Lab";
+@source "../pages/lab";
 
 /* Map the ui-primitives `dark:` variant onto Docusaurus's data-theme switch. */
 @custom-variant dark (&:is([data-theme="dark"] *));
