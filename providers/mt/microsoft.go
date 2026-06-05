@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/neokapi/neokapi/core/httputil"
@@ -73,19 +72,9 @@ func (p *MicrosoftProvider) Translate(ctx context.Context, req TranslateRequest)
 		httpReq.Header.Set("Ocp-Apim-Subscription-Region", p.cfg.Region)
 	}
 
-	resp, err := p.client.Do(httpReq)
+	respBody, err := sendAndRead(p.client, httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("http request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, err
 	}
 
 	var result []msTranslateResponseItem

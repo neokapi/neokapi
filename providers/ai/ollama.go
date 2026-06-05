@@ -34,24 +34,7 @@ func NewOllamaProvider(cfg Config) *OllamaProvider {
 func (p *OllamaProvider) Name() ProviderID { return Ollama }
 
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	) + req.Directives()
-
-	resp, err := p.Chat(ctx, []Message{
-		{Role: "user", Content: prompt},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &TranslateResponse{
-		Translation: resp.Content,
-		Confidence:  0.7,
-		Model:       resp.Model,
-		Usage:       resp.Usage,
-	}, nil
+	return standardTranslate(ctx, p.Chat, req, 0.7)
 }
 
 func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
