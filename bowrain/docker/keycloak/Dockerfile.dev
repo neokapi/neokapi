@@ -3,7 +3,7 @@
 # The theme JAR and realm.json are mounted as volumes in compose.yaml,
 # so they don't need to be baked into this image.
 
-FROM quay.io/keycloak/keycloak:26.6.2
+FROM quay.io/keycloak/keycloak:26.6.3
 
 # Install Apple identity provider extension (Sign in with Apple).
 # https://github.com/klausbetz/apple-identity-provider-keycloak
