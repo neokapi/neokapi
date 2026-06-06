@@ -13,10 +13,14 @@ import type { OverlaySpan, OverlayView } from "./types";
 
 // ── Overlay type → accent ────────────────────────────────────────────────────
 //
-// The accent vocabulary as Tailwind classes (background tint + text colour),
-// shared in spirit with the lab's content-model palette so a learner builds one
-// colour vocabulary: terms = violet, entities = sky, qa = amber, brand = pink,
-// length = orange, segmentation = slate, alignment = teal.
+// The palette keys on the ACTUAL overlay types the engine emits
+// (`labInspectAnnotated`): `term` (vocabulary), and `qa` — where a `qa` overlay
+// whose `props.category` is `"brand-vocabulary"` is a brand violation, and every
+// other `qa` overlay is a rule-based check (double spaces, doubled words). So a
+// span's accent is decided by its overlay type AND its span props, not the type
+// alone: term = violet (vocabulary), brand-vocabulary = pink (a brand QA), other
+// qa = amber. Other model overlay types (entity/segmentation/alignment) keep
+// stable accents in case a future annotator emits them.
 
 export interface OverlayStyle {
   /** Tailwind classes applied to the highlight <mark>. */
@@ -25,26 +29,33 @@ export interface OverlayStyle {
   label: string;
 }
 
+// Brand violations ride on the `qa` overlay type and are distinguished by this
+// span-prop category. Keep in sync with the wasm annotator (lab_annotate.go).
+const BRAND_CATEGORY = "brand-vocabulary";
+
+// Effective-accent keys. The renderer never sees these directly — they are the
+// resolved identity (type + category) that `overlayStyle` maps to an accent.
 const OVERLAY_STYLES: Record<string, OverlayStyle> = {
-  term: { className: "bg-violet-500/20 text-violet-700 dark:text-violet-300", label: "Term" },
-  terms: { className: "bg-violet-500/20 text-violet-700 dark:text-violet-300", label: "Term" },
-  entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
-  entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
+  // Terminology / vocabulary matches from the termbase.
+  term: { className: "bg-violet-500/20 text-violet-700 dark:text-violet-300", label: "Vocabulary" },
+  terms: {
+    className: "bg-violet-500/20 text-violet-700 dark:text-violet-300",
+    label: "Vocabulary",
+  },
+  // Brand-vocabulary violations (a `qa` overlay with category=brand-vocabulary).
+  [BRAND_CATEGORY]: {
+    className: "bg-pink-500/20 text-pink-700 dark:text-pink-300",
+    label: "Brand",
+  },
+  // Rule-based QA findings (double spaces, doubled words, …).
   qa: { className: "bg-amber-500/25 text-amber-700 dark:text-amber-300", label: "QA" },
   "qa-check": {
     className: "bg-amber-500/25 text-amber-700 dark:text-amber-300",
     label: "QA check",
   },
-  "brand-voice": {
-    className: "bg-pink-500/20 text-pink-700 dark:text-pink-300",
-    label: "Brand voice",
-  },
-  brand: { className: "bg-pink-500/20 text-pink-700 dark:text-pink-300", label: "Brand voice" },
-  "length-check": {
-    className: "bg-orange-500/20 text-orange-700 dark:text-orange-300",
-    label: "Length",
-  },
-  length: { className: "bg-orange-500/20 text-orange-700 dark:text-orange-300", label: "Length" },
+  // Other model overlay types (not currently produced, but kept stable).
+  entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
+  entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
   segmentation: {
     className: "bg-slate-400/20 text-slate-700 dark:text-slate-300",
     label: "Segment",
@@ -57,9 +68,26 @@ const DEFAULT_STYLE: OverlayStyle = {
   label: "Annotation",
 };
 
-/** Resolve the accent + label for an overlay type (unknown → default emerald). */
-export function overlayStyle(type: string): OverlayStyle {
-  return OVERLAY_STYLES[type] ?? { ...DEFAULT_STYLE, label: titleCase(type) };
+/**
+ * The effective accent key for an overlay span. Brand violations ride on the
+ * `qa` overlay type, so a `qa` span carrying `props.category="brand-vocabulary"`
+ * resolves to the brand accent; everything else resolves on its overlay type.
+ */
+function effectiveKey(type: string, span?: OverlaySpan): string {
+  if ((type === "qa" || type === "qa-check") && span?.props?.category === BRAND_CATEGORY) {
+    return BRAND_CATEGORY;
+  }
+  return type;
+}
+
+/**
+ * Resolve the accent + label for an overlay span. Pass the span so a brand
+ * violation (a `qa` overlay with category=brand-vocabulary) gets the brand
+ * accent rather than the generic QA accent. Unknown keys fall back to emerald.
+ */
+export function overlayStyle(type: string, span?: OverlaySpan): OverlayStyle {
+  const key = effectiveKey(type, span);
+  return OVERLAY_STYLES[key] ?? { ...DEFAULT_STYLE, label: titleCase(key) };
 }
 
 function titleCase(s: string): string {
@@ -82,14 +110,33 @@ export interface ResolvedSpan {
   tooltip: string;
 }
 
-/** Build the tooltip line for an overlay span. */
+// The props worth surfacing in the tooltip, per overlay identity — chosen so a
+// reader sees the actionable fact, not the raw prop bag. Terms show their target
+// translation (+ domain); brand violations show the suggested replacement (or
+// the human message); other QA shows its message. Anything not listed falls back
+// to a compact key:value join.
+const TOOLTIP_PROPS: Record<string, string[]> = {
+  term: ["target", "domain"],
+  terms: ["target", "domain"],
+  [BRAND_CATEGORY]: ["replacement", "message"],
+  qa: ["message"],
+  "qa-check": ["message"],
+};
+
+/** Build the tooltip line for an overlay span (type + the useful prop). */
 function tooltipFor(type: string, span: OverlaySpan): string {
-  const parts: string[] = [overlayStyle(type).label];
-  if (span.props) {
-    const entries = Object.entries(span.props)
-      .filter(([, v]) => v !== "")
-      .map(([k, v]) => `${k}: ${v}`);
-    if (entries.length > 0) parts.push(entries.join(" · "));
+  const key = effectiveKey(type, span);
+  const parts: string[] = [overlayStyle(type, span).label];
+  const props = span.props;
+  if (props) {
+    const wanted = TOOLTIP_PROPS[key];
+    const picked = wanted
+      ? wanted.filter((k) => props[k] && props[k] !== "").map((k) => `${k}: ${props[k]}`)
+      : Object.entries(props)
+          .filter(([, v]) => v !== "")
+          .map(([k, v]) => `${k}: ${v}`);
+    if (picked.length > 0) parts.push(picked.join(" · "));
+    else if (span.text) parts.push(`“${span.text}”`);
   } else if (span.text) {
     parts.push(`“${span.text}”`);
   }
@@ -130,7 +177,9 @@ export function resolveOverlaySpans(
         start: idx,
         end: idx + needle.length,
         type: ov.type,
-        style: overlayStyle(ov.type),
+        // Style/tooltip key on the span too, so a brand-vocabulary qa span gets
+        // the brand accent rather than the generic QA accent.
+        style: overlayStyle(ov.type, span),
         span,
         tooltip: tooltipFor(ov.type, span),
       });

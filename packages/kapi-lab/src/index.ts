@@ -132,6 +132,7 @@ export type {
   InspectOutcome,
   TraceOutcome,
 } from "./useLabRuntime";
+export type { AnnotateOptions } from "@neokapi/kapi-playground/runtime";
 
 export { SAMPLES, sampleById } from "./samples";
 export type { LabSample } from "./samples";

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // pull xterm / the modal into explorer bundles — explorers never show a terminal.
 import { bootKapiRuntime } from "@neokapi/kapi-playground/runtime";
 import type {
+  AnnotateOptions,
   InspectResult,
   KapiRuntime,
   KlfRequest,
@@ -45,6 +46,16 @@ export interface LabRuntime {
    *  raw bytes (use bytes for binary formats like .docx). Returns its path. */
   writeFile: (filename: string, data: string | Uint8Array) => string;
   inspect: (filename: string, data: string | Uint8Array) => Promise<InspectOutcome>;
+  /**
+   * Inspect like {@link inspect}, but with the engine's read-only annotators
+   * (terminology, brand vocabulary, rule-based QA) run first so the blocks carry
+   * stand-off overlays. `opts` toggles individual annotators (default all on).
+   */
+  inspectAnnotated: (
+    filename: string,
+    data: string | Uint8Array,
+    opts?: AnnotateOptions,
+  ) => Promise<InspectOutcome>;
   /** Run a command with tracing; argv uses absolute /project paths. */
   trace: (argv: string[]) => Promise<TraceOutcome>;
   run: (argv: string[]) => Promise<number>;
@@ -130,6 +141,25 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     [],
   );
 
+  const inspectAnnotated = useCallback(
+    async (
+      filename: string,
+      data: string | Uint8Array,
+      opts?: AnnotateOptions,
+    ): Promise<InspectOutcome> => {
+      const rt = runtimeRef.current;
+      if (!rt) return { ok: false, error: "runtime not ready" };
+      return serialized(async () => {
+        const path = `${PROJECT_DIR}/${filename}`;
+        rt.vol.writeFile(path, typeof data === "string" ? enc.encode(data) : data);
+        const res: InspectResult = await rt.inspectAnnotated(path, opts);
+        if (!res.ok) return { ok: false, error: res.error };
+        return { ok: true, format: res.format, tree: res.tree as ContentTree };
+      });
+    },
+    [],
+  );
+
   const trace = useCallback(async (argv: string[]): Promise<TraceOutcome> => {
     const rt = runtimeRef.current;
     if (!rt) return { ok: false, error: "runtime not ready" };
@@ -208,6 +238,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     mkdir,
     writeFile,
     inspect,
+    inspectAnnotated,
     trace,
     run,
     runCapture,

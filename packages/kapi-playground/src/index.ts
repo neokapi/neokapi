@@ -38,6 +38,7 @@ export type {
   PreviewResult,
   PreviewBlock,
   InspectResult,
+  AnnotateOptions,
   TraceRunResult,
 } from "./runtime";
 export { fixtureNames, getFixture } from "./fixtures";

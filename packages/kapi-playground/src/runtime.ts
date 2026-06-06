@@ -26,6 +26,13 @@ export interface PreviewResult {
   bytes?: number;
 }
 
+/** Which read-only annotators `inspectAnnotated` runs (all default to true). */
+export interface AnnotateOptions {
+  term?: boolean;
+  brand?: boolean;
+  qa?: boolean;
+}
+
 export interface InspectResult {
   ok: boolean;
   error?: string;
@@ -73,6 +80,13 @@ export interface KapiRuntime {
   preview(path: string): Promise<PreviewResult>;
   /** Inspect a file's content model, returning the parsed ContentTree. */
   inspect(path: string): Promise<InspectResult>;
+  /**
+   * Inspect a file like {@link inspect}, but run the engine's read-only
+   * annotators (terminology, brand vocabulary, rule-based QA) first so the
+   * parsed blocks carry stand-off overlays. `opts` toggles individual annotators
+   * (term/brand/qa); all default to true. Wraps the `labInspectAnnotated` global.
+   */
+  inspectAnnotated(path: string, opts?: AnnotateOptions): Promise<InspectResult>;
   /**
    * Run a KLF spec operation against the canonical Go engine. Synchronous: the
    * wasm endpoint does pure in-memory work over the JSON payload (no fs), so it
@@ -200,6 +214,32 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
       preview: (path: string) => g.kapiPreview(path) as Promise<PreviewResult>,
       inspect: async (path: string): Promise<InspectResult> => {
         const res = (await g.labInspect(path)) as {
+          ok: boolean;
+          error?: string;
+          format?: string;
+          json?: string;
+          bytes?: number;
+        };
+        if (!res || !res.ok) return { ok: false, error: res?.error ?? "inspect failed" };
+        try {
+          return {
+            ok: true,
+            format: res.format,
+            tree: res.json ? JSON.parse(res.json) : undefined,
+            bytes: res.bytes,
+          };
+        } catch (e) {
+          return { ok: false, error: `parse content tree: ${(e as Error).message}` };
+        }
+      },
+      inspectAnnotated: async (path: string, opts?: AnnotateOptions): Promise<InspectResult> => {
+        const fn = g.labInspectAnnotated;
+        if (typeof fn !== "function") {
+          return { ok: false, error: "labInspectAnnotated unavailable in this wasm build" };
+        }
+        // The wasm endpoint accepts an optional JSON options string; omit it to
+        // let the engine default all annotators on.
+        const res = (await (opts ? fn(path, JSON.stringify(opts)) : fn(path))) as {
           ok: boolean;
           error?: string;
           format?: string;

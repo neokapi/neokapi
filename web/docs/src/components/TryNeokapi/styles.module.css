@@ -1,98 +1,87 @@
 /* Chrome for the Try-Neokapi landing centerpiece: the zero-wasm Format-carousel
-   hero and the live-engine modal. The actual document renderers (slide / sheet /
-   doc) live in @neokapi/kapi-lab's DocumentRender; this file styles only the
-   carousel shell, the modal layout, the per-sample cards, and the before/after
-   framing — using the site's primary green for the accent. */
+   hero and the live-engine modal. The document rendering (slide / sheet / doc /
+   list) lives in @neokapi/kapi-lab's PreviewKit (FormatPreview / DocumentViewer
+   / FileBrowser); this file styles only the carousel shell and the modal's
+   browser→detail shell — using the site's primary green for the accent. */
 
-/* ── Live showcase grid (modal) ───────────────────────────────────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.85rem;
-}
-
-.doc {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--ifm-background-color);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-}
-
-.docBar {
+/* ── Modal browser + detail surface ───────────────────────────────────────── */
+.browserHead {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.browserHint {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+  flex: 1 1 16rem;
+}
+
+.dropBtn {
+  display: inline-flex;
+  align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.72rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: #fff;
-  letter-spacing: 0.01em;
+  cursor: pointer;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
-.barPptx {
-  background: #c43e1c;
-}
-.barXlsx {
-  background: #1d6f42;
-}
-.barMd {
-  background: #3b4252;
+.dropBtn:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
 }
 
-.docName {
-  margin-left: auto;
-  font-weight: 500;
-  opacity: 0.85;
-  font-variant-numeric: tabular-nums;
+.dropBtn:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
 }
 
-.docContent {
-  padding: 0.75rem;
+.dropBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
-/* ── Before / after framing ───────────────────────────────────────────────── */
-.beforeAfter {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: start;
-  gap: 0.7rem;
-}
-
-.beforeAfterCol {
-  min-width: 0;
+.detailBar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
   gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.beforeAfterTag {
-  align-self: flex-start;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.backBtn:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.backBtn:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+.detailHint {
+  font-size: 0.76rem;
   color: var(--ifm-color-emphasis-600);
-  padding: 0.05rem 0.4rem;
-  border-radius: 999px;
-  background: var(--ifm-color-emphasis-100);
-}
-
-.beforeAfterArrow {
-  align-self: center;
-  color: var(--ifm-color-primary);
-}
-
-@media (max-width: 720px) {
-  .beforeAfter {
-    grid-template-columns: 1fr;
-  }
-  .beforeAfterArrow {
-    transform: rotate(90deg);
-    justify-self: center;
-  }
 }
 
 .showcaseLoading {
@@ -109,127 +98,6 @@
   margin: 0;
   font-size: 0.8rem;
   color: var(--ifm-color-danger, #d33);
-}
-
-/* ── Insights overlay ─────────────────────────────────────────────────────── */
-.insights {
-  margin-top: 0.6rem;
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.statChip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
-  font-size: 0.72rem;
-}
-
-.statNum {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--ifm-color-primary-darkest, var(--ifm-color-primary));
-}
-
-.statLabel {
-  color: var(--ifm-color-emphasis-700);
-}
-
-/* ── Modal controls + chrome ──────────────────────────────────────────────── */
-.tabBar {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.2rem;
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 999px;
-  background: var(--ifm-background-color);
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.tab:hover {
-  border-color: var(--ifm-color-primary);
-}
-
-.tab:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 2px;
-}
-
-.tabActive {
-  border-color: var(--ifm-color-primary);
-  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
-  color: var(--ifm-font-color-base);
-}
-
-.controls {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 10px;
-  background: var(--ifm-color-emphasis-100);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.72rem;
-  color: var(--ifm-color-emphasis-700);
-  font-weight: 600;
-}
-
-.input {
-  width: 9rem;
-  padding: 0.35rem 0.55rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 7px;
-  background: var(--ifm-background-color);
-  color: var(--ifm-font-color-base);
-  font-size: 0.85rem;
-  font-family: inherit;
-}
-
-.input:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 1px;
-}
-
-.arrow {
-  align-self: center;
-  padding-bottom: 0.35rem;
-  color: var(--ifm-color-emphasis-500);
-}
-
-.controlNote {
-  margin-left: auto;
-  align-self: center;
-  font-size: 0.74rem;
-  color: var(--ifm-color-emphasis-600);
-  max-width: 16rem;
-  text-align: right;
 }
 
 /* ── Modal layout ─────────────────────────────────────────────────────────── */
@@ -255,114 +123,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-}
-
-/* ── Real-proof footer ────────────────────────────────────────────────────── */
-.proof {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding-top: 0.85rem;
-  margin-top: 0.2rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
-}
-
-.proofLabel {
-  font-size: 0.78rem;
-  color: var(--ifm-color-emphasis-700);
-  font-weight: 600;
-  margin-right: 0.2rem;
-}
-
-.proofNote {
-  flex-basis: 100%;
-  font-size: 0.74rem;
-  color: var(--ifm-color-emphasis-600);
-  margin: 0;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  background: var(--ifm-background-color);
-  color: var(--ifm-font-color-base);
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.12s ease;
-}
-
-.btn:hover:not(:disabled) {
-  border-color: var(--ifm-color-primary);
-  transform: translateY(-1px);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 2px;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.btnPrimary {
-  background: var(--ifm-color-primary);
-  border-color: var(--ifm-color-primary);
-  color: #fff;
-}
-
-.btnPrimary:hover:not(:disabled) {
-  background: var(--ifm-color-primary-dark);
-  color: #fff;
-}
-
-.toggleRow {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.toggleBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  background: var(--ifm-background-color);
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.toggleBtn:hover {
-  border-color: var(--ifm-color-primary);
-}
-
-.toggleBtn:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 2px;
-}
-
-.ownWrap {
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 10px;
-  padding: 0.8rem;
-  background: var(--ifm-color-emphasis-100);
 }
 
 /* ── Format-carousel hero (zero-wasm) ─────────────────────────────────────── */
@@ -566,12 +326,9 @@
 
 /* ── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .btn,
-  .tab,
   .carouselOpen {
     transition: none;
   }
-  .btn:hover,
   .carouselOpen:hover {
     transform: none;
   }

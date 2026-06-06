@@ -1,29 +1,21 @@
 import React, { Suspense, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@neokapi/ui-primitives";
-import { BarChart3, Languages, Replace } from "lucide-react";
 import Carousel from "./Carousel";
-import type { DemoId } from "./demos";
 import styles from "./styles.module.css";
 
 // The docs landing centerpiece. The hero is a zero-wasm Format-carousel (baked
-// RenderDoc data rendered through the shared DocumentRender) that auto-cycles
-// slide → sheet → doc, each revealing EN → FR with the changed words
+// RenderDoc data rendered through the shared FormatPreview) that auto-cycles
+// slide → sheet → doc, each typewriter-revealing EN → FR with the changed words
 // highlighted. Clicking it opens a modal (the ui-primitives Dialog) that boots
-// the kapi WASM engine and runs the REAL extraction + transform on three real
-// files (deck.pptx · report.xlsx · guide.md), showing a genuine before/after via
-// the same DocumentRender — so the instant teaser and the live proof look
-// identical.
+// the kapi WASM engine and drives a single coherent surface: a FileBrowser of
+// real sample files across formats, opening into a DocumentViewer powered by
+// live extraction (inspect + inspectAnnotated) with a real pseudo-translate
+// target — so the instant teaser and the live proof tell the same story.
 //
 // The page stays zero-wasm on load: nothing boots the engine until the reader
 // opens the modal. The heavy modal body (which imports the lab runtime) is
 // client-only + code-split so it never enters the SSR bundle.
-
-const DEMOS: { id: DemoId; label: string; icon: typeof Replace }[] = [
-  { id: "search-replace", label: "Search / replace", icon: Replace },
-  { id: "insights", label: "Insights", icon: BarChart3 },
-  { id: "pseudo", label: "Pseudo-translate", icon: Languages },
-];
 
 // ModalBody imports @neokapi/kapi-lab (the wasm runtime), so it is loaded
 // client-only + code-split — it never enters the SSR bundle and pulls no wasm
@@ -35,7 +27,7 @@ function ModalBodyClient(): React.ReactElement {
     <BrowserOnly fallback={<div className={styles.showcaseLoading}>Loading…</div>}>
       {() => (
         <Suspense fallback={<div className={styles.showcaseLoading}>Loading…</div>}>
-          <LazyModalBody demos={DEMOS} />
+          <LazyModalBody />
         </Suspense>
       )}
     </BrowserOnly>
@@ -58,9 +50,9 @@ export default function TryNeokapi(): React.ReactElement {
                 </span>
               </DialogTitle>
               <p className={styles.modalSub}>
-                One engine reads the translatable text out of any document, transforms it, and
-                writes the file back — faithfully. This runs the real kapi engine in your browser,
-                live, on three formats at once.
+                One engine reads the translatable text out of any document, annotates and transforms
+                it, and writes the file back — faithfully. Pick a file below: this runs the real kapi
+                engine in your browser, live, across every format.
               </p>
             </div>
           </DialogHeader>

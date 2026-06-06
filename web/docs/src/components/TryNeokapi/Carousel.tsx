@@ -1,19 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
-import DocumentRender from "@neokapi/kapi-lab/DocumentRender";
+import FormatPreview from "@neokapi/kapi-lab/FormatPreview";
 import { ArrowRight, RotateCw } from "lucide-react";
 import { HERO_CAROUSEL } from "./heroCarousel";
 import styles from "./styles.module.css";
 
 // The Format-carousel hero: a compact card that auto-cycles through a rendered
-// slide → sheet → doc, each smoothly revealing EN → FR with the changed words
+// slide → sheet → doc, each typewriter-revealing EN → FR with the changed words
 // highlighted, then advancing. Clicking anywhere opens the full Try-Neokapi
 // modal (the live-engine showcase).
 //
 // ZERO-WASM: this renders BAKED RenderDoc data (heroCarousel.ts) through the
-// shared DocumentRender component — no engine boots on page load. The structure
+// shared FormatPreview component — no engine boots on page load. The structure
 // is faithful to the real extraction; the modal proves it live.
 //
-// prefers-reduced-motion: the auto-cycle and the EN→FR cross-fade are disabled;
+// prefers-reduced-motion: the auto-cycle and the EN→FR typewriter are disabled;
 // a static side-by-side before/after is shown instead.
 
 const REVEAL_MS = 1100; // EN sits before the FR reveal
@@ -87,12 +87,13 @@ export default function Carousel({ onOpen }: CarouselProps): React.ReactElement 
             </span>
           </div>
           <div className={styles.carouselStaticGrid}>
-            <DocumentRender doc={item.source} className={styles.carouselDoc} gridHeaders={false} />
-            <DocumentRender
+            <FormatPreview doc={item.source} className={styles.carouselDoc} gridHeaders={false} />
+            <FormatPreview
               doc={item.target}
               before={item.source}
               className={styles.carouselDoc}
               gridHeaders={false}
+              reducedMotion
             />
           </div>
         </button>
@@ -122,9 +123,11 @@ export default function Carousel({ onOpen }: CarouselProps): React.ReactElement 
             {item.filename}: {showingFr ? "translated to French" : "English source"}
           </span>
           <div key={`${item.id}-${phase}`} className={styles.carouselReveal}>
-            <DocumentRender
+            <FormatPreview
               doc={showingFr ? item.target : item.source}
               before={showingFr ? item.source : undefined}
+              transition={showingFr ? "typewriter" : "none"}
+              typewriter="word"
               className={styles.carouselDoc}
               gridHeaders={false}
             />
