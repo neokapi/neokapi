@@ -139,6 +139,68 @@
   background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
 }
 
+/* ── kapi-react callout: a sibling React i18n library, not a "way to use the
+   engine" — visually distinct from the two engine tiers (React cyan accent). ── */
+.reactCallout {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-left: 4px solid #61dafb;
+  border-radius: 12px;
+  background: var(--ifm-card-background-color);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.reactCallout:hover {
+  border-color: #61dafb;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px color-mix(in srgb, #61dafb 28%, transparent);
+  text-decoration: none;
+  color: var(--ifm-font-color-base);
+}
+
+.reactCalloutBadge {
+  flex: 0 0 auto;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0b7ea3;
+  background: color-mix(in srgb, #61dafb 22%, transparent);
+}
+
+.reactCalloutText {
+  flex: 1 1 auto;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.reactCalloutArrow {
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  color: #2aa3c7;
+}
+
+@media (max-width: 575px) {
+  .reactCallout {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .reactCalloutArrow {
+    display: none;
+  }
+}
+
 /* ── Responsive: stack the "Try" CTA under the intro on narrow viewports ───── */
 
 @media (max-width: 996px) {

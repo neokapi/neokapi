@@ -53,39 +53,32 @@ type Tier = {
   linkText: string;
 };
 
-// The three tiers of the project: the Go framework, and the kapi + kapi-react
-// surfaces built on top of it. Stated once here so the homepage frames the whole
-// shape; deeper pages cover each tier.
+// Two ways to USE the engine: directly as a Go library, or through kapi (the
+// CLI + desktop app built on it). kapi-react is a separate React i18n library
+// that lives in the same codebase — highlighted on its own below, not framed as
+// a third "way to use the engine".
 const Tiers: Tier[] = [
   {
-    eyebrow: "Framework",
-    title: "A Go library",
+    eyebrow: "The engine",
+    title: "Go framework",
     description:
-      "The engine itself: format-aware readers and writers, a faithful content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+      "Format-aware readers and writers, a faithful content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
     link: "/framework/go-quickstart",
     linkText: "Go quickstart",
   },
   {
-    eyebrow: "Surface",
+    eyebrow: "Built on it",
     title: "kapi — CLI & desktop",
     description:
-      "Drive the framework from the command line or a visual desktop app: extract, translate, run checks, and manage .kapi projects — no code required.",
+      "Drive the engine from the command line or a visual desktop app: extract, translate, run checks, and manage .kapi projects — no code required.",
     link: "/kapi/overview",
     linkText: "Use kapi",
-  },
-  {
-    eyebrow: "Surface",
-    title: "kapi-react — in the browser",
-    description:
-      "The same engine compiled to WebAssembly, wrapped in React components, so you can run format-aware tools and explorers directly in a web page.",
-    link: "/lab",
-    linkText: "Open the lab",
   },
 ];
 
 function TierCard({ eyebrow, title, description, link, linkText }: Tier) {
   return (
-    <div className="col col--4">
+    <div className="col col--6">
       <div className="text--center padding-horiz--md padding-vert--md">
         <span className={styles.tierEyebrow}>{eyebrow}</span>
         <Heading as="h3">{title}</Heading>
@@ -158,16 +151,31 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">One engine, three ways to use it</Heading>
+          <Heading as="h2">One engine, two ways to use it</Heading>
           <p className={styles.sectionSubtitle}>
-            neokapi is a Go framework. <strong>kapi</strong> and <strong>kapi-react</strong> are
-            surfaces on top of it.
+            neokapi is a Go framework. Use it directly as a library, or through{" "}
+            <strong>kapi</strong> — the CLI and desktop app built on it.
           </p>
         </div>
-        <div className="row margin-bottom--xl">
+        <div className="row margin-bottom--lg">
           {Tiers.map((props, idx) => (
             <TierCard key={idx} {...props} />
           ))}
+        </div>
+        <div className="row margin-bottom--xl">
+          <div className="col col--10 col--offset-1">
+            <Link to="/react/introduction" className={styles.reactCallout}>
+              <span className={styles.reactCalloutBadge}>In the family</span>
+              <span className={styles.reactCalloutText}>
+                <strong>kapi-react</strong> — a zero-config i18n library for React. Its own
+                framework, powered by neokapi under the hood for build-time string extraction and
+                catalog compilation.
+              </span>
+              <span className={styles.reactCalloutArrow} aria-hidden="true">
+                &rarr;
+              </span>
+            </Link>
+          </div>
         </div>
         <div className="row margin-bottom--xl">
           {NeokapiFeatures.map((props, idx) => (
