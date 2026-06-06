@@ -50,17 +50,19 @@ tools and flows in a native app with a flow editor, live runner, plugin manager,
 and credential vault. The [Kapi Desktop overview](/kapi/desktop/overview) walks
 through your first project.
 
-## Projects vs. ad-hoc
+## Projects and ad-hoc
 
 There are two ways to drive Kapi:
 
+- **Project** — the recommended day-to-day model. Capture the workflow once in a
+  portable `.kapi` recipe (languages, content patterns, flows, plugin
+  requirements, defaults) and replay it with `kapi run <flow>`. The project store
+  accumulates translation memory as you work, and the recipe is shareable via
+  git. Best for any repository or content set you localize repeatedly —
+  [create your first project](/kapi/get-started/first-project).
 - **Ad-hoc** — run a tool or flow directly on files, configured by flags (or, in
   the desktop app, clicks): `kapi ai-translate -i file.json --target-lang fr`.
-  Nothing is saved — ideal for one-off jobs, scripting, and CI.
-- **Project** — capture the workflow once in a portable `.kapi` recipe
-  (languages, content patterns, flows, plugin requirements, defaults) and replay
-  it with `kapi run <flow>`. Ideal for a repository you localize repeatedly, and
-  shareable via git.
+  Nothing is saved — the quick path for one-off jobs, scripting, and CI.
 
 **Kapi finds your project automatically.** Like git, it walks up the directory
 tree from wherever you run it; if it finds a `.kapi` recipe, it runs in

@@ -1,0 +1,133 @@
+---
+sidebar_position: 5
+title: Create your first project
+description: Set up a .kapi project with kapi init — capture languages, content globs, and flows once, then run flows and merge files without repeating flags. The recommended day-to-day working model.
+keywords: [kapi, project, kapi init, recipe, .kapi, flows, merge, day-to-day workflow]
+---
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
+
+# Create your first project
+
+The [Quick Start](/kapi/get-started/quickstart) runs kapi ad-hoc — one command,
+one file, flags for everything. That's the right shape for a one-off. For content
+you localize **more than once** — a repository, a product's strings, a docs set —
+a **`.kapi` project** is the working model worth adopting: you capture the
+languages, content patterns, and flows in a committed recipe once, then drive
+everything through short commands with no repeated flags.
+
+This page walks the smallest end-to-end loop: `init` → read the recipe → run a
+flow → `merge` the files out.
+
+<KapiGuidedEmbed id="kapi-project-workflow" />
+
+## 1. Initialize the project
+
+Run `kapi init` in the directory you want to localize. It scaffolds a
+`<dir-name>.kapi` recipe and an adjacent `.kapi/` state directory:
+
+```bash
+kapi init --source-locale en --target-locale fr --target-locale de
+```
+
+```text
+Initialized kapi project "my-app"
+  recipe: my-app.kapi
+  state:  .kapi
+```
+
+The recipe is committed; the `.kapi/` state directory is regenerable and belongs
+in `.gitignore`. If your strings live in a known stack's i18n catalogs, pass
+`--framework <stack>` (for example `react-i18next`, `nextjs`, `flutter`) to
+pre-fill the content mapping — see `kapi presets list --framework`.
+
+## 2. Read the recipe
+
+The `<dir-name>.kapi` recipe is a portable YAML document. A minimal one declares
+its languages, the content globs to localize, and the flows to run:
+
+```yaml title="my-app.kapi"
+version: v1
+name: my-app
+defaults:
+  source_language: en
+  target_languages: [fr, de]
+content:
+  - path: "src/locales/en/*.json"
+    format: json
+    target: "src/locales/{lang}/*.json"
+flows:
+  translate:
+    steps:
+      - tool: tm-leverage
+      - tool: ai-translate
+```
+
+`content` maps a source glob to a target glob via the `{lang}` placeholder, so
+kapi knows where to read sources and where to write each locale's files.
+`defaults` carries the source and target languages every command inherits.
+`flows` names reusable tool chains. See the
+[project file reference](/reference/project-file) for the full schema.
+
+## 3. Run a flow
+
+From anywhere inside the project tree, run a flow by name:
+
+```bash
+kapi run translate
+```
+
+kapi discovers the nearest recipe by walking up the directory tree (like git),
+resolves the project's languages and content, and runs the flow. In a project, a
+run is **process-only** — it commits results to the project store
+(`.kapi/cache/blocks.db`) rather than writing files directly. That keeps repeated
+runs cheap and lets the store accumulate translation memory and overlays as you
+work.
+
+## 4. Merge the files out
+
+When you're ready to materialize the localized files, `merge` writes them to the
+targets declared in the recipe:
+
+```bash
+kapi merge
+```
+
+This replays the stored translations onto each source and writes
+`src/locales/fr/*.json`, `src/locales/de/*.json`, and so on — no flags, because
+the recipe already says where each locale goes.
+
+## Inspect a project
+
+The lab below is a project, interactive. Pick a sample, step through a declared
+flow, and watch the recipe, the per-locale state, and the output files update:
+
+<ProjectExplorer defaultSampleId="json" />
+
+## Why project mode
+
+Project mode trades a one-time `init` for less repetition and more memory:
+
+- **Defaults captured once.** Source and target languages, content globs, and
+  flow definitions live in the recipe. You stop passing `--source-lang`,
+  `--target-lang`, and `-i/-o` on every command.
+- **Translation memory accumulates.** The project store keeps a TM and termbase
+  that every run reads and writes, so each pass recycles the last one's work.
+- **Git-style discovery.** Run `kapi` from any subdirectory and it finds the
+  project automatically — no `-p` flag, no cwd dance.
+- **Portable and shareable.** The recipe is a committed YAML file; a teammate who
+  clones the repository runs the same flows with the same configuration.
+
+Ad-hoc runs stay available for one-offs, scripting, and CI — the two are the same
+commands over a different **binding** (where content enters and leaves). See
+**[Modes & bindings](/kapi/modes)** for the full model.
+
+## Next
+
+- [Modes & bindings](/kapi/modes) — the source/sink binding model and when to mix
+  ad-hoc and project runs.
+- [Interchange — XLIFF, PO, and your TMS](/kapi/bilingual-workflow) — extract a
+  project to bilingual files for vendor or human translation, then merge back.
+- [Project file reference](/reference/project-file) — the full `.kapi` recipe
+  schema and discovery rules.

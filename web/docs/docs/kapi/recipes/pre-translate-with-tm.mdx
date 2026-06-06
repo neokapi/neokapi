@@ -12,10 +12,12 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Pre-translate with TM + termbase
 
-:::note Runs anywhere
-No project needed — this pipeline runs ad-hoc against a loose `./tm.db` or a
-named TM. Inside a `.kapi` project it instead resolves the project TM
-automatically. See
+:::note Works ad-hoc, optimized for a project
+This pipeline runs ad-hoc against a loose `./tm.db` or a named TM, with the
+source and target languages passed as flags. In a `.kapi` project it's better:
+the recipe carries the languages and the project TM is resolved automatically, so
+each release recycles the last one's leverage without repeating flags. Both forms
+are shown below; see
 [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for which store
 each command uses.
 :::
@@ -108,6 +110,32 @@ kapi term-check step2_translated.json \
 
 (Import the glossary into `product-terms` first — see
 [Enforce terminology](/kapi/recipes/terminology-qa).)
+
+## In a project
+
+The ad-hoc steps above pass `--source-lang`, `--target-lang`, and a TM on every
+command. In a `.kapi` project you declare those once and run the pipeline as a
+named flow:
+
+```yaml title="my-app.kapi"
+defaults:
+  source_language: en
+  target_languages: [fr]
+flows:
+  pretranslate:
+    steps:
+      - tool: tm-leverage
+      - tool: pseudo-translate
+      - tool: term-check
+```
+
+```bash
+kapi run pretranslate
+```
+
+`kapi run` discovers the nearest recipe, resolves the project TM and termbase
+automatically, and applies the declared languages — no per-command flags. See
+[Create your first project](/kapi/get-started/first-project).
 
 ## Try it
 

@@ -165,6 +165,13 @@ A few habits make this pay off:
 - **Automate in CI.** Run `term-check` on every pull request, not just at manual
   review.
 
+## In a project
+
+In a `.kapi` project, `term-check` resolves the project termbase and the recipe's
+languages automatically, so the check drops the `--source-lang`, `--target-lang`,
+and `--termbase` flags — and folds naturally into a flow you run with `kapi run`
+or a CI gate. See [Create your first project](/kapi/get-started/first-project).
+
 ## Next
 
 - [`kapi termbase`](/reference/commands/termbase) and

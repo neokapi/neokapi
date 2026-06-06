@@ -9,8 +9,11 @@ import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet
 
 # Quick Start
 
-Runnable first steps with kapi — no project setup, server, or configuration.
-`kapi` operates directly on files.
+Runnable first steps with kapi — no install, no setup. These are **ad-hoc** runs:
+one command, one file, configured by flags. It's the fastest way to see what kapi
+does, and the right shape for one-off jobs, scripting, and CI. For content you
+localize repeatedly, you'll graduate to a [project](/kapi/get-started/first-project) —
+see the end of this page.
 
 Most commands below carry a **▸ Run** button. Pressing it runs the **real `kapi`
 binary** in your browser — no install, and nothing leaves your machine. The
@@ -122,6 +125,18 @@ kapi mcp
 See [Using kapi with Claude](/kapi/get-started/use-with-claude) for the skill-based
 workflow, or [Using Kapi with AI Assistants](/reference/mcp) for MCP setup with
 Claude Code, Cursor, and Windsurf.
+
+## Next: set up a project
+
+The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're
+localizing the same repository or content set more than once, capture the
+languages, content patterns, and flows in a `.kapi` project so you stop repeating
+flags and start accumulating translation memory.
+
+- [Create your first project](/kapi/get-started/first-project) — `kapi init`,
+  read the recipe, run a flow, merge the files out.
+- [Modes & bindings](/kapi/modes) — how ad-hoc and project runs differ, and when
+  to mix them.
 
 ## Next steps
 

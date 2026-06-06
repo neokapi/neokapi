@@ -24,17 +24,21 @@ For what kapi is and how the CLI and Kapi Desktop relate, see the
 
 ## Ad-hoc or project?
 
-kapi runs **ad-hoc by default**: a command operates directly on the files you
-name, configured by flags, with nothing saved —
-`kapi ai-translate -i messages.json --target-lang fr`. Most recipes here are
-ad-hoc.
+A **`.kapi` project is the recommended working model** for any repository or
+content set you localize repeatedly. It captures the languages, content patterns,
+and flows in a committed recipe once, adds git-style upward discovery of that
+recipe from any subdirectory, and keeps a project-local translation memory and
+termbase that every run reuses — so you stop repeating flags and start
+accumulating work. [Create your first project](/kapi/get-started/first-project)
+walks the setup; the [project file reference](/reference/project-file) covers the
+recipe format and discovery rules.
 
-A **`.kapi` project is opt-in**. When a recipe (or your repository) has one, kapi
-adds saved defaults, git-style upward discovery of the recipe from any
-subdirectory, and a project-local translation memory and termbase. The
-[bilingual round-trip](/kapi/bilingual-workflow) is project-based; see the
-[project file reference](/reference/project-file) for the recipe format and
-discovery rules.
+kapi also runs **ad-hoc**: a command operates directly on the files you name,
+configured by flags, with nothing saved —
+`kapi ai-translate -i messages.json --target-lang fr`. That's the quick path for
+one-off jobs, scripting, and CI, and a fine on-ramp. Many recipes here are shown
+ad-hoc because they're genuine one-offs; each notes the project-mode equivalent
+where it helps.
 
 Every recipe is marked at the top with its mode — **Runs anywhere** (ad-hoc) or
 **Needs a `.kapi` project**.

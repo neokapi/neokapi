@@ -63,6 +63,14 @@ emitted file in the files pane to see the expansion.
 > [`walkthroughs/kapi-pseudo-translate.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-pseudo-translate.scene.yaml).
 > Change the scene spec and regenerate; don't edit the generated output by hand.
 
+## In a project
+
+In a `.kapi` project, pseudo-translation runs against the recipe's declared
+content and locales — `kapi pseudo-translate` with no file argument, or as a step
+in a flow you run with `kapi run`. The output binding follows the project (the
+store, materialized with `kapi merge`) instead of `-o`. See
+[Create your first project](/kapi/get-started/first-project).
+
 ## Next
 
 - [`kapi pseudo-translate`](/reference/commands/pseudo-translate) — full command

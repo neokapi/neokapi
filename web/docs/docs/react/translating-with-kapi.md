@@ -145,9 +145,15 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 }
 ```
 
-## Project-driven alternative
+## Drive it from a project
 
-A [`.kapi` project file](/contribute/architecture/008-project-model) captures the content patterns, target languages, flows, and defaults once, so you drive everything through named flows instead of repeating flags. Define a `translate` flow in the recipe (for example `tm-leverage` → `ai-translate` → `qa-check`), then:
+The commands above are ad-hoc — flags on every call, fine for a quick run. For an
+app you translate every release, a [`.kapi` project file](/contribute/architecture/008-project-model)
+is the working model worth adopting: it captures the content patterns, target
+languages, flows, and defaults once, so you drive everything through named flows
+instead of repeating flags, and the project store accumulates translation memory
+across releases. Define a `translate` flow in the recipe (for example
+`tm-leverage` → `ai-translate` → `qa-check`), then:
 
 ```json title="package.json"
 {

@@ -141,6 +141,13 @@ const NeokapiFeatures: ProductItem[] = [
     link: "/kapi/bilingual-workflow",
     linkText: "Interchange",
   },
+  {
+    title: "Project model",
+    description:
+      "Capture languages, content patterns, and flows once in a committed .kapi recipe; run flows with no repeated flags. Translation memory accumulates, and git-style discovery finds the project from any subdirectory.",
+    link: "/kapi/get-started/first-project",
+    linkText: "Create a project",
+  },
 ];
 
 function ProductCard({ title, description, link, linkText }: ProductItem) {

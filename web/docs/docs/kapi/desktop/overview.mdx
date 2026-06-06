@@ -11,11 +11,13 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
 
+Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project.
+
 ## A quick tour
 
 ### Create and manage a project
 
-A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually.
+A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually. The project home shows each content collection's translation status — how many blocks are covered per locale — and lets you extract content into the project store to refresh it.
 
 <ThemedVideo
   sources={{
@@ -81,12 +83,13 @@ Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi
 
 ## Features
 
-- **Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows.
-- **Flow runner** — Execute flows with live progress visualization: per-file status, node highlighting, and timing.
-- **Tool runner** — Run individual tools on files with dynamic configuration forms generated from tool schemas.
+- **Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and per-locale translation status, with flows a click from running.
+- **Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project.
+- **Flow runner** — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat.
+- **Quick tools (ad-hoc)** — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required.
 - **Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.
 - **Credential vault** — Store AI provider API keys securely in your OS keychain.
-- **Project files** — Save workflows as portable Kapi project files you can share via git or open with double-click.
+- **Project files** — The `.kapi` recipe is a portable file you can share via git or open with double-click.
 
 ## Install
 
