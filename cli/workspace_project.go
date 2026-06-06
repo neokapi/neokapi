@@ -192,6 +192,14 @@ func (a *App) runPack(cmd *cobra.Command) error {
 		})
 	}
 
+	// Refuse to write a content-less snapshot — the way `git bundle` refuses an
+	// empty bundle. A project with no extracted content, TM, or terminology has
+	// nothing worth packing; its intent is the .kapi recipe, which is shared via
+	// git, not a .klz.
+	if !pkg.HasContent() {
+		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, translation memory, or terminology yet; run `kapi extract` (and translate) first, or share the .kapi recipe directly", filepath.Base(projectPath))
+	}
+
 	if err := saveWorkspace(pkg, outPath); err != nil {
 		return err
 	}

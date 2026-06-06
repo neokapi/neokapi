@@ -138,6 +138,23 @@ type Package struct {
 	InterchangeTask *InterchangeTask
 }
 
+// HasContent reports whether the package carries any packable content — blocks,
+// annotations, overlays, skeletons, media, raw source, TM entries, or termbase
+// concepts. Recipe, Sources identity, InterchangeTask, and History are metadata,
+// not content: a package with only those is empty (nothing worth packing).
+// Callers use this to refuse writing a content-less .klz, the way `git bundle`
+// refuses an empty bundle.
+func (p *Package) HasContent() bool {
+	return len(p.Blocks) > 0 ||
+		len(p.Annotations) > 0 ||
+		len(p.Overlays) > 0 ||
+		len(p.Skeletons) > 0 ||
+		len(p.Media) > 0 ||
+		len(p.Source) > 0 ||
+		(p.TM != nil && len(p.TM.Entries) > 0) ||
+		(p.Termbase != nil && len(p.Termbase.Concepts) > 0)
+}
+
 // SourceIdentity records one source document's identity so a .klz can detect
 // drift, round-trip via the skeleton, and (opt-in) re-extract from raw bytes.
 type SourceIdentity struct {
