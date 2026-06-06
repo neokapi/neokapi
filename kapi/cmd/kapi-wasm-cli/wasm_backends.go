@@ -9,10 +9,31 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
+
+// brandProfile is the small, deterministic brand voice profile seeded for the
+// browser build. labInspectAnnotated runs brand.MatchVocabulary against it so
+// the docs "Anatomy" explorer can show brand-vocabulary overlays without any
+// network or store. Forbidden terms suggest a preferred replacement; the
+// competitor term has no replacement. Kept tiny and stable so the rendered
+// overlays are reproducible.
+var brandProfile = &brand.VoiceProfile{
+	ID:   "kapi-wasm-demo",
+	Name: "Kapi Demo Brand",
+	Vocabulary: brand.VocabularyRules{
+		ForbiddenTerms: []brand.TermRule{
+			{Term: "login", Replacement: "log in", Note: "use the verb form", Severity: "major"},
+			{Term: "utilize", Replacement: "use", Severity: "minor"},
+		},
+		CompetitorTerms: []brand.TermRule{
+			{Term: "Acme", Severity: "critical"},
+		},
+	},
+}
 
 //go:embed fixtures/project.tmx
 var fixtureTMX []byte
