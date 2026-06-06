@@ -1,0 +1,160 @@
+/*
+ * Styles for the consolidated CLI playground (KapiPlaygroundExplorer): a sample
+ * picker sidebar beside the full-bleed in-browser terminal. Prefixed
+ * `kapi-pgx-` so it never collides with the kit's `kapi-pg-` classes.
+ */
+
+.kapi-pgx {
+  --pgx-border: var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  --pgx-surface: var(--ifm-background-surface-color, #fff);
+  --pgx-fg: var(--ifm-font-color-base, #1c1e21);
+  --pgx-muted: var(--ifm-color-emphasis-600, #606770);
+  --pgx-hover: var(--ifm-color-emphasis-100, rgba(0, 0, 0, 0.04));
+  --pgx-mono: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* Loose = neutral/blue accent; Project = primary/green accent — the two modes
+     are visually distinct so the picker reinforces ad-hoc vs project. */
+  --pgx-loose: var(--ifm-color-info, #4cb3d4);
+  --pgx-project: var(--ifm-color-primary, #2e8555);
+
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1rem;
+  min-height: 560px;
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .kapi-pgx {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Picker ──────────────────────────────────────────────────────────────── */
+
+.kapi-pgx__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.kapi-pgx__group {
+  border: 1px solid var(--pgx-border);
+  border-radius: var(--ifm-global-radius, 10px);
+  background: var(--pgx-surface);
+  padding: 0.75rem;
+  border-left-width: 4px;
+}
+
+.kapi-pgx__group--loose {
+  border-left-color: var(--pgx-loose);
+}
+
+.kapi-pgx__group--project {
+  border-left-color: var(--pgx-project);
+}
+
+.kapi-pgx__group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.kapi-pgx__group--loose .kapi-pgx__group-title {
+  color: var(--pgx-loose);
+}
+
+.kapi-pgx__group--project .kapi-pgx__group-title {
+  color: var(--pgx-project);
+}
+
+.kapi-pgx__group-sub {
+  margin: 0.25rem 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--pgx-muted);
+}
+
+.kapi-pgx__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.kapi-pgx__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--pgx-border);
+  border-radius: var(--ifm-global-radius, 8px);
+  background: transparent;
+  color: var(--pgx-fg);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.kapi-pgx__item:hover {
+  background: var(--pgx-hover);
+}
+
+.kapi-pgx__group--loose .kapi-pgx__item--active {
+  border-color: var(--pgx-loose);
+  background: color-mix(in srgb, var(--pgx-loose) 10%, transparent);
+}
+
+.kapi-pgx__group--project .kapi-pgx__item--active {
+  border-color: var(--pgx-project);
+  background: color-mix(in srgb, var(--pgx-project) 10%, transparent);
+}
+
+.kapi-pgx__item-label {
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.kapi-pgx__item-kind {
+  font-size: 0.74rem;
+  color: var(--pgx-muted);
+}
+
+.kapi-pgx__item-cmd {
+  margin-top: 0.2rem;
+  font-family: var(--pgx-mono);
+  font-size: 0.72rem;
+  color: var(--pgx-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.kapi-pgx__hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.74rem;
+  color: var(--pgx-muted);
+  line-height: 1.5;
+}
+
+.kapi-pgx__hint code {
+  font-size: 0.72rem;
+}
+
+/* ── Terminal column ─────────────────────────────────────────────────────── */
+
+.kapi-pgx__terminal {
+  min-width: 0;
+  display: flex;
+}
+
+.kapi-pgx__terminal > * {
+  flex: 1;
+  min-width: 0;
+}

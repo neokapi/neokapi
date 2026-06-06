@@ -6,7 +6,7 @@ import FilesPanel from "./FilesPanel";
 import { bootKapiRuntime, isBooted } from "./runtime";
 import type { KapiRuntime } from "./runtime";
 import { getFixture } from "./fixtures";
-import type { KapiFile, SessionState } from "./store";
+import type { BinaryKapiFile, KapiFile, SessionState } from "./store";
 
 /** Run parameters shared by the initial mount and later imperative opens. */
 export interface KapiRunRequest {
@@ -14,6 +14,8 @@ export interface KapiRunRequest {
   seed?: string[];
   /** Inline files (dynamic content) to write into the cwd before the command runs. */
   files?: KapiFile[];
+  /** Inline binary files (e.g. a sample .docx) to write into the cwd. */
+  binaryFiles?: BinaryKapiFile[];
   /** A command to type/run once booted and seeded. */
   cmd?: string;
   /** Additional commands to run in sequence after `cmd`. */
@@ -140,6 +142,24 @@ function ensureFiles(runtime: KapiRuntime, files: KapiFile[] | undefined): void 
 }
 
 /**
+ * Write inline binary files into the session cwd, filling gaps (never clobbering
+ * an existing/edited file). `path` may be relative (resolved against cwd) or
+ * absolute.
+ */
+function ensureBinaryFiles(runtime: KapiRuntime, files: BinaryKapiFile[] | undefined): void {
+  if (!files || files.length === 0) return;
+  const cwd = runtime.cwd().replace(/\/$/, "");
+  for (const f of files) {
+    const path = f.path.startsWith("/") ? f.path : cwd + "/" + f.path;
+    if (!runtime.vol.exists(path)) {
+      const slash = path.lastIndexOf("/");
+      if (slash > 0) runtime.vol.mkdirp(path.slice(0, slash));
+      runtime.vol.writeFile(path, f.bytes);
+    }
+  }
+}
+
+/**
  * The shared two-pane embed: the xterm terminal beside the files panel, backed
  * by the singleton KapiRuntime. This is the heavy, browser-only payload — it
  * is dynamically imported by the modal and rendered directly on the full-bleed
@@ -150,6 +170,7 @@ export default function KapiEmbed({
   wasmUrl,
   seed,
   files,
+  binaryFiles,
   cmd,
   steps,
   autoRun = true,
@@ -176,6 +197,7 @@ export default function KapiEmbed({
       if (!h) return;
       ensureSeed(rt, req.seed);
       ensureFiles(rt, req.files);
+      ensureBinaryFiles(rt, req.binaryFiles);
       bump();
       const queue: string[] = [];
       if (req.cmd) queue.push(req.cmd);
@@ -236,6 +258,7 @@ export default function KapiEmbed({
         if (cancelled) return;
         ensureSeed(rt, seed);
         ensureFiles(rt, files);
+        ensureBinaryFiles(rt, binaryFiles);
         setRuntime(rt);
       })
       .catch((e) => {
@@ -252,7 +275,14 @@ export default function KapiEmbed({
   // command (the one supplied at mount time).
   useEffect(() => {
     if (!runtime) return;
-    void drive(runtime, { cmd, steps, autoRun, seed: undefined, files: undefined });
+    void drive(runtime, {
+      cmd,
+      steps,
+      autoRun,
+      seed: undefined,
+      files: undefined,
+      binaryFiles: undefined,
+    });
     // Run the initial command once per (runtime) — seed already applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime]);

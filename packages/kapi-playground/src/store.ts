@@ -13,6 +13,16 @@ export interface KapiFile {
   content: string;
 }
 
+/**
+ * An inline binary file (e.g. a sample Office package) to seed into the session
+ * cwd. Used for sample projects whose content is not UTF-8 text. Not part of the
+ * shareable `?s=` snapshot (which is text-only).
+ */
+export interface BinaryKapiFile {
+  path: string;
+  bytes: Uint8Array;
+}
+
 /** Arguments to open the shared kapi modal. */
 export interface OpenKapiOptions {
   /**
@@ -28,6 +38,12 @@ export interface OpenKapiOptions {
    * are preserved — seeding only fills gaps.
    */
   files?: KapiFile[];
+  /**
+   * Inline BINARY files (e.g. a sample .docx/.xlsx) to write into the session
+   * cwd before the command runs. Like `files`, existing files are preserved —
+   * seeding only fills gaps.
+   */
+  binaryFiles?: BinaryKapiFile[];
   /**
    * Optional scripted steps run in sequence after seeding. Each is a command
    * line. Forward-looking for W3's scene model; `cmd` is the common case.

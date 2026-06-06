@@ -20,7 +20,7 @@ import "./styles.css";
 export { default as RunnableSnippet } from "./RunnableSnippet";
 export type { RunnableSnippetProps } from "./RunnableSnippet";
 export { openKapi, serializeSession, deserializeSession } from "./store";
-export type { OpenKapiOptions, KapiFile, SessionState } from "./store";
+export type { OpenKapiOptions, KapiFile, BinaryKapiFile, SessionState } from "./store";
 
 // Provider for injected asset URLs.
 export { KapiPlaygroundProvider, useKapiConfig } from "./provider";
@@ -42,3 +42,18 @@ export type {
 } from "./runtime";
 export { fixtureNames, getFixture } from "./fixtures";
 export type { Fixture } from "./fixtures";
+
+// Curated sample library — the single source of truth shared by the docs CLI
+// playground picker and the kapi-lab explorers (SSR-clean; no xterm/wasm).
+export {
+  LOOSE_SAMPLES,
+  PROJECT_SAMPLES,
+  projectSampleById,
+  WORKSPACE_SAMPLES,
+  workspaceSampleById,
+  DOCX_B64,
+  XLSX_B64,
+  JSON_SAMPLE,
+  tmxOf,
+} from "./samples";
+export type { LooseSample, ProjectSample, WorkspaceSample } from "./samples";

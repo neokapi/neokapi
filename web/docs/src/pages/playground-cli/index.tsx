@@ -1,21 +1,23 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import KapiEmbedFullBleed from "@site/src/components/KapiPlayground/KapiEmbedFullBleed";
+import KapiPlaygroundExplorer from "@site/src/components/KapiPlayground/KapiPlaygroundExplorer";
 
 export default function CliPlaygroundPage(): React.ReactElement {
   return (
     <Layout
       title="CLI Playground"
-      description="Run the kapi command-line tool in your browser. It operates on an in-memory project folder — upload files, run commands, download results, no server."
+      description="Run the kapi command-line tool in your browser. It operates on an in-memory project folder — pick a sample, run commands, download results, no server."
     >
       <main className="container margin-vert--lg">
         <h1>CLI Playground</h1>
         <p>
           The <code>kapi</code> command-line tool, running entirely in your browser. It works
-          against an in-memory project folder: upload files into it, run
-          commands in the terminal, and download the results. Nothing leaves your machine.
+          against an in-memory project folder. Pick a sample to play with — a single{" "}
+          <strong>loose file</strong> for one-off commands, or a ready-made{" "}
+          <strong>.kapi sample project</strong> to run the offline funnel (add, extract, run, merge).
+          Or upload your own files and run any command. Nothing leaves your machine.
         </p>
-        <KapiEmbedFullBleed />
+        <KapiPlaygroundExplorer />
       </main>
     </Layout>
   );
