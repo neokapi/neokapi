@@ -76,6 +76,12 @@ flows:
       - tool: pseudo-translate
         config: { method: extended }
 
+# A server: block depends on the bowrain plugin. init declares the requirement
+# so a plain kapi binary (without the plugin) fails fast instead of silently
+# ignoring the connection.
+requires:
+  bowrain: "*"
+
 # Optional bowrain-server connection — presence enables push/pull/sync.
 server:
   url: https://bowrain.cloud/my-team/abc123
@@ -113,6 +119,7 @@ brand_voice:
 | `defaults`     | object         | Project-wide language and execution defaults                           |
 | `content`      | list           | Content collections (see [Content Collections](#content-collections))  |
 | `plugins`      | map            | Plugin dependencies as `name: version-constraint` (e.g. map form)      |
+| `requires`     | map            | Plugin name → version constraint that gates loading; a `server:` block adds `bowrain` so a plain kapi binary refuses the recipe |
 | `flows`        | map            | Inline flow definitions (file-per-flow under `.kapi/flows/` also work) |
 | `server`       | object         | Optional bowrain-server connection coordinates                         |
 | `hooks`        | map            | Flows that run at lifecycle points (`pre-push`, `post-pull`, ...)      |
@@ -140,6 +147,8 @@ Only the connection coordinates sit under `server:`:
 | `stream` | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
 
 Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
+
+The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model).
 
 ## Content Collections
 

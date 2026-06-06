@@ -93,3 +93,32 @@ content:
 	noProj.SetErr(&bytes.Buffer{})
 	require.Error(t, noProj.Execute())
 }
+
+// TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin proves the boundary
+// gate from the core side: a recipe that declares `requires: bowrain` (as a
+// server-connected project does) is refused by plain kapi, where the bowrain
+// extension is not registered — so a server: project does not silently work
+// without the plugin.
+func TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin(t *testing.T) {
+	a := processOnlyApp(t)
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "app.kapi")
+	const yaml = `version: v1
+name: NeedsBowrain
+requires:
+  bowrain: "*"
+server:
+  url: https://example.test
+`
+	require.NoError(t, os.WriteFile(recipe, []byte(yaml), 0o644))
+
+	cmd := a.NewAddCmd()
+	cmd.SetArgs([]string{"src/*.json", "--project", recipe})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err = cmd.Execute()
+	require.Error(t, err, "core kapi must refuse a recipe requiring an unregistered plugin")
+	assert.Contains(t, err.Error(), "bowrain")
+}

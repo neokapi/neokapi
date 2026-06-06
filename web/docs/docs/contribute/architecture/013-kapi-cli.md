@@ -70,6 +70,8 @@ kapi
 ├── extract                  # emit a bilingual file for a translator/reviewer — native .klz or XLIFF/PO (AD-017)
 ├── merge                    # apply a translator's returned bilingual file (AD-017)
 ├── init                     # scaffold a new .kapi project
+├── add                      # add file patterns to the project's content
+├── rm                       # remove a content pattern, or exclude matching files
 ├── tools                    # list available tools
 ├── flows                    # list available flows
 ├── formats

@@ -170,12 +170,14 @@ func setRecipeValue(r *project.Recipe, key, value string) error {
 			r.Server = &project.ServerSpec{}
 		}
 		r.Server.URL = value
+		requireBowrain(r)
 		return nil
 	case "server.stream":
 		if r.Server == nil {
 			r.Server = &project.ServerSpec{}
 		}
 		r.Server.Stream = value
+		requireBowrain(r)
 		return nil
 	case "preset":
 		r.Preset = value

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -150,7 +151,8 @@ func newRecipeFromFlags(sourceLocale string) *project.Recipe {
 }
 
 // setServerURL sets the server URL on a recipe, allocating ServerSpec when
-// needed. An empty url leaves Server unset.
+// needed, and declares the bowrain plugin dependency. An empty url leaves
+// Server unset.
 func setServerURL(r *project.Recipe, url string) {
 	if url == "" {
 		return
@@ -159,6 +161,22 @@ func setServerURL(r *project.Recipe, url string) {
 		r.Server = &project.ServerSpec{}
 	}
 	r.Server.URL = url
+	requireBowrain(r)
+}
+
+// requireBowrain declares the bowrain plugin dependency on a recipe that carries
+// a server: block. The framework treats server: as an inert Extras key unless
+// the bowrain extension is registered; declaring the requirement makes a plain
+// kapi binary refuse to load the recipe with an actionable error instead of
+// silently ignoring the server connection. Idempotent; gates on presence of the
+// bowrain extension (any version).
+func requireBowrain(r *project.Recipe) {
+	if r.Requires == nil {
+		r.Requires = coreproj.RequiresMap{}
+	}
+	if _, ok := r.Requires[schema.Group]; !ok {
+		r.Requires[schema.Group] = "*"
+	}
 }
 
 func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
