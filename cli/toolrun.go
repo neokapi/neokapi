@@ -279,8 +279,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		fmtName = a.FormatFlag
 	}
 	if fmtName == "" {
-		ext := filepath.Ext(filePath)
-		detected, err := a.FormatReg.DetectByExtension(ext)
+		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
+		// .xml, …) is disambiguated by the file head, not extension alone.
+		detected, err := a.FormatReg.DetectFile(filePath, nil)
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -356,9 +357,15 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	var writer format.DataFormatWriter
 	if producesOutput {
 		writerFormatName := registryName
+		// Re-detect the writer format ONLY for a true conversion (the output
+		// extension differs from the input's). For a same-extension round trip,
+		// keep the reader's format so an ambiguous extension that was content-
+		// detected (e.g. .xliff → xliff2) isn't downgraded to the 1.x writer.
 		if !cfg.InPlace {
-			if ext := filepath.Ext(outputPath); ext != "" {
-				if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" {
+			outExt := strings.ToLower(filepath.Ext(outputPath))
+			inExt := strings.ToLower(filepath.Ext(filePath))
+			if outExt != "" && outExt != inExt {
+				if det, err := a.FormatReg.DetectByExtension(outExt); err == nil && det != "" {
 					writerFormatName = string(det)
 				}
 			}

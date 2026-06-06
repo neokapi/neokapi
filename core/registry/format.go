@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -390,6 +392,63 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 		return bestName, nil
 	}
 	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
+}
+
+// DetectFile detects a format for a file by extension AND, when that extension
+// is claimed by more than one format, by content. This stops a file from being
+// resolved purely on its extension when several formats share it — e.g. an
+// ".xliff" can be XLIFF 1.x or 2.x, and ".xml" is claimed by many formats; the
+// file head decides which. allowedSources restricts to those plugin sources
+// (nil/empty = all), mirroring DetectByExtensionForSources. Only the file head
+// is read; on any read error it falls back to extension-only detection.
+func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (FormatID, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == "" {
+		return "", fmt.Errorf("no extension to detect: %q", path)
+	}
+
+	var allowed map[string]bool
+	if len(allowedSources) > 0 {
+		allowed = make(map[string]bool, len(allowedSources))
+		for _, s := range allowedSources {
+			allowed[s] = true
+		}
+	}
+
+	// Collect the formats claiming this extension (honouring allowed sources).
+	r.mu.RLock()
+	cands := make(map[string]bool)
+	for name, info := range r.infos {
+		src := info.Source
+		if src == "" {
+			src = SourceBuiltIn
+		}
+		if allowed != nil && !allowed[src] {
+			continue
+		}
+		for _, e := range info.Extensions {
+			if strings.ToLower(e) == ext {
+				cands[string(name)] = true
+				break
+			}
+		}
+	}
+	r.mu.RUnlock()
+
+	// More than one claimant → let the content sniff pick among them.
+	if len(cands) > 1 {
+		if f, err := os.Open(path); err == nil {
+			name, derr := r.detector.DetectByContent(f)
+			f.Close()
+			if derr == nil && cands[name] {
+				return FormatID(name), nil
+			}
+		}
+	}
+
+	// Single claimant, unreadable file, or content didn't match a candidate:
+	// fall back to the deterministic extension/priority pick.
+	return r.DetectByExtensionForSources(ext, allowedSources)
 }
 
 // NewReader creates a new reader instance for the given format name.

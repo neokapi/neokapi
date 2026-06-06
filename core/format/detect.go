@@ -79,10 +79,22 @@ func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (s
 		}
 	}
 
-	// Try extension
+	// Try extension. When an extension is claimed by more than one format
+	// (e.g. ".xliff" → XLIFF 1.x and 2.x, or ".xml" → many), the bare
+	// extension can't tell them apart — let content sniffing pick among the
+	// candidates so a 2.x file isn't silently read by the 1.x reader. A
+	// single-claimant extension still resolves without reading content.
 	if path != "" {
-		if name, err := d.DetectByExtension(filepath.Ext(path)); err == nil {
-			return name, nil
+		if ext := filepath.Ext(path); ext != "" {
+			cands := d.extensionCandidates(ext)
+			if len(cands) > 1 && reader != nil {
+				if name, err := d.DetectByContent(reader); err == nil && cands[name] {
+					return name, nil
+				}
+			}
+			if name, err := d.DetectByExtension(ext); err == nil {
+				return name, nil
+			}
 		}
 	}
 
@@ -150,6 +162,27 @@ func (d *Detector) DetectByExtension(ext string) (string, error) {
 		return bestName, nil
 	}
 	return "", fmt.Errorf("no format found for extension %q", ext)
+}
+
+// extensionCandidates returns the set of registered format names that claim the
+// given extension. Used by Detect to decide whether content sniffing is needed
+// to disambiguate an extension shared by several formats.
+func (d *Detector) extensionCandidates(ext string) map[string]bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	ext = strings.ToLower(ext)
+	out := make(map[string]bool)
+	if ext == "" {
+		return out
+	}
+	for name, sig := range d.signatures {
+		for _, e := range sig.Extensions {
+			if strings.ToLower(e) == ext {
+				out[name] = true
+			}
+		}
+	}
+	return out
 }
 
 // DetectByContent identifies the format of a document from its content using a

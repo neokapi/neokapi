@@ -84,9 +84,10 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		fmtName = r.cfg.DetectFormat(inputPath)
 	}
 	if fmtName == "" {
-		ext := filepath.Ext(inputPath)
 		var err error
-		fmtName, err = reg.DetectByExtension(ext)
+		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
+		// .xml, …) is disambiguated by the file head, not extension alone.
+		fmtName, err = reg.DetectFile(inputPath, nil)
 		if err != nil {
 			return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
 		}
@@ -132,9 +133,10 @@ func (r *FileRunner) RunFileProcessOnly(ctx context.Context, flowName string, to
 		fmtName = r.cfg.DetectFormat(inputPath)
 	}
 	if fmtName == "" {
-		ext := filepath.Ext(inputPath)
 		var err error
-		fmtName, err = reg.DetectByExtension(ext)
+		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
+		// .xml, …) is disambiguated by the file head, not extension alone.
+		fmtName, err = reg.DetectFile(inputPath, nil)
 		if err != nil {
 			return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
 		}

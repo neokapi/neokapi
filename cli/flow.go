@@ -543,8 +543,9 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 			fmtName = a.projectContext.DetectFormat(a.FormatReg, inputPath)
 		}
 		if fmtName == "" {
-			ext := filepath.Ext(inputPath)
-			detected, err := a.FormatReg.DetectByExtension(ext)
+			// Content-aware: disambiguates extensions claimed by several formats
+			// (e.g. .xliff 1.x vs 2.x) by the file head, not extension alone.
+			detected, err := a.FormatReg.DetectFile(inputPath, nil)
 			if err != nil {
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}

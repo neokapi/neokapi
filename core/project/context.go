@@ -80,11 +80,13 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 // DetectFormat detects the format for a file path, scoped to the project's
 // allowed plugin sources. Returns empty string if no format matches.
 func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path string) string {
-	ext := filepath.Ext(path)
-	if ext == "" {
+	if filepath.Ext(path) == "" {
 		return ""
 	}
-	name, err := reg.DetectByExtensionForSources(ext, ctx.AllowedSources)
+	// DetectFile is content-aware: when an extension is shared by several
+	// formats (.xliff 1.x/2.x, .xml, …) the file head disambiguates, so a 2.x
+	// XLIFF isn't read by the 1.x reader. Falls back to extension-only.
+	name, err := reg.DetectFile(path, ctx.AllowedSources)
 	if err != nil {
 		return ""
 	}
