@@ -43,6 +43,7 @@ import type {
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
+import { FilePreview } from "./FilePreview";
 import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -109,6 +110,8 @@ export function ContentPage({
   >({});
   const [expandedConfig, setExpandedConfig] = useState<Set<string>>(new Set());
   const [expandedLangs, setExpandedLangs] = useState<Set<number>>(new Set());
+  // Preview target: the file whose content is shown in the PreviewKit sheet.
+  const [preview, setPreview] = useState<{ path: string; relative: string } | null>(null);
 
   const content = project.content ?? [];
 
@@ -756,7 +759,9 @@ export function ContentPage({
                             {collFiles.map((m, i) => (
                               <tr
                                 key={i}
-                                className="border-b border-border last:border-0 hover:bg-accent/30"
+                                onClick={() => setPreview({ path: m.path, relative: m.relative })}
+                                className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                                title={t("Preview {file}", { file: m.relative })}
                               >
                                 <td className="px-3 py-1.5">
                                   <span className="flex items-center gap-1.5 font-mono">
@@ -801,7 +806,17 @@ export function ContentPage({
                           {unmatchedFiles.map((f) => (
                             <tr
                               key={f.relative}
-                              className="border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30"
+                              onClick={
+                                f.format
+                                  ? () => setPreview({ path: f.path, relative: f.relative })
+                                  : undefined
+                              }
+                              className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
+                                f.format ? "cursor-pointer" : ""
+                              }`}
+                              title={
+                                f.format ? t("Preview {file}", { file: f.relative }) : undefined
+                              }
                             >
                               <td className="px-3 py-1.5">
                                 <span className="flex items-center gap-1.5 font-mono">
@@ -829,6 +844,13 @@ export function ContentPage({
           </div>
         </section>
       </div>
+
+      <FilePreview
+        tabID={tabID}
+        filePath={preview?.path ?? null}
+        filename={preview?.relative ?? ""}
+        onClose={() => setPreview(null)}
+      />
     </div>
   );
 }

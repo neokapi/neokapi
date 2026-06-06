@@ -937,6 +937,52 @@ export function ImportTermbaseJSONDialog(handle) {
 }
 
 /**
+ * InspectFile reads a content file through the project's format reader and
+ * returns the editor ContentTree as JSON — the same structure the docs site's
+ * PreviewKit (DocumentViewer / FormatPreview) renders. Format detection is
+ * content-aware and scoped to the project's declared plugins, and the project's
+ * per-format config overrides are applied to the reader so the tree reflects how
+ * the project actually parses the file.
+ * 
+ * When committed target variants exist for the file's blocks (a project may have
+ * translated/merged targets into a sibling target file), they are overlaid onto
+ * the source blocks so BuildContentTree serializes `targets` and DocumentViewer's
+ * source↔target toggle works. Source-only files simply yield source-only nodes.
+ * @param {string} tabID
+ * @param {string} filePath
+ * @returns {$CancellablePromise<string>}
+ */
+export function InspectFile(tabID, filePath) {
+    return $Call.ByID(3500262042, tabID, filePath);
+}
+
+/**
+ * InspectFileAnnotated does everything InspectFile does, then runs the project's
+ * native, read-only annotators over the parsed blocks so the tree carries
+ * source-anchored stand-off overlays before serialization:
+ * 
+ *   - term overlays (type "term") from the project's auto-opened termbase
+ *     (LookupAll over each block's source text), carrying the matched surface
+ *     form, its preferred target translation and domain;
+ *   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
+ *     from the project's resolved brand profile (resolveProjectBrandProfile via
+ *     brand.MatchVocabulary);
+ *   - rule-based QA overlays (type "qa") from source-only heuristics (double
+ *     spaces, doubled words).
+ * 
+ * These mirror the overlay shapes the docs "Anatomy" explorer produces in
+ * kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
+ * rather than a seeded in-memory termbase / brand profile. DocumentViewer's
+ * annotations toggle highlights them on the rendered document.
+ * @param {string} tabID
+ * @param {string} filePath
+ * @returns {$CancellablePromise<string>}
+ */
+export function InspectFileAnnotated(tabID, filePath) {
+    return $Call.ByID(4120871974, tabID, filePath);
+}
+
+/**
  * InstallPlugin downloads and installs a plugin asynchronously, emitting
  * "plugin-installing" / "plugin-installed" / "plugin-error" events.
  * @param {string} name

@@ -38,6 +38,9 @@ importers:
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../packages/flow-editor
+      '@neokapi/kapi-lab':
+        specifier: '*'
+        version: link:../../../packages/kapi-lab
       '@neokapi/kapi-react':
         specifier: '*'
         version: link:../../../packages/kapi-react

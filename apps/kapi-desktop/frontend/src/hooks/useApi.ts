@@ -410,6 +410,14 @@ export const api = {
   exportTermbaseJSONDialog: (handle: string, name: string) =>
     call<void>("ExportTermbaseJSONDialog", handle, name),
 
+  // Inspect — returns the editor ContentTree (as JSON) for a project content
+  // file, the structure the PreviewKit (DocumentViewer) renders. The annotated
+  // variant additionally carries source-anchored term / brand / QA overlays.
+  // See backend/inspect.go.
+  inspectFile: (tabID: string, filePath: string) => call<string>("InspectFile", tabID, filePath),
+  inspectFileAnnotated: (tabID: string, filePath: string) =>
+    call<string>("InspectFileAnnotated", tabID, filePath),
+
   // Preview
   previewFlow: (
     tabID: string,

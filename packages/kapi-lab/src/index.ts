@@ -94,6 +94,10 @@ export { default as FormatPreview } from "./FormatPreview";
 export type { FormatPreviewProps, PreviewSide } from "./FormatPreview";
 export { default as DocumentViewer } from "./DocumentViewer";
 export type { DocumentViewerProps } from "./DocumentViewer";
+// The ContentTree / ContentNode shapes DocumentViewer (and FormatPreview) render
+// from — re-exported so external consumers (e.g. Kapi Desktop, which produces
+// the tree natively) can type the data they feed in.
+export type { ContentTree, ContentNode, ContentNodeKind } from "./types";
 export { default as FileBrowser } from "./FileBrowser";
 export type { FileBrowserProps, BrowserFile } from "./FileBrowser";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";

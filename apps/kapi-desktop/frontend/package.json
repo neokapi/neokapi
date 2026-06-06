@@ -21,6 +21,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@lexical/react": "^0.44.0",
     "@neokapi/flow-editor": "*",
+    "@neokapi/kapi-lab": "*",
     "@neokapi/kapi-react": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
