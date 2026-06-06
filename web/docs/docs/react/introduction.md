@@ -62,7 +62,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 
 ## What "no-toil" means in practice
 
-- **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written. So is `<div>Label</div>`, `<PageHeader title="Settings" />`, `<TabsTrigger>General</TabsTrigger>`, `<Card description="..." />`.
+- **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written — so are element children and translatable props on your own components.
 - **No key invention.** The hash of the source text + structural context is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
 - **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.klf` archive is the contract between them.
 - **One explicit marker — `t()` — for strings that legitimately live in JS data** (button-label arrays, error messages returned from reducers, refs). That's it.
