@@ -74,6 +74,17 @@ export { default as ContentTreeView, Stats as ContentStatsBar } from "./ContentT
 export type { ContentTreeViewProps } from "./ContentTreeView";
 export { default as OutputView } from "./OutputView";
 export type { OutputViewProps } from "./OutputView";
+export { default as DocumentRender } from "./DocumentRender";
+export type { DocumentRenderProps } from "./DocumentRender";
+export { treeToRenderDoc, runsText, parseCellRef, colLabel } from "./renderDoc";
+export type {
+  RenderDoc,
+  RenderKind,
+  RenderLine,
+  RenderSlide,
+  RenderSheet,
+  RenderCell,
+} from "./renderDoc";
 
 // Drop-a-file widget kit: a generic no-terminal "drop a file → see the result"
 // surface plus per-tool wrappers.

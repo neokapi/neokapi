@@ -1,0 +1,177 @@
+/* DocumentRender — structured "what the file looks like" renderers (slide deck,
+   spreadsheet grid, document page) shared by the docs hero carousel and the
+   Try-Neokapi modal. The accent uses the site's primary green where available
+   (--ifm-color-primary in Docusaurus) and falls back to a green so the same
+   component reads on-brand in Storybook / standalone hosts. */
+
+.root {
+  --doc-accent: var(--ifm-color-primary, #2e8b57);
+  --doc-fg: var(--ifm-font-color-base, #1c1e21);
+  --doc-muted: var(--ifm-color-emphasis-600, #6b7280);
+  --doc-border: var(--ifm-color-emphasis-200, #e5e7eb);
+  --doc-subtle: var(--ifm-color-emphasis-100, #f3f4f6);
+  --doc-bg: var(--ifm-background-color, #fff);
+  color: var(--doc-fg);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/* ── Changed-word highlight ──────────────────────────────────────────────── */
+.changed {
+  background: color-mix(in srgb, var(--doc-accent) 24%, transparent);
+  border-radius: 4px;
+  padding: 0 0.1em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font-weight: 600;
+  color: var(--doc-fg);
+}
+
+/* ── Slide deck (pptx) ───────────────────────────────────────────────────── */
+.slideDeck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slide {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(
+      90% 70% at 85% 0%,
+      color-mix(in srgb, var(--doc-accent) 10%, transparent),
+      transparent 65%
+    ),
+    var(--doc-bg);
+  overflow: hidden;
+}
+
+.slideTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.slideTitle::after {
+  content: "";
+  display: block;
+  width: 2.2rem;
+  height: 3px;
+  margin-top: 0.4rem;
+  border-radius: 2px;
+  background: var(--doc-accent);
+}
+
+.slideBullets {
+  margin: 0.1rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.slideBullets li {
+  font-size: 0.86rem;
+}
+
+.slideBullets li::marker {
+  color: var(--doc-accent);
+}
+
+/* ── Spreadsheet grid (xlsx) ─────────────────────────────────────────────── */
+.sheetWrap {
+  overflow-x: auto;
+}
+
+.sheet {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+  table-layout: fixed;
+}
+
+.sheet td {
+  border: 1px solid var(--doc-border);
+  padding: 0.3rem 0.5rem;
+  vertical-align: top;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell {
+  min-width: 5rem;
+}
+
+.rowHead,
+.colHead td,
+.corner {
+  text-align: center;
+  color: var(--doc-muted);
+  background: var(--doc-subtle);
+  font-weight: 600;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowHead {
+  width: 1.6rem;
+  font-weight: 500;
+}
+
+.corner {
+  width: 1.6rem;
+}
+
+/* ── Document page (docx / markdown / fallback) ──────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 8px;
+  background: var(--doc-bg);
+}
+
+.heading {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--doc-border);
+  padding-bottom: 0.3rem;
+}
+
+.para {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--doc-fg);
+}
+
+.bulletList {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.bulletList li::marker {
+  color: var(--doc-accent);
+}
+
+.keyRow {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.8rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px dashed var(--doc-border);
+}
+
+.keyRow:last-child {
+  border-bottom: none;
+}

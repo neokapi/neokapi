@@ -1,6 +1,6 @@
 import React from "react";
 import { PseudoTranslateWidget, SearchReplaceWidget, StatsWidget } from "../Lab";
-import type { DemoId } from "./mocks";
+import type { DemoId } from "./demos";
 import styles from "./styles.module.css";
 
 // "Try with your own files": swaps the faked showcase for the REAL engine path.
