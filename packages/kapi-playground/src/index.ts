@@ -53,9 +53,14 @@ export {
   workspaceSampleById,
   HERO_SAMPLES,
   heroSampleById,
+  TRY_SAMPLES,
+  trySampleById,
   DOCX_B64,
   XLSX_B64,
+  TRY_XLSX_B64,
+  TRY_PPTX_B64,
+  TRY_MD_B64,
   JSON_SAMPLE,
   tmxOf,
 } from "./samples";
-export type { LooseSample, ProjectSample, WorkspaceSample, HeroSample } from "./samples";
+export type { LooseSample, ProjectSample, WorkspaceSample, HeroSample, TrySample } from "./samples";

@@ -111,124 +111,6 @@
   min-width: 0;
 }
 
-/* ── The drop-a-file demo card ────────────────────────────────────────────── */
-
-/* A compact card holding a tool switcher and the live drop-a-file widget. It
-   stays inert (a single "Run" button, zero wasm) until the reader opts in. */
-.heroDemo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 14px;
-  background: var(--ifm-card-background-color);
-  padding: 1rem 1.1rem 1.1rem;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
-}
-
-.heroDemoBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.heroDemoTab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 999px;
-  background: var(--ifm-background-color);
-  color: var(--ifm-color-emphasis-700);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.heroDemoTab:hover {
-  border-color: var(--ifm-color-primary);
-}
-
-.heroDemoTabActive {
-  border-color: var(--ifm-color-primary);
-  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
-  color: var(--ifm-font-color-base);
-}
-
-.heroDemoBlurb {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--ifm-color-emphasis-600);
-}
-
-.heroDemoStage {
-  min-height: 9rem;
-}
-
-/* The "Run … in your browser" opt-in that defers the wasm boot. The whole tile
-   is one button; pressing it mounts the live widget for the selected tool. */
-.heroDemoStart {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  min-height: 9rem;
-  padding: 1.5rem 1rem;
-  text-align: center;
-  cursor: pointer;
-  border: 1px dashed var(--ifm-color-emphasis-300);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--ifm-color-primary) 4%, var(--ifm-background-color));
-  color: var(--ifm-font-color-base);
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.15s ease;
-}
-
-.heroDemoStart:hover {
-  border-color: var(--ifm-color-primary);
-  background: color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-background-color));
-  transform: translateY(-2px);
-}
-
-.heroDemoStart:focus-visible {
-  outline: 3px solid var(--ifm-color-primary);
-  outline-offset: 3px;
-}
-
-.heroDemoStartIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--ifm-color-primary);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
-}
-
-.heroDemoStartText {
-  font-size: 1rem;
-}
-
-.heroDemoStartHint {
-  font-size: 0.8rem;
-  color: var(--ifm-color-emphasis-600);
-}
-
 .features {
   display: flex;
   align-items: center;
@@ -257,7 +139,7 @@
   background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
 }
 
-/* ── Responsive: stack the terminal under the intro on narrow viewports ───── */
+/* ── Responsive: stack the "Try" CTA under the intro on narrow viewports ───── */
 
 @media (max-width: 996px) {
   .heroGrid {
@@ -275,10 +157,8 @@
     justify-content: center;
   }
 
-  .heroDemo {
-    max-width: 34rem;
-    margin: 0 auto;
-    text-align: left;
+  .heroAside {
+    text-align: center;
   }
 }
 
@@ -289,13 +169,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tryButton,
-  .heroDemoStart,
-  .heroDemoTab {
+  .tryButton {
     transition: none;
   }
-  .tryButton:hover,
-  .heroDemoStart:hover {
+  .tryButton:hover {
     transform: none;
   }
 }

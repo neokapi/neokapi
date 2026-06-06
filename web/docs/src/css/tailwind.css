@@ -30,6 +30,9 @@
 @source "../../../../packages/kapi-lab/src";
 @source "../components/Lab";
 @source "../pages/lab";
+/* The "Try Neokapi" modal renders ui-primitives (Dialog) + a few Tailwind
+ * utilities inside a .kapi-reference scope on the landing page. */
+@source "../components/TryNeokapi";
 
 /* Map the ui-primitives `dark:` variant onto Docusaurus's data-theme switch. */
 @custom-variant dark (&:is([data-theme="dark"] *));

@@ -1,0 +1,462 @@
+/* The faked visual showcase inside the Try-Neokapi modal. These styles are
+   plain CSS modules (the modal chrome itself is shadcn/ui-primitives); they
+   theme three mock "documents" — a slide, a worksheet, a markdown doc — and the
+   change highlight, using the site's primary green for the accent. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A single mock document card. */
+.doc {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ifm-background-color);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  min-height: 13rem;
+}
+
+.docBar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.barPptx {
+  background: #c43e1c;
+}
+.barXlsx {
+  background: #1d6f42;
+}
+.barMd {
+  background: #3b4252;
+}
+
+.docName {
+  margin-left: auto;
+  font-weight: 500;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.docBody {
+  flex: 1;
+  padding: 0.7rem 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/* ── Slide (pptx) ─────────────────────────────────────────────────────────── */
+.slide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background:
+    radial-gradient(
+      80% 60% at 80% 0%,
+      color-mix(in srgb, var(--ifm-color-primary) 10%, transparent),
+      transparent 70%
+    ),
+    var(--ifm-background-color);
+}
+
+.slideTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.slideSub {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.slideBullets {
+  margin: 0.4rem 0 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.slideBullets li {
+  font-size: 0.82rem;
+}
+
+/* ── Worksheet (xlsx) ─────────────────────────────────────────────────────── */
+.sheet {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.sheet td {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  padding: 0.28rem 0.45rem;
+  vertical-align: top;
+}
+
+.rowHead {
+  width: 1.4rem;
+  text-align: center;
+  color: var(--ifm-color-emphasis-500);
+  background: var(--ifm-color-emphasis-100);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+}
+
+.colHead td {
+  text-align: center;
+  color: var(--ifm-color-emphasis-500);
+  background: var(--ifm-color-emphasis-100);
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+/* ── Markdown doc ─────────────────────────────────────────────────────────── */
+.md {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.mdH1 {
+  font-size: 1rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  padding-bottom: 0.25rem;
+}
+
+.mdList {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* ── Change highlight (search/replace + pseudo) ───────────────────────────── */
+.changed {
+  background: color-mix(in srgb, var(--ifm-color-primary) 22%, transparent);
+  border-radius: 4px;
+  padding: 0 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+  transition: background 0.2s ease;
+}
+
+/* ── Insights overlay ─────────────────────────────────────────────────────── */
+.insights {
+  margin-top: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.statChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+  font-size: 0.72rem;
+}
+
+.statNum {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-primary-darkest, var(--ifm-color-primary));
+}
+
+.statLabel {
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ── Controls + chrome inside the modal ───────────────────────────────────── */
+.tabBar {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.tab:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.tabActive {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+  color: var(--ifm-font-color-base);
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-700);
+  font-weight: 600;
+}
+
+.input {
+  width: 9rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 7px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 1px;
+}
+
+.arrow {
+  align-self: center;
+  padding-bottom: 0.35rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.controlNote {
+  margin-left: auto;
+  align-self: center;
+  font-size: 0.74rem;
+  color: var(--ifm-color-emphasis-600);
+  max-width: 16rem;
+  text-align: right;
+}
+
+/* ── Modal layout ─────────────────────────────────────────────────────────── */
+.modalHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.modalTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.modalSub {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* ── Real-proof footer (download source / result) ─────────────────────────── */
+.proof {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 0.85rem;
+  margin-top: 0.2rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.proofLabel {
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+  font-weight: 600;
+  margin-right: 0.2rem;
+}
+
+.proofNote {
+  flex-basis: 100%;
+  font-size: 0.74rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.12s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.btnPrimary {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--ifm-color-primary-dark);
+  color: #fff;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.toggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggleBtn:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.ownWrap {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* The trigger button in the hero (the prominent CTA). */
+.heroTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 1.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.heroTrigger:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--ifm-color-primary) 55%, transparent);
+}
+
+.heroTrigger:focus-visible {
+  outline: 3px solid var(--ifm-color-primary);
+  outline-offset: 3px;
+}
+
+.heroPlay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.heroTriggerHint {
+  margin: 0.7rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroTrigger,
+  .btn,
+  .tab {
+    transition: none;
+  }
+  .heroTrigger:hover,
+  .btn:hover {
+    transform: none;
+  }
+}

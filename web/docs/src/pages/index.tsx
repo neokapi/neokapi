@@ -1,115 +1,13 @@
-import { useState } from "react";
 import clsx from "clsx";
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
-import { Play, Replace, Sparkles, Type } from "lucide-react";
-import {
-  PseudoTranslateWidget,
-  SearchReplaceWidget,
-  StatsWidget,
-} from "../components/Lab";
+import { Sparkles } from "lucide-react";
+import TryNeokapi from "../components/TryNeokapi";
 
 import styles from "./index.module.css";
-
-// The hero's three single-tool demos. Each maps to a focused drop-a-file widget
-// (no terminal). The widgets boot the WASM engine only after the reader presses
-// "Run in your browser" — until then the hero pulls zero wasm, preserving the
-// page's instant first paint (the same lazy contract the old terminal CTA had).
-type DemoId = "search-replace" | "stats" | "pseudo";
-
-const DEMOS: { id: DemoId; label: string; icon: typeof Play; blurb: string }[] = [
-  {
-    id: "search-replace",
-    label: "Search / replace",
-    icon: Replace,
-    blurb: "Find and replace inside the extracted text — markup and keys untouched.",
-  },
-  {
-    id: "stats",
-    label: "Word count",
-    icon: Type,
-    blurb: "Count the translatable blocks and words in any format.",
-  },
-  {
-    id: "pseudo",
-    label: "Pseudo-translate",
-    icon: Sparkles,
-    blurb: "Accent every string to surface UI truncation before real translation.",
-  },
-];
-
-// The hero samples the widgets offer. JSON and the tiny DOCX ship today; a real
-// .pptx (and a richer .docx) can be added later by encoding bytes into
-// packages/kapi-playground/src/samples.ts (HERO_SAMPLES) — the widgets pick up
-// new ids automatically, so the hero needs no change.
-const HERO_SAMPLE_IDS = ["json", "docx"];
-
-function HeroDemo() {
-  const [demo, setDemo] = useState<DemoId>("search-replace");
-  // Stays false until the reader opts in — keeps the page free of wasm on load.
-  const [live, setLive] = useState(false);
-  const active = DEMOS.find((d) => d.id === demo) ?? DEMOS[0];
-
-  return (
-    <div className={styles.heroDemo}>
-      <div className={styles.heroDemoBar} role="tablist" aria-label="Pick a tool to try">
-        {DEMOS.map((d) => {
-          const Icon = d.icon;
-          return (
-            <button
-              key={d.id}
-              type="button"
-              role="tab"
-              aria-selected={d.id === demo}
-              className={clsx(styles.heroDemoTab, d.id === demo && styles.heroDemoTabActive)}
-              onClick={() => setDemo(d.id)}
-            >
-              <Icon size={14} aria-hidden="true" /> {d.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <p className={styles.heroDemoBlurb}>{active.blurb}</p>
-
-      <div className={styles.heroDemoStage}>
-        {live ? (
-          // Mount only the selected widget so a single WASM run chain backs the
-          // hero; switching tabs swaps the widget but reuses the booted engine.
-          <>
-            {demo === "search-replace" && (
-              <SearchReplaceWidget sampleIds={HERO_SAMPLE_IDS} autoSampleId="json" />
-            )}
-            {demo === "stats" && <StatsWidget sampleIds={HERO_SAMPLE_IDS} autoSampleId="json" />}
-            {demo === "pseudo" && (
-              <PseudoTranslateWidget sampleIds={HERO_SAMPLE_IDS} autoSampleId="json" />
-            )}
-          </>
-        ) : (
-          <button
-            type="button"
-            className={styles.heroDemoStart}
-            onClick={() => setLive(true)}
-            aria-label={`Run ${active.label} on a sample in your browser`}
-          >
-            <span className={styles.heroDemoStartIcon}>
-              <Play size={20} aria-hidden="true" fill="currentColor" />
-            </span>
-            <span className={styles.heroDemoStartText}>
-              Run <strong>{active.label}</strong> in your browser
-            </span>
-            <span className={styles.heroDemoStartHint}>
-              Drop a file or try the JSON / Word samples — runs locally, no server
-            </span>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function HomepageHeader() {
   const { siteConfig } = useDocusaurusContext();
@@ -140,7 +38,7 @@ function HomepageHeader() {
           </div>
         </div>
         <div className={styles.heroAside}>
-          <HeroDemo />
+          <TryNeokapi />
         </div>
       </div>
     </header>
