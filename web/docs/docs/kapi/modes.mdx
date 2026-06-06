@@ -5,7 +5,7 @@ description: How Kapi runs the same commands two ways — ad-hoc on loose files,
 keywords: [kapi, ad-hoc, project mode, binding, source, sink, process-only, .klz, extract, merge, pack, workflows]
 ---
 
-import { PipelineDiagram, LanesDiagram } from "@neokapi/docs-shared";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # How Kapi runs: modes & bindings
 
@@ -13,25 +13,25 @@ Kapi doesn't have separate "ad-hoc commands" and "project commands." It has **on
 set of commands**, and what changes is the **binding** — where content comes from
 and where results go. Understanding that one idea makes every workflow below click.
 
-## Three ways to run
+## Two ways to run
 
-<LanesDiagram
-  caption="Increasing statefulness, top to bottom. A .klz parcel moves work between any of them."
-  lanes={[
-    { title: "Ad-hoc", sub: "loose files · no state", steps: ["kapi ai-translate app.json", "kapi run flow -i a.json -o b.json", "kapi extract src/*.json -o work.klz"] },
-    { title: "Project (.kapi)", sub: "recipe + .kapi/ store", role: "translate", steps: ["kapi init · add · ls", "kapi extract  /  run  /  merge", "store accumulates TM + overlays"] },
-    { title: "Server (bowrain)", sub: "+ server: + plugin", role: "qa", steps: ["kapi auth login", "kapi push · pull · sync", "kapi status"] },
-  ]}
-/>
+Kapi runs the **same commands** two ways — the only difference is whether state is kept:
 
-- **Ad-hoc** — run a tool or flow directly on files; nothing is saved. Ideal for
-  one-offs, scripting, and CI.
+| | **Ad-hoc** | **Project (`.kapi`)** |
+| --- | --- | --- |
+| **State** | loose files · nothing saved | a `.kapi` recipe + `.kapi/` store |
+| **Typical commands** | `kapi ai-translate app.json`<br />`kapi run flow -i a.json -o b.json`<br />`kapi extract src/*.json -o work.klz` | `kapi init · add · ls`<br />`kapi extract / run / merge` |
+| **What persists** | nothing | the store accumulates TM + overlays |
+| **Discovery** | you name the files | found automatically, walking up the tree like git |
+| **Best for** | one-offs, scripting, CI | a repo you localize repeatedly |
+
+- **Ad-hoc** — run a tool or flow directly on files; nothing is saved.
 - **Project** — capture the workflow once in a portable `.kapi` recipe (languages,
   content patterns, flows, defaults) plus a `.kapi/` state directory that
-  accumulates translation memory and per-block work. Kapi finds it automatically
-  by walking up from the current directory, like git.
-- **Server** — a project with a `server:` block (which declares `requires: bowrain`)
-  and the `kapi-bowrain` plugin installed, adding `push`/`pull`/`sync`/`status`.
+  accumulates translation memory and per-block work.
+
+A **`.klz` parcel** moves work between the two: `pack` a project into a single
+file (or `extract` loose files into one), then `merge`/`unpack` on the other side.
 
 ## The binding model: source → flow → sink
 
@@ -155,8 +155,7 @@ toolsets. The guidance:
 | --- | --- |
 | A throwaway job on one file | **ad-hoc** (`kapi <tool>` or `run -i -o`) |
 | A repo you localize repeatedly (accumulating TM) | **project** (`add` / `extract` / `run`→store / `merge`) |
-| To move work between machines/people, no server | **`.klz` parcel** (`pack` or `extract --format klz`) → `merge`/`unpack` |
-| A team with a shared server | **project + bowrain** (`auth` / `push` / `pull` / `sync`) |
+| To move work between machines/people | **`.klz` parcel** (`pack` or `extract --format klz`) → `merge`/`unpack` |
 
 **Coherent mixes:** a tool run *inside* a project (`kapi ai-translate src/app.json`)
 still picks up the project's defaults and TM while working on a single file; the
