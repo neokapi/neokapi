@@ -7,6 +7,7 @@ import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
 import { ConcurrencyExplorer } from "@site/src/components/Lab/ConcurrencyExplorer";
+import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
 import styles from "./index.module.css";
 
 // The Lab is the free-play destination that composes every interactive
@@ -128,7 +129,27 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="06 · Concurrency"
+          step="06 · Projects"
+          title="Project — capture config once, run flows, merge files"
+          intro={
+            <>
+              A <code>.kapi</code> project is the day-to-day working model:
+              languages, content globs, and flows live in a committed recipe
+              beside a <code>.kapi/</code> state dir. Run the lifecycle &mdash;{" "}
+              <code>extract</code> the recipe&apos;s content, <code>run</code> a
+              declared flow (process-only, committing to the project store),
+              then <code>merge</code> the localized files out. Pick the content
+              and which flow to run, and watch the recipe, the per-locale state,
+              and the merged output update. Same engine as the single-file{" "}
+              <code>.klz</code> workspace, organized for teams and servers.
+            </>
+          }
+        >
+          <ProjectExplorer defaultSampleId="json" />
+        </Section>
+
+        <Section
+          step="07 · Concurrency"
           title="Concurrency — replay a pipeline trace"
           intro={
             <>
@@ -144,7 +165,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="07 · Scripting"
+          step="08 · Scripting"
           title="Script — write your own transform"
           intro={
             <>
@@ -159,7 +180,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="08 · Files & output"
+          step="09 · Files & output"
           title="Run a tool across a selection, inspect what it wrote"
           intro={
             <>

@@ -1,0 +1,55 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-project-workflow
+#
+# Walks the .kapi *project* lifecycle (AD-026): config-as-code in a committed
+# recipe (languages + content + flows) plus a .kapi/ state dir that accumulates
+# the project store (block overlays + TM). The commands share state across steps
+# (the state dir persists), so they run in order. Everything here runs offline
+# in the wasm embed — init scaffolds against the in-memory filesystem, and
+# extract/run/merge use the in-memory project store.
+
+id: kapi-project-workflow
+scene: project-workflow
+mode: interactive
+
+# messages.json is the kit fixture; demo.kapi is the recipe a `kapi init` would
+# scaffold, here pre-filled with content + a pseudo flow + a target glob so the
+# lifecycle has something to run. (init is genuinely runnable below — it is
+# idempotent and reports the project is already initialized.)
+seed:
+  - messages.json
+files:
+  - path: demo.kapi
+    content: |
+      version: v1
+      name: demo
+      defaults:
+        source_language: en
+        target_languages: [fr, qps]
+      content:
+        - path: messages.json
+          format: json
+          target: "out/{lang}/messages.json"
+      flows:
+        pseudo:
+          steps:
+            - tool: pseudo-translate
+
+steps:
+  - comment: A .kapi project keeps config-as-code — languages, content, flows — in a committed recipe beside a .kapi/ state dir.
+  - command: kapi init --name demo --source-locale en --target-locale fr --target-locale qps
+    narration: init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.
+    smoke: true
+  - comment: The recipe (demo.kapi) declares the source/target languages, the content to localize, and the flows to run.
+  - command: kapi extract
+    narration: extract reads every content glob in the recipe into the project store — one batch, all target locales, no -i needed.
+    smoke: true
+  - comment: Run a declared flow. In a project, a run is process-only — it commits results to the store, not to files.
+  - command: kapi run pseudo -i messages.json
+    narration: The pseudo flow writes target overlays into the project store. Runs stay cheap; the store accumulates translation memory across passes.
+    smoke: false
+  - comment: Materialize the localized files from the store.
+  - command: kapi merge
+    narration: merge replays the stored translations onto each source and writes one localized file per target locale (out/fr, out/qps).
+    smoke: false

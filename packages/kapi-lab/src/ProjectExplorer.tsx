@@ -11,35 +11,83 @@ export interface ProjectExplorerProps {
   defaultSampleId?: string;
 }
 
-const TARGET = "qps";
+// The project's declared target locales. fr is pseudo-translate's default
+// locale (the run commits overlays there); qps is declared but left untouched
+// by the pseudo flow, so the explorer can show partial per-locale coverage —
+// exactly what a real project store looks like mid-pass.
+export const TARGETS = ["fr", "qps"] as const;
+type Target = (typeof TARGETS)[number];
 
-function formatFor(filename: string): string {
+// Flows the recipe declares. Both run offline (pseudo-translate is
+// deterministic, no network); picking a different flow visibly changes the
+// merged output, demonstrating that a project is a multi-flow contract.
+export interface FlowDef {
+  id: string;
+  label: string;
+  /** Inline recipe YAML for this flow's steps (2-space indented under the id). */
+  yaml: string;
+}
+export const FLOWS: FlowDef[] = [
+  {
+    id: "pseudo",
+    label: "pseudo — accented round-trip",
+    yaml: `  pseudo:
+    steps:
+      - tool: pseudo-translate`,
+  },
+  {
+    id: "accent",
+    label: "accent — guillemet wrap",
+    yaml: `  accent:
+    steps:
+      - tool: pseudo-translate
+        config:
+          prefix: "« "
+          suffix: " »"`,
+  },
+];
+
+const STEPS = ["extract", "run", "merge"] as const;
+type StepName = (typeof STEPS)[number];
+
+export function formatFor(filename: string): string {
   if (filename.endsWith(".json")) return "json";
   return "openxml"; // .docx / .xlsx / .pptx
 }
 
-function recipeFor(sample: WorkspaceSample): string {
-  return `version: "v1"
+export function targetGlob(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  const ext = dot >= 0 ? filename.slice(dot) : "";
+  const base = dot >= 0 ? filename.slice(0, dot) : filename;
+  return `out/{lang}/${base}${ext}`;
+}
+
+// The committed recipe: source/target languages, the content glob to localize,
+// and every declared flow. This is the config-as-code a `kapi init` scaffolds
+// and you edit once.
+export function recipeFor(sample: WorkspaceSample): string {
+  return `version: v1
 name: demo
 defaults:
-  source_locale: en
-  target_locales: [${TARGET}]
+  source_language: en
+  target_languages: [${TARGETS.join(", ")}]
 content:
   - path: ${sample.filename}
     format: ${formatFor(sample.filename)}
+    target: "${targetGlob(sample.filename)}"
 flows:
-  pseudo:
-    steps:
-      - tool: pseudo-translate
+${FLOWS.map((f) => f.yaml).join("\n")}
 `;
 }
 
 // ProjectExplorer teaches the .kapi *project* model — config-as-code in a
-// committed recipe (content + flows + target languages) plus a .kapi/ state
-// dir (the persistent runtime cache) — and runs a declared flow against it in
-// WASM. It's the multi-file, team/server-oriented counterpart to the
-// single-file .klz workspace (AD-025 §5). In the browser the state dir's cache
-// is an in-memory store, so it's shown as regenerable state rather than files.
+// committed recipe (content + multiple flows + target languages) plus a .kapi/
+// state dir (the persistent project store) — and runs the project lifecycle in
+// WASM: extract → run a declared flow (process-only, commits to the store) →
+// merge (materialize the localized files). It is the multi-file, team/server
+// counterpart to the single-file .klz workspace (AD-026 / AD-025 §5). In the
+// browser the state dir is an in-memory store, so it is shown as regenerable
+// state rather than files.
 export default function ProjectExplorer({
   assets,
   defaultSampleId,
@@ -47,63 +95,119 @@ export default function ProjectExplorer({
   const runtime = useLabRuntime(assets);
   const [sampleId, setSampleId] = useState(() => workspaceSampleById(defaultSampleId ?? "json").id);
   const sample: WorkspaceSample = useMemo(() => workspaceSampleById(sampleId), [sampleId]);
+  const [flowId, setFlowId] = useState<string>(FLOWS[0].id);
   const recipe = useMemo(() => recipeFor(sample), [sample]);
 
-  const [ran, setRan] = useState(false);
-  const [output, setOutput] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<Set<StepName>>(new Set());
+  const [busy, setBusy] = useState<StepName | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Which target locales have a merged file on disk after `merge`.
+  const [merged, setMerged] = useState<Target[]>([]);
+  // The merged output for the currently inspected locale.
+  const [viewLocale, setViewLocale] = useState<Target>(TARGETS[0]);
+  const [output, setOutput] = useState<string | null>(null);
 
-  const dir = `/project/proj-${sampleId}`;
-  const recipePath = `${dir}/demo.kapi`;
-  const srcPath = `${dir}/${sample.filename}`;
-  const outPath = `${dir}/out/${sample.filename}`;
+  // Per-sample project dir (distinct so explorers/samples don't collide).
+  const dir = `proj-${sampleId}`;
+  const absDir = `/project/${dir}`;
+  const recipePath = `${absDir}/demo.kapi`;
+  const srcPath = `${absDir}/${sample.filename}`;
+  const outPath = useCallback(
+    (lang: Target) => `${absDir}/out/${lang}/${sample.filename}`,
+    [absDir, sample.filename],
+  );
 
-  useEffect(() => {
-    setRan(false);
+  const reset = useCallback(() => {
+    setDone(new Set());
+    setErr(null);
+    setMerged([]);
     setOutput(null);
-    setErr(null);
-  }, [sampleId]);
+    setViewLocale(TARGETS[0]);
+  }, []);
 
-  const runFlow = useCallback(async () => {
-    setBusy(true);
-    setErr(null);
-    try {
-      runtime.mkdir(`proj-${sampleId}`);
-      runtime.writeFile(`proj-${sampleId}/demo.kapi`, recipe);
-      runtime.writeFile(`proj-${sampleId}/${sample.filename}`, sample.bytes());
-      const argv = [
-        "run",
-        "pseudo",
-        "-p",
-        recipePath,
-        "-i",
-        srcPath,
-        "-o",
-        outPath,
-        "--target-lang",
-        TARGET,
-      ];
-      const code = await runtime.run(argv);
-      if (code !== 0) {
-        setErr(`\`kapi ${argv.join(" ")}\` exited ${code}`);
-        return;
-      }
-      setRan(true);
+  // Reset when the sample or flow changes — a new flow means a fresh lifecycle.
+  useEffect(() => {
+    reset();
+  }, [sampleId, flowId, reset]);
+
+  // Read the merged output for the inspected locale (text or a binary note).
+  const readMerged = useCallback(
+    (lang: Target) => {
       if (sample.binary) {
-        const bytes = runtime.readBytes(outPath);
+        const bytes = runtime.readBytes(outPath(lang));
         setOutput(
           bytes
-            ? `✓ produced ${sample.filename} — ${bytes.length} bytes, valid OOXML zip: ${bytes[0] === 0x50 && bytes[1] === 0x4b}`
-            : "(no output)",
+            ? `✓ produced ${sample.filename} — ${bytes.length} bytes, valid OOXML zip: ${
+                bytes[0] === 0x50 && bytes[1] === 0x4b
+              }`
+            : `(no ${lang} output — this flow left ${lang} untranslated)`,
         );
       } else {
-        setOutput(runtime.readFile(outPath) ?? "(no output)");
+        setOutput(
+          runtime.readFile(outPath(lang)) ??
+            `(no ${lang} output — this flow left ${lang} untranslated)`,
+        );
       }
-    } finally {
-      setBusy(false);
-    }
-  }, [runtime, sample, sampleId, recipe, recipePath, srcPath, outPath]);
+    },
+    [runtime, sample, outPath],
+  );
+
+  // Re-read when the inspected locale changes after a merge.
+  useEffect(() => {
+    if (done.has("merge")) readMerged(viewLocale);
+  }, [viewLocale, done, readMerged]);
+
+  const runStep = useCallback(
+    async (step: StepName) => {
+      setBusy(step);
+      setErr(null);
+      try {
+        // Seed the project (recipe + source) before extract so a sample/flow
+        // switch starts clean.
+        if (step === "extract") {
+          runtime.mkdir(dir);
+          runtime.writeFile(`${dir}/demo.kapi`, recipe);
+          runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
+        }
+        const argv: Record<StepName, string[]> = {
+          // extract reads every content glob in the recipe into the project store.
+          extract: ["extract", "-p", recipePath],
+          // A run inside a project is process-only: it commits target overlays
+          // to the store rather than writing files (AD-026).
+          run: ["run", flowId, "-p", recipePath, "-i", srcPath],
+          // merge replays the stored translations onto each source.
+          merge: ["merge", "-p", recipePath],
+        };
+        const code = await runtime.run(argv[step]);
+        if (code !== 0) {
+          setErr(`\`kapi ${argv[step].join(" ")}\` exited ${code}`);
+          return;
+        }
+        setDone((d) => new Set(d).add(step));
+        if (step === "merge") {
+          const present = TARGETS.filter((l) => runtime.readBytes(outPath(l)) != null);
+          setMerged(present);
+          const first = present[0] ?? TARGETS[0];
+          setViewLocale(first);
+          readMerged(first);
+        }
+      } finally {
+        setBusy(null);
+      }
+    },
+    [runtime, sample, dir, recipe, recipePath, srcPath, flowId, outPath, readMerged],
+  );
+
+  const stepEnabled = (i: number): boolean => {
+    if (!runtime.ready || busy) return false;
+    if (i === 0) return true;
+    return done.has(STEPS[i - 1]);
+  };
+
+  const stepLabel = (step: StepName): string => {
+    if (step === "run") return `run ${flowId}`;
+    return step;
+  };
 
   return (
     <div className={shared.explorer}>
@@ -111,28 +215,48 @@ export default function ProjectExplorer({
         {runtime.status === "booting" && "Booting kapi (first run downloads the WASM engine)…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
         {runtime.ready && (
-          <label>
-            Content:{" "}
-            <select value={sampleId} onChange={(e) => setSampleId(e.target.value)} disabled={busy}>
-              {WORKSPACE_SAMPLES.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.label} — {w.kind}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label>
+              Content:{" "}
+              <select
+                value={sampleId}
+                onChange={(e) => setSampleId(e.target.value)}
+                disabled={!!busy}
+              >
+                {WORKSPACE_SAMPLES.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.label} — {w.kind}
+                  </option>
+                ))}
+              </select>
+            </label>{" "}
+            <label>
+              Flow:{" "}
+              <select value={flowId} onChange={(e) => setFlowId(e.target.value)} disabled={!!busy}>
+                {FLOWS.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
       </div>
 
       <div className={s.steps}>
-        <button
-          className={`${s.step} ${ran ? s.stepDone : ""}`}
-          disabled={!runtime.ready || busy}
-          onClick={runFlow}
-        >
-          {busy ? "…" : "kapi run pseudo -p demo.kapi"}
-          {ran && " ✓"}
-        </button>
+        {STEPS.map((step, i) => (
+          <button
+            key={step}
+            className={`${s.step} ${done.has(step) ? s.stepDone : ""}`}
+            disabled={!stepEnabled(i)}
+            onClick={() => runStep(step)}
+          >
+            <span className={s.stepNum}>{i + 1}</span>
+            {busy === step ? "…" : `kapi ${stepLabel(step)}`}
+            {done.has(step) && " ✓"}
+          </button>
+        ))}
       </div>
 
       {err && <div className={`${shared.statusBar} ${shared.statusError}`}>{err}</div>}
@@ -142,25 +266,73 @@ export default function ProjectExplorer({
           <div className={s.cardTitle}>demo.kapi (the recipe — committed config)</div>
           <pre className={s.output}>{recipe}</pre>
         </div>
+
         <div className={s.card}>
-          <div className={s.cardTitle}>Project layout</div>
+          <div className={s.cardTitle}>Project state</div>
           <div className={s.kv}>
-            <span className={s.kvKey}>demo.kapi</span>
-            <span>recipe · committed</span>
-            <span className={s.kvKey}>{sample.filename}</span>
-            <span>source content</span>
+            <span className={s.kvKey}>recipe</span>
+            <span>en → {TARGETS.join(", ")}</span>
+            <span className={s.kvKey}>content</span>
+            <span>{sample.filename}</span>
+            <span className={s.kvKey}>flow</span>
+            <span>{flowId}</span>
             <span className={s.kvKey}>.kapi/</span>
-            <span>state · cache + TM + termbase · regenerable (in-memory in the browser)</span>
-            <span className={s.kvKey}>out/{sample.filename}</span>
-            <span>{ran ? "✓ written" : "— (run the flow)"}</span>
+            <span>
+              <span className={`${s.pill} ${done.has("run") ? s.pillDirty : s.pillClean}`}>
+                {done.has("run")
+                  ? done.has("merge")
+                    ? "store committed · files written"
+                    : "store committed · not yet merged"
+                  : "empty store"}
+              </span>
+            </span>
           </div>
+
           <div className={s.cardTitle} style={{ marginTop: "0.8rem" }}>
-            Merged output
+            Per-locale output
           </div>
-          {output == null && (
-            <div className={s.binaryNote}>Run the flow to localize the declared content.</div>
+          {TARGETS.map((l) => {
+            const present = merged.includes(l);
+            return (
+              <div key={l} className={s.overlayRow}>
+                <span style={{ width: "3rem" }}>{l}</span>
+                <span
+                  className={`${s.pill} ${present ? s.pillClean : s.pillDirty}`}
+                  style={{ minWidth: "5.5rem", textAlign: "center" }}
+                >
+                  {done.has("merge") ? (present ? "✓ written" : "untranslated") : "—"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={s.panel}>
+        <div className={s.card} style={{ gridColumn: "1 / -1" }}>
+          <div className={s.cardTitle}>
+            Merged output{" "}
+            {done.has("merge") && (
+              <select
+                value={viewLocale}
+                onChange={(e) => setViewLocale(e.target.value as Target)}
+                style={{ marginLeft: "0.4rem", fontWeight: 400 }}
+              >
+                {TARGETS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {!done.has("merge") && (
+            <div className={s.binaryNote}>
+              Run all three steps to materialize the localized files from the project store.
+            </div>
           )}
-          {output != null &&
+          {done.has("merge") &&
+            output != null &&
             (sample.binary ? (
               <div className={s.binaryNote}>{output}</div>
             ) : (
@@ -171,9 +343,10 @@ export default function ProjectExplorer({
 
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.6rem" }}>
         A <strong>project</strong> keeps config in a committed <code>.kapi</code> recipe and its
-        working state in a <code>.kapi/</code> dir — built for teams and servers. A{" "}
-        <strong>.klz workspace</strong> folds the same content + work into one portable file — built
-        for ad-hoc, single-file hand-off. Same engine underneath.
+        working state in a <code>.kapi/</code> dir — built for teams and servers. A run is{" "}
+        <strong>process-only</strong>: it commits to the project store, then <code>merge</code>{" "}
+        writes the files. A <strong>.klz workspace</strong> folds the same content + work into one
+        portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
     </div>
   );
