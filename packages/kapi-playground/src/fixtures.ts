@@ -27,19 +27,23 @@ const messagesJson = JSON.stringify(
 );
 
 const appXliff = `<?xml version="1.0" encoding="UTF-8"?>
-<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-  <file original="app.json" source-language="en" target-language="fr" datatype="plaintext">
-    <body>
-      <trans-unit id="greeting">
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">
+  <file id="app.json" original="app.json">
+    <unit id="greeting">
+      <segment>
         <source>Hello, World!</source>
-      </trans-unit>
-      <trans-unit id="farewell">
+      </segment>
+    </unit>
+    <unit id="farewell">
+      <segment>
         <source>See you tomorrow</source>
-      </trans-unit>
-      <trans-unit id="cart.empty">
+      </segment>
+    </unit>
+    <unit id="cart.empty">
+      <segment>
         <source>Your cart is empty</source>
-      </trans-unit>
-    </body>
+      </segment>
+    </unit>
   </file>
 </xliff>
 `;

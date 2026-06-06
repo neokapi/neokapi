@@ -157,9 +157,10 @@ Each entry under `content:` is a content collection. Bare entries are single-pat
 You can edit `content:` by hand, or with the core `kapi` commands (no bowrain plugin required — they only touch the local recipe):
 
 ```bash
-kapi add "src/**/*.json" --format json   # append a content pattern (format auto-detected)
+kapi add "src/**/*.json"                 # append a content pattern (format auto-detected)
 kapi rm  "src/legacy/*.json"             # remove the mapping, or add to the exclude list
 kapi ls                                  # list the files the content tracks
+kapi add "src/**/*.md" --format markdown # …pass --format only to override detection
 kapi ls --stats                          # …with per-file block and word counts
 ```
 
