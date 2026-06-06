@@ -53,7 +53,6 @@ steps:
   # 1. Look up terminology before translating
   - tool: term-lookup
     config:
-      termbase: .kapi/termbase.db
       fuzzy_threshold: 85
 
   # 2. Pre-fill from translation memory
@@ -73,7 +72,6 @@ steps:
   # 4. Validate terminology compliance
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.db
       required: true
       fail_on_violation: true
 
@@ -132,8 +130,6 @@ steps:
         - spelling
 
   - tool: term-enforce
-    config:
-      termbase: .kapi/termbase.db
 
   - tool: ai-qa
     config:
@@ -201,13 +197,11 @@ Each tool has its own configuration options. Common patterns:
 ```yaml
 - tool: term-lookup
   config:
-    termbase: .kapi/termbase.db
     fuzzy_threshold: 85
     domain: software # Filter by domain
 
 - tool: term-enforce
   config:
-    termbase: .kapi/termbase.db
     required: true # Block must use term if available
     fail_on_violation: true # Exit flow if violation found
 ```

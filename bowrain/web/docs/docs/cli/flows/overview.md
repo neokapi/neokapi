@@ -72,8 +72,6 @@ description: AI translation with quality checks and terminology enforcement
 
 steps:
   - tool: term-lookup
-    config:
-      termbase: .kapi/termbase.db
 
   - tool: ai-translate
     config:
@@ -83,7 +81,6 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.db
       required: true
 
   - tool: qa-check

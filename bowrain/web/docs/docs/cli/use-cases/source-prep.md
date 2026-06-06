@@ -61,7 +61,6 @@ description: Validate source content quality before translation
 steps:
   - tool: term-check
     config:
-      termbase: .kapi/termbase.db
       target_locale: en-US
 
   - tool: qa-check

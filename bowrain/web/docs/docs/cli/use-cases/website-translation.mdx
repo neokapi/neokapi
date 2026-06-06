@@ -106,7 +106,7 @@ Bowrain's editor offers two views for different translation tasks:
 
 ### Using Terminology
 
-1. Import a termbase (TBX, CSV, JSON) — it's stored at `.kapi/termbase.db`
+1. Import a termbase (TBX, CSV, JSON) — it's stored in the project termbase
 2. Add `term-lookup` to your flow to show terminology suggestions
 3. Add `term-enforce` to validate required terms are used correctly
 4. The Context panel in Bowrain shows matched terms per block
@@ -145,7 +145,7 @@ kapi uses content-addressed blocks for efficient incremental sync — only chang
 - **Initialize projects with `kapi init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
 - **Use `kapi tm-leverage`** to auto-fill translations from translation memory
-- **Import terminology** into the project termbase at `.kapi/termbase.db` and add `term-lookup` to your flow
+- **Import terminology** into the project termbase and add `term-lookup` to your flow
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
 - **Commit `<dir-name>.kapi`** to git; the whole `.kapi/` state directory is gitignored by default

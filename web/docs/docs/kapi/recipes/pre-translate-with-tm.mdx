@@ -14,8 +14,8 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 :::note Runs anywhere
 No project needed — this pipeline runs ad-hoc against a loose `./tm.db` or a
-named TM. Inside a `.kapi` project it instead resolves the project's
-`.kapi/tm.db` automatically. See
+named TM. Inside a `.kapi` project it instead resolves the project TM
+automatically. See
 [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for which store
 each command uses.
 :::
@@ -54,7 +54,7 @@ out.
 ## Step 1 — load your TM
 
 Import the translation memory so leverage can read it. With no flag the import
-lands in `./tm.db` (or the project's `.kapi/tm.db` when run inside a project);
+lands in a local `tm.db` file (or the project's TM when run inside a project);
 [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) covers selecting
 a named TM with `--name` or an explicit file with `--file`.
 

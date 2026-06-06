@@ -180,7 +180,7 @@ defaults:
   target_languages: [fr, de, ja]
 content:
   - name: ui
-    # Block state lives in .kapi/cache.db (default cache store).
+    # Block state lives in the project cache (gitignored, regenerable).
     items:
       - path: "src/**/*.tsx"
         format:

@@ -14,8 +14,8 @@ import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 
 :::info Needs a .kapi project
 Interchange is **project-based**. `kapi extract` and `kapi merge` read the
-recipe's content globs and target locales and use the project's `.kapi/tm.db`
-plus the per-source skeletons under `.kapi/cache/extractions/`, so start with
+recipe's content globs and target locales and use the project's translation
+memory plus the extraction bookkeeping kapi records for you, so start with
 `kapi init` (see [Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands
 from inside the project directory. See [Project file](/reference/project-file)
 for the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_
@@ -87,7 +87,7 @@ The two commands that define this workflow are `kapi extract` and
     { label: "translated XLIFF / PO", role: "translate" },
     { label: "returned by translator" },
   ]}
-  hub={{ label: "project TM", sub: "tm.db" }}
+  hub={{ label: "project TM" }}
   forwardLabel="pre-fill"
   backLabel="absorb"
 />
@@ -157,7 +157,7 @@ locales, and any optional recipe sections. Then seed the project TM
 from existing memory, if you have any:
 
 ```bash
-kapi tm import ./corporate-en-fr.tmx --file .kapi/tm.db
+kapi tm import ./corporate-en-fr.tmx
 ```
 
 ## Day 1: first extraction
@@ -175,14 +175,12 @@ Which writes:
   - `out/src-locales-en-app.en-US-to-fr-FR.xliff`
   - `out/src-locales-en-app.en-US-to-de-DE.xliff`
   - `out/src-locales-en-app.en-US-to-es-ES.xliff`
-- A manifest under `.kapi/cache/extractions/<batch-id>/manifest.yaml`
-  recording the source→output mapping, per-file SHA-256, and TM
-  leverage counts
-- Per-source skeletons under `.kapi/cache/extractions/<batch-id>/skel-<hash>.bin`
-  so `kapi merge` can rebuild the source byte-for-byte from the
-  translator's return — for document and markup formats and for keyed
-  catalog formats alike (JSON, YAML, `.properties`, Android XML, `.resx`,
-  Apple `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)
+- Extraction bookkeeping (the captured skeletons and a manifest) recorded
+  in the project's gitignored cache so `kapi merge` can reattach the
+  returned translations and rebuild the source byte-for-byte — for document
+  and markup formats and for keyed catalog formats alike (JSON, YAML,
+  `.properties`, Android XML, `.resx`, Apple
+  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)
 - A file-level `<note category="kapi">` on each XLIFF stamping the
   batch id, source file, and source hash
 
@@ -194,7 +192,7 @@ Extracting batch 6f2e8a1c... (format=xliff2, targets=[fr-FR de-DE es-ES], source
   de-DE: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
   es-ES: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
 
-Batch 6f2e8a1c... complete. Manifest: .kapi/cache/extractions/6f2e8a1c.../manifest.yaml
+Batch 6f2e8a1c... complete. 3 files written to out/
 Aggregate TM leverage: exact=108 fuzzy=67 new=1061 (total=1236)
 ```
 
@@ -317,7 +315,7 @@ XLIFF and PO carry exactly one chosen target per locale, the source runs
 and inline codes, and — with the captured skeleton — enough to rebuild the
 original file byte-for-byte. Everything else in kapi's content model is
 **deliberately not** projected into the bilingual file; it stays in project
-state (`.kapi/`, `tm.db`, `termbase.db`):
+state (the translation memory, termbase, and stand-off overlays):
 
 - **Stand-off overlays** — terminology, entity, and QA annotations anchored
   to run ranges.
@@ -338,7 +336,7 @@ round-trip byte-exact live there, not in the file the translator returns.
   matching tiers, TM schema, `LookupSegment` for sentence-level
   leverage
 - [AD-008: Project Model](/contribute/architecture/008-project-model) —
-  `.kapi/cache/extractions/<id>/` layout and `merge.conflict_policy` recipe
+  the extraction-batch bookkeeping and `merge.conflict_policy` recipe
   shape
 - [AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — command tree and
   auto-discovery semantics

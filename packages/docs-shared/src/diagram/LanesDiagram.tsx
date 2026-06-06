@@ -34,11 +34,11 @@ export interface LanesDiagramProps {
 }
 
 const PAD = 14;
-const HEADER_H = 26;
-const ROW_H = 18;
+const HEADER_H = 28;
+const ROW_H = 19;
 const CARD_PAD_B = 12;
 const V_GAP = 40; // gap (handoff arrow) between cards
-const MONO = 5.55; // px per mono char at 9px
+const MONO = 6.9; // px per mono char at 11.5px
 const roleBox = (role?: StageRole) => (role && role !== "tool" ? ` kdx-box--${role}` : "");
 
 const cardHeight = (l: LaneThread) => HEADER_H + l.steps.length * ROW_H + CARD_PAD_B;
@@ -48,7 +48,7 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
     260,
     ...lanes.map((l) =>
       Math.max(
-        l.title.length * 6.8 + (l.sub ? l.sub.length * MONO + 24 : 0) + 28,
+        l.title.length * 7.6 + (l.sub ? l.sub.length * MONO + 24 : 0) + 28,
         ...l.steps.map((s) => s.length * MONO + 28),
       ),
     ),
@@ -102,15 +102,15 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
                     rx={10}
                     className={`kdx-box${roleBox(l.role)}`}
                   />
-                  <text x={x + 14} y={cardY + 17} fontSize={11.5} className="kdx-label">
+                  <text x={x + 14} y={cardY + 19} fontSize={14} className="kdx-label">
                     {l.title}
                   </text>
                   {l.sub && (
                     <text
                       x={x + cardW - 12}
-                      y={cardY + 17}
+                      y={cardY + 19}
                       textAnchor="end"
-                      fontSize={9}
+                      fontSize={10.5}
                       className="kdx-chip-sub"
                     >
                       {l.sub}
@@ -127,8 +127,8 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
                     <text
                       key={si}
                       x={x + 14}
-                      y={cardY + HEADER_H + si * ROW_H + 13}
-                      fontSize={9}
+                      y={cardY + HEADER_H + si * ROW_H + 14}
+                      fontSize={11.5}
                       className="kdx-mono"
                       xmlSpace="preserve"
                     >
@@ -150,16 +150,16 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
                         <g>
                           <rect
                             x={cx + 8}
-                            y={(cardY + h + next.y) / 2 - 9}
-                            width={handoff.length * 5.8 + 14}
-                            height={16}
-                            rx={7}
+                            y={(cardY + h + next.y) / 2 - 9.5}
+                            width={handoff.length * 6.6 + 14}
+                            height={18}
+                            rx={8}
                             className="kdx-pill"
                           />
                           <text
                             x={cx + 15}
-                            y={(cardY + h + next.y) / 2 + 2.5}
-                            fontSize={9}
+                            y={(cardY + h + next.y) / 2 + 3}
+                            fontSize={10.5}
                             className="kdx-chan"
                           >
                             {handoff}

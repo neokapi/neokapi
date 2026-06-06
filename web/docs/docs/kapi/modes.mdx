@@ -16,7 +16,7 @@ and where results go. Understanding that one idea makes every workflow below cli
 ## Three ways to run
 
 <LanesDiagram
-  caption="Increasing statefulness, left to right. A .klz parcel moves work between any of them."
+  caption="Increasing statefulness, top to bottom. A .klz parcel moves work between any of them."
   lanes={[
     { title: "Ad-hoc", sub: "loose files · no state", steps: ["kapi ai-translate app.json", "kapi run flow -i a.json -o b.json", "kapi extract src/*.json -o work.klz"] },
     { title: "Project (.kapi)", sub: "recipe + .kapi/ store", role: "translate", steps: ["kapi init · add · ls", "kapi extract  /  run  /  merge", "store accumulates TM + overlays"] },
@@ -52,7 +52,7 @@ resolved when you run it:
 | Binding | As source | As sink |
 | --- | --- | --- |
 | `file` (default) | read + parse a file | write a localized file |
-| `store` | the project's `.kapi/cache` (blocks + overlays) | commit overlays — **no file** |
+| `store` | the project store (blocks + overlays) | commit overlays — **no file** |
 | interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
 | `none` | — | discard (checks/analysis only) |
 
