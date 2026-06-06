@@ -130,11 +130,16 @@ opened; push/pull is invoked by spawning `kapi-bowrain`.
 With the plugin installed, `kapi` exposes:
 
 - Framework commands (built into `kapi`): `run`, `extract`, `merge`,
-  `flows`, `tools`, `formats`, `plugins`, `registry`, `presets`,
-  `termbase`, `tm`, `credentials`, `mcp`, `version`.
+  `add`, `rm`, `ls`, `flows`, `tools`, `formats`, `plugins`, `registry`,
+  `presets`, `termbase`, `tm`, `credentials`, `mcp`, `version`. The
+  local project-content commands `add`/`rm`/`ls` are core — they edit and
+  list the `.kapi` recipe's content, which is local configuration, not a
+  server concern (a server-connected project just declares `requires: bowrain`).
 - Bowrain commands (contributed by the `kapi-bowrain` manifest): `init`,
-  `push`, `pull`, `sync`, `status`, `ls`, `add`, `rm`, `diff`, `config`,
-  `auth`, `stream`, `serve`, `ui`, `workspace`.
+  `push`, `pull`, `sync`, `status`, `diff`, `config`,
+  `auth`, `stream`, `serve`, `ui`, `workspace`. Sync state — including which
+  tracked files changed vs the server — is `kapi status` (the home of the
+  former `ls --dirty`).
 
 Each bowrain capability is dispatched according to its manifest entry:
 
@@ -318,7 +323,7 @@ kapi status              # show what's pending push / pull
 kapi push [--dry-run]    # scan local files, diff against cache, upload changed blocks
 kapi pull [--locale fr]  # fetch translations from server, write to local files
 kapi sync                # push → wait_translate → pull (orchestrated)
-kapi ls                  # list tracked files with stats
+kapi ls                  # list tracked files (--stats adds block/word counts)
 kapi add <path>          # append a content entry to the recipe
 kapi rm <path>           # remove or exclude a content entry
 kapi mcp                 # stdio MCP server exposing project tools

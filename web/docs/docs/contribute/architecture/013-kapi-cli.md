@@ -72,6 +72,7 @@ kapi
 ├── init                     # scaffold a new .kapi project
 ├── add                      # add file patterns to the project's content
 ├── rm                       # remove a content pattern, or exclude matching files
+├── ls                       # list tracked files (--stats for block/word counts)
 ├── tools                    # list available tools
 ├── flows                    # list available flows
 ├── formats

@@ -122,3 +122,58 @@ server:
 	require.Error(t, err, "core kapi must refuse a recipe requiring an unregistered plugin")
 	assert.Contains(t, err.Error(), "bowrain")
 }
+
+// TestLs_ListsTrackedFiles verifies core `kapi ls` lists the files the project's
+// content tracks, honors a path filter, and shows block/word counts with --stats.
+func TestLs_ListsTrackedFiles(t *testing.T) {
+	a := processOnlyApp(t)
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "app.kapi")
+
+	const yaml = `version: v1
+name: LsTest
+defaults:
+  source_language: en-US
+content:
+  - path: src/*.json
+    format:
+      name: json
+`
+	require.NoError(t, os.WriteFile(recipe, []byte(yaml), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(real, "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "src", "a.json"), []byte(`{"greeting":"Hello there world"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "src", "b.json"), []byte(`{"bye":"Goodbye"}`), 0o644))
+
+	run := func(args ...string) (string, error) {
+		cmd := a.NewLsCmd()
+		cmd.SetArgs(append(args, "--project", recipe))
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		execErr := cmd.Execute()
+		return out.String(), execErr
+	}
+
+	// Plain ls lists both files with their format.
+	out, err := run()
+	require.NoError(t, err)
+	assert.Contains(t, out, "src/a.json")
+	assert.Contains(t, out, "src/b.json")
+	assert.Contains(t, out, "json")
+	assert.Contains(t, out, "2 file(s)")
+
+	// A path filter narrows the listing.
+	out, err = run("src/a.json")
+	require.NoError(t, err)
+	assert.Contains(t, out, "src/a.json")
+	assert.NotContains(t, out, "src/b.json")
+
+	// --stats adds block/word columns + a totals summary.
+	out, err = run("--stats")
+	require.NoError(t, err)
+	assert.Contains(t, out, "BLOCKS")
+	assert.Contains(t, out, "WORDS")
+	assert.Contains(t, out, "blocks, ")
+}

@@ -149,6 +149,7 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(app.NewInitCmd())
 	root.AddCommand(app.NewAddCmd())
 	root.AddCommand(app.NewRmCmd())
+	root.AddCommand(app.NewLsCmd())
 	root.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	root.AddCommand(app.NewToolsCmd())
 	root.AddCommand(app.NewFormatsCmd())
