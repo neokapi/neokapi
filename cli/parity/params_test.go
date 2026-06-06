@@ -52,7 +52,7 @@ func TestStringifyParams(t *testing.T) {
 		{
 			name: "nil value omitted",
 			in: map[string]any{
-				"keyCondition": nil,
+				"keyCondition":  nil,
 				"useCodeFinder": true,
 			},
 			want: map[string]string{

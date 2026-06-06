@@ -3,15 +3,15 @@ package its
 // Resolver combines a global RuleSet with per-element local attribute
 // overrides per the ITS 2.0 §5.4 precedence rules:
 //
-//   1. Local attributes on the element itself (its:translate="no",
-//      its:locNote="…", …) win unconditionally.
-//   2. Among rule-set rules, last-rule-wins: the rule appearing
-//      later in document order overrides earlier rules with the
-//      same data category and a matching selector.
-//   3. Inheritance: when no rule matches at a given level, the
-//      effective value is whatever the parent element resolved to
-//      (caller responsibility — Resolver only produces per-element
-//      values; callers maintain the inheritance stack).
+//  1. Local attributes on the element itself (its:translate="no",
+//     its:locNote="…", …) win unconditionally.
+//  2. Among rule-set rules, last-rule-wins: the rule appearing
+//     later in document order overrides earlier rules with the
+//     same data category and a matching selector.
+//  3. Inheritance: when no rule matches at a given level, the
+//     effective value is whatever the parent element resolved to
+//     (caller responsibility — Resolver only produces per-element
+//     values; callers maintain the inheritance stack).
 //
 // Resolver instances are cheap; create one per document and call
 // Resolve for every element the reader visits.
@@ -28,13 +28,13 @@ func NewResolver(rs *RuleSet) *Resolver {
 // category. Fields stay at zero (Unset / "") when no rule applied —
 // callers inherit from the parent in that case.
 type Resolved struct {
-	Translate   Tristate
-	WithinText  Tristate
-	LocNoteText string
-	LocNoteType LocNoteType
-	LocNoteRef  string
-	Term        Tristate
-	Domain      string // resolved value when DomainPointer fires; "" otherwise
+	Translate     Tristate
+	WithinText    Tristate
+	LocNoteText   string
+	LocNoteType   LocNoteType
+	LocNoteRef    string
+	Term          Tristate
+	Domain        string // resolved value when DomainPointer fires; "" otherwise
 	PreserveSpace Tristate
 }
 

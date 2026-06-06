@@ -295,6 +295,6 @@ func (p *selectorParser) skipWS() {
 	}
 }
 
-func (p *selectorParser) eof() bool   { return p.pos >= len(p.src) }
-func (p *selectorParser) peek() byte  { return p.src[p.pos] }
+func (p *selectorParser) eof() bool     { return p.pos >= len(p.src) }
+func (p *selectorParser) peek() byte    { return p.src[p.pos] }
 func (p *selectorParser) advance(n int) { p.pos += n }

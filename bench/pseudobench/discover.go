@@ -181,4 +181,3 @@ func Sample(fixtures []TestFile, fraction float64) []TestFile {
 	})
 	return out
 }
-

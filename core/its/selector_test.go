@@ -26,32 +26,32 @@ func TestSelector_Matches(t *testing.T) {
 		{
 			name:     "absolute path matches root child",
 			selector: "/myDoc/head",
-			ctx: ElementContext{Path: []NameMatch{nm("myDoc"), nm("head")}},
-			match: true,
+			ctx:      ElementContext{Path: []NameMatch{nm("myDoc"), nm("head")}},
+			match:    true,
 		},
 		{
 			name:     "absolute path does not match descendant",
 			selector: "/myDoc/head",
-			ctx: ElementContext{Path: []NameMatch{nm("myDoc"), nm("body"), nm("head")}},
-			match: false,
+			ctx:      ElementContext{Path: []NameMatch{nm("myDoc"), nm("body"), nm("head")}},
+			match:    false,
 		},
 		{
 			name:     "descendant matches anywhere",
 			selector: "//del",
-			ctx: ElementContext{Path: []NameMatch{nm("doc"), nm("p"), nm("del")}},
-			match: true,
+			ctx:      ElementContext{Path: []NameMatch{nm("doc"), nm("p"), nm("del")}},
+			match:    true,
 		},
 		{
 			name:     "descendant does not match ancestor",
 			selector: "//del",
-			ctx: ElementContext{Path: []NameMatch{nm("doc"), nm("del"), nm("p")}},
-			match: false,
+			ctx:      ElementContext{Path: []NameMatch{nm("doc"), nm("del"), nm("p")}},
+			match:    false,
 		},
 		{
 			name:     "union matches any branch",
 			selector: "//ui|//ins|//del|//imgRef",
-			ctx: ElementContext{Path: []NameMatch{nm("doc"), nm("ins")}},
-			match: true,
+			ctx:      ElementContext{Path: []NameMatch{nm("doc"), nm("ins")}},
+			match:    true,
 		},
 		{
 			name:     "predicate equals attr",
@@ -74,8 +74,8 @@ func TestSelector_Matches(t *testing.T) {
 		{
 			name:     "predicate ancestor matches when present",
 			selector: "//*",
-			ctx: ElementContext{Path: []NameMatch{nm("doc"), nm("p")}},
-			match: true,
+			ctx:      ElementContext{Path: []NameMatch{nm("doc"), nm("p")}},
+			match:    true,
 		},
 	}
 	for _, tt := range tests {
@@ -149,8 +149,8 @@ func TestSelector_MatchAttribute(t *testing.T) {
 func TestParseSelector_Errors(t *testing.T) {
 	cases := []string{
 		"",
-		"foo",   // must start with /
-		"/foo[", // unterminated predicate
+		"foo",         // must start with /
+		"/foo[",       // unterminated predicate
 		"/foo[@bar=]", // missing value
 		"//*[unsupported()]",
 	}

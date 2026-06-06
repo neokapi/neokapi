@@ -12,11 +12,11 @@ func TestCompareSemver(t *testing.T) {
 		{"1.4.1", "1.4.0", 1},
 		{"1.4.0", "1.5.0", -1},
 		{"2.0.0", "1.9.9", 1},
-		{"1.4", "1.4.0", 0},          // missing patch padded with .0
-		{"1", "1.0.0", 0},            // missing minor+patch
-		{"1.4.0-rc1", "1.4.0", 0},    // pre-release ignored for ordering
-		{"1.4.0+build", "1.4.0", 0},  // build metadata ignored
-		{"1.10.0", "1.9.0", 1},       // numeric (not lexical) compare
+		{"1.4", "1.4.0", 0},         // missing patch padded with .0
+		{"1", "1.0.0", 0},           // missing minor+patch
+		{"1.4.0-rc1", "1.4.0", 0},   // pre-release ignored for ordering
+		{"1.4.0+build", "1.4.0", 0}, // build metadata ignored
+		{"1.10.0", "1.9.0", 1},      // numeric (not lexical) compare
 	}
 	for _, c := range cases {
 		if got := CompareSemver(c.a, c.b); got != c.want {

@@ -133,4 +133,3 @@ func (t *UnredactTool) handleBlock(v tool.SourceView) error {
 	delete(annotations, redaction.SecretAnnotationKey)
 	return nil
 }
-

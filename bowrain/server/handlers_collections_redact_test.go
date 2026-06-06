@@ -28,9 +28,9 @@ func TestIsSecretConnectorKey(t *testing.T) {
 
 func TestRedactConnectorConfig(t *testing.T) {
 	cfg := map[string]string{
-		"base_url": "https://wp.example.com",
-		"username": "editor",
-		"password": "hunter2",
+		"base_url":  "https://wp.example.com",
+		"username":  "editor",
+		"password":  "hunter2",
 		"api_token": "tok_live_abc123",
 	}
 	redacted, keys := redactConnectorConfig(cfg)
@@ -74,9 +74,9 @@ func TestCollectionToResponseRedactsSecrets(t *testing.T) {
 
 func TestMergeConnectorConfigPreservesSecrets(t *testing.T) {
 	existing := map[string]string{
-		"base_url": "https://old.example.com",
-		"username": "editor",
-		"password": "stored-secret",
+		"base_url":  "https://old.example.com",
+		"username":  "editor",
+		"password":  "stored-secret",
 		"api_token": "stored-token",
 	}
 

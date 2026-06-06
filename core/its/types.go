@@ -150,19 +150,19 @@ type Rule struct {
 	// LocNote payload — set when LocNotePointer / LocNoteRefPointer
 	// dereferences another node, otherwise the literal LocNoteText
 	// is used.
-	LocNoteType        LocNoteType
-	LocNoteText        string
-	LocNotePointer     string // XPath expression resolving to note text
-	LocNoteRef         string
-	LocNoteRefPointer  string
+	LocNoteType       LocNoteType
+	LocNoteText       string
+	LocNotePointer    string // XPath expression resolving to note text
+	LocNoteRef        string
+	LocNoteRefPointer string
 
 	// Term flag for termRule. true marks the matched element as a
 	// term occurrence.
-	Term            Tristate
-	TermInfoRef     string
-	TermInfoRefPtr  string
-	TermConfidence  string
-	TermInfo        string
+	Term           Tristate
+	TermInfoRef    string
+	TermInfoRefPtr string
+	TermConfidence string
+	TermInfo       string
 
 	// Domain payload for domainRule.
 	DomainPointer string

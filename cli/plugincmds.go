@@ -21,7 +21,7 @@ import (
 // when the v1 gRPC plugin runtime was deleted.
 func (a *App) NewPluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "plugin",
+		Use: "plugin",
 		// Accept "plugins" too — the plural reads naturally ("kapi plugins
 		// install") and matches how the command is referenced across the docs.
 		Aliases: []string{"plugins"},

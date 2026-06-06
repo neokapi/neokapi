@@ -249,7 +249,7 @@ func (s *scanner) skipWhitespaceAndComments() string {
 
 // scanString scans a JSON string token, handling all escape sequences.
 // The `quote` byte is the opening delimiter ('"' for standard JSON,
-// '\'' for JSON5 single-quoted strings); the same character closes the
+// '\” for JSON5 single-quoted strings); the same character closes the
 // string. The escape `\<quote>` is always recognised regardless of
 // which quote opened the string.
 func (s *scanner) scanString(prefix string, quote byte) (token, error) {
@@ -393,7 +393,7 @@ func escapeJSONString(s string, escapeSlashes bool) string {
 }
 
 // escapeJSONStringQuoted escapes a string for JSON output using the
-// given delimiter. Use '\'' for JSON5 single-quoted output so that
+// given delimiter. Use '\” for JSON5 single-quoted output so that
 // translatable values inside a single-quoted source like
 // `'foo': 'bar'` round-trip with their original quote style. Inside a
 // single-quoted string the literal `"` doesn't need escaping (and

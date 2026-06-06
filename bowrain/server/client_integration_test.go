@@ -98,11 +98,11 @@ func TestClientServerRouteSurface(t *testing.T) {
 
 	// Routes the bowrain client constructs, in the client's own terms.
 	want := []string{
-		"GET /api/v1/workspaces",         // ListWorkspaces
-		"POST /api/v1/:ws/projects",      // CreateAuthenticatedProject (the fixed route)
+		"GET /api/v1/workspaces",          // ListWorkspaces
+		"POST /api/v1/:ws/projects",       // CreateAuthenticatedProject (the fixed route)
 		"POST /api/v1/projects/anonymous", // CreateAnonymousProject
-		"POST /api/v1/projects/claim",    // ClaimProject
-		"POST /api/v1/auth/refresh",      // RefreshToken
+		"POST /api/v1/projects/claim",     // ClaimProject
+		"POST /api/v1/auth/refresh",       // RefreshToken
 		"GET /api/v1/:ws/:id/sync/:ref/pull",
 		"GET /api/v1/:ws/:id/sync/:ref/status",
 		"GET /api/v1/:ws/:id/sync/:ref/blocks",

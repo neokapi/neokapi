@@ -37,9 +37,9 @@ var pseudoRuneSet = func() map[rune]struct{} {
 // a signal that pseudo-translate ran but produced no substitutions
 // (silent no-op / dropped content / wrong filter).
 type VerifyResult struct {
-	PseudoChars  int   `json:"pseudoChars"`
-	ScannedBytes int64 `json:"scannedBytes"`
-	Verified     bool  `json:"verified"`
+	PseudoChars  int    `json:"pseudoChars"`
+	ScannedBytes int64  `json:"scannedBytes"`
+	Verified     bool   `json:"verified"`
 	Reason       string `json:"reason,omitempty"`
 }
 

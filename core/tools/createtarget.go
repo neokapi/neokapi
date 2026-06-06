@@ -9,10 +9,10 @@ import (
 
 // CreateTargetConfig holds configuration for the create-target tool.
 type CreateTargetConfig struct {
-	TargetLocale            model.LocaleID `schema:"title=Target Locale,description=Target locale to create"`                                                                  // Target locale to create (required)
-	CopySource              bool           `schema:"title=Copy Source,description=Copy the source runs into the new target"`                                                   // Whether to copy source text to target (default: false)
-	Overwrite               bool           `schema:"title=Overwrite Existing,description=Overwrite the existing target if one already exists"`                                 // Whether to overwrite existing targets (default: false)
-	CreateOnNonTranslatable bool           `schema:"title=Create on Non-Translatable,description=Create a target even for non-translatable text units,default=true"`           // Create targets on non-translatable blocks
+	TargetLocale            model.LocaleID `schema:"title=Target Locale,description=Target locale to create"`                                                        // Target locale to create (required)
+	CopySource              bool           `schema:"title=Copy Source,description=Copy the source runs into the new target"`                                         // Whether to copy source text to target (default: false)
+	Overwrite               bool           `schema:"title=Overwrite Existing,description=Overwrite the existing target if one already exists"`                       // Whether to overwrite existing targets (default: false)
+	CreateOnNonTranslatable bool           `schema:"title=Create on Non-Translatable,description=Create a target even for non-translatable text units,default=true"` // Create targets on non-translatable blocks
 }
 
 // ToolName returns the tool name this config applies to.
