@@ -6,65 +6,6 @@ import (
 	"time"
 )
 
-// AddEntry represents a single pattern added by kapi add.
-type AddEntry struct {
-	Pattern string `json:"pattern"`
-	Format  string `json:"format,omitempty"`
-	Files   int    `json:"files"`
-	Skipped bool   `json:"skipped,omitempty"`
-}
-
-// AddOutput represents the result of kapi add.
-type AddOutput struct {
-	Added []AddEntry `json:"added"`
-}
-
-func (o AddOutput) FormatText(w io.Writer) error {
-	for _, e := range o.Added {
-		if e.Skipped {
-			fmt.Fprintf(w, "Already tracked: %s\n", e.Pattern)
-			continue
-		}
-		if e.Format != "" {
-			fmt.Fprintf(w, "Added %s (%s) — %d file(s)\n", e.Pattern, e.Format, e.Files)
-		} else {
-			fmt.Fprintf(w, "Added %s — %d file(s)\n", e.Pattern, e.Files)
-		}
-	}
-	return nil
-}
-
-// RmEntry represents a single pattern processed by kapi rm.
-type RmEntry struct {
-	Pattern string `json:"pattern"`
-	Action  string `json:"action"`           // "removed", "excluded", "already_excluded"
-	Format  string `json:"format,omitempty"` // only for "removed"
-	Files   int    `json:"files,omitempty"`  // only for "excluded"
-}
-
-// RmOutput represents the result of kapi rm.
-type RmOutput struct {
-	Entries []RmEntry `json:"entries"`
-}
-
-func (o RmOutput) FormatText(w io.Writer) error {
-	for _, e := range o.Entries {
-		switch e.Action {
-		case "removed":
-			if e.Format != "" {
-				fmt.Fprintf(w, "Removed %s (was: %s)\n", e.Pattern, e.Format)
-			} else {
-				fmt.Fprintf(w, "Removed %s\n", e.Pattern)
-			}
-		case "excluded":
-			fmt.Fprintf(w, "Excluded %s — %d file(s) now excluded\n", e.Pattern, e.Files)
-		case "already_excluded":
-			fmt.Fprintf(w, "Already excluded: %s\n", e.Pattern)
-		}
-	}
-	return nil
-}
-
 // StatusOutput represents sync status.
 type StatusOutput struct {
 	Project     ProjectInfo `json:"project"`

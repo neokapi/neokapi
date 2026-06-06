@@ -147,6 +147,8 @@ func buildRoot() *cobra.Command {
 	// init scaffolds a .kapi project (recipe + state dir) with pure local file
 	// writes, so it runs in the browser against the in-memory filesystem.
 	root.AddCommand(app.NewInitCmd())
+	root.AddCommand(app.NewAddCmd())
+	root.AddCommand(app.NewRmCmd())
 	root.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	root.AddCommand(app.NewToolsCmd())
 	root.AddCommand(app.NewFormatsCmd())

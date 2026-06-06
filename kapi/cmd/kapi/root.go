@@ -75,6 +75,8 @@ func init() {
 	rootCmd.AddCommand(app.NewCheckCmd())
 	rootCmd.AddCommand(app.NewHookCmd())
 	rootCmd.AddCommand(app.NewInitCmd())
+	rootCmd.AddCommand(app.NewAddCmd())
+	rootCmd.AddCommand(app.NewRmCmd())
 
 	// Management commands.
 	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))

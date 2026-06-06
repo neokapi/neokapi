@@ -1,0 +1,95 @@
+package cli
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestAddRm_LocalRecipeEditing verifies the core `kapi add`/`kapi rm` commands
+// edit the local .kapi recipe's content collections / exclude list, and — the
+// key boundary property — preserve a platform `server:` block (unknown to the
+// framework, round-tripped via Extras) across the save.
+func TestAddRm_LocalRecipeEditing(t *testing.T) {
+	a := processOnlyApp(t)
+
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "app.kapi")
+
+	const initial = `version: v1
+name: AddRmTest
+defaults:
+  source_language: en-US
+  target_languages:
+    - fr-FR
+server:
+  url: https://example.test
+content:
+  - path: existing/*.json
+    format:
+      name: json
+`
+	require.NoError(t, os.WriteFile(recipe, []byte(initial), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(real, "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "src", "page.html"), []byte("<p>hi</p>"), 0o644))
+
+	run := func(cmd *cobra.Command, patterns ...string) (string, error) {
+		cmd.SetArgs(append(patterns, "--project", recipe))
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		err := cmd.Execute()
+		return out.String(), err
+	}
+
+	// add: a new pattern, format auto-detected from the .html extension.
+	out, err := run(a.NewAddCmd(), "src/**/*.html")
+	require.NoError(t, err)
+	assert.Contains(t, out, "src/**/*.html")
+
+	// add: an already-tracked pattern is skipped.
+	out, err = run(a.NewAddCmd(), "existing/*.json")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Already tracked")
+
+	// The recipe now tracks the new pattern with the detected format, AND the
+	// platform server: block survived the save (Extras round-trip).
+	raw, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	s := string(raw)
+	assert.Contains(t, s, "src/**/*.html")
+	assert.Contains(t, s, "html") // detected format recorded
+	assert.Contains(t, s, "server:")
+	assert.Contains(t, s, "https://example.test")
+
+	// rm: a tracked bare entry removes the mapping; server: still preserved.
+	out, err = run(a.NewRmCmd(), "src/**/*.html")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Removed")
+	raw, err = os.ReadFile(recipe)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "src/**/*.html")
+	assert.Contains(t, string(raw), "server:")
+
+	// rm: a non-tracked pattern is added to the exclude list.
+	out, err = run(a.NewRmCmd(), "legacy/*.md")
+	require.NoError(t, err)
+	assert.Contains(t, out, "Excluded")
+	raw, err = os.ReadFile(recipe)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "legacy/*.md")
+
+	// No project found is an actionable error.
+	noProj := a.NewAddCmd()
+	noProj.SetArgs([]string{"x/*.json", "--project", filepath.Join(real, "missing.kapi")})
+	noProj.SetOut(&bytes.Buffer{})
+	noProj.SetErr(&bytes.Buffer{})
+	require.Error(t, noProj.Execute())
+}
