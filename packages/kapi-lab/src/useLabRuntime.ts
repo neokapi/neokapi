@@ -94,11 +94,17 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
   const [error, setError] = useState<string | null>(null);
   const runtimeRef = useRef<KapiRuntime | null>(null);
 
+  // Key the boot on the URL *strings*, not the `assets` object identity — a
+  // caller that returns a fresh config object every render would otherwise re-run
+  // this effect forever (setStatus → re-render → new object → re-run), which
+  // pegs the tab ("Maximum update depth"). The strings are stable.
+  const wasmExecUrl = assets?.wasmExecUrl;
+  const wasmUrl = assets?.wasmUrl;
   useEffect(() => {
-    if (!assets) return;
+    if (!wasmExecUrl || !wasmUrl) return;
     let cancelled = false;
     setStatus("booting");
-    bootKapiRuntime(assets.wasmExecUrl, assets.wasmUrl)
+    bootKapiRuntime(wasmExecUrl, wasmUrl)
       .then((rt) => {
         if (cancelled) return;
         runtimeRef.current = rt;
@@ -112,7 +118,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     return () => {
       cancelled = true;
     };
-  }, [assets]);
+  }, [wasmExecUrl, wasmUrl]);
 
   const mkdir = useCallback((path: string): void => {
     const rt = runtimeRef.current;
