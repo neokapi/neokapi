@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Import from the light /runtime subpath (not the package index) so we don't
 // pull xterm / the modal into explorer bundles — explorers never show a terminal.
 import { bootKapiRuntime } from "@neokapi/kapi-playground/runtime";
@@ -231,19 +231,39 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     return rt.klf(req);
   }, []);
 
-  return {
-    status,
-    error,
-    ready: status === "ready",
-    mkdir,
-    writeFile,
-    inspect,
-    inspectAnnotated,
-    trace,
-    run,
-    runCapture,
-    readFile,
-    readBytes,
-    klf,
-  };
+  // Memoize the returned object: every method is useCallback-stable, so the
+  // identity changes only when status/error change. Without this, consumers
+  // that put the whole `runtime` in an effect's dep array re-run that effect
+  // every render → "Maximum update depth exceeded".
+  return useMemo(
+    () => ({
+      status,
+      error,
+      ready: status === "ready",
+      mkdir,
+      writeFile,
+      inspect,
+      inspectAnnotated,
+      trace,
+      run,
+      runCapture,
+      readFile,
+      readBytes,
+      klf,
+    }),
+    [
+      status,
+      error,
+      mkdir,
+      writeFile,
+      inspect,
+      inspectAnnotated,
+      trace,
+      run,
+      runCapture,
+      readFile,
+      readBytes,
+      klf,
+    ],
+  );
 }
