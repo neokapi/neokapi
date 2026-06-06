@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, Upload } from "lucide-react";
 import { TRY_SAMPLES, getFixture } from "@neokapi/kapi-playground";
 import { useLabRuntime, type LabRuntime, type ContentTree } from "@neokapi/kapi-lab";
 import FileBrowser, { type BrowserFile } from "@neokapi/kapi-lab/FileBrowser";
@@ -9,15 +9,16 @@ import styles from "./styles.module.css";
 
 // The modal is ONE coherent surface: a FileBrowser of real sample files across
 // formats (pptx · xlsx · md · json · html) backed by live extraction, and a
-// DocumentViewer for the selected file. Everything is driven by the REAL kapi
-// WASM engine booted on modal open:
+// DocumentViewer for the selected file. It is driven by the REAL kapi WASM
+// engine booted on modal open, but the engine work is split by cost:
 //
-//   • `inspectAnnotated` parses the file AND runs the read-only annotators
-//     (vocabulary terms, brand violations, rule-based QA) so the viewer can
-//     highlight them on the rendered document.
-//   • a real pseudo-translate run produces an fr-FR target, which we merge back
-//     onto the annotated source tree so the viewer's source↔target toggle (with
-//     the typewriter / crossfade transition) reflects a genuine transform.
+//   • On boot, each sample is parsed once with `inspect`; the parsed tree backs
+//     both its grid thumbnail AND its viewer — so OPENING a file is instant and
+//     does no new engine work (it can never hang).
+//   • Annotate + translate is an explicit, on-demand action in the detail bar:
+//     `inspectAnnotated` adds the read-only annotator overlays (vocabulary,
+//     brand, rule-based QA) and a real pseudo-translate run produces an fr-FR
+//     target merged back on, lighting up the viewer's source↔target toggle.
 //
 // Download (source + transformed) and a "your own files" drop entry round it
 // out. The old Showcase / RealProof / OwnFiles panel-soup is gone — this single
@@ -48,13 +49,16 @@ const SAMPLE_SOURCES: SampleSource[] = [
   textSample("html", "page.html"),
 ];
 
-// A file ready to show in the viewer: the annotated source tree (with overlays
-// AND a merged fr-FR target), plus the original bytes for Download.
+// A file ready to show in the viewer: the parsed source tree (from the boot
+// inspect we already ran for the thumbnail), plus the original bytes for
+// Download. `enriched` flips once the on-demand annotate + translate has run, so
+// the tree then also carries overlays and a merged fr-FR target.
 interface ViewerFile {
   id: string;
   filename: string;
   tree: ContentTree;
   bytes: Uint8Array;
+  enriched?: boolean;
 }
 
 // Merge an output extraction's per-block source runs onto the source tree as a
@@ -128,6 +132,7 @@ export default function ModalBody(): React.ReactElement {
   const [busy, setBusy] = useState(true);
   const [opened, setOpened] = useState<ViewerFile | null>(null);
   const [openBusy, setOpenBusy] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   // Cache resolved bytes by browser-file id so opening doesn't re-decode.
@@ -162,70 +167,63 @@ export default function ModalBody(): React.ReactElement {
     };
   }, [runtime.ready, runtime]);
 
-  const open = useCallback(
-    async (id: string, filename: string, bytes: Uint8Array) => {
+  // Opening a thumbnail is INSTANT and does zero new engine work: the grid
+  // already holds the parsed tree from the boot inspect, so we just show it in
+  // the viewer. The heavy annotate + translate is an explicit action (below) so
+  // it can never freeze the open.
+  const onSelect = useCallback((f: BrowserFile) => {
+    const id = f.id ?? f.filename;
+    const bytes = bytesById.current.get(id) ?? f.bytes ?? new Uint8Array();
+    setErr(null);
+    setOpened({ id, filename: f.filename, tree: f.tree, bytes });
+  }, []);
+
+  // A dropped own-file has no cached tree yet, so it needs a single inspect (the
+  // same fast read-only parse the grid runs) before we can show it.
+  const onDrop = useCallback(
+    async (file: File) => {
       if (!runtime.ready) return;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const id = `own:${file.name}`;
+      bytesById.current.set(id, bytes);
       setErr(null);
       setOpenBusy(true);
-      // 1. Fast first paint using the SAME read-only inspect the grid thumbnails
-      //    already run for every sample — so opening a file can never hang on the
-      //    slow transform path.
       try {
-        const base = await runtime.inspect(filename, bytes);
-        if (!base.ok || !base.tree) throw new Error(base.error ?? "inspect failed");
-        setOpened({ id, filename, tree: base.tree, bytes });
+        const res = await runtime.inspect(file.name, bytes);
+        if (!res.ok || !res.tree) throw new Error(res.error ?? "inspect failed");
+        setOpened({ id, filename: file.name, tree: res.tree, bytes });
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
+      } finally {
         setOpenBusy(false);
-        return;
       }
-      setOpenBusy(false);
-      // 2. Background enrich, applied in two independent steps so a slow target
-      //    transform can never hide the annotations:
-      //      (a) overlays — re-inspect with the read-only annotators;
-      //      (b) a real fr target — pseudo-translate round-trip merged back on.
-      //    Deferred to a macrotask (setTimeout) — not just a microtask — so the
-      //    source view paints first AND the Go(wasm) scheduler gets event-loop
-      //    time between the heavy ops instead of starving behind a microtask
-      //    chain (which froze the tab).
-      setTimeout(() => {
-        void runtime
-          .inspectAnnotated(filename, bytes)
-          .then((annotated) => {
-            const annotatedTree = annotated.ok && annotated.tree ? annotated.tree : null;
-            if (annotatedTree) {
-              setOpened((cur) => (cur && cur.id === id ? { ...cur, tree: annotatedTree } : cur));
-            }
-            return pseudoTargetTree(runtime, filename, bytes, annotatedTree);
-          })
-          .then((merged) => {
-            if (merged) setOpened((cur) => (cur && cur.id === id ? { ...cur, tree: merged } : cur));
-          })
-          .catch(() => {
-            /* keep the source-only view already on screen */
-          });
-      }, 0);
     },
     [runtime],
   );
 
-  const onSelect = useCallback(
-    (f: BrowserFile) => {
-      const bytes = bytesById.current.get(f.id ?? f.filename) ?? f.bytes ?? new Uint8Array();
-      void open(f.id ?? f.filename, f.filename, bytes);
-    },
-    [open],
-  );
-
-  const onDrop = useCallback(
-    async (file: File) => {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const id = `own:${file.name}`;
-      bytesById.current.set(id, bytes);
-      void open(id, file.name, bytes);
-    },
-    [open],
-  );
+  // On-demand enrichment for the open file: run the read-only annotators
+  // (overlays) then a real fr pseudo-translate target, merging both onto the
+  // tree. Explicit + spinner-backed so the heavy work is observable and contained
+  // — opening a file stays instant regardless.
+  const enrich = useCallback(async () => {
+    const cur = opened;
+    if (!cur || !runtime.ready || enriching || cur.enriched) return;
+    setErr(null);
+    setEnriching(true);
+    try {
+      const annotated = await runtime.inspectAnnotated(cur.filename, cur.bytes);
+      const annotatedTree = annotated.ok && annotated.tree ? annotated.tree : cur.tree;
+      setOpened((o) => (o && o.id === cur.id ? { ...o, tree: annotatedTree } : o));
+      const merged = await pseudoTargetTree(runtime, cur.filename, cur.bytes, annotatedTree);
+      setOpened((o) =>
+        o && o.id === cur.id ? { ...o, tree: merged ?? annotatedTree, enriched: true } : o,
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnriching(false);
+    }
+  }, [opened, runtime, enriching]);
 
   const status = useMemo(() => {
     if (runtime.status === "error") return `Engine failed to start: ${runtime.error}`;
@@ -250,10 +248,30 @@ export default function ModalBody(): React.ReactElement {
           <button type="button" className={styles.backBtn} onClick={() => setOpened(null)}>
             <ArrowLeft size={15} aria-hidden="true" /> All files
           </button>
-          <span className={styles.detailHint}>
-            Live extraction · vocabulary, brand &amp; QA annotations · real pseudo-translate target
+          <span className={styles.detailHint} style={{ marginInlineEnd: "auto" }}>
+            {opened.enriched
+              ? "Vocabulary, brand & QA annotations · real pseudo-translate target"
+              : "Live extraction — annotate & translate to see overlays and an fr target"}
           </span>
+          <button
+            type="button"
+            className={styles.dropBtn}
+            onClick={() => void enrich()}
+            disabled={enriching || opened.enriched}
+          >
+            {enriching ? (
+              <Loader2 size={15} aria-hidden="true" className="animate-spin" />
+            ) : (
+              <Sparkles size={15} aria-hidden="true" />
+            )}
+            {opened.enriched
+              ? "Annotated & translated"
+              : enriching
+                ? "Running the engine…"
+                : "Annotate & translate (fr)"}
+          </button>
         </div>
+        {err && <p className={styles.showcaseError}>Could not run: {err}</p>}
         <DocumentViewer tree={opened.tree} filename={opened.filename} bytes={opened.bytes} />
       </div>
     );
