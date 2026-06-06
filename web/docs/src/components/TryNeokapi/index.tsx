@@ -1,6 +1,12 @@
 import React, { Suspense, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@neokapi/ui-primitives";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@neokapi/ui-primitives";
 import Carousel from "./Carousel";
 import styles from "./styles.module.css";
 
@@ -49,11 +55,13 @@ export default function TryNeokapi(): React.ReactElement {
                   Read, change, and ship content in any format.
                 </span>
               </DialogTitle>
-              <p className={styles.modalSub}>
-                One engine reads the translatable text out of any document, annotates and transforms
-                it, and writes the file back — faithfully. Pick a file below: this runs the real kapi
-                engine in your browser, live, across every format.
-              </p>
+              <DialogDescription asChild>
+                <p className={styles.modalSub}>
+                  One engine reads the translatable text out of any document, annotates and
+                  transforms it, and writes the file back — faithfully. Pick a file below: this runs
+                  the real kapi engine in your browser, live, across every format.
+                </p>
+              </DialogDescription>
             </div>
           </DialogHeader>
           {open && <ModalBodyClient />}

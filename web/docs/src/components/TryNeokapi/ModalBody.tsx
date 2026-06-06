@@ -77,48 +77,45 @@ function mergeTarget(source: ContentTree, output: ContentTree, locale: string): 
     const targetRuns = out?.source;
     return {
       ...n,
-      ...(targetRuns ? { targets: { ...(n.targets ?? {}), [locale]: targetRuns } } : {}),
+      ...(targetRuns ? { targets: { ...n.targets, [locale]: targetRuns } } : {}),
     };
   };
   return { ...source, root: source.root.map(clone) };
 }
 
-// Inspect a file with annotations on, run a real pseudo-translate to fr, inspect
-// the output, and merge the target back. Returns a ViewerFile ready to render.
-async function buildViewerFile(
+// Run a real pseudo-translate to fr against `baseTree`, inspect the output, and
+// merge the target runs back onto `baseTree`. This is the SLOW path — a full
+// transform round-trip (a binary OOXML write for Office files) — so it runs in
+// the background AFTER the document (and its overlays) are already on screen.
+// Any failure returns null, so a slow or unsupported transform never blocks (or
+// hangs) opening the file.
+async function pseudoTargetTree(
   rt: LabRuntime,
-  id: string,
   filename: string,
   bytes: Uint8Array,
-): Promise<ViewerFile> {
-  const annotated = await rt.inspectAnnotated(filename, bytes);
-  if (!annotated.ok || !annotated.tree) {
-    throw new Error(annotated.error ?? "inspect failed");
-  }
-  let tree = annotated.tree;
-
-  // Real transform: pseudo-translate produces a deterministic fr-flavored
-  // target through the canonical engine (no network, no LLM).
-  rt.writeFile(filename, bytes);
-  const out = `out-${filename}`;
-  const code = await rt.run([
-    "pseudo-translate",
-    `/project/${filename}`,
-    "-o",
-    `/project/${out}`,
-    "--target-lang",
-    "fr",
-  ]);
-  if (code === 0) {
+  baseTree: ContentTree | null,
+): Promise<ContentTree | null> {
+  if (!baseTree) return null;
+  try {
+    rt.writeFile(filename, bytes);
+    const out = `out-${filename}`;
+    const code = await rt.run([
+      "pseudo-translate",
+      `/project/${filename}`,
+      "-o",
+      `/project/${out}`,
+      "--target-lang",
+      "fr",
+    ]);
+    if (code !== 0) return null;
     const outBytes = rt.readBytes(`/project/${out}`);
-    if (outBytes) {
-      const outRes = await rt.inspect(out, outBytes);
-      if (outRes.ok && outRes.tree) {
-        tree = mergeTarget(tree, outRes.tree, TARGET_LOCALE);
-      }
-    }
+    if (!outBytes) return null;
+    const outRes = await rt.inspect(out, outBytes);
+    if (!outRes.ok || !outRes.tree) return null;
+    return mergeTarget(baseTree, outRes.tree, TARGET_LOCALE);
+  } catch {
+    return null;
   }
-  return { id, filename, tree, bytes };
 }
 
 export default function ModalBody(): React.ReactElement {
@@ -151,12 +148,14 @@ export default function ModalBody(): React.ReactElement {
         if (cancelled) return;
         if (res.ok && res.tree) {
           out.push({ id: s.id, filename: s.filename, tree: res.tree, bytes });
+          // Reveal the grid progressively as each sample is parsed, so the modal
+          // shows a populated grid (not a long blank "extracting…") while the
+          // remaining samples stream in.
+          setFiles([...out]);
+          setBusy(false);
         }
       }
-      if (!cancelled) {
-        setFiles(out);
-        setBusy(false);
-      }
+      if (!cancelled) setBusy(false);
     })();
     return () => {
       cancelled = true;
@@ -168,14 +167,44 @@ export default function ModalBody(): React.ReactElement {
       if (!runtime.ready) return;
       setErr(null);
       setOpenBusy(true);
+      // 1. Fast first paint using the SAME read-only inspect the grid thumbnails
+      //    already run for every sample — so opening a file can never hang on the
+      //    slow transform path.
       try {
-        const vf = await buildViewerFile(runtime, id, filename, bytes);
-        setOpened(vf);
+        const base = await runtime.inspect(filename, bytes);
+        if (!base.ok || !base.tree) throw new Error(base.error ?? "inspect failed");
+        setOpened({ id, filename, tree: base.tree, bytes });
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
-      } finally {
         setOpenBusy(false);
+        return;
       }
+      setOpenBusy(false);
+      // 2. Background enrich, applied in two independent steps so a slow target
+      //    transform can never hide the annotations:
+      //      (a) overlays — re-inspect with the read-only annotators;
+      //      (b) a real fr target — pseudo-translate round-trip merged back on.
+      //    Deferred to a macrotask (setTimeout) — not just a microtask — so the
+      //    source view paints first AND the Go(wasm) scheduler gets event-loop
+      //    time between the heavy ops instead of starving behind a microtask
+      //    chain (which froze the tab).
+      setTimeout(() => {
+        void runtime
+          .inspectAnnotated(filename, bytes)
+          .then((annotated) => {
+            const annotatedTree = annotated.ok && annotated.tree ? annotated.tree : null;
+            if (annotatedTree) {
+              setOpened((cur) => (cur && cur.id === id ? { ...cur, tree: annotatedTree } : cur));
+            }
+            return pseudoTargetTree(runtime, filename, bytes, annotatedTree);
+          })
+          .then((merged) => {
+            if (merged) setOpened((cur) => (cur && cur.id === id ? { ...cur, tree: merged } : cur));
+          })
+          .catch(() => {
+            /* keep the source-only view already on screen */
+          });
+      }, 0);
     },
     [runtime],
   );

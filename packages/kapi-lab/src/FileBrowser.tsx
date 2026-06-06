@@ -92,7 +92,7 @@ export default function FileBrowser({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col rounded-lg border">
+        <div className="flex flex-col rounded-lg border border-border">
           {files.map((f) => (
             <ListRow
               key={fileId(f)}
@@ -138,24 +138,40 @@ function GridCard({
   active: boolean;
   onClick: () => void;
 }): React.ReactElement {
+  const ft = fileType(file.filename);
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-2 rounded-lg border bg-card p-2 text-left transition-colors hover:border-primary/60",
+        // One themed border that frames the preview itself (no inner box, no
+        // bare `border` — which falls back to currentColor/black outside a
+        // Tailwind-preflight host). The preview fills the frame.
+        "group relative block aspect-[4/3] overflow-hidden rounded-lg border border-border bg-background text-left transition-colors hover:border-primary/60",
         active && "border-primary ring-1 ring-primary/40",
       )}
     >
-      <div className="pointer-events-none max-h-32 overflow-hidden rounded-md border bg-background p-1">
-        <FormatPreview tree={file.tree} annotations={false} className="scale-90 origin-top-left" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden p-2">
+        <FormatPreview tree={file.tree} annotations={false} className="w-full origin-top-left" />
       </div>
-      <Meta file={file} />
-      {file.bytes && (
-        <span className="text-[10px] tabular-nums text-muted-foreground">
-          {formatBytes(file.bytes.length)}
+      {/* File metadata as a blurred overlay pinned to the bottom of the preview. */}
+      <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 border-t border-border/40 bg-card/70 px-2 py-1.5 backdrop-blur-md">
+        <FileIcon filename={file.filename} size={14} />
+        <span className="truncate font-mono text-xs" title={file.filename}>
+          {file.filename}
         </span>
-      )}
+        <Badge
+          variant="outline"
+          className={cn("ml-auto shrink-0 border-current/35 text-[10px]", ft.colorClass)}
+        >
+          {ft.label}
+        </Badge>
+        {file.bytes && (
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {formatBytes(file.bytes.length)}
+          </span>
+        )}
+      </div>
     </button>
   );
 }
@@ -174,11 +190,11 @@ function ListRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 border-b px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-muted/40",
+        "flex items-center gap-3 border-b border-border px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-muted/40",
         active && "bg-muted/60",
       )}
     >
-      <div className="pointer-events-none h-12 w-20 shrink-0 overflow-hidden rounded border bg-background p-0.5">
+      <div className="pointer-events-none h-12 w-20 shrink-0 overflow-hidden rounded border border-border bg-background p-0.5">
         <FormatPreview
           tree={file.tree}
           annotations={false}
