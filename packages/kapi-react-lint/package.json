@@ -51,13 +51,13 @@
     "check": "vp run typecheck && vp run lint && vp run fmt:check && vp run test"
   },
   "devDependencies": {
-    "@oxlint/plugins": "^1.66.0",
+    "@oxlint/plugins": "^1.68.0",
     "@types/estree": "^1.0.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.2",
     "esbuild": "^0.28.0",
     "eslint": "^10.0.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0"
