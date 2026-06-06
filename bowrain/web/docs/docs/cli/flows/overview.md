@@ -21,11 +21,12 @@ formats, see the neokapi reference:
 
 ## Flows in a synced project
 
-In a Bowrain project, a flow reads the files matching the recipe's `content:`
-collections, streams their blocks through the tools in order, and writes the
-results back to your local files. You then [`kapi push`](/cli/commands/push)
-those changes to the server like any other edit. The flow itself runs locally —
-it does not touch the server until you push.
+In a Bowrain project, a flow reads the source files, streams their blocks through
+the tools in order, and — with no `-o` — commits the results to the project store
+as overlays (a *process-only* run); `kapi merge` then materializes the localized
+files (pass `-o` to write a file directly instead). You then
+[`kapi push`](/cli/commands/push) those changes to the server like any other
+edit. The flow itself runs locally — it does not touch the server until you push.
 
 ## Built-in flows
 

@@ -73,6 +73,11 @@ The recipe holds the target locales and the output layout, so later steps need n
 flags. (`extract` also still emits bilingual XLIFF/PO for a `.kapi` project — the
 `.klz` form is the ad-hoc, no-project path.)
 
+By default the `.klz` carries each source's **identity + round-trip skeleton**
+(enough to merge), not the raw bytes — so it stays small and doesn't duplicate
+git-tracked source. Add `--with-source` to embed the raw originals too, for a
+fully self-contained archive you can re-extract from offline.
+
 ## Transform — run tools in place
 
 Running a tool or flow **on** a `.klz` transforms the workspace: it appends the

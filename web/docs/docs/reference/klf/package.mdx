@@ -96,6 +96,14 @@ demand, and it excludes secrets (the sync claim token). This is what makes the
 package the at-rest twin of the sync wire format: packing is the sync converters
 writing files instead of protobuf, and unpacking is the inverse.
 
+Raw source bytes are also excluded by default: a `.klz` carries each source's
+**identity (path, format, content hash) + round-trip skeleton** — enough to merge —
+but not the originals, so it doesn't duplicate git-tracked source. Pass
+`--with-source` to `kapi extract` / `kapi pack` to embed the raw bytes too (needed
+to re-extract offline). And `kapi pack` **refuses to write a content-less `.klz`**
+(a project with nothing extracted/translated yet) — like `git bundle` refusing an
+empty bundle; share the `.kapi` recipe via git instead.
+
 ## Working state: hand-off and resume
 
 A `.klz` is not only an at-rest snapshot of finished content — it can also carry

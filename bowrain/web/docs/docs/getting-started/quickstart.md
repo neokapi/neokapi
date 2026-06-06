@@ -51,7 +51,7 @@ kapi automatically:
 
 - Reads files matching your recipe's `content:` collections
 - Translates from source to target locales
-- Writes results back to local files
+- Commits translations to the project store (run `kapi merge` to write local files, or `kapi push` to send them to the server)
 
 ### Sync with Bowrain Server
 

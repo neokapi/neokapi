@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T13:50:52Z",
+  "generatedAt": "2026-06-06T08:10:41Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -90,6 +90,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -226,6 +232,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -356,6 +368,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -476,6 +494,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -621,6 +645,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -725,6 +755,11 @@
           "type": "string"
         },
         {
+          "name": "input-text",
+          "usage": "text to check (use \"-\" or omit to read stdin)",
+          "type": "string"
+        },
+        {
           "name": "json",
           "usage": "output results as JSON",
           "default": "false",
@@ -776,11 +811,6 @@
         {
           "name": "provider",
           "usage": "AI provider (default: anthropic)",
-          "type": "string"
-        },
-        {
-          "name": "text",
-          "usage": "text to check (use \"-\" or omit to read stdin)",
           "type": "string"
         }
       ],
@@ -1113,6 +1143,11 @@
           "type": "string"
         },
         {
+          "name": "input-text",
+          "usage": "text to rewrite (use \"-\" or omit to read stdin)",
+          "type": "string"
+        },
+        {
           "name": "json",
           "usage": "output results as JSON",
           "default": "false",
@@ -1158,11 +1193,6 @@
         {
           "name": "provider",
           "usage": "AI provider (default: anthropic)",
-          "type": "string"
-        },
-        {
-          "name": "text",
-          "usage": "text to rewrite (use \"-\" or omit to read stdin)",
           "type": "string"
         }
       ],
@@ -1329,6 +1359,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -1467,6 +1503,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -1579,6 +1621,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1704,6 +1752,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -1815,6 +1869,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2037,6 +2097,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -2169,6 +2235,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -2263,6 +2335,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -2308,13 +2386,13 @@
         "extract"
       ],
       "use": "extract",
-      "short": "Emit XLIFF 2.x (or PO) bilingual files for a translator",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory (AD-017).\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+      "short": "Emit a bilingual file for a translator — native .klz or XLIFF/PO",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
       "groupID": "content",
       "flags": [
         {
           "name": "format",
-          "usage": "bilingual output format (xliff2 | po)",
+          "usage": "bilingual output format (xliff2 | po | klz)",
           "default": "xliff2",
           "type": "string"
         },
@@ -2330,9 +2408,20 @@
           "type": "string"
         },
         {
+          "name": "out",
+          "usage": "merge-time output layout recorded in the .klz (e.g. 'l10n/{lang}/{name}.{ext}')",
+          "type": "string"
+        },
+        {
           "name": "out-dir",
           "usage": "directory for emitted bilingual files (relative to project)",
           "default": "out",
+          "type": "string"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "write an ad-hoc .klz workspace from the given source files",
           "type": "string"
         },
         {
@@ -2363,6 +2452,12 @@
           "type": "string"
         },
         {
+          "name": "with-source",
+          "usage": "embed raw source bytes in the .klz (default: identity + skeleton only)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "xliff-version",
           "usage": "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)",
           "type": "string"
@@ -2371,7 +2466,8 @@
       "examples": [
         "kapi extract -p app.kapi --no-tm",
         "kapi extract -p app.kapi --target-lang fr",
-        "kapi extract -p app.kapi --target-lang fr,de,es"
+        "kapi extract -p app.kapi --target-lang fr,de,es",
+        "kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -2550,6 +2646,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -2685,6 +2787,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2901,6 +3009,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -2962,8 +3076,8 @@
         "merge"
       ],
       "use": "merge",
-      "short": "Apply a translator's XLIFF back onto the project source",
-      "long": "Apply one or more bilingual files returned by a translator back onto\nthe project's source locales, using the skeleton captured by kapi\nextract (AD-017).\n\nEach input carries the extraction batch id in a file-level \u003cnote\u003e, so\nmerge finds the right extraction manifest without guessing from the\nfilename. Mixed target locales in one batch are fine — merge handles\neach input independently.",
+      "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source",
+      "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
       "groupID": "content",
       "flags": [
         {
@@ -2986,6 +3100,12 @@
           "type": "bool"
         },
         {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output directory or template when merging a .klz workspace",
+          "type": "string"
+        },
+        {
           "name": "project",
           "shorthand": "p",
           "usage": "path to a .kapi project recipe (auto-discovered from cwd if omitted)",
@@ -2993,9 +3113,11 @@
         }
       ],
       "examples": [
+        "kapi merge                     # materialize localized files from the project store",
         "kapi merge -i out/app.en-US-to-fr-FR.xliff",
         "kapi merge -i file1.xliff -i file2.xliff",
-        "kapi merge -i vendor-return/ --no-tm-update"
+        "kapi merge -i vendor-return/ --no-tm-update",
+        "kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -3080,6 +3202,12 @@
           "name": "output-dir",
           "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "parallel-blocks",
@@ -3217,6 +3345,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -3352,6 +3486,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -3457,6 +3597,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3822,6 +3968,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -4084,6 +4236,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -4208,6 +4366,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -4377,6 +4541,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -4455,6 +4625,12 @@
           "type": "string"
         },
         {
+          "name": "explain",
+          "usage": "print the resolved source → sink bindings and exit without running",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "format",
           "shorthand": "f",
           "usage": "override input format detection",
@@ -4477,6 +4653,12 @@
           "shorthand": "o",
           "usage": "output path or template (e.g. ./out/{name}_{lang}.{ext})",
           "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "parallel-blocks",
@@ -4588,6 +4770,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -4710,6 +4898,12 @@
           "name": "output-dir",
           "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "parallel-blocks",
@@ -4846,6 +5040,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -4964,6 +5164,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -5107,6 +5313,12 @@
         {
           "name": "overwrite-segmentation",
           "usage": "Re-segment already-segmented blocks replacing previous segmentation",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -5472,6 +5684,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -6427,6 +6645,12 @@
           "type": "string"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -6606,6 +6830,12 @@
           "type": "bool"
         },
         {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "parallel-blocks",
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
@@ -6708,6 +6938,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -6910,6 +7146,12 @@
         {
           "name": "no-warn",
           "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
           "default": "false",
           "type": "bool"
         },

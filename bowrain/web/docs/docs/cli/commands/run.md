@@ -16,7 +16,7 @@ kapi flows
 
 ## Description
 
-The `kapi run` command executes a named multi-step processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
+The `kapi run` command executes a named multi-step processing pipeline. Where content comes from and goes to is a binding: a source is read, streamed through each tool, and written to the sink. Ad-hoc, the sink is a file (`-o`); inside a project with no `-o`, the run is *process-only* — it commits results to the project store and `kapi merge` materializes the files. Multiple input files can be processed in parallel. Use `--explain` to print the resolved `source → sink` without running.
 
 **Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for the bowrain plugin.
 
@@ -62,7 +62,8 @@ kapi tools
 | Flag            | Short | Description                                                  |
 | --------------- | ----- | ------------------------------------------------------------ |
 | `--input`       | `-i`  | Input file path(s); repeat for multiple files (required)     |
-| `--output`      | `-o`  | Output file path (single-file mode only)                     |
+| `--output`      | `-o`  | Output file path (single-file mode); omit in a project for a process-only run to the store |
+| `--explain`     |       | Print the resolved `source → sink` bindings and exit without running |
 | `--format`      | `-f`  | Override input format detection                              |
 | `--encoding`    | `-e`  | Input encoding (default: UTF-8)                              |
 | `--source-lang` |       | Source language, BCP 47 (default: en)                        |
@@ -112,7 +113,9 @@ kapi run translate-review
 ```
 
 Project flows automatically use the recipe's content collections and locale defaults.
-No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
+No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`. A
+project run is process-only — results land in the project store; run
+[`kapi merge`](/cli/commands/merge) to write the localized files.
 
 ## Built-in Composed Flows
 

@@ -154,6 +154,17 @@ The framework has no built-in notion of a server: `server:` (and `hooks:`, `auto
 
 Each entry under `content:` is a content collection. Bare entries are single-pattern collections; named collections group multiple items together.
 
+You can edit `content:` by hand, or with the core `kapi` commands (no bowrain plugin required — they only touch the local recipe):
+
+```bash
+kapi add "src/**/*.json" --format json   # append a content pattern (format auto-detected)
+kapi rm  "src/legacy/*.json"             # remove the mapping, or add to the exclude list
+kapi ls                                  # list the files the content tracks
+kapi ls --stats                          # …with per-file block and word counts
+```
+
+`add`/`rm`/`ls` are framework commands; sync state (changed-vs-server) is [`kapi status`](/cli/commands/status).
+
 ```yaml
 content:
   # Bare entry — single source pattern

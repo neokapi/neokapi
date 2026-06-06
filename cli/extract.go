@@ -40,7 +40,7 @@ type ExtractCmdOptions struct{}
 func (a *App) NewExtractCmd(_ ExtractCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",
-		Short:   "Emit XLIFF 2.x (or PO) bilingual files for a translator",
+		Short:   "Emit a bilingual file for a translator — native .klz or XLIFF/PO",
 		GroupID: "content",
 		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
 declared in a .kapi project, pre-filled from the project's translation

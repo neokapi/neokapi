@@ -79,7 +79,7 @@ type MergeCmdOptions struct{}
 func (a *App) NewMergeCmd(_ MergeCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "merge",
-		Short:   "Apply a translator's XLIFF back onto the project source",
+		Short:   "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source",
 		GroupID: "content",
 		Long: `Materialize localized files for a project, or apply bilingual files
 returned by a translator back onto the project's source locales.
