@@ -46,7 +46,7 @@ func (r *stubReader) Open(ctx context.Context, doc *model.RawDocument) error {
 	return errors.New(
 		"exec format is declarative — configure a collection's format: " +
 			"{ name: exec, config: { command: ... } } in a .kapi project, " +
-			"then run `kapi extract -p project.kapi` (Framework AD-002)",
+			"then run `kapi extract -p project.kapi`",
 	)
 }
 

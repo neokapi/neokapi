@@ -44,7 +44,7 @@ func (a *App) NewExtractCmd(_ ExtractCmdOptions) *cobra.Command {
 		GroupID: "content",
 		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
 declared in a .kapi project, pre-filled from the project's translation
-memory (AD-017).
+memory.
 
 Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/
 plus one bilingual file per source → target pair in --out-dir (default "out/").`,
