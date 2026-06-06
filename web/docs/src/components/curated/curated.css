@@ -67,6 +67,54 @@
   margin: 0;
 }
 
+/* ── Raw-text fallback (unparseable / .kapi files) with syntax highlight ──── */
+
+.kapi-cur-raw {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--ifm-code-background, var(--ifm-color-emphasis-100, #f6f7f8));
+  border: 1px solid var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  border-radius: var(--ifm-global-radius, 8px);
+  font-family: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+/* Token colours emitted by @neokapi/kapi-playground/syntax HighlightedCode. */
+.kapi-cur-raw .kapi-pg-hl-text {
+  color: inherit;
+}
+.kapi-cur-raw .kapi-pg-hl-key,
+.kapi-cur-raw .kapi-pg-hl-tag {
+  color: var(--ifm-color-primary, #2e8555);
+}
+.kapi-cur-raw .kapi-pg-hl-attr,
+.kapi-cur-raw .kapi-pg-hl-section,
+.kapi-cur-raw .kapi-pg-hl-heading {
+  color: var(--ifm-color-warning-dark, #b07b00);
+  font-weight: 600;
+}
+.kapi-cur-raw .kapi-pg-hl-string {
+  color: var(--ifm-color-danger-dark, #c0392b);
+}
+.kapi-cur-raw .kapi-pg-hl-number,
+.kapi-cur-raw .kapi-pg-hl-boolean,
+.kapi-cur-raw .kapi-pg-hl-null {
+  color: var(--ifm-color-info-dark, #2877c0);
+}
+.kapi-cur-raw .kapi-pg-hl-comment,
+.kapi-cur-raw .kapi-pg-hl-meta {
+  color: var(--ifm-color-emphasis-500, #898d92);
+  font-style: italic;
+}
+.kapi-cur-raw .kapi-pg-hl-punct {
+  color: var(--ifm-color-emphasis-600, #606770);
+}
+
 /* ── Loading state (mirrors the kit's spinner copy) ──────────────────────── */
 
 .kapi-cur-loading {

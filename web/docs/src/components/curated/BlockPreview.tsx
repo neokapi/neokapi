@@ -39,7 +39,26 @@ export interface BlockPreviewProps {
 const LazyBlockPreview = React.lazy(async () => {
   const { useCuratedRuntime } = await import("./useCuratedRuntime");
   const { ensureSample, resolveInCwd } = await import("./seed");
+  const { HighlightedCode } = await import("@neokapi/kapi-playground/syntax.tsx");
   type PreviewResult = import("./useCuratedRuntime").PreviewResult;
+  type KapiRuntime = import("./useCuratedRuntime").KapiRuntime;
+
+  // Read a file's bytes and decode as UTF-8; flag binary content (NUL byte or a
+  // failed strict decode) so we show "download to view" rather than garbage.
+  function readRaw(rt: KapiRuntime, path: string): { text: string; binary: boolean; error?: string } {
+    let bytes: Uint8Array;
+    try {
+      bytes = rt.vol.readFile(path);
+    } catch (e) {
+      return { text: "", binary: false, error: e instanceof Error ? e.message : String(e) };
+    }
+    if (bytes.includes(0)) return { text: "", binary: true };
+    try {
+      return { text: new TextDecoder("utf-8", { fatal: true }).decode(bytes), binary: false };
+    } catch {
+      return { text: "", binary: true };
+    }
+  }
 
   // Render coded text: PUA markers (U+E000–U+F8FF) that kapi uses for inline
   // spans become little chips; everything else is plain text. We chunk runs of
@@ -78,6 +97,7 @@ const LazyBlockPreview = React.lazy(async () => {
   function BlockPreviewInner({ sample, title, caption }: BlockPreviewProps): React.ReactElement {
     const { runtime, error, cold } = useCuratedRuntime();
     const [data, setData] = React.useState<PreviewResult | null>(null);
+    const [resolvedPath, setResolvedPath] = React.useState<string>("");
     const [seedError, setSeedError] = React.useState<string>("");
     const fileName = typeof sample === "string" ? sample : sample.name;
     const heading = title ?? fileName;
@@ -87,7 +107,9 @@ const LazyBlockPreview = React.lazy(async () => {
       let cancelled = false;
       try {
         const path = ensureSample(runtime, sample);
-        runtime.preview(resolveInCwd(runtime, path)).then((r) => {
+        const abs = resolveInCwd(runtime, path);
+        setResolvedPath(abs);
+        runtime.preview(abs).then((r) => {
           if (!cancelled) setData(r);
         });
       } catch (e) {
@@ -99,6 +121,14 @@ const LazyBlockPreview = React.lazy(async () => {
       // sample is stable per usage; re-running on runtime is enough.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [runtime]);
+
+    // When the engine can't parse the file (no reader for e.g. a .kapi YAML
+    // recipe), don't dead-end — read the raw bytes and show highlighted text.
+    const unparseable = data != null && !data.ok;
+    const raw = unparseable && runtime ? readRaw(runtime, resolvedPath) : null;
+    const rawExt = fileName.includes(".")
+      ? "." + fileName.slice(fileName.lastIndexOf(".") + 1).toLowerCase()
+      : fileName;
 
     return (
       <div className="kapi-cur">
@@ -125,7 +155,22 @@ const LazyBlockPreview = React.lazy(async () => {
               </div>
             )}
 
-            {data && !data.ok && <p className="kapi-cur-error">Cannot preview: {data.error}</p>}
+            {unparseable && (
+              <>
+                <p className="kapi-cur-meta">
+                  kapi has no reader for <code>{rawExt}</code> — showing raw text.
+                </p>
+                {raw && raw.error && (
+                  <p className="kapi-cur-error">Could not read the file: {raw.error}</p>
+                )}
+                {raw && !raw.error && raw.binary && (
+                  <p className="kapi-cur-meta">Binary file — download to view.</p>
+                )}
+                {raw && !raw.error && !raw.binary && (
+                  <HighlightedCode className="kapi-cur-raw" text={raw.text} filename={fileName} />
+                )}
+              </>
+            )}
 
             {data?.ok && (
               <>

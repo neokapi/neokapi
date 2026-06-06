@@ -460,6 +460,57 @@
   word-break: break-word;
   max-height: 65vh;
   overflow: auto;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--ifm-code-background, var(--ifm-color-emphasis-100, #f6f7f8));
+  border: 1px solid var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  border-radius: var(--ifm-global-radius, 8px);
+  font-family: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.kapi-pg-preview-note {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600, #606770);
+}
+
+.kapi-pg-preview-note code {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+}
+
+/* ── Syntax-highlight token colours (themed via --ifm-* fallbacks) ───────────
+   Token classes emitted by src/syntax.tsx's HighlightedCode. Light + dark both
+   read well because the --ifm-color-* primaries flip with the site theme. */
+.kapi-pg-hl-text {
+  color: inherit;
+}
+.kapi-pg-hl-key,
+.kapi-pg-hl-tag {
+  color: var(--ifm-color-primary, #2e8555);
+}
+.kapi-pg-hl-attr,
+.kapi-pg-hl-section,
+.kapi-pg-hl-heading {
+  color: var(--ifm-color-warning-dark, #b07b00);
+  font-weight: 600;
+}
+.kapi-pg-hl-string {
+  color: var(--ifm-color-danger-dark, #c0392b);
+}
+.kapi-pg-hl-number,
+.kapi-pg-hl-boolean,
+.kapi-pg-hl-null {
+  color: var(--ifm-color-info-dark, #2877c0);
+}
+.kapi-pg-hl-comment,
+.kapi-pg-hl-meta {
+  color: var(--ifm-color-emphasis-500, #898d92);
+  font-style: italic;
+}
+.kapi-pg-hl-punct {
+  color: var(--ifm-color-emphasis-600, #606770);
 }
 
 /* ── The shared near-fullscreen modal ─────────────────────────────────────── */
