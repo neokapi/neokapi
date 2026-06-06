@@ -1,0 +1,280 @@
+/* FormatPreview — structure-aware, annotation-aware document preview shared by
+   the DocumentViewer, FileBrowser, and the docs landing. Reuses the same accent
+   vocabulary as DocumentRender so the two read identically. */
+
+.root {
+  --doc-accent: var(--ifm-color-primary, #2e8b57);
+  --doc-fg: var(--ifm-font-color-base, #1c1e21);
+  --doc-muted: var(--ifm-color-emphasis-600, #6b7280);
+  --doc-border: var(--ifm-color-emphasis-200, #e5e7eb);
+  --doc-subtle: var(--ifm-color-emphasis-100, #f3f4f6);
+  --doc-bg: var(--ifm-background-color, #fff);
+  color: var(--doc-fg);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/* ── Changed-word highlight (before/after diff) ──────────────────────────── */
+.changed {
+  background: color-mix(in srgb, var(--doc-accent) 24%, transparent);
+  border-radius: 4px;
+  padding: 0 0.1em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font-weight: 600;
+  color: var(--doc-fg);
+}
+
+/* ── Overlay highlight ───────────────────────────────────────────────────── */
+.overlay {
+  border-radius: 4px;
+  padding: 0 0.08em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+/* ── Crossfade ───────────────────────────────────────────────────────────── */
+.fade {
+  animation: kapi-fade 240ms ease;
+}
+
+@keyframes kapi-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade {
+    animation: none;
+  }
+}
+
+/* The blinking caret shown while a typewriter reveal is in progress. */
+.caret::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--doc-accent);
+  animation: kapi-blink 1s steps(2, start) infinite;
+}
+
+@keyframes kapi-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret::after {
+    animation: none;
+    visibility: hidden;
+  }
+}
+
+/* ── Slide deck (pptx) ───────────────────────────────────────────────────── */
+.slideDeck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slide {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(
+      90% 70% at 85% 0%,
+      color-mix(in srgb, var(--doc-accent) 10%, transparent),
+      transparent 65%
+    ),
+    var(--doc-bg);
+  overflow: hidden;
+}
+
+.slideTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.slideTitle::after {
+  content: "";
+  display: block;
+  width: 2.2rem;
+  height: 3px;
+  margin-top: 0.4rem;
+  border-radius: 2px;
+  background: var(--doc-accent);
+}
+
+.slideBullets {
+  margin: 0.1rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.slideBullets li {
+  font-size: 0.86rem;
+}
+
+.slideBullets li::marker {
+  color: var(--doc-accent);
+}
+
+/* ── Spreadsheet grid (xlsx) ─────────────────────────────────────────────── */
+.sheetWrap {
+  overflow-x: auto;
+}
+
+.sheet {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+  table-layout: fixed;
+}
+
+.sheet td {
+  border: 1px solid var(--doc-border);
+  padding: 0.3rem 0.5rem;
+  vertical-align: top;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell {
+  min-width: 5rem;
+}
+
+.rowHead,
+.colHead td,
+.corner {
+  text-align: center;
+  color: var(--doc-muted);
+  background: var(--doc-subtle);
+  font-weight: 600;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowHead {
+  width: 1.6rem;
+  font-weight: 500;
+}
+
+.corner {
+  width: 1.6rem;
+}
+
+/* ── Document / page / sections ──────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 8px;
+  background: var(--doc-bg);
+}
+
+.pageLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
+
+.heading {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--doc-border);
+  padding-bottom: 0.3rem;
+}
+
+.para {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--doc-fg);
+}
+
+.bulletList {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.bulletList li::marker {
+  color: var(--doc-accent);
+}
+
+/* ── Entry list (json / po / catalogs) ───────────────────────────────────── */
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--doc-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.entry {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px dashed var(--doc-border);
+  font-size: 0.8rem;
+}
+
+.entry:last-child {
+  border-bottom: none;
+}
+
+.entryKey {
+  flex: 0 0 9rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.74rem;
+  color: var(--doc-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entryText {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Sections (generic fallback) ─────────────────────────────────────────── */
+.section {
+  margin-bottom: 0.6rem;
+}
+
+.sectionTitle {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--doc-muted);
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--doc-border);
+  margin-bottom: 0.3rem;
+}

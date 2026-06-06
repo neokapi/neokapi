@@ -76,7 +76,7 @@ export { default as OutputView } from "./OutputView";
 export type { OutputViewProps } from "./OutputView";
 export { default as DocumentRender } from "./DocumentRender";
 export type { DocumentRenderProps } from "./DocumentRender";
-export { treeToRenderDoc, runsText, parseCellRef, colLabel } from "./renderDoc";
+export { treeToRenderDoc, runsText, parseCellRef, colLabel, STRUCTURE_RULES } from "./renderDoc";
 export type {
   RenderDoc,
   RenderKind,
@@ -84,7 +84,27 @@ export type {
   RenderSlide,
   RenderSheet,
   RenderCell,
+  RenderPage,
+  RenderSection,
+  StructureRule,
 } from "./renderDoc";
+
+// PreviewKit — structure-aware, annotation-aware document preview across formats.
+export { default as FormatPreview } from "./FormatPreview";
+export type { FormatPreviewProps, PreviewSide } from "./FormatPreview";
+export { default as DocumentViewer } from "./DocumentViewer";
+export type { DocumentViewerProps } from "./DocumentViewer";
+export { default as FileBrowser } from "./FileBrowser";
+export type { FileBrowserProps, BrowserFile } from "./FileBrowser";
+export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
+export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
+export { useTextTransition } from "./useTextTransition";
+export type {
+  TransitionEffect,
+  TypewriterGranularity,
+  UseTextTransitionOptions,
+  TextTransitionState,
+} from "./useTextTransition";
 
 // Drop-a-file widget kit: a generic no-terminal "drop a file → see the result"
 // surface plus per-tool wrappers.

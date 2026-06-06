@@ -9,6 +9,11 @@
     ".": "./src/index.ts",
     "./DocumentRender": "./src/DocumentRender.tsx",
     "./renderDoc": "./src/renderDoc.ts",
+    "./FormatPreview": "./src/FormatPreview.tsx",
+    "./DocumentViewer": "./src/DocumentViewer.tsx",
+    "./FileBrowser": "./src/FileBrowser.tsx",
+    "./overlayHighlight": "./src/overlayHighlight.ts",
+    "./useTextTransition": "./src/useTextTransition.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
