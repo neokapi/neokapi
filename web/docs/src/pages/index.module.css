@@ -190,6 +190,38 @@
   color: #2aa3c7;
 }
 
+/* Two family callouts side by side (kapi-react + CLI Tools), wrapping on narrow. */
+.familyRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.familyRow > * {
+  flex: 1 1 320px;
+}
+
+/* CLI-tools variant of the family callout — seagreen accent vs React cyan. */
+.toolboxCallout {
+  border-left-color: #2e8b57;
+}
+.toolboxCallout:hover {
+  border-color: #2e8b57;
+  box-shadow: 0 8px 24px color-mix(in srgb, #2e8b57 28%, transparent);
+}
+.toolboxCallout .reactCalloutBadge {
+  color: #1b6b41;
+  background: color-mix(in srgb, #2e8b57 20%, transparent);
+}
+.toolboxCallout .reactCalloutArrow {
+  color: #2e8b57;
+}
+.toolboxCallout code {
+  padding: 0.05rem 0.32rem;
+  border-radius: 5px;
+  font-size: 0.85em;
+  background: color-mix(in srgb, #2e8b57 12%, transparent);
+}
+
 @media (max-width: 575px) {
   .reactCallout {
     flex-direction: column;

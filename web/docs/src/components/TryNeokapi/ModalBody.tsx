@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { TRY_SAMPLES, getFixture } from "@neokapi/kapi-playground";
 import { useLabRuntime, type LabRuntime, type ContentTree } from "@neokapi/kapi-lab";
 import FileBrowser, { type BrowserFile } from "@neokapi/kapi-lab/FileBrowser";
@@ -25,6 +25,11 @@ import styles from "./styles.module.css";
 // browser→viewer flow replaces it.
 
 const TARGET_LOCALE = "fr-FR";
+
+// Above this size we skip parsing an own-file for its grid thumbnail (it gets a
+// plain file tile and is parsed lazily on open) — so we never load a big
+// document into a tiny preview.
+const THUMBNAIL_MAX_BYTES = 1_000_000;
 
 // The curated sample set, one per recognizable structure. The three binary
 // Office/markdown samples come from TRY_SAMPLES (real round-tripping bytes); the
@@ -134,7 +139,6 @@ export default function ModalBody(): React.ReactElement {
   const [openBusy, setOpenBusy] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   // Cache resolved bytes by browser-file id so opening doesn't re-decode.
   const bytesById = useRef(new Map<string, Uint8Array>());
 
@@ -167,35 +171,63 @@ export default function ModalBody(): React.ReactElement {
     };
   }, [runtime.ready, runtime]);
 
-  // Opening a thumbnail is INSTANT and does zero new engine work: the grid
-  // already holds the parsed tree from the boot inspect, so we just show it in
-  // the viewer. The heavy annotate + translate is an explicit action (below) so
-  // it can never freeze the open.
-  const onSelect = useCallback((f: BrowserFile) => {
-    const id = f.id ?? f.filename;
-    const bytes = bytesById.current.get(id) ?? f.bytes ?? new Uint8Array();
-    setErr(null);
-    setOpened({ id, filename: f.filename, tree: f.tree, bytes });
-  }, []);
-
-  // A dropped own-file has no cached tree yet, so it needs a single inspect (the
-  // same fast read-only parse the grid runs) before we can show it.
-  const onDrop = useCallback(
-    async (file: File) => {
+  // Inspect a file then open it (used for large own-files that skipped the
+  // thumbnail parse — a single fast read-only parse, with a spinner).
+  const openByInspect = useCallback(
+    async (id: string, filename: string, bytes: Uint8Array) => {
       if (!runtime.ready) return;
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const id = `own:${file.name}`;
-      bytesById.current.set(id, bytes);
       setErr(null);
       setOpenBusy(true);
       try {
-        const res = await runtime.inspect(file.name, bytes);
+        const res = await runtime.inspect(filename, bytes);
         if (!res.ok || !res.tree) throw new Error(res.error ?? "inspect failed");
-        setOpened({ id, filename: file.name, tree: res.tree, bytes });
+        setOpened({ id, filename, tree: res.tree, bytes });
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
         setOpenBusy(false);
+      }
+    },
+    [runtime],
+  );
+
+  // Opening a thumbnail is INSTANT and does zero new engine work when the grid
+  // already holds the parsed tree (every sample, and small own-files). A large
+  // own-file carries no tree (skipped for the thumbnail), so it is parsed now.
+  // Either way the heavy annotate + translate stays an explicit action (below).
+  const onSelect = useCallback(
+    (f: BrowserFile) => {
+      const id = f.id ?? f.filename;
+      const bytes = bytesById.current.get(id) ?? f.bytes ?? new Uint8Array();
+      if (f.tree) {
+        setErr(null);
+        setOpened({ id, filename: f.filename, tree: f.tree, bytes });
+        return;
+      }
+      void openByInspect(id, f.filename, bytes);
+    },
+    [openByInspect],
+  );
+
+  // Add the reader's own files as grid thumbnails WITHOUT navigating to the
+  // detail view. Small files are parsed for a live thumbnail; files over the
+  // thumbnail budget are added as plain tiles (parsed lazily on open) so we never
+  // load a big document into a tiny preview.
+  const addFiles = useCallback(
+    async (incoming: File[]) => {
+      if (!runtime.ready) return;
+      setErr(null);
+      for (const file of incoming) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const id = `own:${file.name}:${bytes.length}`;
+        bytesById.current.set(id, bytes);
+        let tree: ContentTree | undefined;
+        if (bytes.length <= THUMBNAIL_MAX_BYTES) {
+          const res = await runtime.inspect(file.name, bytes);
+          if (res.ok && res.tree) tree = res.tree;
+        }
+        const bf: BrowserFile = { id, filename: file.name, tree, bytes };
+        setFiles((cur) => (cur.some((f) => (f.id ?? f.filename) === id) ? cur : [...cur, bf]));
       }
     },
     [runtime],
@@ -277,44 +309,21 @@ export default function ModalBody(): React.ReactElement {
     );
   }
 
-  // The browser of all samples + the own-files entry.
+  // The browser of all samples + the own-files "add" tile (in the grid itself).
   return (
     <div className={styles.body}>
       {err && <p className={styles.showcaseError}>Could not open file: {err}</p>}
       <div className={styles.browserHead}>
         <span className={styles.browserHint}>
-          Pick a file to see kapi read it, annotate it, and transform it — live in your browser.
+          Pick a file to see kapi read it, annotate it, and transform it — or drop your own into the
+          grid. Live in your browser.
         </span>
-        <button
-          type="button"
-          className={styles.dropBtn}
-          onClick={() => fileInput.current?.click()}
-          disabled={openBusy}
-        >
-          {openBusy ? (
-            <Loader2 size={15} aria-hidden="true" className="animate-spin" />
-          ) : (
-            <Upload size={15} aria-hidden="true" />
-          )}
-          Try your own file
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          className={styles.srOnly}
-          aria-label="Open one of your own files"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onDrop(f);
-            e.target.value = "";
-          }}
-        />
       </div>
-      <FileBrowser files={files} defaultView="grid" onOpen={onSelect} />
+      <FileBrowser files={files} defaultView="grid" onOpen={onSelect} onAddFiles={addFiles} />
       {openBusy && (
         <div className={styles.showcaseLoading}>
           <Loader2 size={16} aria-hidden="true" className="animate-spin" />
-          Reading + transforming with the real engine…
+          Reading with the real engine…
         </div>
       )}
     </div>

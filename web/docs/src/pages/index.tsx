@@ -164,17 +164,33 @@ function HomepageFeatures() {
         </div>
         <div className="row margin-bottom--xl">
           <div className="col col--10 col--offset-1">
-            <Link to="/react/introduction" className={styles.reactCallout}>
-              <span className={styles.reactCalloutBadge}>In the family</span>
-              <span className={styles.reactCalloutText}>
-                <strong>kapi-react</strong> — a zero-config i18n library for React. Its own
-                framework, powered by neokapi under the hood for build-time string extraction and
-                catalog compilation.
-              </span>
-              <span className={styles.reactCalloutArrow} aria-hidden="true">
-                &rarr;
-              </span>
-            </Link>
+            <div className={styles.familyRow}>
+              <Link to="/react/introduction" className={styles.reactCallout}>
+                <span className={styles.reactCalloutBadge}>In the family</span>
+                <span className={styles.reactCalloutText}>
+                  <strong>kapi-react</strong> — a zero-config i18n library for React. Its own
+                  framework, powered by neokapi under the hood for build-time string extraction and
+                  catalog compilation.
+                </span>
+                <span className={styles.reactCalloutArrow} aria-hidden="true">
+                  &rarr;
+                </span>
+              </Link>
+              <Link
+                to="/toolbox/overview"
+                className={`${styles.reactCallout} ${styles.toolboxCallout}`}
+              >
+                <span className={styles.reactCalloutBadge}>In the family</span>
+                <span className={styles.reactCalloutText}>
+                  <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
+                  <code>kcat</code>: format-aware grep, sed and cat that operate on the translatable
+                  text inside <code>.docx</code>, JSON, XLIFF and more.
+                </span>
+                <span className={styles.reactCalloutArrow} aria-hidden="true">
+                  &rarr;
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
         <div className="row margin-bottom--xl">
