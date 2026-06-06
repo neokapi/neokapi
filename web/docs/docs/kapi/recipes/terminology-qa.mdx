@@ -8,6 +8,16 @@ hide_table_of_contents: true
 ---
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import CsvTable from "@site/src/components/CsvTable";
+
+export const glossaryCsv = `source,target,domain
+password,mot de passe,security
+username,nom d'utilisateur,security
+log in,se connecter,ui
+dashboard,tableau de bord,ui
+settings,paramètres,ui
+encryption,chiffrement,security
+file upload,téléversement de fichier,ui`;
 
 # Enforce terminology
 
@@ -29,16 +39,7 @@ error-prone; `kapi termbase` and `kapi term-check` do it from the command line.
 Your team maintains a product glossary as a CSV — source term, approved target,
 and a domain to organise by:
 
-```csv
-source,target,domain
-password,mot de passe,security
-username,nom d'utilisateur,security
-log in,se connecter,ui
-dashboard,tableau de bord,ui
-settings,paramètres,ui
-encryption,chiffrement,security
-file upload,téléversement de fichier,ui
-```
+<CsvTable csv={glossaryCsv} caption="glossary.csv" />
 
 A translator has delivered `messages_fr.json`. You want to confirm they used the
 approved terms consistently.

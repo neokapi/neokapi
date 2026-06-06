@@ -1,0 +1,121 @@
+/* CsvTable — renders a CSV glossary as a themed table or its raw text, toggled
+ * by a small segmented control. Themed entirely with Infima (--ifm-*) variables
+ * so light and dark both read well. Self-contained: no global CSS touched. */
+
+.figure {
+  margin: 0 0 1.5rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ── Segmented toggle ─────────────────────────────────────────── */
+.toggle {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+.toggleButton,
+.toggleActive {
+  padding: 0.3rem 0.85rem;
+  border: none;
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.toggleButton:not(:last-child),
+.toggleActive:not(:last-child) {
+  border-right: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.toggleButton:hover {
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-font-color-base);
+}
+
+.toggleActive {
+  background: var(--ifm-color-primary);
+  color: var(--ifm-color-white, #fff);
+}
+
+/* ── Table view ───────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--ifm-table-border-color, var(--ifm-color-emphasis-300));
+  border-radius: var(--ifm-global-radius);
+}
+
+.table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-font-color-base);
+  font-weight: 700;
+  border-bottom: 2px solid var(--ifm-table-border-color, var(--ifm-color-emphasis-300));
+}
+
+.table tbody td {
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--ifm-table-border-color, var(--ifm-color-emphasis-200));
+  color: var(--ifm-font-color-base);
+}
+
+.table tbody tr:nth-child(even) {
+  background: var(--ifm-table-stripe-background, var(--ifm-color-emphasis-100));
+}
+
+/* ── Raw view ─────────────────────────────────────────────────── */
+.raw {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--ifm-pre-background, var(--ifm-color-emphasis-100));
+  border-radius: var(--ifm-global-radius);
+  color: var(--ifm-font-color-base);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.rawLine,
+.rawHeaderLine {
+  white-space: pre;
+}
+
+.rawHeaderLine {
+  font-weight: 700;
+}
+
+.rawComma {
+  color: var(--ifm-color-emphasis-500);
+}
