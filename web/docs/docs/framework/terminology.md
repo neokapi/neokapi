@@ -1,5 +1,5 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 title: Terminology
 description: neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata — backing the kapi termbase commands and the term-check pipeline tool.
 keywords: [terminology, termbase, TBX, concepts, glossary, term enforcement, localization QA]

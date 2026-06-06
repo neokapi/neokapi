@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 10
 title: Translation Memory
 description: Sievepen is neokapi's built-in translation memory. It stores multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
 keywords: [translation memory, Sievepen, TM leverage, fuzzy matching, runs, inline markup, SQLite]

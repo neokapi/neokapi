@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 title: Flows
 description: A flow is a named, ordered composition of tools — the neokapi equivalent of an Okapi pipeline. Flows are defined in YAML, can be embedded in a project file or stored separately, and run with a single kapi command.
 keywords: [flows, pipeline, YAML, tool composition, kapi run, localization workflow]

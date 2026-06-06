@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Vocabularies
 description: Vocabularies are the semantic type system that classifies inline codes — mapping format-specific markup like HTML bold, Markdown emphasis, and DOCX bold to a common set of types so every tool treats them identically.
 keywords: [vocabularies, semantic types, inline codes, spans, fmt:bold, localization, format-independent]

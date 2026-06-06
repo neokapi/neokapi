@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 title: Inline Formatting
 description: How neokapi preserves bold, italic, links, and other inline markup through the pipeline. Inline elements become typed inline-code runs so translations can reorder or omit them safely.
 keywords: [inline formatting, runs, bold, italic, links, placeholders, inline codes, run sequence]

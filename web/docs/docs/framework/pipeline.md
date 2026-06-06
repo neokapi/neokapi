@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 9
 title: Pipeline
 description: The neokapi pipeline is the concurrent execution engine that runs flows — each tool stage runs in its own goroutine, connected by buffered channels of Parts, with context cancellation and error propagation via errgroup.
 keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, execution engine]

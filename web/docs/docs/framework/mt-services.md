@@ -1,5 +1,5 @@
 ---
-sidebar_position: 12
+sidebar_position: 13
 title: Machine Translation Services
 description: neokapi integrates neural machine translation services — DeepL, Google Translate, Microsoft Translator, ModernMT, and MyMemory — as pipeline tools that plug in alongside TM leverage and AI translation.
 keywords: [machine translation, MT, DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory]

@@ -9,10 +9,15 @@ import { ArchitectureDiagram } from "@neokapi/docs-shared";
 
 # neokapi: Architecture
 
-neokapi is an open-source localization framework built in Go. It provides
+neokapi is an open-source localization **engine** built in Go. It provides
 format-aware document parsing, composable processing tools, and a concurrent
-streaming pipeline for translation workflows. For the reasoning behind each
-major design choice, see the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
+streaming pipeline for translation workflows. The [`kapi` CLI and desktop
+app](/kapi/overview) and [Kapi React](/react/introduction) are surfaces built on
+top of this engine — but the content model, format readers and writers, tools,
+and pipeline are equally a Go library you can import and drive directly. If you
+want to start with running code, jump to the
+[Go quickstart](/framework/go-quickstart); for the reasoning behind each major
+design choice, see the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
 
 ## Processing Pipeline
 
@@ -93,7 +98,10 @@ direct imports, so the framework never depends on a particular platform.
 
 ## The framework concepts
 
-The framework rests on a few concepts, each with its own page:
+To see these concepts working together in a few lines of Go — register the
+formats, read a file into the content model, run a tool, and write the result —
+start with the [Go quickstart](/framework/go-quickstart). The framework rests on
+a few concepts, each with its own page:
 
 - **[Content Model](/framework/content-model)** — the format-independent
   representation. A document becomes a stream of `Part`s carrying layers, blocks,
