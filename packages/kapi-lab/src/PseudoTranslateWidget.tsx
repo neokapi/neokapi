@@ -1,5 +1,6 @@
 import React from "react";
 import ToolDropWidget from "./ToolDropWidget";
+import type { DropInput } from "./ToolDropWidget";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 
 export interface PseudoTranslateWidgetProps {
@@ -8,6 +9,8 @@ export interface PseudoTranslateWidgetProps {
   sampleIds?: string[];
   /** Sample selected on first render. */
   autoSampleId?: string;
+  /** A file to load on first render instead of a sample. */
+  initialInput?: DropInput | null;
   className?: string;
 }
 
@@ -19,6 +22,7 @@ export default function PseudoTranslateWidget({
   assets,
   sampleIds,
   autoSampleId,
+  initialInput,
   className,
 }: PseudoTranslateWidgetProps): React.ReactElement {
   return (
@@ -28,6 +32,7 @@ export default function PseudoTranslateWidget({
       buildArgv={(inPath, outPath) => ["pseudo-translate", inPath, "-o", outPath]}
       sampleIds={sampleIds}
       autoSampleId={autoSampleId}
+      initialInput={initialInput}
       render="output"
       className={className}
     />

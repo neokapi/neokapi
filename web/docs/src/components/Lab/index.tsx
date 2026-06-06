@@ -158,6 +158,8 @@ export function ToolDropWidget(props: ToolDropWidgetProps): React.ReactElement {
 export interface WidgetVariantProps {
   sampleIds?: string[];
   autoSampleId?: string;
+  /** A file to load on first render instead of a sample (e.g. one dropped on the hero). */
+  initialInput?: { name: string; bytes: Uint8Array; binary: boolean } | null;
 }
 
 export function PseudoTranslateWidget(props: WidgetVariantProps): React.ReactElement {

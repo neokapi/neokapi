@@ -1,5 +1,6 @@
 import React from "react";
 import ToolDropWidget from "./ToolDropWidget";
+import type { DropInput } from "./ToolDropWidget";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 
 export interface StatsWidgetProps {
@@ -8,6 +9,8 @@ export interface StatsWidgetProps {
   sampleIds?: string[];
   /** Sample selected on first render. */
   autoSampleId?: string;
+  /** A file to load on first render instead of a sample. */
+  initialInput?: DropInput | null;
   className?: string;
 }
 
@@ -20,6 +23,7 @@ export default function StatsWidget({
   assets,
   sampleIds,
   autoSampleId,
+  initialInput,
   className,
 }: StatsWidgetProps): React.ReactElement {
   return (
@@ -32,6 +36,7 @@ export default function StatsWidget({
       render="stat"
       sampleIds={sampleIds}
       autoSampleId={autoSampleId}
+      initialInput={initialInput}
       className={className}
     />
   );

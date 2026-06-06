@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Play, Upload } from "lucide-react";
 import { HERO_SAMPLES } from "@neokapi/kapi-playground/samples";
 import type { HeroSample } from "@neokapi/kapi-playground/samples";
@@ -54,6 +54,8 @@ export interface ToolDropWidgetProps {
   sampleIds?: string[];
   /** Sample selected on first render (default: first offered). */
   autoSampleId?: string;
+  /** A file to load on first render instead of a sample (e.g. one the host dropped). */
+  initialInput?: DropInput | null;
   /** Allow binary uploads (.docx/.xlsx/.pptx). Default true. */
   acceptBinary?: boolean;
   /** How to render the result (default "output"). */
@@ -126,6 +128,7 @@ export default function ToolDropWidget({
   extraArgs = [],
   sampleIds,
   autoSampleId,
+  initialInput,
   acceptBinary = true,
   render = "output",
   parseStat = parseWordCountStat,
@@ -138,9 +141,10 @@ export default function ToolDropWidget({
   const ns = useId().replace(/[:]/g, "");
 
   const initial = useMemo<DropInput>(() => {
+    if (initialInput) return initialInput;
     const s = samples.find((x) => x.id === autoSampleId) ?? samples[0];
     return { name: s.filename, bytes: s.bytes(), binary: s.binary };
-  }, [samples, autoSampleId]);
+  }, [samples, autoSampleId, initialInput]);
 
   const [input, setInput] = useState<DropInput>(initial);
   const [outPath, setOutPath] = useState<string | null>(null);
@@ -152,7 +156,6 @@ export default function ToolDropWidget({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const pickSample = useCallback((s: HeroSample) => {
     setInput({ name: s.filename, bytes: s.bytes(), binary: s.binary });
@@ -280,25 +283,24 @@ export default function ToolDropWidget({
           <span className="text-xs tabular-nums text-muted-foreground">
             {formatBytes(input.bytes.length)}
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="ml-auto"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload /> Drop or choose a file
+          {/* Native label→input: clicking the label opens the picker without a
+              programmatic .click(), which some browsers block on a hidden input. */}
+          <Button asChild variant="outline" size="sm" className="ml-auto cursor-pointer">
+            <label>
+              <Upload /> Drop or choose a file
+              <input
+                type="file"
+                className="sr-only"
+                accept={
+                  acceptBinary ? undefined : ".json,.html,.xml,.xliff,.po,.txt,.yaml,.yml,.md"
+                }
+                onChange={(e) => {
+                  if (e.target.files) void acceptFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
           </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            accept={acceptBinary ? undefined : ".json,.html,.xml,.xliff,.po,.txt,.yaml,.yml,.md"}
-            onChange={(e) => {
-              if (e.target.files) void acceptFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Try a sample:</span>

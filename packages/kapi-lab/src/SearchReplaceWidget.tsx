@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Input, Switch, cn } from "@neokapi/ui-primitives";
 import ToolDropWidget from "./ToolDropWidget";
+import type { DropInput } from "./ToolDropWidget";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 
 export interface SearchReplaceWidgetProps {
@@ -9,6 +10,8 @@ export interface SearchReplaceWidgetProps {
   sampleIds?: string[];
   /** Sample selected on first render. */
   autoSampleId?: string;
+  /** A file to load on first render instead of a sample. */
+  initialInput?: DropInput | null;
   /** Initial find string. */
   defaultFind?: string;
   /** Initial replace string. */
@@ -50,6 +53,7 @@ export default function SearchReplaceWidget({
   assets,
   sampleIds,
   autoSampleId,
+  initialInput,
   defaultFind = "color",
   defaultReplace = "colour",
   className,
@@ -102,6 +106,7 @@ export default function SearchReplaceWidget({
         render="diff"
         sampleIds={sampleIds}
         autoSampleId={autoSampleId}
+        initialInput={initialInput}
       />
     </div>
   );
