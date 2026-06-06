@@ -320,15 +320,21 @@ export default function ToolDropWidget({
               {s.label}
             </button>
           ))}
-          <Button
-            type="button"
-            size="sm"
-            className="ml-auto"
-            onClick={() => void runTool()}
-            disabled={!runtime.ready || busy}
-          >
-            <Play /> Run
-          </Button>
+          {/* When autoRun is on (the default for the demos) the tool runs live
+              on every file/sample/config change, so a Run button would be a
+              false affordance — the status line below is the feedback. Only an
+              explicit-run widget (autoRun=false) shows the button. */}
+          {!autoRun && (
+            <Button
+              type="button"
+              size="sm"
+              className="ml-auto"
+              onClick={() => void runTool()}
+              disabled={!runtime.ready || busy}
+            >
+              <Play /> Run
+            </Button>
+          )}
         </div>
       </div>
 
