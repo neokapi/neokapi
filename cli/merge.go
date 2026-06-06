@@ -163,7 +163,11 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
 	var tm *sievepen.SQLiteTM
-	if !noTMUpdate {
+	// In the browser/seeded build (a.TMBackend set) there is no SQLite driver and
+	// no on-disk project TM to write back to, so skip TM write-back silently
+	// rather than surfacing a driver error. The native CLI (TMBackend == nil)
+	// opens the project's SQLite TM as before.
+	if !noTMUpdate && a.TMBackend == nil {
 		tmPath := filepath.Join(layout.StateDir, "tm.db")
 		loaded, err := sievepen.NewSQLiteTM(tmPath)
 		if err != nil {
@@ -258,7 +262,9 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 
 	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
 	var tm *sievepen.SQLiteTM
-	if !noTMUpdate {
+	// Browser/seeded build (a.TMBackend set): no SQLite driver / on-disk TM —
+	// skip write-back silently. Native CLI opens the project SQLite TM as before.
+	if !noTMUpdate && a.TMBackend == nil {
 		tmPath := filepath.Join(layout.StateDir, "tm.db")
 		if loaded, lerr := sievepen.NewSQLiteTM(tmPath); lerr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
