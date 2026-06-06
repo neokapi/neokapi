@@ -35,6 +35,22 @@
   text-decoration: underline;
   text-decoration-style: dotted;
   text-underline-offset: 2px;
+  /* Highlighter fade-in: when a mark first appears (annotators turn on) the
+     background sweeps from transparent to its accent, so terms light up. */
+  animation: overlayIn 0.5s ease both;
+}
+
+@keyframes overlayIn {
+  from {
+    background-color: transparent;
+    text-decoration-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
 }
 
 /* ── Crossfade ───────────────────────────────────────────────────────────── */

@@ -1,42 +1,29 @@
 import React, { useEffect, useState } from "react";
 import FormatPreview from "@neokapi/kapi-lab/FormatPreview";
-import { Combine, Database, Languages, ScanText, ShieldCheck, Wand2 } from "lucide-react";
-import { FRAMES, HERO_FILENAME, READ_FORMATS, STAGES, type StageKey } from "./heroStages";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { FRAMES, HERO_FILENAME, READ_FORMATS, STAGES } from "./heroStages";
 import styles from "./styles.module.css";
 
 // The hero: an auto-playing, six-stage "show" of kapi end to end —
 // Read → Pre-process → Pseudo-translate → Leverage → Translate (ja) → Merge —
-// rendered through the shared FormatPreview on BAKED data (heroProcess.ts), so
-// the page pulls ZERO wasm on load. FormatPreview's typewriter/crossfade carries
-// the source → pseudo → Japanese progression; a stepper tracks the stage and the
-// whole card is one button that opens the live modal.
+// rendered through the shared FormatPreview on BAKED data (heroStages.ts), so the
+// page pulls ZERO wasm on load. FormatPreview's typewriter (revealed line by
+// line) and crossfade carry the source → pseudo → Japanese progression; term
+// highlights animate in at Pre-process. Prev/next arrows step through stages, a
+// counter + caption name the stage, and a CTA opens the live modal.
 //
-// prefers-reduced-motion: no auto-advance and no typewriter; the reader steps
-// through the stages with the stepper instead.
+// prefers-reduced-motion: no auto-advance and no typewriter; step with arrows.
 
 interface HeroProcessProps {
-  /** Open the full modal (the card is one big button). */
+  /** Open the full modal. */
   onOpen: () => void;
 }
 
-const STAGE_ICON: Record<StageKey, React.ComponentType<{ size?: number; className?: string }>> = {
-  read: ScanText,
-  preprocess: ShieldCheck,
-  pseudo: Wand2,
-  leverage: Database,
-  translate: Languages,
-  merge: Combine,
-};
+// Per-stage dwell time (ms) before auto-advancing. Typewriter stages get longer.
+const DWELL = [2400, 3400, 3600, 3000, 3800, 3000];
 
-// Per-stage dwell time (ms). The typewriter stages get a touch longer.
-const DWELL: Record<StageKey, number> = {
-  read: 2400,
-  preprocess: 3400,
-  pseudo: 2900,
-  leverage: 2900,
-  translate: 3400,
-  merge: 3000,
-};
+// Stagger between line reveals on the typewriter stages (ms per line).
+const LINE_STAGGER = 420;
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -56,14 +43,16 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
   const [paused, setPaused] = useState(false);
   const stage = STAGES[i];
   const frame = FRAMES[stage.key];
+  const n = STAGES.length;
 
-  // Auto-advance through the stages, looping. Paused on hover/focus and under
-  // reduced motion.
+  const go = (delta: number) => setI((p) => (p + delta + n) % n);
+
+  // Auto-advance, looping; paused on hover/focus and under reduced motion.
   useEffect(() => {
     if (reduced || paused) return;
-    const t = setTimeout(() => setI((p) => (p + 1) % STAGES.length), DWELL[stage.key]);
+    const t = setTimeout(() => setI((p) => (p + 1) % n), DWELL[i]);
     return () => clearTimeout(t);
-  }, [i, reduced, paused, stage.key]);
+  }, [i, reduced, paused, n]);
 
   return (
     <div
@@ -71,79 +60,80 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Stepper */}
-      <div className={styles.heroStepper} role="tablist" aria-label="kapi pipeline stages">
-        {STAGES.map((s, idx) => {
-          const Icon = STAGE_ICON[s.key];
-          const state = idx === i ? "active" : idx < i ? "done" : "todo";
-          return (
-            <button
-              key={s.key}
-              type="button"
-              role="tab"
-              aria-selected={idx === i}
-              className={`${styles.heroStep} ${styles[`heroStep_${state}`]}`}
-              onClick={() => setI(idx)}
-            >
-              <span className={styles.heroStepDot} aria-hidden="true">
-                <Icon size={14} />
+      <div className={styles.heroStageWrap}>
+        <button
+          type="button"
+          className={`${styles.heroArrow} ${styles.heroArrowPrev}`}
+          onClick={() => go(-1)}
+          aria-label="Previous stage"
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        {/* The card — chrome + the document being processed. Opens the modal. */}
+        <button
+          type="button"
+          className={styles.heroOpen}
+          onClick={onOpen}
+          aria-label="Open the interactive Try Neokapi showcase"
+        >
+          <div className={styles.heroChrome}>
+            <span className={styles.heroFile}>{HERO_FILENAME}</span>
+            <span className={styles.heroStageName}>
+              {i + 1}/{n} · {stage.label}
+            </span>
+          </div>
+
+          <div className={styles.heroStage}>
+            <span className={styles.srOnly} aria-live="polite">
+              {stage.label}: {stage.caption}
+            </span>
+            {frame.badge && (
+              <span className={styles.heroBadge} key={`${stage.key}-badge`}>
+                {frame.badge}
               </span>
-              <span className={styles.heroStepLabel}>{s.short}</span>
-            </button>
-          );
-        })}
+            )}
+            <FormatPreview
+              doc={frame.doc}
+              side="source"
+              annotations={frame.annotations}
+              transition={reduced ? "none" : frame.transition}
+              typewriter="char"
+              typewriterStagger={reduced ? 0 : LINE_STAGGER}
+              reducedMotion={reduced}
+              gridHeaders={false}
+              className={styles.heroDoc}
+            />
+            {stage.key === "read" && (
+              <div className={styles.heroFormats} aria-hidden="true">
+                {READ_FORMATS.map((f) => (
+                  <span key={f} className={styles.heroFormatChip}>
+                    {f}
+                  </span>
+                ))}
+                <span className={`${styles.heroFormatChip} ${styles.heroFormatMore}`}>50+</span>
+              </div>
+            )}
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.heroArrow} ${styles.heroArrowNext}`}
+          onClick={() => go(1)}
+          aria-label="Next stage"
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
-      {/* The stage — one big button into the live modal. */}
-      <button
-        type="button"
-        className={styles.heroOpen}
-        onClick={onOpen}
-        aria-label="Open the interactive Try Neokapi showcase"
-      >
-        <div className={styles.heroChrome}>
-          <span className={styles.heroFile}>{HERO_FILENAME}</span>
-          <span className={styles.heroStageName}>
-            {i + 1}/{STAGES.length} · {stage.label}
-          </span>
-        </div>
-
-        <div className={styles.heroStage}>
-          <span className={styles.srOnly} aria-live="polite">
-            {stage.label}: {stage.caption}
-          </span>
-          {frame.badge && (
-            <span className={styles.heroBadge} key={`${stage.key}-badge`}>
-              {frame.badge}
-            </span>
-          )}
-          <FormatPreview
-            doc={frame.doc}
-            side="source"
-            annotations={frame.annotations}
-            transition={reduced ? "none" : frame.transition}
-            typewriter="char"
-            reducedMotion={reduced}
-            gridHeaders={false}
-            className={styles.heroDoc}
-          />
-          {stage.key === "read" && (
-            <div className={styles.heroFormats} aria-hidden="true">
-              {READ_FORMATS.map((f) => (
-                <span key={f} className={styles.heroFormatChip}>
-                  {f}
-                </span>
-              ))}
-              <span className={`${styles.heroFormatChip} ${styles.heroFormatMore}`}>50+</span>
-            </div>
-          )}
-        </div>
-      </button>
-
-      {/* Caption */}
       <p className={styles.heroCaption} key={`${stage.key}-cap`}>
         <strong>{stage.label}.</strong> {stage.caption}
       </p>
+
+      <button type="button" className={styles.heroCta} onClick={onOpen}>
+        Try Kapi in your browser <ArrowRight size={16} aria-hidden="true" />
+      </button>
     </div>
   );
 }

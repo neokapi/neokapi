@@ -338,65 +338,41 @@
 }
 
 /* Stepper */
-.heroStepper {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.15rem;
+/* Stage row: prev/next arrows flanking the card */
+.heroStageWrap {
+  position: relative;
 }
-.heroStep {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.1rem;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: var(--ifm-color-emphasis-500);
-  transition: color 0.2s ease;
-}
-.heroStepDot {
+.heroArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
   display: grid;
   place-items: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 999px;
-  border: 1.5px solid var(--ifm-color-emphasis-300);
+  border: 1px solid var(--ifm-color-emphasis-200);
   background: var(--ifm-background-color);
-  transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    background 0.25s ease,
-    box-shadow 0.25s ease;
-}
-.heroStepLabel {
-  font-size: 0.62rem;
-  font-weight: 600;
-  line-height: 1.1;
-  text-align: center;
-  white-space: nowrap;
-}
-.heroStep_todo {
-  color: var(--ifm-color-emphasis-400);
-}
-.heroStep_active {
-  color: var(--ifm-color-primary);
-}
-.heroStep_active .heroStepDot {
-  border-color: var(--ifm-color-primary);
-  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
-  color: var(--ifm-color-primary);
-  transform: scale(1.1);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
-}
-.heroStep_done {
   color: var(--ifm-color-emphasis-700);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
-.heroStep_done .heroStepDot {
-  border-color: var(--ifm-color-primary);
+.heroArrow:hover {
   background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
   color: #fff;
+  transform: translateY(-50%) scale(1.08);
+}
+.heroArrowPrev {
+  left: -0.85rem;
+}
+.heroArrowNext {
+  right: -0.85rem;
 }
 
 /* Stage card (the document being processed) */
@@ -489,10 +465,29 @@
   animation: heroReveal 0.4s ease;
 }
 
-@media (max-width: 575px) {
-  .heroStepLabel {
-    display: none;
-  }
+.heroCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  align-self: center;
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.heroCta:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ifm-color-primary) 35%, transparent);
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────────────── */
@@ -513,8 +508,5 @@
   .heroFormats,
   .heroCaption {
     animation: none;
-  }
-  .heroStepDot {
-    transition: none;
   }
 }

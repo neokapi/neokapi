@@ -3,16 +3,12 @@ import { Download, FileWarning } from "lucide-react";
 import {
   Badge,
   Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  ToggleGroup,
+  ToggleGroupItem,
   cn,
 } from "@neokapi/ui-primitives";
 import FormatPreview, { type PreviewSide } from "./FormatPreview";
@@ -21,13 +17,13 @@ import { FileIcon, fileType } from "./fileTypes";
 import { downloadBytes, formatBytes } from "./download";
 import { treeToRenderDoc } from "./renderDoc";
 import type { ContentNode, ContentTree } from "./types";
-import type { TransitionEffect } from "./useTextTransition";
 
 // DocumentViewer — wraps FormatPreview with view-switching tabs (Preview ·
-// Blocks · Stats · Download), a source↔target locale toggle, a transition-effect
-// selector, and an annotations toggle. It is self-contained: give it a
-// ContentTree (and optionally the original bytes for Download) and it shows the
-// document four ways without booting the WASM runtime.
+// Blocks · Stats · Download) and, when a target locale exists, a compact
+// source↔target toggle in the header. Annotations are always on; the
+// source↔target swap crossfades. It is self-contained: give it a ContentTree
+// (and optionally the original bytes for Download) and it shows the document
+// four ways without booting the WASM runtime.
 
 export interface DocumentViewerProps {
   /** The engine output (from `kapi inspect` / labInspectAnnotated). */
@@ -38,8 +34,6 @@ export interface DocumentViewerProps {
   bytes?: Uint8Array | null;
   /** Tab shown first (default "preview"). */
   defaultTab?: "preview" | "blocks" | "stats" | "download";
-  /** Initial transition effect (default "none"). */
-  defaultTransition?: TransitionEffect;
   className?: string;
 }
 
@@ -58,18 +52,11 @@ function wordCount(s: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
-const TRANSITIONS: { value: TransitionEffect; label: string }[] = [
-  { value: "none", label: "Instant" },
-  { value: "crossfade", label: "Crossfade" },
-  { value: "typewriter", label: "Typewriter" },
-];
-
 export default function DocumentViewer({
   tree,
   filename,
   bytes,
   defaultTab = "preview",
-  defaultTransition = "none",
   className,
 }: DocumentViewerProps): React.ReactElement {
   const ft = fileType(filename);
@@ -78,8 +65,6 @@ export default function DocumentViewer({
   const locales = doc.locales ?? [];
 
   const [side, setSide] = useState<PreviewSide>("source");
-  const [transition, setTransition] = useState<TransitionEffect>(defaultTransition);
-  const [annotations, setAnnotations] = useState(true);
 
   // Per-structure counts for the Stats tab.
   const stats = useMemo(() => {
@@ -126,10 +111,28 @@ export default function DocumentViewer({
             {formatBytes(bytes.length)}
           </span>
         )}
+        {/* Compact source↔target toggle — only when a target locale exists. */}
+        {locales.length > 0 && (
+          <ToggleGroup
+            type="single"
+            size="sm"
+            value={side}
+            onValueChange={(v) => v && setSide(v)}
+            aria-label="Source or target"
+            className="ml-auto"
+          >
+            <ToggleGroupItem value="source">Source</ToggleGroupItem>
+            {locales.map((loc) => (
+              <ToggleGroupItem key={loc} value={loc}>
+                {loc}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto"
+          className={locales.length > 0 ? "" : "ml-auto"}
           disabled={!bytes}
           onClick={() => bytes && downloadBytes(filename, bytes)}
         >
@@ -138,76 +141,22 @@ export default function DocumentViewer({
       </div>
 
       <Tabs defaultValue={defaultTab} className="px-3 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <TabsList variant="line">
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="blocks">
-              Blocks{" "}
-              {blocks.length > 0 && (
-                <Badge variant="ghost" className="ml-1">
-                  {blocks.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="stats">Stats</TabsTrigger>
-            <TabsTrigger value="download">Download</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList variant="line">
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="blocks">
+            Blocks{" "}
+            {blocks.length > 0 && (
+              <Badge variant="ghost" className="ml-1">
+                {blocks.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="stats">Stats</TabsTrigger>
+          <TabsTrigger value="download">Download</TabsTrigger>
+        </TabsList>
 
-        {/* Preview controls */}
-        <TabsContent value="preview" className="flex flex-col gap-3 pt-3">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* source ↔ target toggle */}
-            <label className="flex items-center gap-1.5 text-xs">
-              <span className="text-muted-foreground">Side</span>
-              <Select value={side} onValueChange={(v) => setSide(v)}>
-                <SelectTrigger size="sm" className="h-7 w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="source">Source</SelectItem>
-                  {locales.map((loc) => (
-                    <SelectItem key={loc} value={loc}>
-                      {loc}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            {/* transition effect */}
-            <label className="flex items-center gap-1.5 text-xs">
-              <span className="text-muted-foreground">Transition</span>
-              <Select
-                value={transition}
-                onValueChange={(v) => setTransition(v as TransitionEffect)}
-              >
-                <SelectTrigger size="sm" className="h-7 w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRANSITIONS.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            {/* annotations toggle */}
-            <label className="flex items-center gap-1.5 text-xs">
-              <Switch checked={annotations} onCheckedChange={setAnnotations} />
-              <span className="text-muted-foreground">Annotations</span>
-            </label>
-          </div>
-
-          <FormatPreview
-            tree={tree}
-            side={side}
-            transition={transition}
-            annotations={annotations}
-          />
+        <TabsContent value="preview" className="pt-3">
+          <FormatPreview tree={tree} side={side} transition="crossfade" annotations />
         </TabsContent>
 
         {/* Blocks */}

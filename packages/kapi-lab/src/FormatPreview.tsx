@@ -66,6 +66,11 @@ export interface FormatPreviewProps {
   transition?: TransitionEffect;
   /** Typewriter granularity when transition === "typewriter" (default "word"). */
   typewriter?: TypewriterGranularity;
+  /**
+   * Stagger each line's typewriter start by `line index * this` ms, so lines
+   * reveal one after another instead of all at once (default 0 = simultaneous).
+   */
+  typewriterStagger?: number;
   /** Force reduced-motion (instant) — for tests. */
   reducedMotion?: boolean;
   /** Show spreadsheet column letters / row numbers (default true). */
@@ -81,6 +86,7 @@ interface PreviewCtx {
   overlayFilter?: Set<string>;
   transition: TransitionEffect;
   typewriter: TypewriterGranularity;
+  stagger: number;
   reducedMotion?: boolean;
   beforeIndex: Map<string, string> | null;
 }
@@ -144,7 +150,7 @@ function diffSpans(next: string, prev: string | undefined): DiffSpan[] {
  * highlights for the visible text, and a before/after word diff when no overlays
  * apply to a token.
  */
-function LineText({ line }: { line: RenderLine }): React.ReactElement {
+function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.ReactElement {
   const ctx = useCtx();
   const isSource = ctx.side === "source";
   const fullText = isSource ? line.text : (line.targets?.[ctx.side] ?? line.text);
@@ -152,6 +158,7 @@ function LineText({ line }: { line: RenderLine }): React.ReactElement {
   const { visible, done, cycle } = useTextTransition(fullText, {
     effect: ctx.transition,
     granularity: ctx.typewriter,
+    delay: ctx.stagger > 0 ? ctx.stagger * seq : 0,
     reducedMotion: ctx.reducedMotion,
   });
 
@@ -229,14 +236,14 @@ function Slides({ slides }: { slides: RenderSlide[] }): React.ReactElement {
         <div key={slide.name} className={styles.slide}>
           {slide.title && (
             <div className={styles.slideTitle}>
-              <LineText line={slide.title} />
+              <LineText line={slide.title} seq={0} />
             </div>
           )}
           {slide.bullets.length > 0 && (
             <ul className={styles.slideBullets}>
-              {slide.bullets.map((b) => (
+              {slide.bullets.map((b, i) => (
                 <li key={b.id}>
-                  <LineText line={b} />
+                  <LineText line={b} seq={i + 1} />
                 </li>
               ))}
             </ul>
@@ -289,8 +296,8 @@ function Sheet({
   );
 }
 
-function lineEl(p: RenderLine): React.ReactElement {
-  const content = <LineText line={p} />;
+function lineEl(p: RenderLine, index = 0): React.ReactElement {
+  const content = <LineText line={p} seq={index} />;
   if (p.role === "heading") {
     return (
       <div key={p.id} className={styles.heading}>
@@ -332,7 +339,7 @@ function Pages({ pages }: { pages: RenderPage[] }): React.ReactElement {
 function List({ lines }: { lines: RenderLine[] }): React.ReactElement {
   return (
     <div className={styles.list}>
-      {lines.map((l) => (
+      {lines.map((l, i) => (
         <div key={l.id} className={styles.entry}>
           {l.key && (
             <span className={styles.entryKey} title={l.key}>
@@ -340,7 +347,7 @@ function List({ lines }: { lines: RenderLine[] }): React.ReactElement {
             </span>
           )}
           <span className={styles.entryText}>
-            <LineText line={l} />
+            <LineText line={l} seq={i} />
           </span>
         </div>
       ))}
@@ -407,6 +414,7 @@ export default function FormatPreview({
   overlayTypes,
   transition = "none",
   typewriter = "word",
+  typewriterStagger = 0,
   reducedMotion,
   gridHeaders = true,
   className,
@@ -430,10 +438,20 @@ export default function FormatPreview({
       overlayFilter,
       transition,
       typewriter,
+      stagger: typewriterStagger,
       reducedMotion,
       beforeIndex,
     }),
-    [side, annotations, overlayFilter, transition, typewriter, reducedMotion, beforeIndex],
+    [
+      side,
+      annotations,
+      overlayFilter,
+      transition,
+      typewriter,
+      typewriterStagger,
+      reducedMotion,
+      beforeIndex,
+    ],
   );
 
   return (

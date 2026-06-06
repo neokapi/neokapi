@@ -22,6 +22,11 @@ export interface UseTextTransitionOptions {
   granularity?: TypewriterGranularity;
   /** Reveal interval in ms per unit (default 28ms). */
   speed?: number;
+  /**
+   * Hold the text blank for this many ms before the typewriter starts — used to
+   * stagger lines so they reveal one after another (default 0 = immediate).
+   */
+  delay?: number;
   /** Force reduced-motion (instant) regardless of media query — for tests. */
   reducedMotion?: boolean;
 }
@@ -51,7 +56,7 @@ export function useTextTransition(
   text: string,
   opts: UseTextTransitionOptions,
 ): TextTransitionState {
-  const { effect, granularity = "word", speed = 28, reducedMotion } = opts;
+  const { effect, granularity = "word", speed = 28, delay = 0, reducedMotion } = opts;
   const reduce = reducedMotion ?? prefersReducedMotion();
 
   const [visible, setVisible] = useState(text);
@@ -76,26 +81,35 @@ export function useTextTransition(
       return;
     }
 
-    // Typewriter: reveal unit by unit.
+    // Typewriter: reveal unit by unit, after an optional stagger delay (during
+    // which the line stays blank so lines reveal one after another).
     const units = splitUnits(text, granularity);
     let i = 0;
     setVisible("");
     setDone(units.length === 0);
     let acc = "";
-    const timer = setInterval(
-      () => {
-        acc += units[i] ?? "";
-        i += 1;
-        setVisible(acc);
-        if (i >= units.length) {
-          setDone(true);
-          clearInterval(timer);
-        }
-      },
-      Math.max(8, speed),
-    );
-    return () => clearInterval(timer);
-  }, [text, effect, granularity, speed, reduce]);
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const startTyping = () => {
+      interval = setInterval(
+        () => {
+          acc += units[i] ?? "";
+          i += 1;
+          setVisible(acc);
+          if (i >= units.length) {
+            setDone(true);
+            if (interval) clearInterval(interval);
+          }
+        },
+        Math.max(8, speed),
+      );
+    };
+    const startTimer = delay > 0 ? setTimeout(startTyping, delay) : undefined;
+    if (!startTimer) startTyping();
+    return () => {
+      if (startTimer) clearTimeout(startTimer);
+      if (interval) clearInterval(interval);
+    };
+  }, [text, effect, granularity, speed, delay, reduce]);
 
   return { visible, done, cycle };
 }

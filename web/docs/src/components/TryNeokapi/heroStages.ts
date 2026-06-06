@@ -130,18 +130,14 @@ const readFrame = slide(line("t", SRC.t), [
   line("b3", SRC.b3),
 ]);
 
-// Pre-process: email masked (redaction), "Acme" tagged as a term, the first
-// bullet shown as a segment.
+// Pre-process: email masked (redaction) + "Acme" tagged as a term on each line.
 const preprocessFrame = slide(
   line("t", SRC.t, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
   [
     line("b1", `Reach us at ${MASK}`, [
       overlay("entity", [span(MASK, { kind: "email", message: "Redacted before translation" })]),
     ]),
-    line("b2", SRC.b2, [
-      overlay("term", [span("Acme", { target: "Acme", domain: "brand" })]),
-      overlay("segmentation", [span("Acme makes every quarter count.")]),
-    ]),
+    line("b2", SRC.b2, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
     line("b3", SRC.b3, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
   ],
 );
