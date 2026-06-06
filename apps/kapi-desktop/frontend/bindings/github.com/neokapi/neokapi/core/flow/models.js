@@ -454,6 +454,29 @@ export class StepsSpec {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
+             * Source and Sink declare the flow's I/O bindings (AD-026). They hold a
+             * binding locator — a scheme such as "store" or "none", optionally with a
+             * path. A flow sets these only when a binding is intrinsic to what it is
+             * (e.g. Sink "none" for an analysis flow); otherwise the binding is supplied
+             * at invocation (the -i/-o flags, the project, or auto-detection). The flow
+             * never names a concrete file path here — locations come from the run.
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sink"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Input and Output name the reader/writer formats for the file binding. They
+             * are the format-hint shorthand for `source`/`sink` over a file; an explicit
+             * Source/Sink takes precedence.
              * @member
              * @type {string | undefined}
              */
@@ -493,14 +516,14 @@ export class StepsSpec {
      * @returns {StepsSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
+        const $$createField5_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sourceTransforms" in $$parsedSource) {
-            $$parsedSource["sourceTransforms"] = $$createField2_0($$parsedSource["sourceTransforms"]);
+            $$parsedSource["sourceTransforms"] = $$createField4_0($$parsedSource["sourceTransforms"]);
         }
         if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
+            $$parsedSource["steps"] = $$createField5_0($$parsedSource["steps"]);
         }
         return new StepsSpec(/** @type {Partial<StepsSpec>} */($$parsedSource));
     }

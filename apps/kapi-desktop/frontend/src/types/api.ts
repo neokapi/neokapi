@@ -312,6 +312,63 @@ export interface ConceptDoc {
 
 export type AppMode = "adhoc" | "projects";
 
+/**
+ * Persisted project-first session restored on the next launch.
+ * lastOpenProjects are recipe paths, most-recent first.
+ */
+export interface SessionState {
+  mode: string;
+  lastOpenProjects: string[];
+  activeProject: string;
+}
+
+/** Per-collection translation status rendered on the project home. */
+export interface CollectionStatus {
+  name: string;
+  /** Total translatable blocks across the collection's files. */
+  blockCount: number;
+  /** Maps locale → translated block count. */
+  coverage: Record<string, number>;
+  targetLanguages: string[];
+}
+
+/** Project-wide extraction + coverage status. */
+export interface ProjectStatus {
+  projectPath: string;
+  projectName: string;
+  /** false ⇒ never extracted; show the shell + a "run extract" prompt. */
+  hasData: boolean;
+  collections: CollectionStatus[];
+}
+
+/** One skipped file from an extraction request. */
+export interface ExtractSkip {
+  path: string;
+  reason: string;
+}
+
+/** Outcome of a project extraction request. */
+export interface ExtractResult {
+  files: number;
+  blocks: number;
+  skipped?: ExtractSkip[];
+  log: string;
+}
+
+/** Outcome of adopting a user/ad-hoc flow into a project recipe. */
+export interface AdoptFlowResult {
+  name: string;
+  /** true when the flow was renamed to avoid a clash with an existing one. */
+  renamed: boolean;
+}
+
+/** Project-scoped resource handles ("" when none). */
+export interface ProjectHandles {
+  tabID: string;
+  tmHandle: string;
+  termbaseHandle: string;
+}
+
 // Sidebar items for Ad-Hoc mode
 export type AdhocView =
   | "home"

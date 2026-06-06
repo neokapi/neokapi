@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Play,
   Globe,
@@ -9,13 +9,17 @@ import {
   Settings2,
   Wrench,
   AlertTriangle,
+  PackageOpen,
+  RefreshCw,
 } from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, FlowSpec, FlowInfo, PluginIssue } from "../types/api";
+import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed } from "../context/JobFeedContext";
+import { useWailsEvent } from "../hooks/useWailsEvent";
+import { useError } from "./ErrorBanner";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -27,6 +31,8 @@ export interface HomePageProps {
   pluginsResolved?: boolean;
   /** Details of unsatisfied plugin requirements. */
   pluginIssues?: PluginIssue[];
+  /** Pre-loaded status for Storybook — skips api.getProjectStatus(). */
+  status?: ProjectStatus;
 }
 
 export function HomePage({
@@ -37,9 +43,44 @@ export function HomePage({
   onNavigate,
   pluginsResolved,
   pluginIssues,
+  status: propStatus,
 }: HomePageProps) {
   const { hasActive, activeJob } = useJobFeed();
+  const { showError } = useError();
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
+  const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
+  const [extracting, setExtracting] = useState(false);
+
+  const refreshStatus = useCallback(() => {
+    if (!tabID || propStatus) return;
+    void api
+      .getProjectStatus(tabID)
+      .then((s) => {
+        if (s) setStatus(s);
+      })
+      .catch(() => {});
+  }, [tabID, propStatus]);
+
+  // Load status on mount / content change.
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus, project.content]);
+
+  // Refresh after an extraction completes (emitted by the backend).
+  useWailsEvent("project:extracted", () => refreshStatus());
+
+  const handleExtract = useCallback(async () => {
+    if (!tabID) return;
+    setExtracting(true);
+    try {
+      await api.runExtract(tabID);
+      refreshStatus();
+    } catch (err) {
+      showError("Extraction failed", err);
+    } finally {
+      setExtracting(false);
+    }
+  }, [tabID, refreshStatus, showError]);
 
   // Fetch flow validation on mount / project change.
   useEffect(() => {
@@ -181,6 +222,92 @@ export function HomePage({
           onClick={() => onNavigate("project-settings")}
         />
       </div>
+
+      {/* Content status / coverage */}
+      {hasContent && (
+        <section className="mb-8">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <FileText size={14} />
+            Content Status
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-7 normal-case"
+              onClick={() => void handleExtract()}
+              disabled={extracting || hasActive}
+              aria-label={status?.hasData ? "Re-extract content" : "Run extract"}
+            >
+              {extracting ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+              {status?.hasData ? "Re-extract" : "Extract"}
+            </Button>
+          </h2>
+
+          {status && !status.hasData ? (
+            <EmptyState
+              icon={<PackageOpen size={24} className="text-muted-foreground/50" />}
+              title="Nothing extracted yet."
+              description="Run extract to read your content files and see translation coverage."
+              action={
+                <Button size="sm" onClick={() => void handleExtract()} disabled={extracting}>
+                  {extracting ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    "Run extract"
+                  )}
+                </Button>
+              }
+            />
+          ) : status && status.collections.length > 0 ? (
+            <div className="space-y-2">
+              {status.collections.map((c) => (
+                <Card key={c.name} className="p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{c.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("{count} block(s)", { count: c.blockCount })}
+                    </span>
+                  </div>
+                  {c.targetLanguages.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {c.targetLanguages.map((loc) => {
+                        const translated = c.coverage?.[loc] ?? 0;
+                        const pct =
+                          c.blockCount > 0 ? Math.round((translated / c.blockCount) * 100) : 0;
+                        return (
+                          <div key={loc} className="flex items-center gap-2">
+                            <span
+                              className="w-16 shrink-0 text-xs text-muted-foreground"
+                              translate="no"
+                            >
+                              {loc}
+                            </span>
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                              {translated} / {c.blockCount} ({pct}%)
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {/* Run flows */}
       {flowNames.length > 0 && (

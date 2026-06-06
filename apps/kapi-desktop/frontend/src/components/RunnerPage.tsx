@@ -18,6 +18,11 @@ import {
   Input,
   ScrollArea,
   PageHeader,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
@@ -59,7 +64,9 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
 
   const [inputFiles, setInputFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
+  const [projectTargets, setProjectTargets] = useState<string[]>([]);
   const autoRunStarted = useRef(false);
+  const manualPrefilled = useRef(false);
 
   const projectName = project?.name || undefined;
 
@@ -105,6 +112,24 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       await launchFlow(paths, targets);
     })();
   }, [autoRun, project, tabID, launchFlow]);
+
+  // Manual path: when a project is in scope, pre-populate target language(s)
+  // from the project defaults and input files from the matched content — so the
+  // manual runner is consistent with the autoRun path instead of starting blank.
+  useEffect(() => {
+    if (autoRun || !project || manualPrefilled.current) return;
+    manualPrefilled.current = true;
+
+    const targets = project.defaults?.target_languages ?? [];
+    setProjectTargets(targets);
+    if (targets.length > 0) setTargetLang(targets[0]);
+
+    void (async () => {
+      const matches = await api.matchContent(tabID);
+      const paths = matches?.map((m) => m.path) ?? [];
+      if (paths.length > 0) setInputFiles(paths);
+    })();
+  }, [autoRun, project, tabID]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
@@ -175,19 +200,41 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
                 ? t("{count} file(s) selected", { count: inputFiles.length })
                 : t("Select files...")}
             </Button>
+            {project && inputFiles.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">{t("From project content")}</p>
+            )}
           </div>
           <div>
             <Label htmlFor="runner-target-lang" className="mb-1 block">
               Target Language
             </Label>
-            <Input
-              id="runner-target-lang"
-              type="text"
-              value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value)}
-              placeholder="e.g. fr-FR"
-              className="w-48"
-            />
+            {projectTargets.length > 0 ? (
+              <Select value={targetLang} onValueChange={setTargetLang}>
+                <SelectTrigger
+                  id="runner-target-lang"
+                  className="w-48"
+                  aria-label="Target language"
+                >
+                  <SelectValue placeholder={t("Select a language")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectTargets.map((l) => (
+                    <SelectItem key={l} value={l} translate="no">
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="runner-target-lang"
+                type="text"
+                value={targetLang}
+                onChange={(e) => setTargetLang(e.target.value)}
+                placeholder="e.g. fr-FR"
+                className="w-48"
+              />
+            )}
           </div>
         </div>
       )}

@@ -283,6 +283,13 @@ function AppInner() {
               onOpenProject={tm.openProject}
               onCreateSampleProject={tm.createSampleProject}
               onDismissSamples={dismissSamples}
+              adoptTarget={(() => {
+                // In ad-hoc mode, offer adoption into the active project tab, or
+                // the most recently opened one if none is active.
+                const target =
+                  tm.tabs.find((t) => t.info.id === tm.activeTabID) ?? tm.tabs[tm.tabs.length - 1];
+                return target ? { id: target.info.id, name: target.info.name } : null;
+              })()}
             />
           </main>
         </div>

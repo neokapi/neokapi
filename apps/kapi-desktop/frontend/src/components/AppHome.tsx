@@ -25,7 +25,7 @@ export function AppHome({
 }: AppHomeProps) {
   const shortenHome = useShortenHome();
   return (
-    <div className="p-6">
+    <div className="mx-auto max-w-3xl p-6">
       <div className="mb-8 flex items-center gap-4">
         <img src="/neokapi-logo.png" alt="neokapi" className="h-12 w-12 drop-shadow-lg" />
         <div>
@@ -36,9 +36,69 @@ export function AppHome({
         </div>
       </div>
 
+      {/* Primary: start or open a project. This is the day-to-day model. */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Projects
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button
+            variant="outline"
+            onClick={onNewProject}
+            className="h-auto whitespace-normal rounded-lg border-primary/30 bg-primary/5 p-5 text-left flex-col items-start hover:border-primary/50 hover:bg-primary/10"
+          >
+            <FolderKanban size={22} className="mb-2 text-primary" />
+            <div className="text-base font-semibold">New Project</div>
+            <div className="text-xs text-muted-foreground font-normal">
+              Create a Kapi project with content, flows, and languages
+            </div>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onOpenProject}
+            className="h-auto whitespace-normal rounded-lg border-primary/30 bg-primary/5 p-5 text-left flex-col items-start hover:border-primary/50 hover:bg-primary/10"
+          >
+            <FolderOpen size={22} className="mb-2 text-primary" />
+            <div className="text-base font-semibold">Open a Project</div>
+            <div className="text-xs text-muted-foreground font-normal">
+              Open an existing .kapi project from disk
+            </div>
+          </Button>
+        </div>
+      </section>
+
+      {/* Recent projects — prominent, right under the primary actions. */}
+      {recentFiles.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent Projects
+          </h2>
+          <div className="space-y-1">
+            {recentFiles.map((file) => (
+              <Button
+                key={file.path}
+                variant="outline"
+                onClick={() => onOpenRecent(file.path)}
+                className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
+              >
+                <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
+                <div className="flex-1 truncate">
+                  <div className="text-sm font-medium">{file.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {file.path.endsWith("/project.kapi")
+                      ? shortenHome(file.path.replace(/\/project\.kapi$/, ""))
+                      : shortenHome(file.path)}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Sample projects — shown until explicitly dismissed */}
       {!samplesDismissed && (
-        <div className="mb-8">
+        <section className="mb-8">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Sparkles size={14} />
             <span className="flex-1">New to Kapi? Try a sample project</span>
@@ -79,79 +139,44 @@ export function AppHome({
               </p>
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Quick actions */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Button
-          variant="outline"
-          onClick={onNewProject}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <FolderKanban size={18} className="mb-2 text-primary" />
-          <div className="text-sm font-medium">New Project</div>
-          <div className="text-xs text-muted-foreground font-normal">Create a Kapi project</div>
-        </Button>
-        <Button
-          variant="outline"
-          onClick={onOpenProject}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <FolderOpen size={18} className="mb-2 text-primary" />
-          <div className="text-sm font-medium">Open a Project</div>
-          <div className="text-xs text-muted-foreground font-normal">
-            Open an existing Kapi project
-          </div>
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => onNavigate("flows")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <Workflow size={18} className="mb-2 text-primary" />
-          <div className="text-sm font-medium">Design a Flow</div>
-          <div className="text-xs text-muted-foreground font-normal">Build tool pipelines</div>
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => onNavigate("tools")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <Wrench size={18} className="mb-2 text-primary" />
-          <div className="text-sm font-medium">Run a Tool</div>
-          <div className="text-xs text-muted-foreground font-normal">Execute a tool on files</div>
-        </Button>
-      </div>
-
-      {/* Recent projects */}
-      {recentFiles.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recent Projects
-          </h2>
-          <div className="space-y-1">
-            {recentFiles.map((file) => (
-              <Button
-                key={file.path}
-                variant="outline"
-                onClick={() => onOpenRecent(file.path)}
-                className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
-              >
-                <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
-                <div className="flex-1 truncate">
-                  <div className="text-sm font-medium">{file.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {file.path.endsWith("/project.kapi")
-                      ? shortenHome(file.path.replace(/\/project\.kapi$/, ""))
-                      : shortenHome(file.path)}
-                  </div>
-                </div>
-              </Button>
-            ))}
-          </div>
         </section>
       )}
+
+      {/* Secondary: ad-hoc quick tools — one-off, no project required. */}
+      <section>
+        <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Quick tools
+        </h2>
+        <p className="mb-3 text-xs text-muted-foreground/70">
+          One-off actions that don&apos;t need a project. Results aren&apos;t saved to a project.
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button
+            variant="ghost"
+            onClick={() => onNavigate("flows")}
+            className="h-auto whitespace-normal rounded-lg border border-border/60 p-3 text-left flex-row items-center gap-3 hover:bg-accent/30"
+          >
+            <Workflow size={16} className="shrink-0 text-muted-foreground" />
+            <div>
+              <div className="text-sm font-medium">Design a Flow</div>
+              <div className="text-xs text-muted-foreground font-normal">Build tool pipelines</div>
+            </div>
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => onNavigate("tools")}
+            className="h-auto whitespace-normal rounded-lg border border-border/60 p-3 text-left flex-row items-center gap-3 hover:bg-accent/30"
+          >
+            <Wrench size={16} className="shrink-0 text-muted-foreground" />
+            <div>
+              <div className="text-sm font-medium">Run a Tool</div>
+              <div className="text-xs text-muted-foreground font-normal">
+                Execute a tool on files
+              </div>
+            </div>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

@@ -44,6 +44,38 @@ func TestOpenProjectAutoOpensTM(t *testing.T) {
 	assert.Greater(t, tbCount, 0)
 }
 
+func TestGetProjectHandles(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	require.NoError(t, sample.Scaffold("kapimart", dir))
+
+	tab, err := app.OpenProject(filepath.Join(dir, "project.kapi"))
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	h := app.GetProjectHandles(tab.ID)
+	assert.Equal(t, tab.ID, h.TabID)
+	assert.NotEmpty(t, h.TMHandle, "project TM handle should be reachable")
+	assert.NotEmpty(t, h.TermbaseHandle, "project termbase handle should be reachable")
+
+	// The bundled ids match the single-getter accessors and resolve to live
+	// handles the frontend can preselect.
+	assert.Equal(t, app.GetProjectTMHandle(tab.ID), h.TMHandle)
+	assert.Equal(t, app.GetProjectTermbaseHandle(tab.ID), h.TermbaseHandle)
+	_, ok := app.tmHandles.Get(h.TMHandle)
+	assert.True(t, ok)
+	_, ok = app.tbHandles.Get(h.TermbaseHandle)
+	assert.True(t, ok)
+}
+
+func TestGetProjectHandlesUnknownTab(t *testing.T) {
+	app := NewApp()
+	h := app.GetProjectHandles("nope")
+	assert.Equal(t, "nope", h.TabID)
+	assert.Empty(t, h.TMHandle)
+	assert.Empty(t, h.TermbaseHandle)
+}
+
 func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {
 	app := NewApp()
 	tab := newTestProject(t, app, "plain")

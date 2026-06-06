@@ -171,3 +171,13 @@ export const WithFlows: StoryObj<typeof FlowsPage> = {
 export const Empty: StoryObj<typeof FlowsPage> = {
   render: () => <FlowsPage flows={[]} />,
 };
+
+/**
+ * Ad-hoc flow list with a project open — each flow gains an "Add to project"
+ * action (hover a card) that copies it into the open project's recipe.
+ */
+export const AdoptIntoProject: StoryObj<typeof FlowsPage> = {
+  render: () => (
+    <FlowsPage flows={SAMPLE_FLOW_LIST} adoptTabID="tab-1" adoptProjectName="Acme App" />
+  ),
+};

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"gopkg.in/yaml.v3"
 )
@@ -201,6 +202,77 @@ func (a *App) CopyBuiltInFlow(builtInID, newName string) (string, error) {
 		return "", err
 	}
 	return newID, nil
+}
+
+// AdoptFlowResult reports the outcome of adopting a user/built-in flow into a
+// project's recipe.
+type AdoptFlowResult struct {
+	// Name is the key the flow was stored under in the project recipe — the
+	// requested name, or a deduped variant ("name-2", "name-3", …) when the
+	// requested name already existed.
+	Name string `json:"name"`
+	// Renamed is true when a collision forced a deduped name.
+	Renamed bool `json:"renamed"`
+}
+
+// AdoptUserFlowIntoProject copies a user-saved or built-in flow (identified by
+// its flow id, as listed by ListUserFlows) into the open project's recipe
+// `flows` map and persists the recipe to disk. The flow's steps are translated
+// into the recipe's StepsSpec form. If the project already declares a flow with
+// the same name, a deduped name ("name-2", …) is used and reported in the
+// result; the existing flow is never overwritten.
+func (a *App) AdoptUserFlowIntoProject(tabID, flowID string) (*AdoptFlowResult, error) {
+	detail := a.GetUserFlow(flowID)
+	if detail == nil {
+		return nil, fmt.Errorf("flow %q not found", flowID)
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	op := a.projects[tabID]
+	if op == nil {
+		return nil, fmt.Errorf("tab %q not found", tabID)
+	}
+	if op.Project == nil {
+		return nil, fmt.Errorf("tab %q has no project loaded", tabID)
+	}
+	if op.Project.Flows == nil {
+		op.Project.Flows = make(map[string]*flow.StepsSpec)
+	}
+
+	name, renamed := dedupeFlowName(detail.Name, op.Project.Flows)
+	op.Project.Flows[name] = &flow.StepsSpec{Steps: detail.Steps}
+
+	if op.Path == "" {
+		return nil, fmt.Errorf("project has no file path; save it before adopting flows")
+	}
+	if err := project.Save(op.Path, op.Project); err != nil {
+		// Roll back the in-memory addition so state stays consistent with disk.
+		delete(op.Project.Flows, name)
+		return nil, fmt.Errorf("save project: %w", err)
+	}
+
+	return &AdoptFlowResult{Name: name, Renamed: renamed}, nil
+}
+
+// dedupeFlowName returns a flow name that does not collide with existing keys.
+// An empty requested name defaults to "flow". On collision it appends "-2",
+// "-3", … until a free name is found.
+func dedupeFlowName(requested string, existing map[string]*flow.StepsSpec) (string, bool) {
+	base := strings.TrimSpace(requested)
+	if base == "" {
+		base = "flow"
+	}
+	if _, taken := existing[base]; !taken {
+		return base, false
+	}
+	for i := 2; ; i++ {
+		candidate := fmt.Sprintf("%s-%d", base, i)
+		if _, taken := existing[candidate]; !taken {
+			return candidate, true
+		}
+	}
 }
 
 // OpenFlowFileDialog shows a native file dialog to open a flow YAML file.

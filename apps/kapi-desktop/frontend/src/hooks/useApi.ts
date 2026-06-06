@@ -20,6 +20,11 @@ import type {
   StepDoc,
   BrowsePathRequest,
   CheckRunResult,
+  SessionState,
+  ProjectStatus,
+  ExtractResult,
+  AdoptFlowResult,
+  ProjectHandles,
 } from "../types/api";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -89,20 +94,14 @@ export const api = {
   updateProject: (tabID: string, project: KapiProject) =>
     call<void>("UpdateProject", tabID, project),
   getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
-  getProjectStatus: (tabID: string) =>
-    call<{
-      projectPath: string;
-      projectName: string;
-      collections: Array<{
-        name: string;
-        archive: string;
-        archiveExists: boolean;
-        blockCount: number;
-        coverage: Record<string, number>;
-        targetLanguages: string[];
-      }>;
-    }>("GetProjectStatus", tabID),
-  runExtract: (tabID: string) => call<{ log: string }>("RunExtract", tabID),
+  getProjectStatus: (tabID: string) => call<ProjectStatus>("GetProjectStatus", tabID),
+  runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
+
+  // App mode + session (project-first restore)
+  getAppMode: () => call<string>("GetAppMode"),
+  setAppMode: (mode: string) => call<void>("SetAppMode", mode),
+  getSessionState: () => call<SessionState>("GetSessionState"),
+  saveSessionState: (state: SessionState) => call<void>("SaveSessionState", state),
 
   // Flows (scoped to tab)
   listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),
@@ -304,6 +303,11 @@ export const api = {
   // Project resource handles
   getProjectTMHandle: (tabID: string) => call<string>("GetProjectTMHandle", tabID),
   getProjectTermbaseHandle: (tabID: string) => call<string>("GetProjectTermbaseHandle", tabID),
+  getProjectHandles: (tabID: string) => call<ProjectHandles>("GetProjectHandles", tabID),
+
+  // Adopt a user/ad-hoc flow into the active project's recipe.
+  adoptUserFlowIntoProject: (tabID: string, flowID: string) =>
+    call<AdoptFlowResult>("AdoptUserFlowIntoProject", tabID, flowID),
 
   // TM
   listNamedTMs: () =>

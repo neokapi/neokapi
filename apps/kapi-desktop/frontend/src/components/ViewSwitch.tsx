@@ -67,6 +67,8 @@ interface ViewSwitchProps {
   onOpenProject: () => void;
   onCreateSampleProject: (name: string) => void;
   onDismissSamples: () => void;
+  /** An open project tab to offer ad-hoc flow adoption into ({id,name}). */
+  adoptTarget?: { id: string; name: string } | null;
 }
 
 export function ViewSwitch({
@@ -84,6 +86,7 @@ export function ViewSwitch({
   onOpenProject,
   onCreateSampleProject,
   onDismissSamples,
+  adoptTarget,
 }: ViewSwitchProps) {
   // State for the runner view — set when the user clicks Run on a flow.
   const [runnerState, setRunnerState] = useState<{
@@ -120,7 +123,7 @@ export function ViewSwitch({
   if (mode === "adhoc") {
     switch (effectiveView) {
       case "flows":
-        return <FlowsPage />;
+        return <FlowsPage adoptTabID={adoptTarget?.id} adoptProjectName={adoptTarget?.name} />;
       case "tools":
         return <ToolRunnerPage />;
       case "termbases":

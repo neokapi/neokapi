@@ -139,6 +139,49 @@ export class AddTMEntryRequest {
 }
 
 /**
+ * AdoptFlowResult reports the outcome of adopting a user/built-in flow into a
+ * project's recipe.
+ */
+export class AdoptFlowResult {
+    /**
+     * Creates a new AdoptFlowResult instance.
+     * @param {Partial<AdoptFlowResult>} [$$source = {}] - The source object to create the AdoptFlowResult.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * Name is the key the flow was stored under in the project recipe — the
+             * requested name, or a deduped variant ("name-2", "name-3", …) when the
+             * requested name already existed.
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("renamed" in $$source)) {
+            /**
+             * Renamed is true when a collision forced a deduped name.
+             * @member
+             * @type {boolean}
+             */
+            this["renamed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AdoptFlowResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AdoptFlowResult}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AdoptFlowResult(/** @type {Partial<AdoptFlowResult>} */($$parsedSource));
+    }
+}
+
+/**
  * AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
  */
 export class AnnotateEntitiesRequest {
@@ -279,6 +322,34 @@ export class AppSettings {
              */
             this["custom_locales"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Mode persists the app's project-first vs ad-hoc preference across
+             * launches. Empty (legacy settings) is treated as AppModeProjects.
+             * @member
+             * @type {string | undefined}
+             */
+            this["mode"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * LastOpenProjects is the ordered list of project recipe paths that
+             * were open when the app last persisted its session. Most-recently
+             * activated first. The frontend restores these tabs at startup.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["last_open_projects"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ActiveProject is the recipe path of the project tab that was active
+             * (focused) in the last session. Empty when no project was open.
+             * @member
+             * @type {string | undefined}
+             */
+            this["active_project"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -291,12 +362,16 @@ export class AppSettings {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType10;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hidden_locales" in $$parsedSource) {
             $$parsedSource["hidden_locales"] = $$createField3_0($$parsedSource["hidden_locales"]);
         }
         if ("custom_locales" in $$parsedSource) {
             $$parsedSource["custom_locales"] = $$createField4_0($$parsedSource["custom_locales"]);
+        }
+        if ("last_open_projects" in $$parsedSource) {
+            $$parsedSource["last_open_projects"] = $$createField6_0($$parsedSource["last_open_projects"]);
         }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }
@@ -345,6 +420,25 @@ export class AvailablePlugin {
              * @type {boolean}
              */
             this["installed"] = false;
+        }
+        if (!("available" in $$source)) {
+            /**
+             * Available is true when the registry has a stable, kapi-compatible build
+             * of this plugin for the running OS/arch. When false the UI disables the
+             * Install button — e.g. a plugin with no windows/arm64 tarball.
+             * @member
+             * @type {boolean}
+             */
+            this["available"] = false;
+        }
+        if (!("platform" in $$source)) {
+            /**
+             * Platform is the running OS/arch ("windows/arm64"), for the UI to explain
+             * why an unavailable plugin can't be installed.
+             * @member
+             * @type {string}
+             */
+            this["platform"] = "";
         }
 
         Object.assign(this, $$source);
@@ -583,9 +677,11 @@ export class CheckRunResult {
 }
 
 /**
- * CollectionStatus is the JSON-serialisable summary the UI renders
- * on the project status panel. Stays lean; richer per-block stats
- * come from the blockstore layer when the executor migration lands.
+ * CollectionStatus is the JSON-serialisable summary the UI renders on the
+ * project status panel. Coverage is per-target-locale: for each locale the
+ * value is the count of translatable blocks in the collection that have a
+ * committed `targets/<locale>` overlay in the project block store. BlockCount
+ * is the total number of translatable blocks extracted for the collection.
  */
 export class CollectionStatus {
     /**
@@ -1204,7 +1300,7 @@ export class EntityValueFilter {
 }
 
 /**
- * ExtractResult summarises one re-extract request from the UI.
+ * ExtractResult summarises one extraction request from the UI.
  */
 export class ExtractResult {
     /**
@@ -1212,8 +1308,35 @@ export class ExtractResult {
      * @param {Partial<ExtractResult>} [$$source = {}] - The source object to create the ExtractResult.
      */
     constructor($$source = {}) {
+        if (!("files" in $$source)) {
+            /**
+             * Files is the number of source files successfully extracted.
+             * @member
+             * @type {number}
+             */
+            this["files"] = 0;
+        }
+        if (!("blocks" in $$source)) {
+            /**
+             * Blocks is the total number of translatable blocks written to the store.
+             * @member
+             * @type {number}
+             */
+            this["blocks"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Skipped lists files that could not be extracted (no reader, read error)
+             * with a short reason. Extraction is best-effort: an unreadable file (e.g.
+             * a format whose plugin is not installed) is skipped, not fatal.
+             * @member
+             * @type {ExtractSkip[] | undefined}
+             */
+            this["skipped"] = undefined;
+        }
         if (!("log" in $$source)) {
             /**
+             * Log is a human-readable summary the frontend can show.
              * @member
              * @type {string}
              */
@@ -1229,8 +1352,50 @@ export class ExtractResult {
      * @returns {ExtractResult}
      */
     static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField2_0($$parsedSource["skipped"]);
+        }
         return new ExtractResult(/** @type {Partial<ExtractResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ExtractSkip records one file that extraction could not process.
+ */
+export class ExtractSkip {
+    /**
+     * Creates a new ExtractSkip instance.
+     * @param {Partial<ExtractSkip>} [$$source = {}] - The source object to create the ExtractSkip.
+     */
+    constructor($$source = {}) {
+        if (!("path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("reason" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExtractSkip instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ExtractSkip}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExtractSkip(/** @type {Partial<ExtractSkip>} */($$parsedSource));
     }
 }
 
@@ -1347,7 +1512,7 @@ export class FlowInfo {
      * @returns {FlowInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType22;
+        const $$createField4_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField4_0($$parsedSource["issues"]);
@@ -1608,7 +1773,7 @@ export class FormatPresetInfo {
      * @returns {FormatPresetInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType23;
+        const $$createField3_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
@@ -1953,7 +2118,7 @@ export class LookupTMRequest {
      * @returns {LookupTMRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entities" in $$parsedSource) {
             $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
@@ -2162,7 +2327,7 @@ export class PluginInfo {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
-        const $$createField7_0 = $$createType27;
+        const $$createField7_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
@@ -2304,9 +2469,9 @@ export class PreviewResult {
      * @returns {PreviewResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType29;
-        const $$createField1_0 = $$createType31;
-        const $$createField2_0 = $$createType34;
+        const $$createField0_0 = $$createType31;
+        const $$createField1_0 = $$createType33;
+        const $$createField2_0 = $$createType36;
         const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
@@ -2423,7 +2588,61 @@ export class ProjectFileInfo {
 }
 
 /**
+ * ProjectHandles bundles the project-scoped TM and termbase handle IDs for a
+ * tab so the frontend can preselect both in a single call. Each id is the
+ * string handle the TM/termbase Wails methods (and handleStore.Get) accept;
+ * an empty id means the project has no auto-opened resource of that kind.
+ */
+export class ProjectHandles {
+    /**
+     * Creates a new ProjectHandles instance.
+     * @param {Partial<ProjectHandles>} [$$source = {}] - The source object to create the ProjectHandles.
+     */
+    constructor($$source = {}) {
+        if (!("tabID" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tabID"] = "";
+        }
+        if (!("tmHandle" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tmHandle"] = "";
+        }
+        if (!("termbaseHandle" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["termbaseHandle"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectHandles instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectHandles}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectHandles(/** @type {Partial<ProjectHandles>} */($$parsedSource));
+    }
+}
+
+/**
  * ProjectStatus bundles the per-collection summaries.
+ * 
+ * HasData reports whether the project's block store exists and has been
+ * populated (i.e. extraction has run at least once). When false, Collections
+ * still lists the declared collections and their target languages, but
+ * BlockCount/Coverage are zero — the frontend renders a "no data yet, run
+ * extract" state rather than an error.
  */
 export class ProjectStatus {
     /**
@@ -2445,6 +2664,13 @@ export class ProjectStatus {
              */
             this["projectName"] = "";
         }
+        if (!("hasData" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["hasData"] = false;
+        }
         if (!("collections" in $$source)) {
             /**
              * @member
@@ -2462,10 +2688,10 @@ export class ProjectStatus {
      * @returns {ProjectStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType36;
+        const $$createField3_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("collections" in $$parsedSource) {
-            $$parsedSource["collections"] = $$createField2_0($$parsedSource["collections"]);
+            $$parsedSource["collections"] = $$createField3_0($$parsedSource["collections"]);
         }
         return new ProjectStatus(/** @type {Partial<ProjectStatus>} */($$parsedSource));
     }
@@ -2827,8 +3053,8 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType37;
-        const $$createField7_0 = $$createType39;
+        const $$createField6_0 = $$createType39;
+        const $$createField7_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("trace_event" in $$parsedSource) {
             $$parsedSource["trace_event"] = $$createField6_0($$parsedSource["trace_event"]);
@@ -2887,12 +3113,62 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType41;
+        const $$createField3_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
         }
         return new SaveUserFlowRequest(/** @type {Partial<SaveUserFlowRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * SessionState is the persisted project-first session the frontend restores
+ * at startup: which mode to open in and which projects to reopen.
+ */
+export class SessionState {
+    /**
+     * Creates a new SessionState instance.
+     * @param {Partial<SessionState>} [$$source = {}] - The source object to create the SessionState.
+     */
+    constructor($$source = {}) {
+        if (!("mode" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["mode"] = "";
+        }
+        if (!("lastOpenProjects" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["lastOpenProjects"] = [];
+        }
+        if (!("activeProject" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["activeProject"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SessionState instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SessionState}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("lastOpenProjects" in $$parsedSource) {
+            $$parsedSource["lastOpenProjects"] = $$createField1_0($$parsedSource["lastOpenProjects"]);
+        }
+        return new SessionState(/** @type {Partial<SessionState>} */($$parsedSource));
     }
 }
 
@@ -2985,8 +3261,8 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType43;
-        const $$createField4_0 = $$createType45;
+        const $$createField2_0 = $$createType45;
+        const $$createField4_0 = $$createType47;
         const $$createField5_0 = $$createType18;
         const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -3067,10 +3343,10 @@ export class TMFacets {
      * @returns {TMFacets}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType47;
-        const $$createField1_0 = $$createType49;
-        const $$createField2_0 = $$createType51;
-        const $$createField3_0 = $$createType53;
+        const $$createField0_0 = $$createType49;
+        const $$createField1_0 = $$createType51;
+        const $$createField2_0 = $$createType53;
+        const $$createField3_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
@@ -3135,8 +3411,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType54;
-        const $$createField3_0 = $$createType56;
+        const $$createField0_0 = $$createType56;
+        const $$createField3_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -3212,7 +3488,7 @@ export class TMSearchFilter {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType6;
-        const $$createField4_0 = $$createType58;
+        const $$createField4_0 = $$createType60;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("session_ids" in $$parsedSource) {
             $$parsedSource["session_ids"] = $$createField2_0($$parsedSource["session_ids"]);
@@ -3260,7 +3536,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType59;
+        const $$createField0_0 = $$createType61;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -3466,7 +3742,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType61;
+        const $$createField0_0 = $$createType63;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -3866,7 +4142,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType41;
+        const $$createField4_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -3983,7 +4259,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType62;
+        const $$createField2_0 = $$createType64;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -4027,7 +4303,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType62;
+        const $$createField1_0 = $$createType64;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -4058,45 +4334,47 @@ const $$createType17 = $Create.Map($Create.Any, $Create.Any);
 const $$createType18 = $Create.Map($Create.Any, $Create.Any);
 const $$createType19 = EntityValueDTO.createFrom;
 const $$createType20 = $Create.Map($Create.Any, $$createType19);
-const $$createType21 = FlowIssueInfo.createFrom;
+const $$createType21 = ExtractSkip.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $Create.Map($Create.Any, $Create.Any);
-const $$createType24 = EntityAnnotationDTO.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = PluginCapability.createFrom;
+const $$createType23 = FlowIssueInfo.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = $Create.Map($Create.Any, $Create.Any);
+const $$createType26 = EntityAnnotationDTO.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = flow$0.TraceNode.createFrom;
+const $$createType28 = PluginCapability.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = flow$0.TraceEvent.createFrom;
+const $$createType30 = flow$0.TraceNode.createFrom;
 const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = flow$0.PartSnapshotSet.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = $Create.Map($Create.Any, $$createType33);
-const $$createType35 = CollectionStatus.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = $Create.Nullable($$createType30);
-const $$createType38 = flow$0.StepSnapshot.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = flow$0.FlowStep.createFrom;
+const $$createType32 = flow$0.TraceEvent.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = flow$0.PartSnapshotSet.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = $Create.Map($Create.Any, $$createType35);
+const $$createType37 = CollectionStatus.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = $Create.Nullable($$createType32);
+const $$createType40 = flow$0.StepSnapshot.createFrom;
 const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = VariantDTO.createFrom;
-const $$createType43 = $Create.Map($Create.Any, $$createType42);
-const $$createType44 = EntityMappingDTO.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = LocaleFacetDTO.createFrom;
+const $$createType42 = flow$0.FlowStep.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = VariantDTO.createFrom;
+const $$createType45 = $Create.Map($Create.Any, $$createType44);
+const $$createType46 = EntityMappingDTO.createFrom;
 const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = ProjectFacetDTO.createFrom;
+const $$createType48 = LocaleFacetDTO.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = EntityTypeFacetDTO.createFrom;
+const $$createType50 = ProjectFacetDTO.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = ImportSessionFacetDTO.createFrom;
+const $$createType52 = EntityTypeFacetDTO.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = TMEntryDTO.createFrom;
-const $$createType55 = EntityAdaptationDTO.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = EntityValueFilter.createFrom;
+const $$createType54 = ImportSessionFacetDTO.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = TMEntryDTO.createFrom;
+const $$createType57 = EntityAdaptationDTO.createFrom;
 const $$createType58 = $Create.Array($$createType57);
-const $$createType59 = $Create.Array($$createType54);
-const $$createType60 = ConceptDTO.createFrom;
-const $$createType61 = $Create.Array($$createType60);
-const $$createType62 = $Create.Array($Create.Any);
+const $$createType59 = EntityValueFilter.createFrom;
+const $$createType60 = $Create.Array($$createType59);
+const $$createType61 = $Create.Array($$createType56);
+const $$createType62 = ConceptDTO.createFrom;
+const $$createType63 = $Create.Array($$createType62);
+const $$createType64 = $Create.Array($Create.Any);

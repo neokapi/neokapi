@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
-import { Workflow, Plus, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
+import {
+  Workflow,
+  Plus,
+  X,
+  Save,
+  Copy,
+  Lock,
+  Import,
+  FolderOpen,
+  Download,
+  FolderInput,
+  CheckCircle2,
+} from "lucide-react";
 import {
   Button,
   Skeleton,
@@ -28,6 +40,14 @@ export interface FlowsPageProps {
   onFlowDelete?: (name: string) => void;
   /** Pre-loaded flow list for Storybook — skips api.listUserFlows()/api.listFlows(). */
   flows?: FlowListItem[];
+  /**
+   * In ad-hoc mode, the active project tab id (if any project is open). When
+   * set, user/ad-hoc flows gain an "Add to project" action that copies the flow
+   * into that project's recipe via AdoptUserFlowIntoProject.
+   */
+  adoptTabID?: string;
+  /** Display name of the adopt target project (for the action label/tooltip). */
+  adoptProjectName?: string;
 }
 
 export interface FlowListItem {
@@ -44,6 +64,8 @@ export function FlowsPage({
   onFlowChange,
   onFlowDelete,
   flows: propFlows,
+  adoptTabID,
+  adoptProjectName,
 }: FlowsPageProps) {
   const [flows, setFlows] = useState<FlowListItem[]>(propFlows ?? []);
   const [loading, setLoading] = useState(!propFlows);
@@ -54,9 +76,39 @@ export function FlowsPage({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importFlows, setImportFlows] = useState<FlowListItem[]>([]);
   const [newFlowName, setNewFlowName] = useState("");
+  const [adoptNotice, setAdoptNotice] = useState<string | null>(null);
 
   const { showError } = useError();
   const isProjectMode = !!tabID;
+  // Adopt is only offered in ad-hoc mode when a project tab is open.
+  const canAdopt = !isProjectMode && !!adoptTabID;
+
+  const handleAdoptFlow = useCallback(
+    async (item: FlowListItem) => {
+      if (!adoptTabID) return;
+      try {
+        const result = await api.adoptUserFlowIntoProject(adoptTabID, item.id);
+        if (result) {
+          const target = adoptProjectName ? ` to ${adoptProjectName}` : " to project";
+          setAdoptNotice(
+            result.renamed
+              ? `Added "${item.name}"${target} as "${result.name}" (renamed to avoid a clash)`
+              : `Added "${result.name}"${target}`,
+          );
+        }
+      } catch (err) {
+        showError("Failed to add flow to project", err);
+      }
+    },
+    [adoptTabID, adoptProjectName, showError],
+  );
+
+  // Auto-dismiss the adopt notice after a few seconds.
+  useEffect(() => {
+    if (!adoptNotice) return;
+    const id = setTimeout(() => setAdoptNotice(null), 5000);
+    return () => clearTimeout(id);
+  }, [adoptNotice]);
 
   const refreshFlows = useCallback(async () => {
     if (propFlows) return;
@@ -422,6 +474,16 @@ export function FlowsPage({
         }
       />
 
+      {adoptNotice && (
+        <div
+          className="mb-4 flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/5 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+          role="status"
+        >
+          <CheckCircle2 size={14} className="shrink-0" />
+          {adoptNotice}
+        </div>
+      )}
+
       {(loading || flows.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {loading
@@ -437,6 +499,8 @@ export function FlowsPage({
                   onDelete={
                     item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined
                   }
+                  onAdopt={canAdopt ? () => void handleAdoptFlow(item) : undefined}
+                  adoptProjectName={adoptProjectName}
                 />
               ))}
         </div>
@@ -573,12 +637,16 @@ function FlowCard({
   onClick,
   onCopy,
   onDelete,
+  onAdopt,
+  adoptProjectName,
 }: {
   item?: FlowCardItem;
   loading?: boolean;
   onClick?: () => void;
   onCopy?: () => void;
   onDelete?: () => void;
+  onAdopt?: () => void;
+  adoptProjectName?: string;
 }) {
   if (loading) {
     return (
@@ -629,6 +697,17 @@ function FlowCard({
           className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
+          {onAdopt && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onAdopt}
+              title={adoptProjectName ? `Add to project: ${adoptProjectName}` : "Add to project"}
+              aria-label="Add to project"
+            >
+              <FolderInput size={12} />
+            </Button>
+          )}
           {onCopy && (
             <Button variant="ghost" size="icon-xs" onClick={onCopy} title="Copy to edit">
               <Copy size={12} />

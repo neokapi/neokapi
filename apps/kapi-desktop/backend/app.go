@@ -157,6 +157,30 @@ func (a *App) GetProjectTermbaseHandle(tabID string) string {
 	return ""
 }
 
+// ProjectHandles bundles the project-scoped TM and termbase handle IDs for a
+// tab so the frontend can preselect both in a single call. Each id is the
+// string handle the TM/termbase Wails methods (and handleStore.Get) accept;
+// an empty id means the project has no auto-opened resource of that kind.
+type ProjectHandles struct {
+	TabID          string `json:"tabID"`
+	TMHandle       string `json:"tmHandle"`
+	TermbaseHandle string `json:"termbaseHandle"`
+}
+
+// GetProjectHandles returns the project-scoped TM and termbase handle IDs for a
+// tab in one call. Convenience wrapper over GetProjectTMHandle /
+// GetProjectTermbaseHandle for frontends that preselect both at once.
+func (a *App) GetProjectHandles(tabID string) ProjectHandles {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	h := ProjectHandles{TabID: tabID}
+	if op := a.projects[tabID]; op != nil {
+		h.TMHandle = op.tmHandle
+		h.TermbaseHandle = op.tbHandle
+	}
+	return h
+}
+
 // ServiceStartup is called by Wails v3 during application startup.
 // All initialization happens here — data is guaranteed ready before
 // the frontend renders.

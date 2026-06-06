@@ -49,4 +49,18 @@ describe("RunnerPage", () => {
     renderWithProviders(<RunnerPage {...defaultProps} onClose={onClose} />);
     expect(screen.getByText("Back")).toBeInTheDocument();
   });
+
+  it("pre-populates target language from project defaults (manual path)", () => {
+    const project = {
+      version: "v1",
+      name: "Demo",
+      defaults: { target_languages: ["fr-FR", "de-DE"] },
+    };
+    renderWithProviders(<RunnerPage {...defaultProps} project={project} />);
+    // With project targets, the free-text input is replaced by a language select
+    // pre-set to the first target.
+    expect(screen.queryByPlaceholderText("e.g. fr-FR")).not.toBeInTheDocument();
+    const select = screen.getByLabelText("Target language");
+    expect(select).toHaveTextContent("fr-FR");
+  });
 });

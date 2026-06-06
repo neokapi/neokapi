@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { AppMode, KapiProject, TabInfo, PluginIssue } from "../types/api";
 import { api } from "./useApi";
 import { useError } from "../components/ErrorBanner";
@@ -19,11 +19,15 @@ export interface TabState {
 
 export function useTabManager() {
   const { showError } = useError();
-  const [mode, setMode] = useState<AppMode>("adhoc");
+  // Project-first: default to "projects" until the persisted app mode loads.
+  const [mode, setMode] = useState<AppMode>("projects");
   const [globalView, setGlobalView] = useState("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+  // Gate session persistence until the initial restore completes so we don't
+  // clobber the saved session with the empty startup state.
+  const restoredRef = useRef(false);
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
@@ -132,6 +136,8 @@ export function useTabManager() {
   const switchMode = useCallback(
     (m: AppMode) => {
       setMode(m);
+      // Persist the chosen app mode so the next launch lands in the same place.
+      void api.setAppMode(m);
       if (m === "adhoc") {
         setActiveTabID(null);
         setGlobalView("home");
@@ -201,6 +207,98 @@ export function useTabManager() {
     },
     [addTab, showError],
   );
+
+  // --- Startup: read persisted app mode + session, reopen projects ---
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const savedMode = await api.getAppMode();
+        const effectiveMode: AppMode = savedMode === "adhoc" ? "adhoc" : "projects";
+        if (cancelled) return;
+        setMode(effectiveMode);
+
+        if (effectiveMode !== "projects") {
+          setActiveTabID(null);
+          setGlobalView("home");
+          return;
+        }
+
+        const session = await api.getSessionState();
+        const recipes = session?.lastOpenProjects ?? [];
+        if (cancelled) return;
+
+        if (recipes.length === 0) {
+          // First-ever launch or no remembered projects → project-first home.
+          setGlobalView("home");
+          return;
+        }
+
+        // Reopen remembered projects via the normal OpenProject path. Map each
+        // recipe path to its opened tab id so we can restore the active tab.
+        // recipes are most-recent first; open oldest-first so the resulting tab
+        // order (append) matches and the session round-trips on re-persist.
+        const openedByPath = new Map<string, string>();
+        for (const path of [...recipes].reverse()) {
+          try {
+            const tab = await api.openProject(path);
+            if (!tab) continue;
+            const proj = await api.getProject(tab.id);
+            if (cancelled) return;
+            await addTab(tab, proj ?? { version: "v1", name: tab.name });
+            openedByPath.set(path, tab.id);
+          } catch {
+            // Skip projects that no longer open (moved/deleted recipe).
+          }
+        }
+
+        if (cancelled) return;
+        const activeID = session?.activeProject
+          ? openedByPath.get(session.activeProject)
+          : undefined;
+        if (activeID) {
+          setActiveTabID(activeID);
+          setGlobalView("");
+        } else if (openedByPath.size === 0) {
+          // Nothing reopened — land on the home screen.
+          setGlobalView("home");
+        }
+      } catch {
+        // Fall back to project-first home on any failure.
+        if (!cancelled) setGlobalView("home");
+      } finally {
+        if (!cancelled) restoredRef.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Run once on mount; addTab is stable enough for this one-shot restore.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Persist the open-project set + active tab whenever they change ---
+  // lastOpenProjects is most-recent first: tabs are appended in open order, so
+  // the newest tab is last — reverse to put it first.
+  const persistSession = useCallback(() => {
+    if (!restoredRef.current) return;
+    const lastOpenProjects = tabs
+      .map((t) => t.info.path)
+      .filter((p): p is string => !!p)
+      .reverse();
+    const activeProject = tabs.find((t) => t.info.id === activeTabID)?.info.path ?? "";
+    void api.saveSessionState({ mode, lastOpenProjects, activeProject });
+  }, [tabs, activeTabID, mode]);
+
+  useEffect(() => {
+    persistSession();
+  }, [persistSession]);
+
+  // --- Best-effort persist on shutdown ---
+  useEffect(() => {
+    window.addEventListener("beforeunload", persistSession);
+    return () => window.removeEventListener("beforeunload", persistSession);
+  }, [persistSession]);
 
   // Re-check all open tabs when plugins change (install/remove/update).
   useWailsEvent("plugins-changed", () => {

@@ -66,6 +66,42 @@ describe("AppHome", () => {
     expect(screen.getByText("Run a Tool")).toBeInTheDocument();
   });
 
+  it("leads with a project-first Projects section", () => {
+    render(<AppHome {...defaultProps} />);
+    expect(screen.getByText("Projects")).toBeInTheDocument();
+    // Project actions and quick tools are both present.
+    const projects = screen.getByText("Projects");
+    const quickTools = screen.getByText("Quick tools");
+    expect(projects).toBeInTheDocument();
+    expect(quickTools).toBeInTheDocument();
+    // Project section comes before the secondary quick-tools group in the DOM.
+    expect(
+      projects.compareDocumentPosition(quickTools) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("labels the ad-hoc tools as secondary one-off quick tools", () => {
+    render(<AppHome {...defaultProps} />);
+    expect(screen.getByText("Quick tools")).toBeInTheDocument();
+    expect(screen.getByText(/don't need a project/i)).toBeInTheDocument();
+  });
+
+  it("calls onNewProject when clicking New Project", async () => {
+    const onNewProject = vi.fn();
+    render(<AppHome {...defaultProps} onNewProject={onNewProject} />);
+    await userEvent.click(screen.getByText("New Project"));
+    expect(onNewProject).toHaveBeenCalled();
+  });
+
+  it("navigates to flows/tools from quick tools", async () => {
+    const onNavigate = vi.fn();
+    render(<AppHome {...defaultProps} onNavigate={onNavigate} />);
+    await userEvent.click(screen.getByText("Design a Flow"));
+    expect(onNavigate).toHaveBeenCalledWith("flows");
+    await userEvent.click(screen.getByText("Run a Tool"));
+    expect(onNavigate).toHaveBeenCalledWith("tools");
+  });
+
   it("renders recent projects when present", () => {
     const recentFiles = [
       {

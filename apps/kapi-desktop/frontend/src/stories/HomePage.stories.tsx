@@ -66,3 +66,42 @@ export const NoFlows: Story = {
     },
   },
 };
+
+/** Per-collection, per-locale coverage from a completed extraction. */
+export const WithCoverage: Story = {
+  args: {
+    ...Default.args,
+    status: {
+      projectPath: "/Users/dev/projects/acme/acme.kapi",
+      projectName: "Acme App Localization",
+      hasData: true,
+      collections: [
+        {
+          name: "ui-strings",
+          blockCount: 240,
+          coverage: { "fr-FR": 240, "de-DE": 180, "ja-JP": 96 },
+          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+        },
+        {
+          name: "docs",
+          blockCount: 88,
+          coverage: { "fr-FR": 40, "de-DE": 0, "ja-JP": 0 },
+          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+        },
+      ],
+    },
+  },
+};
+
+/** Project configured but never extracted — prompt to run extract. */
+export const NeverExtracted: Story = {
+  args: {
+    ...Default.args,
+    status: {
+      projectPath: "/Users/dev/projects/acme/acme.kapi",
+      projectName: "Acme App Localization",
+      hasData: false,
+      collections: [],
+    },
+  },
+};

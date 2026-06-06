@@ -62,13 +62,14 @@ export function MemoriesPage({
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
-  // Load project TM handle when tabID is provided.
+  // Load the project-scoped TM handle when opened from a project tab so the
+  // project's own TM is auto-selected (and marked) rather than a blank picker.
   useEffect(() => {
     if (!tabID) return;
     api
-      .getProjectTMHandle(tabID)
+      .getProjectHandles(tabID)
       .then((h) => {
-        if (h) setProjectHandle(h);
+        if (h?.tmHandle) setProjectHandle(h.tmHandle);
       })
       .catch(() => {});
   }, [tabID]);

@@ -71,13 +71,15 @@ export function TermbasesPage({
   const activeHandle = projectHandle || handle;
   const adapter = useTermbaseAdapter(activeHandle);
 
-  // Load project termbase handle when tabID is provided.
+  // Load the project-scoped termbase handle when opened from a project tab so
+  // the project's own termbase is auto-selected (and marked) rather than a
+  // blank picker.
   useEffect(() => {
     if (!tabID) return;
     api
-      .getProjectTermbaseHandle(tabID)
+      .getProjectHandles(tabID)
       .then((h) => {
-        if (h) setProjectHandle(h);
+        if (h?.termbaseHandle) setProjectHandle(h.termbaseHandle);
       })
       .catch(() => {});
   }, [tabID]);
