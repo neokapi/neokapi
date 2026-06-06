@@ -6,7 +6,6 @@ keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, 
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
-import { StatsWidget } from "@site/src/components/Lab";
 
 # Quick Start
 
@@ -39,17 +38,9 @@ pseudo-locale; pass `--target-lang` to target a real locale.
 
 ## Count words
 
-Estimate translation volume for cost planning — drop a file (or try a sample) to
-see the translatable blocks and source-word count right here:
+Estimate translation volume for cost planning:
 
-<StatsWidget autoSampleId="json" />
-
-From the CLI it's one command — handy for scripting and CI (`--json` for a
-machine-readable count):
-
-```bash
-kapi word-count messages.json
-```
+<RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
 
 ## Explore formats, tools, and flows
 
