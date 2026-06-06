@@ -1,19 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileWarning } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  cn,
-} from "@neokapi/ui-primitives";
-import { FileIcon, fileType } from "./fileTypes";
-import { downloadBytes, formatBytes } from "./download";
-import CodeView from "./CodeView";
-import BlockInspector from "./BlockInspector";
-import ContentTreeView from "./ContentTreeView";
+import { FileWarning } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
+import DocumentViewer from "./DocumentViewer";
+import { fileType } from "./fileTypes";
 import type { LabRuntime } from "./useLabRuntime";
 import type { ContentNode, ContentTree } from "./types";
 import styles from "./OutputView.module.css";
@@ -24,8 +13,8 @@ export interface OutputViewProps {
   path: string;
   /** Bump to force a re-read after a run wrote new bytes to `path`. */
   version?: number;
-  /** Tab shown first (default "blocks"). */
-  defaultTab?: "blocks" | "structure" | "native";
+  /** Tab shown first (default "preview"). */
+  defaultTab?: "preview" | "blocks" | "raw" | "stats" | "download";
   className?: string;
 }
 
@@ -72,23 +61,23 @@ function diffChangedLines(prev: string | null, next: string): Set<number> {
   return changed;
 }
 
-// OutputView renders a file the engine wrote, three ways: as the content-model
-// Blocks (full inspector), as the hierarchical Structure, and as the raw Native
-// bytes with syntax highlighting. It offers a download, and — when a re-run
-// changes the bytes — flashes the header and highlights exactly which blocks and
-// lines changed, so a learner can see what the pipeline produced.
+// OutputView shows a file the engine wrote, in the shared preview editor
+// (DocumentViewer — Preview / Blocks / Raw / Stats / Download). It is the
+// engine-output adapter: it reads the bytes from the in-memory filesystem,
+// parses them, and — when a re-run changes the output — flashes the card and
+// flags exactly which blocks and raw lines changed, so a learner sees what the
+// pipeline produced. The rendering itself is the same editor used everywhere.
 export default function OutputView({
   runtime,
   path,
   version = 0,
-  defaultTab = "blocks",
+  defaultTab = "preview",
   className,
 }: OutputViewProps): React.ReactElement {
   const name = basename(path);
   const ft = fileType(name);
 
   const [tree, setTree] = useState<ContentTree | null>(null);
-  const [text, setText] = useState<string>("");
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
@@ -119,7 +108,6 @@ export default function OutputView({
       const didChange = prevTextRef.current !== null && prevTextRef.current !== decoded;
 
       setTree(nextTree);
-      setText(decoded);
       setBytes(raw);
       setError(res.ok ? null : (res.error ?? "could not read output"));
       setChangedIds(idDiff);
@@ -140,98 +128,30 @@ export default function OutputView({
     // re-read when the path or the run version changes.
   }, [runtime.ready, runtime.inspect, runtime.readBytes, path, version, name, ft.binary]);
 
-  const blocks = useMemo(() => flattenBlocks(tree), [tree]);
+  const pulseClass = useMemo(() => (pulse ? styles.writePulse : undefined), [pulse]);
+
+  if (error || !tree) {
+    return (
+      <div
+        className={cn(
+          "kapi-reference flex items-center gap-2 rounded-lg border bg-card px-3 py-4 text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        <FileWarning className="size-4" /> {error ?? "Reading output…"}
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "kapi-reference flex flex-col gap-2 rounded-lg border bg-card text-foreground",
-        pulse && styles.writePulse,
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <FileIcon filename={name} size={16} />
-        <span className="font-mono text-sm">{name}</span>
-        <Badge variant="outline" className={cn("border-current/35", ft.colorClass)}>
-          {ft.label}
-        </Badge>
-        {bytes && (
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {formatBytes(bytes.length)}
-          </span>
-        )}
-        {pulse && (
-          <Badge variant="outline" className="border-warning/50 text-warning">
-            updated
-          </Badge>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          disabled={!bytes}
-          onClick={() => bytes && downloadBytes(name, bytes)}
-        >
-          <Download /> Download
-        </Button>
-      </div>
-
-      {error ? (
-        <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-          <FileWarning className="size-4" /> {error}
-        </div>
-      ) : (
-        <Tabs defaultValue={defaultTab} className="px-3 pb-3">
-          <TabsList variant="line">
-            <TabsTrigger value="blocks">
-              Blocks{" "}
-              {blocks.length > 0 && (
-                <Badge variant="ghost" className="ml-1">
-                  {blocks.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="structure">Structure</TabsTrigger>
-            <TabsTrigger value="native">Native</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="blocks" className="pt-2">
-            {blocks.length === 0 ? (
-              <p className="py-3 text-sm text-muted-foreground">No translatable blocks.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {blocks.map((b) => (
-                  <BlockInspector
-                    key={b.id}
-                    node={b}
-                    changed={changedIds.has(b.id)}
-                    defaultOpen={changedIds.has(b.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="structure" className="pt-2">
-            {tree ? (
-              <ContentTreeView tree={tree} changedIds={changedIds} />
-            ) : (
-              <p className="text-sm text-muted-foreground">No structure.</p>
-            )}
-          </TabsContent>
-
-          <TabsContent value="native" className="pt-2">
-            {ft.binary ? (
-              <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-                <FileWarning className="size-4" /> Binary {ft.label} — download to inspect.
-              </div>
-            ) : (
-              <CodeView text={text} filename={name} changedLines={changedLines} />
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
+    <DocumentViewer
+      tree={tree}
+      filename={name}
+      bytes={bytes}
+      defaultTab={defaultTab}
+      changedIds={changedIds}
+      rawChangedLines={changedLines}
+      className={cn(pulseClass, className)}
+    />
   );
 }

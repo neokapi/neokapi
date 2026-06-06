@@ -13,17 +13,21 @@ import {
 } from "@neokapi/ui-primitives";
 import FormatPreview, { type PreviewSide } from "./FormatPreview";
 import BlockInspector from "./BlockInspector";
+import CodeView from "./CodeView";
 import { FileIcon, fileType } from "./fileTypes";
 import { downloadBytes, formatBytes } from "./download";
 import { treeToRenderDoc } from "./renderDoc";
 import type { ContentNode, ContentTree } from "./types";
 
-// DocumentViewer — wraps FormatPreview with view-switching tabs (Preview ·
-// Blocks · Stats · Download) and, when a target locale exists, a compact
-// source↔target toggle in the header. Annotations are always on; the
-// source↔target swap crossfades. It is self-contained: give it a ContentTree
-// (and optionally the original bytes for Download) and it shows the document
-// four ways without booting the WASM runtime.
+// DocumentViewer — the shared preview editor. View-switching tabs let the reader
+// toggle between the structure Preview (FormatPreview), the Blocks list
+// (BlockInspector), and the Raw source (CodeView, syntax-highlighted) — plus
+// Stats and Download. When a target locale exists, a compact source↔target
+// toggle sits in the header; annotations are always on and the swap crossfades.
+// It is self-contained: give it a ContentTree (and optionally the original bytes
+// for Raw/Download) and it shows the document every way without booting the WASM
+// runtime. Hosts may pass `changedIds`/`rawChangedLines` to flag what a run
+// changed.
 
 export interface DocumentViewerProps {
   /** The engine output (from `kapi inspect` / labInspectAnnotated). */
@@ -33,7 +37,11 @@ export interface DocumentViewerProps {
   /** Original file bytes, enabling the Download tab/button (optional). */
   bytes?: Uint8Array | null;
   /** Tab shown first (default "preview"). */
-  defaultTab?: "preview" | "blocks" | "stats" | "download";
+  defaultTab?: "preview" | "blocks" | "raw" | "stats" | "download";
+  /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
+  changedIds?: ReadonlySet<string>;
+  /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
+  rawChangedLines?: ReadonlySet<number>;
   className?: string;
 }
 
@@ -57,12 +65,21 @@ export default function DocumentViewer({
   filename,
   bytes,
   defaultTab = "preview",
+  changedIds,
+  rawChangedLines,
   className,
 }: DocumentViewerProps): React.ReactElement {
   const ft = fileType(filename);
   const doc = useMemo(() => treeToRenderDoc(tree), [tree]);
   const blocks = useMemo(() => flattenBlocks(tree), [tree]);
   const locales = doc.locales ?? [];
+
+  // Decode the raw source for the Raw tab (text formats only; binary stays a
+  // notice — its bytes are a zip/blob, not readable source).
+  const rawText = useMemo(
+    () => (bytes && !ft.binary ? new TextDecoder().decode(bytes) : ""),
+    [bytes, ft.binary],
+  );
 
   const [side, setSide] = useState<PreviewSide>("source");
 
@@ -151,6 +168,7 @@ export default function DocumentViewer({
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="raw">Raw</TabsTrigger>
           <TabsTrigger value="stats">Stats</TabsTrigger>
           <TabsTrigger value="download">Download</TabsTrigger>
         </TabsList>
@@ -166,9 +184,30 @@ export default function DocumentViewer({
           ) : (
             <div className="flex flex-col gap-1.5">
               {blocks.map((b) => (
-                <BlockInspector key={b.id} node={b} />
+                <BlockInspector
+                  key={b.id}
+                  node={b}
+                  changed={changedIds?.has(b.id)}
+                  defaultOpen={changedIds?.has(b.id)}
+                />
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        {/* Raw source */}
+        <TabsContent value="raw" className="pt-2">
+          {!bytes ? (
+            <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+              <FileWarning className="size-4" /> No source available.
+            </div>
+          ) : ft.binary ? (
+            <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+              <FileWarning className="size-4" /> Binary {ft.label} — use Preview, or download to
+              inspect the raw bytes.
+            </div>
+          ) : (
+            <CodeView text={rawText} filename={filename} changedLines={rawChangedLines} />
           )}
         </TabsContent>
 
