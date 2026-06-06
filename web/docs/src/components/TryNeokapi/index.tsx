@@ -7,13 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import Carousel from "./Carousel";
+import HeroProcess from "./HeroProcess";
 import styles from "./styles.module.css";
 
-// The docs landing centerpiece. The hero is a zero-wasm Format-carousel (baked
-// RenderDoc data rendered through the shared FormatPreview) that auto-cycles
-// slide → sheet → doc, each typewriter-revealing EN → FR with the changed words
-// highlighted. Clicking it opens a modal (the ui-primitives Dialog) that boots
+// The docs landing centerpiece. The hero is a zero-wasm process "show"
+// (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
+// that auto-advance through kapi end to end — Read → Pre-process → Pseudo →
+// Leverage → Translate (ja) → Merge — with a stepper and typewriter/crossfade
+// transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
 // the kapi WASM engine and drives a single coherent surface: a FileBrowser of
 // real sample files across formats, opening into a DocumentViewer powered by
 // live extraction (inspect + inspectAnnotated) with a real pseudo-translate
@@ -44,7 +45,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Carousel onOpen={() => setOpen(true)} />
+      <HeroProcess onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="kapi-reference sm:!max-w-4xl">

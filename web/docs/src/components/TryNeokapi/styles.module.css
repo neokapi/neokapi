@@ -324,6 +324,177 @@
   border: 0;
 }
 
+/* ── Hero process (the six-stage show) ─────────────────────────────────────── */
+.heroCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 16px;
+  background: var(--ifm-background-color);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.1);
+  max-width: 32rem;
+}
+
+/* Stepper */
+.heroStepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+.heroStep {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.1rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ifm-color-emphasis-500);
+  transition: color 0.2s ease;
+}
+.heroStepDot {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.heroStepLabel {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+.heroStep_todo {
+  color: var(--ifm-color-emphasis-400);
+}
+.heroStep_active {
+  color: var(--ifm-color-primary);
+}
+.heroStep_active .heroStepDot {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
+  color: var(--ifm-color-primary);
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+}
+.heroStep_done {
+  color: var(--ifm-color-emphasis-700);
+}
+.heroStep_done .heroStepDot {
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+/* Stage card (the document being processed) */
+.heroOpen {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.heroChrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.15rem 0.4rem;
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+.heroFile {
+  font-family: var(--ifm-font-family-monospace);
+}
+.heroStageName {
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+.heroStage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 12.5rem;
+  padding: 0.55rem;
+  border-radius: 12px;
+  background: var(--ifm-color-emphasis-100);
+  overflow: hidden;
+}
+.heroDoc {
+  font-size: 0.82rem;
+}
+.heroBadge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, var(--ifm-background-color));
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+  animation: heroReveal 0.4s ease;
+}
+
+/* Format chips, surfaced during the Read stage */
+.heroFormats {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.5rem 0.5rem;
+  background: linear-gradient(to top, var(--ifm-color-emphasis-100) 55%, transparent);
+  animation: heroReveal 0.4s ease;
+}
+.heroFormatChip {
+  padding: 0.08rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.heroFormatMore {
+  color: var(--ifm-color-primary);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+}
+
+.heroCaption {
+  margin: 0;
+  min-height: 2.4rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--ifm-color-emphasis-700);
+  animation: heroReveal 0.4s ease;
+}
+
+@media (max-width: 575px) {
+  .heroStepLabel {
+    display: none;
+  }
+}
+
 /* ── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .carouselOpen {
@@ -337,5 +508,13 @@
   }
   .carouselSpin {
     animation: none;
+  }
+  .heroBadge,
+  .heroFormats,
+  .heroCaption {
+    animation: none;
+  }
+  .heroStepDot {
+    transition: none;
   }
 }
