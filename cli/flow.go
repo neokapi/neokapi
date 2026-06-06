@@ -894,11 +894,17 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 					return nil, nil, err
 				}
 				// The tm-leverage config factory cannot read a non-JSON provider
-				// from the config map (Provider is json:"-") and defaults to
-				// NullTMProvider, so set the resolved provider on the created tool.
+				// or the schema-hidden SourceLocale from the config map (both are
+				// schema:"-"), so it defaults to NullTMProvider with an empty
+				// source locale — which makes the SQLite lookup (WHERE locale = ?)
+				// match nothing. Set both on the created tool so the flow step
+				// actually leverages.
 				if provider != nil {
 					if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
 						cfg.Provider = provider
+						if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
+							cfg.SourceLocale = model.LocaleID(a.SourceLang)
+						}
 					}
 				}
 				return []tool.Tool{t}, cleanup, nil
@@ -947,9 +953,12 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 	return 0
 }
 
-// cliTMProvider adapts a CLI SQLite TM to the tools.TMProvider interface.
+// cliTMProvider adapts a CLI translation memory to the tools.TMProvider
+// interface. The backing store is any sievepen.TranslationMemory — a SQLite TM
+// opened from a file, or the in-memory backend seeded in the wasm build — so
+// tm-leverage works both natively and offline in the browser.
 type cliTMProvider struct {
-	tm *sqltm.SQLiteTM
+	tm sqltm.TranslationMemory
 }
 
 func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
@@ -1047,6 +1056,16 @@ func (a *App) openToolTM(cmd *cobra.Command) (coretools.TMProvider, func(), erro
 		return nil, noop, nil
 	}
 	tmValue, _ := cmd.Flags().GetString("tm")
+
+	// A pre-seeded in-memory backend (the wasm build, or any host that sets
+	// a.TMBackend) is the authoritative TM and the only one that works without
+	// the SQLite driver — prefer it over any on-disk project path. The native
+	// CLI never sets a.TMBackend, so this only takes effect in the browser/seed
+	// case; the on-disk resolution below is unchanged for the native binary.
+	// An explicit --tm path still wins (handled in the switch).
+	if tmValue == "" && a.TMBackend != nil {
+		return &cliTMProvider{tm: a.TMBackend}, noop, nil
+	}
 
 	var tmPath string
 	switch {
@@ -1257,6 +1276,41 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	// Build tools from step definitions using the tool registry.
 	// Source-transform tools run first (they settle the source/model before the
 	// main steps) so they are prepended to the tool chain.
+	//
+	// Tools that require a TM (e.g. tm-leverage) need the project's TM provider
+	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
+	// from the step config, so it would default to a no-match NullTMProvider.
+	// Open the TM once, share it across every TM step, and close it after the run.
+	var tmCleanups []func()
+	defer func() {
+		for _, c := range tmCleanups {
+			c()
+		}
+	}()
+	injectTM := func(step flow.FlowStep, t tool.Tool) error {
+		if !toolRequires(a.ToolReg.Schema(registry.ToolID(step.Tool)), schema.RequiresTM) {
+			return nil
+		}
+		cfg, ok := t.Config().(*coretools.TMLeverageConfig)
+		if !ok {
+			return nil
+		}
+		provider, cleanup, err := a.openToolTM(cmd)
+		if err != nil {
+			return err
+		}
+		if cleanup != nil {
+			tmCleanups = append(tmCleanups, cleanup)
+		}
+		if provider != nil {
+			cfg.Provider = provider
+		}
+		if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
+			cfg.SourceLocale = model.LocaleID(a.SourceLang)
+		}
+		return nil
+	}
+
 	var projectTools []tool.Tool
 	for _, step := range spec.SourceTransforms {
 		t, err := a.toolFromStep(step, cmd, rCtx)
@@ -1266,11 +1320,17 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 		if !tool.IsSourceTransform(t) {
 			return fmt.Errorf("flow %q: tool %q in source_transforms is not source-transform-capable", flowName, step.Tool)
 		}
+		if err := injectTM(step, t); err != nil {
+			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
+		}
 		projectTools = append(projectTools, t)
 	}
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {
+			return fmt.Errorf("flow %q: %w", flowName, err)
+		}
+		if err := injectTM(step, t); err != nil {
 			return fmt.Errorf("flow %q: %w", flowName, err)
 		}
 		projectTools = append(projectTools, t)

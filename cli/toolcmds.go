@@ -10,6 +10,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -283,9 +284,16 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					// provider from the config map (Provider is json:"-"), so it
 					// defaults to NullTMProvider. Swap in the resolved SQLite TM
 					// on the created tool's config so it actually leverages.
+					// SourceLocale is also schema-hidden and never populated from
+					// --source-lang by the factory, so the SQLite lookup would run
+					// with an empty source locale and match nothing — set it from
+					// the resolved source language so exact/fuzzy lookups hit.
 					if tmProvider != nil {
 						if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
 							cfg.Provider = tmProvider
+							if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
+								cfg.SourceLocale = model.LocaleID(a.SourceLang)
+							}
 						}
 					}
 					return t, nil
