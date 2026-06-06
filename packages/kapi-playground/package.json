@@ -10,6 +10,7 @@
     "./RunnableSnippet": "./src/RunnableSnippet.tsx",
     "./store": "./src/store.ts",
     "./runtime": "./src/runtime.ts",
+    "./samples": "./src/samples.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },

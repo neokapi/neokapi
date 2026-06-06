@@ -298,4 +298,70 @@ export function workspaceSampleById(id: string): WorkspaceSample {
   return WORKSPACE_SAMPLES.find((s) => s.id === id) ?? WORKSPACE_SAMPLES[0];
 }
 
+// ── Hero samples (drop-a-file widgets) ───────────────────────────────────────
+//
+// The minimal corpus the docs landing hero (and the reusable ToolDropWidget)
+// offers as "try a sample" chips. Each carries its own bytes so a widget needs
+// no file-library seeding — a learner drops their own file or picks one of these.
+//
+// To add a richer .docx or a real .pptx later: base64-encode a tiny valid OOXML
+// package and add an entry below (mirror the docx entry). Do NOT fabricate a
+// pptx skeleton — encode a genuine PowerPoint export so the openxml reader has
+// real slide text to extract. The hero's tool switcher and ToolDropWidget pick
+// these up automatically by id.
+
+export interface HeroSample {
+  id: string;
+  label: string;
+  /** File name written into the in-memory filesystem (extension drives detect). */
+  filename: string;
+  /** Short human note about the format, shown under the chip. */
+  kind: string;
+  /** True for binary OOXML packages (no text source view). */
+  binary: boolean;
+  /** The sample's bytes. */
+  bytes: () => Uint8Array;
+}
+
+// A standalone JSON catalog for the hero widgets. It deliberately contains a US
+// spelling ("color") so the default search/replace demo (color → colour) shows a
+// visible change, and natural marketing copy that pseudo-translation expands
+// legibly. Kept separate from JSON_PROJECT_CONTENT so changing it can't shift the
+// project explorers' seeded TM.
+const HERO_JSON_CONTENT = `{
+  "greeting": "Welcome to Acme",
+  "cta": "Sign up today",
+  "theme": "Pick your favorite color",
+  "farewell": "Talk soon"
+}
+`;
+
+export const HERO_SAMPLES: HeroSample[] = [
+  {
+    id: "json",
+    label: "messages.json",
+    filename: "messages.json",
+    kind: "text · JSON catalog",
+    binary: false,
+    bytes: () => enc.encode(HERO_JSON_CONTENT),
+  },
+  {
+    id: "docx",
+    label: "welcome.docx",
+    filename: "welcome.docx",
+    kind: "binary · Word (.docx)",
+    binary: true,
+    bytes: () => bytesFromBase64(DOCX_B64),
+  },
+  // TODO: add a real .pptx here once a tiny valid PowerPoint package is
+  // base64-encoded (see the note above). Example shape:
+  //   { id: "pptx", label: "deck.pptx", filename: "deck.pptx",
+  //     kind: "binary · PowerPoint (.pptx)", binary: true,
+  //     bytes: () => bytesFromBase64(PPTX_B64) },
+];
+
+export function heroSampleById(id: string): HeroSample {
+  return HERO_SAMPLES.find((s) => s.id === id) ?? HERO_SAMPLES[0];
+}
+
 export { JSON_PROJECT_CONTENT as JSON_SAMPLE, tmxOf };

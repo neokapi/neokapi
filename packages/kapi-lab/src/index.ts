@@ -74,6 +74,22 @@ export { default as ContentTreeView, Stats as ContentStatsBar } from "./ContentT
 export type { ContentTreeViewProps } from "./ContentTreeView";
 export { default as OutputView } from "./OutputView";
 export type { OutputViewProps } from "./OutputView";
+
+// Drop-a-file widget kit: a generic no-terminal "drop a file → see the result"
+// surface plus per-tool wrappers.
+export { default as ToolDropWidget } from "./ToolDropWidget";
+export type {
+  ToolDropWidgetProps,
+  ToolDropRender,
+  ToolDropStat,
+  DropInput,
+} from "./ToolDropWidget";
+export { default as PseudoTranslateWidget } from "./PseudoTranslateWidget";
+export type { PseudoTranslateWidgetProps } from "./PseudoTranslateWidget";
+export { default as StatsWidget } from "./StatsWidget";
+export type { StatsWidgetProps } from "./StatsWidget";
+export { default as SearchReplaceWidget, buildSearchReplaceRecipe } from "./SearchReplaceWidget";
+export type { SearchReplaceWidgetProps } from "./SearchReplaceWidget";
 export { default as BatchExplorer } from "./BatchExplorer";
 export type { BatchExplorerProps } from "./BatchExplorer";
 

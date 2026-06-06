@@ -8,7 +8,7 @@ hide_table_of_contents: true
 ---
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
-import { DualExample } from "@site/src/components/curated";
+import { PseudoTranslateWidget } from "@site/src/components/Lab";
 
 # Catch UI truncation early
 
@@ -31,31 +31,29 @@ moment the UI re-renders — no API key, no waiting, no cost.
 
 Pseudo-translation defaults to the **`qps`** pseudo-locale (the BCP-47
 private-use locale reserved for pseudo-translation), so you don't need a real
-target language. The output path is just a name you choose with `-o`. Source in,
-pseudo-translated out:
+target language.
 
-<DualExample
-  command="kapi pseudo-translate messages.json -o messages.pseudo.json"
-  seed={["messages.json"]}
-  result={{
-    kind: "before-after",
-    sample: "messages.json",
-    command: "kapi pseudo-translate messages.json -o messages.pseudo.json",
-    outputPath: "messages.pseudo.json",
-    beforeLabel: "Source",
-    afterLabel: "Pseudo-translated",
-    caption: "Every value is accented and wrapped in markers — un-accented text is hard-coded.",
-  }}
-/>
+## Try it
+
+Drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate`
+on it right here in your browser — no install, no API key, no server. Every value
+comes back accented and wrapped in markers; any string that stays plain is one
+your code hard-coded instead of pulling from the catalogue.
+
+<PseudoTranslateWidget />
 
 Each value is bracketed with markers and expanded with diacritics. Tune the
 shape with `--prefix`, `--suffix`, and `--expansion-percent` (extra padding to
 simulate how much longer real translations tend to run).
 
-## Try it
+### From the CLI
 
-`messages.json` is in the in-browser project folder. Run the step, then open the
-emitted file in the files pane to see the expansion.
+For scripting and CI, the same step is one command — the output path is just a
+name you choose with `-o`:
+
+```bash
+kapi pseudo-translate messages.json -o messages.pseudo.json
+```
 
 <KapiGuidedEmbed id="kapi-pseudo-translate" />
 

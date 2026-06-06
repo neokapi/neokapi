@@ -8,7 +8,7 @@ hide_table_of_contents: true
 ---
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
-import { DualExample } from "@site/src/components/curated";
+import { StatsWidget } from "@site/src/components/Lab";
 
 # Estimate a translation job
 
@@ -28,23 +28,25 @@ their word total — the figure you paste into a quote.
 
 Word count operates on the **extracted content**, not the raw bytes: kapi parses
 the file into translatable blocks first, so boilerplate, keys, and markup are
-excluded from the total. The command and the blocks it counts, side by side:
-
-<DualExample
-  command="kapi word-count messages.json"
-  seed={["messages.json"]}
-  result={{
-    kind: "blocks",
-    sample: "messages.json",
-    title: "messages.json — what kapi counts",
-    caption: "Three translatable blocks; only their source text is counted.",
-  }}
-/>
+excluded from the total.
 
 ## Try it
 
-A sample `messages.json` is already in the in-browser project folder. Run the
-step from the rail.
+Drop a file (or pick the JSON or Word sample) and kapi counts it in your browser
+— blocks, source words, and an estimated character total, straight off the
+extracted content.
+
+<StatsWidget />
+
+### From the CLI
+
+For scripting and CI, the same count is one command — point it at a file, a
+directory, or a glob; `--json` makes it machine-readable:
+
+```bash
+kapi word-count messages.json
+kapi word-count ./locales --json
+```
 
 <KapiGuidedEmbed id="kapi-word-count" />
 

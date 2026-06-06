@@ -28,6 +28,26 @@ const LazyBatch = React.lazy(async () => {
   return { default: mod.BatchExplorer };
 });
 
+const LazyToolDrop = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.ToolDropWidget };
+});
+
+const LazyPseudoTranslate = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.PseudoTranslateWidget };
+});
+
+const LazyStats = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.StatsWidget };
+});
+
+const LazySearchReplace = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.SearchReplaceWidget };
+});
+
 export interface AnatomyExplorerProps {
   defaultSampleId?: string;
   sampleIds?: string[];
@@ -90,6 +110,106 @@ export function BatchExplorer(props: BatchExplorerProps): React.ReactElement {
           return (
             <Suspense fallback={<Loading />}>
               <LazyBatch assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+// ── Drop-a-file widgets ──────────────────────────────────────────────────────
+//
+// No-terminal "drop a file → see the result" widgets for single-tool examples.
+// Each is client-only + code-split, so a recipe page that embeds one pulls the
+// lab chunk (and the WASM, on first run) only when the widget mounts.
+
+export interface ToolDropWidgetProps {
+  tool: string;
+  buildArgv?: (inPath: string, outPath: string) => string[];
+  recipe?: () => string;
+  extraArgs?: string[];
+  sampleIds?: string[];
+  autoSampleId?: string;
+  acceptBinary?: boolean;
+  render?: "output" | "stat" | "diff";
+  autoRun?: boolean;
+}
+
+export function ToolDropWidget(props: ToolDropWidgetProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyToolDrop assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface WidgetVariantProps {
+  sampleIds?: string[];
+  autoSampleId?: string;
+}
+
+export function PseudoTranslateWidget(props: WidgetVariantProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyPseudoTranslate assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export function StatsWidget(props: WidgetVariantProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyStats assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface SearchReplaceWidgetProps extends WidgetVariantProps {
+  defaultFind?: string;
+  defaultReplace?: string;
+}
+
+export function SearchReplaceWidget(props: SearchReplaceWidgetProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazySearchReplace assets={assets} {...props} />
             </Suspense>
           );
         }
