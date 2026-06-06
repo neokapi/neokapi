@@ -11,15 +11,17 @@ export interface ProjectExplorerProps {
   defaultSampleId?: string;
 }
 
-// The project's declared target locales. fr is pseudo-translate's default
-// locale (the run commits overlays there); qps is declared but left untouched
-// by the pseudo flow, so the explorer can show partial per-locale coverage —
-// exactly what a real project store looks like mid-pass.
-export const TARGETS = ["fr", "qps"] as const;
+// The project's declared target locale. fr is a real shipping target — the
+// `translate` flow leverages the project TM to fill it. (qps, the
+// pseudo-translate test locale, is NOT a shipping target and must never appear
+// in a recipe's target_languages.)
+export const TARGETS = ["fr"] as const;
 type Target = (typeof TARGETS)[number];
 
-// Flows the recipe declares. Both run offline (pseudo-translate is
-// deterministic, no network); picking a different flow visibly changes the
+// Flows the recipe declares. Both leverage translation memory (tm-leverage) and
+// run offline — no LLM, no network: the project TM (seeded via `kapi tm import`
+// before extract) supplies the French. `translate` fills any TM match;
+// `translate-exact` only fills 100% matches, so picking it visibly changes the
 // merged output, demonstrating that a project is a multi-flow contract.
 export interface FlowDef {
   id: string;
@@ -29,21 +31,20 @@ export interface FlowDef {
 }
 export const FLOWS: FlowDef[] = [
   {
-    id: "pseudo",
-    label: "pseudo — accented round-trip",
-    yaml: `  pseudo:
+    id: "translate",
+    label: "translate — TM leverage (exact + fuzzy)",
+    yaml: `  translate:
     steps:
-      - tool: pseudo-translate`,
+      - tool: tm-leverage`,
   },
   {
-    id: "accent",
-    label: "accent — guillemet wrap",
-    yaml: `  accent:
+    id: "translate-exact",
+    label: "translate-exact — TM leverage (100% only)",
+    yaml: `  translate-exact:
     steps:
-      - tool: pseudo-translate
+      - tool: tm-leverage
         config:
-          prefix: "« "
-          suffix: " »"`,
+          fillTargetThreshold: 100`,
   },
 ];
 
@@ -81,10 +82,13 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 }
 
 // ProjectExplorer teaches the .kapi *project* model — config-as-code in a
-// committed recipe (content + multiple flows + target languages) plus a .kapi/
-// state dir (the persistent project store) — and runs the project lifecycle in
-// WASM: extract → run a declared flow (process-only, commits to the store) →
-// merge (materialize the localized files). It is the multi-file, team/server
+// committed recipe (content + multiple flows + a real fr target) plus a .kapi/
+// state dir (the persistent project store + TM) — and runs the project
+// lifecycle in WASM: import the project TM → extract → run a declared
+// translate flow (tm-leverage, process-only, commits real fr targets to the
+// store) → merge (materialize the localized file). The translation is genuine
+// TM leverage — no LLM, no network — so the merged output is a real fr file,
+// never a pseudo/qps test artifact. It is the multi-file, team/server
 // counterpart to the single-file .klz workspace (AD-026 / AD-025 §5). In the
 // browser the state dir is an in-memory store, so it is shown as regenerable
 // state rather than files.
@@ -112,6 +116,7 @@ export default function ProjectExplorer({
   const absDir = `/project/${dir}`;
   const recipePath = `${absDir}/demo.kapi`;
   const srcPath = `${absDir}/${sample.filename}`;
+  const tmxPath = `${absDir}/project.tmx`;
   const outPath = useCallback(
     (lang: Target) => `${absDir}/out/${lang}/${sample.filename}`,
     [absDir, sample.filename],
@@ -162,18 +167,26 @@ export default function ProjectExplorer({
       setBusy(step);
       setErr(null);
       try {
-        // Seed the project (recipe + source) before extract so a sample/flow
-        // switch starts clean.
+        // Seed the project (recipe + source + TMX) before extract so a
+        // sample/flow switch starts clean, and import the TMX into the project
+        // TM so the translate (tm-leverage) flow has matches to pull.
         if (step === "extract") {
           runtime.mkdir(dir);
           runtime.writeFile(`${dir}/demo.kapi`, recipe);
           runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
+          runtime.writeFile(`${dir}/project.tmx`, sample.tmx);
+          const tmCode = await runtime.run(["tm", "import", tmxPath, "-s", "en", "-t", "fr"]);
+          if (tmCode !== 0) {
+            setErr(`\`kapi tm import ${tmxPath}\` exited ${tmCode}`);
+            return;
+          }
         }
         const argv: Record<StepName, string[]> = {
           // extract reads every content glob in the recipe into the project store.
           extract: ["extract", "-p", recipePath],
           // A run inside a project is process-only: it commits target overlays
-          // to the store rather than writing files (AD-026).
+          // to the store rather than writing files (AD-026). The translate flow
+          // leverages the project TM (seeded above) to fill real fr targets.
           run: ["run", flowId, "-p", recipePath, "-i", srcPath],
           // merge replays the stored translations onto each source.
           merge: ["merge", "-p", recipePath],
@@ -195,7 +208,7 @@ export default function ProjectExplorer({
         setBusy(null);
       }
     },
-    [runtime, sample, dir, recipe, recipePath, srcPath, flowId, outPath, readMerged],
+    [runtime, sample, dir, recipe, recipePath, srcPath, tmxPath, flowId, outPath, readMerged],
   );
 
   const stepEnabled = (i: number): boolean => {

@@ -19,6 +19,13 @@ export interface WorkspaceSample {
   bytes: () => Uint8Array;
   /** True for binary formats (don't render the raw bytes as text). */
   binary: boolean;
+  /**
+   * A project TMX (en→fr) whose source segments match this sample's
+   * translatable text, so `kapi tm import` + the `translate` (tm-leverage) flow
+   * fill real `fr` targets offline — no LLM. The ProjectExplorer seeds this
+   * before extract; the merged output is a genuine localized file.
+   */
+  tmx: string;
 }
 
 const enc = new TextEncoder();
@@ -29,6 +36,47 @@ const JSON_SAMPLE = `{
   "farewell": "Talk soon"
 }
 `;
+
+// A minimal en→fr TMX. Each <tu> pairs a source segment with its French
+// translation; the ProjectExplorer imports this into the project TM so the
+// `translate` (tm-leverage) flow fills real targets offline.
+function tmx(pairs: [string, string][]): string {
+  const tus = pairs
+    .map(
+      ([en, fr]) =>
+        `    <tu>\n      <tuv xml:lang="en"><seg>${en}</seg></tuv>\n      <tuv xml:lang="fr"><seg>${fr}</seg></tuv>\n    </tu>`,
+    )
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi" creationtoolversion="1.0"
+          segtype="sentence" o-tmf="unknown" adminlang="en"
+          srclang="en" datatype="plaintext"/>
+  <body>
+${tus}
+  </body>
+</tmx>
+`;
+}
+
+const JSON_TMX = tmx([
+  ["Welcome to Acme", "Bienvenue chez Acme"],
+  ["Sign up today", "Inscrivez-vous aujourd'hui"],
+  ["Talk soon", "À bientôt"],
+]);
+
+// Matches the translatable text baked into DOCX_B64's word/document.xml.
+const DOCX_TMX = tmx([
+  ["Welcome to Acme", "Bienvenue chez Acme"],
+  ["Your account is ready.", "Votre compte est prêt."],
+  ["Sign in to continue", "Connectez-vous pour continuer"],
+]);
+
+// Matches the shared strings baked into XLSX_B64's xl/sharedStrings.xml.
+const XLSX_TMX = tmx([
+  ["Total revenue", "Chiffre d'affaires total"],
+  ["Net profit", "Bénéfice net"],
+]);
 
 const DOCX_B64 =
   "UEsDBBQAAAAIAOm6xFzmdcR+0gAAAIsBAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH2QvVLDMAzHX8XnlasVGBh6SToAKzD0BXSOkvjw11luad++Sls6cIVR+n/8ZLebQ/BqT4Vdip1+NI3e9O32mImVKJE7Pdea1wBsZwrIJmWKooypBKwylgky2i+cCJ6a5hlsipViXdWlQ/ftK42481W9HWR9oRTyrNXLxbiwOo05e2exig77OPyirK4EI8mzh2eX+UEMGu4SFuVvwDX3Ic8ubiD1iaW+YxAXfKcywJDsLkjS/F9z5840js7SLb+05ZIsMbs4BW9uSkAXf+6H83f3J1BLAwQUAAAACADpusRcXzOVUpUAAAAHAQAACwAAAF9yZWxzLy5yZWxzjc87DsIwDAbgq0Q+QJ0yMKCmXVi6Ii4QJW5T0TzkhNftycBAEQOjf//6LHfDw6/iRpyXGBS0jYSh70606lKD7JaURW2ErMCVkg6I2TjyOjcxUaibKbLXpY48Y9LmomfCnZR75E8DtqYYrQIebQvi/Ez0jx2naTF0jObqKZQfJ74aVdY8U1Fwj2zRvuOmsoB9h5sX+xdQSwMEFAAAAAgA6brEXO2a4OirAAAAIQEAABEAAAB3b3JkL2RvY3VtZW50LnhtbIWPSwrCMBCGrxJygKa6cFH6wDO4EJcxHdtAMxMmibW3NxFEEMHNN8zz/6cdHm4Rd+BgCTu5q2o59O3ajGSSA4witzE0ayfnGH2jVDAzOB0q8oC5dyN2OuaUJ7USj57JQAgWJ7eofV0flNMWZTl5pXEr0RdwQezPsBhyICKJo3HQqlIs5Bf99/yFEgttDKVszQbBoMet+rt2shMKi0XGEEaL6ZeUentUn//7J1BLAQIUAxQAAAAIAOm6xFzmdcR+0gAAAIsBAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQDFAAAAAgA6brEXF8zlVKVAAAABwEAAAsAAAAAAAAAAAAAAIABAwEAAF9yZWxzLy5yZWxzUEsBAhQDFAAAAAgA6brEXO2a4OirAAAAIQEAABEAAAAAAAAAAAAAAIABwQEAAHdvcmQvZG9jdW1lbnQueG1sUEsFBgAAAAADAAMAuQAAAJsCAAAAAA==";
@@ -43,6 +91,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "text · JSON",
     bytes: () => enc.encode(JSON_SAMPLE),
     binary: false,
+    tmx: JSON_TMX,
   },
   {
     id: "docx",
@@ -51,6 +100,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "binary · OOXML (.docx)",
     bytes: () => bytesFromBase64(DOCX_B64),
     binary: true,
+    tmx: DOCX_TMX,
   },
   {
     id: "xlsx",
@@ -59,6 +109,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "binary · OOXML (.xlsx)",
     bytes: () => bytesFromBase64(XLSX_B64),
     binary: true,
+    tmx: XLSX_TMX,
   },
 ];
 

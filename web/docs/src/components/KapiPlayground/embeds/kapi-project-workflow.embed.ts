@@ -9,16 +9,31 @@ const config: WalkthroughEmbedConfig = {
   seed: ["messages.json"],
   files: [
     {
+      path: "project.tmx",
+      content:
+        '<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="neokapi" creationtoolversion="1.0"\n          segtype="sentence" o-tmf="unknown" adminlang="en"\n          srclang="en" datatype="plaintext"/>\n  <body>\n    <tu>\n      <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>\n      <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>\n      <tuv xml:lang="fr"><seg>À demain</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>\n      <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>\n    </tu>\n  </body>\n</tmx>\n',
+    },
+    {
       path: "demo.kapi",
       content:
-        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr, qps]\ncontent:\n  - path: messages.json\n    format: json\n    target: "out/{lang}/messages.json"\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n',
+        "version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent: []\nflows:\n  translate:\n    steps:\n      - tool: tm-leverage\n",
     },
   ],
   steps: [
     {
-      command: "kapi init --name demo --source-locale en --target-locale fr --target-locale qps",
+      command: "kapi init --name demo --source-locale en --target-locale fr",
       narration:
-        "init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.",
+        "init scaffolds the {name}.kapi recipe and the .kapi/ state dir with empty content. It is idempotent — safe to re-run on an existing project.",
+    },
+    {
+      command: "kapi add messages.json",
+      narration:
+        "add registers messages.json under the recipe's content so extract/run/merge know what to process — no -i needed afterwards.",
+    },
+    {
+      command: "kapi tm import project.tmx",
+      narration:
+        "tm import loads existing translations into the project TM (.kapi/tm.db) — the source of the real fr target below.",
     },
     {
       command: "kapi extract",
@@ -26,14 +41,14 @@ const config: WalkthroughEmbedConfig = {
         "extract reads every content glob in the recipe into the project store — one batch, all target locales, no -i needed.",
     },
     {
-      command: "kapi run pseudo -i messages.json",
+      command: "kapi run translate -i messages.json",
       narration:
-        "The pseudo flow writes target overlays into the project store. Runs stay cheap; the store accumulates translation memory across passes.",
+        "The translate flow leverages the TM, committing real fr targets to the project store. No LLM, fully offline — exact/fuzzy TM matches fill the targets.",
     },
     {
       command: "kapi merge",
       narration:
-        "merge replays the stored translations onto each source and writes one localized file per target locale (out/fr, out/qps).",
+        "merge replays the stored fr translations onto the source and writes the localized file (out/fr/messages.json).",
     },
   ],
 };

@@ -11,18 +11,19 @@ import ProjectExplorer, {
 import { workspaceSampleById } from "../workspaceSamples";
 
 describe("ProjectExplorer helpers", () => {
-  it("declares offline pseudo flows", () => {
+  it("declares offline TM-leverage flows", () => {
     const ids = FLOWS.map((f) => f.id);
-    expect(ids).toContain("pseudo");
-    expect(ids).toContain("accent");
-    // Every flow's steps use the offline, deterministic pseudo-translate tool.
+    expect(ids).toContain("translate");
+    expect(ids).toContain("translate-exact");
+    // Every flow's steps use the offline tm-leverage tool (no LLM, no network).
     for (const f of FLOWS) {
-      expect(f.yaml).toContain("tool: pseudo-translate");
+      expect(f.yaml).toContain("tool: tm-leverage");
     }
   });
 
-  it("declares multiple target locales", () => {
-    expect(TARGETS).toEqual(["fr", "qps"]);
+  it("declares a real fr shipping target and never the qps test locale", () => {
+    expect(TARGETS).toEqual(["fr"]);
+    expect(TARGETS as readonly string[]).not.toContain("qps");
   });
 
   it("maps filenames to formats", () => {
@@ -39,12 +40,24 @@ describe("ProjectExplorer helpers", () => {
   it("renders a complete recipe with content + every declared flow", () => {
     const recipe = recipeFor(workspaceSampleById("json"));
     expect(recipe).toContain("source_language: en");
-    expect(recipe).toContain("target_languages: [fr, qps]");
+    expect(recipe).toContain("target_languages: [fr]");
+    // qps is a pseudo-translate test locale, never a recipe shipping target.
+    expect(recipe).not.toContain("qps");
     expect(recipe).toContain("path: messages.json");
     expect(recipe).toContain('target: "out/{lang}/messages.json"');
     for (const f of FLOWS) {
       expect(recipe).toContain(`  ${f.id}:`);
     }
+  });
+
+  it("provides a per-sample en→fr TMX matching the sample's source text", () => {
+    const json = workspaceSampleById("json");
+    expect(json.tmx).toContain('<tuv xml:lang="en"><seg>Welcome to Acme</seg></tuv>');
+    expect(json.tmx).toContain('xml:lang="fr"');
+    const docx = workspaceSampleById("docx");
+    expect(docx.tmx).toContain("Sign in to continue");
+    const xlsx = workspaceSampleById("xlsx");
+    expect(xlsx.tmx).toContain("Total revenue");
   });
 
   it("renders a recipe for a binary (Office) sample as openxml", () => {

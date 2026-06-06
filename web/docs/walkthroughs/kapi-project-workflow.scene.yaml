@@ -4,52 +4,90 @@
 #
 # Walks the .kapi *project* lifecycle (AD-026): config-as-code in a committed
 # recipe (languages + content + flows) plus a .kapi/ state dir that accumulates
-# the project store (block overlays + TM). The commands share state across steps
-# (the state dir persists), so they run in order. Everything here runs offline
-# in the wasm embed — init scaffolds against the in-memory filesystem, and
-# extract/run/merge use the in-memory project store.
+# the project store (block overlays + TM). The funnel is the real one:
+#
+#   init → add <glob> → tm import → extract → run <flow> → merge
+#
+# init scaffolds an EMPTY-content recipe; `kapi add` declares the content. The
+# `translate` flow leverages translation memory (tm-leverage), so the run fills
+# a real `fr` target — no LLM, fully offline. `tm import` seeds that TM from a
+# project TMX. Everything here runs offline in the wasm embed: init/add/extract/
+# merge are pure local-filesystem + in-memory-store ops, tm import tops up the
+# pre-seeded in-memory TM, and tm-leverage reads it.
 
 id: kapi-project-workflow
 scene: project-workflow
 mode: interactive
 
-# messages.json is the kit fixture; demo.kapi is the recipe a `kapi init` would
-# scaffold, here pre-filled with content + a pseudo flow + a target glob so the
-# lifecycle has something to run. (init is genuinely runnable below — it is
-# idempotent and reports the project is already initialized.)
+# messages.json is the kit fixture (greeting / farewell / cart). project.tmx
+# carries the matching French so tm-leverage fills real targets offline.
+# demo.kapi is the recipe `kapi init` scaffolds — here pre-written with the
+# `translate` flow and a real `fr` target, but EMPTY content so `kapi add`
+# genuinely populates it. (init is genuinely runnable below — it is idempotent
+# and reports the project is already initialized.)
 seed:
   - messages.json
 files:
+  - path: project.tmx
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <tmx version="1.4">
+        <header creationtool="neokapi" creationtoolversion="1.0"
+                segtype="sentence" o-tmf="unknown" adminlang="en"
+                srclang="en" datatype="plaintext"/>
+        <body>
+          <tu>
+            <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>
+            <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>
+          </tu>
+          <tu>
+            <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>
+            <tuv xml:lang="fr"><seg>À demain</seg></tuv>
+          </tu>
+          <tu>
+            <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>
+            <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>
+          </tu>
+        </body>
+      </tmx>
   - path: demo.kapi
     content: |
       version: v1
       name: demo
       defaults:
         source_language: en
-        target_languages: [fr, qps]
-      content:
-        - path: messages.json
-          format: json
-          target: "out/{lang}/messages.json"
+        target_languages: [fr]
+      content: []
       flows:
-        pseudo:
+        translate:
           steps:
-            - tool: pseudo-translate
+            - tool: tm-leverage
 
 steps:
   - comment: A .kapi project keeps config-as-code — languages, content, flows — in a committed recipe beside a .kapi/ state dir.
-  - command: kapi init --name demo --source-locale en --target-locale fr --target-locale qps
-    narration: init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.
+  - command: kapi init --name demo --source-locale en --target-locale fr
+    narration: init scaffolds the {name}.kapi recipe and the .kapi/ state dir with empty content. It is idempotent — safe to re-run on an existing project.
     smoke: true
-  - comment: The recipe (demo.kapi) declares the source/target languages, the content to localize, and the flows to run.
+  - comment: Declare the content. `kapi add` records which files the project localizes — the recipe starts empty.
+  - command: kapi add messages.json
+    narration: add registers messages.json under the recipe's content so extract/run/merge know what to process — no -i needed afterwards.
+    smoke: true
+  - comment: Seed the project translation memory so leverage has matches to pull.
+  - command: kapi tm import project.tmx
+    narration: tm import loads existing translations into the project TM (.kapi/tm.db) — the source of the real fr target below.
+    smoke: true
+  - comment: Extract the recipe's content into the project store.
   - command: kapi extract
     narration: extract reads every content glob in the recipe into the project store — one batch, all target locales, no -i needed.
     smoke: true
-  - comment: Run a declared flow. In a project, a run is process-only — it commits results to the store, not to files.
-  - command: kapi run pseudo -i messages.json
-    narration: The pseudo flow writes target overlays into the project store. Runs stay cheap; the store accumulates translation memory across passes.
+  - comment: Run the declared translate flow. In a project, a run is process-only — it commits results to the store, not to files.
+  - command: kapi run translate -i messages.json
+    narration: The translate flow leverages the TM, committing real fr targets to the project store. No LLM, fully offline — exact/fuzzy TM matches fill the targets.
+    # smoke:false — consumes the TM seeded by the prior tm import step; W7 would
+    # run it in isolation (no TM) and leverage nothing.
     smoke: false
   - comment: Materialize the localized files from the store.
   - command: kapi merge
-    narration: merge replays the stored translations onto each source and writes one localized file per target locale (out/fr, out/qps).
+    narration: merge replays the stored fr translations onto the source and writes the localized file (out/fr/messages.json).
+    # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false

@@ -28,7 +28,7 @@ Run `kapi init` in the directory you want to localize. It scaffolds a
 `<dir-name>.kapi` recipe and an adjacent `.kapi/` state directory:
 
 ```bash
-kapi init --source-locale en --target-locale fr --target-locale de
+kapi init --source-locale en --target-locale fr,de
 ```
 
 ```text
@@ -38,11 +38,32 @@ Initialized kapi project "my-app"
 ```
 
 The recipe is committed; the `.kapi/` state directory is regenerable and belongs
-in `.gitignore`. If your strings live in a known stack's i18n catalogs, pass
-`--framework <stack>` (for example `react-i18next`, `nextjs`, `flutter`) to
-pre-fill the content mapping — see `kapi presets list --framework`.
+in `.gitignore`. A fresh `init` declares your languages but **no content yet** —
+that's the next step.
 
-## 2. Read the recipe
+## 2. Declare the content to localize
+
+Tell the project which files to translate with `kapi add` — a glob, plus the
+format (auto-detected if you omit it):
+
+```bash
+kapi add "src/locales/en/*.json"
+```
+
+Each `kapi add` appends a content entry to the recipe; `kapi rm` removes one and
+`kapi ls` lists the files the project currently tracks (add `--stats` for per-file
+block and word counts):
+
+```bash
+kapi ls
+```
+
+If your strings live in a known stack's i18n catalogs, skip the manual `add` and
+let `kapi init --framework <stack>` (for example `react-i18next`, `nextjs`,
+`flutter`) pre-fill the content mapping for you — see
+`kapi presets list --framework`.
+
+## 3. Read the recipe
 
 The `<dir-name>.kapi` recipe is a portable YAML document. A minimal one declares
 its languages, the content globs to localize, and the flows to run:
@@ -64,13 +85,15 @@ flows:
       - tool: ai-translate
 ```
 
-`content` maps a source glob to a target glob via the `{lang}` placeholder, so
-kapi knows where to read sources and where to write each locale's files.
-`defaults` carries the source and target languages every command inherits.
-`flows` names reusable tool chains. See the
-[project file reference](/reference/project-file) for the full schema.
+`kapi add` wrote the `content` entry's source `path` and `format`. The optional
+`target` glob — with the `{lang}` placeholder — tells `merge` where each locale's
+files go; set it for a custom layout (or let `--framework` fill it), otherwise
+kapi defaults to a locale-suffixed path beside the source. `defaults` carries the
+source and target languages every command inherits, and `flows` names reusable
+tool chains. See the [project file reference](/reference/project-file) for the
+full schema.
 
-## 3. Run a flow
+## 4. Run a flow
 
 From anywhere inside the project tree, run a flow by name:
 
@@ -85,7 +108,7 @@ run is **process-only** — it commits results to the project store
 runs cheap and lets the store accumulate translation memory and overlays as you
 work.
 
-## 4. Merge the files out
+## 5. Merge the files out
 
 When you're ready to materialize the localized files, `merge` writes them to the
 targets declared in the recipe:
