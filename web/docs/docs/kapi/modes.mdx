@@ -1,0 +1,178 @@
+---
+sidebar_position: 1
+title: Modes & bindings
+description: How Kapi runs the same commands two ways — ad-hoc on loose files, or in a .kapi project — plus the source/sink binding model that unifies them, the .klz parcel that moves work between them, and when it makes sense to mix.
+keywords: [kapi, ad-hoc, project mode, binding, source, sink, process-only, .klz, extract, merge, pack, workflows]
+---
+
+import { PipelineDiagram, LanesDiagram } from "@neokapi/docs-shared";
+
+# How Kapi runs: modes & bindings
+
+Kapi doesn't have separate "ad-hoc commands" and "project commands." It has **one
+set of commands**, and what changes is the **binding** — where content comes from
+and where results go. Understanding that one idea makes every workflow below click.
+
+## Three ways to run
+
+<LanesDiagram
+  caption="Increasing statefulness, left to right. A .klz parcel moves work between any of them."
+  lanes={[
+    { title: "Ad-hoc", sub: "loose files · no state", steps: ["kapi ai-translate app.json", "kapi run flow -i a.json -o b.json", "kapi extract src/*.json -o work.klz"] },
+    { title: "Project (.kapi)", sub: "recipe + .kapi/ store", role: "translate", steps: ["kapi init · add · ls", "kapi extract  /  run  /  merge", "store accumulates TM + overlays"] },
+    { title: "Server (bowrain)", sub: "+ server: + plugin", role: "qa", steps: ["kapi auth login", "kapi push · pull · sync", "kapi status"] },
+  ]}
+/>
+
+- **Ad-hoc** — run a tool or flow directly on files; nothing is saved. Ideal for
+  one-offs, scripting, and CI.
+- **Project** — capture the workflow once in a portable `.kapi` recipe (languages,
+  content patterns, flows, defaults) plus a `.kapi/` state directory that
+  accumulates translation memory and per-block work. Kapi finds it automatically
+  by walking up from the current directory, like git.
+- **Server** — a project with a `server:` block (which declares `requires: bowrain`)
+  and the `kapi-bowrain` plugin installed, adding `push`/`pull`/`sync`/`status`.
+
+## The binding model: source → flow → sink
+
+A **flow** is just an ordered set of tools — it owns no input or output. Where the
+content enters (the **source**) and where results go (the **sink**) are *bindings*
+resolved when you run it:
+
+<PipelineDiagram
+  stages={[
+    { label: "source", sub: "binding", role: "io" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "qa-check", role: "qa" },
+    { label: "sink", sub: "binding", role: "io" },
+  ]}
+/>
+
+| Binding | As source | As sink |
+| --- | --- | --- |
+| `file` (default) | read + parse a file | write a localized file |
+| `store` | the project's `.kapi/cache` (blocks + overlays) | commit overlays — **no file** |
+| interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
+| `none` | — | discard (checks/analysis only) |
+
+The mode you're in is just which binding gets resolved:
+
+- **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
+- **In a project**, the default *sink* becomes the **store** (a *process-only* run);
+  pass `-o` to force a file instead.
+
+Run `kapi run <flow> --explain` any time to print the resolved `source → sink`
+without executing:
+
+```bash
+kapi run ai-translate-qa -i app.json -o app.fr.json --explain
+#   → flow ai-translate-qa: file(app.json) → file(app.fr.json)
+kapi run ai-translate-qa -i app.json --explain          # inside a project
+#   → flow ai-translate-qa: file(app.json) → store
+```
+
+## Ad-hoc: loose files
+
+```bash
+# One tool on one file
+kapi pseudo-translate app.json --target-lang qps         # → app_qps.json
+kapi ai-translate -i app.xliff --target-lang fr -o fr.xliff
+kapi qa-check app.xliff -o none --report qa.json         # checks only, no output
+
+# A composed flow
+kapi run ai-translate-qa -i app.json -o app.fr.json --target-lang fr
+```
+
+## Project: two loops, both ending at `merge`
+
+Set up and manage the tracked content (these are core commands — no plugin needed):
+
+```bash
+kapi init
+kapi add "src/**/*.json" --format json
+kapi ls --stats          # list tracked files + block/word counts
+```
+
+**1 — Interchange loop** (hand bilingual files to a translator or CAT tool):
+
+<PipelineDiagram
+  stages={[
+    { label: "kapi extract", sub: "TM pre-fill", role: "annotate" },
+    { label: "bilingual file", sub: ".klz / XLIFF / PO", role: "io" },
+    { label: "translate elsewhere", role: "translate" },
+    { label: "kapi merge", sub: "+ TM absorb", role: "qa" },
+    { label: "localized files", role: "io" },
+  ]}
+/>
+
+```bash
+kapi extract --target-lang fr,de            # → out/*.xliff (or --format klz)
+#   …translate the bilingual files…
+kapi merge -i out/                          # apply back onto sources, absorb into TM
+```
+
+**2 — Process-only loop** (work lands in the store; materialize when ready):
+
+<PipelineDiagram
+  stages={[
+    { label: "kapi run -i file", sub: "no -o", role: "translate" },
+    { label: "project store", sub: "targets/<locale> overlays", role: "io" },
+    { label: "kapi merge", role: "qa" },
+    { label: "localized files", role: "io" },
+  ]}
+/>
+
+```bash
+kapi run ai-translate -i src/app.json --target-lang fr   # file → store (no file written)
+kapi merge                                               # store → localized files
+```
+
+## The `.klz` parcel: move work without a server
+
+A `.klz` is a portable, single-file carrier — the way you hand work between
+machines or people without a server. It comes in two profiles:
+
+```bash
+# Whole-project snapshot — a runnable "project in a file"
+kapi pack -o snapshot.klz        # carries the recipe + content + TM/termbase
+kapi unpack snapshot.klz         # rehydrate elsewhere
+
+# Bilingual interchange — neokapi's native format for a kapi-equipped reviewer
+kapi extract --format klz --target-lang fr   # → one bilingual .klz per pair
+kapi merge bundle.fr.klz                      # ingest the returned work
+```
+
+Source travels as identity + a round-trip skeleton by default; add `--with-source`
+to embed the raw originals (for offline re-extraction).
+
+## Do ad-hoc and project mode mix?
+
+Yes — because they're the same commands over different bindings, not rival
+toolsets. The guidance:
+
+| You want… | Use |
+| --- | --- |
+| A throwaway job on one file | **ad-hoc** (`kapi <tool>` or `run -i -o`) |
+| A repo you localize repeatedly (accumulating TM) | **project** (`add` / `extract` / `run`→store / `merge`) |
+| To move work between machines/people, no server | **`.klz` parcel** (`pack` or `extract --format klz`) → `merge`/`unpack` |
+| A team with a shared server | **project + bowrain** (`auth` / `push` / `pull` / `sync`) |
+
+**Coherent mixes:** a tool run *inside* a project (`kapi ai-translate src/app.json`)
+still picks up the project's defaults and TM while working on a single file; the
+same flow runs ad-hoc or process-only with no change; a `.klz` made in a project
+is consumed ad-hoc by a reviewer and `merge`d back.
+
+**The one thing to avoid:** running **two stateful stores over the same content** —
+an ad-hoc `.klz` workspace *and* a `.kapi` project for the same files. Use the
+`.klz` workspace when there is no project; use the project store when there is.
+
+**Worth knowing:** inside a project, an explicit `-o` writes a file and skips the
+store (process-only) — that's intentional, and `--explain` shows you which you got.
+
+## See also
+
+- [Bilingual workflow](/kapi/bilingual-workflow) — the `extract` / `merge` interchange loop in depth.
+- [Work in a `.klz` workspace](/kapi/recipes/resumable-workspace) — the serverless single-file path.
+- [Flows](/framework/flows) — authoring composed flows and the source/sink ends.
+- [`.kapi` project file](/reference/project-file) — the recipe format.

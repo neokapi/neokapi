@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         { type: "doc", id: "kapi/overview", label: "Overview" },
+        { type: "doc", id: "kapi/modes", label: "Modes & bindings" },
         "kapi/get-started/installation",
         "kapi/get-started/quickstart",
         "kapi/get-started/use-with-claude",

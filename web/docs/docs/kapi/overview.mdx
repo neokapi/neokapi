@@ -67,6 +67,12 @@ tree from wherever you run it; if it finds a `.kapi` recipe, it runs in
 **project mode** with that project's languages, defaults, and flows. Otherwise
 it runs ad-hoc.
 
+Both are the same commands over a different **binding** (where content enters and
+leaves): ad-hoc writes files, while in a project a run commits to the store and
+`kapi merge` materializes the localized files. See **[Modes &
+bindings](/kapi/modes)** for the full model — the source/sink binding diagram, the
+two project loops, the portable `.klz` parcel, and when it makes sense to mix.
+
 See the [project file reference](/reference/project-file) for the full `.kapi`
 format.
 
