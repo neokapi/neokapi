@@ -15,16 +15,27 @@ Zero-toil internationalisation for React.
 Localising a React app usually means wrapping every user-visible string in a translation call:
 
 ```tsx
-// The traditional way
+// The traditional way — call-based (react-i18next, react-intl)
 <h1>{t("welcome.heading")}</h1>
 <p>{t("welcome.description")}</p>
 <button>{t("welcome.getStarted")}</button>
 ```
 
-That creates three kinds of toil:
+Newer libraries drop the key but keep the wrapper: you mark every translatable
+fragment with an explicit JSX element instead.
 
-- **Writing the wrapper** — every string in your app gets `t(...)` around it, every prop that might ever be translated is now an expression instead of a literal.
-- **Inventing and maintaining keys** — `welcome.heading`, `welcome.description`, `welcome.getStarted`. You pick them, you rename them when the copy changes, you hunt for collisions, you diff them in review.
+```tsx
+// The traditional way — element-based (fbtee, Lingui, react-i18next <Trans>)
+<h1><fbt desc="welcome heading">Welcome</fbt></h1>
+<p><Trans>Ship your product in every language your users speak.</Trans></p>
+<button><Trans>Get started</Trans></button>
+```
+
+Either way, you don't just write the UI — you also annotate it. That creates
+three kinds of toil:
+
+- **Writing the wrapper** — every string in your app gets `t(...)`, `<Trans>`, or `<fbt>` around it, and every prop that might ever be translated becomes an expression or a marker component instead of a plain literal. The element-based libraries trade the key for boilerplate JSX, but the wrapping tax stays.
+- **Inventing and maintaining keys** — `welcome.heading`, `welcome.description`, `welcome.getStarted`. You pick them, you rename them when the copy changes, you hunt for collisions, you diff them in review. (Element-based libraries swap explicit keys for `desc`/`context` props you still have to author and keep accurate.)
 - **Keeping them in sync** — the translation file, the call sites, the docs. When any of them drifts, the app shows `welcome.heading` to the user or (worse) renders the wrong text.
 
 You pay that cost on day one, the day a new engineer joins, and every time a designer changes a word of copy.
