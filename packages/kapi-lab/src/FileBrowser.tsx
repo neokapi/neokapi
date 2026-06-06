@@ -151,8 +151,9 @@ function GridCard({
         active && "border-primary ring-1 ring-primary/40",
       )}
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden p-2">
-        <FormatPreview tree={file.tree} annotations={false} className="w-full origin-top-left" />
+      {/* Preview fills 100% of the card — no inner box, no padding gap. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <FormatPreview tree={file.tree} annotations={false} flush className="h-full w-full" />
       </div>
       {/* File metadata as a blurred overlay pinned to the bottom of the preview. */}
       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 border-t border-border/40 bg-card/70 px-2 py-1.5 backdrop-blur-md">

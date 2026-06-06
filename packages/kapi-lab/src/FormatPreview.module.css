@@ -89,6 +89,20 @@
   gap: 0.6rem;
 }
 
+/* Flush mode (thumbnails): drop the inner slide/page frame so the content bleeds
+   to the host container's edges — the host (grid card) supplies the only frame. */
+.flush .slide,
+.flush .page {
+  border: 0;
+  border-radius: 0;
+}
+.flush .slide {
+  aspect-ratio: auto;
+}
+.flush .slideDeck {
+  gap: 0;
+}
+
 .slide {
   position: relative;
   aspect-ratio: 16 / 9;

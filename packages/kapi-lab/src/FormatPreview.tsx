@@ -54,6 +54,12 @@ export interface FormatPreviewProps {
   side?: PreviewSide;
   /** Show overlay highlights (default true). */
   annotations?: boolean;
+  /**
+   * Render the document flush to its container — drop the inner slide/page frame
+   * (border, radius, inter-slide gap) so the content bleeds edge to edge. Used
+   * for thumbnails where the host (e.g. a grid card) supplies the only frame.
+   */
+  flush?: boolean;
   /** Restrict overlay highlights to these types (undefined = all). */
   overlayTypes?: string[];
   /** Source→target transition effect (default "none"). */
@@ -397,6 +403,7 @@ export default function FormatPreview({
   before,
   side = "source",
   annotations = true,
+  flush = false,
   overlayTypes,
   transition = "none",
   typewriter = "word",
@@ -432,7 +439,7 @@ export default function FormatPreview({
   return (
     <TooltipProvider delayDuration={150}>
       <Ctx.Provider value={ctx}>
-        <div className={cn("kapi-reference", styles.root, className)}>
+        <div className={cn("kapi-reference", styles.root, flush && styles.flush, className)}>
           <PreviewBody doc={model} gridHeaders={gridHeaders} />
         </div>
       </Ctx.Provider>
