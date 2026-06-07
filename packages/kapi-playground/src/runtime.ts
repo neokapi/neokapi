@@ -74,6 +74,20 @@ export interface KlfResponse {
   [key: string]: unknown;
 }
 
+/** One sentence produced by the segmentation engine. */
+export interface SegmentPiece {
+  text: string;
+}
+
+/** Result of the `labSegment` wasm endpoint. */
+export interface SegmentResult {
+  ok: boolean;
+  error?: string;
+  /** The engine that actually ran (e.g. "srx" when "" was requested). */
+  engine?: string;
+  segments?: SegmentPiece[];
+}
+
 export interface KapiRuntime {
   vol: MemVolume;
   run(argv: string[]): Promise<number>;
@@ -93,6 +107,14 @@ export interface KapiRuntime {
    * returns the parsed response directly rather than a Promise.
    */
   klf(req: KlfRequest): KlfResponse;
+  /**
+   * Segment raw text with a named engine ("" = default srx) and locale.
+   * Synchronous: pure in-memory work (the "uax29"/ICU4X path makes one
+   * re-entrant JS call), so it returns the result directly.
+   */
+  segment(text: string, engine: string, locale: string): SegmentResult;
+  /** List the segmentation engines registered in this wasm build. */
+  segmentEngines(): string[];
   /**
    * Run a command with flow tracing enabled and return the parsed FlowTrace.
    * Appends `--trace <tmp>` to argv, runs it, and reads the trace back from the
@@ -267,6 +289,36 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
           return JSON.parse(fn(JSON.stringify(req)) as string) as KlfResponse;
         } catch (e) {
           return { ok: false, error: `klf request failed: ${(e as Error).message}` };
+        }
+      },
+      segment: (text: string, engine: string, locale: string): SegmentResult => {
+        const fn = g.labSegment;
+        if (typeof fn !== "function") {
+          return { ok: false, error: "segment endpoint unavailable in this wasm build" };
+        }
+        try {
+          // labSegment returns a converted JS object directly (not a JSON
+          // string): { ok, engine, segments: [{text}] } or { ok:false, error }.
+          const res = fn(text, engine, locale) as {
+            ok: boolean;
+            error?: string;
+            engine?: string;
+            segments?: Array<{ text: string }>;
+          };
+          if (!res || !res.ok) return { ok: false, error: res?.error ?? "segment failed" };
+          const segs = (res.segments ?? []).map((s) => ({ text: s.text }));
+          return { ok: true, engine: res.engine, segments: segs };
+        } catch (e) {
+          return { ok: false, error: `segment request failed: ${(e as Error).message}` };
+        }
+      },
+      segmentEngines: (): string[] => {
+        const fn = g.labSegmentEngines;
+        if (typeof fn !== "function") return [];
+        try {
+          return Array.from((fn() as string[]) ?? []);
+        } catch {
+          return [];
         }
       },
       runWithTrace: async (argv: string[]): Promise<TraceRunResult> => {

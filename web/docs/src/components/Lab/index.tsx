@@ -18,6 +18,11 @@ const LazyAnatomy = React.lazy(async () => {
   return { default: mod.AnatomyExplorer };
 });
 
+const LazySegmentation = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.SegmentationExplorer };
+});
+
 const LazyPipeline = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.PipelineExplorer };
@@ -63,6 +68,29 @@ export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement
           return (
             <Suspense fallback={<Loading />}>
               <LazyAnatomy assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface SegmentationExplorerProps {
+  defaultText?: string;
+  defaultLocale?: string;
+}
+
+export function SegmentationExplorer(props: SegmentationExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazySegmentation assets={assets} {...props} />
             </Suspense>
           );
         }

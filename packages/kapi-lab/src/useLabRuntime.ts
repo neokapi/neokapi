@@ -8,6 +8,7 @@ import type {
   KapiRuntime,
   KlfRequest,
   KlfResponse,
+  SegmentResult,
   TraceRunResult,
 } from "@neokapi/kapi-playground/runtime";
 import type { ContentTree, FlowTrace } from "@neokapi/ui-primitives/preview";
@@ -68,6 +69,10 @@ export interface LabRuntime {
   readBytes: (path: string) => Uint8Array | null;
   /** Run a KLF spec operation against the canonical Go engine (synchronous). */
   klf: (req: KlfRequest) => KlfResponse;
+  /** Segment raw text with a named engine + locale (synchronous). */
+  segment: (text: string, engine: string, locale: string) => SegmentResult;
+  /** Segmentation engine names registered in this wasm build. */
+  segmentEngines: () => string[];
 }
 
 const PROJECT_DIR = "/project";
@@ -237,6 +242,19 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     return rt.klf(req);
   }, []);
 
+  const segment = useCallback((text: string, engine: string, locale: string): SegmentResult => {
+    const rt = runtimeRef.current;
+    if (!rt) return { ok: false, error: "runtime not ready" };
+    // Like klf: pure CPU (plus, for uax29, one re-entrant ICU4X JS call) over an
+    // in-memory string, no fs or shared stdout — no run-chain serialization.
+    return rt.segment(text, engine, locale);
+  }, []);
+
+  const segmentEngines = useCallback((): string[] => {
+    const rt = runtimeRef.current;
+    return rt ? rt.segmentEngines() : [];
+  }, []);
+
   // Memoize the returned object: every method is useCallback-stable, so the
   // identity changes only when status/error change. Without this, consumers
   // that put the whole `runtime` in an effect's dep array re-run that effect
@@ -256,6 +274,8 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       readFile,
       readBytes,
       klf,
+      segment,
+      segmentEngines,
     }),
     [
       status,
@@ -270,6 +290,8 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       readFile,
       readBytes,
       klf,
+      segment,
+      segmentEngines,
     ],
   );
 }

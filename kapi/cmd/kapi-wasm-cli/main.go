@@ -51,6 +51,8 @@ func main() {
 	js.Global().Set("kapiPreview", js.FuncOf(kapiPreview))
 	js.Global().Set("labInspect", js.FuncOf(labInspect))
 	js.Global().Set("labInspectAnnotated", js.FuncOf(labInspectAnnotated))
+	js.Global().Set("labSegment", js.FuncOf(labSegment))
+	js.Global().Set("labSegmentEngines", js.FuncOf(labSegmentEngines))
 	js.Global().Set("klf", js.FuncOf(klfDispatch))
 
 	if ready := js.Global().Get("__kapiCliReady"); ready.Type() == js.TypeFunction {
