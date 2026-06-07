@@ -1,43 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { KapiRuntime, PreviewResult } from "./runtime";
-import { HighlightedCode } from "./syntax";
+import { CodeView, DocumentViewer, type ContentTree } from "@neokapi/ui-primitives/preview";
+import type { KapiRuntime } from "./runtime";
 
 function basename(p: string): string {
   return p.replace(/\/$/, "").split("/").pop() || p;
 }
 
-function ext(p: string): string {
-  const b = basename(p);
-  return b.includes(".") ? "." + b.slice(b.lastIndexOf(".") + 1).toLowerCase() : "";
-}
-
-interface RawRead {
-  text: string;
-  binary: boolean;
-  error?: string;
-}
-
-// Read a file's bytes and decode as UTF-8. Binary files (which contain NUL
-// bytes or fail a strict UTF-8 decode) are flagged so the caller can show a
-// graceful "download to view" message instead of rendering garbage.
-function readRaw(runtime: KapiRuntime, path: string): RawRead {
+// Read a file's bytes; decode as UTF-8, flagging binary content (NUL bytes or a
+// failed strict decode) so the raw fallback shows a note instead of garbage.
+function readRaw(runtime: KapiRuntime, path: string): { text: string; binary: boolean } {
   let bytes: Uint8Array;
   try {
     bytes = runtime.vol.readFile(path);
-  } catch (e: any) {
-    return { text: "", binary: false, error: String(e?.message || e) };
+  } catch {
+    return { text: "", binary: false };
   }
-  // A NUL byte is a strong, cheap signal of binary content.
   if (bytes.includes(0)) return { text: "", binary: true };
   try {
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    return { text, binary: false };
+    return { text: new TextDecoder("utf-8", { fatal: true }).decode(bytes), binary: false };
   } catch {
     return { text: "", binary: true };
   }
 }
 
+// FilePreview shows a file in the SHARED preview editor (DocumentViewer — the
+// same Preview / Blocks / Raw / Stats / Download editor used by the docs modal,
+// the lab explorers and the desktop app). The editor lives in
+// @neokapi/ui-primitives, so the playground reuses it directly (no duplicate
+// block/raw views, no syntax-highlighter fork). Files kapi can't parse fall back
+// to a raw CodeView.
 export default function FilePreview({
   runtime,
   path,
@@ -47,19 +39,26 @@ export default function FilePreview({
   path: string;
   onClose: () => void;
 }) {
-  const [data, setData] = useState<PreviewResult | null>(null);
-  const [showRaw, setShowRaw] = useState(false);
-
-  // When the engine can't parse the file, fall back to raw text automatically
-  // (no Blocks view exists to toggle to). `forcedRaw` reflects that state.
-  const forcedRaw = data != null && !data.ok;
-  const rawActive = forcedRaw || showRaw;
+  const [tree, setTree] = useState<ContentTree | null>(null);
+  const [bytes, setBytes] = useState<Uint8Array | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [unparseable, setUnparseable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setData(null);
-    runtime.preview(path).then((r) => {
-      if (!cancelled) setData(r);
+    setLoading(true);
+    setTree(null);
+    setUnparseable(false);
+    try {
+      setBytes(runtime.vol.readFile(path));
+    } catch {
+      setBytes(null);
+    }
+    void runtime.inspect(path).then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.tree) setTree(r.tree as ContentTree);
+      else setUnparseable(true);
+      setLoading(false);
     });
     return () => {
       cancelled = true;
@@ -77,7 +76,7 @@ export default function FilePreview({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
-  const raw: RawRead | null = rawActive ? readRaw(runtime, path) : null;
+  const raw = unparseable ? readRaw(runtime, path) : null;
 
   return (
     <div className="kapi-pg-overlay" onClick={onClose}>
@@ -90,16 +89,6 @@ export default function FilePreview({
       >
         <div className="kapi-pg-preview-header">
           <span className="kapi-pg-preview-title">{basename(path)}</span>
-          {data?.ok && <span className="kapi-pg-badge">{data.format}</span>}
-          {data?.ok && (
-            <button
-              type="button"
-              className="kapi-pg-btn kapi-pg-btn--sm"
-              onClick={() => setShowRaw((v) => !v)}
-            >
-              {showRaw ? "Blocks" : "Raw"}
-            </button>
-          )}
           <button
             type="button"
             className="kapi-pg-icon-btn"
@@ -112,62 +101,19 @@ export default function FilePreview({
         </div>
 
         <div className="kapi-pg-preview-body">
-          {!data && <p>Reading with the kapi parser…</p>}
+          {loading && <p>Reading with the kapi parser…</p>}
 
-          {/* Unparseable by the engine: don't dead-end — show raw text with a
-              short note explaining there's no reader for this extension. */}
-          {forcedRaw && (
-            <p className="kapi-pg-preview-note">
-              kapi has no reader for <code>{ext(path) || basename(path)}</code> — showing raw text.
-            </p>
-          )}
+          {tree && <DocumentViewer tree={tree} filename={basename(path)} bytes={bytes} />}
 
-          {raw && raw.error && (
-            <p className="kapi-pg-preview-error">Cannot read file: {raw.error}</p>
-          )}
-
-          {raw && !raw.error && raw.binary && (
-            <p className="kapi-pg-preview-note">Binary file — download to view.</p>
-          )}
-
-          {raw && !raw.error && !raw.binary && (
-            <HighlightedCode className="kapi-pg-raw" text={raw.text} filename={basename(path)} />
-          )}
-
-          {data?.ok && !showRaw && (
+          {!loading && unparseable && (
             <>
-              <p className="kapi-pg-preview-meta">
-                {data.total} block{data.total === 1 ? "" : "s"} · {data.bytes} bytes · parsed as{" "}
-                <code>{data.format}</code>
+              <p className="kapi-pg-preview-note">
+                kapi has no reader for this file — showing raw text.
               </p>
-              {data.blocks && data.blocks.length > 0 ? (
-                <table className="kapi-pg-preview-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>id</th>
-                      <th>source text</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.blocks.map((b, i) => (
-                      <tr key={i}>
-                        <td>{i + 1}</td>
-                        <td>
-                          <code>{b.id}</code>
-                        </td>
-                        <td>{b.text}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {raw?.binary ? (
+                <p className="kapi-pg-preview-note">Binary file — download to view.</p>
               ) : (
-                <p>No translatable blocks found.</p>
-              )}
-              {data.total !== undefined && data.blocks && data.total > data.blocks.length && (
-                <p className="kapi-pg-preview-meta">
-                  … showing first {data.blocks.length} of {data.total}.
-                </p>
+                <CodeView text={raw?.text ?? ""} filename={basename(path)} />
               )}
             </>
           )}

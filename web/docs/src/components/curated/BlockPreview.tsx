@@ -39,7 +39,7 @@ export interface BlockPreviewProps {
 const LazyBlockPreview = React.lazy(async () => {
   const { useCuratedRuntime } = await import("./useCuratedRuntime");
   const { ensureSample, resolveInCwd } = await import("./seed");
-  const { HighlightedCode } = await import("@neokapi/kapi-playground/syntax.tsx");
+  const { CodeView } = await import("@neokapi/ui-primitives/preview");
   type PreviewResult = import("./useCuratedRuntime").PreviewResult;
   type KapiRuntime = import("./useCuratedRuntime").KapiRuntime;
 
@@ -167,7 +167,12 @@ const LazyBlockPreview = React.lazy(async () => {
                   <p className="kapi-cur-meta">Binary file — download to view.</p>
                 )}
                 {raw && !raw.error && !raw.binary && (
-                  <HighlightedCode className="kapi-cur-raw" text={raw.text} filename={fileName} />
+                  <CodeView
+                    className="kapi-cur-raw"
+                    text={raw.text}
+                    filename={fileName}
+                    lineNumbers={false}
+                  />
                 )}
               </>
             )}

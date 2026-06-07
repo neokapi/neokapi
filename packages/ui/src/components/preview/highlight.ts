@@ -1,20 +1,11 @@
 // A tiny, dependency-free syntax highlighter for the textual localisation
-// formats the playground previews. It is deliberately not a full parser: it
-// tokenises line by line with ordered sticky-regex rules, which is robust,
-// fast, and good enough to make a YAML/XML/JSON/PO/properties file scannable in
-// the raw preview.
-//
-// The playground cannot import @neokapi/kapi-lab (the dependency direction runs
-// kapi-lab → kapi-playground), so this mirrors the ordered-regex approach used
-// in packages/kapi-lab/src/highlight.ts but is fully self-contained here.
-//
-// Tokens render as <span class="kapi-pg-hl-<type>"> elements, themed via the
-// playground stylesheet using the host's --ifm-* variables so light and dark
-// both read well.
+// formats the lab handles. It is deliberately not a full parser: it tokenises
+// line by line with ordered regex rules, which is robust, fast, and good enough
+// to make a JSON/XML/YAML/PO/properties file scannable in the output viewer.
+// Colours are applied by CodeView via per-type CSS classes, themed with the
+// site's --ifm-* variables so light and dark both read well.
 
-import React from "react";
-
-export type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "text";
+export type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "csv" | "text";
 
 export type TokenType =
   | "key"
@@ -36,35 +27,11 @@ export interface Token {
   text: string;
 }
 
-/**
- * Map a filename to a highlighter language (plain text when unknown).
- *
- * Notable mappings the task calls out:
- *   - `.kapi`/`.yaml`/`.yml` → yaml (the .kapi recipe is a YAML document)
- *   - `.tmx`/`.tbx`/`.xliff`/`.xlf`/`.xml`/`.resx` → xml
- *   - `.json`/`.arb`/`.klf` → json
- */
+/** Map a filename to a highlighter language (plain text when unknown). */
 export function detectLang(filename: string): Lang {
   const base = filename.split("/").pop() ?? filename;
   const ext = base.includes(".") ? base.slice(base.lastIndexOf(".") + 1).toLowerCase() : "";
   switch (ext) {
-    case "kapi":
-    case "yaml":
-    case "yml":
-      return "yaml";
-    case "tmx":
-    case "tbx":
-    case "xliff":
-    case "xlf":
-    case "sdlxliff":
-    case "mxliff":
-    case "xml":
-    case "resx":
-    case "html":
-    case "htm":
-    case "svg":
-    case "stringsdict":
-      return "xml";
     case "json":
     case "jsonc":
     case "json5":
@@ -72,18 +39,37 @@ export function detectLang(filename: string): Lang {
     case "xcstrings":
     case "klf":
       return "json";
-    case "po":
-    case "pot":
-      return "po";
+    case "xml":
+    case "html":
+    case "htm":
+    case "svg":
+    case "xliff":
+    case "xlf":
+    case "sdlxliff":
+    case "mxliff":
+    case "tmx":
+    case "tbx":
+    case "resx":
+    case "stringsdict":
+      return "xml";
+    case "yaml":
+    case "yml":
+      return "yaml";
     case "properties":
     case "ini":
     case "toml":
     case "strings":
       return "properties";
+    case "po":
+    case "pot":
+      return "po";
     case "md":
     case "mdx":
     case "markdown":
       return "markdown";
+    case "csv":
+    case "tsv":
+      return "csv";
     default:
       return "text";
   }
@@ -217,6 +203,16 @@ function tokenizeMarkdown(line: string): Token[] {
   return [{ type: "text", text: line }];
 }
 
+function tokenizeCsv(line: string, isHeader: boolean): Token[] {
+  const out: Token[] = [];
+  const parts = line.split(",");
+  parts.forEach((p, idx) => {
+    if (idx > 0) out.push({ type: "punct", text: "," });
+    out.push({ type: isHeader ? "key" : idx % 2 === 0 ? "string" : "number", text: p });
+  });
+  return out;
+}
+
 /** Tokenise text into per-line token arrays for the given language. */
 export function tokenize(text: string, lang: Lang): Token[][] {
   const lines = text.split("\n");
@@ -233,40 +229,9 @@ export function tokenize(text: string, lang: Lang): Token[][] {
       return lines.map(tokenizePo);
     case "markdown":
       return lines.map(tokenizeMarkdown);
+    case "csv":
+      return lines.map((l, i) => tokenizeCsv(l, i === 0));
     default:
       return lines.map((l) => [{ type: "text" as TokenType, text: l }]);
   }
-}
-
-/**
- * Highlight raw text as a <pre> with per-token <span> classes, language chosen
- * from the filename. Used by the raw-text fallback in FilePreview and curated
- * BlockPreview so unparseable files (e.g. a .kapi YAML recipe, a .tmx) still
- * read as syntax-highlighted source.
- */
-export function HighlightedCode({
-  text,
-  filename,
-  className,
-}: {
-  text: string;
-  filename: string;
-  className?: string;
-}): React.ReactElement {
-  const lang = detectLang(filename);
-  const lines = tokenize(text, lang);
-  return (
-    <pre className={className} data-lang={lang}>
-      {lines.map((tokens, li) => (
-        <React.Fragment key={li}>
-          {tokens.map((tok, ti) => (
-            <span key={ti} className={`kapi-pg-hl-${tok.type}`}>
-              {tok.text}
-            </span>
-          ))}
-          {li < lines.length - 1 ? "\n" : null}
-        </React.Fragment>
-      ))}
-    </pre>
-  );
 }

@@ -781,6 +781,9 @@ importers:
 
   packages/kapi-playground:
     dependencies:
+      '@neokapi/ui-primitives':
+        specifier: '*'
+        version: link:../ui
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
