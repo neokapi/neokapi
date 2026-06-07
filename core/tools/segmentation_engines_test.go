@@ -1,6 +1,7 @@
 package tools_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -23,10 +24,12 @@ func TestSegmentationTool_SRXAbbreviation(t *testing.T) {
 	b := result.Resource.(*model.Block)
 
 	require.Equal(t, 2, b.SourceSegmentCount(), "Dr. is a no-break abbreviation")
-	// SRX breaks immediately after sentence-final punctuation, so the
-	// inter-segment space leads the following segment.
-	assert.Equal(t, "Dr. Smith left.", srcSegText(b, 0))
-	assert.Equal(t, " He went home.", srcSegText(b, 1))
+	// Compare trimmed sentence cores: inter-sentence whitespace attaches per
+	// ruleset (Okapi's okapi.srx trims it as uncovered material; the pure-Go
+	// default leaves it leading the next segment), so the exact edge whitespace
+	// is build-dependent while the sentences are not.
+	assert.Equal(t, "Dr. Smith left.", strings.TrimSpace(srcSegText(b, 0)))
+	assert.Equal(t, "He went home.", strings.TrimSpace(srcSegText(b, 1)))
 }
 
 // The uax29 engine (ICU) has no abbreviation suppression, so the same input

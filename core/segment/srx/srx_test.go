@@ -226,6 +226,34 @@ func TestSegment_TrimWhitespace(t *testing.T) {
 	assert.Equal(t, []string{"Hello world.", "This is a test."}, segTexts(runs, spans))
 }
 
+func TestSegment_TrimWhitespaceFromHeader(t *testing.T) {
+	// A ruleset that asks to trim via Okapi's header extension
+	// (<okpsrx:options trimLeadingWhitespaces="yes" .../>) trims its segments
+	// even with no mask set on the Config — this is how okapi.srx behaves.
+	const rules = `<?xml version="1.0"?>
+<srx xmlns="http://www.lisa.org/srx20" xmlns:okpsrx="http://okapi.sf.net/srx-extensions" version="2.0">
+  <header segmentsubflows="yes" cascade="yes">
+    <okpsrx:options trimLeadingWhitespaces="yes" trimTrailingWhitespaces="yes"/>
+  </header>
+  <body>
+    <languagerules>
+      <languagerule languagerulename="default">
+        <rule break="yes"><beforebreak>[.!?]</beforebreak><afterbreak>\s</afterbreak></rule>
+      </languagerule>
+    </languagerules>
+    <maprules><languagemap languagepattern=".*" languagerulename="default"/></maprules>
+  </body>
+</srx>`
+	eng, err := srx.New(segment.Config{SrxRules: rules})
+	require.NoError(t, err)
+
+	runs := textRuns("Hello world. This is a test.")
+	spans, err := eng.Segment(context.Background(), runs, "en-US")
+	require.NoError(t, err)
+	// Without the header trim the second segment would lead with a space.
+	assert.Equal(t, []string{"Hello world.", "This is a test."}, segTexts(runs, spans))
+}
+
 func TestSegment_LayerIsSentence(t *testing.T) {
 	eng := newDefault(t)
 	assert.Equal(t, segment.LayerSentence, eng.Layer())

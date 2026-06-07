@@ -49,7 +49,11 @@ func doSegment(text, engineName, locale string) (result any) {
 		return map[string]any{"ok": true, "engine": resolveEngineName(engineName), "segments": []any{}}
 	}
 
-	eng, err := segment.NewEngine(engineName, segment.Config{})
+	// Trim leading/trailing whitespace so SRX and UAX-29 yield identical clean
+	// segments (inter-sentence whitespace stays uncovered, not attached to a side).
+	eng, err := segment.NewEngine(engineName, segment.Config{
+		Mask: segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true},
+	})
 	if err != nil {
 		return errorResult(err.Error())
 	}

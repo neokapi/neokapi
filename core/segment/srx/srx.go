@@ -110,7 +110,17 @@ func (s *segmenter) Segment(ctx context.Context, runs []model.Run, loc model.Loc
 	// the same mask options' edge trimming. SRX places a boundary AFTER the
 	// sentence-final punctuation, so inter-segment whitespace leads the next
 	// segment unless TrimLeading/TrailingWS moves it out as an ignorable.
-	fl := segment.Flatten(runs, s.mask)
+	// Honor the SRX header's trim options (Okapi's okpsrx:options) on top of any
+	// caller mask, so a ruleset that asks to trim (okapi.srx does) produces clean
+	// sentence spans with inter-sentence whitespace left uncovered.
+	mask := s.mask
+	if s.doc.TrimLeadingWS {
+		mask.TrimLeadingWS = true
+	}
+	if s.doc.TrimTrailingWS {
+		mask.TrimTrailingWS = true
+	}
+	fl := segment.Flatten(runs, mask)
 	text := fl.Runes()
 	if len(text) == 0 {
 		return nil, nil

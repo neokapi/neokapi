@@ -186,7 +186,13 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 // source runs and returns its run-anchored spans, or nil on any error / when no
 // engine is registered.
 func segmentSpans(ctx context.Context, runs []model.Run, engineName string) []model.Span {
-	eng, err := segment.NewEngine(engineName, segment.Config{})
+	// Trim leading/trailing whitespace so every engine (SRX honors this via its
+	// header; UAX-29/ICU4X has no header) yields clean, identical sentence spans
+	// — inter-sentence whitespace stays uncovered rather than attaching to one
+	// side of the break.
+	eng, err := segment.NewEngine(engineName, segment.Config{
+		Mask: segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true},
+	})
 	if err != nil {
 		return nil
 	}

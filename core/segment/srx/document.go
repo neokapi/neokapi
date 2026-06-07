@@ -44,6 +44,15 @@ type Document struct {
 	// breaker is available (cgo/ICU builds) and otherwise falls back.
 	UseICUBreakRules bool
 
+	// TrimLeadingWS / TrimTrailingWS mirror Okapi's header extension
+	// <okpsrx:options trimLeadingWhitespaces="yes" trimTrailingWhitespaces="yes"/>.
+	// When set, each segment span excludes its leading / trailing whitespace,
+	// leaving inter-sentence whitespace as uncovered (ignorable) material — so a
+	// segment is the clean sentence regardless of which side of the space the
+	// break fell on. Okapi's defaultSegmentation.srx sets both to yes.
+	TrimLeadingWS  bool
+	TrimTrailingWS bool
+
 	// LanguageRules are the named rule groups from <languagerules>.
 	LanguageRules []LanguageRule
 	// LanguageMaps map a locale pattern to a named language rule, in order.
@@ -98,7 +107,9 @@ type xmlHeader struct {
 }
 
 type xmlOptions struct {
-	UseIcu4jBreakRules string `xml:"useIcu4jBreakRules,attr"`
+	UseIcu4jBreakRules     string `xml:"useIcu4jBreakRules,attr"`
+	TrimLeadingWhitespaces string `xml:"trimLeadingWhitespaces,attr"`
+	TrimTrailingWhitespace string `xml:"trimTrailingWhitespaces,attr"`
 }
 
 type xmlFormatHandle struct {
@@ -150,6 +161,8 @@ func Parse(data []byte) (*Document, error) {
 		SegmentSubflows:  parseYesNo(x.Header.SegmentSubflows, true),
 		Cascade:          parseYesNo(x.Header.Cascade, true),
 		UseICUBreakRules: parseYesNo(x.Header.Options.UseIcu4jBreakRules, false),
+		TrimLeadingWS:    parseYesNo(x.Header.Options.TrimLeadingWhitespaces, false),
+		TrimTrailingWS:   parseYesNo(x.Header.Options.TrimTrailingWhitespace, false),
 	}
 
 	for _, fh := range x.Header.FormatHandle {
