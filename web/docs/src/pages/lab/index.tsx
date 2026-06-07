@@ -1,7 +1,12 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
-import { AnatomyExplorer, BatchExplorer, PipelineExplorer } from "@site/src/components/Lab";
+import {
+  AnatomyExplorer,
+  BatchExplorer,
+  PipelineExplorer,
+  SegmentationPreview,
+} from "@site/src/components/Lab";
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
@@ -45,11 +50,10 @@ export default function LabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>neokapi Lab</h1>
           <p className={styles.lede}>
-            Learn the architecture by running it. Each explorer below runs the real
-            kapi engine in your browser on a sample — or on a file you drop in.
-            Nothing is mocked; this is the same engine the{" "}
-            <Link to="/playground-cli">CLI</Link> runs. The same explorers appear
-            inline next to the concepts they teach throughout the{" "}
+            Learn the architecture by running it. Each explorer below runs the real kapi engine in
+            your browser on a sample — or on a file you drop in. Nothing is mocked; this is the same
+            engine the <Link to="/playground-cli">CLI</Link> runs. The same explorers appear inline
+            next to the concepts they teach throughout the{" "}
             <Link to="/framework/architecture">Framework</Link> docs.
           </p>
         </div>
@@ -59,10 +63,10 @@ export default function LabPage(): React.ReactElement {
           title="Anatomy — how a reader sees your file"
           intro={
             <>
-              A format reader turns raw bytes into the content model: nested Layers
-              and Groups containing Blocks, whose text is a sequence of Runs. Watch
-              an HTML <code>&lt;strong&gt;</code> become a paired inline code while a
-              JSON <code>{"{name}"}</code> stays literal text.
+              A format reader turns raw bytes into the content model: nested Layers and Groups
+              containing Blocks, whose text is a sequence of Runs. Watch an HTML{" "}
+              <code>&lt;strong&gt;</code> become a paired inline code while a JSON{" "}
+              <code>{"{name}"}</code> stays literal text.
             </>
           }
         >
@@ -70,13 +74,29 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
+          step="01b · Segmentation"
+          title="Segmentation — split a block into sentences"
+          intro={
+            <>
+              Segmentation is a stand-off overlay: it marks sentence boundaries without rewriting
+              the runs. Switch the engine to compare the rule-based <strong>SRX</strong> default
+              (pure-Go, runs right here) against the <strong>UAX-29</strong> Unicode baseline
+              (served by ICU4X as a companion WebAssembly module). Watch how each treats
+              abbreviations, decimals, and quotes.
+            </>
+          }
+        >
+          <SegmentationPreview defaultSampleId="page-html" />
+        </Section>
+
+        <Section
           step="02 · Pipeline"
           title="Pipeline — watch Parts stream through tools"
           intro={
             <>
-              A flow runs as a concurrent pipeline: a reader, a chain of tools, and a
-              writer, connected by channels of Parts. Run a file and drive it with{" "}
-              <strong>Next</strong> — each step is one observable transition.
+              A flow runs as a concurrent pipeline: a reader, a chain of tools, and a writer,
+              connected by channels of Parts. Run a file and drive it with <strong>Next</strong> —
+              each step is one observable transition.
             </>
           }
         >
@@ -88,8 +108,8 @@ export default function LabPage(): React.ReactElement {
           title="Tools — configure a transform, see the effect"
           intro={
             <>
-              A tool transforms the Blocks it cares about and relays the rest. Pick a
-              tool, change its configuration, and read the per-Block before/after.
+              A tool transforms the Blocks it cares about and relays the rest. Pick a tool, change
+              its configuration, and read the per-Block before/after.
             </>
           }
         >
@@ -101,10 +121,9 @@ export default function LabPage(): React.ReactElement {
           title="Round-trip — structure in, structure out"
           intro={
             <>
-              Readers split a document into Blocks of text and a structural
-              skeleton; writers splice content back into that skeleton. The
-              result: only the text in the blocks changes, structure is
-              reproduced exactly.
+              Readers split a document into Blocks of text and a structural skeleton; writers splice
+              content back into that skeleton. The result: only the text in the blocks changes,
+              structure is reproduced exactly.
             </>
           }
         >
@@ -116,11 +135,10 @@ export default function LabPage(): React.ReactElement {
           title="Build a flow, then run it"
           intro={
             <>
-              A flow is an ordered composition of tools. Build one in the visual
-              editor, then run it live and step through the result — the graph you
-              build and the flow the CLI runs are the same thing. This one opens
-              with a <strong>source-transform stage</strong> (normalize, then
-              redact) that settles the source before <code>ai-translate</code> and{" "}
+              A flow is an ordered composition of tools. Build one in the visual editor, then run it
+              live and step through the result — the graph you build and the flow the CLI runs are
+              the same thing. This one opens with a <strong>source-transform stage</strong>{" "}
+              (normalize, then redact) that settles the source before <code>ai-translate</code> and{" "}
               <code>qa-check</code> see it.
             </>
           }
@@ -133,15 +151,13 @@ export default function LabPage(): React.ReactElement {
           title="Project — capture config once, run flows, merge files"
           intro={
             <>
-              A <code>.kapi</code> project is the day-to-day working model:
-              languages, content globs, and flows live in a committed recipe
-              beside a <code>.kapi/</code> state dir. Run the lifecycle &mdash;{" "}
-              <code>extract</code> the recipe&apos;s content, <code>run</code> a
-              declared flow (process-only, committing to the project store),
-              then <code>merge</code> the localized files out. Pick the content
-              and which flow to run, and watch the recipe, the per-locale state,
-              and the merged output update. Same engine as the single-file{" "}
-              <code>.klz</code> workspace, organized for teams and servers.
+              A <code>.kapi</code> project is the day-to-day working model: languages, content
+              globs, and flows live in a committed recipe beside a <code>.kapi/</code> state dir.
+              Run the lifecycle &mdash; <code>extract</code> the recipe&apos;s content,{" "}
+              <code>run</code> a declared flow (process-only, committing to the project store), then{" "}
+              <code>merge</code> the localized files out. Pick the content and which flow to run,
+              and watch the recipe, the per-locale state, and the merged output update. Same engine
+              as the single-file <code>.klz</code> workspace, organized for teams and servers.
             </>
           }
         >
@@ -153,10 +169,9 @@ export default function LabPage(): React.ReactElement {
           title="Concurrency — replay a pipeline trace"
           intro={
             <>
-              The pipeline is concurrent: each tool runs in its own goroutine,
-              connected by buffered channels of Parts. Replay a recorded trace to
-              watch Parts move through the stages &mdash; including parallel
-              workers, channel buffering, and the Java bridge&apos;s gRPC
+              The pipeline is concurrent: each tool runs in its own goroutine, connected by buffered
+              channels of Parts. Replay a recorded trace to watch Parts move through the stages
+              &mdash; including parallel workers, channel buffering, and the Java bridge&apos;s gRPC
               boundary. Drop in your own <code>kapi run --trace</code> output too.
             </>
           }
@@ -169,10 +184,10 @@ export default function LabPage(): React.ReactElement {
           title="Script — write your own transform"
           intro={
             <>
-              When no built-in tool fits, the <code>script</code> tool runs a small
-              JavaScript program over each Part. Edit it with full autocomplete,
-              load an example, and run it on your file — modify the text, filter
-              parts, redact, or just <code>log()</code> what flows through.
+              When no built-in tool fits, the <code>script</code> tool runs a small JavaScript
+              program over each Part. Edit it with full autocomplete, load an example, and run it on
+              your file — modify the text, filter parts, redact, or just <code>log()</code> what
+              flows through.
             </>
           }
         >
@@ -184,13 +199,12 @@ export default function LabPage(): React.ReactElement {
           title="Run a tool across a selection, inspect what it wrote"
           intro={
             <>
-              Pick one file, several, or a glob like <code>*.json</code> across the
-              samples and anything you upload, then run a tool over the whole
-              selection. Each output is shown three ways — the content-model{" "}
-              <strong>Blocks</strong> (with targets, overlays and annotations),
-              the <strong>Structure</strong>, and the syntax-highlighted{" "}
-              <strong>Native</strong> bytes — downloadable, with the changed
-              blocks and lines highlighted.
+              Pick one file, several, or a glob like <code>*.json</code> across the samples and
+              anything you upload, then run a tool over the whole selection. Each output is shown
+              three ways — the content-model <strong>Blocks</strong> (with targets, overlays and
+              annotations), the <strong>Structure</strong>, and the syntax-highlighted{" "}
+              <strong>Native</strong> bytes — downloadable, with the changed blocks and lines
+              highlighted.
             </>
           }
         >

@@ -18,10 +18,9 @@ const LazyAnatomy = React.lazy(async () => {
   return { default: mod.AnatomyExplorer };
 });
 
-const LazySegmentation = React.lazy(async () => {
-  const mod = await import("@neokapi/kapi-lab");
-  return { default: mod.SegmentationExplorer };
-});
+// Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
+// `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
+const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
 
 const LazyPipeline = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
@@ -77,12 +76,12 @@ export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement
   );
 }
 
-export interface SegmentationExplorerProps {
-  defaultText?: string;
-  defaultLocale?: string;
+export interface SegmentationPreviewProps {
+  defaultSampleId?: string;
+  sampleIds?: string[];
 }
 
-export function SegmentationExplorer(props: SegmentationExplorerProps): React.ReactElement {
+export function SegmentationPreview(props: SegmentationPreviewProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => {

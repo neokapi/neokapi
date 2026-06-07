@@ -59,3 +59,6 @@ allowBuilds:
   esbuild: true
   msw: true
   protobufjs: true
+
+patchedDependencies:
+  icu@2.2.1: patches/icu@2.2.1.patch

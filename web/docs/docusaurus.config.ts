@@ -8,7 +8,9 @@ import { execFileSync } from "node:child_process";
 const buildStamp = (() => {
   let sha = process.env.GITHUB_SHA?.slice(0, 9) ?? "dev";
   try {
-    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
+    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
       .toString()
       .trim();
   } catch {
@@ -81,6 +83,25 @@ const config: Config = {
                   warning.module?.resource ?? "",
                 ),
             ],
+          };
+        },
+      };
+    },
+    // Enable the webpack experiments the ICU4X (`icu`) npm package needs: it
+    // imports its wasm via `new URL('icu_capi.wasm', import.meta.url)` and uses
+    // top-level await. The segmentation lab dynamic-imports `icu` on the client
+    // only (it's SSR-fragile), but the bundler must still permit async WASM +
+    // top-level await for that chunk to build.
+    function icu4xWasm() {
+      return {
+        name: "icu4x-wasm-experiments",
+        configureWebpack(_config: unknown, isServer: boolean) {
+          return {
+            experiments: { asyncWebAssembly: true, topLevelAwait: true },
+            // `icu`'s wasm loader has a Node branch that imports `fs`; in the
+            // browser bundle it uses fetch instead, so stub the Node-only
+            // builtins out on the client. (icu is dynamic-imported client-only.)
+            ...(isServer ? {} : { resolve: { fallback: { fs: false, path: false } } }),
           };
         },
       };

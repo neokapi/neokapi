@@ -1,0 +1,29 @@
+diff --git a/lib/diplomat-wasm.mjs b/lib/diplomat-wasm.mjs
+index 010ab359d8b40bbb71d471d2bbc4fb4cdf847b85..63b005b5374c69dd456a5ea8d0658c86184e4999 100644
+--- a/lib/diplomat-wasm.mjs
++++ b/lib/diplomat-wasm.mjs
+@@ -26,20 +26,10 @@ env: {
+ }
+ }
+ 
+-if (globalThis.process?.getBuiltinModule) {
+-    // Node (>=22)
+-    const fs = globalThis.process.getBuiltinModule('fs');
+-    const wasmFile = new Uint8Array(fs.readFileSync(cfg['wasm_path']));
+-    const loadedWasm = await WebAssembly.instantiate(wasmFile, imports);
+-    wasm = loadedWasm.instance.exports;
+-} else if (globalThis.process) {
+-    // Node (<22)
+-    const fs = await import('fs');
+-    const wasmFile = new Uint8Array(fs.readFileSync(cfg['wasm_path']));
+-    const loadedWasm = await WebAssembly.instantiate(wasmFile, imports);
+-    wasm = loadedWasm.instance.exports;
+-} else {
+-    // Browser
++// [neokapi patch] Always use the browser path. Docusaurus defines a runtime
++// `globalThis.process` shim that otherwise routes this to a Node fs path that
++// breaks in the browser bundle; this loader only runs client-side here.
++{
+     const loadedWasm = await WebAssembly.instantiateStreaming(fetch(cfg['wasm_path']), imports);
+     wasm = loadedWasm.instance.exports;
+ }

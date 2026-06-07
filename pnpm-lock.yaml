@@ -10,6 +10,9 @@ overrides:
   vite: ^8.0.0
   webpackbar: ^7.0.0
 
+patchedDependencies:
+  icu@2.2.1: 5f926f5ec129bfca6dbd0a358ac53e73f29b8527aac1608ba7600238ae2b4076
+
 importers:
 
   .:
@@ -1072,6 +1075,9 @@ importers:
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
+      icu:
+        specifier: 2.2.1
+        version: 2.2.1(patch_hash=5f926f5ec129bfca6dbd0a358ac53e73f29b8527aac1608ba7600238ae2b4076)
       prism-react-renderer:
         specifier: ^2.4.1
         version: 2.4.1(react@19.2.6)
@@ -8021,6 +8027,9 @@ packages:
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
+
+  icu@2.2.1:
+    resolution: {integrity: sha512-xkfTFBxV2Pvh6oXv7+FFaBs9AhFe7AFSyywfr6PqCoGDRszB29TgdpTEUPZiNO3wYN2fyO25lcX76Or5ythDEw==, tarball: https://registry.npmjs.org/icu/-/icu-2.2.1.tgz}
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==, tarball: https://registry.npmjs.org/ignore/-/ignore-5.3.2.tgz}
@@ -19602,6 +19611,8 @@ snapshots:
   icss-utils@5.1.0(postcss@8.5.15):
     dependencies:
       postcss: 8.5.15
+
+  icu@2.2.1(patch_hash=5f926f5ec129bfca6dbd0a358ac53e73f29b8527aac1608ba7600238ae2b4076): {}
 
   ignore@5.3.2: {}
 
