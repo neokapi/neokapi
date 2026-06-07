@@ -140,15 +140,19 @@ export default function DocumentViewer({
             ))}
           </ToggleGroup>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className={locales.length > 0 ? "" : "ml-auto"}
-          disabled={!bytes}
-          onClick={() => bytes && downloadBytes(filename, bytes)}
-        >
-          <Download /> Download
-        </Button>
+        {/* Download only when we actually hold the bytes (the web/wasm path).
+            On desktop the file is already local, so no bytes are passed and the
+            control is hidden. */}
+        {bytes && (
+          <Button
+            variant="outline"
+            size="sm"
+            className={locales.length > 0 ? "" : "ml-auto"}
+            onClick={() => downloadBytes(filename, bytes)}
+          >
+            <Download /> Download
+          </Button>
+        )}
       </div>
 
       {/* Force column layout: the Tabs primitive's orientation variant keys on a
@@ -166,9 +170,11 @@ export default function DocumentViewer({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="raw">Raw</TabsTrigger>
+          {/* Raw + Download need the file bytes — shown on the web/wasm path,
+              hidden on desktop where the local file is the source of truth. */}
+          {bytes && <TabsTrigger value="raw">Raw</TabsTrigger>}
           <TabsTrigger value="stats">Stats</TabsTrigger>
-          <TabsTrigger value="download">Download</TabsTrigger>
+          {bytes && <TabsTrigger value="download">Download</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="preview" className="pt-3">
@@ -193,21 +199,19 @@ export default function DocumentViewer({
           )}
         </TabsContent>
 
-        {/* Raw source */}
-        <TabsContent value="raw" className="pt-2">
-          {!bytes ? (
-            <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-              <FileWarning className="size-4" /> No source available.
-            </div>
-          ) : ft.binary ? (
-            <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-              <FileWarning className="size-4" /> Binary {ft.label} — use Preview, or download to
-              inspect the raw bytes.
-            </div>
-          ) : (
-            <CodeView text={rawText} filename={filename} changedLines={rawChangedLines} />
-          )}
-        </TabsContent>
+        {/* Raw source (only when bytes are present) */}
+        {bytes && (
+          <TabsContent value="raw" className="pt-2">
+            {ft.binary ? (
+              <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                <FileWarning className="size-4" /> Binary {ft.label} — use Preview, or download to
+                inspect the raw bytes.
+              </div>
+            ) : (
+              <CodeView text={rawText} filename={filename} changedLines={rawChangedLines} />
+            )}
+          </TabsContent>
+        )}
 
         {/* Stats */}
         <TabsContent value="stats" className="pt-3">
@@ -221,9 +225,9 @@ export default function DocumentViewer({
           </dl>
         </TabsContent>
 
-        {/* Download */}
-        <TabsContent value="download" className="pt-3">
-          {bytes ? (
+        {/* Download (only when bytes are present) */}
+        {bytes && (
+          <TabsContent value="download" className="pt-3">
             <div className="flex flex-col items-start gap-2">
               <p className="text-sm text-muted-foreground">
                 {filename} · {formatBytes(bytes.length)}
@@ -232,12 +236,8 @@ export default function DocumentViewer({
                 <Download /> Download {ft.label}
               </Button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-              <FileWarning className="size-4" /> No file bytes available to download.
-            </div>
-          )}
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
