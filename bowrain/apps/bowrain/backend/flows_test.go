@@ -25,7 +25,12 @@ func TestListFlowDefinitions_OfflineReturnsBuiltIns(t *testing.T) {
 		assert.NotEmpty(t, d.Name)
 		assert.Equal(t, registry.SourceBuiltIn, d.Source)
 		assert.NotEmpty(t, d.Nodes)
-		assert.NotEmpty(t, d.Edges)
+		// Since AD-026 a flow's I/O ends are bindings, not nodes, so a
+		// single-tool flow (ai-translate, pseudo-translate, …) has one node and
+		// no edges. Only multi-node graphs must be wired together.
+		if len(d.Nodes) > 1 {
+			assert.NotEmpty(t, d.Edges, "multi-node flow %q should have edges", d.ID)
+		}
 		ids[d.ID] = true
 	}
 	assert.True(t, ids["ai-translate"])

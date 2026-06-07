@@ -25,13 +25,7 @@ export type { Lang, Token, TokenType } from "./highlight";
 export { FileIcon, fileType, extOf } from "./fileTypes";
 export type { FileTypeInfo, FileGroup, FileIconProps } from "./fileTypes";
 export { downloadBytes, downloadText, formatBytes } from "./download";
-export {
-  treeToRenderDoc,
-  runsText,
-  parseCellRef,
-  colLabel,
-  STRUCTURE_RULES,
-} from "./renderDoc";
+export { treeToRenderDoc, runsText, parseCellRef, colLabel, STRUCTURE_RULES } from "./renderDoc";
 export type {
   RenderDoc,
   RenderKind,
