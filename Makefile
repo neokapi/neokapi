@@ -1075,16 +1075,19 @@ web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/k
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
 
-# Build the in-browser wasm only when it's missing (a fresh checkout has none —
-# the binaries are gitignored). This is what `docs-dev` depends on, so the
-# explorer/playground embeds don't fetch a 404 (which a SPA serves as index.html,
-# yielding the browser's "Unexpected token '<'"). After changing the engine,
-# force a refresh with `make web-wasm-demo web-wasm-cli`.
+# Stage the in-browser wasm for `docs-dev` when it's missing (a fresh checkout
+# has none — the binaries are gitignored) OR stale (any engine Go source is newer
+# than the built wasm). The freshness check means changing the engine and
+# re-running `docs-dev` rebuilds automatically, instead of silently serving an
+# old binary (which surfaced as missing exports / unsegmented output). Force a
+# rebuild anytime with `make web-wasm-demo web-wasm-cli`.
+WASM_SRC_DIRS := core cli kapi providers sievepen termbase cmd
 docs-wasm:
-	@if [ -f $(WASM_DEMO_DIR)/kapi.wasm ] && [ -f $(WASM_DEMO_DIR)/kapi-cli.wasm.gz ]; then \
-		echo "  wasm present in $(WASM_DEMO_DIR) (run 'make web-wasm-demo web-wasm-cli' to refresh)"; \
+	@if [ -f $(WASM_DEMO_DIR)/kapi.wasm ] && [ -f $(WASM_DEMO_DIR)/kapi-cli.wasm.gz ] && \
+	   [ -z "$$(find $(WASM_SRC_DIRS) -name '*.go' -newer $(WASM_DEMO_DIR)/kapi-cli.wasm.gz 2>/dev/null | head -1)" ]; then \
+		echo "  wasm up to date in $(WASM_DEMO_DIR)"; \
 	else \
-		echo "  staging in-browser wasm (one-time on a fresh checkout)…"; \
+		echo "  staging in-browser wasm (missing or engine sources changed)…"; \
 		$(MAKE) web-wasm-demo web-wasm-cli; \
 	fi
 
