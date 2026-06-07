@@ -115,7 +115,7 @@ kapi run translate-review
 Project flows automatically use the recipe's content collections and locale defaults.
 No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`. A
 project run is process-only — results land in the project store; run
-[`kapi merge`](/cli/commands/merge) to write the localized files.
+`kapi merge` to write the localized files.
 
 ## Built-in Composed Flows
 
