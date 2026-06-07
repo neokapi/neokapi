@@ -35,6 +35,18 @@ func init() {
 	segment.RegisterEngine(segment.DefaultEngine, New)
 }
 
+// DefaultRuleset returns the embedded reduced, self-contained pure-Go SRX
+// ruleset (explicit break rules, no ICU base). Pass it as [segment.Config.SrxRules]
+// to force pure-rule segmentation regardless of whether a base breaker is linked
+// — used by the docs lab to show the rule-based engine distinctly from the hybrid.
+func DefaultRuleset() []byte { return defaultSRX }
+
+// OkapiRuleset returns the embedded full Okapi defaultSegmentation.srx (declares
+// useIcu4jBreakRules: a UAX-29 base breaker supplies the breaks and these rules
+// apply as exceptions). Pass it as [segment.Config.SrxRules] to run the Okapi
+// hybrid where a base breaker is available.
+func OkapiRuleset() []byte { return okapiSRX }
+
 // regexp2 options used for SRX rules. SRX 2.0 regexes assume Unicode semantics
 // and "." matching anything but a line break; Multiline lets ^/$ anchor to
 // embedded line breaks the way ICU's segmenter context does. RE2 disables some
@@ -150,11 +162,11 @@ func (s *segmenter) computeBreaks(ctx context.Context, rules []compiledRule, tex
 		err    error
 	)
 	if s.doc.UseICUBreakRules {
-		base, ok, berr := segment.BaseBreaks(ctx, text, locale)
-		if berr != nil {
-			return nil, berr
-		}
-		if ok {
+		// Hybrid path: ICU/UAX-29 base + SRX exceptions. If no base breaker is
+		// linked (ok=false) OR the base breaker fails (e.g. the browser ICU4X
+		// bridge isn't loaded yet, berr != nil), gracefully fall back to pure-rule
+		// breaking rather than erroring — the ruleset's own rules still segment.
+		if base, ok, berr := segment.BaseBreaks(ctx, text, locale); ok && berr == nil {
 			breaks, err = applyRulesWithBase(ctx, rules, text, adjustICUBreaks(text, base))
 		} else {
 			breaks, err = applyRules(ctx, rules, text)

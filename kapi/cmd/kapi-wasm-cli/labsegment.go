@@ -8,13 +8,49 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/segment"
+	"github.com/neokapi/neokapi/core/segment/srx"
 
 	// Browser UAX-29: the cgo ICU uax29 engine is absent in wasm, so bridge to
-	// ICU4X (a companion wasm module loaded by the host page) which registers the
-	// "uax29" engine via syscall/js. Lets the segmentation lab offer SRX vs
-	// UAX-29 in the browser.
+	// ICU4X (a companion wasm module loaded by the host page) which registers both
+	// the "uax29" engine and the base breaker the Okapi hybrid uses, via
+	// syscall/js. Lets the segmentation lab offer all three engines in the browser.
 	_ "github.com/neokapi/neokapi/core/segment/icu4xjs"
 )
+
+// demoEngines caches the lab's three segmentation engines. They are stateless
+// across calls (rule selection is cached per-locale inside each), so a single
+// instance per option is reused — avoiding a re-parse of Okapi's 313 KB ruleset
+// on every segmentation. wasm is single-threaded, so a plain map is safe.
+var demoEngines = map[string]segment.Segmenter{}
+
+// demoSegEngine builds (once) the engine for a lab option, all trimming so the
+// segments are clean sentences regardless of engine:
+//
+//	"srx"    → reduced pure-Go ruleset (default.srx), pure rule-based, no ICU.
+//	"uax29"  → raw ICU4X Unicode baseline (no SRX exceptions).
+//	"hybrid" → Okapi's full ruleset over the ICU4X base (useIcu4jBreakRules).
+func demoSegEngine(name string) (segment.Segmenter, error) {
+	if e, ok := demoEngines[name]; ok {
+		return e, nil
+	}
+	trim := segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true}
+	engineName := "srx"
+	cfg := segment.Config{Mask: trim}
+	switch name {
+	case "uax29":
+		engineName = "uax29"
+	case "hybrid":
+		cfg.SrxRules = string(srx.OkapiRuleset())
+	default: // "srx" / ""
+		cfg.SrxRules = string(srx.DefaultRuleset())
+	}
+	eng, err := segment.NewEngine(engineName, cfg)
+	if err != nil {
+		return nil, err
+	}
+	demoEngines[name] = eng
+	return eng, nil
+}
 
 // labSegment segments raw text with a named engine and locale, returning the
 // resulting sentence segments — the backend of the docs "Segmentation" lab.
@@ -49,11 +85,7 @@ func doSegment(text, engineName, locale string) (result any) {
 		return map[string]any{"ok": true, "engine": resolveEngineName(engineName), "segments": []any{}}
 	}
 
-	// Trim leading/trailing whitespace so SRX and UAX-29 yield identical clean
-	// segments (inter-sentence whitespace stays uncovered, not attached to a side).
-	eng, err := segment.NewEngine(engineName, segment.Config{
-		Mask: segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true},
-	})
+	eng, err := demoSegEngine(engineName)
 	if err != nil {
 		return errorResult(err.Error())
 	}
@@ -87,15 +119,9 @@ func resolveEngineName(n string) string {
 	return n
 }
 
-// labSegmentEngines lists the segmentation engines registered in this build so
-// the UI offers only what can run. Note "uax29" appears when the ICU4X bridge is
-// linked even before ICU4X is loaded on the page; selecting it without ICU4X
-// loaded returns a clear runtime error from labSegment.
+// labSegmentEngines lists the three runnable lab segmentation options (see
+// demoSegEngine). "uax29" and "hybrid" both need the ICU4X bridge loaded; "srx"
+// is pure-Go. (SaT is a native plugin, surfaced in the UI but not runnable here.)
 func labSegmentEngines(_ js.Value, _ []js.Value) any {
-	names := segment.Engines()
-	out := make([]any, len(names))
-	for i, n := range names {
-		out[i] = n
-	}
-	return out
+	return []any{"srx", "uax29", "hybrid"}
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/segment"
 	"github.com/neokapi/neokapi/termbase"
 )
 
@@ -186,13 +185,9 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 // source runs and returns its run-anchored spans, or nil on any error / when no
 // engine is registered.
 func segmentSpans(ctx context.Context, runs []model.Run, engineName string) []model.Span {
-	// Trim leading/trailing whitespace so every engine (SRX honors this via its
-	// header; UAX-29/ICU4X has no header) yields clean, identical sentence spans
-	// — inter-sentence whitespace stays uncovered rather than attaching to one
-	// side of the break.
-	eng, err := segment.NewEngine(engineName, segment.Config{
-		Mask: segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true},
-	})
+	// Build the lab engine for this option (pure-Go srx / raw uax29 / okapi
+	// hybrid); all trim, so spans are clean sentences regardless of engine.
+	eng, err := demoSegEngine(engineName)
 	if err != nil {
 		return nil
 	}

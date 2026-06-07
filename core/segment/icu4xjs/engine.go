@@ -38,6 +38,41 @@ const jsFuncName = "kapiICU4XSentenceBreaks"
 
 func init() {
 	segment.RegisterEngine("uax29", newEngine)
+	// Also expose ICU4X as the base breaker, so the SRX engine can run Okapi's
+	// useIcu4jBreakRules hybrid (ICU base + SRX exceptions) in the browser — the
+	// same composition that runs natively over cgo ICU. When ICU4X isn't loaded
+	// the breaker errors and the SRX engine falls back to pure-rule.
+	segment.RegisterBaseBreaker(icu4xBaseBreaker{})
+}
+
+type icu4xBaseBreaker struct{}
+
+// BaseBreaks returns ICU4X's interior sentence-break offsets (code-point indices)
+// for use as the hybrid base. Shares the host bridge with the engine.
+func (icu4xBaseBreaker) BaseBreaks(ctx context.Context, text []rune, locale string) ([]int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(text) == 0 {
+		return nil, nil
+	}
+	fn := js.Global().Get(jsFuncName)
+	if !fn.Truthy() {
+		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " — ICU4X not loaded")
+	}
+	res := fn.Invoke(string(text), locale)
+	if res.Type() != js.TypeObject {
+		return nil, errors.New("icu4xjs: " + jsFuncName + " did not return an array")
+	}
+	n := res.Length()
+	breaks := make([]int, 0, n)
+	for i := 0; i < n; i++ {
+		off := res.Index(i).Int()
+		if off > 0 && off < len(text) {
+			breaks = append(breaks, off)
+		}
+	}
+	return breaks, nil
 }
 
 type engine struct {
