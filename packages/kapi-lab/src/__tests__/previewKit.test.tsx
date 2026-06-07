@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { treeToRenderDoc } from "../renderDoc";
-import { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "../overlayHighlight";
-import FormatPreview from "../FormatPreview";
-import DocumentViewer from "../DocumentViewer";
-import FileBrowser from "../FileBrowser";
-import type { ContentNode, ContentTree, OverlayView, Run } from "../types";
+import { treeToRenderDoc } from "@neokapi/ui-primitives/preview";
+import {
+  overlayStyle,
+  resolveOverlaySpans,
+  segmentText,
+  overlayTypes,
+} from "@neokapi/ui-primitives/preview";
+import { FormatPreview } from "@neokapi/ui-primitives/preview";
+import { DocumentViewer } from "@neokapi/ui-primitives/preview";
+import { FileBrowser } from "@neokapi/ui-primitives/preview";
+import type { ContentNode, ContentTree, OverlayView, Run } from "@neokapi/ui-primitives/preview";
 
 // ── Fixtures (mirror real `kapi inspect` shapes) ─────────────────────────────
 

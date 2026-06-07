@@ -10,7 +10,7 @@ import FlowTracePlayer from "./FlowTracePlayer";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
 import type { FileSelection } from "./fileLibrary";
 import { SAMPLES } from "./samples";
-import type { FlowTrace } from "./types";
+import type { FlowTrace } from "@neokapi/ui-primitives/preview";
 
 // A pipeline a learner can run in the browser. Tools run positionally
 // (`kapi <tool> in -o out`); composed flows run via `kapi run <flow> -i in`.

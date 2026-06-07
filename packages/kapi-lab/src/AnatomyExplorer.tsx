@@ -4,11 +4,11 @@ import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSelectorField from "./FileSelectorField";
 import ActiveFileSwitcher from "./ActiveFileSwitcher";
-import ContentTreeView from "./ContentTreeView";
+import { ContentTreeView } from "@neokapi/ui-primitives/preview";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
 import type { FileSelection } from "./fileLibrary";
 import { SAMPLES } from "./samples";
-import type { ContentTree } from "./types";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 export interface AnatomyExplorerProps {
   /** WASM asset URLs from the host; null defers booting (e.g. during SSR). */

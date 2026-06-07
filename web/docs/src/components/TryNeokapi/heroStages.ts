@@ -6,8 +6,8 @@
 // the exact text shown at that stage so FormatPreview's typewriter/crossfade
 // animates the source → pseudo → Japanese progression line by line.
 
-import type { RenderDoc, RenderLine } from "@neokapi/kapi-lab/renderDoc";
-import type { OverlayView } from "@neokapi/kapi-lab";
+import type { RenderDoc, RenderLine } from "@neokapi/ui-primitives/preview";
+import type { OverlayView } from "@neokapi/ui-primitives/preview";
 
 export type StageKey = "read" | "preprocess" | "pseudo" | "leverage" | "translate" | "merge";
 

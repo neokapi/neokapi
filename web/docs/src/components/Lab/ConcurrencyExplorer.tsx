@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { FlowTracePlayer } from "@neokapi/kapi-lab";
-import type { FlowTrace } from "@neokapi/kapi-lab";
+import type { FlowTrace } from "@neokapi/ui-primitives/preview";
 import TraceSelector from "./ConcurrencyTraceSelector";
 import styles from "./ConcurrencyExplorer.module.css";
 

@@ -1,5 +1,5 @@
 import React from "react";
-import type { FlowNode, Particle } from "./types";
+import type { FlowNode, Particle } from "@neokapi/ui-primitives/preview";
 import styles from "./styles.module.css";
 
 interface FlowGraphProps {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import FormatPreview from "@neokapi/kapi-lab/FormatPreview";
+import { FormatPreview } from "@neokapi/ui-primitives/preview";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { FRAMES, HERO_FILENAME, READ_FORMATS, STAGES } from "./heroStages";
 import styles from "./styles.module.css";

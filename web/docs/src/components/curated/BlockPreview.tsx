@@ -45,7 +45,10 @@ const LazyBlockPreview = React.lazy(async () => {
 
   // Read a file's bytes and decode as UTF-8; flag binary content (NUL byte or a
   // failed strict decode) so we show "download to view" rather than garbage.
-  function readRaw(rt: KapiRuntime, path: string): { text: string; binary: boolean; error?: string } {
+  function readRaw(
+    rt: KapiRuntime,
+    path: string,
+  ): { text: string; binary: boolean; error?: string } {
     let bytes: Uint8Array;
     try {
       bytes = rt.vol.readFile(path);

@@ -7,8 +7,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@neokapi/ui-primitives";
-import { DocumentViewer } from "@neokapi/kapi-lab";
-import type { ContentTree } from "@neokapi/kapi-lab";
+import { DocumentViewer } from "@neokapi/ui-primitives/preview";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
 import { api } from "../hooks/useApi";
 
 export interface FilePreviewProps {

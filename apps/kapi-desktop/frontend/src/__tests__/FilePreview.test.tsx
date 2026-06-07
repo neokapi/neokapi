@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { FilePreview } from "../components/FilePreview";
-import type { ContentTree } from "@neokapi/kapi-lab";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 const tree: ContentTree = {
   format: "json",

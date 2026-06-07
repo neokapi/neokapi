@@ -8,7 +8,7 @@ import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
 import { SAMPLES } from "./samples";
-import type { FlowTrace } from "./types";
+import type { FlowTrace } from "@neokapi/ui-primitives/preview";
 import BlockResults from "./BlockResults";
 import shared from "./styles.module.css";
 import styles from "./ToolLab.module.css";

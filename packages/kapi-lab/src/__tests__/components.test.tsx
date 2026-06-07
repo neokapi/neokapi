@@ -3,7 +3,7 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import FileExplorer from "../FileExplorer";
-import BlockInspector from "../BlockInspector";
+import { BlockInspector } from "@neokapi/ui-primitives/preview";
 import { useFileLibrary } from "../fileLibrary";
 import type { FileSelection } from "../fileLibrary";
 import { richBlock } from "../stories/mockData";

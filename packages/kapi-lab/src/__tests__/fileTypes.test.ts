@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extOf, fileType } from "../fileTypes";
+import { extOf, fileType } from "@neokapi/ui-primitives/preview";
 
 describe("extOf", () => {
   it("extracts the lower-cased extension", () => {

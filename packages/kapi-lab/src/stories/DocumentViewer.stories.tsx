@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import DocumentViewer from "../DocumentViewer";
+import { DocumentViewer } from "@neokapi/ui-primitives/preview";
 import { docxTree, jsonTree, pptxTree } from "./previewFixtures";
 
 // DocumentViewer wraps FormatPreview with view-switching tabs (Preview · Blocks ·

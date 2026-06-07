@@ -2,7 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useFlowPlayback } from "./useFlowPlayback";
-import type { FlowNode, PartSnapshotSet, TraceEvent } from "./types";
+import type { FlowNode, PartSnapshotSet, TraceEvent } from "@neokapi/ui-primitives/preview";
 
 const nodes: FlowNode[] = [
   { id: "reader", type: "reader", name: "json", label: "json" },

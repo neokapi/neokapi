@@ -2,6 +2,11 @@
 // neokapi architecture by running it. Framework-agnostic: no @docusaurus/*
 // imports. Hosts boot the kapi WASM via @neokapi/kapi-playground and feed the
 // resulting ContentTree / FlowTrace data into these components.
+//
+// The shared preview kit (DocumentViewer, FormatPreview, FileBrowser,
+// BlockInspector, CodeView, renderDoc, the ContentTree / FlowTrace types, …)
+// lives in @neokapi/ui-primitives/preview — import it from there directly. This
+// module exports only kapi-lab's own runtime + explorer surface.
 
 export { default as FlowTracePlayer } from "./FlowTracePlayer";
 export type { FlowTracePlayerProps } from "./FlowTracePlayer";
@@ -38,7 +43,6 @@ export { SCRIPT_EXAMPLES, SCRIPT_API_DTS } from "./scriptApi";
 export type { ScriptExample } from "./scriptApi";
 export { default as BlockResults } from "./BlockResults";
 export type { BlockResultsProps } from "./BlockResults";
-export { default as RunSequence } from "./RunSequence";
 export { default as FileSource } from "./FileSource";
 export type { FileSourceValue } from "./FileSource";
 
@@ -58,57 +62,12 @@ export type {
   SelectionMode,
   UseFileLibraryOptions,
 } from "./fileLibrary";
-export { FileIcon, fileType, extOf } from "./fileTypes";
-export type { FileTypeInfo, FileGroup, FileIconProps } from "./fileTypes";
 export { isGlob, globToRegExp, matchGlob, globMatches } from "./glob";
-export { downloadBytes, downloadText, formatBytes } from "./download";
 
-// Code + content viewers.
-export { default as CodeView } from "./CodeView";
-export type { CodeViewProps } from "./CodeView";
-export { detectLang, tokenize } from "./highlight";
-export type { Lang, Token, TokenType } from "./highlight";
-export { default as BlockInspector } from "./BlockInspector";
-export type { BlockInspectorProps } from "./BlockInspector";
-export { default as ContentTreeView, Stats as ContentStatsBar } from "./ContentTreeView";
-export type { ContentTreeViewProps } from "./ContentTreeView";
+// The engine-output adapter (reads bytes from the in-memory FS, diffs runs) —
+// renders via the shared DocumentViewer from @neokapi/ui-primitives/preview.
 export { default as OutputView } from "./OutputView";
 export type { OutputViewProps } from "./OutputView";
-export { default as DocumentRender } from "./DocumentRender";
-export type { DocumentRenderProps } from "./DocumentRender";
-export { treeToRenderDoc, runsText, parseCellRef, colLabel, STRUCTURE_RULES } from "./renderDoc";
-export type {
-  RenderDoc,
-  RenderKind,
-  RenderLine,
-  RenderSlide,
-  RenderSheet,
-  RenderCell,
-  RenderPage,
-  RenderSection,
-  StructureRule,
-} from "./renderDoc";
-
-// PreviewKit — structure-aware, annotation-aware document preview across formats.
-export { default as FormatPreview } from "./FormatPreview";
-export type { FormatPreviewProps, PreviewSide } from "./FormatPreview";
-export { default as DocumentViewer } from "./DocumentViewer";
-export type { DocumentViewerProps } from "./DocumentViewer";
-// The ContentTree / ContentNode shapes DocumentViewer (and FormatPreview) render
-// from — re-exported so external consumers (e.g. Kapi Desktop, which produces
-// the tree natively) can type the data they feed in.
-export type { ContentTree, ContentNode, ContentNodeKind } from "./types";
-export { default as FileBrowser } from "./FileBrowser";
-export type { FileBrowserProps, BrowserFile } from "./FileBrowser";
-export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
-export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
-export { useTextTransition } from "./useTextTransition";
-export type {
-  TransitionEffect,
-  TypewriterGranularity,
-  UseTextTransitionOptions,
-  TextTransitionState,
-} from "./useTextTransition";
 
 // Drop-a-file widget kit: a generic no-terminal "drop a file → see the result"
 // surface plus per-tool wrappers.
@@ -148,5 +107,3 @@ export type {
   FlowPlaybackReturn,
   FrameDelta,
 } from "./useFlowPlayback";
-
-export * from "./types";

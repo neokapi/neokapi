@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import DocumentRender from "../DocumentRender";
-import type { RenderDoc } from "../renderDoc";
+import { DocumentRender } from "@neokapi/ui-primitives/preview";
+import type { RenderDoc } from "@neokapi/ui-primitives/preview";
 
 // DocumentRender paints the normalized extraction model (treeToRenderDoc) as a
 // recognizable document. These stories show all three structured kinds plus the

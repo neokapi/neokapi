@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import FormatPreview from "../FormatPreview";
-import type { PreviewSide } from "../FormatPreview";
-import type { TransitionEffect } from "../useTextTransition";
+import { FormatPreview } from "@neokapi/ui-primitives/preview";
+import type { PreviewSide } from "@neokapi/ui-primitives/preview";
+import type { TransitionEffect } from "@neokapi/ui-primitives/preview";
 import {
   docxTree,
   genericTree,

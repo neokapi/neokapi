@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { FlowTrace } from "./types";
+import type { FlowTrace } from "@neokapi/ui-primitives/preview";
 import { useFlowPlayback } from "./useFlowPlayback";
 import FlowGraph from "./FlowGraph";
 import StepControls from "./StepControls";

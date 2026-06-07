@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectLang, tokenize } from "../highlight";
+import { detectLang, tokenize } from "@neokapi/ui-primitives/preview";
 
 describe("detectLang", () => {
   it("maps extensions to languages", () => {

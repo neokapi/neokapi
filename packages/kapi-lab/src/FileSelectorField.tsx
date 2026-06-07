@@ -10,7 +10,7 @@ import {
   DialogTrigger,
   cn,
 } from "@neokapi/ui-primitives";
-import { FileIcon } from "./fileTypes";
+import { FileIcon } from "@neokapi/ui-primitives/preview";
 import { resolveSelection, selectionSummary } from "./fileLibrary";
 import type { FileLibrary, FileSelection, LibFile } from "./fileLibrary";
 import FileExplorer from "./FileExplorer";

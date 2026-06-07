@@ -8,7 +8,7 @@ import type { FileSourceValue } from "./FileSource";
 import BlockResults from "./BlockResults";
 import { SAMPLES } from "./samples";
 import { DEFAULT_SCRIPT, SCRIPT_API_DTS, SCRIPT_EXAMPLES } from "./scriptApi";
-import type { FlowTrace } from "./types";
+import type { FlowTrace } from "@neokapi/ui-primitives/preview";
 import shared from "./styles.module.css";
 import styles from "./ScriptLab.module.css";
 

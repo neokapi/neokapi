@@ -10,7 +10,7 @@ import type {
   KlfResponse,
   TraceRunResult,
 } from "@neokapi/kapi-playground/runtime";
-import type { ContentTree, FlowTrace } from "./types";
+import type { ContentTree, FlowTrace } from "@neokapi/ui-primitives/preview";
 
 export type LabStatus = "idle" | "booting" | "ready" | "error";
 

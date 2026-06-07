@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FileWarning } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
-import DocumentViewer from "./DocumentViewer";
-import { fileType } from "./fileTypes";
+import { DocumentViewer } from "@neokapi/ui-primitives/preview";
+import { fileType } from "@neokapi/ui-primitives/preview";
 import type { LabRuntime } from "./useLabRuntime";
-import type { ContentNode, ContentTree } from "./types";
+import type { ContentNode, ContentTree } from "@neokapi/ui-primitives/preview";
 import styles from "./OutputView.module.css";
 
 export interface OutputViewProps {

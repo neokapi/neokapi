@@ -1,7 +1,7 @@
 // Shared mock data for the kapi-lab Storybook stories. These mirror the shapes
 // the WASM engine returns (ContentTree / ContentNode), so the presentational
 // components can be exercised without booting the runtime.
-import type { ContentNode, ContentTree } from "../types";
+import type { ContentNode, ContentTree } from "@neokapi/ui-primitives/preview";
 import type { LabRuntime } from "../useLabRuntime";
 
 export const richBlock: ContentNode = {

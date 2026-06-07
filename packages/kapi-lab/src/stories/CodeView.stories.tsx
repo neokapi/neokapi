@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import CodeView from "../CodeView";
+import { CodeView } from "@neokapi/ui-primitives/preview";
 
 const meta: Meta<typeof CodeView> = {
   title: "Lab/Code View",

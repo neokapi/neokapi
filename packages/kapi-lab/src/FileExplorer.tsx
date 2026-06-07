@@ -13,8 +13,8 @@ import {
   ToggleGroupItem,
   cn,
 } from "@neokapi/ui-primitives";
-import { FileIcon, fileType } from "./fileTypes";
-import { downloadBytes, formatBytes } from "./download";
+import { FileIcon, fileType } from "@neokapi/ui-primitives/preview";
+import { downloadBytes, formatBytes } from "@neokapi/ui-primitives/preview";
 import { matchGlob } from "./glob";
 import { resolveSelection, selectionSummary } from "./fileLibrary";
 import type { FileLibrary, FileSelection, LibFile } from "./fileLibrary";

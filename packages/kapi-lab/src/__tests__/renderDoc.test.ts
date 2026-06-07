@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { treeToRenderDoc, parseCellRef, colLabel, runsText } from "../renderDoc";
-import type { ContentNode, ContentTree, Run } from "../types";
+import { treeToRenderDoc, parseCellRef, colLabel, runsText } from "@neokapi/ui-primitives/preview";
+import type { ContentNode, ContentTree, Run } from "@neokapi/ui-primitives/preview";
 
 // Fixture trees mirror the REAL `kapi inspect` output (verified against the
 // engine) for the three Office/text shapes the renderers target. The key facts

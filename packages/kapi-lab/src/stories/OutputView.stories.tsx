@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Button } from "@neokapi/ui-primitives";
 import OutputView from "../OutputView";
-import type { ContentNode, ContentTree } from "../types";
+import type { ContentNode, ContentTree } from "@neokapi/ui-primitives/preview";
 import { makeMockRuntime, mockTree, sampleJson } from "./mockData";
 
 const meta: Meta = {

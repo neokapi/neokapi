@@ -3,7 +3,7 @@
 // family FormatPreview targets, each with a fr-FR target and stand-off overlays
 // (terms / entities / qa-check / brand-voice) so the annotation highlighting,
 // source↔target toggle and transitions can be exercised without booting WASM.
-import type { ContentNode, ContentTree, OverlayView, Run } from "../types";
+import type { ContentNode, ContentTree, OverlayView, Run } from "@neokapi/ui-primitives/preview";
 
 function txt(s: string): Run[] {
   return [{ text: s }];

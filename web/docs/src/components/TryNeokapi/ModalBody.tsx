@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { TRY_SAMPLES, getFixture } from "@neokapi/kapi-playground";
-import { useLabRuntime, type LabRuntime, type ContentTree } from "@neokapi/kapi-lab";
-import FileBrowser, { type BrowserFile } from "@neokapi/kapi-lab/FileBrowser";
-import DocumentViewer from "@neokapi/kapi-lab/DocumentViewer";
+import { useLabRuntime, type LabRuntime } from "@neokapi/kapi-lab";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
+import { FileBrowser, type BrowserFile } from "@neokapi/ui-primitives/preview";
+import { DocumentViewer } from "@neokapi/ui-primitives/preview";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 import styles from "./styles.module.css";
 

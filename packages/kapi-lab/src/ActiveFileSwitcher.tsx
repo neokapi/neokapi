@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, cn } from "@neokapi/ui-primitives";
-import { FileIcon } from "./fileTypes";
+import { FileIcon } from "@neokapi/ui-primitives/preview";
 import type { LibFile } from "./fileLibrary";
 
 export interface ActiveFileSwitcherProps {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import ContentTreeView from "../ContentTreeView";
+import { ContentTreeView } from "@neokapi/ui-primitives/preview";
 import { mockTree } from "./mockData";
 
 const meta: Meta<typeof ContentTreeView> = {

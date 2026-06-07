@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FlowNode, Particle, PartSnapshotSet, TraceEvent } from "./types";
+import type {
+  FlowNode,
+  Particle,
+  PartSnapshotSet,
+  TraceEvent,
+} from "@neokapi/ui-primitives/preview";
 
 // useFlowPlayback drives a FlowTrace as a sequence of discrete frames so a
 // learner can step through it one transition at a time ("Next"), as well as

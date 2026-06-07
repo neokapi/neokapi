@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import BlockInspector from "../BlockInspector";
+import { BlockInspector } from "@neokapi/ui-primitives/preview";
 import { plainBlock, richBlock } from "./mockData";
 
 const meta: Meta<typeof BlockInspector> = {

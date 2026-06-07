@@ -32,8 +32,25 @@ export {
   colLabel,
   STRUCTURE_RULES,
 } from "./renderDoc";
+export type {
+  RenderDoc,
+  RenderKind,
+  RenderLine,
+  RenderSlide,
+  RenderSheet,
+  RenderCell,
+  RenderPage,
+  RenderSection,
+  StructureRule,
+} from "./renderDoc";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
 export { useTextTransition } from "./useTextTransition";
+export type {
+  TransitionEffect,
+  TypewriterGranularity,
+  UseTextTransitionOptions,
+  TextTransitionState,
+} from "./useTextTransition";
 
 export * from "./types";

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import FileBrowser from "../FileBrowser";
-import type { BrowserFile } from "../FileBrowser";
+import { FileBrowser } from "@neokapi/ui-primitives/preview";
+import type { BrowserFile } from "@neokapi/ui-primitives/preview";
 import { ALL_TREES } from "./previewFixtures";
 
 // FileBrowser shows many files across formats in list or grid views (a toggle).

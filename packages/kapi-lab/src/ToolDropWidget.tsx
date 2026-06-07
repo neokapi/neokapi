@@ -5,8 +5,8 @@ import type { HeroSample } from "@neokapi/kapi-playground/samples";
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
-import { FileIcon } from "./fileTypes";
-import { downloadBytes, downloadText, formatBytes } from "./download";
+import { FileIcon } from "@neokapi/ui-primitives/preview";
+import { downloadBytes, downloadText, formatBytes } from "@neokapi/ui-primitives/preview";
 import OutputView from "./OutputView";
 
 // A picked input: either one of the curated hero samples or a file the learner

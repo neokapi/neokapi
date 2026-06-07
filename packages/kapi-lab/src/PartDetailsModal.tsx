@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { FlowNode, PartSnapshot, PartSnapshotSet } from "./types";
-import RunSequence from "./RunSequence";
+import type { FlowNode, PartSnapshot, PartSnapshotSet } from "@neokapi/ui-primitives/preview";
+import { RunSequence } from "@neokapi/ui-primitives/preview";
 import styles from "./PartDetailsModal.module.css";
 
 export interface PartDetailsModalProps {

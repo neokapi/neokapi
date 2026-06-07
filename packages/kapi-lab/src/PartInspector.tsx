@@ -1,5 +1,5 @@
 import React from "react";
-import type { FlowNode, PartSnapshotSet } from "./types";
+import type { FlowNode, PartSnapshotSet } from "@neokapi/ui-primitives/preview";
 import styles from "./styles.module.css";
 
 interface PartInspectorProps {

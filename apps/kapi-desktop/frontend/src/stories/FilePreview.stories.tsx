@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { FilePreview } from "../components/FilePreview";
-import type { ContentTree } from "@neokapi/kapi-lab";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 // A small ContentTree shaped exactly like editor.BuildContentTree's JSON, with a
 // source run sequence, a committed fr target, and source-anchored term + brand +
