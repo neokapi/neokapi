@@ -164,13 +164,8 @@ export default function SegmentationExplorer({
       {segments.length > 0 && (
         <ol className="flex flex-col gap-2">
           {segments.map((seg, i) => (
-            <li
-              key={i}
-              className="flex gap-3 rounded border border-border bg-muted/30 p-2 text-sm"
-            >
-              <span className="select-none font-mono text-xs text-muted-foreground">
-                {i + 1}
-              </span>
+            <li key={i} className="flex gap-3 rounded border border-border bg-muted/30 p-2 text-sm">
+              <span className="select-none font-mono text-xs text-muted-foreground">{i + 1}</span>
               <span className="whitespace-pre-wrap">{seg}</span>
             </li>
           ))}

@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/segment"
 	"github.com/neokapi/neokapi/termbase"
 )
 
@@ -65,6 +66,12 @@ type annotateOptions struct {
 	Term  bool `json:"term"`
 	Brand bool `json:"brand"`
 	QA    bool `json:"qa"`
+	// Segment, when set, runs the segmentation engine over each block and writes
+	// the primary sentence segmentation overlay, so the preview shows sentence
+	// boundaries. SegmentEngine names the engine ("" = default srx; "uax29"
+	// bridges to ICU4X in the browser).
+	Segment       bool   `json:"segment"`
+	SegmentEngine string `json:"segmentEngine"`
 }
 
 func doInspectAnnotated(path string, opts annotateOptions) (result any) {
@@ -164,7 +171,30 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
+		if opts.Segment {
+			// Write the primary sentence segmentation overlay; BuildContentTree
+			// surfaces it as the block's `segments`, which the preview renders as
+			// sentence boundaries. Only attach when it actually splits.
+			if spans := segmentSpans(ctx, runs, opts.SegmentEngine); len(spans) > 1 {
+				b.SetSegmentation(nil, spans)
+			}
+		}
 	}
+}
+
+// segmentSpans runs the named segmentation engine ("" = default srx) over the
+// source runs and returns its run-anchored spans, or nil on any error / when no
+// engine is registered.
+func segmentSpans(ctx context.Context, runs []model.Run, engineName string) []model.Span {
+	eng, err := segment.NewEngine(engineName, segment.Config{})
+	if err != nil {
+		return nil
+	}
+	spans, err := eng.Segment(ctx, runs, model.LocaleID("en"))
+	if err != nil {
+		return nil
+	}
+	return spans
 }
 
 // termOverlay builds an OverlayTerm over the source runs from the seeded

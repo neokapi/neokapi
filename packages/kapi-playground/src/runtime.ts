@@ -31,6 +31,10 @@ export interface AnnotateOptions {
   term?: boolean;
   brand?: boolean;
   qa?: boolean;
+  /** Run segmentation and surface sentence boundaries in the preview. */
+  segment?: boolean;
+  /** Segmentation engine when `segment` is set ("" = srx; "uax29" = ICU4X). */
+  segmentEngine?: string;
 }
 
 export interface InspectResult {
