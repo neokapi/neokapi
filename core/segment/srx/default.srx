@@ -14,11 +14,15 @@
   classes \p{Lu} (uppercase letter) and \p{Ll} (lowercase letter) and lookahead
   are available.
 -->
-<srx xmlns="http://www.lisa.org/srx20" version="2.0">
+<srx xmlns="http://www.lisa.org/srx20" xmlns:okpsrx="http://okapi.sf.net/srx-extensions" version="2.0">
   <header segmentsubflows="yes" cascade="yes">
     <formathandle type="start" include="no"/>
     <formathandle type="end" include="yes"/>
     <formathandle type="isolated" include="no"/>
+    <!-- Trim leading/trailing whitespace from each segment (Okapi's default), so
+         a segment is the clean sentence and inter-sentence whitespace is left
+         uncovered rather than attached to either side of the break. -->
+    <okpsrx:options trimLeadingWhitespaces="yes" trimTrailingWhitespaces="yes"/>
   </header>
   <body>
     <languagerules>

@@ -347,7 +347,14 @@ baking them into structure:
 - **It is reversible by construction.** Desegmentation is "drop the overlay."
   There is no inverse operation to get wrong and no inter-segment "ignorable"
   material to lose — the gaps between segment spans are simply runs no span
-  covers.
+  covers. By default the engines **trim leading/trailing whitespace** from each
+  segment (matching Okapi's `defaultSegmentation.srx`, and keeping TM keys
+  stable), so the inter-sentence whitespace is exactly such an uncovered gap
+  rather than being attached to either side of the break. The SRX engine reads
+  this from the ruleset header (`okpsrx:options trimLeadingWhitespaces` /
+  `trimTrailingWhitespaces`); the segmentation tool defaults it on for every
+  engine. Trimming is opt-out (`trim*Whitespace: false`) where a caller wants the
+  raw runs.
 - **It is uniform.** Terminology, entities, and QA findings are the same kind
   of overlay, anchored the same run-aware way, rather than each re-detecting
   boundaries at render time.

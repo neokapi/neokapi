@@ -60,8 +60,8 @@ type SegmentationConfig struct {
 	TargetSrxPath                  string `json:"targetSrxPath,omitempty"                  schema:"title=Target SRX Rules Path,description=Path to an SRX 2.0 rules file for target text (srx engine)"`
 	OverwriteSegmentation          bool   `json:"overwriteSegmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented blocks replacing previous segmentation"`
 	TreatIsolatedCodesAsWhitespace bool   `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation"`
-	TrimLeadingWS                  bool   `json:"trimLeadingWhitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span"`
-	TrimTrailingWS                 bool   `json:"trimTrailingWhitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span"`
+	TrimLeadingWS                  bool   `json:"trimLeadingWhitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span,default=true"`
+	TrimTrailingWS                 bool   `json:"trimTrailingWhitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span,default=true"`
 	// RenumberCodes is honored at bilingual projection time, where standalone
 	// segments are materialized; in the overlay model the runs are never
 	// rewritten, so it is a no-op for overlay production.
@@ -86,7 +86,11 @@ func (c *SegmentationConfig) ToolName() string { return "segmentation" }
 
 // Reset restores default values.
 func (c *SegmentationConfig) Reset() {
-	*c = SegmentationConfig{SegmentSource: true}
+	// Trim leading/trailing whitespace by default so every engine yields clean
+	// sentence segments (inter-sentence whitespace left uncovered) — consistent
+	// with Okapi and stable for TM keys. The SRX engine also honors trim from its
+	// ruleset header; this default extends the same behavior to UAX-29/SaT/LLM.
+	*c = SegmentationConfig{SegmentSource: true, TrimLeadingWS: true, TrimTrailingWS: true}
 }
 
 // Validate checks configuration validity.

@@ -148,9 +148,12 @@ kapi segmentation transcript.txt --engine sat --sat-model sat-3l-sm
 ```
 
 Useful flags: `--segment-source` (default true) / `--segment-target` to choose
-which side to segment, `--overwrite-segmentation` to re-segment blocks that
-already carry an overlay, and `--trim-leading-whitespace` /
-`--trim-trailing-whitespace` to exclude surrounding whitespace from each span.
+which side to segment, and `--overwrite-segmentation` to re-segment blocks that
+already carry an overlay. Each segment is **trimmed of leading/trailing
+whitespace by default** — so a segment is the clean sentence and the
+inter-sentence whitespace is left uncovered (matching Okapi and keeping TM keys
+stable, regardless of which engine ran); pass `--trim-leading-whitespace=false` /
+`--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
 `kapi segment-count` reports the segment count per block without changing the
 content. For every flag, see the [command reference](/commands).
 

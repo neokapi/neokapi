@@ -46,63 +46,63 @@ func TestSegment_Default(t *testing.T) {
 		input  string
 		want   []string
 	}{
-		// SRX places the boundary AFTER the sentence-final punctuation, so the
-		// inter-segment whitespace leads the following segment. With the default
-		// (no-trim) mask the leading space is part of the next segment; see
-		// TestSegment_TrimWhitespace for the trimmed projection.
+		// SRX places the boundary AFTER the sentence-final punctuation; the
+		// default ruleset trims whitespace (Okapi's default), so each segment is
+		// the clean sentence and the inter-segment space is left uncovered. See
+		// TestSegment_TrimWhitespace / TestSegment_TrimWhitespaceFromHeader.
 		{
 			name:   "two plain sentences",
 			locale: "en-US",
 			input:  "Hello world. This is a test.",
-			want:   []string{"Hello world.", " This is a test."},
+			want:   []string{"Hello world.", "This is a test."},
 		},
 		{
 			name:   "three sentences with ! and ?",
 			locale: "en-US",
 			input:  "Stop! Who goes there? It is I.",
-			want:   []string{"Stop!", " Who goes there?", " It is I."},
+			want:   []string{"Stop!", "Who goes there?", "It is I."},
 		},
 		{
 			name:   "honorific abbreviation does not break",
 			locale: "en-US",
 			input:  "Dr. Smith left. He returned.",
-			want:   []string{"Dr. Smith left.", " He returned."},
+			want:   []string{"Dr. Smith left.", "He returned."},
 		},
 		{
 			name:   "Mr and Mrs abbreviations",
 			locale: "en-US",
 			input:  "Mr. and Mrs. Brown arrived. They sat down.",
-			want:   []string{"Mr. and Mrs. Brown arrived.", " They sat down."},
+			want:   []string{"Mr. and Mrs. Brown arrived.", "They sat down."},
 		},
 		{
 			name:   "decimal number does not break",
 			locale: "en-US",
 			input:  "It cost 3.50 today. Yes.",
-			want:   []string{"It cost 3.50 today.", " Yes."},
+			want:   []string{"It cost 3.50 today.", "Yes."},
 		},
 		{
 			name:   "single initials do not break",
 			locale: "en-US",
 			input:  "The author is J. K. Rowling. She is famous.",
-			want:   []string{"The author is J. K. Rowling.", " She is famous."},
+			want:   []string{"The author is J. K. Rowling.", "She is famous."},
 		},
 		{
 			name:   "e.g. does not break",
 			locale: "en-US",
 			input:  "Use a fruit, e.g. an apple, for this. Then stop.",
-			want:   []string{"Use a fruit, e.g. an apple, for this.", " Then stop."},
+			want:   []string{"Use a fruit, e.g. an apple, for this.", "Then stop."},
 		},
 		{
 			name:   "ellipsis trailing into lowercase does not break",
 			locale: "en-US",
 			input:  "Well... it depends. Maybe.",
-			want:   []string{"Well... it depends.", " Maybe."},
+			want:   []string{"Well... it depends.", "Maybe."},
 		},
 		{
 			name:   "ellipsis followed by uppercase breaks",
 			locale: "en-US",
 			input:  "Wait... What happened?",
-			want:   []string{"Wait...", " What happened?"},
+			want:   []string{"Wait...", "What happened?"},
 		},
 		{
 			name:   "single sentence no trailing break",
@@ -146,13 +146,13 @@ func TestSegment_NonASCII(t *testing.T) {
 			name:   "accented French",
 			locale: "fr-FR",
 			input:  "Café fermé. Déjà vu.",
-			want:   []string{"Café fermé.", " Déjà vu."},
+			want:   []string{"Café fermé.", "Déjà vu."},
 		},
 		{
 			name:   "German with umlauts",
 			locale: "de-DE",
 			input:  "Das ist schön. Über alles.",
-			want:   []string{"Das ist schön.", " Über alles."},
+			want:   []string{"Das ist schön.", "Über alles."},
 		},
 		{
 			name:   "CJK ideographic full stops",
@@ -167,7 +167,7 @@ func TestSegment_NonASCII(t *testing.T) {
 			name:   "astral emoji does not shift offsets",
 			locale: "en-US",
 			input:  "Look 😀 here. Now stop.",
-			want:   []string{"Look 😀 here.", " Now stop."},
+			want:   []string{"Look 😀 here.", "Now stop."},
 		},
 	}
 
