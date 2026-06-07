@@ -158,7 +158,8 @@ export default function DocumentViewer({
       </div>
 
       <Tabs defaultValue={defaultTab} className="px-3 pb-3">
-        <TabsList variant="line">
+        {/* Compact segmented control (w-fit), not a full-width tab bar. */}
+        <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="blocks">
             Blocks{" "}
