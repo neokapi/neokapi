@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T13:50:52Z",
+  "generatedAt": "2026-06-07T20:39:40Z",
   "kind": "tool",
   "entries": [
     {
@@ -15607,13 +15607,13 @@
             "type": "boolean",
             "title": "Trim Leading Whitespace",
             "description": "Exclude leading whitespace from each segment span",
-            "default": false
+            "default": true
           },
           "trimTrailingWhitespace": {
             "type": "boolean",
             "title": "Trim Trailing Whitespace",
             "description": "Exclude trailing whitespace from each segment span",
-            "default": false
+            "default": true
           }
         }
       },

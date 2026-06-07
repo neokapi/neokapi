@@ -98,10 +98,15 @@ const config: Config = {
         configureWebpack(_config: unknown, isServer: boolean) {
           return {
             experiments: { asyncWebAssembly: true, topLevelAwait: true },
-            // `icu`'s wasm loader has a Node branch that imports `fs`; in the
-            // browser bundle it uses fetch instead, so stub the Node-only
-            // builtins out on the client. (icu is dynamic-imported client-only.)
-            ...(isServer ? {} : { resolve: { fallback: { fs: false, path: false } } }),
+            ...(isServer
+              ? // `icu` is ESM-only (no require/node export condition), so the
+                // SSR/node webpack build can't resolve it. It's dynamic-imported
+                // client-only (the segmentation lab is BrowserOnly), so externalize
+                // it on the server: never resolved or executed there.
+                { externals: ["icu"] }
+              : // On the client, `icu`'s loader has a Node branch importing `fs`;
+                // the browser branch uses fetch, so stub the Node builtins out.
+                { resolve: { fallback: { fs: false, path: false } } }),
           };
         },
       };

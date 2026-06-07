@@ -262,7 +262,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	minScore := 101
 	matched := 0
 	allExact := true
-	for i := 0; i < n; i++ {
+	for i := range n {
 		segRuns := v.SourceSegmentRuns(i)
 		segTexts[i] = model.RunsText(segRuns)
 		if segTexts[i] == "" {

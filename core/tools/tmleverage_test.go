@@ -285,6 +285,11 @@ func TestTMLeverageConfigValidation(t *testing.T) {
 
 // --- Segment-aware leverage (multi-sentence / prose blocks) ---
 
+// seg1Src is the first sentence's source text. The trailing space is intentional
+// (it's the run's text); a const keeps it out of map-key string literals, where
+// gocritic flags trailing whitespace as suspicious.
+const seg1Src = "Hello world. "
+
 // segBlock builds a two-run block whose runs are the two sentences, with a
 // source segmentation overlay splitting on the run boundary. Concatenating the
 // segment texts reproduces the source, so the assembled target is faithful.
@@ -303,7 +308,7 @@ func segBlock(id, s1, s2 string) *model.Block {
 func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	t.Parallel()
 	provider := &mockTMProvider{exact: map[string]string{
-		"Hello world. ": "Bonjour le monde. ",
+		seg1Src: "Bonjour le monde. ",
 		"Goodbye.":      "Au revoir.",
 	}}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
@@ -354,7 +359,7 @@ func altTrans(t *testing.T, b *model.Block, idx int) *model.AltTranslation {
 func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 	t.Parallel()
 	provider := &mockTMProvider{
-		exact: map[string]string{"Hello world. ": "Bonjour le monde. "},
+		exact: map[string]string{seg1Src: "Bonjour le monde. "},
 		fuzzy: map[string]fuzzyMatch{"Goodbye.": {translation: "Au revoir.", score: 80}},
 	}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
@@ -380,7 +385,7 @@ func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 	t.Parallel()
 	// Only the first sentence is in the TM; the second misses entirely.
-	provider := &mockTMProvider{exact: map[string]string{"Hello world. ": "Bonjour le monde. "}}
+	provider := &mockTMProvider{exact: map[string]string{seg1Src: "Bonjour le monde. "}}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
 	tl := tools.NewTMLeverageTool(cfg)
 

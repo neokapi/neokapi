@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-06T08:10:41Z",
+  "generatedAt": "2026-06-07T20:39:40Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -5410,13 +5410,13 @@
         {
           "name": "trim-leading-whitespace",
           "usage": "Exclude leading whitespace from each segment span",
-          "default": "false",
+          "default": "true",
           "type": "bool"
         },
         {
           "name": "trim-trailing-whitespace",
           "usage": "Exclude trailing whitespace from each segment span",
-          "default": "false",
+          "default": "true",
           "type": "bool"
         }
       ],
