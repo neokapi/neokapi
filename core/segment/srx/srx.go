@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"slices"
+	"unicode"
 
 	"github.com/dlclark/regexp2"
 
@@ -12,8 +13,23 @@ import (
 	"github.com/neokapi/neokapi/core/segment"
 )
 
+// default.srx is a reduced, self-contained pure-Go ruleset (explicit break rules
+// + common exceptions) used wherever no UAX-29 base breaker is available
+// (nocgo/wasm) — it does not rely on ICU for breaking.
+//
 //go:embed default.srx
 var defaultSRX []byte
+
+// okapi.srx is Okapi's full defaultSegmentation.srx (Apache-2.0,
+// net.sf.okapi.lib.segmentation; derived in part from LanguageTool's
+// segment.srx). It declares useIcu4jBreakRules="yes": ICU/UAX-29 does the
+// breaking and these rules are ~2,800 no-break exceptions across 14 languages.
+// It is the default only when a base breaker is linked (cgo/ICU), where it
+// reproduces Okapi's segmentation; without a base breaker it would
+// under-segment, so default.srx is used instead.
+//
+//go:embed okapi.srx
+var okapiSRX []byte
 
 func init() {
 	segment.RegisterEngine(segment.DefaultEngine, New)
@@ -58,7 +74,12 @@ func New(cfg segment.Config) (segment.Segmenter, error) {
 		doc, err = Parse([]byte(cfg.SrxRules))
 	case cfg.SrxPath != "":
 		doc, err = ParseFile(cfg.SrxPath)
+	case segment.HasBaseBreaker():
+		// ICU is linked: default to Okapi's full hybrid ruleset (ICU base +
+		// SRX exceptions) for Okapi-grade segmentation.
+		doc, err = Parse(okapiSRX)
 	default:
+		// No base breaker (nocgo/wasm): use the self-contained pure-rule set.
 		doc, err = Parse(defaultSRX)
 	}
 	if err != nil {
@@ -100,12 +121,73 @@ func (s *segmenter) Segment(ctx context.Context, runs []model.Run, loc model.Loc
 		return nil, err
 	}
 
-	breaks, err := applyRules(ctx, rules, text)
+	breaks, err := s.computeBreaks(ctx, rules, text, locale)
 	if err != nil {
 		return nil, err
 	}
 
 	return fl.Spans(breaks), nil
+}
+
+// computeBreaks returns the interior break offsets, taking the Okapi
+// `useIcu4jBreakRules` hybrid path when the ruleset requests it and a UAX-29
+// base breaker is linked: ICU supplies the candidate breaks (adjusted back over
+// trailing whitespace, as Okapi does) and the SRX rules are applied on top as
+// exceptions. Without a base breaker it falls back to pure-rule breaking.
+func (s *segmenter) computeBreaks(ctx context.Context, rules []compiledRule, text []rune, locale string) ([]int, error) {
+	var (
+		breaks []int
+		err    error
+	)
+	if s.doc.UseICUBreakRules {
+		base, ok, berr := segment.BaseBreaks(ctx, text, locale)
+		if berr != nil {
+			return nil, berr
+		}
+		if ok {
+			breaks, err = applyRulesWithBase(ctx, rules, text, adjustICUBreaks(text, base))
+		} else {
+			breaks, err = applyRules(ctx, rules, text)
+		}
+	} else {
+		breaks, err = applyRules(ctx, rules, text)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return collapseWhitespaceOnly(text, breaks), nil
+}
+
+// collapseWhitespaceOnly drops a boundary when the segment it would open is
+// preceded by whitespace-only content since the last kept boundary — i.e. it
+// removes degenerate segments that consist solely of inter-sentence whitespace
+// (the whitespace instead leads the following segment, per the overlay model).
+// In practice this only fires when two boundaries land a whitespace run apart,
+// which an isolated code masked as a space, or an ICU/SRX break disagreeing by a
+// space, can produce. It never merges two real (non-whitespace) sentences.
+func collapseWhitespaceOnly(text []rune, breaks []int) []int {
+	if len(breaks) == 0 {
+		return breaks
+	}
+	out := breaks[:0]
+	last := 0
+	for _, b := range breaks {
+		if allWhitespace(text[last:b]) {
+			continue // segment [last,b) is whitespace-only — drop this boundary
+		}
+		out = append(out, b)
+		last = b
+	}
+	return out
+}
+
+func allWhitespace(rs []rune) bool {
+	for _, r := range rs {
+		if !unicode.IsSpace(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // Breaks computes the sentence-break rune offsets over masked text in a locale,
@@ -126,16 +208,12 @@ func (s *segmenter) Breaks(ctx context.Context, text []rune, locale string) ([]i
 	return applyRules(ctx, rules, text)
 }
 
-// applyRules runs the ordered rules over text and returns the sorted rune
-// offsets at which a new segment begins.
-//
-// For each rule in order it finds every match; the candidate boundary for a
-// match is the end of the before-break group (where the after-break lookahead
-// begins). The first rule to decide a position wins: a no-break rule placed
-// before a later break rule suppresses the split at that position, which is how
-// SRX exceptions (abbreviations, decimals, initials) and the cascade resolve
-// conflicts. Final breaks are the positions decided true.
-func applyRules(ctx context.Context, rules []compiledRule, text []rune) ([]int, error) {
+// decide runs the ordered rules over text and records, per interior position,
+// whether the first rule to match there voted to break. The first rule to
+// decide a position wins: a no-break rule placed before a later break rule
+// suppresses the split at that position, which is how SRX exceptions
+// (abbreviations, decimals, initials) and the cascade resolve conflicts.
+func decide(ctx context.Context, rules []compiledRule, text []rune) (map[int]bool, error) {
 	s := string(text)
 	decided := make(map[int]bool) // position -> isBreak; first writer wins
 
@@ -160,7 +238,11 @@ func applyRules(ctx context.Context, rules []compiledRule, text []rune) ([]int, 
 			}
 		}
 	}
+	return decided, nil
+}
 
+// collectBreaks returns the sorted positions decided true.
+func collectBreaks(decided map[int]bool) []int {
 	breaks := make([]int, 0, len(decided))
 	for pos, isBreak := range decided {
 		if isBreak {
@@ -168,7 +250,58 @@ func applyRules(ctx context.Context, rules []compiledRule, text []rune) ([]int, 
 		}
 	}
 	slices.Sort(breaks)
-	return breaks, nil
+	return breaks
+}
+
+// applyRules runs the ordered SRX rules and returns the break offsets
+// (pure-rule mode: the ruleset's own break rules produce the breaks).
+func applyRules(ctx context.Context, rules []compiledRule, text []rune) ([]int, error) {
+	decided, err := decide(ctx, rules, text)
+	if err != nil {
+		return nil, err
+	}
+	return collectBreaks(decided), nil
+}
+
+// applyRulesWithBase reproduces Okapi's useIcu4jBreakRules hybrid: the SRX rules
+// are applied first (first-writer-wins), then the base (ICU/UAX-29) breaks are
+// added last — a base break takes effect only where no earlier SRX rule already
+// decided that position, so SRX no-break exceptions override ICU and SRX break
+// rules add splits. (Okapi appends the ICU breaks as a synthetic rule last.)
+func applyRulesWithBase(ctx context.Context, rules []compiledRule, text []rune, base []int) ([]int, error) {
+	decided, err := decide(ctx, rules, text)
+	if err != nil {
+		return nil, err
+	}
+	n := len(text)
+	for _, pos := range base {
+		if pos > 0 && pos < n {
+			if _, seen := decided[pos]; !seen {
+				decided[pos] = true
+			}
+		}
+	}
+	return collectBreaks(decided), nil
+}
+
+// adjustICUBreaks reproduces Okapi's boundary fix-up for ICU breaks: ICU places
+// a sentence boundary after the inter-sentence whitespace (just before the next
+// sentence's first character), but SRX semantics put the break right after the
+// sentence-final punctuation, so each base boundary is moved back over any
+// preceding whitespace. Out-of-range and duplicate results are dropped.
+func adjustICUBreaks(text []rune, base []int) []int {
+	out := make([]int, 0, len(base))
+	seen := make(map[int]bool, len(base))
+	for _, b := range base {
+		for b-1 > 0 && unicode.IsSpace(text[b-1]) {
+			b--
+		}
+		if b > 0 && b < len(text) && !seen[b] {
+			seen[b] = true
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 // boundaryPos returns the rune offset of the candidate boundary for a match:

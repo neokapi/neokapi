@@ -55,7 +55,10 @@ or editor that consumes the same finding stream.
   translation *resource* (a glossary that feeds AI translation); term-enforce is
   the check side of it.
 - **Placeholder and do-not-translate integrity** — part of the QA family: catch
-  a dropped `{count}`, a corrupted `<b>`, or a translated DNT term.
+  a dropped `{count}`, a corrupted `<b>`, or a translated DNT term. The terms a
+  check enforces are recognized in the
+  [content-preparation](/framework/content-preparation) pass that runs ahead of
+  translation.
 
 ## Composing and gating
 

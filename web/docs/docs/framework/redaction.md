@@ -1,5 +1,5 @@
 ---
-sidebar_position: 15
+sidebar_position: 18
 title: Redaction
 description: Redaction replaces sensitive spans — people, product names, internal roles, secrets — with protected placeholders before external translation, then restores originals afterward. Sensitive values never leave the local machine.
 keywords: [redaction, sensitive content, privacy, placeholders, translation, data protection]
@@ -48,9 +48,12 @@ Redaction finds sensitive spans with one or both detectors:
 - **Rules** (default) — literal terms and regular expressions you declare.
   Fully offline and deterministic.
 - **Entities** (opt-in) — named entities (people, organizations, products,
-  locations) detected by the `ai-entity-extract` tool and redacted by category.
-  Run a local model to keep detection on the machine, or a cloud model to trade
-  that for broader coverage during the detection step.
+  locations, dates, …) recognized automatically and redacted by category. A fast
+  local model keeps detection on the machine; a cloud model trades that for
+  broader coverage during the detection step. You don't run entity recognition as
+  a separate task — it is the same detection that powers entity-generalized
+  [translation-memory](/framework/translation-memory) reuse, so entities
+  annotated once serve both.
 
 Each match is assigned a category. The recommended categories are `person`,
 `role`, `product`, `org`, `location`, and `custom`, but categories are

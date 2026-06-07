@@ -1,0 +1,103 @@
+---
+id: prepare-content
+title: "Prepare content for translation"
+sidebar_label: "Prepare content"
+sidebar_position: 6
+description: "Get a source ready so translation is cheaper, safer, and consistent — protect sensitive content, reuse past translations, and keep terminology and quality in check, in one repeatable pass."
+hide_table_of_contents: true
+---
+
+# Prepare content for translation
+
+:::note Best as a project
+The jobs below run **ad-hoc** on any file, but the payoff is a repeatable pass you
+keep in a [`.kapi` project](/kapi/get-started/first-project) so every run prepares
+content the same way and builds up a project-local translation memory and termbase.
+:::
+
+**Goal:** hand content to a translator or model in good shape — sensitive
+material protected, past translations reused, terminology and quality consistent.
+You don't need to think about segmentation or entity recognition; those run under
+the hood. You think in terms of three author jobs, and kapi does the machinery.
+
+## Job 1 — protect sensitive content
+
+Names, unreleased products, internal roles, secrets — these should never leave the
+machine in the clear. [Redaction](/framework/redaction) replaces them with
+protected placeholders before translation and restores the originals afterward.
+It can match a list of terms you declare *and* sensitive entities (people,
+organizations, products) detected automatically — you turn on protection, kapi
+finds the spans:
+
+```bash
+# Redact, translate against the placeholders, restore — all in one run
+kapi run secure-translate -i src/locales/en.json --target-lang fr
+```
+
+See the [Redaction guide](/framework/redaction) for the rules file, entity
+detection, and the extract/merge path for human translators.
+
+## Job 2 — reuse your past translations
+
+Anything you've translated before should come back for free. kapi's
+[translation memory](/framework/translation-memory) reuses prior translations
+sentence by sentence — and **generalizes over names**, so "Welcome, Bob" already
+translated also covers "Welcome, Alice" at a full match. Sentence-level reuse and
+name generalization are exactly why kapi segments and detects entities for you;
+you just pre-translate:
+
+```bash
+# Fill from TM first, then translate only what's left
+kapi run tm-leverage -i src/locales/en.json --target-lang fr
+```
+
+The [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) recipe
+walks the deterministic, no-API-key version end to end.
+
+## Job 3 — keep terminology and quality consistent
+
+Approved terms should be used, and the obvious defects shouldn't ship. Import your
+glossary once, then run [checks](/framework/checks) as a gate — `kapi check` exits
+non-zero when something breaks, so it drops straight into CI or an assistant's
+fix-loop:
+
+```bash
+# One-time: import your glossary into a named termbase
+kapi termbase import glossary.csv --name product-terms --format csv --header -s en -t fr
+
+# Check the source now; check the source/target pair after translation
+kapi check src/locales/en.json
+kapi check src/locales/en.json src/locales/fr.json --target-lang fr
+```
+
+The [Enforce terminology](/kapi/recipes/terminology-qa) recipe covers glossary
+enforcement in full.
+
+## Put it in one pass
+
+Bundle the three jobs into a named flow in your `.kapi` project so every run
+prepares content identically. The flow does carry the machinery — segmentation
+and entity detection — but you author it once and then think only in terms of the
+jobs:
+
+```yaml
+# .kapi/flows/prepare.yaml
+source_transforms:
+  - tool: redact              # Job 1: protect sensitive content
+steps:
+  - tool: segmentation        # split into sentences so reuse + checks work per unit
+  - tool: ai-entity-extract   # detect names so TM can generalize over them
+  - tool: tm-leverage         # Job 2: reuse past translations
+  - tool: term-lookup         # Job 3: apply the glossary as guidance
+  - tool: ai-translate        # translate the remainder
+  - tool: qa-check            # Job 3: gate on findings
+```
+
+```bash
+kapi run prepare -i src/locales/en.json --target-lang fr
+```
+
+Now sensitive content stays local, reuse accumulates in the project TM, and the
+gate keeps regressions out. For the model behind this — how each step is a
+non-destructive overlay on one settled source — see
+[Content preparation](/framework/content-preparation).

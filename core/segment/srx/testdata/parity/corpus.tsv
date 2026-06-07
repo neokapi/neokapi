@@ -1,0 +1,31 @@
+# locale<TAB>text — multilingual SRX parity corpus (Okapi's 14 language rules + Default/ICU)
+en	The cat sat. The dog ran.
+en	Dr. Smith met Mr. Jones in Washington. They talked for an hour.
+en	The value is 3.14 today. It was 2.71 yesterday.
+en	She said "Hello there." Then she left.
+en	Visit example.com for details. Prices start at $9.99 each.
+en	J. R. R. Tolkien wrote it. It sold well.
+en	This happens e.g. on Monday. It also happens i.e. weekly.
+en	He arrived at 3 p.m. yesterday. The meeting ran late.
+fr	Le chat dort. Le chien court.
+fr	M. Dupont est arrivé. Il a parlé longtemps.
+fr	Elle a dit « Bonjour ». Puis elle est partie.
+fr	La valeur est 3,14 aujourd'hui. C'était 2,71 hier.
+de	Die Katze schläft. Der Hund rennt.
+de	Das gilt z.B. montags. Es gilt auch usw.
+de	Herr Dr. Müller kam an. Er sprach lange.
+es	El gato duerme. El perro corre.
+es	El Sr. García llegó. Habló mucho.
+it	Il gatto dorme. Il cane corre.
+it	Il Sig. Rossi è arrivato. Ha parlato a lungo.
+pt	O gato dorme. O cão corre.
+nl	De kat slaapt. De hond rent.
+ru	Кошка спит. Собака бежит.
+ru	Он пришёл в 3 ч. вечера. Встреча затянулась.
+uk	Кіт спить. Собака біжить.
+pl	Kot śpi. Pies biegnie.
+ro	Pisica doarme. Câinele aleargă.
+sk	Mačka spí. Pes beží.
+da	Katten sover. Hunden løber.
+sv	Katten sover. Hunden springer.
+ja	これは文です。これも文です。

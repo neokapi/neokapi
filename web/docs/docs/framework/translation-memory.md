@@ -32,6 +32,13 @@ target — so "Welcome, Bob" → "Bienvenue, Bob" adapts to "Welcome, Alice" →
 matches: entity differences matter less than structural ones, which matter less
 than textual changes.
 
+The typed placeholders the generalized tier keys on (`{PERSON}`, `{PRODUCT}`, …)
+come from entity detection — a fast local model or an LLM that recognizes the
+named things in a block. You don't run detection as a separate task: it happens
+as part of preparing content, and the same detection also powers
+[redaction](/framework/redaction). Annotate entities once and both generalized TM
+reuse and redaction follow.
+
 ## Storage backends
 
 Two backends ship in the `sievepen/` package, both implementing the
@@ -74,9 +81,34 @@ kapi tm list
 ## Pipeline integration
 
 The `tm-leverage` tool queries the TM for each Block's source segments and
-applies matches. Exact matches skip AI translation, reducing cost and latency;
-fuzzy matches are attached as `AltTranslation` annotations for translator
-review.
+applies matches. Every match — exact or fuzzy — is recorded as an
+`AltTranslation` annotation (matched source/target runs, score, match type,
+`tm` origin), and a filled target is committed with provenance
+(`Origin{Kind: "tm", Tool: "tm-leverage"}`), its score, and `draft` status, so
+the leverage is auditable rather than an opaque overwrite. Exact matches skip AI
+translation, reducing cost and latency.
+
+**Segment-aware leverage.** When a block carries a multi-segment
+[segmentation](/framework/segmentation) overlay (a prose paragraph split into
+sentences), `tm-leverage` looks up the TM **per sentence**. This recovers
+leverage for multi-sentence blocks that would never match the sentence-keyed TM
+as a single unit. A single-segment block (most software-localization strings)
+takes the whole-block path unchanged.
+
+The result is recorded so it is **auditable, not blind**:
+
+- Each matching sentence is attached as an `AltTranslation` annotation (matched
+  source and target runs, score, exact/fuzzy match type, `tm` origin) — kept
+  whether or not the block target is filled, so **partial** leverage (some
+  sentences matched, some new) is preserved for a reviewer or a later
+  translation stage rather than discarded.
+- The block records `tm-segment-matches` (e.g. `3/5`) for quick gating.
+- The block target is filled only when **every** sentence matched and the
+  segments are contiguous; when it is, the committed target carries
+  provenance (`Origin{Kind: "tm", Tool: "tm-leverage"}`), the roll-up `Score`,
+  and `draft` status — a reviewable pre-fill, not a signed-off translation.
+
+Run [segmentation](/framework/segmentation) before `tm-leverage` to enable this.
 
 ```bash
 kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm

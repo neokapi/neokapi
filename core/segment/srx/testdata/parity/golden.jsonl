@@ -1,0 +1,30 @@
+{"locale":"en","text":"The cat sat. The dog ran.","segments":["The cat sat.","The dog ran."]}
+{"locale":"en","text":"Dr. Smith met Mr. Jones in Washington. They talked for an hour.","segments":["Dr. Smith met Mr. Jones in Washington.","They talked for an hour."]}
+{"locale":"en","text":"The value is 3.14 today. It was 2.71 yesterday.","segments":["The value is 3.14 today.","It was 2.71 yesterday."]}
+{"locale":"en","text":"She said \"Hello there.\" Then she left.","segments":["She said \"Hello there.\"","Then she left."]}
+{"locale":"en","text":"Visit example.com for details. Prices start at $9.99 each.","segments":["Visit example.com for details.","Prices start at $9.99 each."]}
+{"locale":"en","text":"J. R. R. Tolkien wrote it. It sold well.","segments":["J. R. R. Tolkien wrote it.","It sold well."]}
+{"locale":"en","text":"This happens e.g. on Monday. It also happens i.e. weekly.","segments":["This happens e.g. on Monday.","It also happens i.e. weekly."]}
+{"locale":"en","text":"He arrived at 3 p.m. yesterday. The meeting ran late.","segments":["He arrived at 3 p.m. yesterday.","The meeting ran late."]}
+{"locale":"fr","text":"Le chat dort. Le chien court.","segments":["Le chat dort.","Le chien court."]}
+{"locale":"fr","text":"M. Dupont est arrivé. Il a parlé longtemps.","segments":["M. Dupont est arrivé.","Il a parlé longtemps."]}
+{"locale":"fr","text":"Elle a dit « Bonjour ». Puis elle est partie.","segments":["Elle a dit « Bonjour ».","Puis elle est partie."]}
+{"locale":"fr","text":"La valeur est 3,14 aujourd'hui. C'était 2,71 hier.","segments":["La valeur est 3,14 aujourd'hui.","C'était 2,71 hier."]}
+{"locale":"de","text":"Die Katze schläft. Der Hund rennt.","segments":["Die Katze schläft.","Der Hund rennt."]}
+{"locale":"de","text":"Das gilt z.B. montags. Es gilt auch usw.","segments":["Das gilt z.B. montags.","Es gilt auch usw."]}
+{"locale":"de","text":"Herr Dr. Müller kam an. Er sprach lange.","segments":["Herr Dr. Müller kam an.","Er sprach lange."]}
+{"locale":"es","text":"El gato duerme. El perro corre.","segments":["El gato duerme.","El perro corre."]}
+{"locale":"es","text":"El Sr. García llegó. Habló mucho.","segments":["El Sr. García llegó.","Habló mucho."]}
+{"locale":"it","text":"Il gatto dorme. Il cane corre.","segments":["Il gatto dorme.","Il cane corre."]}
+{"locale":"it","text":"Il Sig. Rossi è arrivato. Ha parlato a lungo.","segments":["Il Sig. Rossi è arrivato.","Ha parlato a lungo."]}
+{"locale":"pt","text":"O gato dorme. O cão corre.","segments":["O gato dorme.","O cão corre."]}
+{"locale":"nl","text":"De kat slaapt. De hond rent.","segments":["De kat slaapt.","De hond rent."]}
+{"locale":"ru","text":"Кошка спит. Собака бежит.","segments":["Кошка спит.","Собака бежит."]}
+{"locale":"ru","text":"Он пришёл в 3 ч. вечера. Встреча затянулась.","segments":["Он пришёл в 3 ч. вечера.","Встреча затянулась."]}
+{"locale":"uk","text":"Кіт спить. Собака біжить.","segments":["Кіт спить.","Собака біжить."]}
+{"locale":"pl","text":"Kot śpi. Pies biegnie.","segments":["Kot śpi.","Pies biegnie."]}
+{"locale":"ro","text":"Pisica doarme. Câinele aleargă.","segments":["Pisica doarme.","Câinele aleargă."]}
+{"locale":"sk","text":"Mačka spí. Pes beží.","segments":["Mačka spí.","Pes beží."]}
+{"locale":"da","text":"Katten sover. Hunden løber.","segments":["Katten sover.","Hunden løber."]}
+{"locale":"sv","text":"Katten sover. Hunden springer.","segments":["Katten sover.","Hunden springer."]}
+{"locale":"ja","text":"これは文です。これも文です。","segments":["これは文です。","これも文です。"]}

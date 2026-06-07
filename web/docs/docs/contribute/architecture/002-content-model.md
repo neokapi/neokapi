@@ -319,10 +319,22 @@ baking them into structure:
   **segmenter engine** selected by an `engine:` config field, drawn from a
   registry (`core/segment`) that mirrors the AI/MT provider registries:
   - `srx` (default) — a faithful SRX 2.0 rule engine (cascading break/no-break
-    rules with language maps, lookaround via `dlclark/regexp2`, an embedded
-    default ruleset, and `SourceSrxPath`/`TargetSrxPath` overrides);
-  - `uax29` — the ICU Unicode sentence baseline (rules-free), where cgo/ICU is
-    linked;
+    rules with language maps, lookaround via `dlclark/regexp2`, and
+    `SourceSrxPath`/`TargetSrxPath` overrides). It is **adaptive**, reproducing
+    Okapi's own model: Okapi's `defaultSegmentation.srx` declares
+    `useIcu4jBreakRules="yes"` — ICU does the breaking and the ~2,800 SRX rules
+    act as no-break *exceptions*. So where a UAX-29 base breaker is linked
+    (cgo/ICU), the `srx` engine loads Okapi's full 14-language ruleset and runs
+    that ICU-base + SRX-exception hybrid, verified byte-for-byte against the real
+    Okapi `SRXSegmenter` (`TestSRXParityWithOkapi`, golden via
+    `make regen-srx-parity-golden`). Where no base breaker is linked
+    (nocgo/WASM/browser), it falls back to a reduced, self-contained pure-Go
+    ruleset with explicit break rules — the only segmenter that runs in the
+    browser. The base breaker is resolved at runtime through a `core/segment`
+    registry (the cgo `uax29` package registers one), so the pure-Go `srx`
+    package never imports cgo;
+  - `uax29` — the bare ICU Unicode sentence baseline (no exception rules), where
+    cgo/ICU is linked;
   - `llm` — semantic chunking via an AI provider, writing the `llm-chunk` layer;
   - `sat` — the wtpsplit *Segment any Text* ML model, run in-process inside the
     out-of-process `kapi-sat` plugin so its native ONNX stack stays out of the

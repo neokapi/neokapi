@@ -123,7 +123,8 @@ classDiagram
   `segmentation` tool writes that overlay from a pluggable engine chosen with
   `--engine` — `srx` (the default SRX 2.0 rule engine), `uax29` (the ICU Unicode
   baseline), `llm` (semantic chunks), or `sat` (the wtpsplit ML model, run via
-  the `kapi-sat` plugin). See [AD-002](/contribute/architecture/002-content-model).
+  the `kapi-sat` plugin). See [Segmentation](/framework/segmentation) and
+  [AD-002](/contribute/architecture/002-content-model).
 - **Run** — one element of a block's inline content: a chunk of text, an opening
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).

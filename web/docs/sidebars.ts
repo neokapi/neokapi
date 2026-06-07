@@ -45,6 +45,7 @@ const sidebars: SidebarsConfig = {
         "kapi/recipes/pseudo-translate",
         "kapi/recipes/tm-termbase-storage",
         "kapi/recipes/terminology-qa",
+        "kapi/recipes/prepare-content",
         "kapi/recipes/pre-translate-with-tm",
         "kapi/recipes/resumable-workspace",
         "kapi/bilingual-workflow",

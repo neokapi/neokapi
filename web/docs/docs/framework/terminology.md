@@ -257,3 +257,7 @@ deliberately separate systems because they answer different questions:
 
 They share the `Block` annotation system as their integration point, so both
 TM matches and term matches are available to any downstream tool or editor.
+
+Terminology and [segmentation](/framework/segmentation) are run-anchored overlays
+produced in the [content-preparation](/framework/content-preparation) pass that
+readies a source before translation.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -14,6 +15,17 @@ import (
 const (
 	PropTMMatchScore = "tm-match-score"
 	PropTMMatchType  = "tm-match-type"
+	// PropTMSegmentMatches records segment-level leverage as "matched/total"
+	// (e.g. "3/5") whenever the block carried a multi-segment source
+	// segmentation overlay, even when the block target was not filled.
+	PropTMSegmentMatches = "tm-segment-matches"
+	// PropTMSegmentAltPrefix is the annotation-key prefix under which each
+	// per-segment TM match is stored as an AltTranslation (the segment index is
+	// appended, e.g. "tm-segment-alt:2").
+	PropTMSegmentAltPrefix = "tm-segment-alt:"
+	// PropTMAltKey is the annotation key for a whole-block TM match's
+	// AltTranslation (matches the convention used by the sievepen TM tool).
+	PropTMAltKey = "alt-translation"
 )
 
 // TMProvider is the interface for translation memory lookup.
@@ -162,33 +174,191 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			}
 		}
 
+		// Segment-aware path: when the block carries a multi-segment source
+		// segmentation overlay, leverage the TM sentence by sentence (TM stores
+		// segment pairs) and assemble the block target from the per-segment
+		// translations. This recovers leverage for multi-sentence (prose) blocks
+		// that would never match the sentence-keyed TM as one unit. Handled and
+		// filled here only when every segment matches; otherwise it records
+		// partial leverage and falls through so a later stage translates the
+		// whole block. Single-segment blocks (most software-localization
+		// strings) skip this and use the whole-block path below unchanged.
+		if leverageSegments(conf, v) {
+			return nil
+		}
+
 		// Try exact match first.
 		if translation, found := conf.Provider.LookupExact(sourceText, conf.SourceLocale, conf.TargetLocale); found {
 			score := 100
 			if conf.DowngradeIdenticalBestMatches {
 				score = 99
 			}
-			if shouldFillTarget(conf, v, score) {
-				v.SetTargetText(conf.TargetLocale, translation)
-			}
-			v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
-			v.SetProperty(PropTMMatchType, "exact")
+			recordWholeBlockMatch(v, conf, translation, score, model.MatchExact, "exact")
 			return nil
 		}
 
 		// Try fuzzy match.
 		if translation, score, found := conf.Provider.LookupFuzzy(sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-			if shouldFillTarget(conf, v, score) {
-				v.SetTargetText(conf.TargetLocale, translation)
-			}
-			v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
-			v.SetProperty(PropTMMatchType, "fuzzy")
+			recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
 			return nil
 		}
 
 		return nil
 	}
 	return t
+}
+
+// recordWholeBlockMatch records a whole-block TM hit the same auditable way as
+// the segment path: the match is attached as an AltTranslation annotation
+// (source/target runs, score, match type, provenance) regardless of fill, and
+// when the block target is filled it is committed as a real Target carrying
+// `tm` provenance, the score, and draft status — not an opaque string. The
+// summary properties remain for quick gating and backward compatibility.
+func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
+	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
+	v.Annotate(PropTMAltKey, &model.AltTranslation{
+		Source:    v.SourceRuns(),
+		Target:    targetRuns,
+		Locale:    conf.TargetLocale,
+		Origin:    "tm",
+		Score:     float64(score) / 100,
+		MatchType: mt,
+		ToolID:    "tm-leverage",
+	})
+	if shouldFillTarget(conf, v, score) {
+		v.SetTarget(conf.TargetLocale, &model.Target{
+			Runs:   targetRuns,
+			Status: model.TargetStatusDraft,
+			Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+			Score:  float64(score) / 100,
+		})
+	}
+	v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
+	v.SetProperty(PropTMMatchType, propType)
+}
+
+// leverageSegments attempts sentence-level TM leverage over a multi-segment
+// block. It returns true when it has fully handled the block (every segment
+// matched at/above the fuzzy threshold and, if permitted, the assembled target
+// was written), so the caller should stop. It returns false — leaving the block
+// for whole-block leverage and any later translation stage — when the block has
+// no usable multi-segment overlay or when at least one segment did not match.
+//
+// Assembly preserves inter-segment text by requiring the segment spans to be
+// contiguous (their concatenation reproduces the source); when they are not
+// (gaps the overlay does not cover), it records partial leverage but does not
+// fill, so nothing is silently dropped.
+func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
+	if v.SourceSegmentation() == nil {
+		return false
+	}
+	n := v.SourceSegmentCount()
+	if n < 2 {
+		return false
+	}
+
+	segTexts := make([]string, n)
+	translations := make([]string, n)
+	minScore := 101
+	matched := 0
+	allExact := true
+	for i := 0; i < n; i++ {
+		segRuns := v.SourceSegmentRuns(i)
+		segTexts[i] = model.RunsText(segRuns)
+		if segTexts[i] == "" {
+			// An empty segment (e.g. a span of only ignorable runs) is treated
+			// as a trivial match so it never blocks assembly; nothing to record.
+			translations[i] = segTexts[i]
+			matched++
+			continue
+		}
+		if tr, found := conf.Provider.LookupExact(segTexts[i], conf.SourceLocale, conf.TargetLocale); found {
+			translations[i] = tr
+			matched++
+			score := 100
+			if conf.DowngradeIdenticalBestMatches {
+				score = 99
+				allExact = false
+			}
+			if score < minScore {
+				minScore = score
+			}
+			annotateSegmentMatch(v, conf, i, segRuns, tr, score, model.MatchExact)
+			continue
+		}
+		if tr, score, found := conf.Provider.LookupFuzzy(segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+			translations[i] = tr
+			matched++
+			allExact = false
+			if score < minScore {
+				minScore = score
+			}
+			annotateSegmentMatch(v, conf, i, segRuns, tr, score, model.MatchFuzzy)
+			continue
+		}
+		allExact = false
+	}
+
+	// Always record segment-level leverage for visibility (editor, AI, reports),
+	// even when the block target is not filled. The per-segment matches above are
+	// recorded as alt-translation annotations regardless of fill, so partial
+	// leverage is never lost.
+	v.SetProperty(PropTMSegmentMatches, strconv.Itoa(matched)+"/"+strconv.Itoa(n))
+
+	if matched < n {
+		// Partial leverage: leave the block for a later whole-block translation
+		// stage. We deliberately do not write a half-translated target here;
+		// per-segment fill (mixing TM and MT within one block) needs
+		// segment-aligned target storage and is a separate change. The matched
+		// segments survive as alt-translation annotations for that stage / the
+		// editor to consume.
+		return false
+	}
+
+	// Every segment matched. Assemble only when the spans are contiguous, so the
+	// concatenated translations reproduce a faithful whole-block target.
+	if strings.Join(segTexts, "") != v.SourceText() {
+		return false
+	}
+
+	if minScore == 101 {
+		minScore = 100 // all segments were empty/trivial
+	}
+	matchType := "segmented-fuzzy"
+	if allExact {
+		matchType = "segmented-exact"
+	}
+	if shouldFillTarget(conf, v, minScore) {
+		// Commit a real Target carrying provenance and score, not an opaque
+		// string: a TM pre-fill is a reviewable draft assembled from segment
+		// matches, so a reviewer/tool can see it came from TM and at what score.
+		v.SetTarget(conf.TargetLocale, &model.Target{
+			Runs:   []model.Run{{Text: &model.TextRun{Text: strings.Join(translations, "")}}},
+			Status: model.TargetStatusDraft,
+			Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+			Score:  float64(minScore) / 100,
+		})
+	}
+	v.SetProperty(PropTMMatchScore, strconv.Itoa(minScore))
+	v.SetProperty(PropTMMatchType, matchType)
+	return true
+}
+
+// annotateSegmentMatch records a per-segment TM hit as an AltTranslation
+// annotation anchored by its source runs and segment index, so the leverage is
+// auditable and partial matches survive even when the block target is not
+// filled. The annotation key carries the segment index; the annotation itself
+// carries the matched source/target, score (0-1), match type, and provenance.
+func annotateSegmentMatch(v tool.TargetView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
+	v.Annotate(PropTMSegmentAltPrefix+strconv.Itoa(idx), &model.AltTranslation{
+		Source:    srcRuns,
+		Target:    []model.Run{{Text: &model.TextRun{Text: translation}}},
+		Locale:    conf.TargetLocale,
+		Origin:    "tm",
+		Score:     float64(score) / 100,
+		MatchType: mt,
+		ToolID:    "tm-leverage",
+	})
 }
 
 // shouldFillTarget decides whether to copy the translation into the target based on config.

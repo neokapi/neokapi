@@ -536,6 +536,10 @@ regen-okapi-fixtures: ## Re-extract cli/parity/formats/fixtures_*_generated.go f
 	done
 	@echo "[regen] done — review 'git diff cli/parity/formats/fixtures_*_generated.go'"
 
+regen-srx-parity-golden: ## Regenerate SRX parity golden from the real Okapi (okapi-apps tikal jars)
+	@bash scripts/srx-parity/gen-golden.sh
+	@echo "[regen] review 'git diff core/segment/srx/testdata/parity/golden.jsonl'"
+
 # ── Contract audit (Okapi @Test methods → 4-state coverage view) ────────────
 #
 # `make contract-audit` is the evolution-tolerant counterpart to

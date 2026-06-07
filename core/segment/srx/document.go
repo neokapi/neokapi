@@ -35,6 +35,14 @@ type Document struct {
 	// handling is governed by segment.MaskOptions in this implementation, so
 	// these are parsed for fidelity but not consulted by the algorithm.
 	FormatHandles []FormatHandle
+	// UseICUBreakRules mirrors Okapi's header extension
+	// <okpsrx:options useIcu4jBreakRules="yes"/>. When true, a UAX-29 base
+	// breaker supplies the candidate sentence breaks and the SRX rules are
+	// applied on top as exceptions (Okapi parity). When the ruleset relies on
+	// ICU for breaking — as Okapi's defaultSegmentation.srx does — pure-rule
+	// mode under-segments, so the engine only takes the hybrid path when a base
+	// breaker is available (cgo/ICU builds) and otherwise falls back.
+	UseICUBreakRules bool
 
 	// LanguageRules are the named rule groups from <languagerules>.
 	LanguageRules []LanguageRule
@@ -83,6 +91,14 @@ type xmlHeader struct {
 	SegmentSubflows string            `xml:"segmentsubflows,attr"`
 	Cascade         string            `xml:"cascade,attr"`
 	FormatHandle    []xmlFormatHandle `xml:"formathandle"`
+	// Options is Okapi's namespaced header extension
+	// (<okpsrx:options .../>). Go's xml matches by local name regardless of the
+	// okpsrx: prefix, so this binds without declaring the namespace.
+	Options xmlOptions `xml:"options"`
+}
+
+type xmlOptions struct {
+	UseIcu4jBreakRules string `xml:"useIcu4jBreakRules,attr"`
 }
 
 type xmlFormatHandle struct {
@@ -130,9 +146,10 @@ func Parse(data []byte) (*Document, error) {
 	}
 
 	doc := &Document{
-		Version:         x.Version,
-		SegmentSubflows: parseYesNo(x.Header.SegmentSubflows, true),
-		Cascade:         parseYesNo(x.Header.Cascade, true),
+		Version:          x.Version,
+		SegmentSubflows:  parseYesNo(x.Header.SegmentSubflows, true),
+		Cascade:          parseYesNo(x.Header.Cascade, true),
+		UseICUBreakRules: parseYesNo(x.Header.Options.UseIcu4jBreakRules, false),
 	}
 
 	for _, fh := range x.Header.FormatHandle {
