@@ -151,7 +151,10 @@ export default function DocumentViewer({
         </Button>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="px-3 pb-3">
+      {/* Force column layout: the Tabs primitive's orientation variant keys on a
+          `data-horizontal` attribute that isn't emitted, so without flex-col the
+          list renders BESIDE the content (eating half the width). */}
+      <Tabs defaultValue={defaultTab} className="flex flex-col px-3 pb-3">
         {/* Compact segmented control (w-fit), not a full-width tab bar. */}
         <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>
