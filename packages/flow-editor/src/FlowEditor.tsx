@@ -39,6 +39,7 @@ import { parseBinding, formatBinding } from "./defAdapter";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
+import { FlowLegend } from "./FlowLegend";
 import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
 import { stepsToGraph, graphToSteps, type LayoutDirection } from "./conversion";
 import {
@@ -956,6 +957,10 @@ export function FlowEditor({
                     <ArrowDownUp size={12} />
                   )}
                 </Button>
+              </Panel>
+
+              <Panel position="top-right">
+                <FlowLegend />
               </Panel>
             </ReactFlow>
           </div>

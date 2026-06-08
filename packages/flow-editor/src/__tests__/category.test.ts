@@ -3,8 +3,8 @@ import { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "../category"
 
 describe("getCategoryStyle", () => {
   it("returns style for known categories", () => {
-    const style = getCategoryStyle("translate");
-    expect(style.label).toBe("Translate");
+    const style = getCategoryStyle("translation");
+    expect(style.label).toBe("Translation");
     expect(style.color).toBeTruthy();
     expect(style.bg).toBeTruthy();
     expect(style.text).toBeTruthy();
@@ -21,7 +21,7 @@ describe("getCategoryStyle", () => {
     expect(style.label).toBe("Pipeline");
   });
 
-  it.each(["translate", "validate", "transform", "convert", "enrich", "pipeline"])(
+  it.each(["translation", "quality", "analysis", "text-processing", "convert", "pipeline"])(
     "returns unique style for %s",
     (category) => {
       const style = getCategoryStyle(category);
@@ -29,11 +29,20 @@ describe("getCategoryStyle", () => {
       expect(style.color).toContain("oklch");
     },
   );
+
+  it.each([
+    ["translate", "Translation"],
+    ["validate", "Quality"],
+    ["transform", "Text Processing"],
+    ["enrich", "Analysis"],
+  ])("maps legacy alias %s onto canonical %s", (legacy, expectedLabel) => {
+    expect(getCategoryStyle(legacy).label).toBe(expectedLabel);
+  });
 });
 
 describe("getCategoryColor", () => {
   it("returns the color string for a known category", () => {
-    const color = getCategoryColor("validate");
+    const color = getCategoryColor("quality");
     expect(color).toContain("oklch");
   });
 
@@ -52,9 +61,10 @@ describe("ALL_CATEGORIES", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("includes translate and validate", () => {
+  it("includes the canonical categories", () => {
     const ids = ALL_CATEGORIES.map((c) => c.id);
-    expect(ids).toContain("translate");
-    expect(ids).toContain("validate");
+    expect(ids).toContain("translation");
+    expect(ids).toContain("quality");
+    expect(ids).toContain("text-processing");
   });
 });

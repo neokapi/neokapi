@@ -9,6 +9,10 @@ export { defToSpec, specToDef, parseBinding, formatBinding } from "./defAdapter"
 export { SourcePicker, SinkPicker } from "./nodes/EndpointPicker";
 export { ToolNode } from "./nodes/ToolNode";
 export { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "./category";
+export { PortChip, IoContract } from "./nodes/PortChip";
+export { getPortType, PORT_FAMILIES } from "./portTypes";
+export type { PortTypeStyle, PortFamily, FamilyStyle } from "./portTypes";
+export { FlowLegend } from "./FlowLegend";
 export { suggestParallelGroups, isCategoryParallelizable } from "./parallelChecker";
 export { TraceTimeline } from "./TraceTimeline";
 export { PreviewPanel } from "./PreviewPanel";
@@ -35,6 +39,9 @@ export type {
   FlowBindingKind,
   ToolInfo,
   ToolCategory,
+  OverlayType,
+  AnnotationType,
+  PortType,
   ComponentSchema,
   FormatMeta,
   ToolMeta,

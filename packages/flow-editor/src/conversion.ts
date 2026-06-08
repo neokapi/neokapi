@@ -19,32 +19,22 @@ const EDGE_MARKER = {
   color: "var(--muted-foreground)",
 };
 
-/** Format part types into a short edge label, e.g. "Block" or "Block · Data". */
-function partLabel(types?: string[]): string | undefined {
-  if (!types || types.length === 0) return undefined;
-  return types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(" · ");
-}
-
-/** Port type names of a produced/consumed contract, for edge labels. */
+/** Port type names of a produced/consumed contract, for typed edge chips. */
 function portTypes(fs?: IOPort[]): string[] | undefined {
   if (!fs || fs.length === 0) return undefined;
   return fs.map((f) => f.type);
 }
 
-function makeEdge(source: string, target: string, label?: string): Edge {
+function makeEdge(source: string, target: string, ports?: string[]): Edge {
   return {
     id: `e-${source}-${target}`,
     source,
     target,
     type: "dot",
     markerEnd: EDGE_MARKER,
-    ...(label && {
-      label,
-      labelStyle: { fontSize: 9, fontWeight: 500, fill: "var(--muted-foreground)" },
-      labelBgStyle: { fill: "var(--background)", fillOpacity: 0.8 },
-      labelBgPadding: [4, 2] as [number, number],
-      labelBgBorderRadius: 3,
-    }),
+    // The DotEdge renders these produced port types as typed chips at the edge
+    // midpoint, so the data flowing between tools is legible (target, qa, …).
+    ...(ports && ports.length > 0 ? { data: { ports } } : {}),
   };
 }
 
@@ -124,7 +114,7 @@ export function stepsToGraph(
     for (const prev of prevIds) {
       const prevNode = nodes.find((n) => n.id === prev);
       edges.push(
-        makeEdge(prev, id, partLabel(portTypes(prevNode?.data.produces as IOPort[] | undefined))),
+        makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
       );
     }
 
@@ -178,7 +168,7 @@ export function stepsToGraph(
             makeEdge(
               prev,
               id,
-              partLabel(portTypes(prevNode?.data.produces as IOPort[] | undefined)),
+              portTypes(prevNode?.data.produces as IOPort[] | undefined),
             ),
           );
         }
@@ -203,7 +193,7 @@ export function stepsToGraph(
       for (const prev of prevIds) {
         const prevNode = nodes.find((n) => n.id === prev);
         edges.push(
-          makeEdge(prev, id, partLabel(portTypes(prevNode?.data.produces as IOPort[] | undefined))),
+          makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
         );
       }
 
