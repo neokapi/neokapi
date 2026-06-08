@@ -14,7 +14,7 @@ const BRANCH_GAP = 80;
 
 // Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
 // never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
-export const SERP_COL_W = 320; // horizontal stride between columns
+export const SERP_COL_W = 280; // horizontal stride between columns (node max-w 220 + side chips + gap)
 const SERP_ROW_H = 190; // vertical stride between wrapped rows
 const SERP_BRANCH_DY = 110; // vertical offset between parallel branches in a column
 const SERP_ENDPOINT_V = 18; // nudge endpoints down to center with the taller tool row

@@ -170,7 +170,7 @@ export function ToolNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative flex min-w-[180px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
+      className="relative flex min-w-[180px] max-w-[220px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
       style={{
         border: !isValid
           ? "2px solid oklch(0.7 0.15 85)"

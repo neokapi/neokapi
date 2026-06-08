@@ -451,9 +451,10 @@ export function FlowEditor({
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth;
-      // Leave ~1.5 columns of breathing room so the wrapped grid (incl. the
-      // folded-in Source/Sink stations) sits inside the viewport at 100%.
-      if (w > 0) setColumns(Math.max(1, Math.floor((w - SERP_COL_W * 1.5) / SERP_COL_W)));
+      // Leave ~half a column of breathing room so the wrapped grid (incl. the
+      // folded-in Source/Sink stations) sits inside the viewport at 100% while
+      // still using the available width for left-to-right flow.
+      if (w > 0) setColumns(Math.max(1, Math.floor((w - SERP_COL_W * 0.5) / SERP_COL_W)));
     };
     measure();
     const ro = new ResizeObserver(measure);
