@@ -40,7 +40,11 @@ type Entry struct {
 	Cardinality string   `json:"cardinality,omitempty"`
 	Consumes    []string `json:"consumes,omitempty"`
 	Produces    []string `json:"produces,omitempty"`
-	Aliases     []string `json:"aliases,omitempty"`
+	SideEffects []string `json:"sideEffects,omitempty"`
+	// IsSourceTransform reports a source-rewriting tool that may run in a flow's
+	// leading source-transform stage (derived from CapTransform; AD-006).
+	IsSourceTransform bool     `json:"isSourceTransform,omitempty"`
+	Aliases           []string `json:"aliases,omitempty"`
 
 	// Schema is the ComponentSchema/FormatSchema JSON consumed verbatim by the
 	// shared SchemaForm renderer. Passed through unchanged for bridge entries

@@ -70,7 +70,7 @@ func Port[T ~string](t T, side model.Side) IOPort { return IOPort{Type: string(t
 // capability and handlers, not declared here.
 type ToolMeta struct {
 	ID          string `json:"id"`
-	Category    string `json:"category,omitempty"` // "translate","validate","enrich","convert","transform","pipeline"
+	Category    string `json:"category,omitempty"` // canonical: see Category* consts (translation/quality/analysis/text-processing/convert/pipeline)
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 
@@ -130,14 +130,48 @@ const (
 	PartTypeGroup = "group"
 )
 
-// Standard tool categories. These serve as CLI command group IDs and must
-// match the cobra group IDs in cli.AddCommandGroups.
+// Standard tool categories — the single canonical vocabulary shared by native
+// tools, okapi-bridge tools (via NormalizeCategory), gen-refs, and the flow
+// editor. The first four double as CLI command group IDs and must match the
+// cobra group IDs in cli.AddCommandGroups.
 const (
-	CategoryTranslation    = "translation"
-	CategoryQuality        = "quality"
-	CategoryAnalysis       = "analysis"
-	CategoryTextProcessing = "text-processing"
+	CategoryTranslation    = "translation"     // produces target content
+	CategoryQuality        = "quality"         // validates target / produces qa·term findings
+	CategoryAnalysis       = "analysis"        // read-only metrics / reports
+	CategoryTextProcessing = "text-processing" // rewrites / segments / redacts source
+	CategoryConvert        = "convert"         // format conversion
+	CategoryPipeline       = "pipeline"        // composite / sub-pipeline
 )
+
+// bridgeCategoryAliases maps the okapi-bridge category vocabulary onto the
+// canonical set above. The bridge classifies steps with its own labels
+// (translate/validate/transform/…); NormalizeCategory folds them in so the
+// whole stack speaks one vocabulary.
+var bridgeCategoryAliases = map[string]string{
+	"translate": CategoryTranslation,
+	"validate":  CategoryQuality,
+	"transform": CategoryTextProcessing,
+	"enrich":    CategoryAnalysis,
+}
+
+// NormalizeCategory maps any tool category string onto the canonical vocabulary.
+// Canonical values pass through unchanged; bridge aliases are folded in; an
+// empty value falls back to CategoryPipeline (the neutral group); an unknown
+// value passes through so genuinely new categories are visible, not swallowed.
+func NormalizeCategory(c string) string {
+	switch c {
+	case CategoryTranslation, CategoryQuality, CategoryAnalysis,
+		CategoryTextProcessing, CategoryConvert, CategoryPipeline:
+		return c
+	}
+	if canon, ok := bridgeCategoryAliases[c]; ok {
+		return canon
+	}
+	if c == "" {
+		return CategoryPipeline
+	}
+	return c
+}
 
 // Standard requirement names for the Requires field.
 const (

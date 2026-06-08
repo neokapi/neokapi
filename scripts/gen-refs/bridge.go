@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
 )
 
 // bridgeManifest is the okapi-bridge plugin manifest (dist/plugin/manifest.json).
@@ -91,7 +93,7 @@ func collectBridge(pluginDir string) (formats, tools []Entry, err error) {
 			e.Presets = readBridgePresets(pluginDir, cap.PresetsDir)
 		case "tool":
 			e.Kind = KindTool
-			e.Category = cap.Category
+			e.Category = coreschema.NormalizeCategory(cap.Category)
 			e.Inputs = cap.Inputs
 			e.Outputs = cap.Outputs
 			e.Tags = cap.Tags

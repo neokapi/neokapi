@@ -35,6 +35,13 @@ func UnredactSchema() *schema.ComponentSchema {
 		Description: "Restore original values into redacted content after processing",
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
+		// Source-transform: consumes the in-process secret annotation left by
+		// redact and restores originals into both source and target runs.
+		Consumes: []schema.IOPort{schema.Port(redaction.SecretAnnotationKey, model.SideSource)},
+		Produces: []schema.IOPort{
+			schema.Port(schema.PortSource, model.SideSource),
+			schema.Port(schema.PortTarget, model.SideTarget),
+		},
 	})
 }
 

@@ -71,6 +71,13 @@ export interface ReferenceEntry {
   tags?: string[];
   requires?: string[];
   cardinality?: string;
+  /** IO contract ports as "type@side" tokens (consumed ports add a trailing "?" when optional). */
+  consumes?: string[];
+  produces?: string[];
+  /** External systems the tool reads/writes (e.g. "tm-read", "api-call"). */
+  sideEffects?: string[];
+  /** Whether the tool may run in a flow's source-transform stage (CapTransform). */
+  isSourceTransform?: boolean;
   aliases?: string[];
 
   /** The schema consumed verbatim by the shared SchemaForm renderer. */

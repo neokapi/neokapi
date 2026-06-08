@@ -7,6 +7,7 @@ import (
 
 	formatschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -61,6 +62,8 @@ func emit() (string, error) {
 	b.WriteString("/** Which run sequence a stand-off interpretation pertains to. */\n")
 	b.WriteString("export type Side = \"source\" | \"target\";\n")
 
+	b.WriteString(emitVocabularies())
+
 	for _, a := range atoms {
 		iface, err := renderInterface(a)
 		if err != nil {
@@ -70,6 +73,71 @@ func emit() (string, error) {
 		b.WriteString(iface)
 	}
 	return b.String(), nil
+}
+
+// emitVocabularies renders the canonical string vocabularies the flow editor
+// attaches presentation (colors/icons/labels) to: tool categories and IO port
+// types (overlay types, block-annotation keys, pseudo-ports, the redaction
+// secret). Each is sourced from the Go constants, so the committed unions track
+// the source of truth and the editor's styling maps (keyed `Record<Union, …>`)
+// fail to compile when a member lacks styling.
+func emitVocabularies() string {
+	overlays := []string{
+		string(model.OverlaySegmentation), string(model.OverlayTerm),
+		string(model.OverlayEntity), string(model.OverlayQA),
+		string(model.OverlayAlignment), string(model.OverlayTermCandidate),
+	}
+	annotations := []string{
+		model.AnnoNote, model.AnnoAltTranslation, model.AnnoTMMatch,
+		model.AnnoWordCount, model.AnnoCharCount, model.AnnoSegCount,
+		model.AnnoComparison, model.AnnoScopingReport, model.AnnoRepetition,
+		model.AnnoBrandVoice, model.AnnoEntityMapping, model.AnnoTermEnforce,
+	}
+	pseudoAndSecurity := []string{schema.PortSource, schema.PortTarget, redaction.SecretAnnotationKey}
+
+	var b strings.Builder
+	b.WriteString(emitStringUnion("ToolCategory",
+		"The canonical tool category vocabulary (CLI command groups + flow-editor\ngrouping). Source: core/schema Category* constants.",
+		[]string{
+			schema.CategoryTranslation, schema.CategoryQuality, schema.CategoryAnalysis,
+			schema.CategoryTextProcessing, schema.CategoryConvert, schema.CategoryPipeline,
+		}, "TOOL_CATEGORIES"))
+	b.WriteString(emitStringUnion("OverlayType",
+		"Run-anchored stand-off overlay kinds. Source: core/model Overlay* constants.",
+		overlays, "OVERLAY_TYPES"))
+	b.WriteString(emitStringUnion("AnnotationType",
+		"Block-scoped annotation keys. Source: core/model Anno* constants.",
+		annotations, "ANNOTATION_TYPES"))
+	b.WriteString(emitStringUnion("PortType",
+		"Every IO-contract port-type string a tool may consume or produce: an\noverlay type, an annotation key, a pseudo-port (source/target), or the\nredaction secret. The flow editor keys per-type presentation off this.",
+		concat(overlays, annotations, pseudoAndSecurity), "PORT_TYPES"))
+	return b.String()
+}
+
+// emitStringUnion renders `export type Name = "a" | "b";` plus a frozen
+// `export const CONST: readonly Name[] = [...]` enumerating the members in order.
+func emitStringUnion(name, doc string, values []string, constName string) string {
+	var b strings.Builder
+	b.WriteString("\n")
+	if doc != "" {
+		b.WriteString(blockComment(doc))
+	}
+	quoted := make([]string, len(values))
+	for i, v := range values {
+		quoted[i] = `"` + v + `"`
+	}
+	fmt.Fprintf(&b, "export type %s = %s;\n", name, strings.Join(quoted, " | "))
+	fmt.Fprintf(&b, "export const %s: readonly %s[] = [%s];\n", constName, name, strings.Join(quoted, ", "))
+	return b.String()
+}
+
+// concat flattens several string slices in order.
+func concat(slices ...[]string) []string {
+	var out []string
+	for _, s := range slices {
+		out = append(out, s...)
+	}
+	return out
 }
 
 // renderInterface renders one Go struct as a TS interface.

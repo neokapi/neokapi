@@ -102,7 +102,7 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 	return out
 }
 
-// portNames renders a IO contract as "type@side" tokens (optional
+// portNames renders an IO contract as "type@side" tokens (optional
 // consumed ports get a trailing "?") for the generated reference.
 func portNames(fs []coreschema.IOPort) []string {
 	if len(fs) == 0 {
@@ -119,24 +119,38 @@ func portNames(fs []coreschema.IOPort) []string {
 	return out
 }
 
+// sideEffectNames stringifies a tool's declared side effects for the dataset.
+func sideEffectNames(ses []coreschema.SideEffect) []string {
+	if len(ses) == 0 {
+		return nil
+	}
+	out := make([]string, len(ses))
+	for i, se := range ses {
+		out[i] = string(se)
+	}
+	return out
+}
+
 // collectNativeTools produces one Entry per built-in tool.
 func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 	var out []Entry
 	for _, info := range treg.ListWithSchemas() {
 		id := string(info.Name)
 		e := Entry{
-			ID:          id,
-			Source:      SourceBuiltIn,
-			Kind:        KindTool,
-			DisplayName: info.DisplayName,
-			Description: info.Description,
-			Category:    info.Category,
-			Consumes:    portNames(info.Consumes),
-			Produces:    portNames(info.Produces),
-			Tags:        info.Tags,
-			Requires:    info.Requires,
-			Cardinality: string(info.Cardinality),
-			Aliases:     info.Aliases,
+			ID:                id,
+			Source:            SourceBuiltIn,
+			Kind:              KindTool,
+			DisplayName:       info.DisplayName,
+			Description:       info.Description,
+			Category:          coreschema.NormalizeCategory(info.Category),
+			Consumes:          portNames(info.Consumes),
+			Produces:          portNames(info.Produces),
+			SideEffects:       sideEffectNames(info.SideEffects),
+			IsSourceTransform: info.IsSourceTransform,
+			Tags:              info.Tags,
+			Requires:          info.Requires,
+			Cardinality:       string(info.Cardinality),
+			Aliases:           info.Aliases,
 		}
 
 		if s := treg.Schema(info.Name); s != nil {

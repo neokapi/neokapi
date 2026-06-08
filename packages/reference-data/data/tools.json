@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T20:39:40Z",
+  "generatedAt": "2026-06-08T20:50:54Z",
   "kind": "tool",
   "entries": [
     {
@@ -19,6 +19,9 @@
       "cardinality": "monolingual",
       "produces": [
         "brand-voice@target"
+      ],
+      "sideEffects": [
+        "api-call"
       ],
       "schema": {
         "$id": "brand-voice-check",
@@ -167,6 +170,9 @@
         "credentials"
       ],
       "cardinality": "monolingual",
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "ai-entity-extract",
         "title": "AI Entity Extract",
@@ -349,6 +355,9 @@
       "produces": [
         "qa@target"
       ],
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "ai-qa",
         "title": "AI QA Check",
@@ -506,6 +515,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "ai-review",
         "title": "AI Review",
@@ -646,6 +658,9 @@
       "cardinality": "monolingual",
       "produces": [
         "term@source"
+      ],
+      "sideEffects": [
+        "api-call"
       ],
       "schema": {
         "$id": "ai-terminology",
@@ -800,6 +815,9 @@
       "cardinality": "bilingual",
       "produces": [
         "target@target"
+      ],
+      "sideEffects": [
+        "api-call"
       ],
       "aliases": [
         "translate"
@@ -1036,7 +1054,7 @@
       "kind": "tool",
       "displayName": "Batch Translation",
       "description": "Creates translations from an external program for a given input document. Expects: raw document. Sends back: raw document.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -1369,7 +1387,7 @@
       "kind": "tool",
       "displayName": "BOM Conversion",
       "description": "Add or remove Unicode Byte-Order-Mark (BOM) in a text-based file. Expects: raw document. Sends back: raw document.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -1606,6 +1624,7 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "case-transform",
         "title": "Case Transform",
@@ -1795,7 +1814,7 @@
       "kind": "tool",
       "displayName": "Character Count",
       "description": "Count the number of characters in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -2183,7 +2202,7 @@
       "kind": "tool",
       "displayName": "Characters Quality Check",
       "description": "Compare source and target for character inconsistencies. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -2274,7 +2293,7 @@
       "kind": "tool",
       "displayName": "Cleanup",
       "description": "Cleans strings by normalizing quotes, punctuation, etc. ready for further processing. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -2451,7 +2470,7 @@
       "kind": "tool",
       "displayName": "Concordance Character Count",
       "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -2506,7 +2525,7 @@
       "kind": "tool",
       "displayName": "Concordance Word Count",
       "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -2747,7 +2766,7 @@
       "kind": "tool",
       "displayName": "Create Target",
       "description": "Create target segment container. Optionally copy source content to the target. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -2885,6 +2904,9 @@
       "produces": [
         "target@target"
       ],
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "deepl-translate",
         "title": "DeepL Translate",
@@ -3009,7 +3031,7 @@
       "kind": "tool",
       "displayName": "Desegmentation",
       "description": "Joins all segments into a single content. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -3215,7 +3237,7 @@
       "kind": "tool",
       "displayName": "Diff Leverage",
       "description": "Compare two source documents (i.e., different versions) and copy the old target content when we find a match. Can be a monolingual and bi-lingual input or three monolingual inputs. Paragraphs (TextUnits) must align in all cases",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block",
         "data"
@@ -3674,6 +3696,7 @@
       "description": "Normalize text through a target character encoding and unescape escape sequences on input.",
       "category": "text-processing",
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "encoding-convert",
         "title": "Encoding Convert",
@@ -3967,7 +3990,7 @@
       "kind": "tool",
       "displayName": "Exact Document Context Match Character Count",
       "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4016,7 +4039,7 @@
       "kind": "tool",
       "displayName": "Exact Document Context Match Word Count",
       "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4065,7 +4088,7 @@
       "kind": "tool",
       "displayName": "Exact Local Context Match Character Count",
       "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4114,7 +4137,7 @@
       "kind": "tool",
       "displayName": "Exact Local Context Match Word Count",
       "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4163,7 +4186,7 @@
       "kind": "tool",
       "displayName": "Exact Match Character Count",
       "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4212,7 +4235,7 @@
       "kind": "tool",
       "displayName": "Exact Match Word Count",
       "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4261,7 +4284,7 @@
       "kind": "tool",
       "displayName": "Exact Previous Version Match Character Count",
       "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -4310,7 +4333,7 @@
       "kind": "tool",
       "displayName": "Exact Previous Version Match Word Count",
       "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -4359,7 +4382,7 @@
       "kind": "tool",
       "displayName": "Exact Repaired Match Character Count",
       "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4408,7 +4431,7 @@
       "kind": "tool",
       "displayName": "Exact Repaired Match Word Count",
       "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4457,7 +4480,7 @@
       "kind": "tool",
       "displayName": "Exact Structural Match Character Count",
       "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4506,7 +4529,7 @@
       "kind": "tool",
       "displayName": "Exact Structural Match Word Count",
       "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4555,7 +4578,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Match Character Count",
       "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4604,7 +4627,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Match Word Count",
       "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4653,7 +4676,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Previous Version Match Character Count",
       "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4702,7 +4725,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Previous Version Match Word Count",
       "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4751,7 +4774,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Unique Id Match Character Count",
       "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4800,7 +4823,7 @@
       "kind": "tool",
       "displayName": "Exact Text Only Unique Id Match Word Count",
       "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4849,7 +4872,7 @@
       "kind": "tool",
       "displayName": "Exact Unique Id Match Character Count",
       "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4896,7 +4919,7 @@
       "kind": "tool",
       "displayName": "Exact Unique Id Match Word Count",
       "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -4948,6 +4971,7 @@
         "configurable"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "external-command",
         "title": "External Command",
@@ -5183,7 +5207,7 @@
       "kind": "tool",
       "displayName": "Extraction Verification",
       "description": "Verifies a raw document can be extracted, merged, then extracted again and produces the same set of events during both extractions. Expects: raw document. Sends back: unmodified raw document.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -5747,6 +5771,7 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "fullwidth-convert",
         "title": "Full Width Convert",
@@ -6081,7 +6106,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Match Character Count",
       "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6133,7 +6158,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Match Character Count",
       "description": "An accumulation of the character count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -6184,7 +6209,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Match Word Count",
       "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6236,7 +6261,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Match Word Count",
       "description": "An accumulation of the word count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -6287,7 +6312,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Previous Version Match Character Count",
       "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6337,7 +6362,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Previous Version Match Word Count",
       "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6387,7 +6412,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Repaired Match Character Count",
       "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6439,7 +6464,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Repaired Match Word Count",
       "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6491,7 +6516,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Unique Id Match Character Count",
       "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6541,7 +6566,7 @@
       "kind": "tool",
       "displayName": "Fuzzy Unique Id Match Word Count",
       "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6591,7 +6616,7 @@
       "kind": "tool",
       "displayName": "General Quality Check",
       "description": "Compare source and target for general quality. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6703,7 +6728,7 @@
       "kind": "tool",
       "displayName": "GMX Alphanumeric Only Character Count",
       "description": "An accumulation of the character count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6752,7 +6777,7 @@
       "kind": "tool",
       "displayName": "GMX Alphanumeric Only Word Count",
       "description": "An accumulation of the word count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -6801,7 +6826,7 @@
       "kind": "tool",
       "displayName": "GMX Exact Matched Character Count",
       "description": "An accumulation of the character count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -6852,7 +6877,7 @@
       "kind": "tool",
       "displayName": "GMX Exact Matched Word Count",
       "description": "An accumulation of the word count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -6903,7 +6928,7 @@
       "kind": "tool",
       "displayName": "GMX Leveraged Character Count",
       "description": "An accumulation of the character count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -6954,7 +6979,7 @@
       "kind": "tool",
       "displayName": "GMX Leveraged Word Count",
       "description": "An accumulation of the word count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -7005,7 +7030,7 @@
       "kind": "tool",
       "displayName": "GMX Measurement Only Character Count",
       "description": "An accumulation of the character count from measurement-only text units. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7054,7 +7079,7 @@
       "kind": "tool",
       "displayName": "GMX Measurement Only Word Count",
       "description": "An accumulation of the word count from measurement-only text units. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7103,7 +7128,7 @@
       "kind": "tool",
       "displayName": "GMX Numeric Only Character Count",
       "description": "An accumulation of the character count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7152,7 +7177,7 @@
       "kind": "tool",
       "displayName": "GMX Numeric Only Word Count",
       "description": "An accumulation of the word count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7201,7 +7226,7 @@
       "kind": "tool",
       "displayName": "GMX Protected Character Count",
       "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -7252,7 +7277,7 @@
       "kind": "tool",
       "displayName": "GMX Protected Word Count",
       "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -7303,7 +7328,7 @@
       "kind": "tool",
       "displayName": "GMX Repetition Matched Character Count",
       "description": "An accumulation of the character count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7352,7 +7377,7 @@
       "kind": "tool",
       "displayName": "GMX Repetition Matched Word Count",
       "description": "An accumulation of the word count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -7413,6 +7438,9 @@
       "cardinality": "bilingual",
       "produces": [
         "target@target"
+      ],
+      "sideEffects": [
+        "api-call"
       ],
       "schema": {
         "$id": "google-translate",
@@ -8141,7 +8169,7 @@
       "kind": "tool",
       "displayName": "Inconsistency Check",
       "description": "Checks for source entries that are the same but have different translations or target entries that are the same but have different sources. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -8342,7 +8370,7 @@
       "kind": "tool",
       "displayName": "Inline Codes Quality Check",
       "description": "Compare source and target for inline code differences. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -8431,7 +8459,7 @@
       "kind": "tool",
       "displayName": "Inline Codes Removal",
       "description": "Removes inline codes from the text units content of a document. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -8602,6 +8630,7 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "inline-codes-remove",
         "title": "Inline Codes Remove",
@@ -8719,7 +8748,7 @@
       "kind": "tool",
       "displayName": "Inline Codes Simplifier",
       "description": "Merges adjacent inline codes in the source part of a text unit. Also where possible, moves leading and trailing codes of the source to the skeleton (Only for GenericSkeleton!). Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -9072,7 +9101,7 @@
       "kind": "tool",
       "displayName": "Length Quality Check",
       "description": "Compare source and target lengths and annotate those that seem mismatched. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -9200,7 +9229,7 @@
       "kind": "tool",
       "displayName": "Leveraging",
       "description": "Leverage existing translation into the text units content of a document. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -9526,6 +9555,7 @@
       "description": "Normalize line endings in block text to LF, CRLF, or CR.",
       "category": "text-processing",
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "linebreak-convert",
         "title": "Line Break Convert",
@@ -9715,7 +9745,7 @@
       "kind": "tool",
       "displayName": "Localizable Quality Check",
       "description": "Compare source and target number, date and time patterns to assure they are localized. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -9768,7 +9798,7 @@
       "kind": "tool",
       "displayName": "Microsoft Batch Translation",
       "description": "Annotates text units with Microsoft Translator matches or/and creates a TM from them. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -10154,6 +10184,9 @@
       "produces": [
         "target@target"
       ],
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "microsoft-translate",
         "title": "Microsoft Translator Translate",
@@ -10293,6 +10326,9 @@
       "produces": [
         "target@target"
       ],
+      "sideEffects": [
+        "api-call"
+      ],
       "schema": {
         "$id": "modernmt-translate",
         "title": "ModernMT Translate",
@@ -10417,7 +10453,7 @@
       "kind": "tool",
       "displayName": "MT Character Count",
       "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -10469,7 +10505,7 @@
       "kind": "tool",
       "displayName": "MT Word Count",
       "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -10533,6 +10569,9 @@
       "cardinality": "bilingual",
       "produces": [
         "target@target"
+      ],
+      "sideEffects": [
+        "api-call"
       ],
       "schema": {
         "$id": "mymemory-translate",
@@ -10757,7 +10796,7 @@
       "kind": "tool",
       "displayName": "Pattern (regex) Quality Check",
       "description": "Compare source and target for pattern differences. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -10925,7 +10964,7 @@
       "kind": "tool",
       "displayName": "Phrase Assembled Character Count",
       "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -10980,7 +11019,7 @@
       "kind": "tool",
       "displayName": "Phrase Assembled Word Count",
       "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -11119,7 +11158,7 @@
       "kind": "tool",
       "displayName": "Post-segmentation Inline Codes Simplifier",
       "description": "Merges adjacent inline codes in the source and target part of a text unit. Also where possible, moves leading and trailing codes of the source to inter-segment TextParts. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -11865,7 +11904,7 @@
       "kind": "tool",
       "displayName": "Quality Check",
       "description": "Compare source and target for quality. Expects: filter events or raw documents. Sends back: filter events or raw document.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -13325,7 +13364,7 @@
       "kind": "tool",
       "displayName": "Rainbow Translation Kit Creation",
       "description": "Generates a Rainbow translation kit for a batch of input documents. Expects: filter events. Sends back: filter events or raw document",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -13514,7 +13553,7 @@
       "kind": "tool",
       "displayName": "Rainbow Translation Kit Merging",
       "description": "Post-process a Rainbow translation kit. Expects: filter events. Sends back: filter events or raw documents.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -13812,6 +13851,14 @@
         "redaction"
       ],
       "cardinality": "monolingual",
+      "consumes": [
+        "entity@source?"
+      ],
+      "produces": [
+        "source@source",
+        "redaction.secret@source"
+      ],
+      "isSourceTransform": true,
       "schema": {
         "$id": "redact",
         "title": "Redact",
@@ -13826,7 +13873,21 @@
             "security",
             "redaction"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "consumes": [
+            {
+              "type": "entity",
+              "optional": true
+            }
+          ],
+          "produces": [
+            {
+              "type": "source"
+            },
+            {
+              "type": "redaction.secret"
+            }
+          ]
         },
         "properties": {
           "detectors": {
@@ -14019,7 +14080,7 @@
       "kind": "tool",
       "displayName": "Remove Target",
       "description": "Remove targets in all or a given set of text units. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -14235,7 +14296,7 @@
       "kind": "tool",
       "displayName": "Repetition Analysis",
       "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -14288,7 +14349,7 @@
       "kind": "tool",
       "displayName": "Resource Simplifier",
       "description": "Simplify resources. Simplification algorythm is format-specific. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -14334,7 +14395,7 @@
       "kind": "tool",
       "displayName": "RTF Conversion",
       "description": "Remove the RTF layer from a text-based file. Expects: raw document. Sends back: raw document.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -14518,7 +14579,7 @@
       "kind": "tool",
       "displayName": "Scoping Report",
       "description": "Create a template-based scoping report based on word count and leverage annotations. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -15033,7 +15094,7 @@
       "kind": "tool",
       "displayName": "Search and Replace",
       "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -15267,6 +15328,7 @@
         "configurable"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "search-replace",
         "title": "Search and Replace",
@@ -15462,6 +15524,10 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "segmentation@source",
+        "segmentation@target"
+      ],
       "aliases": [
         "segment"
       ],
@@ -15477,6 +15543,15 @@
             "text-processing"
           ],
           "cardinality": "monolingual",
+          "produces": [
+            {
+              "type": "segmentation"
+            },
+            {
+              "type": "segmentation",
+              "side": "target"
+            }
+          ],
           "writesOutput": true,
           "aliases": [
             "segment"
@@ -15643,7 +15718,7 @@
       "kind": "tool",
       "displayName": "Segmentation",
       "description": "Apply SRX segmentation to the text units content of a document. Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -15898,7 +15973,7 @@
       "kind": "tool",
       "displayName": "Segments to Text Units Converter",
       "description": "Convert each aligned segment pair (for all target locales) to its own complete text unit Expects: filter events. Sends back: filter events.",
-      "category": "transform",
+      "category": "text-processing",
       "inputs": [
         "block"
       ],
@@ -16298,7 +16373,7 @@
       "kind": "tool",
       "displayName": "Simple Batch Leveraging Step",
       "description": "Simple and fast batch leveraging step that delegates to connectors",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -16350,7 +16425,7 @@
       "kind": "tool",
       "displayName": "Simple Word Count",
       "description": "Annotates each text unit source with a total word count and gives total source word counts for batches Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -16411,7 +16486,7 @@
       "kind": "tool",
       "displayName": "Space Quality Check",
       "description": "Compare and fix spaces around inline codes in target based on the source. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -16469,6 +16544,7 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "span-classify",
         "title": "Span Classify",
@@ -16997,6 +17073,9 @@
       "produces": [
         "term@source"
       ],
+      "sideEffects": [
+        "termbase-read"
+      ],
       "schema": {
         "$id": "term-check",
         "title": "Terminology Check",
@@ -17070,7 +17149,7 @@
       "kind": "tool",
       "displayName": "Terminology Leveraging",
       "description": "Leverage terminology into the text units content of a document. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -17453,7 +17532,7 @@
       "kind": "tool",
       "displayName": "Text Unit Filtering",
       "description": "Set the non-translatable flag to the text units accepted by the text unit filter specified in step's parameters. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -17502,7 +17581,7 @@
       "kind": "tool",
       "displayName": "TM Import",
       "description": "Import text into a new or existing Pensieve TM. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -17622,6 +17701,9 @@
         "tm-match@source",
         "alt-translation@source",
         "target@target"
+      ],
+      "sideEffects": [
+        "tm-read"
       ],
       "schema": {
         "$id": "tm-leverage",
@@ -18243,7 +18325,7 @@
       "kind": "tool",
       "displayName": "Translation Comparison",
       "description": "Compare the translated text units between several documents. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -18724,7 +18806,7 @@
       "kind": "tool",
       "displayName": "TTX Splitter",
       "description": "Splits a TTX document into several ones of roughly equal word count. Expects: raw document. Sends back: raw document.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -18813,6 +18895,14 @@
         "redaction"
       ],
       "cardinality": "monolingual",
+      "consumes": [
+        "redaction.secret@source"
+      ],
+      "produces": [
+        "source@source",
+        "target@target"
+      ],
+      "isSourceTransform": true,
       "schema": {
         "$id": "unredact",
         "title": "Unredact",
@@ -18827,7 +18917,21 @@
             "security",
             "redaction"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "consumes": [
+            {
+              "type": "redaction.secret"
+            }
+          ],
+          "produces": [
+            {
+              "type": "source"
+            },
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ]
         }
       },
       "doc": {
@@ -18967,6 +19071,7 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "uri-convert",
         "title": "URI Convert",
@@ -19080,7 +19185,7 @@
       "kind": "tool",
       "displayName": "Used Characters Listing",
       "description": "Generate a list of all the characters in the source content of a set of documents. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -19393,7 +19498,7 @@
       "kind": "tool",
       "displayName": "Whitespace Correction",
       "description": "Correct whitespace following segment-ending punctuation when translating from  a space-delimited language (such as English) to a non-space-delimited language (Chinese or Japanese), or vice-versa. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
+      "category": "translation",
       "inputs": [
         "block"
       ],
@@ -19680,7 +19785,7 @@
       "kind": "tool",
       "displayName": "Word Count",
       "description": "Count the number of words in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -20133,7 +20238,7 @@
       "kind": "tool",
       "displayName": "XLIFF Word-Count Splitter",
       "description": "Split an XLIFF document into separate documents based on word count.Expects: raw document. Sends back: raw document.",
-      "category": "validate",
+      "category": "quality",
       "inputs": [
         "block"
       ],
@@ -20870,6 +20975,7 @@
         "configurable"
       ],
       "cardinality": "monolingual",
+      "isSourceTransform": true,
       "schema": {
         "$id": "xslt-transform",
         "title": "XSLT Transform",

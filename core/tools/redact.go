@@ -82,6 +82,14 @@ func RedactSchema() *schema.ComponentSchema {
 		Description: "Replace sensitive spans with protected placeholders before processing",
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
+		// Source-transform: rewrites the source. Optionally upgrades on an entity
+		// overlay; emits the rewritten source plus the in-process secret
+		// annotation that unredact restores from.
+		Consumes: []schema.IOPort{{Type: string(model.OverlayEntity), Side: model.SideSource, Optional: true}},
+		Produces: []schema.IOPort{
+			schema.Port(schema.PortSource, model.SideSource),
+			schema.Port(redaction.SecretAnnotationKey, model.SideSource),
+		},
 	})
 }
 

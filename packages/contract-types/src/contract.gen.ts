@@ -11,6 +11,33 @@
 export type Side = "source" | "target";
 
 /**
+ * The canonical tool category vocabulary (CLI command groups + flow-editor
+ * grouping). Source: core/schema Category* constants.
+ */
+export type ToolCategory = "translation" | "quality" | "analysis" | "text-processing" | "convert" | "pipeline";
+export const TOOL_CATEGORIES: readonly ToolCategory[] = ["translation", "quality", "analysis", "text-processing", "convert", "pipeline"];
+
+/**
+ * Run-anchored stand-off overlay kinds. Source: core/model Overlay* constants.
+ */
+export type OverlayType = "segmentation" | "term" | "entity" | "qa" | "alignment" | "term-candidate";
+export const OVERLAY_TYPES: readonly OverlayType[] = ["segmentation", "term", "entity", "qa", "alignment", "term-candidate"];
+
+/**
+ * Block-scoped annotation keys. Source: core/model Anno* constants.
+ */
+export type AnnotationType = "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "brand-voice" | "entity-mapping" | "term-enforcement";
+export const ANNOTATION_TYPES: readonly AnnotationType[] = ["note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "brand-voice", "entity-mapping", "term-enforcement"];
+
+/**
+ * Every IO-contract port-type string a tool may consume or produce: an
+ * overlay type, an annotation key, a pseudo-port (source/target), or the
+ * redaction secret. The flow editor keys per-type presentation off this.
+ */
+export type PortType = "segmentation" | "term" | "entity" | "qa" | "alignment" | "term-candidate" | "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "brand-voice" | "entity-mapping" | "term-enforcement" | "source" | "target" | "redaction.secret";
+export const PORT_TYPES: readonly PortType[] = ["segmentation", "term", "entity", "qa", "alignment", "term-candidate", "note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "brand-voice", "entity-mapping", "term-enforcement", "source", "target", "redaction.secret"];
+
+/**
  * One entry of a tool's IO contract: a typed stand-off output the tool
  * consumes (reads upstream) or produces (writes). `type` names an overlay
  * type, a block-annotation key, or a pseudo-port (`target`/`source`).
