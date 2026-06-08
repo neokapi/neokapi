@@ -23,6 +23,7 @@
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
+    "@neokapi/contract-types": "*",
     "@neokapi/kapi-format": "*",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.2.2",

@@ -23,7 +23,9 @@ on:
       - "termbase/**/*.go"
       - "core/i18n/builtins/metadata.json"
       - "scripts/gen-refs/**"
+      - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"
+      - "packages/contract-types/src/contract.gen.ts"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -33,7 +35,9 @@ on:
       - "termbase/**/*.go"
       - "core/i18n/builtins/metadata.json"
       - "scripts/gen-refs/**"
+      - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"
+      - "packages/contract-types/src/contract.gen.ts"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -55,3 +59,6 @@ jobs:
 
       - name: Check reference dataset for drift
         run: make check-reference-docs
+
+      - name: Check shared TS contract types for drift
+        run: make check-contract-types

@@ -1,3 +1,7 @@
+// IOPort is defined once in the shared @neokapi/contract-types package (#817).
+import type { IOPort } from "@neokapi/contract-types";
+export type { IOPort };
+
 /** BCP-47 locale info with display name */
 export interface LocaleInfo {
   code: string;
@@ -12,14 +16,6 @@ export interface FormatInfo {
 }
 
 /** Tool descriptor */
-/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
-export interface IOPort {
-  type: string;
-  side?: "source" | "target";
-  optional?: boolean;
-  layer?: string;
-}
-
 export interface ToolInfo {
   name: string;
   description: string;

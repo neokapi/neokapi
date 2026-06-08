@@ -1045,6 +1045,12 @@ check-reference-docs: ## Drift gate: fail if the committed reference dataset is 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
+generate-contract-types: ## Generate the shared TS IO-contract types (packages/contract-types) from Go (core/schema)
+	$(GO) run ./scripts/gen-contract-types
+
+check-contract-types: ## Drift gate: fail if the committed contract types are stale vs. core/schema
+	$(GO) run ./scripts/gen-contract-types -check
+
 generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/docs/reference/{commands,formats,tools}
 	cd web/docs && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
@@ -1250,6 +1256,7 @@ help: ## Show this help
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
+        generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         landing-build docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         tools setup-remote gha-lint clean \

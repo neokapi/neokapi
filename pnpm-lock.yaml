@@ -38,6 +38,9 @@ importers:
       '@lexical/react':
         specifier: ^0.44.0
         version: 0.44.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(yjs@13.6.31)
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../../../packages/contract-types
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../packages/flow-editor
@@ -144,6 +147,9 @@ importers:
       '@lexical/react':
         specifier: ^0.44.0
         version: 0.44.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(yjs@13.6.31)
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../../../../packages/contract-types
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../../packages/flow-editor
@@ -462,6 +468,9 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.9
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../../../packages/contract-types
       '@neokapi/kapi-format':
         specifier: '*'
         version: link:../../../packages/kapi-format
@@ -639,6 +648,12 @@ importers:
         specifier: ^0.1.24
         version: 0.1.24(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(terser@5.48.0)(tsx@4.22.3)(typescript@5.9.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3))
 
+  packages/contract-types:
+    devDependencies:
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/docs-shared:
     devDependencies:
       '@types/react':
@@ -656,6 +671,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.4.0(react-hook-form@7.76.1(react@19.2.6))
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../contract-types
       '@neokapi/ui-primitives':
         specifier: '*'
         version: link:../ui
@@ -887,6 +905,10 @@ importers:
         version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(jsdom@29.1.1(@noble/hashes@1.8.0))(msw@2.14.6(@types/node@25.9.1)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3))
 
   packages/reference-data:
+    dependencies:
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../contract-types
     devDependencies:
       typescript:
         specifier: ^6.0.3
@@ -936,6 +958,9 @@ importers:
       '@lexical/react':
         specifier: ^0.44.0
         version: 0.44.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(yjs@13.6.31)
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../contract-types
       '@neokapi/kapi-format':
         specifier: '*'
         version: link:../kapi-format

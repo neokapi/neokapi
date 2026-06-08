@@ -14,6 +14,13 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 import { ResourcePicker, type ResourceOption } from "../ResourcePicker";
 
+// These are intentionally minimal, self-contained schema types — NOT the shared
+// @neokapi/contract-types ones (issue #817). `ConditionExpr` here is a flat
+// optional interface that `evalCondition` below reads by direct field access;
+// the shared `ConditionExpr` is a discriminated union, which `evalCondition`
+// could not consume without narrowing. Keep these local until this panel is
+// reworked to evaluate the shared union form.
+
 /** Option item with typed value and label. */
 export interface OptionItem {
   value: unknown;
