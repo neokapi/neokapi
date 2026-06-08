@@ -13,6 +13,7 @@ import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
 import { PortChip } from "./PortChip";
+import { getSystemEffects } from "../sideEffects";
 
 /** Accent color for the source-transform stage. */
 const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
@@ -135,6 +136,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const cardinality = data.cardinality as string | undefined;
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
+  const systems = getSystemEffects(sideEffects, produces);
   const isValid = data.valid !== false;
   const toolName = (data.toolName as string) || "";
   const label = (data.label as string) || toolName || "";
@@ -287,14 +289,6 @@ export function ToolNode({ data, selected }: NodeProps) {
               {defaultLocale}
             </span>
           )}
-          {sideEffects && sideEffects.length > 0 && (
-            <span
-              className="ml-auto text-[8px] font-mono opacity-60"
-              title={`Side effects: ${sideEffects.join(", ")}`}
-            >
-              ⚡
-            </span>
-          )}
         </div>
 
         {/* Unmet-requirement warning (a required input nothing upstream produces) */}
@@ -306,6 +300,43 @@ export function ToolNode({ data, selected }: NodeProps) {
           >
             <AlertCircle size={9} />
             <span>needs {unmet.join(", ")}</span>
+          </div>
+        )}
+
+        {/* External-system satellites: TM / termbase / API / analytics / vault
+            the tool reads from or writes to, hanging off the right edge with a
+            dashed connector. Collision-safe across layouts (part of the node). */}
+        {systems.length > 0 && (
+          <div className="absolute right-0 top-1/2 z-[1] flex -translate-y-1/2 translate-x-[calc(100%+2px)] flex-col gap-1">
+            {systems.map((s) => {
+              const SysIcon = s.icon;
+              const arrow = s.direction === "read" ? "←" : s.direction === "write" ? "→" : "↔";
+              return (
+                <div
+                  key={s.key}
+                  className="flex items-center"
+                  title={`${s.label}: ${s.description}`}
+                >
+                  <span
+                    className="mr-0.5 inline-block w-3 border-t border-dashed"
+                    style={{ borderColor: s.color }}
+                    aria-hidden
+                  />
+                  <span className="mr-0.5 text-[8px] leading-none" style={{ color: s.color }}>
+                    {arrow}
+                  </span>
+                  <span
+                    className="flex items-center gap-0.5 rounded-md border bg-card px-1 py-0.5 shadow-sm"
+                    style={{ borderColor: s.color }}
+                  >
+                    <SysIcon size={10} style={{ color: s.color }} aria-hidden />
+                    <span className="text-[8px] font-medium" style={{ color: s.color }}>
+                      {s.label}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 
