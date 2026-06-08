@@ -2,15 +2,20 @@
 // Supports both sequential and parallel (fan-out/merge) topologies.
 // Layout direction is configurable: horizontal (left-to-right) or vertical (top-to-bottom).
 
-import { MarkerType, type Node, type Edge } from "@xyflow/react";
+import { MarkerType, Position, type Node, type Edge } from "@xyflow/react";
 import type { IOPort, FlowSpec, FlowStep, ToolInfo } from "./types";
 
-export type LayoutDirection = "horizontal" | "vertical";
+export type LayoutDirection = "horizontal" | "vertical" | "serpentine";
 
 const NODE_SIZE = 200; // primary axis node size estimate
 const NODE_GAP = 60;
 const CENTER = 200; // cross-axis center
 const BRANCH_GAP = 80;
+
+// Serpentine layout geometry.
+const SERP_COL_W = 220; // horizontal stride between columns
+const SERP_ROW_H = 150; // vertical stride between wrapped rows
+const SERP_BRANCH_DY = 96; // vertical offset between parallel branches in a column
 
 const EDGE_MARKER = {
   type: MarkerType.Arrow,
@@ -113,9 +118,7 @@ export function stepsToGraph(
 
     for (const prev of prevIds) {
       const prevNode = nodes.find((n) => n.id === prev);
-      edges.push(
-        makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
-      );
+      edges.push(makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)));
     }
 
     prevIds = [id];
@@ -165,11 +168,7 @@ export function stepsToGraph(
         for (const prev of prevIds) {
           const prevNode = nodes.find((n) => n.id === prev);
           edges.push(
-            makeEdge(
-              prev,
-              id,
-              portTypes(prevNode?.data.produces as IOPort[] | undefined),
-            ),
+            makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
           );
         }
 
@@ -192,9 +191,7 @@ export function stepsToGraph(
 
       for (const prev of prevIds) {
         const prevNode = nodes.find((n) => n.id === prev);
-        edges.push(
-          makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
-        );
+        edges.push(makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)));
       }
 
       prevIds = [id];
@@ -211,6 +208,93 @@ export function stepsToGraph(
   }
 
   return { nodes, edges };
+}
+
+/** Where an endpoint (Source/Sink) sits and which side its handle faces. */
+export interface EndpointGeom {
+  x: number;
+  y: number;
+  handlePosition: Position;
+}
+
+/**
+ * Serpentine (boustrophedon) auto-layout: fold the chain into rows that wrap to
+ * fit `cols` columns, alternating direction each row (row 0 left→right, row 1
+ * right→left, …). Per-node handle sides flip with the row so the inter-row
+ * U-turns route cleanly. Built by repositioning the horizontal graph, so node
+ * identity + edges are unchanged; only positions and the in/out handle sides
+ * (data.inPosition / data.outPosition) are rewritten. Returns the geometry for
+ * the Source/Sink endpoints so the editor can place them in the same flow.
+ */
+export function serpentineGraph(
+  spec: FlowSpec,
+  toolMap: Map<string, ToolInfo> | undefined,
+  cols: number,
+): { nodes: Node[]; edges: Edge[]; ends?: { source: EndpointGeom; sink: EndpointGeom } } {
+  const base = stepsToGraph(spec, toolMap, "horizontal");
+  const columns = Math.max(1, cols);
+  const toolNodes = base.nodes.filter((n) => n.type === "tool");
+  if (toolNodes.length === 0) return base;
+
+  // Order columns: source-transform steps first (by stIndex), then main steps
+  // (by stepIndex). Parallel branches share a column.
+  const stIndices = new Set<number>();
+  for (const n of toolNodes) {
+    if (n.data.stage === "source-transform") stIndices.add(n.data.stIndex as number);
+  }
+  const numST = stIndices.size;
+  const colOrderOf = (n: Node) =>
+    n.data.stage === "source-transform"
+      ? (n.data.stIndex as number)
+      : numST + (n.data.stepIndex as number);
+
+  const colMap = new Map<number, Node[]>();
+  for (const n of toolNodes) {
+    const key = colOrderOf(n);
+    const group = colMap.get(key);
+    if (group) group.push(n);
+    else colMap.set(key, [n]);
+  }
+  const colKeys = [...colMap.keys()].sort((a, b) => a - b);
+
+  const colCenterY = (group: Node[]) =>
+    group.reduce((sum, n) => sum + n.position.y, 0) / group.length;
+
+  colKeys.forEach((key, g) => {
+    const row = Math.floor(g / columns);
+    const posInRow = g % columns;
+    const evenRow = row % 2 === 0;
+    const visualCol = evenRow ? posInRow : columns - 1 - posInRow;
+    const x = visualCol * SERP_COL_W;
+    const y = row * SERP_ROW_H;
+    const inPosition = evenRow ? Position.Left : Position.Right;
+    const outPosition = evenRow ? Position.Right : Position.Left;
+    const group = colMap.get(key)!;
+    const span = (group.length - 1) * SERP_BRANCH_DY;
+    group.forEach((n, b) => {
+      n.position = { x, y: y + b * SERP_BRANCH_DY - span / 2 };
+      n.data.inPosition = inPosition;
+      n.data.outPosition = outPosition;
+    });
+  });
+
+  // Source sits left of the first column (which always faces in from the left);
+  // Sink sits past the last column on its outgoing side.
+  const firstGroup = colMap.get(colKeys[0])!;
+  const source: EndpointGeom = {
+    x: -SERP_COL_W,
+    y: colCenterY(firstGroup),
+    handlePosition: Position.Right,
+  };
+  const lastG = colKeys.length - 1;
+  const lastEven = Math.floor(lastG / columns) % 2 === 0;
+  const lastGroup = colMap.get(colKeys[lastG])!;
+  const lastX = lastGroup[0].position.x;
+  const sink: EndpointGeom = lastEven
+    ? { x: lastX + SERP_COL_W, y: colCenterY(lastGroup), handlePosition: Position.Left }
+    : { x: lastX - SERP_COL_W, y: colCenterY(lastGroup), handlePosition: Position.Right };
+
+  return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };
 }
 
 /**

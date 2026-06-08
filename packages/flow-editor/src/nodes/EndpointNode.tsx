@@ -15,13 +15,15 @@ export function EndpointNode({ data }: NodeProps) {
   const readOnly = data.readOnly as boolean | undefined;
   const onBindingChange = data.onBindingChange as ((b: FlowBinding) => void) | undefined;
   const isSource = role === "source";
-  const handlePosition = isSource
-    ? vertical
-      ? Position.Bottom
-      : Position.Right
-    : vertical
-      ? Position.Top
-      : Position.Left;
+  const handlePosition =
+    (data.handlePosition as Position) ??
+    (isSource
+      ? vertical
+        ? Position.Bottom
+        : Position.Right
+      : vertical
+        ? Position.Top
+        : Position.Left);
 
   return (
     <div className="nodrag relative">

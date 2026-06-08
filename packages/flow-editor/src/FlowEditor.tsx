@@ -22,6 +22,7 @@ import {
   Eye,
   ArrowDownUp,
   ArrowLeftRight,
+  Waypoints,
   Loader2,
   Layers,
 } from "lucide-react";
@@ -43,7 +44,13 @@ import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
 import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
-import { stepsToGraph, graphToSteps, type LayoutDirection } from "./conversion";
+import {
+  stepsToGraph,
+  serpentineGraph,
+  graphToSteps,
+  type LayoutDirection,
+  type EndpointGeom,
+} from "./conversion";
 import {
   resolveStepLocation,
   stepAtLocation,
@@ -501,7 +508,23 @@ export function FlowEditor({
     (flow.sourceTransforms?.length ?? 0) === 0;
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("vertical");
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("serpentine");
+
+  // Canvas width drives how many columns the serpentine layout wraps at.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(4);
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setColumns(Math.max(1, Math.floor((w - 220) / 220)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Build tool lookup map for enriching nodes with category/description
   const toolMap = useMemo(() => {
@@ -536,8 +559,11 @@ export function FlowEditor({
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on topology, not flow
   const initial = useMemo(
-    () => stepsToGraph(flow, toolMap, layoutDirection),
-    [topologyKey, toolMap, layoutDirection],
+    () =>
+      layoutDirection === "serpentine"
+        ? serpentineGraph(flow, toolMap, columns)
+        : stepsToGraph(flow, toolMap, layoutDirection),
+    [topologyKey, toolMap, layoutDirection, columns],
   );
 
   // Compute per-node trace stats for execution state overlay.
@@ -621,22 +647,35 @@ export function FlowEditor({
     const roots = toolNodes.filter((n) => !targets.has(n.id));
     const leaves = toolNodes.filter((n) => !sources.has(n.id));
 
+    // Serpentine layout supplies its own endpoint geometry (positions + the
+    // handle side that faces the flow); linear layouts derive it from the
+    // chain's extent.
+    const ends = (initial as { ends?: { source: EndpointGeom; sink: EndpointGeom } }).ends;
     const minPrimary = Math.min(...toolNodes.map(primary));
     const maxPrimary = Math.max(...toolNodes.map(primary));
     const crossCenter = roots.length ? cross(roots[0]) : 200;
 
-    const srcPos = isVertical
-      ? { x: crossCenter, y: minPrimary - 96 }
-      : { x: minPrimary - 220, y: crossCenter };
-    const sinkPos = isVertical
-      ? { x: crossCenter, y: maxPrimary + 132 }
-      : { x: maxPrimary + 240, y: crossCenter };
+    const srcPos = ends
+      ? { x: ends.source.x, y: ends.source.y }
+      : isVertical
+        ? { x: crossCenter, y: minPrimary - 96 }
+        : { x: minPrimary - 220, y: crossCenter };
+    const sinkPos = ends
+      ? { x: ends.sink.x, y: ends.sink.y }
+      : isVertical
+        ? { x: crossCenter, y: maxPrimary + 132 }
+        : { x: maxPrimary + 240, y: crossCenter };
 
     const endpointData = (role: "source" | "sink", binding?: string) => ({
       role,
       binding: parseBinding(binding),
       readOnly,
       layoutDirection,
+      handlePosition: ends
+        ? role === "source"
+          ? ends.source.handlePosition
+          : ends.sink.handlePosition
+        : undefined,
       onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
     });
 
@@ -991,7 +1030,7 @@ export function FlowEditor({
 
         {/* Graph canvas */}
         {!showTemplates && (
-          <div className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
+          <div ref={canvasRef} className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -1006,7 +1045,7 @@ export function FlowEditor({
               isValidConnection={isValidConnection}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              nodesDraggable={!readOnly}
+              nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
               nodesConnectable={!readOnly}
               fitView
               fitViewOptions={{ padding: 0.3 }}
@@ -1030,18 +1069,23 @@ export function FlowEditor({
                   variant="outline"
                   size="icon-xs"
                   onClick={() => {
-                    setLayoutDirection((d) => (d === "vertical" ? "horizontal" : "vertical"));
+                    // Cycle: serpentine → vertical → horizontal → serpentine.
+                    setLayoutDirection((d) =>
+                      d === "serpentine"
+                        ? "vertical"
+                        : d === "vertical"
+                          ? "horizontal"
+                          : "serpentine",
+                    );
                   }}
-                  title={
-                    layoutDirection === "vertical"
-                      ? "Switch to horizontal layout"
-                      : "Switch to vertical layout"
-                  }
+                  title={`Layout: ${layoutDirection} (click to switch)`}
                 >
-                  {layoutDirection === "vertical" ? (
-                    <ArrowLeftRight size={12} />
-                  ) : (
+                  {layoutDirection === "serpentine" ? (
+                    <Waypoints size={12} />
+                  ) : layoutDirection === "vertical" ? (
                     <ArrowDownUp size={12} />
+                  ) : (
+                    <ArrowLeftRight size={12} />
                   )}
                 </Button>
               </Panel>

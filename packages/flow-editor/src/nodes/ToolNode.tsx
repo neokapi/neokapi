@@ -141,6 +141,11 @@ export function ToolNode({ data, selected }: NodeProps) {
   // requirement analysis in Phase 2; absent until then).
   const unmet = data.unmet as string[] | undefined;
   const vertical = data.layoutDirection === "vertical";
+  // Explicit handle sides (serpentine flips them per row); fall back to the
+  // linear vertical/horizontal convention.
+  const inPosition = (data.inPosition as Position) ?? (vertical ? Position.Top : Position.Left);
+  const outPosition =
+    (data.outPosition as Position) ?? (vertical ? Position.Bottom : Position.Right);
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
   const isSourceTransformStage = data.stage === "source-transform";
@@ -177,7 +182,7 @@ export function ToolNode({ data, selected }: NodeProps) {
       <div className="flex-1 px-3 py-2 relative">
         <BoundaryPorts
           handleType="target"
-          position={vertical ? Position.Top : Position.Left}
+          position={inPosition}
           ports={consumes ?? []}
           verb="consumes"
           railColor={railColor}
@@ -298,7 +303,7 @@ export function ToolNode({ data, selected }: NodeProps) {
 
         <BoundaryPorts
           handleType="source"
-          position={vertical ? Position.Bottom : Position.Right}
+          position={outPosition}
           ports={produces ?? []}
           verb="produces"
           railColor={railColor}
