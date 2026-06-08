@@ -65,6 +65,17 @@ type BlockView interface {
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
+	// AddFacetSpan appends a positional facet span (term, entity, …) to the
+	// source-side facet of the given type, merging into the existing facet. The
+	// span's Range is the position and its ID the stable identity.
+	AddFacetSpan(t model.FacetType, s model.Span)
+	// FacetSpans returns the spans of the source-side positional facet of the
+	// given type (term, entity, term-candidate, …), or nil. Read-only.
+	FacetSpans(t model.FacetType) []model.Span
+	// RemoveFacet drops the source-side facet of the given type. A
+	// source-transform tool that consumes a positional facet and then rewrites
+	// the source uses this to drop the now-stale run-anchored spans.
+	RemoveFacet(t model.FacetType)
 	// Annotations returns a snapshot of the block-scoped facets (the former
 	// annotation map). Use Annotate to write; writing to the returned map has
 	// no effect.
@@ -192,10 +203,18 @@ func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Spa
 func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
 	v.b.SetSegmentationLayer(variant, layer, spans)
 }
-func (v *blockView) AddOverlay(o model.Overlay)  { v.b.Overlays = append(v.b.Overlays, o) }
-func (v *blockView) Annotations() map[string]any { return v.b.AnnoMap() }
-func (v *blockView) Annotate(key string, a any)  { v.b.SetAnno(key, a) }
-func (v *blockView) RemoveAnnotation(key string) { v.b.DelAnno(key) }
+func (v *blockView) AddOverlay(o model.Overlay)                   { v.b.Overlays = append(v.b.Overlays, o) }
+func (v *blockView) AddFacetSpan(t model.FacetType, s model.Span) { v.b.AddFacetSpan(t, s) }
+func (v *blockView) FacetSpans(t model.FacetType) []model.Span {
+	if f := v.b.FacetOf(t); f != nil {
+		return f.Spans
+	}
+	return nil
+}
+func (v *blockView) RemoveFacet(t model.FacetType) { v.b.RemoveFacet(t) }
+func (v *blockView) Annotations() map[string]any   { return v.b.AnnoMap() }
+func (v *blockView) Annotate(key string, a any)    { v.b.SetAnno(key, a) }
+func (v *blockView) RemoveAnnotation(key string)   { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)

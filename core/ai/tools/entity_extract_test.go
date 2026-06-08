@@ -118,18 +118,18 @@ func TestAIEntityExtractTool_LLMOnly(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Check entity annotation.
-	entityAnn, ok := resultBlock.Anno("entity:0")
-	require.True(t, ok, "should have entity:0 annotation")
-	entity := entityAnn.(*model.EntityAnnotation)
+	entitySpan := resultBlock.FacetSpan(model.FacetEntity, "entity:0")
+	require.NotNil(t, entitySpan, "should have entity:0 span")
+	entity := entitySpan.Value.(*model.EntityAnnotation)
 	assert.Equal(t, "John Smith", entity.Text)
 	assert.Equal(t, model.EntityPerson, entity.Type)
 	assert.True(t, entity.DNT)
 	assert.Equal(t, model.ExtractionSourceLLM, entity.Source)
 
 	// Check term candidate annotation.
-	termAnn, ok := resultBlock.Anno("term-candidate:0")
-	require.True(t, ok, "should have term-candidate:0 annotation")
-	tc := termAnn.(*model.TermCandidateAnnotation)
+	tcSpan := resultBlock.FacetSpan(model.FacetTermCandidate, "term-candidate:0")
+	require.NotNil(t, tcSpan, "should have term-candidate:0 span")
+	tc := tcSpan.Value.(*model.TermCandidateAnnotation)
 	assert.Equal(t, "Dashboard", tc.Text)
 	assert.Equal(t, "Main overview screen", tc.Definition)
 	assert.Equal(t, model.TermCategoryUI, tc.Category)
@@ -186,18 +186,24 @@ func TestAIEntityExtractTool_WithNER(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// entity:0 should be LLM's "John Smith" (preferred over NER for same position).
-	entityAnn0, _ := model.AnnoAs[*model.EntityAnnotation](resultBlock, "entity:0")
+	span0 := resultBlock.FacetSpan(model.FacetEntity, "entity:0")
+	require.NotNil(t, span0)
+	entityAnn0, _ := any(span0.Value).(*model.EntityAnnotation)
 	assert.Equal(t, "John Smith", entityAnn0.Text)
 	assert.Equal(t, model.ExtractionSourceLLM, entityAnn0.Source)
 
 	// entity:1 should be NER's "March 15" (not in LLM result, so NER fills in).
-	entityAnn1, _ := model.AnnoAs[*model.EntityAnnotation](resultBlock, "entity:1")
+	span1 := resultBlock.FacetSpan(model.FacetEntity, "entity:1")
+	require.NotNil(t, span1)
+	entityAnn1, _ := any(span1.Value).(*model.EntityAnnotation)
 	assert.Equal(t, "March 15", entityAnn1.Text)
 	assert.Equal(t, model.EntityDate, entityAnn1.Type)
 	assert.Equal(t, model.ExtractionSourceNER, entityAnn1.Source)
 
 	// Term candidate should be present.
-	termAnn, _ := model.AnnoAs[*model.TermCandidateAnnotation](resultBlock, "term-candidate:0")
+	tcSpan := resultBlock.FacetSpan(model.FacetTermCandidate, "term-candidate:0")
+	require.NotNil(t, tcSpan)
+	termAnn, _ := any(tcSpan.Value).(*model.TermCandidateAnnotation)
 	assert.Equal(t, "Sprint", termAnn.Text)
 }
 
@@ -239,9 +245,9 @@ func TestAIEntityExtractTool_SkipsKnownTerms(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Only "Workflow" should be a candidate (Dashboard is known).
-	_, hasDashboard := resultBlock.Anno("term-candidate:0")
-	require.True(t, hasDashboard)
-	tc, _ := model.AnnoAs[*model.TermCandidateAnnotation](resultBlock, "term-candidate:0")
+	tcSpan := resultBlock.FacetSpan(model.FacetTermCandidate, "term-candidate:0")
+	require.NotNil(t, tcSpan)
+	tc, _ := any(tcSpan.Value).(*model.TermCandidateAnnotation)
 	assert.Equal(t, "Workflow", tc.Text, "Dashboard should be filtered, leaving only Workflow")
 }
 
@@ -351,11 +357,9 @@ func TestAIEntityExtractTool_BatchMode(t *testing.T) {
 
 	// Block 1: entity.
 	b1 := parts[0].Resource.(*model.Block)
-	_, hasEntity := b1.Anno("entity:0")
-	assert.True(t, hasEntity)
+	assert.NotNil(t, b1.FacetSpan(model.FacetEntity, "entity:0"))
 
 	// Block 2: term candidate.
 	b2 := parts[1].Resource.(*model.Block)
-	_, hasTerm := b2.Anno("term-candidate:0")
-	assert.True(t, hasTerm)
+	assert.NotNil(t, b2.FacetSpan(model.FacetTermCandidate, "term-candidate:0"))
 }

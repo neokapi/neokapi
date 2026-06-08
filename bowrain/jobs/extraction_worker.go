@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"strings"
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -237,13 +236,17 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 			continue
 		}
 		block, ok := pt.Resource.(*model.Block)
-		if !ok || len(block.AnnoMap()) == 0 {
+		if !ok {
 			continue
 		}
 
-		for key, ann := range block.AnnoMap() {
-			switch a := ann.(type) {
-			case *model.TermCandidateAnnotation:
+		// Term candidates (positional facet spans).
+		if f := block.FacetOf(model.FacetTermCandidate); f != nil {
+			for _, span := range f.Spans {
+				a, ok := span.Value.(*model.TermCandidateAnnotation)
+				if !ok {
+					continue
+				}
 				// Skip rejected terms.
 				rejected, _ := deps.ReviewQueueCreator.IsTermRejected(ctx, job.ProjectID, a.Text, locale)
 				if rejected {
@@ -251,7 +254,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 				}
 
 				data, _ := json.Marshal(a)
-				ps, pe := a.Position.ByteSpan(block.Source)
+				ps, pe := span.Range.ByteSpan(block.Source)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
 					"start":    ps,
@@ -272,14 +275,19 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 					continue
 				}
 				created++
+			}
+		}
 
-			case *model.EntityAnnotation:
-				if !strings.HasPrefix(key, "entity:") {
+		// Entities (positional facet spans).
+		if f := block.FacetOf(model.FacetEntity); f != nil {
+			for _, span := range f.Spans {
+				a, ok := span.Value.(*model.EntityAnnotation)
+				if !ok {
 					continue
 				}
 
 				data, _ := json.Marshal(a)
-				ps, pe := a.Position.ByteSpan(block.Source)
+				ps, pe := span.Range.ByteSpan(block.Source)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
 					"start":    ps,

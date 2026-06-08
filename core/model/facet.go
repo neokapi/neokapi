@@ -97,11 +97,12 @@ func (t FacetType) IsPositional() bool {
 var (
 	positionalMu     sync.RWMutex
 	positionalFacets = map[FacetType]bool{
-		FacetSegmentation: true,
-		FacetTerm:         true,
-		FacetEntity:       true,
-		FacetQA:           true,
-		FacetAlignment:    true,
+		FacetSegmentation:  true,
+		FacetTerm:          true,
+		FacetEntity:        true,
+		FacetQA:            true,
+		FacetAlignment:     true,
+		FacetTermCandidate: true,
 	}
 )
 

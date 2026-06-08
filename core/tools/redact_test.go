@@ -116,15 +116,21 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 
 	block := model.NewBlock("b1", "Alice met Bob")
 	block.SourceLocale = "en"
-	block.SetAnno("entity:0", &model.EntityAnnotation{
-		Text:     "Alice",
-		Type:     model.EntityPerson,
-		Position: model.RunRangeForBytes(block.Source, 0, 5),
+	block.AddFacetSpan(model.FacetEntity, model.Span{
+		ID:    "entity:0",
+		Range: model.RunRangeForBytes(block.Source, 0, 5),
+		Value: &model.EntityAnnotation{
+			Text: "Alice",
+			Type: model.EntityPerson,
+		},
 	})
-	block.SetAnno("entity:1", &model.EntityAnnotation{
-		Text:     "Bob",
-		Type:     model.EntityPerson,
-		Position: model.RunRangeForBytes(block.Source, 10, 13),
+	block.AddFacetSpan(model.FacetEntity, model.Span{
+		ID:    "entity:1",
+		Range: model.RunRangeForBytes(block.Source, 10, 13),
+		Value: &model.EntityAnnotation{
+			Text: "Bob",
+			Type: model.EntityPerson,
+		},
 	})
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})

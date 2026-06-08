@@ -587,16 +587,18 @@ func TestTermLookupTool_Basic(t *testing.T) {
 
 	// Verify at least one term annotation exists.
 	var found bool
-	for key, ann := range result.AnnoMap() {
-		if strings.HasPrefix(key, "term:") {
-			ta, ok := ann.(*model.TermAnnotation)
-			require.True(t, ok, "annotation should be TermAnnotation")
-			assert.Equal(t, "c1", ta.ConceptID)
-			assert.Equal(t, model.MatchStrategyExact, ta.MatchType)
-			assert.NotEmpty(t, ta.TargetTerms)
-			assert.Equal(t, "Sauvegarder", ta.TargetTerms[0].Text)
-			found = true
-			break
+	if f := result.FacetOf(model.FacetTerm); f != nil {
+		for _, span := range f.Spans {
+			if strings.HasPrefix(span.ID, "term:") {
+				ta, ok := span.Value.(*model.TermAnnotation)
+				require.True(t, ok, "span value should be TermAnnotation")
+				assert.Equal(t, "c1", ta.ConceptID)
+				assert.Equal(t, model.MatchStrategyExact, ta.MatchType)
+				assert.NotEmpty(t, ta.TargetTerms)
+				assert.Equal(t, "Sauvegarder", ta.TargetTerms[0].Text)
+				found = true
+				break
+			}
 		}
 	}
 	assert.True(t, found, "should have at least one term annotation")
@@ -695,10 +697,12 @@ func TestTermEnforceTool_Violation(t *testing.T) {
 
 	// Should have violation annotation.
 	var hasViolation bool
-	for key := range result.AnnoMap() {
-		if strings.HasPrefix(key, "term-violation:") {
-			hasViolation = true
-			break
+	if f := result.FacetOf(model.FacetTerm); f != nil {
+		for _, span := range f.Spans {
+			if strings.HasPrefix(span.ID, "term-violation:") {
+				hasViolation = true
+				break
+			}
 		}
 	}
 	assert.True(t, hasViolation, "should have term-violation annotation")

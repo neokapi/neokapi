@@ -35,12 +35,11 @@ func entityTypeLabel(typeName string) string {
 // Implements the Annotation interface. Used by entity-annotate tool,
 // TM generalization (ADR-010), and terminology management (ADR-016).
 type EntityAnnotation struct {
-	Text     string           // the entity text as found in source
-	Type     EntityType       // classification
-	Position RunRange         // run-anchored span in the source runs
-	Locale   LocaleID         // locale-specific formatting hint
-	DNT      bool             // do-not-translate flag
-	Source   ExtractionSource // how this entity was discovered ("llm", "ner", "manual")
+	Text   string           // the entity text as found in source
+	Type   EntityType       // classification
+	Locale LocaleID         // locale-specific formatting hint
+	DNT    bool             // do-not-translate flag
+	Source ExtractionSource // how this entity was discovered ("llm", "ner", "manual")
 }
 
 // AnnotationType returns the type identifier for entity annotations.

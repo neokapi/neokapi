@@ -70,6 +70,81 @@ func (b *Block) DelAnno(key string) { b.Overlays = annoDel(b.Overlays, key) }
 // to the returned map do not affect the block; use SetAnno/DelAnno.
 func (b *Block) AnnoMap() map[string]any { return annoMap(b.Overlays) }
 
+// Positional facet span access. Run-anchored facets — term, entity,
+// term-candidate, … — store one span per occurrence: the span's Range is the
+// position and its ID the stable identity. These helpers manage those spans on
+// the single facet carrier, replacing the former Position-bearing block-scoped
+// annotations keyed "entity:N".
+
+// FacetOf returns a pointer to the source-side facet of type t (Variant nil),
+// or nil if the block has none.
+func (b *Block) FacetOf(t FacetType) *Facet {
+	for i := range b.Overlays {
+		if b.Overlays[i].Type == t && b.Overlays[i].Variant == nil {
+			return &b.Overlays[i]
+		}
+	}
+	return nil
+}
+
+// AddFacetSpan appends span s to the source-side facet of type t, creating the
+// facet if absent. Use for positional facets where s.Range is the position and
+// s.ID the identity.
+func (b *Block) AddFacetSpan(t FacetType, s Span) {
+	if f := b.FacetOf(t); f != nil {
+		f.Spans = append(f.Spans, s)
+		return
+	}
+	b.Overlays = append(b.Overlays, Facet{Type: t, Spans: []Span{s}})
+}
+
+// FacetSpan returns a pointer to the span with the given ID in the source-side
+// facet of type t, or nil. The pointer is into the block's storage, so callers
+// may mutate the span in place.
+func (b *Block) FacetSpan(t FacetType, id string) *Span {
+	f := b.FacetOf(t)
+	if f == nil {
+		return nil
+	}
+	for i := range f.Spans {
+		if f.Spans[i].ID == id {
+			return &f.Spans[i]
+		}
+	}
+	return nil
+}
+
+// RemoveFacet drops the source-side facet of type t entirely (all its spans).
+// Used when an operation invalidates a facet's run-anchored ranges — e.g. a
+// source-transform tool that consumes the entity facet and then rewrites the
+// source must drop it, since the spans no longer anchor to the new runs.
+func (b *Block) RemoveFacet(t FacetType) {
+	out := b.Overlays[:0]
+	for _, f := range b.Overlays {
+		if f.Type == t && f.Variant == nil {
+			continue
+		}
+		out = append(out, f)
+	}
+	b.Overlays = out
+}
+
+// RemoveFacetSpan removes the span with the given ID from the source-side facet
+// of type t, reporting whether it was found.
+func (b *Block) RemoveFacetSpan(t FacetType, id string) bool {
+	f := b.FacetOf(t)
+	if f == nil {
+		return false
+	}
+	for i := range f.Spans {
+		if f.Spans[i].ID == id {
+			f.Spans = append(f.Spans[:i], f.Spans[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 // AnnoAs returns the block-scoped facet payload under key asserted to type T,
 // reporting ok only when the facet exists and has that concrete type. It is the
 // generic replacement for `v, ok := b.Annotations[key].(T)`.

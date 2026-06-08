@@ -1142,23 +1142,29 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 	return false
 }
 
-// enrichBlockEntities extracts entity and term-candidate annotations from a block.
+// enrichBlockEntities extracts entity annotations from a block's entity facet
+// (positional spans: span.Range is the position, span.ID the identity).
 func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
-	for key, ann := range block.AnnoMap() {
-		switch a := ann.(type) {
-		case *model.EntityAnnotation:
-			start, end := a.Position.ByteSpan(block.Source)
-			bi.Entities = append(bi.Entities, EntityInfoResponse{
-				Key:    key,
-				Text:   a.Text,
-				Type:   string(a.Type),
-				Start:  start,
-				End:    end,
-				DNT:    a.DNT,
-				Source: string(a.Source),
-				Locale: string(a.Locale),
-			})
+	f := block.FacetOf(model.FacetEntity)
+	if f == nil {
+		return
+	}
+	for _, span := range f.Spans {
+		a, ok := span.Value.(*model.EntityAnnotation)
+		if !ok {
+			continue
 		}
+		start, end := span.Range.ByteSpan(block.Source)
+		bi.Entities = append(bi.Entities, EntityInfoResponse{
+			Key:    span.ID,
+			Text:   a.Text,
+			Type:   string(a.Type),
+			Start:  start,
+			End:    end,
+			DNT:    a.DNT,
+			Source: string(a.Source),
+			Locale: string(a.Locale),
+		})
 	}
 }
 

@@ -432,14 +432,17 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			key := entityKey{e.Offset, e.Length}
 			seen[key] = true
 			ann := &model.EntityAnnotation{
-				Text:     e.Text,
-				Type:     llmEntityType(e.Type),
-				Position: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
-				Locale:   t.locale,
-				DNT:      e.DNT,
-				Source:   model.ExtractionSourceLLM,
+				Text:   e.Text,
+				Type:   llmEntityType(e.Type),
+				Locale: t.locale,
+				DNT:    e.DNT,
+				Source: model.ExtractionSourceLLM,
 			}
-			v.Annotate(fmt.Sprintf("entity:%d", entityIdx), ann)
+			v.AddFacetSpan(model.FacetEntity, model.Span{
+				ID:    fmt.Sprintf("entity:%d", entityIdx),
+				Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+				Value: ann,
+			})
 			entityIdx++
 		}
 	}
@@ -451,14 +454,17 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			continue
 		}
 		ann := &model.EntityAnnotation{
-			Text:     e.Text,
-			Type:     e.Type,
-			Position: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
-			Locale:   t.locale,
-			DNT:      isDefaultDNT(e.Type),
-			Source:   model.ExtractionSourceNER,
+			Text:   e.Text,
+			Type:   e.Type,
+			Locale: t.locale,
+			DNT:    isDefaultDNT(e.Type),
+			Source: model.ExtractionSourceNER,
 		}
-		v.Annotate(fmt.Sprintf("entity:%d", entityIdx), ann)
+		v.AddFacetSpan(model.FacetEntity, model.Span{
+			ID:    fmt.Sprintf("entity:%d", entityIdx),
+			Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+			Value: ann,
+		})
 		entityIdx++
 	}
 
@@ -475,12 +481,15 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 				Category:        model.TermCategory(tc.Category),
 				Translatability: model.Translatability(tc.Translatability),
 				Confidence:      tc.Confidence,
-				Position:        model.RunRangeForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
 				Locale:          t.locale,
 				Source:          model.ExtractionSourceLLM,
 				Status:          model.CandidateStatusPending,
 			}
-			v.Annotate(fmt.Sprintf("term-candidate:%d", termIdx), ann)
+			v.AddFacetSpan(model.FacetTermCandidate, model.Span{
+				ID:    fmt.Sprintf("term-candidate:%d", termIdx),
+				Range: model.RunRangeForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
+				Value: ann,
+			})
 			termIdx++
 		}
 	}
