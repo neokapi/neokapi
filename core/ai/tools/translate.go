@@ -81,7 +81,7 @@ func AITranslateSchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
+		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

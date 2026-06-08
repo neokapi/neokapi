@@ -59,7 +59,7 @@ func (a *UnitSegmentsAnnotation) AnnotationType() string { return "xliff2:unit-s
 const unitSegmentsAnnotationKey = "xliff2:unit-segments"
 
 func init() {
-	model.RegisterAnnotation(unitSegmentsAnnotationKey, func() any {
+	model.RegisterPayload(unitSegmentsAnnotationKey, func() any {
 		return &UnitSegmentsAnnotation{
 			Source: map[string]*Content{},
 			Target: map[model.LocaleID]map[string]*Content{},

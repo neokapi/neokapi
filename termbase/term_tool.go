@@ -106,7 +106,7 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 			MatchType:   match.MatchType,
 		}
 
-		v.AddFacetSpan(model.FacetTerm, model.Span{
+		v.AddOverlaySpan(model.OverlayTerm, model.Span{
 			ID:    fmt.Sprintf("term:%d", i),
 			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Value: annotation,
@@ -246,7 +246,7 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 					Status: tt.Status,
 				})
 			}
-			v.AddFacetSpan(model.FacetTerm, model.Span{
+			v.AddOverlaySpan(model.OverlayTerm, model.Span{
 				ID:    fmt.Sprintf("term-violation:%d", violationCount),
 				Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 				Value: &model.TermAnnotation{
@@ -270,7 +270,7 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 				Status: tt.Status,
 			})
 		}
-		v.AddFacetSpan(model.FacetTerm, model.Span{
+		v.AddOverlaySpan(model.OverlayTerm, model.Span{
 			ID:    fmt.Sprintf("term:%d", i),
 			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Value: &model.TermAnnotation{

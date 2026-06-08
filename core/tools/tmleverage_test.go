@@ -75,7 +75,7 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Equal(t, 100, tm.Score)
 	assert.Equal(t, "exact", tm.Type)
@@ -116,7 +116,7 @@ func TestTMLeverageToolFuzzyMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour monde", resultBlock.TargetText(model.LocaleFrench))
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Equal(t, 85, tm.Score)
 	assert.Equal(t, "fuzzy", tm.Type)
@@ -139,7 +139,7 @@ func TestTMLeverageToolNoMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
-	_, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.FacetTMMatch))
+	_, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.AnnoTMMatch))
 	assert.False(t, ok)
 }
 
@@ -168,7 +168,7 @@ func TestTMLeverageToolExactOverFuzzy(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	// Exact match should win.
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](resultBlock, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Equal(t, 100, tm.Score)
 	assert.Equal(t, "exact", tm.Type)
@@ -325,7 +325,7 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	rb := result.Resource.(*model.Block)
 
 	assert.Equal(t, "Bonjour le monde. Au revoir.", rb.TargetText(model.LocaleFrench))
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Equal(t, 100, tm.Score)
 	assert.Equal(t, "segmented-exact", tm.Type)
@@ -379,7 +379,7 @@ func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 
 	assert.Equal(t, "Bonjour le monde. Au revoir.", rb.TargetText(model.LocaleFrench))
 	// Block score is the weakest leveraged segment.
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Equal(t, 80, tm.Score)
 	assert.Equal(t, "segmented-fuzzy", tm.Type)
@@ -405,7 +405,7 @@ func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 
 	// Partial leverage must not write a half-translated target.
 	assert.Empty(t, rb.TargetText(model.LocaleFrench))
-	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.FacetTMMatch))
+	tm, ok := model.AnnoAs[*tools.TMMatchFacet](rb, string(model.AnnoTMMatch))
 	require.True(t, ok)
 	assert.Empty(t, tm.Type)
 	assert.Equal(t, "1/2", tm.SegmentMatches)

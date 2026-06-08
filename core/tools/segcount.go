@@ -77,7 +77,7 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 			sf.Target = count
 		}
 
-		v.Annotate(string(model.FacetSegCount), sf)
+		v.Annotate(string(model.AnnoSegCount), sf)
 
 		return nil
 	}

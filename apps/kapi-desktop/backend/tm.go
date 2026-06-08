@@ -662,7 +662,7 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		Source:       runs,
 	}
 	for i, ea := range req.Entities {
-		block.AddFacetSpan(model.FacetEntity, model.Span{
+		block.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", i),
 			Range: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
 			Value: &model.EntityAnnotation{

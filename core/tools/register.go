@@ -24,12 +24,13 @@ func withTags(tags ...string) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Tags = tags }
 }
 
-// Facet IO-contract shorthands for tool registration.
-func srcF(t model.FacetType) schema.IOFacet { return schema.IOFacet{Type: t, Side: model.SideSource} }
-func tgtF(t model.FacetType) schema.IOFacet { return schema.IOFacet{Type: t, Side: model.SideTarget} }
-func optF(f schema.IOFacet) schema.IOFacet  { f.Optional = true; return f }
+// IO-contract shorthands for tool registration. Generic over ~string so overlay
+// types, annotation keys, and pseudo-port constants all pass without string().
+func srcF[T ~string](t T) schema.IOPort  { return schema.Port(t, model.SideSource) }
+func tgtF[T ~string](t T) schema.IOPort  { return schema.Port(t, model.SideTarget) }
+func optF(f schema.IOPort) schema.IOPort { f.Optional = true; return f }
 
-func withConsumes(fs ...schema.IOFacet) func(*schema.ToolMeta) {
+func withConsumes(fs ...schema.IOPort) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Consumes = fs }
 }
 
@@ -45,7 +46,7 @@ func withDefaultLocale(locale model.LocaleID) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.DefaultLocale = locale }
 }
 
-func withProduces(fs ...schema.IOFacet) func(*schema.ToolMeta) {
+func withProduces(fs ...schema.IOPort) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Produces = fs }
 }
 
@@ -87,29 +88,29 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		cfg.Reset()
 		return NewWordCountTool(cfg)
 	}, toolSchema(&WordCountConfig{CountSource: true, CountTarget: true}, toolMeta("word-count", "Word Count", schema.CategoryAnalysis,
-		withTags("analysis"), withAliases("wc"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetWordCount)))))
+		withTags("analysis"), withAliases("wc"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoWordCount)))))
 
 	reg.RegisterWithSchema("char-count", func() tool.Tool {
 		cfg := &CharCountConfig{}
 		cfg.Reset()
 		return NewCharCountTool(cfg)
 	}, toolSchema(&CharCountConfig{CountSource: true, CountTarget: true}, toolMeta("char-count", "Character Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetCharCount)))))
+		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoCharCount)))))
 
 	reg.RegisterWithSchema("segment-count", func() tool.Tool {
 		return NewSegCountTool(&SegCountConfig{})
 	}, toolSchema(&SegCountConfig{}, toolMeta("segment-count", "Segment Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetSegCount)))))
+		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoSegCount)))))
 
 	reg.RegisterWithSchema("qa-check", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa-check", "QA Check", schema.CategoryQuality,
-		withTags("quality"), withAliases("qa"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withAliases("qa"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("inconsistency-check", func() tool.Tool {
 		return NewInconsistencyCheckTool(NewInconsistencyCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewInconsistencyCheckConfig(model.LocaleEnglish), toolMeta("inconsistency-check", "Inconsistency Check", schema.CategoryQuality,
-		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("length-check", func() tool.Tool {
 		cfg := &LengthCheckConfig{TargetLocale: model.LocaleEnglish}
@@ -118,37 +119,37 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewLengthCheckTool(cfg)
 	}, toolSchema(&LengthCheckConfig{CheckMaxCharLength: true, MaxCharLengthBreak: 20, MaxCharLengthAbove: 200, MaxCharLengthBelow: 350, CheckMinCharLength: true, MinCharLengthBreak: 20, MinCharLengthAbove: 45, MinCharLengthBelow: 30},
 		toolMeta("length-check", "Length Check", schema.CategoryQuality,
-			withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+			withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("chars-check", func() tool.Tool {
 		return NewCharsCheckTool(NewCharsCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewCharsCheckConfig(model.LocaleEnglish), toolMeta("chars-check", "Characters Check", schema.CategoryQuality,
-		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("pattern-check", func() tool.Tool {
 		return NewPatternCheckTool(&PatternCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&PatternCheckConfig{}, toolMeta("pattern-check", "Pattern Check", schema.CategoryQuality,
-		withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
 		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewDNTCheckConfig(model.LocaleEnglish), toolMeta("dnt-check", "Do-Not-Translate Check", schema.CategoryQuality,
-		withTags("quality"), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("placeholder-check", func() tool.Tool {
 		return NewPlaceholderCheckTool(NewPlaceholderCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewPlaceholderCheckConfig(model.LocaleEnglish), toolMeta("placeholder-check", "Placeholder Check", schema.CategoryQuality,
-		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
-		withTags("quality"), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(srcF(model.FacetTerm)), withSideEffects(schema.SideEffectTermbaseRead))))
+		withTags("quality"), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermbaseRead))))
 
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
 		return NewXMLValidationTool(&XMLValidationConfig{CheckSource: true, WrapRoot: true})
 	}, toolSchema(&XMLValidationConfig{CheckSource: true, WrapRoot: true}, toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
-		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.FacetQA)))))
+		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("translation-comparison", func() tool.Tool {
 		cfg := &TranslationComparisonConfig{}
@@ -156,31 +157,31 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewTranslationComparisonTool(cfg)
 	}, toolSchema(&TranslationComparisonConfig{CaseSensitive: true, WhitespaceSensitive: true, PunctuationSensitive: true, Document1Label: "Trans1", Document2Label: "Trans2", GenericCodes: true},
 		toolMeta("translation-comparison", "Translation Comparison", schema.CategoryAnalysis,
-			withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(model.FacetTarget)), withProduces(tgtF(model.FacetComparison)))))
+			withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.AnnoComparison)))))
 
 	reg.RegisterWithSchema("chars-listing", func() tool.Tool {
 		return NewCharsListingTool(&CharsListingConfig{
 			IncludeSource: true, IncludeTarget: true, TargetLocale: model.LocaleEnglish,
 		}).Tool()
 	}, toolSchema(&CharsListingConfig{IncludeSource: true, IncludeTarget: true}, toolMeta("chars-listing", "Characters Listing", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetCharCount)))))
+		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoCharCount)))))
 
 	reg.RegisterWithSchema("scoping-report", func() tool.Tool {
 		return NewScopingReportTool(&ScopingReportConfig{})
 	}, toolSchema(&ScopingReportConfig{}, toolMeta("scoping-report", "Scoping Report", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetScopingReport)))))
+		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoScopingReport)))))
 
 	reg.RegisterWithSchema("repetition-analysis", func() tool.Tool {
 		return NewRepetitionAnalysisTool(&RepetitionAnalysisConfig{CaseSensitive: true})
 	}, toolSchema(&RepetitionAnalysisConfig{CaseSensitive: true}, toolMeta("repetition-analysis", "Repetition Analysis", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.FacetRepetition)))))
+		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoRepetition)))))
 
 	// ── Transform ───────────────────────────────────────────────────
 
 	reg.RegisterWithSchema("pseudo-translate", func() tool.Tool {
 		return NewPseudoTranslateTool(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592", TargetLocale: "qps"})
 	}, toolSchema(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592"}, toolMeta("pseudo-translate", "Pseudo Translate", schema.CategoryTranslation,
-		withTags("translation"), withAliases("pseudo"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(tgtF(model.FacetTarget)))))
+		withTags("translation"), withAliases("pseudo"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(tgtF(schema.PortTarget)))))
 
 	reg.RegisterWithSchema("search-replace", func() tool.Tool {
 		return NewSearchReplaceTool(&SearchReplaceConfig{})
@@ -253,12 +254,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("tm-leverage", func() tool.Tool {
 		return NewTMLeverageTool(&TMLeverageConfig{FuzzyThreshold: 70, Provider: NullTMProvider{}})
 	}, toolSchema(&TMLeverageConfig{FuzzyThreshold: 70}, toolMeta("tm-leverage", "TM Leverage", schema.CategoryTranslation,
-		withTags("translation"), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.FacetSegmentation))), withProduces(srcF(model.FacetTMMatch), srcF(model.FacetAltTranslation), tgtF(model.FacetTarget)), withSideEffects(schema.SideEffectTMRead))))
+		withTags("translation"), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoTMMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectTMRead))))
 
 	reg.RegisterWithSchema("diff-leverage", func() tool.Tool {
 		return NewDiffLeverageTool(&DiffLeverageConfig{CaseSensitive: true, PreviousTexts: map[string]PreviousBlock{}})
 	}, toolSchema(&DiffLeverageConfig{CaseSensitive: true}, toolMeta("diff-leverage", "Diff Leverage", schema.CategoryTranslation,
-		withTags("translation"), withWritesOutput(), withCardinality(schema.Bilingual), withProduces(srcF(model.FacetAltTranslation), tgtF(model.FacetTarget)))))
+		withTags("translation"), withWritesOutput(), withCardinality(schema.Bilingual), withProduces(srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)))))
 
 	// ── Convert ─────────────────────────────────────────────────────
 
@@ -322,8 +323,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
 		ID: "brand-vocab-check", DisplayName: "Brand Vocabulary Check", Category: schema.CategoryQuality,
 		Cardinality: schema.Bilingual,
-		Consumes:    []schema.IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
-		Produces:    []schema.IOFacet{{Type: model.FacetBrandVoice, Side: model.SideTarget}},
+		Consumes:    []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
+		Produces:    []schema.IOPort{{Type: model.AnnoBrandVoice, Side: model.SideTarget}},
 		Requires:    []string{"target-language"},
 	}})
 

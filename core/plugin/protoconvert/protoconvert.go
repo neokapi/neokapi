@@ -49,7 +49,7 @@ func AnnotationToProto(a any) *pb.AnnotationEntry {
 
 // ProtoToAnnotation converts a proto AnnotationEntry to a any.
 func ProtoToAnnotation(e *pb.AnnotationEntry) any {
-	a, ok := model.NewAnnotation(e.Type)
+	a, ok := model.NewPayload(e.Type)
 	if !ok {
 		return &model.GenericAnnotation{
 			Kind:   e.Type,
@@ -112,7 +112,7 @@ func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
 	var out []*pb.OverlayMessage
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
-		if o.Type == model.FacetSegmentation || !o.Type.IsPositional() {
+		if o.Type == model.OverlaySegmentation {
 			continue
 		}
 		out = append(out, OverlayToProto(*o))
@@ -136,7 +136,7 @@ func OverlayToProto(o model.Overlay) *pb.OverlayMessage {
 // ProtoToOverlay converts a proto OverlayMessage back to a model.Overlay.
 func ProtoToOverlay(msg *pb.OverlayMessage) model.Overlay {
 	o := model.Overlay{
-		Type:    model.FacetType(msg.Type),
+		Type:    model.OverlayType(msg.Type),
 		Layer:   msg.Layer,
 		Variant: protoToVariant(msg.Variant),
 	}

@@ -38,17 +38,31 @@ type ComponentSchema struct {
 	RawJSON json.RawMessage `json:"-"`
 }
 
-// IOFacet is one entry in a tool's facet IO contract: a typed stand-off facet
-// the tool consumes (reads upstream) or produces (writes). Optional consumed
-// facets enable graceful degradation — the tool runs without them and does more
-// with them; non-optional consumed facets are hard requirements the flow
-// validator enforces against upstream producers and the source binding.
-type IOFacet struct {
-	Type     model.FacetType `json:"type"`
-	Side     model.FacetSide `json:"side,omitempty"`
-	Optional bool            `json:"optional,omitempty"`
-	Layer    string          `json:"layer,omitempty"` // segmentation granularity; "" = primary
+// Port pseudo-type names for the IO contract: produced/consumed outputs that
+// are not stand-off layers but participate in data-flow validation. PortTarget
+// is the committed Target; PortSource is a rewritten source.
+const (
+	PortTarget = "target"
+	PortSource = "source"
+)
+
+// IOPort is one entry in a tool's IO contract: a typed stand-off output the
+// tool consumes (reads upstream) or produces (writes). Type names an overlay
+// type (OverlayTerm, OverlayQA, …), a block-annotation type (AnnoBrandVoice,
+// …), or a pseudo-port (PortTarget/PortSource). Optional consumed ports enable
+// graceful degradation — the tool runs without them and does more with them;
+// non-optional consumed ports are hard requirements the flow validator enforces
+// against upstream producers and the source binding.
+type IOPort struct {
+	Type     string     `json:"type"`
+	Side     model.Side `json:"side,omitempty"`
+	Optional bool       `json:"optional,omitempty"`
+	Layer    string     `json:"layer,omitempty"` // segmentation granularity; "" = primary
 }
+
+// Port builds an IOPort for any stand-off type name — an OverlayType, a block
+// annotation key, or a pseudo-port constant — without a string() at call sites.
+func Port[T ~string](t T, side model.Side) IOPort { return IOPort{Type: string(t), Side: side} }
 
 // ToolMeta identifies a tool and its capabilities. The IO contract is expressed
 // over facets (Consumes/Produces, AD-006); part-type Inputs/Outputs are retired
@@ -76,10 +90,10 @@ type ToolMeta struct {
 
 	// Consumes lists the facets this tool reads upstream. Non-Optional entries
 	// are requirements; Optional entries upgrade behaviour when present.
-	Consumes []IOFacet `json:"consumes,omitempty"`
+	Consumes []IOPort `json:"consumes,omitempty"`
 
 	// Produces lists the facets this tool writes to Blocks.
-	Produces []IOFacet `json:"produces,omitempty"`
+	Produces []IOPort `json:"produces,omitempty"`
 
 	// SideEffects lists external systems this tool reads from or writes to.
 	SideEffects []SideEffect `json:"sideEffects,omitempty"`

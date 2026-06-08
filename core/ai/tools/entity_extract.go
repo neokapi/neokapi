@@ -438,7 +438,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 				DNT:    e.DNT,
 				Source: model.ExtractionSourceLLM,
 			}
-			v.AddFacetSpan(model.FacetEntity, model.Span{
+			v.AddOverlaySpan(model.OverlayEntity, model.Span{
 				ID:    fmt.Sprintf("entity:%d", entityIdx),
 				Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 				Value: ann,
@@ -460,7 +460,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			DNT:    isDefaultDNT(e.Type),
 			Source: model.ExtractionSourceNER,
 		}
-		v.AddFacetSpan(model.FacetEntity, model.Span{
+		v.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", entityIdx),
 			Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 			Value: ann,
@@ -485,7 +485,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 				Source:          model.ExtractionSourceLLM,
 				Status:          model.CandidateStatusPending,
 			}
-			v.AddFacetSpan(model.FacetTermCandidate, model.Span{
+			v.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
 				ID:    fmt.Sprintf("term-candidate:%d", termIdx),
 				Range: model.RunRangeForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
 				Value: ann,

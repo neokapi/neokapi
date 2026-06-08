@@ -587,7 +587,7 @@ func TestTermLookupTool_Basic(t *testing.T) {
 
 	// Verify at least one term annotation exists.
 	var found bool
-	if f := result.FacetOf(model.FacetTerm); f != nil {
+	if f := result.OverlayOf(model.OverlayTerm); f != nil {
 		for _, span := range f.Spans {
 			if strings.HasPrefix(span.ID, "term:") {
 				ta, ok := span.Value.(*model.TermAnnotation)
@@ -697,7 +697,7 @@ func TestTermEnforceTool_Violation(t *testing.T) {
 
 	// Should have violation annotation.
 	var hasViolation bool
-	if f := result.FacetOf(model.FacetTerm); f != nil {
+	if f := result.OverlayOf(model.OverlayTerm); f != nil {
 		for _, span := range f.Spans {
 			if strings.HasPrefix(span.ID, "term-violation:") {
 				hasViolation = true

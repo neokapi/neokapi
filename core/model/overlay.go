@@ -10,21 +10,26 @@ import "unicode/utf8"
 // rewrite the runs they describe, so segmentation is opt-in, multi-layer, and
 // reversible (dropping the overlay restores the unsegmented content).
 
-// OverlayType is a deprecated alias for FacetType (see facet.go); overlays are
-// facets. The Overlay* constants below alias the canonical Facet* constants.
-type OverlayType = FacetType
+// OverlayType names a kind of positional, run-anchored stand-off
+// interpretation. Built-in content overlays have stable constants below;
+// formats and plugins may use any string for their own run-anchored state.
+// Block-scoped metadata is not an overlay — it rides on Block.Annotations as a
+// keyed typed payload (see annotation.go).
+type OverlayType string
 
 const (
 	// OverlaySegmentation marks sentence / chunk boundaries over the runs.
-	OverlaySegmentation = FacetSegmentation
+	OverlaySegmentation OverlayType = "segmentation"
 	// OverlayTerm marks matched terminology spans.
-	OverlayTerm = FacetTerm
+	OverlayTerm OverlayType = "term"
 	// OverlayEntity marks recognized named-entity spans.
-	OverlayEntity = FacetEntity
+	OverlayEntity OverlayType = "entity"
 	// OverlayQA marks quality-check findings.
-	OverlayQA = FacetQA
+	OverlayQA OverlayType = "qa"
 	// OverlayAlignment links source spans to target spans.
-	OverlayAlignment = FacetAlignment
+	OverlayAlignment OverlayType = "alignment"
+	// OverlayTermCandidate marks proposed terminology spans awaiting review.
+	OverlayTermCandidate OverlayType = "term-candidate"
 )
 
 // RunRange anchors a span on a []Run sequence: a start and end run position
@@ -60,24 +65,20 @@ type Span struct {
 	ID    string            `json:"id,omitempty"`
 	Range RunRange          `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
-	Value any               `json:"value,omitempty"` // typed payload (facet registry)
+	Value any               `json:"value,omitempty"` // typed payload (payload registry)
 }
 
 // Ignorable reports whether the span is marked as non-translatable structural
 // content (see [SpanPropIgnorable]).
 func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
-// Facet is a typed stand-off layer over one side of a Block: the source
-// (Variant nil) or a specific target variant. It is the single carrier for
-// stand-off block data — positional interpretations (segmentation, term,
-// entity, qa, alignment) carry ranged spans, while block-scoped facets (the
-// former annotations: notes, alt-translations, analysis results, format
-// round-trip state) carry a single span with a Value and a zero range.
-// Overlay is a deprecated alias kept while positional call sites migrate.
-type Facet = Overlay
-
-// Overlay is a typed stand-off layer over one side of a Block: the source
-// (Variant nil) or a specific target variant. Spans are ordered by position.
+// Overlay is a typed, positional (run-anchored) stand-off layer over one side
+// of a Block: the source (Variant nil) or a specific target variant. Its spans
+// carry real ranges into the runs — segmentation, terminology, entities, QA
+// findings, alignment. Block-scoped metadata that has no position (notes,
+// alt-translations, analysis results, format round-trip state) is not an
+// overlay; it rides on Block.Annotations (see annotation.go). Spans are ordered
+// by position.
 //
 // Layer names a segmentation granularity so several can coexist over the same
 // runs (AD-002): the empty string is the primary sentence segmentation — the
@@ -332,16 +333,13 @@ func (b *Block) SetSegmentationLayer(variant *VariantKey, layer string, spans []
 	}
 }
 
-// HasSourceOverlays reports whether the block carries any source-side
-// positional facet (segmentation, terms, entities, …). Source mutation after
-// such a facet is attached would invalidate its run-anchored ranges. Only
-// positional facets count: block-scoped facets (the former annotations — notes,
-// alt-translations, redaction secrets, format round-trip state) carry no
-// run-anchored range, so a source rewrite does not invalidate them.
+// HasSourceOverlays reports whether the block carries any source-side overlay
+// (segmentation, terms, entities, …). Overlays are positional by construction,
+// so source mutation after one is attached would invalidate its run-anchored
+// ranges. Block-scoped Annotations carry no range and never count here.
 func (b *Block) HasSourceOverlays() bool {
 	for i := range b.Overlays {
-		f := &b.Overlays[i]
-		if f.OnSource() && f.Type.IsPositional() {
+		if b.Overlays[i].OnSource() {
 			return true
 		}
 	}

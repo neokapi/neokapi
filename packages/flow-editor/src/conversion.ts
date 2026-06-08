@@ -3,7 +3,7 @@
 // Layout direction is configurable: horizontal (left-to-right) or vertical (top-to-bottom).
 
 import { MarkerType, type Node, type Edge } from "@xyflow/react";
-import type { FacetIO, FlowSpec, FlowStep, ToolInfo } from "./types";
+import type { IOPort, FlowSpec, FlowStep, ToolInfo } from "./types";
 
 export type LayoutDirection = "horizontal" | "vertical";
 
@@ -26,7 +26,7 @@ function partLabel(types?: string[]): string | undefined {
 }
 
 /** Facet type names of a produced/consumed contract, for edge labels. */
-function facetTypes(fs?: FacetIO[]): string[] | undefined {
+function facetTypes(fs?: IOPort[]): string[] | undefined {
   if (!fs || fs.length === 0) return undefined;
   return fs.map((f) => f.type);
 }
@@ -124,7 +124,7 @@ export function stepsToGraph(
     for (const prev of prevIds) {
       const prevNode = nodes.find((n) => n.id === prev);
       edges.push(
-        makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))),
+        makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as IOPort[] | undefined))),
       );
     }
 
@@ -178,7 +178,7 @@ export function stepsToGraph(
             makeEdge(
               prev,
               id,
-              partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined)),
+              partLabel(facetTypes(prevNode?.data.produces as IOPort[] | undefined)),
             ),
           );
         }
@@ -206,7 +206,7 @@ export function stepsToGraph(
           makeEdge(
             prev,
             id,
-            partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined)),
+            partLabel(facetTypes(prevNode?.data.produces as IOPort[] | undefined)),
           ),
         );
       }

@@ -32,7 +32,7 @@ func registerDemoMT(reg *registry.ToolRegistry) {
 		WritesOutput: true,
 		Requires:     []string{schema.RequiresTargetLanguage},
 		Cardinality:  schema.Bilingual,
-		Produces:     []schema.IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
+		Produces:     []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 	})
 
 	reg.RegisterWithSchema("mt-translate", func() tool.Tool {

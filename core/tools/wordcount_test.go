@@ -24,7 +24,7 @@ func TestWordCountTool(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.AnnoWordCount))
 	require.True(t, ok)
 	assert.Equal(t, 3, wc.Source)
 	assert.Equal(t, 4, wc.Targets[model.LocaleFrench])
@@ -40,7 +40,7 @@ func TestWordCountToolSourceOnly(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.AnnoWordCount))
 	require.True(t, ok)
 	assert.Equal(t, 4, wc.Source)
 	// No target set → no target counts.
@@ -57,7 +57,7 @@ func TestWordCountToolEmptyText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.AnnoWordCount))
 	require.True(t, ok)
 	assert.Equal(t, 0, wc.Source)
 }
@@ -73,7 +73,7 @@ func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	_, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.AnnoWordCount))
 	assert.False(t, ok)
 }
 
@@ -89,7 +89,7 @@ func TestWordCountToolAllLocales(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.AnnoWordCount))
 	require.True(t, ok)
 	// Source always counted.
 	assert.Equal(t, 2, wc.Source)
@@ -110,10 +110,10 @@ func TestWordCountCollector(t *testing.T) {
 	}
 
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
-	block1.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 3, Targets: map[model.LocaleID]int{model.LocaleFrench: 4}})
+	block1.SetAnno(string(model.AnnoWordCount), &tools.WordCountFacet{Source: 3, Targets: map[model.LocaleID]int{model.LocaleFrench: 4}})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
-	block2.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 1})
+	block2.SetAnno(string(model.AnnoWordCount), &tools.WordCountFacet{Source: 1})
 
 	parts := []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
@@ -150,7 +150,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 			TargetLocale: model.LocaleFrench,
 		}
 		block := model.NewBlock("tu1", "text")
-		block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3}})
+		block.SetAnno(string(model.AnnoWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3}})
 
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
@@ -205,7 +205,7 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 
 	block := model.NewBlock("tu1", "Hello world")
 	block.Translatable = false
-	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
+	block.SetAnno(string(model.AnnoWordCount), &tools.WordCountFacet{Source: 2})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},
@@ -230,7 +230,7 @@ func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
 	}
 
 	block := model.NewBlock("tu1", "Hello world")
-	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3, model.LocaleGerman: 2}})
+	block.SetAnno(string(model.AnnoWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3, model.LocaleGerman: 2}})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},

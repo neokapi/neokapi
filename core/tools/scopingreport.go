@@ -83,7 +83,7 @@ func NewScopingReportTool(cfg *ScopingReportConfig) *tool.BaseTool {
 // based on properties set by upstream analysis tools.
 func classifyScopingCategory(v tool.BlockView) string {
 	// Check repetition status first.
-	if rep, ok := v.Annotations()[string(model.FacetRepetition)].(*RepetitionFacet); ok && rep.Status == "repetition" {
+	if rep, ok := v.Annotations()[string(model.AnnoRepetition)].(*RepetitionFacet); ok && rep.Status == "repetition" {
 		return ScopingRepetition
 	}
 

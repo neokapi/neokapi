@@ -40,7 +40,7 @@ func AITerminologySchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
-		Produces:              []schema.IOFacet{{Type: model.FacetTerm, Side: model.SideSource}},
+		Produces:              []schema.IOPort{schema.Port(model.OverlayTerm, model.SideSource)},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

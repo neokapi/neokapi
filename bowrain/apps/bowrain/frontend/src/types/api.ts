@@ -13,7 +13,7 @@ export interface FormatInfo {
 
 /** Tool descriptor */
 /** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
-export interface FacetIO {
+export interface IOPort {
   type: string;
   side?: "source" | "target";
   optional?: boolean;
@@ -26,9 +26,9 @@ export interface ToolInfo {
   category: "transform" | "validate" | "enrich" | "convert" | "pipeline" | "utility";
   hasSchema?: boolean;
   /** Facets the tool reads upstream (non-optional = a requirement). */
-  consumes?: FacetIO[];
+  consumes?: IOPort[];
   /** Facets the tool writes. */
-  produces?: FacetIO[];
+  produces?: IOPort[];
   /** True when the tool may be placed in the source-transform stage of a flow. */
   is_source_transform?: boolean;
 }

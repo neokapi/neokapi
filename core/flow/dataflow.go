@@ -10,18 +10,19 @@ import (
 )
 
 // Data-flow validation (tool/data-model redesign, phase 4). A flow's tools
-// declare the facets they consume and produce (schema.IOFacet). A flow is valid
+// declare the facets they consume and produce (schema.IOPort). A flow is valid
 // only when every tool's *required* (non-optional) consumed facet is satisfied
 // by something upstream: an earlier tool's Produces, the ingest settle stage
 // (segmentation persisted at extract, AD-026 §4), or the source binding. A
 // required facet with no producer is a hard error at load/build.
 
-// facetKey identifies a facet by type and side for availability matching.
-func facetKey(t model.FacetType, side model.FacetSide) string {
+// facetKey identifies a stand-off type (overlay, annotation, or pseudo-port) by
+// type name and side for availability matching.
+func facetKey[T ~string](t T, side model.Side) string {
 	return string(t) + "@" + side.String()
 }
 
-func ioKey(f schema.IOFacet) string { return facetKey(f.Type, f.Side) }
+func ioKey(f schema.IOPort) string { return facetKey(f.Type, f.Side) }
 
 // sourceDerivableFacets are the facets a generic source can already carry —
 // committed targets (bilingual interchange), source-side segmentation/alignment
@@ -32,12 +33,12 @@ func ioKey(f schema.IOFacet) string { return facetKey(f.Type, f.Side) }
 // must be produced by an upstream tool.
 func sourceDerivableFacets() map[string]bool {
 	return map[string]bool{
-		facetKey(model.FacetTarget, model.SideTarget):         true,
-		facetKey(model.FacetSegmentation, model.SideSource):   true,
-		facetKey(model.FacetAlignment, model.SideSource):      true,
-		facetKey(model.FacetTerm, model.SideSource):           true,
-		facetKey(model.FacetEntity, model.SideSource):         true,
-		facetKey(model.FacetAltTranslation, model.SideSource): true,
+		facetKey(schema.PortTarget, model.SideTarget):         true,
+		facetKey(model.OverlaySegmentation, model.SideSource): true,
+		facetKey(model.OverlayAlignment, model.SideSource):    true,
+		facetKey(model.OverlayTerm, model.SideSource):         true,
+		facetKey(model.OverlayEntity, model.SideSource):       true,
+		facetKey(model.AnnoAltTranslation, model.SideSource):  true,
 	}
 }
 
@@ -63,7 +64,7 @@ func bindingProvidedFacets(source string) map[string]bool {
 		// The content store / archive carries the source plus every persisted
 		// facet, including tool-computed ones.
 		m := sourceDerivableFacets()
-		for _, t := range []model.FacetType{model.FacetQA, model.FacetTMMatch, model.FacetWordCount} {
+		for _, t := range []string{string(model.OverlayQA), model.AnnoTMMatch, model.AnnoWordCount} {
 			m[facetKey(t, model.SideTarget)] = true
 			m[facetKey(t, model.SideSource)] = true
 		}
@@ -72,9 +73,9 @@ func bindingProvidedFacets(source string) map[string]bool {
 		// Bilingual interchange (xliff, po, tmx, tbx, …): source + committed
 		// target + segmentation + alignment.
 		return map[string]bool{
-			facetKey(model.FacetTarget, model.SideTarget):       true,
-			facetKey(model.FacetSegmentation, model.SideSource): true,
-			facetKey(model.FacetAlignment, model.SideSource):    true,
+			facetKey(schema.PortTarget, model.SideTarget):         true,
+			facetKey(model.OverlaySegmentation, model.SideSource): true,
+			facetKey(model.OverlayAlignment, model.SideSource):    true,
 		}
 	}
 }
@@ -96,7 +97,7 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 	available := map[string]bool{}
 	// Ingest settle stage (AD-026 §4): segmentation/normalization persisted at
 	// extract is available to every tool.
-	available[facetKey(model.FacetSegmentation, model.SideSource)] = true
+	available[facetKey(model.OverlaySegmentation, model.SideSource)] = true
 	// Source binding contributes its provided facets.
 	source := ""
 	if d.Binding != nil {

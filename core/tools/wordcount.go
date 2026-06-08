@@ -94,7 +94,7 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 				wc.Targets[locale] = countWords(v.TargetText(locale))
 			}
 		}
-		v.Annotate(string(model.FacetWordCount), wc)
+		v.Annotate(string(model.AnnoWordCount), wc)
 
 		return nil
 	}

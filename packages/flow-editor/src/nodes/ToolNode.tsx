@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
-import type { FacetIO } from "../types";
+import type { IOPort } from "../types";
 
 /** Accent color for the source-transform stage. */
 const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
@@ -64,8 +64,8 @@ export function ToolNode({ data, selected }: NodeProps) {
   const isParallel = !!data.parallel;
   const execState = data.execState as string | undefined;
   const partCount = data.partCount as number | undefined;
-  const consumes = data.consumes as FacetIO[] | undefined;
-  const produces = data.produces as FacetIO[] | undefined;
+  const consumes = data.consumes as IOPort[] | undefined;
+  const produces = data.produces as IOPort[] | undefined;
   const cardinality = data.cardinality as string | undefined;
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;

@@ -32,21 +32,21 @@ func TestTermCandidateAnnotation_ManualSource(t *testing.T) {
 }
 
 func TestTermCandidateAnnotation_RegisteredInRegistry(t *testing.T) {
-	ann, ok := model.NewAnnotation("term-candidate")
+	ann, ok := model.NewPayload("term-candidate")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
 	assert.Equal(t, "term-candidate", ann.(interface{ AnnotationType() string }).AnnotationType())
 }
 
 func TestEntityAnnotation_RegisteredInRegistry(t *testing.T) {
-	ann, ok := model.NewAnnotation("entity")
+	ann, ok := model.NewPayload("entity")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
 	assert.Equal(t, "entity", ann.(interface{ AnnotationType() string }).AnnotationType())
 }
 
 func TestTermAnnotation_RegisteredInRegistry(t *testing.T) {
-	ann, ok := model.NewAnnotation("term")
+	ann, ok := model.NewPayload("term")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
 	assert.Equal(t, "term", ann.(interface{ AnnotationType() string }).AnnotationType())

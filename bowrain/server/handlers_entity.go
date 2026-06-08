@@ -55,9 +55,9 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	}
 
 	// Find next entity index and add a positional entity facet span.
-	idx := nextFacetSpanIndex(block, model.FacetEntity, "entity:")
+	idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
 	key := fmt.Sprintf("entity:%d", idx)
-	block.AddFacetSpan(model.FacetEntity, model.Span{
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    key,
 		Range: model.RunRangeForBytes(block.Source, req.Start, req.End),
 		Value: &model.EntityAnnotation{
@@ -111,7 +111,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	span := block.FacetSpan(model.FacetEntity, entityKey)
+	span := block.OverlaySpan(model.OverlayEntity, entityKey)
 	if span == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
@@ -157,7 +157,7 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	if !block.RemoveFacetSpan(model.FacetEntity, entityKey) {
+	if !block.RemoveOverlaySpan(model.OverlayEntity, entityKey) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
@@ -188,7 +188,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	span := block.FacetSpan(model.FacetEntity, entityKey)
+	span := block.OverlaySpan(model.OverlayEntity, entityKey)
 	if span == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
@@ -213,9 +213,9 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	}
 
 	// Add the term-candidate facet span at the entity's position.
-	tcIdx := nextFacetSpanIndex(block, model.FacetTermCandidate, "term-candidate:")
+	tcIdx := nextOverlaySpanIndex(block, model.OverlayTermCandidate, "term-candidate:")
 	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
-	block.AddFacetSpan(model.FacetTermCandidate, model.Span{
+	block.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
 		ID:    tcKey,
 		Range: span.Range,
 		Value: candidate,
@@ -246,11 +246,11 @@ func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, b
 	return nil, fmt.Errorf("block %s not found", blockID)
 }
 
-// nextFacetSpanIndex finds the next available index for span IDs with the given
+// nextOverlaySpanIndex finds the next available index for span IDs with the given
 // prefix in the source-side facet of type t (e.g. "entity:" → next "entity:N").
-func nextFacetSpanIndex(block *model.Block, t model.FacetType, prefix string) int {
+func nextOverlaySpanIndex(block *model.Block, t model.OverlayType, prefix string) int {
 	max := -1
-	if f := block.FacetOf(t); f != nil {
+	if f := block.OverlayOf(t); f != nil {
 		for _, s := range f.Spans {
 			if strings.HasPrefix(s.ID, prefix) {
 				if idx, err := strconv.Atoi(s.ID[len(prefix):]); err == nil && idx > max {

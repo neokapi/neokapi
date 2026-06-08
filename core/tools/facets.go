@@ -13,11 +13,11 @@ import "github.com/neokapi/neokapi/core/model"
 // model.AnnoAs[*XFacet](block, string(FacetX)).
 
 func init() {
-	model.RegisterFacetValue(string(model.FacetWordCount), func() any { return &WordCountFacet{} })
-	model.RegisterFacetValue(string(model.FacetCharCount), func() any { return &CharCountFacet{} })
-	model.RegisterFacetValue(string(model.FacetSegCount), func() any { return &SegCountFacet{} })
-	model.RegisterFacetValue(string(model.FacetTMMatch), func() any { return &TMMatchFacet{} })
-	model.RegisterFacetValue(string(model.FacetRepetition), func() any { return &RepetitionFacet{} })
+	model.RegisterPayload(string(model.AnnoWordCount), func() any { return &WordCountFacet{} })
+	model.RegisterPayload(string(model.AnnoCharCount), func() any { return &CharCountFacet{} })
+	model.RegisterPayload(string(model.AnnoSegCount), func() any { return &SegCountFacet{} })
+	model.RegisterPayload(string(model.AnnoTMMatch), func() any { return &TMMatchFacet{} })
+	model.RegisterPayload(string(model.AnnoRepetition), func() any { return &RepetitionFacet{} })
 }
 
 // WordCountFacet carries source and per-locale target word counts (word-count tool).
@@ -27,7 +27,7 @@ type WordCountFacet struct {
 }
 
 // AnnotationType reports the facet type for registry/wire discrimination.
-func (*WordCountFacet) AnnotationType() string { return string(model.FacetWordCount) }
+func (*WordCountFacet) AnnotationType() string { return string(model.AnnoWordCount) }
 
 // CharCountFacet carries source and per-locale target character counts, with
 // and without whitespace (char-count tool).
@@ -39,7 +39,7 @@ type CharCountFacet struct {
 }
 
 // AnnotationType reports the facet type.
-func (*CharCountFacet) AnnotationType() string { return string(model.FacetCharCount) }
+func (*CharCountFacet) AnnotationType() string { return string(model.AnnoCharCount) }
 
 // SegCountFacet carries source and target segment counts (segment-count tool).
 type SegCountFacet struct {
@@ -48,7 +48,7 @@ type SegCountFacet struct {
 }
 
 // AnnotationType reports the facet type.
-func (*SegCountFacet) AnnotationType() string { return string(model.FacetSegCount) }
+func (*SegCountFacet) AnnotationType() string { return string(model.AnnoSegCount) }
 
 // TMMatchFacet carries the best TM match score/type for a block, plus the
 // segment-level "matched/total" summary when leveraged per segment (tm-leverage).
@@ -59,7 +59,7 @@ type TMMatchFacet struct {
 }
 
 // AnnotationType reports the facet type.
-func (*TMMatchFacet) AnnotationType() string { return string(model.FacetTMMatch) }
+func (*TMMatchFacet) AnnotationType() string { return string(model.AnnoTMMatch) }
 
 // RepetitionFacet carries a block's repetition classification (repetition-analysis).
 type RepetitionFacet struct {
@@ -70,4 +70,4 @@ type RepetitionFacet struct {
 }
 
 // AnnotationType reports the facet type.
-func (*RepetitionFacet) AnnotationType() string { return string(model.FacetRepetition) }
+func (*RepetitionFacet) AnnotationType() string { return string(model.AnnoRepetition) }

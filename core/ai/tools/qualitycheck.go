@@ -44,7 +44,7 @@ func AIQASchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.IOFacet{{Type: model.FacetQA, Side: model.SideTarget}},
+		Produces:              []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

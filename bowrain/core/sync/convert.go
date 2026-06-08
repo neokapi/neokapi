@@ -465,7 +465,7 @@ func unmarshalAnnotations(data []byte) (map[string]any, error) {
 	}
 	out := make(map[string]any, len(env))
 	for k, e := range env {
-		a, ok := model.NewAnnotation(e.Type)
+		a, ok := model.NewPayload(e.Type)
 		if !ok {
 			a = &model.GenericAnnotation{Kind: e.Type}
 		}

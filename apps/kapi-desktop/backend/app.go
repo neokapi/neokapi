@@ -597,21 +597,21 @@ type ToolInfo struct {
 	Requires    []string `json:"requires,omitempty"`
 
 	// IO contract fields (Framework AD-006): facet Consumes/Produces.
-	Cardinality   string    `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
-	DefaultLocale string    `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
-	Consumes      []FacetIO `json:"consumes,omitempty"`       // facets read upstream
-	Produces      []FacetIO `json:"produces,omitempty"`       // facets written
-	SideEffects   []string  `json:"side_effects,omitempty"`   // external interactions
+	Cardinality   string   `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
+	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
+	Consumes      []IOPort `json:"consumes,omitempty"`       // facets read upstream
+	Produces      []IOPort `json:"produces,omitempty"`       // facets written
+	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 
 	// IsSourceTransform reports whether the tool can rewrite source — i.e.
 	// whether the flow editor may place it in the source-transform stage.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 }
 
-// FacetIO is one entry of a tool's facet IO contract surfaced to the flow
+// IOPort is one entry of a tool's IO contract surfaced to the flow
 // editor: the facet type, the side it pertains to, and whether a consumed
 // facet is optional (graceful degradation) vs required.
-type FacetIO struct {
+type IOPort struct {
 	Type     string `json:"type"`
 	Side     string `json:"side,omitempty"`
 	Optional bool   `json:"optional,omitempty"`
@@ -678,18 +678,18 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 	t := a.T()
 	infos := make([]ToolInfo, len(all))
 	for i, info := range all {
-		toFacetIO := func(fs []schema.IOFacet) []FacetIO {
+		toIOPort := func(fs []schema.IOPort) []IOPort {
 			if len(fs) == 0 {
 				return nil
 			}
-			out := make([]FacetIO, len(fs))
+			out := make([]IOPort, len(fs))
 			for i, f := range fs {
-				out[i] = FacetIO{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+				out[i] = IOPort{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
 			}
 			return out
 		}
-		consumes := toFacetIO(info.Consumes)
-		produces := toFacetIO(info.Produces)
+		consumes := toIOPort(info.Consumes)
+		produces := toIOPort(info.Produces)
 		var sideEffects []string
 		for _, s := range info.SideEffects {
 			sideEffects = append(sideEffects, string(s))

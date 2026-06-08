@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { FacetIO } from "../types";
+import type { IOPort } from "../types";
 
 /**
  * Facet connection validation — mirrors the isValidConnection callback in
@@ -8,16 +8,16 @@ import type { FacetIO } from "../types";
  * target that consumes nothing (a pass-through), is permitted.
  */
 function isFacetConnectionValid(
-  srcProduces: FacetIO[] | undefined,
-  tgtConsumes: FacetIO[] | undefined,
+  srcProduces: IOPort[] | undefined,
+  tgtConsumes: IOPort[] | undefined,
 ): boolean {
   if (!srcProduces || !tgtConsumes || tgtConsumes.length === 0) return true;
   const produced = new Set(srcProduces.map((f) => `${f.type}@${f.side ?? "source"}`));
   return tgtConsumes.some((c) => produced.has(`${c.type}@${c.side ?? "source"}`));
 }
 
-const tgt = (type: string): FacetIO => ({ type, side: "target" });
-const src = (type: string): FacetIO => ({ type, side: "source" });
+const tgt = (type: string): IOPort => ({ type, side: "target" });
+const src = (type: string): IOPort => ({ type, side: "source" });
 
 describe("facet connection validation", () => {
   it("source producing a consumed facet is compatible", () => {

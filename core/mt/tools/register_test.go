@@ -60,7 +60,7 @@ func TestRegisterAllMTToolMetadata(t *testing.T) {
 		assert.Containsf(t, info.Requires, schema.RequiresTargetLanguage, "tool %q requires target-language", name)
 		assert.Containsf(t, info.Requires, schema.RequiresCredentials, "tool %q requires credentials", name)
 		assert.Equalf(t, schema.Bilingual, info.Cardinality, "tool %q cardinality", name)
-		assert.Containsf(t, info.Produces, schema.IOFacet{Type: model.FacetTarget, Side: model.SideTarget}, "tool %q produces translation", name)
+		assert.Containsf(t, info.Produces, schema.IOPort{Type: schema.PortTarget, Side: model.SideTarget}, "tool %q produces translation", name)
 		assert.Containsf(t, info.SideEffects, schema.SideEffectAPICall, "tool %q has api-call side effect", name)
 	}
 }

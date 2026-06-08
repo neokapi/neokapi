@@ -109,7 +109,7 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 		}
 
 		if wrote {
-			v.Annotate(string(model.FacetCharCount), cf)
+			v.Annotate(string(model.AnnoCharCount), cf)
 		}
 
 		return nil

@@ -61,16 +61,16 @@ export interface FlowEdgeInfo {
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 
-export type FacetSide = "source" | "target";
+export type Side = "source" | "target";
 
 /**
  * One entry of a tool's facet IO contract (consumes/produces): a typed
  * stand-off facet, the side it pertains to, and — for consumed facets —
  * whether it is optional (graceful degradation) vs a hard requirement.
  */
-export interface FacetIO {
+export interface IOPort {
   type: string;
-  side?: FacetSide;
+  side?: Side;
   optional?: boolean;
   layer?: string;
 }
@@ -87,9 +87,9 @@ export interface ToolInfo {
   cardinality?: LocaleCardinality;
   default_locale?: string;
   /** Facets the tool reads upstream (non-optional = a requirement). */
-  consumes?: FacetIO[];
+  consumes?: IOPort[];
   /** Facets the tool writes. */
-  produces?: FacetIO[];
+  produces?: IOPort[];
   side_effects?: string[];
   /** Whether this tool may run in the source-transform stage (rewrite source/model). */
   isSourceTransform?: boolean;
@@ -162,8 +162,8 @@ export interface ToolMeta {
   displayName?: string;
   description?: string;
   category?: string;
-  consumes?: FacetIO[];
-  produces?: FacetIO[];
+  consumes?: IOPort[];
+  produces?: IOPort[];
   tags?: string[];
   requires?: string[];
 }

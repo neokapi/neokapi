@@ -50,7 +50,7 @@ func BrandVoiceCheckSchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
-		Produces:              []schema.IOFacet{{Type: model.FacetBrandVoice, Side: model.SideTarget}},
+		Produces:              []schema.IOPort{{Type: model.AnnoBrandVoice, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

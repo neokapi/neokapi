@@ -23,7 +23,7 @@ func TestCharCountTool(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.AnnoCharCount))
 	assert.True(t, ok)
 	// "Hello world" = 11 chars, 10 without spaces.
 	assert.Equal(t, 11, cf.Source)
@@ -43,7 +43,7 @@ func TestCharCountToolSourceOnly(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.AnnoCharCount))
 	assert.True(t, ok)
 	// "Test text" = 9 chars, 8 without spaces.
 	assert.Equal(t, 9, cf.Source)
@@ -63,7 +63,7 @@ func TestCharCountToolUnicode(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.AnnoCharCount))
 	assert.True(t, ok)
 	assert.Equal(t, 5, cf.Source)
 	assert.Equal(t, 5, cf.SourceNoSpace)
@@ -80,7 +80,7 @@ func TestCharCountToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	_, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.AnnoCharCount))
 	assert.False(t, ok)
 }
 
@@ -94,7 +94,7 @@ func TestCharCountToolEmptyText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.AnnoCharCount))
 	assert.True(t, ok)
 	assert.Equal(t, 0, cf.Source)
 	assert.Equal(t, 0, cf.SourceNoSpace)

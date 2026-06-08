@@ -36,8 +36,8 @@ type ToolInfo struct {
 	// IO contract fields (Framework AD-006): facet Consumes/Produces.
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
 	DefaultLocale model.LocaleID           `json:"default_locale,omitempty"`
-	Consumes      []schema.IOFacet         `json:"consumes,omitempty"`
-	Produces      []schema.IOFacet         `json:"produces,omitempty"`
+	Consumes      []schema.IOPort          `json:"consumes,omitempty"`
+	Produces      []schema.IOPort          `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
 	// IsSourceTransform reports whether the tool can rewrite source

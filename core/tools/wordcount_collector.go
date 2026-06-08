@@ -139,7 +139,7 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts 
 		}
 		doc.BlockCount++
 
-		if wcf, ok := model.AnnoAs[*WordCountFacet](block, string(model.FacetWordCount)); ok {
+		if wcf, ok := model.AnnoAs[*WordCountFacet](block, string(model.AnnoWordCount)); ok {
 			doc.SourceWords += wcf.Source
 			for locale, n := range wcf.Targets {
 				doc.TargetWords[locale] += n

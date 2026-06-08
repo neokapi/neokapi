@@ -35,7 +35,7 @@ export interface FormatMeta {
 }
 
 /** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
-export interface FacetIO {
+export interface IOPort {
   type: string;
   side?: "source" | "target";
   optional?: boolean;
@@ -48,8 +48,8 @@ export interface ToolMeta {
   displayName?: string;
   description?: string;
   category?: string;
-  consumes?: FacetIO[];
-  produces?: FacetIO[];
+  consumes?: IOPort[];
+  produces?: IOPort[];
   tags?: string[];
   requires?: string[];
 }

@@ -116,7 +116,7 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 
 	block := model.NewBlock("b1", "Alice met Bob")
 	block.SourceLocale = "en"
-	block.AddFacetSpan(model.FacetEntity, model.Span{
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:0",
 		Range: model.RunRangeForBytes(block.Source, 0, 5),
 		Value: &model.EntityAnnotation{
@@ -124,7 +124,7 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 			Type: model.EntityPerson,
 		},
 	})
-	block.AddFacetSpan(model.FacetEntity, model.Span{
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:1",
 		Range: model.RunRangeForBytes(block.Source, 10, 13),
 		Value: &model.EntityAnnotation{

@@ -232,7 +232,7 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 	// entity facet we consumed; drop it before mutating source so the spans
 	// don't dangle (and so the immutability backstop's overlay check passes).
 	if t.useEntities {
-		v.RemoveFacet(model.FacetEntity)
+		v.RemoveOverlay(model.OverlayEntity)
 	}
 	v.SetSourceRuns(newRuns)
 	t.store(v, records)
@@ -271,7 +271,7 @@ func (t *RedactTool) store(v tool.SourceView, records []redaction.Redacted) {
 // are reconciled against the source text so byte spans are exact.
 func (t *RedactTool) entityMatches(v tool.SourceView, text string) []redaction.Match {
 	var out []redaction.Match
-	for _, span := range v.FacetSpans(model.FacetEntity) {
+	for _, span := range v.OverlaySpans(model.OverlayEntity) {
 		ea, ok := span.Value.(*model.EntityAnnotation)
 		if !ok {
 			continue

@@ -17,7 +17,8 @@ type Block struct {
 	Skeleton           *Skeleton
 	Source             []Run                  // source content
 	Targets            map[VariantKey]*Target // committed translations, keyed by variant
-	Overlays           []Facet                // the single stand-off facet carrier (positional + block-scoped)
+	Overlays           []Overlay              // positional, run-anchored stand-off layers (segmentation, term, entity, qa, alignment)
+	Annotations        map[string]any         // block-scoped typed metadata (notes, alt-translations, analysis results), keyed by type
 	Properties         map[string]string
 	Identity           *BlockIdentity // Content-addressable hash for deduplication
 	ContentRef         *ContentRef    // Link to external connector source

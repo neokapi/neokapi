@@ -104,7 +104,7 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 
 // facetNames renders a facet IO contract as "type@side" tokens (optional
 // consumed facets get a trailing "?") for the generated reference.
-func facetNames(fs []coreschema.IOFacet) []string {
+func facetNames(fs []coreschema.IOPort) []string {
 	if len(fs) == 0 {
 		return nil
 	}

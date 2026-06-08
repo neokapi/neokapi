@@ -323,11 +323,8 @@ func overlayViews(b *model.Block) []OverlayView {
 	out := make([]OverlayView, 0, len(b.Overlays))
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
-		// Positional facets only; block-scoped facets (former annotations) are
-		// rendered by annotationViews via AnnoMap.
-		if !o.Type.IsPositional() {
-			continue
-		}
+		// Overlays are positional by construction; block-scoped annotations are
+		// rendered separately by annotationViews via AnnoMap.
 		side := "source"
 		runs := b.Source
 		if o.Variant != nil {
