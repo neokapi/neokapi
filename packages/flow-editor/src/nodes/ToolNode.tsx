@@ -12,7 +12,7 @@ import {
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
-import { IoContract } from "./PortChip";
+import { PortChip } from "./PortChip";
 
 /** Accent color for the source-transform stage. */
 const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
@@ -44,6 +44,82 @@ function NodeStatusBadge({ execState }: { execState: string }) {
     );
   }
   return null;
+}
+
+/**
+ * BoundaryPorts renders a node's IO as ports straddling the relevant edge: the
+ * consumed ports sit on the input edge (top, or left when horizontal), the
+ * produced ports on the output edge (bottom/right). The React Flow Handle is
+ * the connection anchor; the chips are the visible port. The connecting edge
+ * therefore runs port → port, so the data type is read at the boundary, not
+ * floating mid-edge.
+ */
+function BoundaryPorts({
+  handleType,
+  position,
+  ports,
+  verb,
+  railColor,
+}: {
+  handleType: "source" | "target";
+  position: Position;
+  ports: IOPort[];
+  verb: "consumes" | "produces";
+  railColor: string;
+}) {
+  const isVertical = position === Position.Top || position === Position.Bottom;
+  const edge =
+    position === Position.Top
+      ? { top: -11, left: "50%", transform: "translateX(-50%)" }
+      : position === Position.Bottom
+        ? { bottom: -11, left: "50%", transform: "translateX(-50%)" }
+        : position === Position.Left
+          ? { left: -11, top: "50%", transform: "translateY(-50%)" }
+          : { right: -11, top: "50%", transform: "translateY(-50%)" };
+  const shown = ports.slice(0, 4);
+  const hidden = ports.length - shown.length;
+
+  return (
+    <>
+      <Handle
+        type={handleType}
+        position={position}
+        style={{
+          width: 8,
+          height: 8,
+          background: railColor,
+          border: "2px solid var(--card)",
+          ...(position === Position.Top
+            ? { top: -5 }
+            : position === Position.Bottom
+              ? { bottom: -5 }
+              : position === Position.Left
+                ? { left: -5 }
+                : { right: -5 }),
+        }}
+      />
+      {ports.length > 0 && (
+        <div
+          className={cn(
+            "nodrag absolute z-[2] flex items-center gap-0.5 rounded-md border border-border bg-card px-1 py-0.5 shadow-sm",
+            isVertical ? "flex-row" : "flex-col",
+          )}
+          style={edge}
+        >
+          {shown.map((f, i) => (
+            <PortChip
+              key={`${verb}-${f.type}-${f.side ?? ""}-${i}`}
+              type={f.type}
+              side={f.side}
+              optional={f.optional}
+              verb={verb}
+            />
+          ))}
+          {hidden > 0 && <span className="text-[8px] text-muted-foreground">+{hidden}</span>}
+        </div>
+      )}
+    </>
+  );
 }
 
 export function ToolNode({ data, selected }: NodeProps) {
@@ -99,16 +175,12 @@ export function ToolNode({ data, selected }: NodeProps) {
       <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: railColor }} />
 
       <div className="flex-1 px-3 py-2 relative">
-        <Handle
-          type="target"
+        <BoundaryPorts
+          handleType="target"
           position={vertical ? Position.Top : Position.Left}
-          style={{
-            width: 10,
-            height: 10,
-            background: railColor,
-            border: "2px solid var(--card)",
-            ...(vertical ? { top: -9 } : { left: -9 }),
-          }}
+          ports={consumes ?? []}
+          verb="consumes"
+          railColor={railColor}
         />
 
         {/* Header row */}
@@ -173,13 +245,6 @@ export function ToolNode({ data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* Typed IO contract: what this tool reads → writes */}
-        {((consumes && consumes.length > 0) || (produces && produces.length > 0)) && (
-          <div className="mt-1.5">
-            <IoContract consumes={consumes} produces={produces} max={3} />
-          </div>
-        )}
-
         {/* Capability/locale meta + side effects */}
         <div className="flex items-center gap-1 mt-1">
           {cardinality && cardinality !== "monolingual" && (
@@ -231,16 +296,12 @@ export function ToolNode({ data, selected }: NodeProps) {
           </div>
         )}
 
-        <Handle
-          type="source"
+        <BoundaryPorts
+          handleType="source"
           position={vertical ? Position.Bottom : Position.Right}
-          style={{
-            width: 10,
-            height: 10,
-            background: railColor,
-            border: "2px solid var(--card)",
-            ...(vertical ? { bottom: -9 } : { right: -9 }),
-          }}
+          ports={produces ?? []}
+          verb="produces"
+          railColor={railColor}
         />
       </div>
 
@@ -268,9 +329,9 @@ export function ToolNode({ data, selected }: NodeProps) {
       {/* Status badge */}
       {execState && <NodeStatusBadge execState={execState} />}
 
-      {/* Part count badge */}
+      {/* Part count badge (right corner, clear of the bottom output ports) */}
       {partCount !== undefined && partCount > 0 && (
-        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]">
+        <div className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]">
           {partCount} pts
         </div>
       )}
