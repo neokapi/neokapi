@@ -79,70 +79,104 @@ the same contract.
 
 **Yes, redesign — but as consolidation, not a rewrite.** The foundation is
 already present: the tool registry, `ToolMeta`, the capability-typed views
-(`BlockView`/`TargetView`/`SourceView`), the overlay model, and the
-annotation registry. The work is to (a) unify the two metadata carriers under one
-typed registry, (b) raise the IO contract from part-types to facets with
-optionality, (c) add a first-class unit/segment iterator on the views, and
-(d) wire the resulting contract into flow validation and the editor. Each is
-independently shippable behind the existing surfaces.
+(`BlockView`/`TargetView`/`SourceView`), and the overlay/annotation models. The
+work is to (a) collapse the metadata carriers into one typed registry, (b) raise
+the IO contract from part-types to facets with optionality, (c) add a first-class
+unit/segment iterator on the views, and (d) wire the resulting contract into flow
+validation and the editor. Each is independently shippable behind the existing
+surfaces.
+
+## Decisions
+
+The project is pre-production; no data migration is required, so the model is cut
+to a single way of doing each thing rather than preserving legacy carriers.
+
+- **One stand-off facet carrier.** The separate `model.Annotation` interface and
+  `Block.Annotations map[string]Annotation` are a legacy artifact predating
+  stand-off overlays and are **removed**. Every interpretation of a block — both
+  the positional ones (segmentation, term, entity, qa, alignment) and the former
+  non-positional annotations (alt-translation, note) — is a single **facet**
+  type, registered with a schema, *optionally* range-anchored. A block-scoped
+  facet simply carries no range. Term/entity stop existing in two places: the
+  range-anchored facet is canonical.
+- **`Properties` is pass-through only.** `Block.Properties map[string]string`
+  survives solely for opaque, non-interpretive metadata (e.g. `cms-path`,
+  connector keys, format hints). Every analytic/interpretive scalar that is
+  currently stuffed into a property — `word-count-source`, `tm-match-score` /
+  `tm-match-type`, `brand-vocab-findings` (today JSON-in-a-string),
+  repetition status — moves onto a typed facet. This removes the present
+  contradiction where a tool declares a `Produces` type but writes a property.
+- **`Target` stays first-class.** A committed `Target` is the chosen output, not
+  an interpretation of content, so it remains its own carrier (candidate
+  proposals remain `alt-translation` facets).
+- **Part-type `Inputs`/`Outputs` retired.** Facet `Consumes`/`Produces` is the
+  only declared IO contract. Any coarse part-type set the runtime needs is
+  derived from the tool's capability/handlers, not separately declared.
+- **Hard validation from day one.** A flow whose tool has a required (non-optional)
+  consumed facet with no upstream producer — a prior tool, the ingest settle
+  stage, or the source binding — is rejected at load/build, not warned about.
 
 ## Design
 
-### 1. Facets: one typed vocabulary for block-borne data
+### 1. Facets: one typed, optionally range-anchored carrier
 
-Define a **facet** as any typed interpretation that can ride on a Block. Each
-facet has a stable type id, a registered Go payload schema, a **carrier** (how it
-is stored), and a **side** (which run sequence it pertains to).
+A **facet** is any typed interpretation that can ride on a Block. There is one
+carrier. It generalizes today's `Overlay`: a typed set of spans on one side of a
+block, where each span carries a **typed payload** (not an untyped
+`map[string]string`) and a span's range is **optional** — present for positional
+facets (term, entity, qa, segmentation, alignment), absent for block-scoped
+facets (alt-translation, note).
 
 ```go
-// core/model (or a new core/facet package)
+// core/model — Overlay is generalized into Facet; Annotation is removed.
 
-type FacetType string // "segmentation", "term", "entity", "qa", "alignment",
-                       // "alt-translation", "tm-match", "word-count", "target", …
+type FacetType string // "segmentation","term","entity","qa","alignment",
+                      // "alt-translation","note","tm-match","word-count", …
 
 type FacetSide int
 const (
-    SideBlock  FacetSide = iota // non-positional, whole-block (annotations, properties)
-    SideSource                  // pertains to Block.Source
-    SideTarget                  // pertains to a target variant
+    SideSource FacetSide = iota // pertains to Block.Source
+    SideTarget                  // pertains to a target variant (Variant set)
 )
 
-type Carrier int
-const (
-    CarrierOverlay    Carrier = iota // run-anchored span set (positional)
-    CarrierAnnotation                // typed block annotation (non-positional)
-    CarrierProperty                  // scalar string property
-    CarrierTarget                    // the committed Target itself
-)
+// Facet groups one type's spans on one side (and, for segmentation, one layer).
+type Facet struct {
+    Type    FacetType
+    Side    FacetSide
+    Variant *VariantKey // set when Side == SideTarget
+    Layer   string      // segmentation granularity; "" = primary
+    Spans   []Span
+}
 
-type FacetSchema struct {
-    Type     FacetType
-    Carrier  Carrier
-    NewValue func() any        // typed payload constructor (overlay span props,
-                               // annotation struct, …) — for wire (de)serialization
-    Layered  bool              // segmentation: multiple named layers may coexist
+// Span gains a typed payload and an optional range. A nil Range is a
+// block/variant-scoped facet (the former "annotation"); a set Range is positional.
+type Span struct {
+    ID    string
+    Range *RunRange // nil = scopes the whole side, not a sub-region
+    Value any       // typed payload, constructed via the facet registry
 }
 ```
 
-Register facets the way annotations are registered today
-(`model.RegisterAnnotation`), folding the overlay enum into the same registry so
-overlay kinds gain the typed-schema and validation treatment annotations already
-have. This **resolves the term/entity duplication**: the positional carrier (the
-overlay span, run-anchored) is canonical for *where* a term/entity is; the
-non-positional annotation carrier is reserved for genuinely block-level facts.
-The existing `model.TermAnnotation.Position`/`EntityAnnotation.Position` fields
-migrate to span props on the overlay; the registry records which carrier is
-canonical per type.
+The registry is the existing annotation registry, generalized: each `FacetType`
+registers a payload constructor (replacing `RegisterAnnotation`/`NewAnnotation`),
+so wire (de)serialization, `kapi tools schema`, and the editor's data-flow view
+all read one declared schema. The former typed annotation structs become facet
+payloads: `AltTranslation` and `Note` are block-scoped (nil range);
+`TermAnnotation`/`EntityAnnotation` become the payload on a ranged term/entity
+span — the duplicated `Position RunRange` field disappears because the span *is*
+the position. `model.Annotation`, `Block.Annotations`, `RegisterAnnotation`, and
+`NewAnnotation` are deleted.
 
-The win: a facet type now has a *declared schema*, so `kapi tools schema`,
-the flow editor's data-flow view, and wire (de)serialization all read the same
-source of truth instead of an implicit `map[string]string` contract.
+Block-scoped helpers (today `Block.Annotate`/`Annotations`) are re-expressed over
+facets with a nil range, so a tool adding an alt-translation and a tool adding a
+term go through the same `AddFacet` path and the same query path
+(`Block.Facets(type, side)`), differing only in whether the span has a range.
 
 ### 2. Tool IO contract: Consumes + Produces over facets, with optionality
 
-Raise `ToolMeta` from part-type strings to facet-level dependencies. Keep the
-part-type `Inputs` as a coarse pre-filter (it still answers "does this tool touch
-Blocks at all"), but add the facet contract that carries the real information:
+Replace the part-type `Inputs`/`Outputs` strings with facet-level dependencies.
+The part-type set the runtime occasionally needs is derived from the tool's
+capability and handlers, so it is no longer a declared field:
 
 ```go
 // core/schema
@@ -156,9 +190,10 @@ type IOFacet struct {
 
 type ToolMeta struct {
     // … existing fields (ID, Category, Cardinality, Requires, SideEffects, …) …
+    // Inputs / Outputs (part-type strings) are removed.
 
     Consumes []IOFacet // what the tool reads upstream; non-Optional = a requirement
-    Produces []IOFacet // what it writes (supersedes the annotation-only Produces)
+    Produces []IOFacet // what it writes (replaces the annotation-only Produces)
 }
 ```
 
@@ -208,7 +243,7 @@ correct run range.
 // segmentation is materialized as structure or as a stand-off overlay.
 type Unit interface {
     Index() int
-    Range() model.RunRange   // zero range = whole block
+    Range() *model.RunRange  // nil = whole block (unsegmented)
     Ignorable() bool         // segmentation span marked non-translatable
 
     SourceRuns() []model.Run
@@ -259,8 +294,10 @@ cannot do today:
 - For each tool's **required** (non-optional) consumed facet, some upstream
   producer must supply it — an earlier tool's `Produces`, the ingest settle
   stage (AD-026 §4 — segmentation/normalization persisted at extract), or the
-  **source binding** (below). Otherwise the flow is rejected with a precise
-  message ("`qa-check` requires a `target`; no upstream tool produces one").
+  **source binding** (below). Otherwise the flow is **rejected at load/build**
+  with a precise message ("`qa-check` requires a `target`; no upstream tool
+  produces one"). This is a hard error from day one — pre-production, every
+  built-in flow and tool contract is expected to be correct on landing.
 - Optional consumed facets never gate validation; they feed the editor's
   "this upgrades when X is present" affordance.
 - This complements the existing structural checks (cycle detection, stage
@@ -309,41 +346,49 @@ Concretely, the editor work (`packages/flow-editor/`, plus the
 
 ## Migration plan (phased, each independently shippable)
 
-1. **Facet registry.** Introduce `FacetType`/registry; fold the `OverlayType`
-   enum into it; keep the existing annotation registry working. No behaviour
-   change. Pick the canonical carrier per type and document term/entity
-   resolution.
+No back-compat shims: pre-production, each phase deletes the old carrier rather
+than wrapping it.
+
+1. **Facet carrier.** Generalize `Overlay` → `Facet` (typed `Span.Value`,
+   optional `Span.Range`); fold the annotation registry into a facet registry.
+   Delete `model.Annotation`, `Block.Annotations`, `RegisterAnnotation`,
+   `NewAnnotation`. Port `AltTranslation`/`Note` to block-scoped facets and
+   `TermAnnotation`/`EntityAnnotation` to ranged term/entity span payloads
+   (dropping their `Position` field). Move the analytic scalars off `Properties`
+   (`word-count`, `tm-match`, brand-vocab findings, repetition status) onto typed
+   facets; leave only opaque pass-through in `Properties`.
 2. **Unit iterator.** Add `Unit`/`SourceUnits`/`TargetUnits` to the views;
    reimplement `tm-leverage` segment keys and one per-segment tool on it to prove
-   the interface; leave whole-block tools untouched.
-3. **IO contract.** Add `Consumes []IOFacet` and migrate `Produces` to
-   `[]IOFacet` (keep a compatibility shim mapping the old `AnnotationType`
-   produces). Backfill contracts for built-in tools in `core/tools/register.go`
-   (and `core/ai/tools`, `core/mt/tools`). Validate against the registry at
-   registration.
-4. **Flow validation.** Add data-flow validation in `builder.go`/`definition.go`
-   (warn-only first, then error) using the contract + source binding facets.
+   the interface; whole-block tools keep `SourceRuns()`.
+3. **IO contract.** Remove part-type `Inputs`/`Outputs`; add `Consumes`/`Produces`
+   over `IOFacet`. Backfill contracts for built-in tools in
+   `core/tools/register.go` (and `core/ai/tools`, `core/mt/tools`). Reject unknown
+   facet types against the registry at registration.
+4. **Flow validation.** Add hard data-flow validation in
+   `builder.go`/`definition.go` using the contract + source-binding facets; fix
+   any built-in flow whose contracts don't satisfy.
 5. **Editor wiring.** Fix binding init/persistence; type the endpoint pickers and
    ports from the contract; add the round-trip test. Re-record affected flow
    editor walkthrough scenes per the UI-change checklist in CLAUDE.md.
 
-## Risks and open questions
+## Remaining risks
 
-- **Carrier canonicalization for terms/entities** is a real data-model change
-  (today both annotation and overlay exist). Needs a decision and a migration for
-  any persisted `.klz`/store data and bilingual round-trips.
-- **Contract accuracy is load-bearing once it gates flows.** Start validation in
-  warn-only mode; only escalate to hard errors after the built-in contracts are
-  audited, or correct flows will be rejected.
-- **Scope of `Outputs` vs `Produces`.** Decide whether to retire the part-type
-  `Outputs` entirely or keep it as the coarse pre-filter alongside facet
-  `Produces`.
+- **Contract accuracy is load-bearing.** With validation hard from day one, a
+  wrong `Consumes`/`Produces` on a built-in tool breaks a real flow. The backfill
+  in phase 3 must be audited against each tool's actual reads/writes before phase
+  4 lands; an end-to-end test per built-in flow is the guardrail.
 - **Plugin tools** (AD-007) declare metadata over gRPC; the facet vocabulary must
   be extensible by plugins (register facet types) and survive the bridge, or
-  plugin tools become second-class in validation.
-- **`iter.Seq`** requires Go 1.23+; confirm the toolchain floor before adopting
-  range-over-func in the public view interface (a slice-returning form is the
-  fallback).
+  plugin tools are second-class in validation. The bridge descriptor needs a
+  facet-registration channel.
+- **Alignment is relational**, linking a source span to a target span — it is the
+  one facet whose payload references another side's range rather than annotating
+  its own. Confirm the single-side `Facet` shape (payload carries the counterpart
+  range) is sufficient, or alignment needs a dedicated cross-side form.
+- **`Span.Value any`** trades the old `map[string]string` for typed payloads;
+  the wire format and the SQLite store schema for facets must serialize the
+  registered payload by `FacetType`, mirroring how the annotation registry
+  rehydrates today.
 
 ## Related
 
