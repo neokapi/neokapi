@@ -23,11 +23,17 @@ contract retired in favour of facet `Consumes`/`Produces`; hard data-flow
 validation from the contract (`FlowDefinition.ValidateDataFlow`); and the
 flow-editor's ports + connection validation typed from the facet contract.
 
-**Deferred follow-ups (behaviour-preserving):** migrate the remaining analytic
-scalars off `Block.Properties` onto typed facets; drop the `Position` field from
-term/entity payloads in favour of span ranges; remove the now-unused
-`schema.AnnotationType` vocabulary; and forward the facet contract through the
-web (REST) and desktop (Wails) tool adapters so the typed ports render in-app.
+**Follow-ups (since completed):** the analytic scalars (word-count, char-count,
+seg-count, tm-match, repetition) moved off `Block.Properties` onto typed facets;
+the `Position` field was dropped from term/entity/term-candidate payloads — they
+are now run-anchored spans on the positional `term`/`entity`/`term-candidate`
+facet (the span's range *is* the position, its id the identity); the unused
+`schema.AnnotationType` vocabulary and registry were removed; the facet contract
+is forwarded through the web (REST) and desktop (Wails) tool adapters so the
+typed ports render in-app; and `FacetType.IsPositional` became registry-driven
+(`RegisterPositionalFacet`) so plugin facet types can be range-anchored. The
+only piece still open is making the facet vocabulary extensible across the
+subprocess plugin gRPC bridge (see Remaining risks).
 
 ## Motivation
 
