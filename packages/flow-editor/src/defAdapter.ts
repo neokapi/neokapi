@@ -18,16 +18,26 @@
 // The editor parses these strings into the internal `FlowBinding` object for the
 // endpoint pickers via `parseBinding`, and serializes back via `formatBinding`.
 
-import type { Node, Edge } from "@xyflow/react";
 import type {
   FlowSpec,
+  FlowStep,
   FlowBinding,
   FlowDefinitionInfo,
   FlowNodeInfo,
   FlowEdgeInfo,
   ToolInfo,
 } from "./types";
-import { stepsToGraph, graphToSteps, type LayoutDirection } from "./conversion";
+import { type LayoutDirection } from "./conversion";
+
+// Persisted-graph geometry. The node/edge FlowDefinition stores parallel groups
+// as the legacy fan-out (sibling nodes sharing the same primary-axis position),
+// independent of how the editor *renders* a flow (which uses the composite
+// parallel node). defToSpec reconstructs groups by primary-axis position; the
+// editor never reads these positions for layout — it re-lays-out from the spec.
+const PERSIST_NODE_SIZE = 200;
+const PERSIST_NODE_GAP = 60;
+const PERSIST_CROSS = 200;
+const PERSIST_BRANCH_GAP = 80;
 
 /** Interchange format ids that serialize as a bare locator (e.g. `source: xliff`). */
 const INTERCHANGE_FORMATS = new Set(["xliff", "po", "tmx", "tbx"]);
@@ -76,52 +86,50 @@ export function formatBinding(binding: FlowBinding | undefined | null): string |
 /**
  * Convert a node/edge FlowDefinitionInfo into a steps-based FlowSpec.
  *
- * Maps the definition's FlowNodeInfo[] (tool nodes only) onto @xyflow Node[]
- * (carrying toolName, stage and config on node.data, preserving node.type and
- * position) and then delegates to graphToSteps. The definition's I/O binding is
- * carried through onto `spec.source` / `spec.sink`. Source-transform stage and
- * parallel groups are handled by graphToSteps via node.data.stage and node
- * positions respectively.
+ * The persisted graph is tool nodes only (a flow owns no I/O). Source-transform
+ * nodes (by `stage`) become `spec.sourceTransforms`; the rest become `steps`,
+ * with sibling nodes sharing a primary-axis position reconstructed into a
+ * `parallel` step. The definition's I/O binding is carried onto `source`/`sink`.
+ * `direction` selects which axis is primary (default vertical = y).
  */
 export function defToSpec(
   def: FlowDefinitionInfo,
   direction: LayoutDirection = "vertical",
 ): FlowSpec {
-  const nodes: Node[] = (def.nodes ?? []).map((n: FlowNodeInfo) => {
-    if (n.type === "parallel") {
-      // A parallel group node carries its branches; graphToSteps reads them back
-      // into a `parallel` step. (Category/validity are re-derived by the editor
-      // when it rebuilds the graph from the spec.)
-      return {
-        id: n.id,
-        type: "parallel",
-        position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
-        data: {
-          parallelGroup: true,
-          branches: (n.branches ?? []).map((b) => ({
-            toolName: b.name,
-            label: b.label ?? b.name,
-            config: b.config,
-            category: "pipeline",
-            valid: true,
-          })),
-        },
-      };
-    }
-    return {
-      id: n.id,
-      type: n.type,
-      position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
-      data: {
-        label: n.label || n.name,
-        toolName: n.name,
-        config: n.config,
-        stage: n.stage ?? "",
-      },
-    };
+  const isVertical = direction !== "horizontal"; // serpentine/vertical → y is primary
+  const primary = (n: FlowNodeInfo) => (isVertical ? (n.position?.y ?? 0) : (n.position?.x ?? 0));
+
+  const toStep = (n: FlowNodeInfo): FlowStep => ({
+    tool: n.name,
+    ...(n.config && Object.keys(n.config).length > 0 ? { config: n.config } : {}),
+    ...(n.label ? { label: n.label } : {}),
   });
 
-  const spec = graphToSteps(nodes, direction, def.binding);
+  const all = [...(def.nodes ?? [])].sort((a, b) => primary(a) - primary(b));
+  const sourceTransforms = all.filter((n) => n.stage === "source-transform").map(toStep);
+  const main = all.filter((n) => n.stage !== "source-transform");
+
+  // Group main nodes sharing a primary-axis position into a parallel step.
+  const steps: FlowStep[] = [];
+  let i = 0;
+  while (i < main.length) {
+    const group = [main[i]];
+    let j = i + 1;
+    while (
+      j < main.length &&
+      Math.abs(primary(main[j]) - primary(main[i])) < PERSIST_NODE_SIZE / 2
+    ) {
+      group.push(main[j]);
+      j++;
+    }
+    steps.push(group.length === 1 ? toStep(group[0]) : { tool: "", parallel: group.map(toStep) });
+    i = j;
+  }
+
+  const spec: FlowSpec = { steps };
+  if (sourceTransforms.length > 0) spec.sourceTransforms = sourceTransforms;
+  if (def.binding?.source) spec.source = def.binding.source;
+  if (def.binding?.sink) spec.sink = def.binding.sink;
   if (def.description) spec.description = def.description;
   return spec;
 }
@@ -130,60 +138,62 @@ export function defToSpec(
  * Convert a steps-based FlowSpec back into a node/edge FlowDefinitionInfo,
  * carrying over identity fields (id, name, source) from `base`.
  *
- * Uses stepsToGraph to produce the canonical tool-node layout and edges (no
- * reader/writer nodes — a flow owns no I/O), then maps the @xyflow
- * Node[]/Edge[] onto FlowNodeInfo[]/FlowEdgeInfo[]. The spec's I/O binding
- * (`source` / `sink`) is carried onto `def.binding`. Source-transform tools keep
- * their stage; parallel groups are preserved as the fan-out node topology
- * stepsToGraph emits.
+ * Emits the legacy tool-node persistence graph: source-transforms first (by
+ * `stage`), then main steps along the primary axis, with a parallel step
+ * expanded into sibling nodes sharing a primary-axis position plus fan-out /
+ * merge edges. This is independent of the composite parallel node the editor
+ * *renders* — the editor re-lays-out from the spec, never from these positions.
  */
 export function specToDef(
   spec: FlowSpec,
   base: Pick<FlowDefinitionInfo, "id" | "name" | "source"> & { description?: string },
-  tools?: ToolInfo[],
+  _tools?: ToolInfo[],
   direction: LayoutDirection = "vertical",
 ): FlowDefinitionInfo {
-  const toolMap = tools ? new Map(tools.map((t) => [t.name, t])) : undefined;
-  const { nodes, edges } = stepsToGraph(spec, toolMap, direction);
+  const isVertical = direction !== "horizontal";
+  const pos = (main: number, cross: number) =>
+    isVertical ? { x: cross, y: main } : { x: main, y: cross };
 
-  const nodeInfos: FlowNodeInfo[] = nodes.map((n) => {
-    if (n.type === "parallel") {
-      const branches =
-        (n.data.branches as Array<{
-          toolName: string;
-          label?: string;
-          config?: Record<string, unknown>;
-        }>) ?? [];
-      return {
-        id: n.id,
-        type: "parallel",
-        name: "",
-        branches: branches.map((b) => ({
-          name: b.toolName,
-          ...(b.label ? { label: b.label } : {}),
-          ...(b.config && Object.keys(b.config).length > 0 ? { config: b.config } : {}),
-        })),
-        position: { x: n.position.x, y: n.position.y },
-      };
-    }
-    const stage = (n.data.stage as string) || undefined;
-    const config = n.data.config as Record<string, unknown> | undefined;
-    return {
-      id: n.id,
+  const nodeInfos: FlowNodeInfo[] = [];
+  const edgeInfos: FlowEdgeInfo[] = [];
+  let counter = 0;
+  let primary = 0;
+  let prevIds: string[] = [];
+
+  const emit = (step: FlowStep, stage: "source-transform" | undefined, cross: number): string => {
+    const id = `tool-${counter++}`;
+    nodeInfos.push({
+      id,
       type: "tool",
-      name: (n.data.toolName as string) || n.id,
-      label: (n.data.label as string) || undefined,
-      ...(stage ? { stage: stage as FlowNodeInfo["stage"] } : {}),
-      ...(config && Object.keys(config).length > 0 ? { config } : {}),
-      position: { x: n.position.x, y: n.position.y },
-    };
-  });
+      name: step.tool,
+      ...(step.label ? { label: step.label } : {}),
+      ...(stage ? { stage } : {}),
+      ...(step.config && Object.keys(step.config).length > 0 ? { config: step.config } : {}),
+      position: pos(primary, cross),
+    });
+    for (const p of prevIds) edgeInfos.push({ id: `e-${p}-${id}`, source: p, target: id });
+    return id;
+  };
 
-  const edgeInfos: FlowEdgeInfo[] = edges.map((e: Edge) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-  }));
+  for (const st of spec.sourceTransforms ?? []) {
+    prevIds = [emit(st, "source-transform", PERSIST_CROSS)];
+    primary += PERSIST_NODE_SIZE + PERSIST_NODE_GAP;
+  }
+
+  for (const step of spec.steps) {
+    if (step.parallel && step.parallel.length > 0) {
+      const n = step.parallel.length;
+      const total = (n - 1) * (PERSIST_NODE_SIZE + PERSIST_BRANCH_GAP);
+      const start = PERSIST_CROSS - total / 2;
+      const ids = step.parallel.map((b, k) =>
+        emit(b, undefined, start + k * (PERSIST_NODE_SIZE + PERSIST_BRANCH_GAP)),
+      );
+      prevIds = ids;
+    } else {
+      prevIds = [emit(step, undefined, PERSIST_CROSS)];
+    }
+    primary += PERSIST_NODE_SIZE + PERSIST_NODE_GAP;
+  }
 
   const def: FlowDefinitionInfo = {
     id: base.id,

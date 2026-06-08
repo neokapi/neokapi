@@ -67,25 +67,15 @@ export interface FlowBinding {
   format?: string;
 }
 
-/** One tool inside a persisted parallel group node. */
-export interface FlowBranchInfo {
-  name: string;
-  label?: string;
-  config?: Record<string, unknown>;
-}
-
 export interface FlowNodeInfo {
   id: string;
-  /** "tool" = a single step; "parallel" = a group whose `branches` run in parallel. */
-  type: "tool" | "parallel";
+  type: "tool";
   name: string;
   label?: string;
   config?: Record<string, unknown>;
   position: { x: number; y: number };
   /** Which pipeline stage this node belongs to. "" or omitted = main stage. */
   stage?: "" | "source-transform";
-  /** Branch tools, when `type` is "parallel". */
-  branches?: FlowBranchInfo[];
 }
 
 export interface FlowEdgeInfo {
