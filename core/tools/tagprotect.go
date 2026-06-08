@@ -90,7 +90,7 @@ type ProtectedTags struct {
 }
 
 // AnnotationType returns the annotation type identifier.
-func (pt *ProtectedTags) AnnotationType() string { return "protected-tags" }
+func (pt *ProtectedTags) TypeName() string { return "protected-tags" }
 
 // ProtectedTag represents a single protected tag/placeholder found in text.
 type ProtectedTag struct {

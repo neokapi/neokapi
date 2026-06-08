@@ -20,7 +20,7 @@ type SecretAnnotation struct {
 }
 
 // AnnotationType identifies this annotation.
-func (*SecretAnnotation) AnnotationType() string { return SecretAnnotationKey }
+func (*SecretAnnotation) TypeName() string { return SecretAnnotationKey }
 
 // Get returns the original value for a token.
 func (a *SecretAnnotation) Get(token string) (RedactedValue, bool) {

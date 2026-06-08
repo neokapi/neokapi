@@ -64,7 +64,7 @@ type Span struct {
 	ID    string            `json:"id,omitempty"`
 	Range RunRange          `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
-	Value any               `json:"value,omitempty"` // typed payload (payload registry)
+	Value Payload           `json:"value,omitempty"` // typed payload (payload registry)
 }
 
 // Ignorable reports whether the span is marked as non-translatable structural

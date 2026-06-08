@@ -13,11 +13,11 @@ import "github.com/neokapi/neokapi/core/model"
 // model.AnnoAs[*XAnnotation](block, string(AnnoX)).
 
 func init() {
-	model.RegisterPayload(string(model.AnnoWordCount), func() any { return &WordCountAnnotation{} })
-	model.RegisterPayload(string(model.AnnoCharCount), func() any { return &CharCountAnnotation{} })
-	model.RegisterPayload(string(model.AnnoSegCount), func() any { return &SegCountAnnotation{} })
-	model.RegisterPayload(string(model.AnnoTMMatch), func() any { return &TMMatchAnnotation{} })
-	model.RegisterPayload(string(model.AnnoRepetition), func() any { return &RepetitionAnnotation{} })
+	model.RegisterPayload(string(model.AnnoWordCount), func() model.Payload { return &WordCountAnnotation{} })
+	model.RegisterPayload(string(model.AnnoCharCount), func() model.Payload { return &CharCountAnnotation{} })
+	model.RegisterPayload(string(model.AnnoSegCount), func() model.Payload { return &SegCountAnnotation{} })
+	model.RegisterPayload(string(model.AnnoTMMatch), func() model.Payload { return &TMMatchAnnotation{} })
+	model.RegisterPayload(string(model.AnnoRepetition), func() model.Payload { return &RepetitionAnnotation{} })
 }
 
 // WordCountAnnotation carries source and per-locale target word counts (word-count tool).
@@ -27,7 +27,7 @@ type WordCountAnnotation struct {
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*WordCountAnnotation) AnnotationType() string { return string(model.AnnoWordCount) }
+func (*WordCountAnnotation) TypeName() string { return string(model.AnnoWordCount) }
 
 // CharCountAnnotation carries source and per-locale target character counts, with
 // and without whitespace (char-count tool).
@@ -39,7 +39,7 @@ type CharCountAnnotation struct {
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*CharCountAnnotation) AnnotationType() string { return string(model.AnnoCharCount) }
+func (*CharCountAnnotation) TypeName() string { return string(model.AnnoCharCount) }
 
 // SegCountAnnotation carries source and target segment counts (segment-count tool).
 type SegCountAnnotation struct {
@@ -48,7 +48,7 @@ type SegCountAnnotation struct {
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*SegCountAnnotation) AnnotationType() string { return string(model.AnnoSegCount) }
+func (*SegCountAnnotation) TypeName() string { return string(model.AnnoSegCount) }
 
 // TMMatchAnnotation carries the best TM match score/type for a block, plus the
 // segment-level "matched/total" summary when leveraged per segment (tm-leverage).
@@ -59,7 +59,7 @@ type TMMatchAnnotation struct {
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*TMMatchAnnotation) AnnotationType() string { return string(model.AnnoTMMatch) }
+func (*TMMatchAnnotation) TypeName() string { return string(model.AnnoTMMatch) }
 
 // RepetitionAnnotation carries a block's repetition classification (repetition-analysis).
 type RepetitionAnnotation struct {
@@ -70,4 +70,4 @@ type RepetitionAnnotation struct {
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*RepetitionAnnotation) AnnotationType() string { return string(model.AnnoRepetition) }
+func (*RepetitionAnnotation) TypeName() string { return string(model.AnnoRepetition) }

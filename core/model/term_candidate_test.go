@@ -18,7 +18,7 @@ func TestTermCandidateAnnotation_AnnotationType(t *testing.T) {
 		Source:          model.ExtractionSourceLLM,
 		Status:          model.CandidateStatusPending,
 	}
-	assert.Equal(t, "term-candidate", tc.AnnotationType())
+	assert.Equal(t, "term-candidate", tc.TypeName())
 }
 
 func TestTermCandidateAnnotation_ManualSource(t *testing.T) {
@@ -35,21 +35,21 @@ func TestTermCandidateAnnotation_RegisteredInRegistry(t *testing.T) {
 	ann, ok := model.NewPayload("term-candidate")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
-	assert.Equal(t, "term-candidate", ann.(interface{ AnnotationType() string }).AnnotationType())
+	assert.Equal(t, "term-candidate", ann.(interface{ TypeName() string }).TypeName())
 }
 
 func TestEntityAnnotation_RegisteredInRegistry(t *testing.T) {
 	ann, ok := model.NewPayload("entity")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
-	assert.Equal(t, "entity", ann.(interface{ AnnotationType() string }).AnnotationType())
+	assert.Equal(t, "entity", ann.(interface{ TypeName() string }).TypeName())
 }
 
 func TestTermAnnotation_RegisteredInRegistry(t *testing.T) {
 	ann, ok := model.NewPayload("term")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
-	assert.Equal(t, "term", ann.(interface{ AnnotationType() string }).AnnotationType())
+	assert.Equal(t, "term", ann.(interface{ TypeName() string }).TypeName())
 }
 
 func TestEntityAnnotation_Source(t *testing.T) {

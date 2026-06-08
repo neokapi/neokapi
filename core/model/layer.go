@@ -14,9 +14,9 @@ type Layer struct {
 	IsMultilingual bool
 	ParentID       string // ID of the parent Layer (empty for root)
 	Properties     map[string]string
-	Overlays       []Overlay      // positional, run-anchored stand-off layers
-	Annotations    map[string]any // layer-scoped typed metadata (format round-trip state), keyed by type
-	HasBOM         bool           // Whether the document has a byte order mark
+	Overlays       []Overlay          // positional, run-anchored stand-off layers
+	Annotations    map[string]Payload // layer-scoped typed metadata (format round-trip state), keyed by type
+	HasBOM         bool               // Whether the document has a byte order mark
 }
 
 // ResourceID returns the Layer's unique identifier.

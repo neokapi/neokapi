@@ -54,12 +54,12 @@ type UnitSegmentsAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *UnitSegmentsAnnotation) AnnotationType() string { return "xliff2:unit-segments" }
+func (a *UnitSegmentsAnnotation) TypeName() string { return "xliff2:unit-segments" }
 
 const unitSegmentsAnnotationKey = "xliff2:unit-segments"
 
 func init() {
-	model.RegisterPayload(unitSegmentsAnnotationKey, func() any {
+	model.RegisterPayload(unitSegmentsAnnotationKey, func() model.Payload {
 		return &UnitSegmentsAnnotation{
 			Source: map[string]*Content{},
 			Target: map[model.LocaleID]map[string]*Content{},

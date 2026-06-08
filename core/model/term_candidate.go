@@ -60,4 +60,4 @@ type TermCandidateAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for term candidate annotations.
-func (tc *TermCandidateAnnotation) AnnotationType() string { return "term-candidate" }
+func (tc *TermCandidateAnnotation) TypeName() string { return "term-candidate" }

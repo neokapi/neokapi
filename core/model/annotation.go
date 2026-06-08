@@ -40,10 +40,10 @@ type AltTranslations struct {
 }
 
 // AnnotationType returns the type identifier for a single alt-translation.
-func (*AltTranslation) AnnotationType() string { return "alt-translation" }
+func (*AltTranslation) TypeName() string { return "alt-translation" }
 
 // AnnotationType returns the type identifier for the alt-translation collection.
-func (*AltTranslations) AnnotationType() string { return "alt-translation" }
+func (*AltTranslations) TypeName() string { return "alt-translation" }
 
 // NoteAnnotation holds a note/comment attached to a block or span.
 type NoteAnnotation struct {
@@ -54,7 +54,7 @@ type NoteAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for a single note.
-func (n *NoteAnnotation) AnnotationType() string { return "note" }
+func (n *NoteAnnotation) TypeName() string { return "note" }
 
 // Notes is the block annotation holding all notes/comments on a block. It is
 // one typed payload under the AnnoNote key: multiplicity lives in the slice,
@@ -64,7 +64,7 @@ type Notes struct {
 }
 
 // AnnotationType returns the type identifier for the note collection.
-func (*Notes) AnnotationType() string { return "note" }
+func (*Notes) TypeName() string { return "note" }
 
 // GenericAnnotation holds arbitrary metadata as key-value pairs.
 // Used for ITS metadata, custom annotations, and any annotation type
@@ -75,4 +75,4 @@ type GenericAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for this annotation.
-func (g *GenericAnnotation) AnnotationType() string { return g.Kind }
+func (g *GenericAnnotation) TypeName() string { return g.Kind }

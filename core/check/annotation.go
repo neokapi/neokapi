@@ -18,7 +18,7 @@ type FindingsAnnotation struct {
 }
 
 // AnnotationType implements any.
-func (a *FindingsAnnotation) AnnotationType() string { return AnnotationKey }
+func (a *FindingsAnnotation) TypeName() string { return AnnotationKey }
 
 // AnnotationKey is the block annotation key and schema type for unified
 // check findings.

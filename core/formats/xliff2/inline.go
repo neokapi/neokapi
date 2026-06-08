@@ -40,7 +40,7 @@ type SegmentInlineAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *SegmentInlineAnnotation) AnnotationType() string { return "xliff2:segment-inline" }
+func (a *SegmentInlineAnnotation) TypeName() string { return "xliff2:segment-inline" }
 
 // OriginalDataAnnotation carries a unit's <originalData><data id=…/>
 // entries — the verbatim original markup keyed by data id. Inline codes
@@ -54,7 +54,7 @@ type OriginalDataAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *OriginalDataAnnotation) AnnotationType() string { return "xliff2:original-data" }
+func (a *OriginalDataAnnotation) TypeName() string { return "xliff2:original-data" }
 
 // SourceDOMAnnotation carries the original etree document AND the raw
 // input bytes captured by the reader. The writer's round-trip mode
@@ -72,16 +72,16 @@ type SourceDOMAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *SourceDOMAnnotation) AnnotationType() string { return "xliff2:source-dom" }
+func (a *SourceDOMAnnotation) TypeName() string { return "xliff2:source-dom" }
 
 func init() {
-	model.RegisterPayload("xliff2:segment-inline", func() any {
+	model.RegisterPayload("xliff2:segment-inline", func() model.Payload {
 		return &SegmentInlineAnnotation{Content: &Content{}}
 	})
-	model.RegisterPayload("xliff2:original-data", func() any {
+	model.RegisterPayload("xliff2:original-data", func() model.Payload {
 		return &OriginalDataAnnotation{Entries: make(map[string]*Content)}
 	})
-	model.RegisterPayload("xliff2:source-dom", func() any {
+	model.RegisterPayload("xliff2:source-dom", func() model.Payload {
 		return &SourceDOMAnnotation{}
 	})
 }

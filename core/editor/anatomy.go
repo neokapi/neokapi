@@ -406,8 +406,8 @@ func altTranslationView(key string, t *model.AltTranslation) AnnotationView {
 
 func annotationView(key string, a any) AnnotationView {
 	v := AnnotationView{Key: key}
-	if at, ok := a.(interface{ AnnotationType() string }); ok {
-		v.Type = at.AnnotationType()
+	if at, ok := a.(interface{ TypeName() string }); ok {
+		v.Type = at.TypeName()
 	}
 	switch t := a.(type) {
 	case *model.NoteAnnotation:

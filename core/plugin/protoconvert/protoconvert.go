@@ -32,7 +32,7 @@ func jsonToMap(data []byte) map[string]any {
 // ────────────────────────────────────────────────────────────────────────────
 
 // AnnotationToProto converts a any to a proto AnnotationEntry.
-func AnnotationToProto(a any) *pb.AnnotationEntry {
+func AnnotationToProto(a model.Payload) *pb.AnnotationEntry {
 	data, err := json.Marshal(a)
 	if err != nil {
 		// A any that can't be JSON-encoded is a programming error
@@ -48,7 +48,7 @@ func AnnotationToProto(a any) *pb.AnnotationEntry {
 }
 
 // ProtoToAnnotation converts a proto AnnotationEntry to a any.
-func ProtoToAnnotation(e *pb.AnnotationEntry) any {
+func ProtoToAnnotation(e *pb.AnnotationEntry) model.Payload {
 	a, ok := model.NewPayload(e.Type)
 	if !ok {
 		return &model.GenericAnnotation{
@@ -70,7 +70,7 @@ func ProtoToAnnotation(e *pb.AnnotationEntry) any {
 }
 
 // AnnotationsToProto converts a map of model.Annotations to proto entries.
-func AnnotationsToProto(anns map[string]any) map[string]*pb.AnnotationEntry {
+func AnnotationsToProto(anns map[string]model.Payload) map[string]*pb.AnnotationEntry {
 	if len(anns) == 0 {
 		return nil
 	}
@@ -82,11 +82,11 @@ func AnnotationsToProto(anns map[string]any) map[string]*pb.AnnotationEntry {
 }
 
 // ProtoToAnnotations converts proto annotation entries to model.Annotations.
-func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]any {
+func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model.Payload {
 	if len(entries) == 0 {
 		return nil
 	}
-	result := make(map[string]any, len(entries))
+	result := make(map[string]model.Payload, len(entries))
 	for key, e := range entries {
 		result[key] = ProtoToAnnotation(e)
 	}
@@ -203,7 +203,7 @@ func protoToRunRange(msg *pb.RunRangeMessage) model.RunRange {
 // populateAnnotation fills a typed annotation from a raw map.
 // This is used as a fallback when json.Unmarshal fails due to type mismatches
 // (e.g., the bridge sends Source/Target as strings but Go expects []Run).
-func populateAnnotation(typeName string, a any, m map[string]any) any {
+func populateAnnotation(typeName string, a model.Payload, m map[string]any) model.Payload {
 	switch v := a.(type) {
 	case *model.NoteAnnotation:
 		v.Text, _ = m["text"].(string)

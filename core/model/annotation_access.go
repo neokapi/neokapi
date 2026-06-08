@@ -26,15 +26,15 @@ const (
 // --- Block-scoped annotation access ---
 
 // Anno returns the block annotation stored under key, or (nil, false).
-func (b *Block) Anno(key string) (any, bool) {
+func (b *Block) Anno(key string) (Payload, bool) {
 	v, ok := b.Annotations[key]
 	return v, ok
 }
 
 // SetAnno stores v as the block annotation under key (upserting).
-func (b *Block) SetAnno(key string, v any) {
+func (b *Block) SetAnno(key string, v Payload) {
 	if b.Annotations == nil {
-		b.Annotations = make(map[string]any)
+		b.Annotations = make(map[string]Payload)
 	}
 	b.Annotations[key] = v
 }
@@ -44,7 +44,7 @@ func (b *Block) DelAnno(key string) { delete(b.Annotations, key) }
 
 // AnnoMap returns the block's annotation map for ranging and length checks. The
 // returned map is the block's own storage; use SetAnno/DelAnno to mutate.
-func (b *Block) AnnoMap() map[string]any { return b.Annotations }
+func (b *Block) AnnoMap() map[string]Payload { return b.Annotations }
 
 // AltTranslations returns the block's alternative-translation candidates (the
 // []*AltTranslation under AnnoAltTranslation), or nil.
@@ -109,15 +109,15 @@ func AnnoAs[T any](b *Block, key string) (T, bool) {
 // --- Layer-scoped annotation access ---
 
 // Anno returns the layer annotation stored under key, or (nil, false).
-func (l *Layer) Anno(key string) (any, bool) {
+func (l *Layer) Anno(key string) (Payload, bool) {
 	v, ok := l.Annotations[key]
 	return v, ok
 }
 
 // SetAnno stores v as the layer annotation under key (upserting).
-func (l *Layer) SetAnno(key string, v any) {
+func (l *Layer) SetAnno(key string, v Payload) {
 	if l.Annotations == nil {
-		l.Annotations = make(map[string]any)
+		l.Annotations = make(map[string]Payload)
 	}
 	l.Annotations[key] = v
 }
@@ -126,4 +126,4 @@ func (l *Layer) SetAnno(key string, v any) {
 func (l *Layer) DelAnno(key string) { delete(l.Annotations, key) }
 
 // AnnoMap returns the layer's annotation map.
-func (l *Layer) AnnoMap() map[string]any { return l.Annotations }
+func (l *Layer) AnnoMap() map[string]Payload { return l.Annotations }

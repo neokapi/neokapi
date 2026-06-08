@@ -330,7 +330,7 @@ func unitSegmentsAnn(b *model.Block) *xliff2.UnitSegmentsAnnotation {
 	if b == nil {
 		return nil
 	}
-	ann, _ := model.AnnoAs[*xliff2.UnitSegmentsAnnotation](b, (&xliff2.UnitSegmentsAnnotation{}).AnnotationType())
+	ann, _ := model.AnnoAs[*xliff2.UnitSegmentsAnnotation](b, (&xliff2.UnitSegmentsAnnotation{}).TypeName())
 	return ann
 }
 
@@ -346,7 +346,7 @@ func unitSourceIR(b *model.Block) map[string]*xliff2.Content {
 // setUnitTargetIR stores the per-segment target inline IR for a locale on
 // the block's UnitSegmentsAnnotation, creating the annotation if absent.
 func setUnitTargetIR(b *model.Block, loc model.LocaleID, irByID map[string]*xliff2.Content) {
-	key := (&xliff2.UnitSegmentsAnnotation{}).AnnotationType()
+	key := (&xliff2.UnitSegmentsAnnotation{}).TypeName()
 	ann, ok := model.AnnoAs[*xliff2.UnitSegmentsAnnotation](b, key)
 	if !ok || ann == nil {
 		ann = &xliff2.UnitSegmentsAnnotation{

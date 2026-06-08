@@ -90,9 +90,9 @@ type BlockView interface {
 	// Annotations returns a snapshot of the block annotations (the former
 	// annotation map). Use Annotate to write; writing to the returned map has
 	// no effect.
-	Annotations() map[string]any
+	Annotations() map[string]model.Payload
 	// Annotate stores a block annotation payload under key.
-	Annotate(key string, a any)
+	Annotate(key string, a model.Payload)
 	// RemoveAnnotation deletes the block annotation stored under key.
 	RemoveAnnotation(key string)
 	Properties() map[string]string
@@ -229,9 +229,9 @@ func (v *blockView) AddNote(n *model.NoteAnnotation)           { v.b.AddNote(n) 
 func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
 	v.b.AppendAltUnder(key, a)
 }
-func (v *blockView) Annotations() map[string]any { return v.b.AnnoMap() }
-func (v *blockView) Annotate(key string, a any)  { v.b.SetAnno(key, a) }
-func (v *blockView) RemoveAnnotation(key string) { v.b.DelAnno(key) }
+func (v *blockView) Annotations() map[string]model.Payload { return v.b.AnnoMap() }
+func (v *blockView) Annotate(key string, a model.Payload)  { v.b.SetAnno(key, a) }
+func (v *blockView) RemoveAnnotation(key string)           { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)

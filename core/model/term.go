@@ -42,4 +42,4 @@ type TermAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for term annotations.
-func (ta *TermAnnotation) AnnotationType() string { return "term" }
+func (ta *TermAnnotation) TypeName() string { return "term" }

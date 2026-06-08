@@ -2,9 +2,19 @@ package model
 
 import "sync"
 
+// Payload is the interface every typed stand-off value implements — both a
+// block annotation value (Block.Annotations / Layer.Annotations) and an overlay
+// span value (Span.Value). It self-reports a stable type name so the wire and
+// store layers can discriminate and rehydrate the concrete type. Formats and
+// plugins define their own payload types; all that is required is TypeName.
+type Payload interface {
+	// TypeName returns the stable type name this payload registers under.
+	TypeName() string
+}
+
 // PayloadFactory creates a new zero-valued typed stand-off payload for a given
-// type name — either a block annotation value or an overlay span Value.
-type PayloadFactory func() any
+// type name.
+type PayloadFactory func() Payload
 
 var (
 	payloadMu        sync.RWMutex
@@ -14,13 +24,13 @@ var (
 func init() {
 	// Register built-in stand-off payload types so the wire and store layers can
 	// rehydrate the typed value from a type name. Block annotations:
-	RegisterPayload("alt-translation", func() any { return &AltTranslations{} })
-	RegisterPayload("note", func() any { return &Notes{} })
-	RegisterPayload("generic", func() any { return &GenericAnnotation{Kind: "generic"} })
+	RegisterPayload("alt-translation", func() Payload { return &AltTranslations{} })
+	RegisterPayload("note", func() Payload { return &Notes{} })
+	RegisterPayload("generic", func() Payload { return &GenericAnnotation{Kind: "generic"} })
 	// Overlay span payloads:
-	RegisterPayload("entity", func() any { return &EntityAnnotation{} })
-	RegisterPayload("term", func() any { return &TermAnnotation{} })
-	RegisterPayload("term-candidate", func() any { return &TermCandidateAnnotation{} })
+	RegisterPayload("entity", func() Payload { return &EntityAnnotation{} })
+	RegisterPayload("term", func() Payload { return &TermAnnotation{} })
+	RegisterPayload("term-candidate", func() Payload { return &TermCandidateAnnotation{} })
 }
 
 // RegisterPayload registers a factory for the given stand-off payload type
@@ -35,7 +45,7 @@ func RegisterPayload(typeName string, factory PayloadFactory) {
 
 // NewPayload creates a new typed stand-off payload for the given type name.
 // Returns the payload and true if the type is registered, or nil and false.
-func NewPayload(typeName string) (any, bool) {
+func NewPayload(typeName string) (Payload, bool) {
 	payloadMu.RLock()
 	defer payloadMu.RUnlock()
 	factory, ok := payloadFactories[typeName]
@@ -45,16 +55,10 @@ func NewPayload(typeName string) (any, bool) {
 	return factory(), true
 }
 
-// payloadTyper is implemented by stand-off payloads that self-report their type
-// name (the former Annotation interface method), used by the wire/store layers
-// to discriminate the typed value.
-type payloadTyper interface{ AnnotationType() string }
-
-// PayloadTypeName returns the registered type name of a stand-off payload
-// value, or "" if the value does not self-report one.
-func PayloadTypeName(v any) string {
-	if t, ok := v.(payloadTyper); ok {
-		return t.AnnotationType()
+// PayloadTypeName returns the type name of a stand-off payload, or "" if nil.
+func PayloadTypeName(p Payload) string {
+	if p == nil {
+		return ""
 	}
-	return ""
+	return p.TypeName()
 }

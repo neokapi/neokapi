@@ -235,7 +235,7 @@ func TestAltTranslation(t *testing.T) {
 		Score:     0.95,
 		MatchType: model.MatchFuzzy,
 	}
-	assert.Equal(t, "alt-translation", alt.AnnotationType())
+	assert.Equal(t, "alt-translation", alt.TypeName())
 	assert.Equal(t, "Bonjour", model.FlattenRuns(alt.Target))
 }
 

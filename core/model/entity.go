@@ -43,4 +43,4 @@ type EntityAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for entity annotations.
-func (ea *EntityAnnotation) AnnotationType() string { return "entity" }
+func (ea *EntityAnnotation) TypeName() string { return "entity" }

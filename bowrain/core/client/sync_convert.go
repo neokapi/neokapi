@@ -191,12 +191,19 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		}
 	}
 
-	// Annotations.
+	// Annotations: rehydrate each typed payload by its key (the annotation type
+	// name), falling back to a GenericAnnotation for unregistered types.
 	if len(sb.Annotations) > 0 {
-		anns := map[string]any{}
-		if json.Unmarshal(sb.Annotations, &anns) == nil {
-			for k, v := range anns {
-				b.SetAnno(k, v)
+		raw := map[string]json.RawMessage{}
+		if json.Unmarshal(sb.Annotations, &raw) == nil {
+			for k, data := range raw {
+				p, ok := model.NewPayload(k)
+				if !ok || json.Unmarshal(data, p) != nil {
+					var fields map[string]any
+					_ = json.Unmarshal(data, &fields)
+					p = &model.GenericAnnotation{Kind: k, Fields: fields}
+				}
+				b.SetAnno(k, p)
 			}
 		}
 	}

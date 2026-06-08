@@ -440,7 +440,7 @@ type annotationEnvelope struct {
 
 // marshalAnnotations encodes a block's annotations as type-discriminated
 // envelopes.
-func marshalAnnotations(anns map[string]any) ([]byte, error) {
+func marshalAnnotations(anns map[string]model.Payload) ([]byte, error) {
 	env := make(map[string]annotationEnvelope, len(anns))
 	for k, a := range anns {
 		if a == nil {
@@ -458,12 +458,12 @@ func marshalAnnotations(anns map[string]any) ([]byte, error) {
 // unmarshalAnnotations reconstructs typed annotations from the discriminated
 // envelopes written by marshalAnnotations, falling back to GenericAnnotation
 // for unregistered types.
-func unmarshalAnnotations(data []byte) (map[string]any, error) {
+func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 	var env map[string]annotationEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
 		return nil, err
 	}
-	out := make(map[string]any, len(env))
+	out := make(map[string]model.Payload, len(env))
 	for k, e := range env {
 		a, ok := model.NewPayload(e.Type)
 		if !ok {

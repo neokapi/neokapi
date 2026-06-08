@@ -87,7 +87,7 @@ type KLFAnnotation struct {
 }
 
 // AnnotationType satisfies any.
-func (a *KLFAnnotation) AnnotationType() string { return AnnotationType }
+func (a *KLFAnnotation) TypeName() string { return AnnotationType }
 
 // Runs returns the source runs. Convenience for tools that want to
 // walk a block's structured content without repeating the map
