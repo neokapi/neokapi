@@ -10,9 +10,9 @@ import (
 )
 
 // repFacet fetches the repetition facet from a block, requiring it to be present.
-func repFacet(t *testing.T, b *model.Block) *tools.RepetitionFacet {
+func repFacet(t *testing.T, b *model.Block) *tools.RepetitionAnnotation {
 	t.Helper()
-	rf, ok := model.AnnoAs[*tools.RepetitionFacet](b, string(model.AnnoRepetition))
+	rf, ok := model.AnnoAs[*tools.RepetitionAnnotation](b, string(model.AnnoRepetition))
 	require.True(t, ok, "block should have repetition facet")
 	return rf
 }
@@ -158,7 +158,7 @@ func TestRepetitionAnalysisSkipsNonTranslatable(t *testing.T) {
 	require.Len(t, results, 1)
 
 	resultBlock := results[0].Resource.(*model.Block)
-	_, hasStatus := model.AnnoAs[*tools.RepetitionFacet](resultBlock, string(model.AnnoRepetition))
+	_, hasStatus := model.AnnoAs[*tools.RepetitionAnnotation](resultBlock, string(model.AnnoRepetition))
 	assert.False(t, hasStatus, "non-translatable block should not have repetition facet")
 }
 

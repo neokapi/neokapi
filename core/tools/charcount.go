@@ -85,7 +85,7 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
 		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
 
-		cf := &CharCountFacet{}
+		cf := &CharCountAnnotation{}
 		wrote := false
 
 		// Count source characters.

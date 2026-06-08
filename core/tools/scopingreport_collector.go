@@ -96,7 +96,7 @@ func (sc *ScopingCollector) Collect(_ context.Context, item *flow.Item, parts []
 		}
 
 		wordCount := 0
-		if wc, ok := model.AnnoAs[*WordCountFacet](block, string(model.AnnoWordCount)); ok {
+		if wc, ok := model.AnnoAs[*WordCountAnnotation](block, string(model.AnnoWordCount)); ok {
 			wordCount = wc.Source
 		}
 

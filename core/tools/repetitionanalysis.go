@@ -107,7 +107,7 @@ func NewRepetitionAnalysisTool(cfg *RepetitionAnalysisConfig) *tool.BaseTool {
 			status = "first-occurrence"
 		}
 
-		v.Annotate(string(model.AnnoRepetition), &RepetitionFacet{
+		v.Annotate(string(model.AnnoRepetition), &RepetitionAnnotation{
 			Status: status,
 			Group:  groupKey,
 			Count:  g.count,

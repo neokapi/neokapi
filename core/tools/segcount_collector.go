@@ -113,7 +113,7 @@ func (sc *SegCountCollector) Collect(_ context.Context, item *flow.Item, parts [
 			continue
 		}
 		doc.BlockCount++
-		if sf, ok := model.AnnoAs[*SegCountFacet](block, string(model.AnnoSegCount)); ok {
+		if sf, ok := model.AnnoAs[*SegCountAnnotation](block, string(model.AnnoSegCount)); ok {
 			doc.SourceSegments += sf.Source
 			doc.TargetSegments += sf.Target
 		}
@@ -186,7 +186,7 @@ func (sc *StreamingSegCountCollector) Observe(part *model.Part) {
 	}
 
 	doc.BlockCount++
-	if sf, ok := model.AnnoAs[*SegCountFacet](block, string(model.AnnoSegCount)); ok {
+	if sf, ok := model.AnnoAs[*SegCountAnnotation](block, string(model.AnnoSegCount)); ok {
 		doc.SourceSegments += sf.Source
 		sc.totalSource += sf.Source
 		doc.TargetSegments += sf.Target

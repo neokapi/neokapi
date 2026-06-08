@@ -80,7 +80,7 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
 
 		// Count source words.
-		wc := &WordCountFacet{}
+		wc := &WordCountAnnotation{}
 		if countSource {
 			wc.Source = v.WordCount()
 		}

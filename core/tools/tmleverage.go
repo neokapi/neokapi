@@ -168,7 +168,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 
 		// Check no-query threshold: skip TM query if an existing match scores at/above.
 		if conf.NoQueryThreshold <= 101 {
-			if existing, ok := v.Annotations()[string(model.AnnoTMMatch)].(*TMMatchFacet); ok && existing.Score >= conf.NoQueryThreshold {
+			if existing, ok := v.Annotations()[string(model.AnnoTMMatch)].(*TMMatchAnnotation); ok && existing.Score >= conf.NoQueryThreshold {
 				return nil
 			}
 		}
@@ -232,7 +232,7 @@ func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translatio
 			Score:  float64(score) / 100,
 		})
 	}
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchFacet{Score: score, Type: propType})
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: score, Type: propType})
 }
 
 // leverageSegments attempts sentence-level TM leverage over a multi-segment
@@ -303,7 +303,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	// recorded as alt-translation annotations regardless of fill, so partial
 	// leverage is never lost.
 	segMatches := strconv.Itoa(matched) + "/" + strconv.Itoa(n)
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchFacet{SegmentMatches: segMatches})
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{SegmentMatches: segMatches})
 
 	if matched < n {
 		// Partial leverage: leave the block for a later whole-block translation
@@ -339,7 +339,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 			Score:  float64(minScore) / 100,
 		})
 	}
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchFacet{Score: minScore, Type: matchType, SegmentMatches: segMatches})
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: minScore, Type: matchType, SegmentMatches: segMatches})
 	return true
 }
 

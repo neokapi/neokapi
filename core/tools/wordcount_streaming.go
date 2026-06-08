@@ -59,7 +59,7 @@ func (wc *StreamingWordCountCollector) Observe(part *model.Part) {
 
 	doc.BlockCount++
 
-	if wcf, ok := model.AnnoAs[*WordCountFacet](block, string(model.AnnoWordCount)); ok {
+	if wcf, ok := model.AnnoAs[*WordCountAnnotation](block, string(model.AnnoWordCount)); ok {
 		doc.SourceWords += wcf.Source
 		wc.totalSource += wcf.Source
 		for locale, n := range wcf.Targets {

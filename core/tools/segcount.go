@@ -65,7 +65,7 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 			return nil
 		}
 
-		sf := &SegCountFacet{Source: v.SourceSegmentCount()}
+		sf := &SegCountAnnotation{Source: v.SourceSegmentCount()}
 
 		conf := t.Cfg.(*SegCountConfig)
 		if !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
