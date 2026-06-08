@@ -151,7 +151,7 @@ type IOPort struct {
     Type     string     // overlay type, annotation type, or "target"/"source"
     Side     model.Side // source | target
     Optional bool       // consumed: degrades without it, does more with it
-    Layer    string     // segmentation granularity; "" = primary
+    Layer    string     // segmentation granularity; LayerPrimary = primary
 }
 
 // PortTarget is the committed Target; PortSource is a rewritten source.

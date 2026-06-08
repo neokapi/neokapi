@@ -46,9 +46,10 @@ type BlockView interface {
 	SourceSegmentRuns(i int) []model.Run
 
 	// SourceUnits yields the source processing units of the given segmentation
-	// layer ("" = primary): one per segment span, or a single whole-block unit
-	// when the layer has no segmentation overlay. It is the uniform replacement
-	// for hand-rolled SourceSegmentCount / SourceSegmentRuns loops.
+	// layer (model.LayerPrimary = primary): one per segment span, or a single
+	// whole-block unit when the layer has no segmentation overlay. It is the
+	// uniform replacement for hand-rolled SourceSegmentCount / SourceSegmentRuns
+	// loops.
 	SourceUnits(layer string) iter.Seq[Unit]
 
 	// Targets (read-only).
@@ -112,9 +113,10 @@ type TargetView interface {
 	ClearTargets()
 
 	// TargetUnits yields writable per-unit target production over the source
-	// segmentation of the given layer ("" = primary), splicing each unit's runs
-	// back into the block target for loc when iteration completes. Commit is
-	// all-or-nothing across non-ignorable units; see WritableUnit.
+	// segmentation of the given layer (model.LayerPrimary = primary), splicing
+	// each unit's runs back into the block target for loc when iteration
+	// completes. Commit is all-or-nothing across non-ignorable units; see
+	// WritableUnit.
 	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
 }
 

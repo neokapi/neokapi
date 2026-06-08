@@ -260,7 +260,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	minScore := 101
 	matched := 0
 	allExact := true
-	for seg := range v.SourceUnits("") {
+	for seg := range v.SourceUnits(model.LayerPrimary) {
 		i := seg.Index()
 		segRuns := seg.SourceRuns()
 		segTexts[i] = model.RunsText(segRuns)

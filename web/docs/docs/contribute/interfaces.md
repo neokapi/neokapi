@@ -152,7 +152,7 @@ type Target struct {
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
     Variant *VariantKey // nil = source side
-    Layer   string      // segmentation granularity; "" = primary sentence segmentation
+    Layer   string      // segmentation granularity; LayerPrimary = primary sentence segmentation
     Spans   []Span
 }
 

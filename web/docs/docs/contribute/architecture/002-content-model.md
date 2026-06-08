@@ -152,7 +152,7 @@ type VariantKey struct {
 
 // Target is the committed translation for one variant: content plus its
 // lifecycle and provenance. Candidate/alternative translations (TM, MT, AI
-// proposals) remain stand-off overlays; Target is the chosen one.
+// proposals) remain `alt-translation` annotations; Target is the chosen one.
 type Target struct {
     Runs   []Run
     Status TargetStatus // draft | translated | reviewed | signed-off
@@ -169,7 +169,7 @@ overlays (target-side segmentation, target terms), scoped to that variant.
 
 This separates two things the older `map[LocaleID][]Run` conflated: the
 **committed translation per variant** (a `Target`, with status and provenance)
-from **candidate proposals** (stand-off `alt-translation` overlays, possibly many
+from **candidate proposals** (`alt-translation` annotations, possibly many
 per variant, each scored). The in-flight `Target` holds the current committed
 translation; accumulated history across runs and review trails are a
 persistence-layer concern, outside the content model.
@@ -234,7 +234,7 @@ type Block struct {
 type Overlay struct {
     Type    OverlayType // "segmentation","term","entity","qa","alignment",…
     Variant *VariantKey // nil = source side
-    Layer   string      // segmentation granularity; "" = primary
+    Layer   string      // segmentation granularity; LayerPrimary = primary
     Spans   []Span      // each with a run Range and a typed Value
 }
 ```
@@ -309,7 +309,7 @@ interpretation; segmentation is simply the overlay of type `segmentation`.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment" | …
     Variant *VariantKey // which run sequence it annotates; nil = source
-    Layer   string      // segmentation granularity; "" = primary sentence layer
+    Layer   string      // segmentation granularity; LayerPrimary = primary sentence layer
     Spans   []Span
 }
 
@@ -761,7 +761,7 @@ backend's tag-handling capability:
   without forcing segment structure into the content model.
 - Targets are first-class records keyed by a variant (locale plus optional
   tone/channel); committed translations carry status and provenance, candidate
-  proposals stay as `alt-translation` overlays, and the variant axis extends
+  proposals stay as `alt-translation` annotations, and the variant axis extends
   beyond locale without ceremony at locale-only call sites.
 
 ## Related

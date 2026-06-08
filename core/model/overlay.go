@@ -56,11 +56,10 @@ func (r RunRange) IsZero() bool { return r == RunRange{} }
 // format-agnostic marker shared by the native readers and the okapi bridge.
 const SpanPropIgnorable = "ignorable"
 
-// Span is one entry in an Overlay: a run-anchored range with an optional
-// facet-local id (e.g. a segment id "s1"), type-specific properties, and an
-// optional typed payload Value. A block annotation (the former annotation)
-// uses a single span with a zero Range and a Value; an overlay uses
-// one or more spans with real ranges.
+// Span is one occurrence within an Overlay: a run-anchored Range (its
+// position), an optional overlay-local id (e.g. a segment id "s1"),
+// type-specific Props, and an optional typed payload Value. Block-scoped
+// metadata is not a span — it rides on Block.Annotations (see annotation.go).
 type Span struct {
 	ID    string            `json:"id,omitempty"`
 	Range RunRange          `json:"range"`
@@ -81,16 +80,23 @@ func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 // by position.
 //
 // Layer names a segmentation granularity so several can coexist over the same
-// runs (AD-002): the empty string is the primary sentence segmentation — the
-// one bilingual formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from —
+// runs (AD-002): LayerPrimary is the primary sentence segmentation — the one
+// bilingual formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from —
 // while named layers ("llm-chunk", "clause", …) are additional interpretations
 // produced on demand. Layer is meaningful only for segmentation overlays.
 type Overlay struct {
 	Type    OverlayType `json:"type"`
 	Variant *VariantKey `json:"variant,omitempty"` // nil = source side
-	Layer   string      `json:"layer,omitempty"`   // "" = primary sentence segmentation
+	Layer   string      `json:"layer,omitempty"`   // LayerPrimary ("") = primary sentence segmentation
 	Spans   []Span      `json:"spans,omitempty"`
 }
+
+// LayerPrimary names the primary sentence segmentation layer — the one bilingual
+// formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from, and the default
+// for the unit iterators. It is the zero value of Overlay.Layer (and of the
+// layer parameter on the segmentation/unit APIs); named layers ("llm-chunk",
+// "clause", …) are additional, on-demand interpretations.
+const LayerPrimary = ""
 
 // OnSource reports whether the overlay annotates the source run sequence.
 func (o *Overlay) OnSource() bool { return o == nil || o.Variant == nil }
@@ -269,7 +275,7 @@ func RunRangeForBytes(runs []Run, byteStart, byteEnd int) RunRange {
 // SegmentationFor returns the primary (layer "") segmentation overlay for the
 // given side (nil = source), or nil if none.
 func (b *Block) SegmentationFor(variant *VariantKey) *Overlay {
-	return b.SegmentationLayerFor(variant, "")
+	return b.SegmentationLayerFor(variant, LayerPrimary)
 }
 
 // SegmentationLayerFor returns the segmentation overlay for the given side
@@ -312,7 +318,7 @@ func sameVariant(a, b *VariantKey) bool {
 // given side (nil = source) with one carrying the supplied spans. Empty spans
 // removes it.
 func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) {
-	b.SetSegmentationLayer(variant, "", spans)
+	b.SetSegmentationLayer(variant, LayerPrimary, spans)
 }
 
 // SetSegmentationLayer replaces the segmentation overlay for the given side
@@ -351,7 +357,7 @@ func (b *Block) HasSourceOverlays() bool {
 func (b *Block) SourceSegmentation() *Overlay {
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
-		if o.Type == OverlaySegmentation && o.OnSource() && o.Layer == "" {
+		if o.Type == OverlaySegmentation && o.OnSource() && o.Layer == LayerPrimary {
 			return o
 		}
 	}

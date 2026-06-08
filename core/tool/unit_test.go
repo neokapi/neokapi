@@ -39,7 +39,7 @@ func TestSourceUnitsWholeBlock(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	var units []tool.Unit
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceUnits(model.LayerPrimary) {
 		units = append(units, u)
 	}
 	require.Len(t, units, 1)
@@ -55,7 +55,7 @@ func TestSourceUnitsEmptySourceYieldsNothing(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	count := 0
-	for range v.SourceUnits("") {
+	for range v.SourceUnits(model.LayerPrimary) {
 		count++
 	}
 	assert.Equal(t, 0, count, "an empty source yields no units")
@@ -67,7 +67,7 @@ func TestSourceUnitsSegmented(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	var units []tool.Unit
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceUnits(model.LayerPrimary) {
 		units = append(units, u)
 	}
 	require.Len(t, units, 2)
@@ -85,7 +85,7 @@ func TestSourceUnitsRangeCopyIsIsolated(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	var first tool.Unit
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceUnits(model.LayerPrimary) {
 		first = u
 		break
 	}
@@ -102,7 +102,7 @@ func TestSourceUnitsEarlyStop(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	count := 0
-	for range v.SourceUnits("") {
+	for range v.SourceUnits(model.LayerPrimary) {
 		count++
 		break
 	}
@@ -122,7 +122,7 @@ func TestSourceUnitsIgnorable(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	var units []tool.Unit
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceUnits(model.LayerPrimary) {
 		units = append(units, u)
 	}
 	require.Len(t, units, 2)
@@ -135,7 +135,7 @@ func TestTargetUnitsWholeBlockCommit(t *testing.T) {
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
 	v := tool.NewTargetView(b)
 
-	for u := range v.TargetUnits(frFR, "") {
+	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour."}}})
 	}
 	assert.Equal(t, "Bonjour.", b.TargetText(frFR))
@@ -146,7 +146,7 @@ func TestTargetUnitsWholeBlockNoWriteNoCommit(t *testing.T) {
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
 	v := tool.NewTargetView(b)
 
-	for range v.TargetUnits(frFR, "") {
+	for range v.TargetUnits(frFR, model.LayerPrimary) {
 		// deliberately write nothing
 	}
 	assert.False(t, b.HasTarget(frFR), "an untouched whole-block unit commits nothing")
@@ -158,7 +158,7 @@ func TestTargetUnitsSegmentedAssembly(t *testing.T) {
 	v := tool.NewTargetView(b)
 
 	want := map[int]string{0: "Bonjour le monde. ", 1: "Au revoir."}
-	for u := range v.TargetUnits(frFR, "") {
+	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: want[u.Index()]}}})
 	}
 	assert.Equal(t, "Bonjour le monde. Au revoir.", b.TargetText(frFR),
@@ -170,7 +170,7 @@ func TestTargetUnitsPartialWriteCommitsNothing(t *testing.T) {
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewTargetView(b)
 
-	for u := range v.TargetUnits(frFR, "") {
+	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		if u.Index() == 0 {
 			u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde. "}}})
 		}
@@ -192,7 +192,7 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 	})
 	v := tool.NewTargetView(b)
 
-	for u := range v.TargetUnits(frFR, "") {
+	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		if !u.Ignorable() {
 			u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour."}}})
 		}
@@ -206,7 +206,7 @@ func TestTargetUnitsEarlyStopCommitsNothing(t *testing.T) {
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewTargetView(b)
 
-	for u := range v.TargetUnits(frFR, "") {
+	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "x"}}})
 		break // stop early
 	}
@@ -229,7 +229,7 @@ func TestTargetUnitsReadsTargetSegment(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	got := map[int]string{}
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceUnits(model.LayerPrimary) {
 		got[u.Index()] = model.RunsText(u.TargetRuns(frFR))
 	}
 	assert.Equal(t, "Bonjour le monde. ", got[0])

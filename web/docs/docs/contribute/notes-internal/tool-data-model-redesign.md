@@ -43,7 +43,7 @@ interpretation has a position:
   overlay groups one type's run-anchored spans on one side of the block. An
   `Overlay` has a `Type` (an `OverlayType`), an optional `Variant` (nil = source
   side; set = a target variant), an optional `Layer` (segmentation granularity;
-  `""` = primary), and `Spans`. A `Span` carries a run `Range` (its position), an
+  `LayerPrimary` = primary), and `Spans`. A `Span` carries a run `Range` (its position), an
   `ID`, optional `Props`, and a typed payload `Value`. Because a span's range
   anchors into the runs, a source rewrite invalidates it — a source-transform
   tool drops the overlays it consumed before rewriting the runs.
@@ -111,7 +111,7 @@ type IOPort struct {
     Type     string     // an OverlayType, an annotation key, or "target"/"source"
     Side     model.Side // source | target
     Optional bool       // consumed: degrades without it, does more with it
-    Layer    string     // segmentation granularity; "" = primary
+    Layer    string     // segmentation granularity; LayerPrimary = primary
 }
 
 type ToolMeta struct {
@@ -181,7 +181,7 @@ whether segmentation is materialized as structure or as a stand-off overlay:
 // core/tool
 type BlockView interface {
     // … SourceUnits yields the source units of the given segmentation layer
-    // ("" = primary), or a single whole-block unit when none is present.
+    // (LayerPrimary = primary), or a single whole-block unit when none is present.
     SourceUnits(layer string) iter.Seq[Unit]
 }
 
