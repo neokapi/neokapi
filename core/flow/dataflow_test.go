@@ -22,7 +22,6 @@ func TestValidateDataFlow_BuiltInFlowsPass(t *testing.T) {
 	t.Parallel()
 	reg := dataflowReg(t)
 	for _, def := range flow.BuiltInFlows() {
-		def := def
 		t.Run(def.ID, func(t *testing.T) {
 			assert.NoError(t, def.ValidateDataFlow(reg), "built-in flow %q must satisfy its facet contract", def.ID)
 		})

@@ -424,4 +424,3 @@ than wrapping it.
 - [AD-026: Flow I/O Binding](/contribute/architecture/026-flow-io-binding) — source/sink as bindings; the facet algebra makes the binding ends typed.
 - [Flow Steps Format](flow-steps-format.md) — the steps document the editor reads and writes.
 - [Session-Scoped Tool Authoring](session-tool-authoring.md) — overlay conventions for SessionTools.
-</content>

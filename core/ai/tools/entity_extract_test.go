@@ -195,7 +195,7 @@ func TestAIEntityExtractTool_WithNER(t *testing.T) {
 	// entity:1 should be NER's "March 15" (not in LLM result, so NER fills in).
 	span1 := resultBlock.FacetSpan(model.FacetEntity, "entity:1")
 	require.NotNil(t, span1)
-	entityAnn1, _ := any(span1.Value).(*model.EntityAnnotation)
+	entityAnn1, _ := span1.Value.(*model.EntityAnnotation)
 	assert.Equal(t, "March 15", entityAnn1.Text)
 	assert.Equal(t, model.EntityDate, entityAnn1.Type)
 	assert.Equal(t, model.ExtractionSourceNER, entityAnn1.Source)
@@ -203,7 +203,7 @@ func TestAIEntityExtractTool_WithNER(t *testing.T) {
 	// Term candidate should be present.
 	tcSpan := resultBlock.FacetSpan(model.FacetTermCandidate, "term-candidate:0")
 	require.NotNil(t, tcSpan)
-	termAnn, _ := any(tcSpan.Value).(*model.TermCandidateAnnotation)
+	termAnn, _ := tcSpan.Value.(*model.TermCandidateAnnotation)
 	assert.Equal(t, "Sprint", termAnn.Text)
 }
 
@@ -247,7 +247,7 @@ func TestAIEntityExtractTool_SkipsKnownTerms(t *testing.T) {
 	// Only "Workflow" should be a candidate (Dashboard is known).
 	tcSpan := resultBlock.FacetSpan(model.FacetTermCandidate, "term-candidate:0")
 	require.NotNil(t, tcSpan)
-	tc, _ := any(tcSpan.Value).(*model.TermCandidateAnnotation)
+	tc, _ := tcSpan.Value.(*model.TermCandidateAnnotation)
 	assert.Equal(t, "Workflow", tc.Text, "Dashboard should be filtered, leaving only Workflow")
 }
 
