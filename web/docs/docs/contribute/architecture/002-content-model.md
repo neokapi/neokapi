@@ -117,10 +117,9 @@ type Block struct {
     SourceLocale LocaleID
     Source       []Run                  // whole source content
     Targets      map[VariantKey]*Target // first-class targets, keyed by variant
-    Overlays     []Overlay              // opt-in stand-off interpretations (usually none)
+    Overlays     []Facet                // the single stand-off facet carrier
     Identity     *BlockIdentity        // content-addressable hash for dedup
-    Annotations  map[string]Annotation // block-level (non-positional) metadata
-    Properties   map[string]string
+    Properties   map[string]string      // opaque pass-through metadata only
     // …skeleton link, display hint, whitespace flag, etc.
 }
 ```
@@ -208,46 +207,59 @@ Properties are serialized and carried through the pipeline. Tools add
 metadata without content-model changes. This replaces the pattern of adding
 dedicated fields for every new piece of metadata.
 
-#### Annotations
+#### Facets (one stand-off carrier)
 
-Block-level, non-positional metadata produced by pipeline tools lives in the
-`Annotations` map. Each annotation implements the `Annotation` interface:
+Every typed interpretation of a Block — positional or not — rides on the single
+`Overlays []Facet` carrier. There is no separate annotation interface or
+annotation map: a `Facet` is a typed span set on one side of the block, and a
+`Span` carries an optional run `Range` and a typed payload `Value`.
 
 ```go
-type Annotation interface {
-    AnnotationType() string
+type Facet struct {
+    Type    FacetType   // "segmentation","term","entity","qa","alt-translation",…
+    Variant *VariantKey // nil = source side
+    Layer   string      // segmentation granularity; "" = primary
+    Spans   []Span
+}
+
+type Span struct {
+    Range RunRange // zero range = block-scoped (the former annotation)
+    Value any      // typed payload, rehydrated via the facet registry
+    // …id, props…
 }
 ```
 
-Interpretations fall into two carriers. **Positional** ones that point into the
-content — segmentation, terminology, entities, QA findings, source↔target
-alignment — are **stand-off overlays** with run-anchored spans (see
-[Stand-off overlays](#stand-off-overlays-segmentation-terminology-entities)).
-**Non-positional** ones that describe the block as a whole stay in the
-`Annotations` map:
+**Positional** facets point into the content with run-anchored spans —
+segmentation, terminology, entities, QA findings, source↔target alignment.
+**Block-scoped** facets describe the block as a whole and carry a single span
+with no range and a typed `Value` — the former annotations (alt-translations,
+notes) and all format round-trip state (XLIFF/openxml native state). Both live
+in the one carrier; `FacetType.IsPositional()` separates them, and the
+block-scoped ones are reached through the `Anno`/`SetAnno`/`DelAnno`/`AnnoMap`
+helpers (keyed by facet type).
 
-| Interpretation   | Type Key          | Carrier          | Producer              | Purpose                                |
-| ---------------- | ----------------- | ---------------- | --------------------- | -------------------------------------- |
-| Segmentation     | `segmentation`    | overlay (spans)  | segment annotator     | Sentence / chunk boundaries over runs  |
-| Terminology      | `term`            | overlay (spans)  | term-lookup           | Matched terminology with target terms  |
-| Term candidates  | `term-candidate`  | overlay (spans)  | ai-terminology        | Term extraction candidates from an LLM |
-| Entities         | `entity`          | overlay (spans)  | ai-entity-extract     | Named entities (people, places, dates) |
-| QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
-| Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
-| Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |
+| Interpretation   | Facet type        | Span        | Producer              | Purpose                                |
+| ---------------- | ----------------- | ----------- | --------------------- | -------------------------------------- |
+| Segmentation     | `segmentation`    | ranged      | segment annotator     | Sentence / chunk boundaries over runs  |
+| Terminology      | `term`            | ranged      | term-lookup           | Matched terminology with target terms  |
+| Term candidates  | `term-candidate`  | ranged      | ai-terminology        | Term extraction candidates from an LLM |
+| Entities         | `entity`          | ranged      | ai-entity-extract     | Named entities (people, places, dates) |
+| QA findings      | `qa`              | ranged      | qa-check              | Quality findings with severity         |
+| Alignment        | `alignment`       | ranged      | aligner, readers      | Source-span ↔ target-span links        |
+| Alt-translations | `alt-translation` | block-scoped | TM leverage, AI tools | Candidate translations with scores     |
 
-Block annotations are keyed by type and instance (`"alt-translation:0"`,
-`"alt-translation:1"`) to support several of one type per Block.
+Each facet type registers a payload constructor (`RegisterFacetValue` /
+`NewFacetValue`) so the wire and store layers can rehydrate the typed `Value`
+from a type name.
 
-Some scalar block-level results are carried as **properties** rather than
-annotations: `tm-leverage` writes the best TM match to `tm-match-score`
-(0–100) and `tm-match-type` (`"exact"`/`"fuzzy"`), and `word-count` writes
-`word-count-source` and per-locale `word-count-target:<locale>` (see
-[Dynamic properties](#dynamic-properties)).
+`Properties` is opaque pass-through metadata only (connector keys, format
+hints). Analytic/interpretive results that a tool produces — TM match scores,
+word counts, QA findings — are facets, not properties; the facet IO contract
+([AD-006](006-tool-system.md)) declares which a tool consumes and produces.
 
-Tools communicate by reading annotations and overlays produced upstream and
-writing their own downstream, keeping tools loosely coupled through the shared
-data model rather than direct dependencies.
+Tools communicate by reading facets produced upstream and writing their own
+downstream, keeping tools loosely coupled through the shared data model rather
+than direct dependencies.
 
 ### The Run sequence
 

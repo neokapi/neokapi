@@ -7,12 +7,27 @@ keywords: [tool model, data facets, stand-off overlays, annotations, segmentatio
 
 # Design Proposal: Tool & Data-Type Model Redesign
 
-**Status:** Proposal / RFC — not yet decided. This note investigates whether and
-how to redesign the tool model around the data types tools consume and produce.
-It does not describe current behaviour; for that see
-[AD-006](/contribute/architecture/006-tool-system),
-[AD-002](/contribute/architecture/002-content-model), and
-[AD-026](/contribute/architecture/026-flow-io-binding).
+**Status:** Implemented. The redesign below has landed; the canonical
+descriptions now live in the ADs — [AD-002](/contribute/architecture/002-content-model)
+(facets as the single stand-off carrier), [AD-006](/contribute/architecture/006-tool-system)
+(facet IO contract, the unit iterator), and
+[AD-026](/contribute/architecture/026-flow-io-binding) (facet-typed bindings and
+data-flow validation). This note is retained for the design rationale.
+
+**What landed:** the segment/unit iterator on the views
+(`BlockView.SourceUnits` / `TargetView.TargetUnits`); one facet carrier —
+`model.Annotation` and the `Block`/`Layer` annotation maps removed, every
+stand-off interpretation (including format round-trip state) folded into
+`Overlays []Facet` with a typed `Span.Value`; the part-type `Inputs`/`Outputs`
+contract retired in favour of facet `Consumes`/`Produces`; hard data-flow
+validation from the contract (`FlowDefinition.ValidateDataFlow`); and the
+flow-editor's ports + connection validation typed from the facet contract.
+
+**Deferred follow-ups (behaviour-preserving):** migrate the remaining analytic
+scalars off `Block.Properties` onto typed facets; drop the `Position` field from
+term/entity payloads in favour of span ranges; remove the now-unused
+`schema.AnnotationType` vocabulary; and forward the facet contract through the
+web (REST) and desktop (Wails) tool adapters so the typed ports render in-app.
 
 ## Motivation
 
