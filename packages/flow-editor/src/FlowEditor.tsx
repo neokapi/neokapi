@@ -4,11 +4,13 @@ import {
   Background,
   BackgroundVariant,
   Panel,
+  MarkerType,
   useNodesState,
   useEdgesState,
   type NodeTypes,
   type EdgeTypes,
   type Node,
+  type Edge,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -34,9 +36,9 @@ import type {
   ComponentSchema,
   IOPort,
 } from "./types";
-import { SourcePicker, SinkPicker } from "./nodes/EndpointPicker";
 import { parseBinding, formatBinding } from "./defAdapter";
 import { ToolNode } from "./nodes/ToolNode";
+import { EndpointNode } from "./nodes/EndpointNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
@@ -59,6 +61,8 @@ import type { ToolDoc, ToolDocParam } from "./types";
 
 const nodeTypes: NodeTypes = {
   tool: ToolNode,
+  source: EndpointNode,
+  sink: EndpointNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -577,14 +581,135 @@ export function FlowEditor({
     });
   }, [initial.nodes, nodeStats, readOnly]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+  const handleSourceChange = useCallback(
+    (binding: FlowBinding) => {
+      if (readOnly) return;
+      const locator = formatBinding(binding);
+      const next: FlowSpec = { ...flow };
+      if (locator) next.source = locator;
+      else delete next.source;
+      onChange(next);
+    },
+    [flow, onChange, readOnly],
+  );
+
+  const handleSinkChange = useCallback(
+    (binding: FlowBinding) => {
+      if (readOnly) return;
+      const locator = formatBinding(binding);
+      const next: FlowSpec = { ...flow };
+      if (locator) next.sink = locator;
+      else delete next.sink;
+      onChange(next);
+    },
+    [flow, onChange, readOnly],
+  );
+
+  // Inject Source/Sink as graph nodes wired to the chain's roots/leaves, so the
+  // pipeline renders as one continuous flow (graphToSteps ignores non-"tool"
+  // nodes, so these never round-trip into steps).
+  const { displayNodes, displayEdges } = useMemo(() => {
+    const toolNodes = initial.nodes;
+    if (toolNodes.length === 0) {
+      return { displayNodes: enrichedNodes, displayEdges: initial.edges };
+    }
+    const isVertical = layoutDirection === "vertical";
+    const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
+    const cross = (n: Node) => (isVertical ? n.position.x : n.position.y);
+    const targets = new Set(initial.edges.map((e) => e.target));
+    const sources = new Set(initial.edges.map((e) => e.source));
+    const roots = toolNodes.filter((n) => !targets.has(n.id));
+    const leaves = toolNodes.filter((n) => !sources.has(n.id));
+
+    const minPrimary = Math.min(...toolNodes.map(primary));
+    const maxPrimary = Math.max(...toolNodes.map(primary));
+    const crossCenter = roots.length ? cross(roots[0]) : 200;
+
+    const srcPos = isVertical
+      ? { x: crossCenter, y: minPrimary - 96 }
+      : { x: minPrimary - 220, y: crossCenter };
+    const sinkPos = isVertical
+      ? { x: crossCenter, y: maxPrimary + 132 }
+      : { x: maxPrimary + 240, y: crossCenter };
+
+    const endpointData = (role: "source" | "sink", binding?: string) => ({
+      role,
+      binding: parseBinding(binding),
+      readOnly,
+      layoutDirection,
+      onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
+    });
+
+    const sourceNode: Node = {
+      id: "endpoint-source",
+      type: "source",
+      position: srcPos,
+      data: endpointData("source", flow.source),
+      draggable: false,
+      deletable: false,
+      selectable: false,
+    };
+    const sinkNode: Node = {
+      id: "endpoint-sink",
+      type: "sink",
+      position: sinkPos,
+      data: endpointData("sink", flow.sink),
+      draggable: false,
+      deletable: false,
+      selectable: false,
+    };
+
+    const endpointEdges: Edge[] = [
+      ...roots.map((r) => ({
+        id: `e-source-${r.id}`,
+        source: "endpoint-source",
+        target: r.id,
+        type: "dot",
+        markerEnd: {
+          type: MarkerType.Arrow,
+          width: 16,
+          height: 16,
+          color: "var(--muted-foreground)",
+        },
+      })),
+      ...leaves.map((l) => ({
+        id: `e-${l.id}-sink`,
+        source: l.id,
+        target: "endpoint-sink",
+        type: "dot",
+        markerEnd: {
+          type: MarkerType.Arrow,
+          width: 16,
+          height: 16,
+          color: "var(--muted-foreground)",
+        },
+      })),
+    ];
+
+    return {
+      displayNodes: [...enrichedNodes, sourceNode, sinkNode],
+      displayEdges: [...initial.edges, ...endpointEdges],
+    };
+  }, [
+    enrichedNodes,
+    initial.nodes,
+    initial.edges,
+    layoutDirection,
+    readOnly,
+    flow.source,
+    flow.sink,
+    handleSourceChange,
+    handleSinkChange,
+  ]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(displayNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(displayEdges);
 
   // Sync graph when flow prop changes (e.g., tool added, template selected).
   useEffect(() => {
-    setNodes(enrichedNodes);
-    setEdges(initial.edges);
-  }, [enrichedNodes, initial.edges, setNodes, setEdges]);
+    setNodes(displayNodes);
+    setEdges(displayEdges);
+  }, [displayNodes, displayEdges, setNodes, setEdges]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -595,9 +720,12 @@ export function FlowEditor({
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      // Source/Sink are bindings, not steps — they have their own dropdown UI
+      // and never open the tool config panel.
+      if (node.type !== "tool") return;
       setSelectedNodeId(node.id);
       // If we have trace data, also open the part inspector for this node.
-      if (trace && node.type === "tool") {
+      if (trace) {
         setInspectingNodeId(node.id);
       }
     },
@@ -742,30 +870,6 @@ export function FlowEditor({
   // in the internal FlowBinding object; serialize it to the wire-format string
   // locator (`file` → omitted, the default). Spreading then deleting keeps the
   // file default out of the spec entirely.
-  const handleSourceChange = useCallback(
-    (binding: FlowBinding) => {
-      if (readOnly) return;
-      const locator = formatBinding(binding);
-      const next: FlowSpec = { ...flow };
-      if (locator) next.source = locator;
-      else delete next.source;
-      onChange(next);
-    },
-    [flow, onChange, readOnly],
-  );
-
-  const handleSinkChange = useCallback(
-    (binding: FlowBinding) => {
-      if (readOnly) return;
-      const locator = formatBinding(binding);
-      const next: FlowSpec = { ...flow };
-      if (locator) next.sink = locator;
-      else delete next.sink;
-      onChange(next);
-    },
-    [flow, onChange, readOnly],
-  );
-
   // Connection validation -- only allow connecting compatible port types.
   const isValidConnection = useCallback(
     (connection: { source: string | null; target: string | null }) => {
@@ -918,25 +1022,8 @@ export function FlowEditor({
                 color="var(--border)"
               />
 
-              {/* Fixed Source endpoint terminal — pinned before the tool chain.
-                  Top for vertical layout, left for horizontal. */}
-              <Panel position={layoutDirection === "vertical" ? "top-center" : "top-left"}>
-                <SourcePicker
-                  binding={parseBinding(flow.source)}
-                  onChange={handleSourceChange}
-                  readOnly={readOnly}
-                />
-              </Panel>
-
-              {/* Fixed Sink endpoint terminal — pinned after the tool chain.
-                  Bottom for vertical layout, right for horizontal. */}
-              <Panel position={layoutDirection === "vertical" ? "bottom-center" : "bottom-right"}>
-                <SinkPicker
-                  binding={parseBinding(flow.sink)}
-                  onChange={handleSinkChange}
-                  readOnly={readOnly}
-                />
-              </Panel>
+              {/* Source / Sink are now graph nodes (see the endpoint injection
+                  above), connected to the chain's roots/leaves by edges. */}
 
               <Panel position="bottom-left">
                 <Button
