@@ -12,6 +12,7 @@ import {
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
+import { IoContract } from "./PortChip";
 
 /** Accent color for the source-transform stage. */
 const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
@@ -45,17 +46,6 @@ function NodeStatusBadge({ execState }: { execState: string }) {
   return null;
 }
 
-const PORT_COLORS: Record<string, string> = {
-  block: "oklch(0.75 0.12 85)",
-  data: "oklch(0.6 0.02 260)",
-  media: "oklch(0.7 0.12 180)",
-  layer: "oklch(0.65 0.14 300)",
-};
-
-function portColor(type: string): string {
-  return PORT_COLORS[type] ?? "var(--muted-foreground)";
-}
-
 export function ToolNode({ data, selected }: NodeProps) {
   const category = (data.category as string) || "pipeline";
   const style = getCategoryStyle(category);
@@ -70,6 +60,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
   const isValid = data.valid !== false;
+  const label = (data.label as string) || (data.toolName as string) || "";
+  // Port types this tool requires that nothing upstream produces (set by the
+  // requirement analysis in Phase 2; absent until then).
+  const unmet = data.unmet as string[] | undefined;
   const vertical = data.layoutDirection === "vertical";
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
@@ -163,7 +157,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           <span
             className={`text-[13px] font-semibold leading-tight ${isValid ? "text-foreground" : "text-foreground/50 line-through"}`}
           >
-            {String(data.label || data.toolName || "")}
+            {label}
           </span>
           {!isValid && (
             <AlertCircle
@@ -179,9 +173,15 @@ export function ToolNode({ data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* IO indicators */}
+        {/* Typed IO contract: what this tool reads → writes */}
+        {((consumes && consumes.length > 0) || (produces && produces.length > 0)) && (
+          <div className="mt-1.5">
+            <IoContract consumes={consumes} produces={produces} max={3} />
+          </div>
+        )}
+
+        {/* Capability/locale meta + side effects */}
         <div className="flex items-center gap-1 mt-1">
-          {/* Locale cardinality */}
           {cardinality && cardinality !== "monolingual" && (
             <span
               className="rounded px-1 py-px text-[8px] font-mono font-semibold uppercase tracking-wider"
@@ -200,40 +200,15 @@ export function ToolNode({ data, selected }: NodeProps) {
               {cardinality === "bilingual" ? "BI" : "ML"}
             </span>
           )}
-          {/* Default locale */}
           {defaultLocale && (
             <span
               className="rounded px-1 py-px text-[8px] font-mono font-medium"
-              style={{
-                background: "oklch(0.6 0.12 290 / 0.12)",
-                color: "oklch(0.55 0.12 290)",
-              }}
+              style={{ background: "oklch(0.6 0.12 290 / 0.12)", color: "oklch(0.55 0.12 290)" }}
               title={`Default locale: ${defaultLocale}`}
             >
               {defaultLocale}
             </span>
           )}
-          {/* IO contract dots: consumed (read) then produced (written) */}
-          {consumes?.map((f) => (
-            <span
-              key={`in-${f.type}-${f.side ?? ""}`}
-              title={`Consumes: ${f.type}@${f.side ?? "source"}${f.optional ? " (optional)" : ""}`}
-              className={cn("size-1.5 rounded-full", f.optional ? "opacity-40" : "opacity-70")}
-              style={{ background: portColor(f.type) }}
-            />
-          ))}
-          {consumes?.length && produces?.length ? (
-            <span className="text-[8px] text-muted-foreground">&rarr;</span>
-          ) : null}
-          {produces?.map((f) => (
-            <span
-              key={`out-${f.type}-${f.side ?? ""}`}
-              title={`Produces: ${f.type}@${f.side ?? "source"}`}
-              className="size-1.5 rounded-full opacity-70"
-              style={{ background: portColor(f.type) }}
-            />
-          ))}
-          {/* Side effect indicator */}
           {sideEffects && sideEffects.length > 0 && (
             <span
               className="ml-auto text-[8px] font-mono opacity-60"
@@ -243,6 +218,18 @@ export function ToolNode({ data, selected }: NodeProps) {
             </span>
           )}
         </div>
+
+        {/* Unmet-requirement warning (a required input nothing upstream produces) */}
+        {unmet && unmet.length > 0 && (
+          <div
+            className="flex items-center gap-1 mt-1 text-[8px] font-medium"
+            style={{ color: "oklch(0.62 0.17 45)" }}
+            title={`Needs upstream: ${unmet.join(", ")} — add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
+          >
+            <AlertCircle size={9} />
+            <span>needs {unmet.join(", ")}</span>
+          </div>
+        )}
 
         <Handle
           type="source"
