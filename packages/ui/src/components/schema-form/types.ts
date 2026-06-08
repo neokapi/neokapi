@@ -25,13 +25,21 @@ export interface FormatMeta {
   mimeTypes?: string[];
 }
 
+/** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
+export interface FacetIO {
+  type: string;
+  side?: "source" | "target";
+  optional?: boolean;
+  layer?: string;
+}
+
 export interface ToolMeta {
   id?: string;
   displayName?: string;
   description?: string;
   category?: string;
-  inputs?: string[];
-  outputs?: string[];
+  consumes?: FacetIO[];
+  produces?: FacetIO[];
   tags?: string[];
   requires?: string[];
 }

@@ -512,43 +512,40 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
 
 // --- Step Metadata Panel ---
 
-const ioTypeLabels: Record<string, string> = {
-  "filter-events": "Filter Events",
-  "raw-document": "Raw Document",
-  file: "File",
-};
+function facetLabel(f: { type: string; side?: string; optional?: boolean }): string {
+  const side = f.side ? `@${f.side}` : "";
+  return `${f.type}${side}${f.optional ? " (opt)" : ""}`;
+}
 
 function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
   const toolMeta = schema.toolMeta;
   if (!toolMeta) return null;
 
-  const hasInputs = toolMeta.inputs && toolMeta.inputs.length > 0;
-  const hasOutputs = toolMeta.outputs && toolMeta.outputs.length > 0;
+  const consumes = toolMeta.consumes ?? [];
+  const produces = toolMeta.produces ?? [];
 
-  if (!hasInputs && !hasOutputs) return null;
+  if (consumes.length === 0 && produces.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px]">
-      {hasInputs &&
-        toolMeta.inputs!.map((input) => (
-          <span
-            key={input}
-            className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400"
-          >
-            <FileInput size={9} />
-            In: {ioTypeLabels[input] || input}
-          </span>
-        ))}
-      {hasOutputs &&
-        toolMeta.outputs!.map((output) => (
-          <span
-            key={output}
-            className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400"
-          >
-            <Play size={9} />
-            Out: {ioTypeLabels[output] || output}
-          </span>
-        ))}
+      {consumes.map((f) => (
+        <span
+          key={`in-${f.type}-${f.side ?? ""}`}
+          className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400"
+        >
+          <FileInput size={9} />
+          Consumes: {facetLabel(f)}
+        </span>
+      ))}
+      {produces.map((f) => (
+        <span
+          key={`out-${f.type}-${f.side ?? ""}`}
+          className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400"
+        >
+          <Play size={9} />
+          Produces: {facetLabel(f)}
+        </span>
+      ))}
     </div>
   );
 }
