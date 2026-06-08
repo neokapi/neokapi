@@ -39,7 +39,7 @@ func TestNextFacetSpanIndex_AfterDeleteUsesMaxPlusOne(t *testing.T) {
 	assert.Equal(t, 3, nextOverlaySpanIndex(b, model.OverlayEntity, "entity:"))
 }
 
-func TestNextFacetSpanIndex_PerFacetType(t *testing.T) {
+func TestNextFacetSpanIndex_PerOverlayType(t *testing.T) {
 	t.Parallel()
 	b := model.NewBlock("b1", "John visited Paris")
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0", Value: &model.EntityAnnotation{Text: "John"}})

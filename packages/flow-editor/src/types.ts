@@ -64,8 +64,8 @@ export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 export type Side = "source" | "target";
 
 /**
- * One entry of a tool's facet IO contract (consumes/produces): a typed
- * stand-off facet, the side it pertains to, and — for consumed facets —
+ * One entry of a tool's IO contract (consumes/produces): a typed
+ * stand-off layer, the side it pertains to, and — for consumed facets —
  * whether it is optional (graceful degradation) vs a hard requirement.
  */
 export interface IOPort {
@@ -86,9 +86,9 @@ export interface ToolInfo {
   requires?: string[];
   cardinality?: LocaleCardinality;
   default_locale?: string;
-  /** Facets the tool reads upstream (non-optional = a requirement). */
+  /** Ports the tool reads upstream (non-optional = a requirement). */
   consumes?: IOPort[];
-  /** Facets the tool writes. */
+  /** Ports the tool writes. */
   produces?: IOPort[];
   side_effects?: string[];
   /** Whether this tool may run in the source-transform stage (rewrite source/model). */

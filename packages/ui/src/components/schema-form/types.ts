@@ -25,7 +25,7 @@ export interface FormatMeta {
   mimeTypes?: string[];
 }
 
-/** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
+/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
 export interface IOPort {
   type: string;
   side?: "source" | "target";

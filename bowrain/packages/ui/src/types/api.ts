@@ -737,7 +737,7 @@ export interface FormatInfo {
 }
 
 /** Tool descriptor */
-/** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
+/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
 export interface IOPort {
   type: string;
   side?: "source" | "target";
@@ -751,9 +751,9 @@ export interface ToolInfo {
   category: string;
   display_name?: string;
   source?: string;
-  /** Facets the tool reads upstream (non-optional = a requirement). */
+  /** Ports the tool reads upstream (non-optional = a requirement). */
   consumes?: IOPort[];
-  /** Facets the tool writes. */
+  /** Ports the tool writes. */
   produces?: IOPort[];
   /** Whether the tool may rewrite source (sit in a flow's source-transform stage). */
   is_source_transform?: boolean;

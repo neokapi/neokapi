@@ -102,7 +102,7 @@ export interface FlowInfo {
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 
-/** One entry of a tool's facet IO contract (mirrors core/schema.IOFacet). */
+/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
 export interface IOPort {
   type: string;
   side?: "source" | "target";
@@ -121,9 +121,9 @@ export interface ToolInfo {
   requires?: string[];
   cardinality?: LocaleCardinality;
   default_locale?: string;
-  /** Facets the tool reads upstream (non-optional = a requirement). */
+  /** Ports the tool reads upstream (non-optional = a requirement). */
   consumes?: IOPort[];
-  /** Facets the tool writes. */
+  /** Ports the tool writes. */
   produces?: IOPort[];
   side_effects?: string[];
   /** Whether the tool may run in the source-transform stage (rewrite source). */

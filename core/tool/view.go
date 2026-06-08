@@ -65,24 +65,24 @@ type BlockView interface {
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
-	// AddOverlaySpan appends a positional facet span (term, entity, …) to the
-	// source-side facet of the given type, merging into the existing facet. The
+	// AddOverlaySpan appends an overlay span (term, entity, …) to the
+	// source-side overlay of the given type, merging into the existing facet. The
 	// span's Range is the position and its ID the stable identity.
 	AddOverlaySpan(t model.OverlayType, s model.Span)
-	// OverlaySpans returns the spans of the source-side positional facet of the
+	// OverlaySpans returns the spans of the source-side overlay of the
 	// given type (term, entity, term-candidate, …), or nil. Read-only.
 	OverlaySpans(t model.OverlayType) []model.Span
-	// RemoveOverlay drops the source-side facet of the given type. A
-	// source-transform tool that consumes a positional facet and then rewrites
+	// RemoveOverlay drops the source-side overlay of the given type. A
+	// source-transform tool that consumes an overlay and then rewrites
 	// the source uses this to drop the now-stale run-anchored spans.
 	RemoveOverlay(t model.OverlayType)
-	// Annotations returns a snapshot of the block-scoped facets (the former
+	// Annotations returns a snapshot of the block annotations (the former
 	// annotation map). Use Annotate to write; writing to the returned map has
 	// no effect.
 	Annotations() map[string]any
-	// Annotate stores a block-scoped facet payload under key.
+	// Annotate stores a block annotation payload under key.
 	Annotate(key string, a any)
-	// RemoveAnnotation deletes the block-scoped facet stored under key.
+	// RemoveAnnotation deletes the block annotation stored under key.
 	RemoveAnnotation(key string)
 	Properties() map[string]string
 	SetProperty(key, value string)

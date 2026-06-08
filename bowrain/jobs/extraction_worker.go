@@ -240,7 +240,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 			continue
 		}
 
-		// Term candidates (positional facet spans).
+		// Term candidates (overlay spans).
 		if f := block.OverlayOf(model.OverlayTermCandidate); f != nil {
 			for _, span := range f.Spans {
 				a, ok := span.Value.(*model.TermCandidateAnnotation)
@@ -278,7 +278,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 			}
 		}
 
-		// Entities (positional facet spans).
+		// Entities (overlay spans).
 		if f := block.OverlayOf(model.OverlayEntity); f != nil {
 			for _, span := range f.Spans {
 				a, ok := span.Value.(*model.EntityAnnotation)

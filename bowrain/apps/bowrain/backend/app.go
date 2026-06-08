@@ -275,7 +275,7 @@ type ToolInfo struct {
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 }
 
-// ioPorts converts a schema facet contract to the wire form.
+// ioPorts converts a schema IO contract to the wire form.
 func ioPorts(fs []schema.IOPort) []IOPort {
 	if len(fs) == 0 {
 		return nil

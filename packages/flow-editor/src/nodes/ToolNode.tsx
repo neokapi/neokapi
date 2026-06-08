@@ -213,7 +213,7 @@ export function ToolNode({ data, selected }: NodeProps) {
               {defaultLocale}
             </span>
           )}
-          {/* Facet contract dots: consumed (read) then produced (written) */}
+          {/* IO contract dots: consumed (read) then produced (written) */}
           {consumes?.map((f) => (
             <span
               key={`in-${f.type}-${f.side ?? ""}`}

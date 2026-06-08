@@ -102,9 +102,9 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 	return out
 }
 
-// facetNames renders a facet IO contract as "type@side" tokens (optional
+// portNames renders a IO contract as "type@side" tokens (optional
 // consumed facets get a trailing "?") for the generated reference.
-func facetNames(fs []coreschema.IOPort) []string {
+func portNames(fs []coreschema.IOPort) []string {
 	if len(fs) == 0 {
 		return nil
 	}
@@ -131,8 +131,8 @@ func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 			DisplayName: info.DisplayName,
 			Description: info.Description,
 			Category:    info.Category,
-			Consumes:    facetNames(info.Consumes),
-			Produces:    facetNames(info.Produces),
+			Consumes:    portNames(info.Consumes),
+			Produces:    portNames(info.Produces),
 			Tags:        info.Tags,
 			Requires:    info.Requires,
 			Cardinality: string(info.Cardinality),

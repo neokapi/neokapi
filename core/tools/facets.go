@@ -2,7 +2,7 @@ package tools
 
 import "github.com/neokapi/neokapi/core/model"
 
-// Typed facet payloads for the analytic results tools produce. These replace
+// Typed payloads for the analytic results tools produce. These replace
 // the former opaque Block.Properties scalars: a tool that declares a Produces
 // facet now writes that facet's typed payload rather than stuffing strings into
 // Properties (which is pass-through metadata only). Each payload registers a

@@ -512,7 +512,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
 
 // --- Step Metadata Panel ---
 
-function facetLabel(f: { type: string; side?: string; optional?: boolean }): string {
+function portLabel(f: { type: string; side?: string; optional?: boolean }): string {
   const side = f.side ? `@${f.side}` : "";
   return `${f.type}${side}${f.optional ? " (opt)" : ""}`;
 }
@@ -534,7 +534,7 @@ function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
           className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400"
         >
           <FileInput size={9} />
-          Consumes: {facetLabel(f)}
+          Consumes: {portLabel(f)}
         </span>
       ))}
       {produces.map((f) => (
@@ -543,7 +543,7 @@ function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
           className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400"
         >
           <Play size={9} />
-          Produces: {facetLabel(f)}
+          Produces: {portLabel(f)}
         </span>
       ))}
     </div>

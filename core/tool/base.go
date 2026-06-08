@@ -292,7 +292,7 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 	// A source rewrite invalidates any run-anchored source overlay. The hazard
 	// is leaving such an overlay *dangling* over the new runs, so we check the
 	// post-transform state: a tool that consumes a source facet and then rewrites
-	// the source must drop that facet (e.g. redact consuming the entity facet),
+	// the source must drop that facet (e.g. redact consuming the entity overlay),
 	// leaving no stale overlay behind.
 	if blockSourceSig(block) != srcBefore && block.HasSourceOverlays() {
 		return nil, fmt.Errorf("immutability: transform tool %q rewrote the source of block %q while a stand-off source overlay remained attached — drop consumed source facets before rewriting source (overlays anchor to runs)", b.ToolName, block.ID)

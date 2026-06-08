@@ -54,7 +54,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	// Find next entity index and add a positional entity facet span.
+	// Find next entity index and add a positional entity overlay span.
 	idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
 	key := fmt.Sprintf("entity:%d", idx)
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
@@ -212,7 +212,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		candidate.Translatability = model.TranslatabilityDNT
 	}
 
-	// Add the term-candidate facet span at the entity's position.
+	// Add the term-candidate overlay span at the entity's position.
 	tcIdx := nextOverlaySpanIndex(block, model.OverlayTermCandidate, "term-candidate:")
 	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
 	block.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
@@ -247,7 +247,7 @@ func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, b
 }
 
 // nextOverlaySpanIndex finds the next available index for span IDs with the given
-// prefix in the source-side facet of type t (e.g. "entity:" → next "entity:N").
+// prefix in the source-side overlay of type t (e.g. "entity:" → next "entity:N").
 func nextOverlaySpanIndex(block *model.Block, t model.OverlayType, prefix string) int {
 	max := -1
 	if f := block.OverlayOf(t); f != nil {

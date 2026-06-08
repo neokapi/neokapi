@@ -229,7 +229,7 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 		return nil
 	}
 	// Redaction rewrites the source, invalidating the run-anchored ranges of any
-	// entity facet we consumed; drop it before mutating source so the spans
+	// entity overlay we consumed; drop it before mutating source so the spans
 	// don't dangle (and so the immutability backstop's overlay check passes).
 	if t.useEntities {
 		v.RemoveOverlay(model.OverlayEntity)

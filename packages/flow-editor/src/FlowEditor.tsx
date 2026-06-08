@@ -771,7 +771,7 @@ export function FlowEditor({
       const sourceNode = nodes.find((n) => n.id === connection.source);
       const targetNode = nodes.find((n) => n.id === connection.target);
       if (!sourceNode || !targetNode) return true;
-      // A connection is meaningful when the source produces at least one facet
+      // A connection is meaningful when the source produces at least one port
       // the target consumes (matched by type@side). Missing metadata or a
       // target that consumes nothing (a pass-through) is permitted.
       const srcProduces = sourceNode.data.produces as IOPort[] | undefined;

@@ -94,19 +94,19 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]any {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Proto ↔ Model: Overlays (positional facets)
+// Proto ↔ Model: Overlays (overlays)
 // ────────────────────────────────────────────────────────────────────────────
 //
-// Block-scoped facets cross the bridge as the `annotations` map and segmentation
-// as the source/target segment boundaries. Every *other* positional facet —
+// block annotations cross the bridge as the `annotations` map and segmentation
+// as the source/target segment boundaries. Every *other* overlay —
 // term, entity, term-candidate, qa, alignment, and any plugin-defined positional
-// type — crosses as an OverlayMessage, so a facet vocabulary the peer doesn't
+// type — crosses as an OverlayMessage, so an overlay/annotation vocabulary the peer doesn't
 // recognise round-trips by type name + JSON (its span values degrade to a
 // GenericAnnotation map) rather than being silently dropped.
 
 // positionalOverlaysToProto converts a block's positional, non-segmentation
 // facets to OverlayMessages. Segmentation is excluded (reconstructed from the
-// segment boundaries) and block-scoped facets are excluded (carried as
+// segment boundaries) and block annotations are excluded (carried as
 // annotations), so nothing is double-encoded.
 func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
 	var out []*pb.OverlayMessage
@@ -942,7 +942,7 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 		block.DisplayHint = ProtoToDisplayHint(cb.DisplayHint)
 	}
 
-	// Positional facets (term, entity, qa, …).
+	// overlays (term, entity, qa, …).
 	for _, om := range cb.Overlays {
 		block.Overlays = append(block.Overlays, ProtoToOverlay(om))
 	}
@@ -998,7 +998,7 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 		cb.DisplayHint = DisplayHintToProto(block.DisplayHint)
 	}
 
-	// Positional facets (term, entity, qa, …).
+	// overlays (term, entity, qa, …).
 	cb.Overlays = positionalOverlaysToProto(block)
 
 	return cb

@@ -56,10 +56,10 @@ func (r RunRange) IsZero() bool { return r == RunRange{} }
 // format-agnostic marker shared by the native readers and the okapi bridge.
 const SpanPropIgnorable = "ignorable"
 
-// Span is one entry in a Facet: a run-anchored range with an optional
+// Span is one entry in an Overlay: a run-anchored range with an optional
 // facet-local id (e.g. a segment id "s1"), type-specific properties, and an
-// optional typed payload Value. A block-scoped facet (the former annotation)
-// uses a single span with a zero Range and a Value; a positional facet uses
+// optional typed payload Value. A block annotation (the former annotation)
+// uses a single span with a zero Range and a Value; an overlay uses
 // one or more spans with real ranges.
 type Span struct {
 	ID    string            `json:"id,omitempty"`

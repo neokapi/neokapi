@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// These tests pin the facet-vocabulary bridge contract: positional facets
+// These tests pin the facet-vocabulary bridge contract: overlays
 // (term, entity, …) and plugin-defined facet types cross the gRPC bridge fully
 // — type, span ranges, props and typed values — instead of being dropped.
-// Block-scoped facets keep crossing as `annotations` and segmentation as the
+// block annotations keep crossing as `annotations` and segmentation as the
 // segment boundaries, so nothing is double-encoded.
 
-const pluginFacet model.OverlayType = "x-plugin-marks"
+const pluginOverlay model.OverlayType = "x-plugin-marks"
 
-// buildFacetedBlock returns a block carrying one of each facet flavour.
-func buildFacetedBlock() *model.Block {
+// buildOverlayBlock returns a block carrying one of each facet flavour.
+func buildOverlayBlock() *model.Block {
 	b := model.NewBlock("b1", "John Smith visited Paris yesterday")
 
 	// Positional, built-in facets with typed values.
@@ -34,15 +34,15 @@ func buildFacetedBlock() *model.Block {
 		Value: &model.TermAnnotation{SourceTerm: "Paris", ConceptID: "c-1"},
 	})
 
-	// A plugin-defined positional facet, carrying an arbitrary (unregistered)
+	// A plugin-defined overlay, carrying an arbitrary (unregistered)
 	// payload — it must still survive by type name + JSON.
-	b.AddOverlaySpan(pluginFacet, model.Span{
+	b.AddOverlaySpan(pluginOverlay, model.Span{
 		ID:    "m0",
 		Range: model.RunRangeForBytes(b.Source, 0, 4),
 		Value: &model.GenericAnnotation{Kind: "x-mark", Fields: map[string]any{"weight": "high"}},
 	})
 
-	// A block-scoped facet (must keep crossing as an annotation, not an overlay).
+	// A block annotation (must keep crossing as an annotation, not an overlay).
 	b.SetAnno("note", &model.NoteAnnotation{Text: "reviewer note"})
 
 	// A segmentation overlay (must never appear in the overlays field — it is
@@ -54,12 +54,12 @@ func buildFacetedBlock() *model.Block {
 	return b
 }
 
-func assertFacetsRoundTripped(t *testing.T, got *model.Block) {
+func assertRoundTripped(t *testing.T, got *model.Block) {
 	t.Helper()
 
-	// Entity facet.
+	// entity overlay.
 	es := got.OverlaySpan(model.OverlayEntity, "entity:0")
-	require.NotNil(t, es, "entity facet span must survive the bridge")
+	require.NotNil(t, es, "entity overlay span must survive the bridge")
 	ea, ok := es.Value.(*model.EntityAnnotation)
 	require.True(t, ok)
 	assert.Equal(t, "John Smith", ea.Text)
@@ -79,8 +79,8 @@ func assertFacetsRoundTripped(t *testing.T, got *model.Block) {
 
 	// Plugin facet: type preserved; unregistered payload degrades to a generic
 	// annotation but keeps its type name (no data loss of identity).
-	pf := got.OverlayOf(pluginFacet)
-	require.NotNil(t, pf, "plugin-defined positional facet must survive")
+	pf := got.OverlayOf(pluginOverlay)
+	require.NotNil(t, pf, "plugin-defined overlay must survive")
 	require.Len(t, pf.Spans, 1)
 	ga, ok := pf.Spans[0].Value.(*model.GenericAnnotation)
 	require.True(t, ok, "unregistered payload round-trips as GenericAnnotation")
@@ -92,12 +92,12 @@ func assertFacetsRoundTripped(t *testing.T, got *model.Block) {
 	assert.Equal(t, "reviewer note", n.Text)
 }
 
-func TestBlockFacetVocabularyRoundTrip(t *testing.T) {
-	b := buildFacetedBlock()
+func TestBlockOverlayRoundTrip(t *testing.T) {
+	b := buildOverlayBlock()
 	proto := protoconvert.BlockToProto(b)
 	require.NotNil(t, proto)
 
-	// The overlays field carries exactly the positional, non-segmentation facets
+	// The overlays field carries exactly the positional, non-segmentation overlays
 	// (entity, term, plugin) — not the note and not segmentation.
 	require.Len(t, proto.Overlays, 3)
 	for _, o := range proto.Overlays {
@@ -105,11 +105,11 @@ func TestBlockFacetVocabularyRoundTrip(t *testing.T) {
 		assert.NotEqual(t, string(model.AnnoNote), o.Type, "block-scoped note must not be in overlays")
 	}
 
-	assertFacetsRoundTripped(t, protoconvert.ProtoToBlock(proto))
+	assertRoundTripped(t, protoconvert.ProtoToBlock(proto))
 }
 
-func TestContentBlockFacetVocabularyRoundTrip(t *testing.T) {
-	b := buildFacetedBlock()
+func TestContentBlockOverlayRoundTrip(t *testing.T) {
+	b := buildOverlayBlock()
 	part := &model.Part{Type: model.PartBlock, Resource: b}
 
 	cb := protoconvert.PartToContentBlock(part)
@@ -118,11 +118,11 @@ func TestContentBlockFacetVocabularyRoundTrip(t *testing.T) {
 
 	got := protoconvert.ContentBlockToPart(cb)
 	require.Equal(t, model.PartBlock, got.Type)
-	assertFacetsRoundTripped(t, got.Resource.(*model.Block))
+	assertRoundTripped(t, got.Resource.(*model.Block))
 }
 
-// No positional facets → no overlays emitted (nil, not an empty slice churn).
-func TestBlockNoPositionalFacets(t *testing.T) {
+// No overlays → no overlays emitted (nil, not an empty slice churn).
+func TestBlockNoOverlays(t *testing.T) {
 	b := model.NewBlock("b1", "plain")
 	b.SetAnno("note", &model.NoteAnnotation{Text: "hi"})
 	proto := protoconvert.BlockToProto(b)

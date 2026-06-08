@@ -1142,7 +1142,7 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 	return false
 }
 
-// enrichBlockEntities extracts entity annotations from a block's entity facet
+// enrichBlockEntities extracts entity annotations from a block's entity overlay
 // (positional spans: span.Range is the position, span.ID the identity).
 func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
 	f := block.OverlayOf(model.OverlayEntity)
