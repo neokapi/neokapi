@@ -23,12 +23,14 @@ func TestCharCountTool(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	assert.True(t, ok)
 	// "Hello world" = 11 chars, 10 without spaces.
-	assert.Equal(t, "11", resultBlock.Properties[tools.PropCharCountSource])
-	assert.Equal(t, "10", resultBlock.Properties[tools.PropCharCountSourceNospace])
+	assert.Equal(t, 11, cf.Source)
+	assert.Equal(t, 10, cf.SourceNoSpace)
 	// "Bonjour le monde" = 16 chars, 14 without spaces.
-	assert.Equal(t, "16", resultBlock.Properties[tools.PropCharCountTarget])
-	assert.Equal(t, "14", resultBlock.Properties[tools.PropCharCountTargetNospace])
+	assert.Equal(t, 16, cf.Targets[model.LocaleFrench])
+	assert.Equal(t, 14, cf.TargetsNoSpace[model.LocaleFrench])
 }
 
 func TestCharCountToolSourceOnly(t *testing.T) {
@@ -41,12 +43,13 @@ func TestCharCountToolSourceOnly(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	assert.True(t, ok)
 	// "Test text" = 9 chars, 8 without spaces.
-	assert.Equal(t, "9", resultBlock.Properties[tools.PropCharCountSource])
-	assert.Equal(t, "8", resultBlock.Properties[tools.PropCharCountSourceNospace])
+	assert.Equal(t, 9, cf.Source)
+	assert.Equal(t, 8, cf.SourceNoSpace)
 	// No target count since no locale and no target.
-	_, hasTargetCount := resultBlock.Properties[tools.PropCharCountTarget]
-	assert.False(t, hasTargetCount)
+	assert.Empty(t, cf.Targets)
 }
 
 func TestCharCountToolUnicode(t *testing.T) {
@@ -60,8 +63,10 @@ func TestCharCountToolUnicode(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "5", resultBlock.Properties[tools.PropCharCountSource])
-	assert.Equal(t, "5", resultBlock.Properties[tools.PropCharCountSourceNospace])
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	assert.True(t, ok)
+	assert.Equal(t, 5, cf.Source)
+	assert.Equal(t, 5, cf.SourceNoSpace)
 }
 
 func TestCharCountToolSkipsNonTranslatable(t *testing.T) {
@@ -75,8 +80,8 @@ func TestCharCountToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasSourceCount := resultBlock.Properties[tools.PropCharCountSource]
-	assert.False(t, hasSourceCount)
+	_, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	assert.False(t, ok)
 }
 
 func TestCharCountToolEmptyText(t *testing.T) {
@@ -89,6 +94,8 @@ func TestCharCountToolEmptyText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "0", resultBlock.Properties[tools.PropCharCountSource])
-	assert.Equal(t, "0", resultBlock.Properties[tools.PropCharCountSourceNospace])
+	cf, ok := model.AnnoAs[*tools.CharCountFacet](resultBlock, string(model.FacetCharCount))
+	assert.True(t, ok)
+	assert.Equal(t, 0, cf.Source)
+	assert.Equal(t, 0, cf.SourceNoSpace)
 }

@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -140,16 +139,9 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts 
 		}
 		doc.BlockCount++
 
-		if v, ok := block.Properties[PropWordCountSource]; ok {
-			n, _ := strconv.Atoi(v)
-			doc.SourceWords += n
-		}
-
-		// Per-locale properties (PropWordCountTargetPrefix + locale).
-		for key, v := range block.Properties {
-			if strings.HasPrefix(key, PropWordCountTargetPrefix) {
-				locale := model.LocaleID(key[len(PropWordCountTargetPrefix):])
-				n, _ := strconv.Atoi(v)
+		if wcf, ok := model.AnnoAs[*WordCountFacet](block, string(model.FacetWordCount)); ok {
+			doc.SourceWords += wcf.Source
+			for locale, n := range wcf.Targets {
 				doc.TargetWords[locale] += n
 			}
 		}

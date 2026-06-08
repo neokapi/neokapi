@@ -23,12 +23,11 @@ func TestStreamingWordCountCollector_SingleDocument(t *testing.T) {
 
 	// Simulate observing parts inline.
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
-	block1.Properties[tools.PropWordCountSource] = "3"
-	block1.Properties[tools.PropWordCountTargetPrefix+"fr"] = "4"
+	block1.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 3, Targets: map[model.LocaleID]int{model.LocaleFrench: 4}})
 	wc.Observe(&model.Part{Type: model.PartBlock, Resource: block1})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
-	block2.Properties[tools.PropWordCountSource] = "1"
+	block2.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 1})
 	wc.Observe(&model.Part{Type: model.PartBlock, Resource: block2})
 
 	// Non-block parts should be ignored.
@@ -62,8 +61,7 @@ func TestStreamingWordCountCollector_MultipleDocuments(t *testing.T) {
 		require.NoError(t, err)
 
 		block := model.NewBlock("tu1", "text")
-		block.Properties[tools.PropWordCountSource] = "2"
-		block.Properties[tools.PropWordCountTargetPrefix+"fr"] = "3"
+		block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3}})
 		wc.Observe(&model.Part{Type: model.PartBlock, Resource: block})
 	}
 
@@ -142,7 +140,7 @@ func TestStreamingWordCountCollector_SkipsNonTranslatable(t *testing.T) {
 
 	block := model.NewBlock("tu1", "Hello world")
 	block.Translatable = false
-	block.Properties[tools.PropWordCountSource] = "2"
+	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
 	wc.Observe(&model.Part{Type: model.PartBlock, Resource: block})
 
 	result, err := wc.Result()

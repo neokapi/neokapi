@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -114,13 +113,9 @@ func (sc *SegCountCollector) Collect(_ context.Context, item *flow.Item, parts [
 			continue
 		}
 		doc.BlockCount++
-		if v, ok := block.Properties[PropSegCountSource]; ok {
-			n, _ := strconv.Atoi(v)
-			doc.SourceSegments += n
-		}
-		if v, ok := block.Properties[PropSegCountTarget]; ok {
-			n, _ := strconv.Atoi(v)
-			doc.TargetSegments += n
+		if sf, ok := model.AnnoAs[*SegCountFacet](block, string(model.FacetSegCount)); ok {
+			doc.SourceSegments += sf.Source
+			doc.TargetSegments += sf.Target
 		}
 	}
 
@@ -191,15 +186,11 @@ func (sc *StreamingSegCountCollector) Observe(part *model.Part) {
 	}
 
 	doc.BlockCount++
-	if v, ok := block.Properties[PropSegCountSource]; ok {
-		n, _ := strconv.Atoi(v)
-		doc.SourceSegments += n
-		sc.totalSource += n
-	}
-	if v, ok := block.Properties[PropSegCountTarget]; ok {
-		n, _ := strconv.Atoi(v)
-		doc.TargetSegments += n
-		sc.totalTarget += n
+	if sf, ok := model.AnnoAs[*SegCountFacet](block, string(model.FacetSegCount)); ok {
+		doc.SourceSegments += sf.Source
+		sc.totalSource += sf.Source
+		doc.TargetSegments += sf.Target
+		sc.totalTarget += sf.Target
 	}
 }
 

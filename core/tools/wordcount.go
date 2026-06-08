@@ -2,9 +2,9 @@ package tools
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -80,17 +80,21 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
 
 		// Count source words.
+		wc := &WordCountFacet{}
 		if countSource {
-			v.SetProperty(PropWordCountSource, strconv.Itoa(v.WordCount()))
+			wc.Source = v.WordCount()
 		}
 
 		// Count target words for every target locale present.
 		if countTarget {
 			for _, locale := range v.TargetLocales() {
-				targetCount := countWords(v.TargetText(locale))
-				v.SetProperty(PropWordCountTargetPrefix+string(locale), strconv.Itoa(targetCount))
+				if wc.Targets == nil {
+					wc.Targets = make(map[model.LocaleID]int)
+				}
+				wc.Targets[locale] = countWords(v.TargetText(locale))
 			}
 		}
+		v.Annotate(string(model.FacetWordCount), wc)
 
 		return nil
 	}

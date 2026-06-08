@@ -19,7 +19,7 @@ func TestScopingReportToolRepetition(t *testing.T) {
 	assert.Equal(t, "scoping-report", tl.Name())
 
 	block := model.NewBlock("tu1", "Hello world")
-	block.Properties["repetition-status"] = "repetition"
+	block.SetAnno(string(model.FacetRepetition), &tools.RepetitionFacet{Status: "repetition"})
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -96,15 +96,15 @@ func TestScopingCollector(t *testing.T) {
 
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
 	block1.Properties[tools.PropScopingCategory] = "new"
-	block1.Properties[tools.PropWordCountSource] = "3"
+	block1.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 3})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
 	block2.Properties[tools.PropScopingCategory] = "repetition"
-	block2.Properties[tools.PropWordCountSource] = "1"
+	block2.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 1})
 
 	block3 := model.NewBlock("tu3", "See you later")
 	block3.Properties[tools.PropScopingCategory] = "new"
-	block3.Properties[tools.PropWordCountSource] = "3"
+	block3.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 3})
 
 	parts := []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
@@ -142,7 +142,7 @@ func TestScopingCollectorMultipleDocuments(t *testing.T) {
 		}
 		block := model.NewBlock("tu1", "text")
 		block.Properties[tools.PropScopingCategory] = "exact-match"
-		block.Properties[tools.PropWordCountSource] = "2"
+		block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
 
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
@@ -199,7 +199,7 @@ func TestScopingCollectorSkipsNonTranslatable(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello world")
 	block.Translatable = false
 	block.Properties[tools.PropScopingCategory] = "new"
-	block.Properties[tools.PropWordCountSource] = "2"
+	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},
@@ -250,7 +250,7 @@ func TestScopingCollectorDefaultCategoryWhenMissing(t *testing.T) {
 
 	// Block with no scoping-category property — should default to "new".
 	block := model.NewBlock("tu1", "Hello world")
-	block.Properties[tools.PropWordCountSource] = "2"
+	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},

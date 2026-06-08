@@ -21,11 +21,10 @@ func TestSegCountCollector(t *testing.T) {
 	}
 
 	block1 := model.NewBlock("tu1", "Hello. World.")
-	block1.Properties[tools.PropSegCountSource] = "2"
-	block1.Properties[tools.PropSegCountTarget] = "2"
+	block1.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 2, Target: 2})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
-	block2.Properties[tools.PropSegCountSource] = "1"
+	block2.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 1})
 
 	parts := []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
@@ -58,7 +57,7 @@ func TestSegCountCollectorMultipleDocuments(t *testing.T) {
 	for _, uri := range []string{"a.html", "b.html", "c.html"} {
 		item := &flow.Item{Input: &model.RawDocument{URI: uri}}
 		block := model.NewBlock("tu1", "Sentence one. Sentence two.")
-		block.Properties[tools.PropSegCountSource] = "2"
+		block.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 2})
 		parts := []*model.Part{{Type: model.PartBlock, Resource: block}}
 		require.NoError(t, sc.Collect(t.Context(), item, parts))
 	}
@@ -98,7 +97,7 @@ func TestSegCountCollectorSkipsNonTranslatable(t *testing.T) {
 	item := &flow.Item{Input: &model.RawDocument{URI: "doc.html"}}
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
-	block.Properties[tools.PropSegCountSource] = "1"
+	block.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 1})
 	parts := []*model.Part{{Type: model.PartBlock, Resource: block}}
 	require.NoError(t, sc.Collect(t.Context(), item, parts))
 
@@ -122,19 +121,18 @@ func TestStreamingSegCountCollector(t *testing.T) {
 	require.NoError(t, sc.Collect(t.Context(), item, nil))
 
 	block1 := model.NewBlock("tu1", "Hello. World.")
-	block1.Properties[tools.PropSegCountSource] = "2"
-	block1.Properties[tools.PropSegCountTarget] = "2"
+	block1.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 2, Target: 2})
 	sc.Observe(&model.Part{Type: model.PartBlock, Resource: block1})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
-	block2.Properties[tools.PropSegCountSource] = "1"
+	block2.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 1})
 	sc.Observe(&model.Part{Type: model.PartBlock, Resource: block2})
 
 	// Non-block and non-translatable parts must be ignored.
 	sc.Observe(&model.Part{Type: model.PartData, Resource: &model.Data{ID: "d1"}})
 	nt := model.NewBlock("tu3", "skip")
 	nt.Translatable = false
-	nt.Properties[tools.PropSegCountSource] = "9"
+	nt.SetAnno(string(model.FacetSegCount), &tools.SegCountFacet{Source: 9})
 	sc.Observe(&model.Part{Type: model.PartBlock, Resource: nt})
 
 	result, err := sc.Result()

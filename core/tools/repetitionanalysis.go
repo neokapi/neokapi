@@ -3,9 +3,9 @@ package tools
 import (
 	"fmt"
 	"hash/fnv"
-	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -102,15 +102,17 @@ func NewRepetitionAnalysisTool(cfg *RepetitionAnalysisConfig) *tool.BaseTool {
 		g.count++
 		g.blockIDs = append(g.blockIDs, v.ID())
 
+		status := "repetition"
 		if g.count == 1 {
-			v.SetProperty(PropRepetitionStatus, "first-occurrence")
-		} else {
-			v.SetProperty(PropRepetitionStatus, "repetition")
+			status = "first-occurrence"
 		}
 
-		v.SetProperty(PropRepetitionGroup, groupKey)
-		v.SetProperty(PropRepetitionCount, strconv.Itoa(g.count))
-		v.SetProperty(PropRepetitionIndex, strconv.Itoa(g.count))
+		v.Annotate(string(model.FacetRepetition), &RepetitionFacet{
+			Status: status,
+			Group:  groupKey,
+			Count:  g.count,
+			Index:  g.count,
+		})
 
 		return nil
 	}

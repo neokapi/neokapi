@@ -2,7 +2,6 @@ package tools
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -66,7 +65,7 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 			return nil
 		}
 
-		v.SetProperty(PropSegCountSource, strconv.Itoa(v.SourceSegmentCount()))
+		sf := &SegCountFacet{Source: v.SourceSegmentCount()}
 
 		conf := t.Cfg.(*SegCountConfig)
 		if !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
@@ -75,8 +74,10 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 			if seg := v.SegmentationFor(&key); seg != nil {
 				count = len(seg.Spans)
 			}
-			v.SetProperty(PropSegCountTarget, strconv.Itoa(count))
+			sf.Target = count
 		}
+
+		v.Annotate(string(model.FacetSegCount), sf)
 
 		return nil
 	}

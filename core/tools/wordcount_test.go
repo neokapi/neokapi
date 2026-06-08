@@ -24,8 +24,10 @@ func TestWordCountTool(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountSource])
-	assert.Equal(t, "4", resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"])
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	require.True(t, ok)
+	assert.Equal(t, 3, wc.Source)
+	assert.Equal(t, 4, wc.Targets[model.LocaleFrench])
 }
 
 func TestWordCountToolSourceOnly(t *testing.T) {
@@ -38,12 +40,11 @@ func TestWordCountToolSourceOnly(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "4", resultBlock.Properties[tools.PropWordCountSource])
-	// No target set → no target count keys.
-	for key := range resultBlock.Properties {
-		assert.False(t, len(key) > len(tools.PropWordCountTargetPrefix) && key[:len(tools.PropWordCountTargetPrefix)] == tools.PropWordCountTargetPrefix,
-			"unexpected target count key: %s", key)
-	}
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	require.True(t, ok)
+	assert.Equal(t, 4, wc.Source)
+	// No target set → no target counts.
+	assert.Empty(t, wc.Targets)
 }
 
 func TestWordCountToolEmptyText(t *testing.T) {
@@ -56,7 +57,9 @@ func TestWordCountToolEmptyText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "0", resultBlock.Properties[tools.PropWordCountSource])
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	require.True(t, ok)
+	assert.Equal(t, 0, wc.Source)
 }
 
 func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
@@ -70,8 +73,8 @@ func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasSourceCount := resultBlock.Properties[tools.PropWordCountSource]
-	assert.False(t, hasSourceCount)
+	_, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	assert.False(t, ok)
 }
 
 func TestWordCountToolAllLocales(t *testing.T) {
@@ -86,11 +89,13 @@ func TestWordCountToolAllLocales(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
+	wc, ok := model.AnnoAs[*tools.WordCountFacet](resultBlock, string(model.FacetWordCount))
+	require.True(t, ok)
 	// Source always counted.
-	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountSource])
-	// Per-locale keys should be set.
-	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"])
-	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountTargetPrefix+"de"])
+	assert.Equal(t, 2, wc.Source)
+	// Per-locale counts should be set.
+	assert.Equal(t, 3, wc.Targets[model.LocaleFrench])
+	assert.Equal(t, 2, wc.Targets[model.LocaleGerman])
 }
 
 // --- WordCountCollector Tests ---
@@ -105,11 +110,10 @@ func TestWordCountCollector(t *testing.T) {
 	}
 
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
-	block1.Properties[tools.PropWordCountSource] = "3"
-	block1.Properties[tools.PropWordCountTargetPrefix+"fr"] = "4"
+	block1.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 3, Targets: map[model.LocaleID]int{model.LocaleFrench: 4}})
 
 	block2 := model.NewBlock("tu2", "Goodbye")
-	block2.Properties[tools.PropWordCountSource] = "1"
+	block2.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 1})
 
 	parts := []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
@@ -146,8 +150,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 			TargetLocale: model.LocaleFrench,
 		}
 		block := model.NewBlock("tu1", "text")
-		block.Properties[tools.PropWordCountSource] = "2"
-		block.Properties[tools.PropWordCountTargetPrefix+"fr"] = "3"
+		block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3}})
 
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
@@ -202,7 +205,7 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 
 	block := model.NewBlock("tu1", "Hello world")
 	block.Translatable = false
-	block.Properties[tools.PropWordCountSource] = "2"
+	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},
@@ -227,9 +230,7 @@ func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
 	}
 
 	block := model.NewBlock("tu1", "Hello world")
-	block.Properties[tools.PropWordCountSource] = "2"
-	block.Properties[tools.PropWordCountTargetPrefix+"fr"] = "3"
-	block.Properties[tools.PropWordCountTargetPrefix+"de"] = "2"
+	block.SetAnno(string(model.FacetWordCount), &tools.WordCountFacet{Source: 2, Targets: map[model.LocaleID]int{model.LocaleFrench: 3, model.LocaleGerman: 2}})
 
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},

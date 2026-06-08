@@ -21,8 +21,10 @@ func TestSegCountTool(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "1", resultBlock.Properties[tools.PropSegCountSource])
-	assert.Equal(t, "1", resultBlock.Properties[tools.PropSegCountTarget])
+	sf, ok := model.AnnoAs[*tools.SegCountFacet](resultBlock, string(model.FacetSegCount))
+	assert.True(t, ok)
+	assert.Equal(t, 1, sf.Source)
+	assert.Equal(t, 1, sf.Target)
 }
 
 func TestSegCountToolSourceOnly(t *testing.T) {
@@ -35,7 +37,8 @@ func TestSegCountToolSourceOnly(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "1", resultBlock.Properties[tools.PropSegCountSource])
-	_, hasTarget := resultBlock.Properties[tools.PropSegCountTarget]
-	assert.False(t, hasTarget)
+	sf, ok := model.AnnoAs[*tools.SegCountFacet](resultBlock, string(model.FacetSegCount))
+	assert.True(t, ok)
+	assert.Equal(t, 1, sf.Source)
+	assert.Equal(t, 0, sf.Target)
 }
