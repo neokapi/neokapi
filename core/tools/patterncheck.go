@@ -60,7 +60,6 @@ func PatternCheckSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryQuality,
 		DisplayName: "Pattern Check",
 		Description: "Validate content against custom regex patterns",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

@@ -696,7 +696,6 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		Translatable: true,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	// Store TU properties

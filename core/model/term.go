@@ -37,10 +37,9 @@ type TermAnnotation struct {
 	ConceptID   string        // ID of the matched concept
 	TargetTerms []TermRef     // preferred translations per locale
 	Status      TermStatus    // lifecycle status of matched term
-	Position    RunRange      // run-anchored span in the source runs
 	Score       float64       // match confidence (1.0 for exact)
 	MatchType   MatchStrategy // how it was matched
 }
 
 // AnnotationType returns the type identifier for term annotations.
-func (ta *TermAnnotation) AnnotationType() string { return "term" }
+func (ta *TermAnnotation) TypeName() string { return "term" }

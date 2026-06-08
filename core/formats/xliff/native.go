@@ -29,7 +29,7 @@ type SegmentNativeAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *SegmentNativeAnnotation) AnnotationType() string { return "xliff:native" }
+func (a *SegmentNativeAnnotation) TypeName() string { return "xliff:native" }
 
 // SourceBodyNativeAnnotation rides on model.Block.Annotations and
 // captures the full <source> body — including any <mrk mtype="seg">
@@ -42,7 +42,7 @@ type SourceBodyNativeAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *SourceBodyNativeAnnotation) AnnotationType() string { return "xliff:source-body" }
+func (a *SourceBodyNativeAnnotation) TypeName() string { return "xliff:source-body" }
 
 // TargetBodyNativeAnnotation captures the full <target> body native IR
 // for one locale, parallel to SourceBodyNativeAnnotation.
@@ -52,7 +52,7 @@ type TargetBodyNativeAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *TargetBodyNativeAnnotation) AnnotationType() string { return "xliff:target-body" }
+func (a *TargetBodyNativeAnnotation) TypeName() string { return "xliff:target-body" }
 
 // TargetAttrsAnnotation carries the source <target> element's
 // attributes (state, state-qualifier, xml:lang, custom-namespace)
@@ -65,7 +65,7 @@ type TargetAttrsAnnotation struct {
 }
 
 // AnnotationType identifies the annotation key.
-func (a *TargetAttrsAnnotation) AnnotationType() string { return "xliff:target-attrs" }
+func (a *TargetAttrsAnnotation) TypeName() string { return "xliff:target-attrs" }
 
 // DivergentSegSourceAnnotation marks a Block whose `<seg-source>` content
 // disagreed with `<source>` content at read time and was discarded under
@@ -76,22 +76,22 @@ func (a *TargetAttrsAnnotation) AnnotationType() string { return "xliff:target-a
 type DivergentSegSourceAnnotation struct{}
 
 // AnnotationType identifies the annotation key.
-func (a *DivergentSegSourceAnnotation) AnnotationType() string { return "xliff:divergent-segsource" }
+func (a *DivergentSegSourceAnnotation) TypeName() string { return "xliff:divergent-segsource" }
 
 func init() {
-	model.RegisterAnnotation("xliff:native", func() model.Annotation {
+	model.RegisterPayload("xliff:native", func() model.Payload {
 		return &SegmentNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:source-body", func() model.Annotation {
+	model.RegisterPayload("xliff:source-body", func() model.Payload {
 		return &SourceBodyNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:target-body", func() model.Annotation {
+	model.RegisterPayload("xliff:target-body", func() model.Payload {
 		return &TargetBodyNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:target-attrs", func() model.Annotation {
+	model.RegisterPayload("xliff:target-attrs", func() model.Payload {
 		return &TargetAttrsAnnotation{}
 	})
-	model.RegisterAnnotation("xliff:divergent-segsource", func() model.Annotation {
+	model.RegisterPayload("xliff:divergent-segsource", func() model.Payload {
 		return &DivergentSegSourceAnnotation{}
 	})
 }

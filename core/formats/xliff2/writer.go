@@ -168,9 +168,11 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					}
 					w.inputExtraAttr = extraAttrsFromLayer(layer)
 					w.layerFileNotes = fileNotesFromLayer(layer)
-					if a, ok := layer.Annotations["xliff2:source-dom"].(*SourceDOMAnnotation); ok && a != nil && a.Doc != nil && w.sourceDoc == nil {
-						w.sourceDoc = a.Doc
-						w.sourceBytes = a.Original
+					if av, ok := layer.Anno("xliff2:source-dom"); ok {
+						if a, ok := av.(*SourceDOMAnnotation); ok && a != nil && a.Doc != nil && w.sourceDoc == nil {
+							w.sourceDoc = a.Doc
+							w.sourceBytes = a.Original
+						}
 					}
 				}
 			}
@@ -1314,7 +1316,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	}
 
 	// Unit-level notes (block.Properties keys "note-N").
-	noteVals := unitNotesFromProperties(block.Properties)
+	noteVals := unitNoteTexts(block)
 	if len(noteVals) > 0 {
 		notesEl := unitEl.CreateElement("notes")
 		for _, content := range noteVals {
@@ -1324,7 +1326,8 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	}
 
 	// <originalData> emission, only when the unit declares one.
-	if odAnn, ok := block.Annotations["xliff2:original-data"].(*OriginalDataAnnotation); ok && odAnn != nil && len(odAnn.Entries) > 0 {
+	odAnnRaw, _ := block.Anno("xliff2:original-data")
+	if odAnn, ok := odAnnRaw.(*OriginalDataAnnotation); ok && odAnn != nil && len(odAnn.Entries) > 0 {
 		odEl := unitEl.CreateElement("originalData")
 		// Emit data entries in id-sorted order for deterministic output.
 		ids := make([]string, 0, len(odAnn.Entries))
@@ -1663,31 +1666,15 @@ func isXmlnsAttr(a xml.Attr) bool {
 	return false
 }
 
-// unitNotesFromProperties returns the values of block.Properties keys
-// "note-0", "note-1", … in numeric order.
-func unitNotesFromProperties(props map[string]string) []string {
-	if len(props) == 0 {
+// unitNoteTexts returns the text of each note on the block, in order.
+func unitNoteTexts(b *model.Block) []string {
+	notes := b.Notes()
+	if len(notes) == 0 {
 		return nil
 	}
-	type indexed struct {
-		idx int
-		val string
-	}
-	var notes []indexed
-	for k, v := range props {
-		if !strings.HasPrefix(k, "note-") {
-			continue
-		}
-		n, err := strconv.Atoi(strings.TrimPrefix(k, "note-"))
-		if err != nil {
-			continue
-		}
-		notes = append(notes, indexed{idx: n, val: v})
-	}
-	sort.Slice(notes, func(i, j int) bool { return notes[i].idx < notes[j].idx })
 	out := make([]string, len(notes))
 	for i, n := range notes {
-		out[i] = n.val
+		out[i] = n.Text
 	}
 	return out
 }

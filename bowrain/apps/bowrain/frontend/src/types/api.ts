@@ -12,11 +12,23 @@ export interface FormatInfo {
 }
 
 /** Tool descriptor */
+/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
+export interface IOPort {
+  type: string;
+  side?: "source" | "target";
+  optional?: boolean;
+  layer?: string;
+}
+
 export interface ToolInfo {
   name: string;
   description: string;
   category: "transform" | "validate" | "enrich" | "convert" | "pipeline" | "utility";
   hasSchema?: boolean;
+  /** Ports the tool reads upstream (non-optional = a requirement). */
+  consumes?: IOPort[];
+  /** Ports the tool writes. */
+  produces?: IOPort[];
   /** True when the tool may be placed in the source-transform stage of a flow. */
   is_source_transform?: boolean;
 }

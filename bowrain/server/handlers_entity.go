@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -53,24 +54,20 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-
-	// Find next entity index.
-	idx := nextAnnotationIndex(block.Annotations, "entity:")
-
-	ann := &model.EntityAnnotation{
-		Text:     req.Text,
-		Type:     model.EntityType(req.Type),
-		Position: model.RunRangeForBytes(block.Source, req.Start, req.End),
-		DNT:      req.DNT,
-		Source:   model.ExtractionSourceManual,
-		Locale:   model.LocaleID(req.Locale),
-	}
-
+	// Find next entity index and add a positional entity overlay span.
+	idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
 	key := fmt.Sprintf("entity:%d", idx)
-	block.Annotations[key] = ann
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID:    key,
+		Range: model.RunRangeForBytes(block.Source, req.Start, req.End),
+		Value: &model.EntityAnnotation{
+			Text:   req.Text,
+			Type:   model.EntityType(req.Type),
+			DNT:    req.DNT,
+			Source: model.ExtractionSourceManual,
+			Locale: model.LocaleID(req.Locale),
+		},
+	})
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -114,16 +111,17 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	ann, ok := block.Annotations[entityKey]
-	if !ok {
+	span := block.OverlaySpan(model.OverlayEntity, entityKey)
+	if span == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
-
-	entity, ok := ann.(*model.EntityAnnotation)
+	entity, ok := span.Value.(*model.EntityAnnotation)
 	if !ok {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
 	}
 
+	// span.Value is a pointer into the block's overlay, so these edits mutate it
+	// in place — no re-store of the span needed.
 	if req.Type != "" {
 		entity.Type = model.EntityType(req.Type)
 	}
@@ -131,7 +129,6 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		entity.DNT = *req.DNT
 	}
 
-	block.Annotations[entityKey] = entity
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -160,11 +157,9 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	if _, ok := block.Annotations[entityKey]; !ok {
+	if !block.RemoveOverlaySpan(model.OverlayEntity, entityKey) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
-
-	delete(block.Annotations, entityKey)
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -193,23 +188,21 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	ann, ok := block.Annotations[entityKey]
-	if !ok {
+	span := block.OverlaySpan(model.OverlayEntity, entityKey)
+	if span == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
-
-	entity, ok := ann.(*model.EntityAnnotation)
+	entity, ok := span.Value.(*model.EntityAnnotation)
 	if !ok {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
 	}
 
-	// Create a term candidate annotation from the entity.
+	// Create a term candidate from the entity, at the same position.
 	candidate := &model.TermCandidateAnnotation{
 		Text:            entity.Text,
 		Category:        model.TermCategoryGeneral,
 		Translatability: model.TranslatabilityConsistent,
 		Confidence:      1.0, // manual promotion = high confidence
-		Position:        entity.Position,
 		Locale:          entity.Locale,
 		Source:          model.ExtractionSourceManual,
 		Status:          model.CandidateStatusPending,
@@ -219,10 +212,14 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		candidate.Translatability = model.TranslatabilityDNT
 	}
 
-	// Add term-candidate annotation.
-	tcIdx := nextAnnotationIndex(block.Annotations, "term-candidate:")
+	// Add the term-candidate overlay span at the entity's position.
+	tcIdx := nextOverlaySpanIndex(block, model.OverlayTermCandidate, "term-candidate:")
 	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
-	block.Annotations[tcKey] = candidate
+	block.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
+		ID:    tcKey,
+		Range: span.Range,
+		Value: candidate,
+	})
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -249,13 +246,16 @@ func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, b
 	return nil, fmt.Errorf("block %s not found", blockID)
 }
 
-// nextAnnotationIndex finds the next available index for a given annotation prefix.
-func nextAnnotationIndex(annotations map[string]model.Annotation, prefix string) int {
+// nextOverlaySpanIndex finds the next available index for span IDs with the given
+// prefix in the source-side overlay of type t (e.g. "entity:" → next "entity:N").
+func nextOverlaySpanIndex(block *model.Block, t model.OverlayType, prefix string) int {
 	max := -1
-	for key := range annotations {
-		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
-			if idx, err := strconv.Atoi(key[len(prefix):]); err == nil && idx > max {
-				max = idx
+	if f := block.OverlayOf(t); f != nil {
+		for _, s := range f.Spans {
+			if strings.HasPrefix(s.ID, prefix) {
+				if idx, err := strconv.Atoi(s.ID[len(prefix):]); err == nil && idx > max {
+					max = idx
+				}
 			}
 		}
 	}

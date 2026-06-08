@@ -33,7 +33,6 @@ func UnredactSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Unredact",
 		Description: "Restore original values into redacted content after processing",
-		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
 	})
@@ -130,6 +129,6 @@ func (t *UnredactTool) handleBlock(v tool.SourceView) error {
 		}
 	}
 
-	delete(annotations, redaction.SecretAnnotationKey)
+	v.RemoveAnnotation(redaction.SecretAnnotationKey)
 	return nil
 }

@@ -10,7 +10,11 @@ import "unicode/utf8"
 // rewrite the runs they describe, so segmentation is opt-in, multi-layer, and
 // reversible (dropping the overlay restores the unsegmented content).
 
-// OverlayType names a stand-off interpretation layered over a run sequence.
+// OverlayType names a kind of positional, run-anchored stand-off
+// interpretation. Built-in content overlays have stable constants below;
+// formats and plugins may use any string for their own run-anchored state.
+// Block-scoped metadata is not an overlay — it rides on Block.Annotations as a
+// keyed typed payload (see annotation.go).
 type OverlayType string
 
 const (
@@ -24,6 +28,8 @@ const (
 	OverlayQA OverlayType = "qa"
 	// OverlayAlignment links source spans to target spans.
 	OverlayAlignment OverlayType = "alignment"
+	// OverlayTermCandidate marks proposed terminology spans awaiting review.
+	OverlayTermCandidate OverlayType = "term-candidate"
 )
 
 // RunRange anchors a span on a []Run sequence: a start and end run position
@@ -50,32 +56,47 @@ func (r RunRange) IsZero() bool { return r == RunRange{} }
 // format-agnostic marker shared by the native readers and the okapi bridge.
 const SpanPropIgnorable = "ignorable"
 
-// Span is one entry in an Overlay: a run-anchored range with an optional
-// overlay-local id (e.g. a segment id "s1") and type-specific properties.
+// Span is one occurrence within an Overlay: a run-anchored Range (its
+// position), an optional overlay-local id (e.g. a segment id "s1"),
+// type-specific Props, and an optional typed payload Value. Block-scoped
+// metadata is not a span — it rides on Block.Annotations (see annotation.go).
 type Span struct {
 	ID    string            `json:"id,omitempty"`
 	Range RunRange          `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
+	Value Payload           `json:"value,omitempty"` // typed payload (payload registry)
 }
 
 // Ignorable reports whether the span is marked as non-translatable structural
 // content (see [SpanPropIgnorable]).
 func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
-// Overlay is a typed stand-off layer over one side of a Block: the source
-// (Variant nil) or a specific target variant. Spans are ordered by position.
+// Overlay is a typed, positional (run-anchored) stand-off layer over one side
+// of a Block: the source (Variant nil) or a specific target variant. Its spans
+// carry real ranges into the runs — segmentation, terminology, entities, QA
+// findings, alignment. Block-scoped metadata that has no position (notes,
+// alt-translations, analysis results, format round-trip state) is not an
+// overlay; it rides on Block.Annotations (see annotation.go). Spans are ordered
+// by position.
 //
 // Layer names a segmentation granularity so several can coexist over the same
-// runs (AD-002): the empty string is the primary sentence segmentation — the
-// one bilingual formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from —
+// runs (AD-002): LayerPrimary is the primary sentence segmentation — the one
+// bilingual formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from —
 // while named layers ("llm-chunk", "clause", …) are additional interpretations
 // produced on demand. Layer is meaningful only for segmentation overlays.
 type Overlay struct {
 	Type    OverlayType `json:"type"`
 	Variant *VariantKey `json:"variant,omitempty"` // nil = source side
-	Layer   string      `json:"layer,omitempty"`   // "" = primary sentence segmentation
+	Layer   string      `json:"layer,omitempty"`   // LayerPrimary ("") = primary sentence segmentation
 	Spans   []Span      `json:"spans,omitempty"`
 }
+
+// LayerPrimary names the primary sentence segmentation layer — the one bilingual
+// formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from, and the default
+// for the unit iterators. It is the zero value of Overlay.Layer (and of the
+// layer parameter on the segmentation/unit APIs); named layers ("llm-chunk",
+// "clause", …) are additional, on-demand interpretations.
+const LayerPrimary = ""
 
 // OnSource reports whether the overlay annotates the source run sequence.
 func (o *Overlay) OnSource() bool { return o == nil || o.Variant == nil }
@@ -254,7 +275,7 @@ func RunRangeForBytes(runs []Run, byteStart, byteEnd int) RunRange {
 // SegmentationFor returns the primary (layer "") segmentation overlay for the
 // given side (nil = source), or nil if none.
 func (b *Block) SegmentationFor(variant *VariantKey) *Overlay {
-	return b.SegmentationLayerFor(variant, "")
+	return b.SegmentationLayerFor(variant, LayerPrimary)
 }
 
 // SegmentationLayerFor returns the segmentation overlay for the given side
@@ -297,7 +318,7 @@ func sameVariant(a, b *VariantKey) bool {
 // given side (nil = source) with one carrying the supplied spans. Empty spans
 // removes it.
 func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) {
-	b.SetSegmentationLayer(variant, "", spans)
+	b.SetSegmentationLayer(variant, LayerPrimary, spans)
 }
 
 // SetSegmentationLayer replaces the segmentation overlay for the given side
@@ -319,8 +340,9 @@ func (b *Block) SetSegmentationLayer(variant *VariantKey, layer string, spans []
 }
 
 // HasSourceOverlays reports whether the block carries any source-side overlay
-// (segmentation, terms, entities, …). Source mutation after an overlay is
-// attached would invalidate its run-anchored ranges.
+// (segmentation, terms, entities, …). Overlays are positional by construction,
+// so source mutation after one is attached would invalidate its run-anchored
+// ranges. Block-scoped Annotations carry no range and never count here.
 func (b *Block) HasSourceOverlays() bool {
 	for i := range b.Overlays {
 		if b.Overlays[i].OnSource() {
@@ -335,7 +357,7 @@ func (b *Block) HasSourceOverlays() bool {
 func (b *Block) SourceSegmentation() *Overlay {
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
-		if o.Type == OverlaySegmentation && o.OnSource() && o.Layer == "" {
+		if o.Type == OverlaySegmentation && o.OnSource() && o.Layer == LayerPrimary {
 			return o
 		}
 	}

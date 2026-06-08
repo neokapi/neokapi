@@ -54,11 +54,10 @@ type TermCandidateAnnotation struct {
 	Category        TermCategory     // domain classification
 	Translatability Translatability  // how the term should be handled during translation
 	Confidence      float64          // extraction confidence [0,1]
-	Position        RunRange         // run-anchored span in the source runs
 	Locale          LocaleID         // locale where the term was found
 	Source          ExtractionSource // how this candidate was discovered
 	Status          CandidateStatus  // review lifecycle state
 }
 
 // AnnotationType returns the type identifier for term candidate annotations.
-func (tc *TermCandidateAnnotation) AnnotationType() string { return "term-candidate" }
+func (tc *TermCandidateAnnotation) TypeName() string { return "term-candidate" }

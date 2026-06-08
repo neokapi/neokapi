@@ -94,7 +94,9 @@ func TestReadXLIFF2Notes(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 
-	assert.Equal(t, "This needs review", blocks[2].Properties["note-0"])
+	notes := blocks[2].Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "This needs review", notes[0].Text)
 }
 
 func TestReadXLIFF2LayerStartEnd(t *testing.T) {

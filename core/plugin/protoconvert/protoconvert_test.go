@@ -318,7 +318,6 @@ func TestBlockRoundTrip(t *testing.T) {
 					Source:       []model.Run{{Text: &model.TextRun{Text: "non-translatable"}}},
 					Targets:      make(map[model.VariantKey]*model.Target),
 					Properties:   make(map[string]string),
-					Annotations:  make(map[string]model.Annotation),
 				}
 			}(),
 		},

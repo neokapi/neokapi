@@ -87,8 +87,10 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ```go
 // Block is the primary translatable content unit (Okapi: TextUnit). Source is a
 // single flat run sequence; translations are first-class Target records keyed by
-// VariantKey; every interpretation of the runs (segmentation, terms, entities,
-// QA, alignment) is a stand-off Overlay. There is no structural Segment type.
+// VariantKey. Every interpretation of the runs is stand-off, in two carriers:
+// positional, run-anchored Overlays (segmentation, terms, entities, QA,
+// alignment) and block-scoped, typed Annotations (notes, alt-translations,
+// analysis results). There is no structural Segment type.
 type Block struct {
     ID                 string
     Name               string
@@ -99,9 +101,9 @@ type Block struct {
     Skeleton           *Skeleton
     Source             []Run
     Targets            map[VariantKey]*Target
-    Overlays           []Overlay
+    Overlays           []Overlay      // positional, run-anchored stand-off layers
+    Annotations        map[string]any // block-scoped typed metadata, keyed by type
     Properties         map[string]string
-    Annotations        map[string]Annotation
     Identity           *BlockIdentity // content-addressable hash for deduplication
     ContentRef         *ContentRef    // link to external connector source
     DisplayHint        *DisplayHint   // UI rendering guidance
@@ -150,7 +152,7 @@ type Target struct {
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
     Variant *VariantKey // nil = source side
-    Layer   string      // segmentation granularity; "" = primary sentence segmentation
+    Layer   string      // segmentation granularity; LayerPrimary = primary sentence segmentation
     Spans   []Span
 }
 

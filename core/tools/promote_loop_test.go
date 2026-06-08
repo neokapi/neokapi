@@ -16,7 +16,7 @@ func runBrandVocab(t *testing.T, p *brand.VoiceProfile, text string) []check.Fin
 	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
 	tl := NewBrandVocabCheckTool(p, nil)
 	require.NoError(t, tl.Annotate(tool.NewBlockView(b)))
-	if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 		return ann.Findings
 	}
 	return nil

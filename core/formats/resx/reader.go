@@ -276,7 +276,6 @@ func (r *Reader) emitDataBlock(ctx context.Context, ch chan<- model.PartResult,
 		Source:       buildValueRuns(valueText),
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	// xml:space="preserve" means the surrounding whitespace inside <value> is
@@ -289,11 +288,11 @@ func (r *Reader) emitDataBlock(ctx context.Context, ch chan<- model.PartResult,
 	// Sibling <comment> → translator note.
 	if comment, ok := childElementText(entryToks, "comment"); ok && r.cfg.ExtractComments {
 		if strings.TrimSpace(comment) != "" {
-			block.Annotations["note"] = &model.NoteAnnotation{
+			block.AddNote(&model.NoteAnnotation{
 				Text:      comment,
 				From:      "developer",
 				Annotates: "general",
-			}
+			})
 		}
 	}
 

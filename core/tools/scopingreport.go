@@ -42,7 +42,6 @@ func ScopingReportSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Scoping Report",
 		Description: "Generate detailed scoping report (word counts, repetitions, file breakdown)",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 
@@ -84,7 +83,7 @@ func NewScopingReportTool(cfg *ScopingReportConfig) *tool.BaseTool {
 // based on properties set by upstream analysis tools.
 func classifyScopingCategory(v tool.BlockView) string {
 	// Check repetition status first.
-	if status := v.Property(PropRepetitionStatus); status == "repetition" {
+	if rep, ok := v.Annotations()[string(model.AnnoRepetition)].(*RepetitionAnnotation); ok && rep.Status == "repetition" {
 		return ScopingRepetition
 	}
 

@@ -70,6 +70,6 @@ func TestSecureTranslate_InProcessNoLeak(t *testing.T) {
 	assert.Contains(t, target, secretA, "person not restored")
 	assert.Contains(t, target, secretB, "role not restored")
 	// And the in-process secret annotation is gone.
-	_, hasAnn := block.Annotations[redaction.SecretAnnotationKey]
+	_, hasAnn := block.Anno(redaction.SecretAnnotationKey)
 	assert.False(t, hasAnn)
 }

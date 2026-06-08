@@ -426,7 +426,7 @@ func assertDoubleExtraction(t *testing.T, content string) {
 // Full-file extraction tests
 // ---------------------------------------------------------------------------
 
-// okapi: DoxygenFilterTest#testDoubleExtractionSample (extraction facet)
+// okapi: DoxygenFilterTest#testDoubleExtractionSample (extraction aspect)
 func TestExtract_SampleFile(t *testing.T) {
 	content, err := os.ReadFile("testdata/sample.h")
 	require.NoError(t, err)
@@ -453,7 +453,7 @@ func TestExtract_SampleFile(t *testing.T) {
 	}
 }
 
-// okapi: DoxygenFilterTest#testDoubleExtractionQtStyle (extraction facet)
+// okapi: DoxygenFilterTest#testDoubleExtractionQtStyle (extraction aspect)
 func TestExtract_QtStyleFile(t *testing.T) {
 	content, err := os.ReadFile("testdata/qt-style.h")
 	require.NoError(t, err)
@@ -467,7 +467,7 @@ func TestExtract_QtStyleFile(t *testing.T) {
 		"should extract /*! */ comment, got %v", texts)
 }
 
-// okapi: DoxygenFilterTest#testDoubleExtractionJavadocStyle (extraction facet)
+// okapi: DoxygenFilterTest#testDoubleExtractionJavadocStyle (extraction aspect)
 func TestExtract_JavadocStyleFile(t *testing.T) {
 	content, err := os.ReadFile("testdata/javadoc-style.h")
 	require.NoError(t, err)
@@ -481,7 +481,7 @@ func TestExtract_JavadocStyleFile(t *testing.T) {
 		"should extract constructor doc, got %v", texts)
 }
 
-// okapi: DoxygenFilterTest#testDoubleExtractionSpecialCommands (extraction facet)
+// okapi: DoxygenFilterTest#testDoubleExtractionSpecialCommands (extraction aspect)
 func TestExtract_SpecialCommandsFile(t *testing.T) {
 	content, err := os.ReadFile("testdata/special_commands.h")
 	require.NoError(t, err)

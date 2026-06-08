@@ -49,8 +49,7 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 		Targets: map[model.VariantKey]*model.Target{
 			model.Variant(model.LocaleFrench): {Runs: tgtRuns},
 		},
-		Properties:  map[string]string{"client": "acme"},
-		Annotations: make(map[string]model.Annotation),
+		Properties: map[string]string{"client": "acme"},
 	}
 
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))

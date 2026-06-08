@@ -64,16 +64,14 @@ func TestBlockWithTargets(t *testing.T) {
 func TestBlockWithAnnotations(t *testing.T) {
 	b := &model.Block{ID: "b1"}
 	b.SetSourceText("Test")
-	b.Annotations = map[string]model.Annotation{
-		"note": &model.NoteAnnotation{Text: "translator note", From: "dev"},
-	}
+	b.AddNote(&model.NoteAnnotation{Text: "translator note", From: "dev"})
 
 	pb := BlockToProto(b, "en.json")
 	assert.NotEmpty(t, pb.AnnotationsJson)
 
 	b2, err := ProtoToBlock(pb)
 	require.NoError(t, err)
-	assert.NotNil(t, b2.Annotations)
+	assert.NotEmpty(t, b2.AnnoMap())
 }
 
 func TestComputeItemHash_Deterministic(t *testing.T) {

@@ -50,7 +50,6 @@ func CharsListingSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Chars Listing",
 		Description: "List all distinct characters used in source and/or target",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -44,8 +44,8 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 		ToolMeta: &schema.ToolMeta{
 			ID:       "test-tool",
 			Category: "validate",
-			Inputs:   []string{"block", "data"},
-			Outputs:  []string{"block"},
+			Consumes: []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
+			Produces: []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
 			Tags:     []string{"quality", "ai-powered"},
 			Requires: []string{"target-language", "credentials"},
 		},
@@ -62,8 +62,8 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 	assert.Equal(t, "validate", info.Category)
 	assert.True(t, info.HasSchema)
 	assert.Equal(t, SourceBuiltIn, info.Source)
-	assert.Equal(t, []string{"block", "data"}, info.Inputs)
-	assert.Equal(t, []string{"block"}, info.Outputs)
+	assert.Equal(t, []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}}, info.Consumes)
+	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)}, info.Produces)
 	assert.Equal(t, []string{"quality", "ai-powered"}, info.Tags)
 	assert.Equal(t, []string{"target-language", "credentials"}, info.Requires)
 }
@@ -78,7 +78,7 @@ func TestRegisterWithSchema_NilSchema(t *testing.T) {
 	info := infos[0]
 	assert.Equal(t, ToolID("no-schema"), info.Name)
 	assert.False(t, info.HasSchema)
-	assert.Empty(t, info.Inputs)
+	assert.Empty(t, info.Consumes)
 	assert.Empty(t, info.Tags)
 	assert.Empty(t, info.Requires)
 }
@@ -95,8 +95,8 @@ func TestRegisterWithSchema_EmptyMeta(t *testing.T) {
 
 	info := reg.ListWithSchemas()[0]
 	assert.Empty(t, info.Category)
-	assert.Empty(t, info.Inputs)
-	assert.Empty(t, info.Outputs)
+	assert.Empty(t, info.Consumes)
+	assert.Empty(t, info.Produces)
 	assert.Empty(t, info.Tags)
 	assert.Empty(t, info.Requires)
 }
@@ -141,7 +141,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 			Category:      "validate",
 			Cardinality:   schema.Bilingual,
 			DefaultLocale: "qps",
-			Produces:      []schema.AnnotationType{schema.AnnotationFindings},
+			Produces:      []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
 			SideEffects:   []schema.SideEffect{schema.SideEffectTMRead},
 		},
 	})
@@ -151,7 +151,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 	assert.Equal(t, ToolID("test"), info.Name)
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
 	assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
-	assert.Equal(t, []schema.AnnotationType{schema.AnnotationFindings}, info.Produces)
+	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)}, info.Produces)
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
 }
 
@@ -250,7 +250,7 @@ func TestRegisterWithSchema_PropagatesIOContract(t *testing.T) {
 		ToolMeta: &schema.ToolMeta{
 			ID:          "io-tool",
 			Cardinality: schema.Multilingual,
-			Produces:    []schema.AnnotationType{schema.AnnotationComparison},
+			Produces:    []schema.IOPort{{Type: model.AnnoComparison, Side: model.SideTarget}},
 			SideEffects: []schema.SideEffect{schema.SideEffectAnalytics},
 		},
 	})
@@ -258,6 +258,6 @@ func TestRegisterWithSchema_PropagatesIOContract(t *testing.T) {
 	infos := reg.ListWithSchemas()
 	require.Len(t, infos, 1)
 	assert.Equal(t, schema.Multilingual, infos[0].Cardinality)
-	assert.Equal(t, []schema.AnnotationType{schema.AnnotationComparison}, infos[0].Produces)
+	assert.Equal(t, []schema.IOPort{{Type: model.AnnoComparison, Side: model.SideTarget}}, infos[0].Produces)
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectAnalytics}, infos[0].SideEffects)
 }

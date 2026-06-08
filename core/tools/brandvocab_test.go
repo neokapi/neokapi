@@ -2,7 +2,6 @@ package tools_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/brand"
@@ -48,12 +47,9 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	findingsStr := resultBlock.Properties["brand-vocab-findings"]
-	require.NotEmpty(t, findingsStr)
-
-	var findings []brand.BrandVoiceFinding
-	err = json.Unmarshal([]byte(findingsStr), &findings)
-	require.NoError(t, err)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
 	assert.Equal(t, string(brand.DimensionVocabulary), findings[0].Category)
@@ -91,12 +87,9 @@ func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	findingsStr := resultBlock.Properties["brand-vocab-findings"]
-	require.NotEmpty(t, findingsStr)
-
-	var findings []brand.BrandVoiceFinding
-	err = json.Unmarshal([]byte(findingsStr), &findings)
-	require.NoError(t, err)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
 	assert.Equal(t, brand.SeverityCritical, findings[0].Severity)
@@ -130,9 +123,9 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	var findings []brand.BrandVoiceFinding
-	err = json.Unmarshal([]byte(resultBlock.Properties["brand-vocab-findings"]), &findings)
-	require.NoError(t, err)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
 	assert.Contains(t, findings[0].Suggestion, "customers")
@@ -167,7 +160,8 @@ func TestBrandVocabCheckNoViolations(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	assert.Empty(t, resultBlock.Properties["brand-vocab-findings"])
+	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	assert.False(t, bvOK)
 }
 
 func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
@@ -195,7 +189,8 @@ func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
 
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
-	assert.Empty(t, resultBlock.Properties["brand-vocab-findings"])
+	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	assert.False(t, bvOK)
 }
 
 func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
@@ -224,9 +219,9 @@ func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	var findings []brand.BrandVoiceFinding
-	err = json.Unmarshal([]byte(resultBlock.Properties["brand-vocab-findings"]), &findings)
-	require.NoError(t, err)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 	assert.Equal(t, "CHEAP", findings[0].OriginalText)
 }
@@ -261,7 +256,7 @@ func TestBrandVocabCheckWithResolver(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 	bva := ann.(*brand.BrandVoiceAnnotation)
 	assert.Equal(t, "resolved-vocab", bva.ProfileID)
@@ -290,7 +285,8 @@ func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// No findings — profile was nil so no vocab rules to check.
-	assert.Empty(t, resultBlock.Properties["brand-vocab-findings"])
+	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	assert.False(t, bvOK)
 }
 
 func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
@@ -320,7 +316,7 @@ func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 
 	bva := ann.(*brand.BrandVoiceAnnotation)

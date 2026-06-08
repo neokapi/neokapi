@@ -285,13 +285,17 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 		}
 		return v.result(part), nil
 	}
-	hadOverlay := block.HasSourceOverlays()
 	srcBefore := blockSourceSig(block)
 	if err := b.Transform(v); err != nil {
 		return nil, err
 	}
-	if hadOverlay && blockSourceSig(block) != srcBefore {
-		return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q while a stand-off overlay was attached — source transforms must run before overlays", b.ToolName, block.ID)
+	// A source rewrite invalidates any run-anchored source overlay. The hazard
+	// is leaving such an overlay *dangling* over the new runs, so we check the
+	// post-transform state: a tool that consumes a source overlay and then rewrites
+	// the source must drop that overlay (e.g. redact consuming the entity overlay),
+	// leaving no stale overlay behind.
+	if blockSourceSig(block) != srcBefore && block.HasSourceOverlays() {
+		return nil, fmt.Errorf("immutability: transform tool %q rewrote the source of block %q while a stand-off source overlay remained attached — drop consumed source overlays before rewriting source (overlays anchor to runs)", b.ToolName, block.ID)
 	}
 	return v.result(part), nil
 }

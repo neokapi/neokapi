@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -97,8 +96,8 @@ func (sc *ScopingCollector) Collect(_ context.Context, item *flow.Item, parts []
 		}
 
 		wordCount := 0
-		if v, ok := block.Properties[PropWordCountSource]; ok {
-			wordCount, _ = strconv.Atoi(v)
+		if wc, ok := model.AnnoAs[*WordCountAnnotation](block, string(model.AnnoWordCount)); ok {
+			wordCount = wc.Source
 		}
 
 		cat, exists := localCats[category]

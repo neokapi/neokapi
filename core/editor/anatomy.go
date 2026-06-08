@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -323,6 +324,8 @@ func overlayViews(b *model.Block) []OverlayView {
 	out := make([]OverlayView, 0, len(b.Overlays))
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
+		// Overlays are positional by construction; block-scoped annotations are
+		// rendered separately by annotationViews via AnnoMap.
 		side := "source"
 		runs := b.Source
 		if o.Variant != nil {
@@ -349,34 +352,64 @@ func overlayViews(b *model.Block) []OverlayView {
 // annotationViews serializes the block's annotations, summarising the well-known
 // kinds (alt-translation, note) and passing generic ones through as fields.
 func annotationViews(b *model.Block) []AnnotationView {
-	if len(b.Annotations) == 0 {
+	annos := b.AnnoMap()
+	if len(annos) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(b.Annotations))
-	for k := range b.Annotations {
+	keys := make([]string, 0, len(annos))
+	for k := range annos {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
-		out = append(out, annotationView(k, b.Annotations[k]))
+		// Collection annotations expand to one view per item so each renders
+		// individually (keyed "alt-translation[i]" / "note[i]").
+		if alts, ok := annos[k].(*model.AltTranslations); ok {
+			for i, alt := range alts.Items {
+				out = append(out, altTranslationView(fmt.Sprintf("%s[%d]", k, i), alt))
+			}
+			continue
+		}
+		if notes, ok := annos[k].(*model.Notes); ok {
+			for i, n := range notes.Items {
+				out = append(out, AnnotationView{
+					Key:     fmt.Sprintf("%s[%d]", k, i),
+					Type:    "note",
+					Summary: n.Text,
+					Fields:  map[string]any{"from": n.From, "priority": n.Priority, "annotates": n.Annotates},
+				})
+			}
+			continue
+		}
+		out = append(out, annotationView(k, annos[k]))
 	}
 	return out
 }
 
-func annotationView(key string, a model.Annotation) AnnotationView {
-	v := AnnotationView{Key: key, Type: a.AnnotationType()}
-	switch t := a.(type) {
-	case *model.AltTranslation:
-		v.Summary = model.RunsText(t.Target)
-		v.Fields = map[string]any{
+// altTranslationView renders a single alt-translation candidate.
+func altTranslationView(key string, t *model.AltTranslation) AnnotationView {
+	return AnnotationView{
+		Key:     key,
+		Type:    "alt-translation",
+		Summary: model.RunsText(t.Target),
+		Fields: map[string]any{
 			"locale":    string(t.Locale),
 			"matchType": string(t.MatchType),
 			"score":     t.Score,
 			"origin":    t.Origin,
 			"engine":    t.Engine,
 			"source":    model.RunsText(t.Source),
-		}
+		},
+	}
+}
+
+func annotationView(key string, a any) AnnotationView {
+	v := AnnotationView{Key: key}
+	if at, ok := a.(interface{ TypeName() string }); ok {
+		v.Type = at.TypeName()
+	}
+	switch t := a.(type) {
 	case *model.NoteAnnotation:
 		v.Summary = t.Text
 		v.Fields = map[string]any{"from": t.From, "priority": t.Priority, "annotates": t.Annotates}

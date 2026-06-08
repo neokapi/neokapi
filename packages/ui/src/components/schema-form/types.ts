@@ -25,13 +25,21 @@ export interface FormatMeta {
   mimeTypes?: string[];
 }
 
+/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
+export interface IOPort {
+  type: string;
+  side?: "source" | "target";
+  optional?: boolean;
+  layer?: string;
+}
+
 export interface ToolMeta {
   id?: string;
   displayName?: string;
   description?: string;
   category?: string;
-  inputs?: string[];
-  outputs?: string[];
+  consumes?: IOPort[];
+  produces?: IOPort[];
   tags?: string[];
   requires?: string[];
 }

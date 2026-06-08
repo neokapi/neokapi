@@ -128,8 +128,9 @@ func TestStringExtraction(t *testing.T) {
 	greeting := byName["GreetingText"]
 	require.NotNil(t, greeting)
 	assert.Equal(t, "Hello, world!", greeting.SourceText())
-	note, ok := greeting.Annotations["note"].(*model.NoteAnnotation)
-	require.True(t, ok, "GreetingText should carry a note")
+	notes := greeting.Notes()
+	require.Len(t, notes, 1, "GreetingText should carry a note")
+	note := notes[0]
 	assert.Equal(t, "Shown on the welcome screen.", note.Text)
 	assert.Equal(t, "developer", note.From)
 	assert.True(t, greeting.PreserveWhitespace, "xml:space=preserve should set PreserveWhitespace")
@@ -138,8 +139,7 @@ func TestStringExtraction(t *testing.T) {
 	save := byName["SaveButton"]
 	require.NotNil(t, save)
 	assert.Equal(t, "Save", save.SourceText())
-	_, hasNote := save.Annotations["note"]
-	assert.False(t, hasNote, "SaveButton has no <comment>")
+	assert.Empty(t, save.Notes(), "SaveButton has no <comment>")
 
 	// Entities are decoded into the source text.
 	ent := byName["WithEntities"]

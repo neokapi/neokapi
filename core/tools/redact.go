@@ -80,7 +80,6 @@ func RedactSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Redact",
 		Description: "Replace sensitive spans with protected placeholders before processing",
-		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
 	})
@@ -229,6 +228,12 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 	if len(records) == 0 {
 		return nil
 	}
+	// Redaction rewrites the source, invalidating the run-anchored ranges of any
+	// entity overlay we consumed; drop it before mutating source so the spans
+	// don't dangle (and so the immutability backstop's overlay check passes).
+	if t.useEntities {
+		v.RemoveOverlay(model.OverlayEntity)
+	}
 	v.SetSourceRuns(newRuns)
 	t.store(v, records)
 	return nil
@@ -266,8 +271,8 @@ func (t *RedactTool) store(v tool.SourceView, records []redaction.Redacted) {
 // are reconciled against the source text so byte spans are exact.
 func (t *RedactTool) entityMatches(v tool.SourceView, text string) []redaction.Match {
 	var out []redaction.Match
-	for _, ann := range v.Annotations() {
-		ea, ok := ann.(*model.EntityAnnotation)
+	for _, span := range v.OverlaySpans(model.OverlayEntity) {
+		ea, ok := span.Value.(*model.EntityAnnotation)
 		if !ok {
 			continue
 		}
@@ -275,7 +280,7 @@ func (t *RedactTool) entityMatches(v tool.SourceView, text string) []redaction.M
 		if !t.entityCats[cat] {
 			continue
 		}
-		hintStart, hintEnd := ea.Position.ByteSpan(v.SourceRuns())
+		hintStart, hintEnd := span.Range.ByteSpan(v.SourceRuns())
 		start, end, ok := locateSpan(text, ea.Text, hintStart, hintEnd)
 		if !ok {
 			continue

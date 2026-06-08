@@ -11,4 +11,4 @@ type BrandVoiceAnnotation struct {
 }
 
 // AnnotationType returns the type identifier for this annotation.
-func (a *BrandVoiceAnnotation) AnnotationType() string { return "brand-voice" }
+func (a *BrandVoiceAnnotation) TypeName() string { return "brand-voice" }

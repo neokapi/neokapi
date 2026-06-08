@@ -59,8 +59,8 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 	}
 
 	// Annotations.
-	if len(b.Annotations) > 0 {
-		data, _ := json.Marshal(b.Annotations)
+	if am := b.AnnoMap(); len(am) > 0 {
+		data, _ := json.Marshal(am)
 		sync.Annotations = data
 	}
 
@@ -191,9 +191,21 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		}
 	}
 
-	// Annotations.
+	// Annotations: rehydrate each typed payload by its key (the annotation type
+	// name), falling back to a GenericAnnotation for unregistered types.
 	if len(sb.Annotations) > 0 {
-		_ = json.Unmarshal(sb.Annotations, &b.Annotations)
+		raw := map[string]json.RawMessage{}
+		if json.Unmarshal(sb.Annotations, &raw) == nil {
+			for k, data := range raw {
+				p, ok := model.NewPayload(k)
+				if !ok || json.Unmarshal(data, p) != nil {
+					var fields map[string]any
+					_ = json.Unmarshal(data, &fields)
+					p = &model.GenericAnnotation{Kind: k, Fields: fields}
+				}
+				b.SetAnno(k, p)
+			}
+		}
 	}
 
 	// Skeleton.

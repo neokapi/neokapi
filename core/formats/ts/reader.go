@@ -635,7 +635,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							Source:       sourceRuns,
 							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   make(map[string]string),
-							Annotations:  make(map[string]model.Annotation),
 						}
 					} else {
 						block = model.NewBlock(blockID, sourceText)
@@ -822,9 +821,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					}
 					if len(noteParts) > 0 {
 						noteText = strings.Join(noteParts, "\n")
-						block.Annotations["note"] = &model.NoteAnnotation{
+						block.AddNote(&model.NoteAnnotation{
 							Text: noteText,
-						}
+						})
 					}
 
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {

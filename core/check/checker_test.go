@@ -27,5 +27,5 @@ func TestAnnotateWritesFindingsAnnotation(t *testing.T) {
 	assert.Equal(t, "acme-checkset", fa.Source)
 	assert.Equal(t, score.Overall, fa.Score)
 	assert.Len(t, fa.Findings, 1)
-	assert.Equal(t, AnnotationKey, fa.AnnotationType())
+	assert.Equal(t, AnnotationKey, fa.TypeName())
 }

@@ -476,10 +476,10 @@ func (r *Reader) blockName(keyName, path string, state *readState) string {
 func (r *Reader) consumePendingState(state *readState, block *model.Block) {
 	if block != nil {
 		if state.pendingNote != "" {
-			block.Annotations["note"] = &model.NoteAnnotation{
+			block.AddNote(&model.NoteAnnotation{
 				Text: state.pendingNote,
 				From: "json",
-			}
+			})
 		}
 		if state.pendingMeta != nil {
 			for k, v := range state.pendingMeta {

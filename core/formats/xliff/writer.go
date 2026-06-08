@@ -90,7 +90,7 @@ func (w *Writer) transUnitsWithoutSourceTarget() []bool {
 			out = append(out, false)
 			continue
 		}
-		if _, ok := block.Annotations["xliff:target-attrs"]; !ok {
+		if _, ok := block.Anno("xliff:target-attrs"); !ok {
 			out = append(out, true)
 		} else {
 			out = append(out, false)
@@ -113,7 +113,7 @@ func (w *Writer) transUnitsWithDivergentSegSource() []bool {
 			out = append(out, false)
 			continue
 		}
-		_, ok := block.Annotations["xliff:divergent-segsource"]
+		_, ok := block.Anno("xliff:divergent-segsource")
 		out = append(out, ok)
 	}
 	return out
@@ -500,7 +500,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 		EncodableAs:     w.encoderForOkapiCompat(),
 		StripCREntities: compat.StripCDataCREntities,
 	}
-	if a, ok := block.Annotations["xliff:source-body"]; ok {
+	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			return renderNativeWithRunsOpts(sa.Content, nil, opts)
 		}
@@ -570,7 +570,7 @@ func (w *Writer) fullTargetElement(block *model.Block, targetLang, injectLang mo
 	inner := w.targetText(block, targetLang)
 	var b strings.Builder
 	b.WriteString("<target")
-	if a, ok := block.Annotations["xliff:target-attrs"]; ok {
+	if a, ok := block.Anno("xliff:target-attrs"); ok {
 		if ta, ok := a.(*TargetAttrsAnnotation); ok {
 			for _, attr := range ta.Attrs {
 				b.WriteString(` `)
@@ -630,14 +630,14 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	// source body IR so the bpt/ept/ph wrappers actually get emitted.
 	// MQ-12-Test01 has many such trans-units (`<target> </target>`
 	// placeholders around inline-coded source content).
-	if a, ok := block.Annotations["xliff:target-body"]; ok {
+	if a, ok := block.Anno("xliff:target-body"); ok {
 		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
 			if !irLacksInlinesNeededByRuns(ta.Content, tgtSegs) {
 				return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, false)
 			}
 		}
 	}
-	if a, ok := block.Annotations["xliff:source-body"]; ok {
+	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, false)
 		}
@@ -791,46 +791,38 @@ func (w *Writer) flush() (retErr error) {
 		}
 
 		// Notes
-		for key, ann := range block.Annotations {
-			if strings.HasPrefix(key, "note") {
-				if note, ok := ann.(*model.NoteAnnotation); ok {
-					fmt.Fprintf(ew, "        <note")
-					if note.From != "" {
-						fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
-					}
-					if note.Priority > 0 {
-						fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
-					}
-					if note.Annotates != "" {
-						fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
-					}
-					fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
-				}
+		for _, note := range block.Notes() {
+			fmt.Fprintf(ew, "        <note")
+			if note.From != "" {
+				fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
 			}
+			if note.Priority > 0 {
+				fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
+			}
+			if note.Annotates != "" {
+				fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
+			}
+			fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
 		}
 
 		// Alt-trans
-		for key, ann := range block.Annotations {
-			if strings.HasPrefix(key, "alt-translation") {
-				if alt, ok := ann.(*model.AltTranslation); ok {
-					fmt.Fprintf(ew, "        <alt-trans")
-					if alt.CombinedScore > 0 {
-						fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
-					}
-					if alt.Origin != "" {
-						fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
-					}
-					fmt.Fprintf(ew, ">\n")
-					if len(alt.Source) > 0 {
-						fmt.Fprintf(ew, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
-					}
-					if len(alt.Target) > 0 {
-						fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
-							xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
-					}
-					fmt.Fprintf(ew, "        </alt-trans>\n")
-				}
+		for _, alt := range block.AltTranslations() {
+			fmt.Fprintf(ew, "        <alt-trans")
+			if alt.CombinedScore > 0 {
+				fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
 			}
+			if alt.Origin != "" {
+				fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
+			}
+			fmt.Fprintf(ew, ">\n")
+			if len(alt.Source) > 0 {
+				fmt.Fprintf(ew, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
+			}
+			if len(alt.Target) > 0 {
+				fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
+					xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
+			}
+			fmt.Fprintf(ew, "        </alt-trans>\n")
 		}
 
 		fmt.Fprintf(ew, "      </trans-unit>\n")

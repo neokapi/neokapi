@@ -39,7 +39,7 @@ func TestBlockCreation(t *testing.T) {
 	assert.Equal(t, "Hello world", block.SourceText())
 	assert.NotNil(t, block.Targets)
 	assert.NotNil(t, block.Properties)
-	assert.NotNil(t, block.Annotations)
+	assert.Empty(t, block.AnnoMap())
 }
 
 func TestBlockSourceTarget(t *testing.T) {
@@ -235,7 +235,7 @@ func TestAltTranslation(t *testing.T) {
 		Score:     0.95,
 		MatchType: model.MatchFuzzy,
 	}
-	assert.Equal(t, "alt-translation", alt.AnnotationType())
+	assert.Equal(t, "alt-translation", alt.TypeName())
 	assert.Equal(t, "Bonjour", model.FlattenRuns(alt.Target))
 }
 

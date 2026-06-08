@@ -102,6 +102,23 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 	return out
 }
 
+// portNames renders a IO contract as "type@side" tokens (optional
+// consumed ports get a trailing "?") for the generated reference.
+func portNames(fs []coreschema.IOPort) []string {
+	if len(fs) == 0 {
+		return nil
+	}
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		s := string(f.Type) + "@" + f.Side.String()
+		if f.Optional {
+			s += "?"
+		}
+		out[i] = s
+	}
+	return out
+}
+
 // collectNativeTools produces one Entry per built-in tool.
 func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 	var out []Entry
@@ -114,8 +131,8 @@ func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 			DisplayName: info.DisplayName,
 			Description: info.Description,
 			Category:    info.Category,
-			Inputs:      info.Inputs,
-			Outputs:     info.Outputs,
+			Consumes:    portNames(info.Consumes),
+			Produces:    portNames(info.Produces),
 			Tags:        info.Tags,
 			Requires:    info.Requires,
 			Cardinality: string(info.Cardinality),

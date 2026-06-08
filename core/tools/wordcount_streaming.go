@@ -3,8 +3,6 @@ package tools
 import (
 	"context"
 	"maps"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -61,16 +59,10 @@ func (wc *StreamingWordCountCollector) Observe(part *model.Part) {
 
 	doc.BlockCount++
 
-	if v, ok := block.Properties[PropWordCountSource]; ok {
-		n, _ := strconv.Atoi(v)
-		doc.SourceWords += n
-		wc.totalSource += n
-	}
-
-	for key, v := range block.Properties {
-		if strings.HasPrefix(key, PropWordCountTargetPrefix) {
-			locale := model.LocaleID(key[len(PropWordCountTargetPrefix):])
-			n, _ := strconv.Atoi(v)
+	if wcf, ok := model.AnnoAs[*WordCountAnnotation](block, string(model.AnnoWordCount)); ok {
+		doc.SourceWords += wcf.Source
+		wc.totalSource += wcf.Source
+		for locale, n := range wcf.Targets {
 			doc.TargetWords[locale] += n
 			wc.totalTarget[locale] += n
 		}

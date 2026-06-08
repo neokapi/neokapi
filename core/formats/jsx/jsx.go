@@ -86,8 +86,8 @@ type KLFAnnotation struct {
 	DocumentPath string
 }
 
-// AnnotationType satisfies model.Annotation.
-func (a *KLFAnnotation) AnnotationType() string { return AnnotationType }
+// AnnotationType satisfies any.
+func (a *KLFAnnotation) TypeName() string { return AnnotationType }
 
 // Runs returns the source runs. Convenience for tools that want to
 // walk a block's structured content without repeating the map
@@ -295,7 +295,7 @@ func toModelBlock(doc *klf.Document, b *klf.Block) *model.Block {
 		DocumentID:   doc.ID,
 		DocumentPath: doc.Path,
 	}
-	mb.Annotations[AnnotationType] = ann
+	mb.SetAnno(AnnotationType, ann)
 	return mb
 }
 
@@ -415,32 +415,34 @@ func (w *Writer) handlePart(part *model.Part) error {
 // writer emits a minimal text-only block so the archive is still
 // well-formed.
 func (w *Writer) materializeBlock(mb *model.Block) (klf.Block, string, string) {
-	if ann, ok := mb.Annotations[AnnotationType].(*KLFAnnotation); ok {
-		b := klf.Block{
-			ID:           mb.ID,
-			Hash:         ann.Hash,
-			Translatable: mb.Translatable,
-			Type:         ann.Type,
-			Source:       cloneRuns(ann.Source),
-			Targets:      cloneTargets(ann.Targets),
-			Placeholders: append([]klf.Placeholder(nil), ann.Placeholders...),
-			Properties:   ann.Properties,
-			Preview:      ann.Preview,
-		}
-		if w.locale != "" && mb.HasTarget(w.locale) {
-			if b.Targets == nil {
-				b.Targets = make(map[klf.LocaleID][]klf.Run)
+	if annRaw, ok := mb.Anno(AnnotationType); ok {
+		if ann, ok := annRaw.(*KLFAnnotation); ok && ann != nil {
+			b := klf.Block{
+				ID:           mb.ID,
+				Hash:         ann.Hash,
+				Translatable: mb.Translatable,
+				Type:         ann.Type,
+				Source:       cloneRuns(ann.Source),
+				Targets:      cloneTargets(ann.Targets),
+				Placeholders: append([]klf.Placeholder(nil), ann.Placeholders...),
+				Properties:   ann.Properties,
+				Preview:      ann.Preview,
 			}
-			// Update only if the annotation didn't already carry a
-			// target for this locale — preserves upstream structure.
-			// Carry the model.Block's structured Runs across so
-			// placeholders / paired codes survive tools that populate
-			// targets via SetTargetRuns (e.g. pseudo-translate).
-			if _, hasExisting := b.Targets[klf.LocaleID(w.locale)]; !hasExisting {
-				b.Targets[klf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(w.locale))
+			if w.locale != "" && mb.HasTarget(w.locale) {
+				if b.Targets == nil {
+					b.Targets = make(map[klf.LocaleID][]klf.Run)
+				}
+				// Update only if the annotation didn't already carry a
+				// target for this locale — preserves upstream structure.
+				// Carry the model.Block's structured Runs across so
+				// placeholders / paired codes survive tools that populate
+				// targets via SetTargetRuns (e.g. pseudo-translate).
+				if _, hasExisting := b.Targets[klf.LocaleID(w.locale)]; !hasExisting {
+					b.Targets[klf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(w.locale))
+				}
 			}
+			return b, ann.DocumentID, ann.DocumentPath
 		}
-		return b, ann.DocumentID, ann.DocumentPath
 	}
 	// Synthesized fallback: minimal text-only block from whatever
 	// content the model.Block carries.
@@ -546,7 +548,8 @@ func (p *PreviewBuilder) BuildBlockPreview(mb *model.Block) string {
 	if mb == nil {
 		return ""
 	}
-	ann, ok := mb.Annotations[AnnotationType].(*KLFAnnotation)
+	av, _ := mb.Anno(AnnotationType)
+	ann, ok := av.(*KLFAnnotation)
 	if !ok || ann == nil {
 		escaped := jsonEscapeAttr(mb.ID)
 		return fmt.Sprintf(`<kat-block id=%s data-type="text">%s</kat-block>`,

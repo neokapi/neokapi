@@ -131,18 +131,17 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	// Write comment if block has a note annotation
-	if noteAnn, ok := block.Annotations["note"]; ok {
-		if note, ok := noteAnn.(*model.NoteAnnotation); ok && note.Text != "" {
-			if !w.firstEntry {
-				if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
-					return err
-				}
-			}
-			if _, err := fmt.Fprintf(w.Output, "<!--%s-->\n", note.Text); err != nil {
+	notes := block.Notes()
+	if len(notes) > 0 && notes[0].Text != "" {
+		if !w.firstEntry {
+			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
 				return err
 			}
-			w.firstEntry = false
 		}
+		if _, err := fmt.Fprintf(w.Output, "<!--%s-->\n", notes[0].Text); err != nil {
+			return err
+		}
+		w.firstEntry = false
 	}
 
 	// Escape the value for DTD output
@@ -150,7 +149,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 
 	if w.firstEntry {
 		w.firstEntry = false
-	} else if _, hasNote := block.Annotations["note"]; !hasNote {
+	} else if len(notes) == 0 {
 		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
 			return err
 		}

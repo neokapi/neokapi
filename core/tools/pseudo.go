@@ -107,7 +107,6 @@ func PseudoTranslateSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTranslation,
 		DisplayName: "Pseudo Translate",
 		Description: "Generate pseudo-translations for localization testing",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

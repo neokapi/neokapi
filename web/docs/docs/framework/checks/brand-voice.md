@@ -236,9 +236,11 @@ Packs are YAML files embedded via `go:embed`; each returns a
 
 ### Content model integration
 
-`BrandVoiceAnnotation` implements `model.Annotation`, so it integrates with the
-Block annotation system alongside `TermAnnotation` and `EntityAnnotation` and
-can drive inline highlighting in editors:
+`BrandVoiceAnnotation` is a registered payload (`brand-voice`) stored as a
+block-scoped **annotation** ([AD-002](/contribute/architecture/002-content-model)),
+the counterpart to positional overlays like `term` and `entity`. It is reached
+through the block's `Anno`/`SetAnno` helpers and registered for wire/store
+rehydration via `model.RegisterPayload`:
 
 ```go
 type BrandVoiceAnnotation struct {

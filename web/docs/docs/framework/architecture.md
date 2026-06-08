@@ -31,10 +31,12 @@ stream back into translated files. The same flow can instead bind to the project
 store, a `.klz` workspace, or an interchange file — with no reader or writer
 ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 Between the edges runs a [flow](/framework/flows): a serial chain of
-[tools](/framework/tools) connected by buffered channels of Parts. The tools divide by capability — **annotators** attach stand-off overlays
-(segmentation, terminology, entities), **translators** fill in targets, and **QA**
-tools check and enforce — while [translation memory](/framework/translation-memory)
-and the [termbase](/framework/terminology) feed the relevant stages.
+[tools](/framework/tools) connected by buffered channels of Parts. The tools divide by capability — **annotators** attach stand-off
+[overlays and annotations](/framework/content-model#two-ways-to-annotate-a-block)
+(segmentation, terminology, entities, QA findings, analysis results),
+**translators** fill in targets, and **QA** tools check and enforce — while
+[translation memory](/framework/translation-memory) and the
+[termbase](/framework/terminology) feed the relevant stages.
 
 Concurrency runs at three levels at once: each stage is its own goroutine joined
 by channels with automatic backpressure; a block-handling stage such as AI

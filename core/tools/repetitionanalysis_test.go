@@ -9,6 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// repAnno fetches the repetition annotation from a block, requiring it to be present.
+func repAnno(t *testing.T, b *model.Block) *tools.RepetitionAnnotation {
+	t.Helper()
+	rf, ok := model.AnnoAs[*tools.RepetitionAnnotation](b, string(model.AnnoRepetition))
+	require.True(t, ok, "block should have repetition annotation")
+	return rf
+}
+
 func TestRepetitionAnalysisToolName(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
@@ -31,20 +39,19 @@ func TestRepetitionAnalysisAllUnique(t *testing.T) {
 	require.Len(t, results, 3)
 
 	for i, r := range results {
-		block := r.Resource.(*model.Block)
-		assert.Equal(t, "first-occurrence", block.Properties[tools.PropRepetitionStatus],
+		rf := repAnno(t, r.Resource.(*model.Block))
+		assert.Equal(t, "first-occurrence", rf.Status,
 			"block %d should be first-occurrence", i)
-		assert.Equal(t, "1", block.Properties[tools.PropRepetitionCount],
+		assert.Equal(t, 1, rf.Count,
 			"block %d count should be 1", i)
-		assert.Equal(t, "1", block.Properties[tools.PropRepetitionIndex],
+		assert.Equal(t, 1, rf.Index,
 			"block %d index should be 1", i)
 	}
 
 	// All unique texts should have different group keys.
 	groups := make(map[string]bool)
 	for _, r := range results {
-		block := r.Resource.(*model.Block)
-		groups[block.Properties[tools.PropRepetitionGroup]] = true
+		groups[repAnno(t, r.Resource.(*model.Block)).Group] = true
 	}
 	assert.Len(t, groups, 3, "all blocks should have different group keys")
 }
@@ -63,28 +70,28 @@ func TestRepetitionAnalysisThreeIdentical(t *testing.T) {
 	results := processMultipleParts(t, tl, parts)
 	require.Len(t, results, 3)
 
-	b0 := results[0].Resource.(*model.Block)
-	b1 := results[1].Resource.(*model.Block)
-	b2 := results[2].Resource.(*model.Block)
+	rf0 := repAnno(t, results[0].Resource.(*model.Block))
+	rf1 := repAnno(t, results[1].Resource.(*model.Block))
+	rf2 := repAnno(t, results[2].Resource.(*model.Block))
 
 	// First is "first-occurrence".
-	assert.Equal(t, "first-occurrence", b0.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "1", b0.Properties[tools.PropRepetitionCount])
-	assert.Equal(t, "1", b0.Properties[tools.PropRepetitionIndex])
+	assert.Equal(t, "first-occurrence", rf0.Status)
+	assert.Equal(t, 1, rf0.Count)
+	assert.Equal(t, 1, rf0.Index)
 
 	// Second is "repetition".
-	assert.Equal(t, "repetition", b1.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "2", b1.Properties[tools.PropRepetitionCount])
-	assert.Equal(t, "2", b1.Properties[tools.PropRepetitionIndex])
+	assert.Equal(t, "repetition", rf1.Status)
+	assert.Equal(t, 2, rf1.Count)
+	assert.Equal(t, 2, rf1.Index)
 
 	// Third is "repetition".
-	assert.Equal(t, "repetition", b2.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "3", b2.Properties[tools.PropRepetitionCount])
-	assert.Equal(t, "3", b2.Properties[tools.PropRepetitionIndex])
+	assert.Equal(t, "repetition", rf2.Status)
+	assert.Equal(t, 3, rf2.Count)
+	assert.Equal(t, 3, rf2.Index)
 
 	// All share the same group key.
-	assert.Equal(t, b0.Properties[tools.PropRepetitionGroup], b1.Properties[tools.PropRepetitionGroup])
-	assert.Equal(t, b1.Properties[tools.PropRepetitionGroup], b2.Properties[tools.PropRepetitionGroup])
+	assert.Equal(t, rf0.Group, rf1.Group)
+	assert.Equal(t, rf1.Group, rf2.Group)
 }
 
 func TestRepetitionAnalysisCaseInsensitive(t *testing.T) {
@@ -101,17 +108,17 @@ func TestRepetitionAnalysisCaseInsensitive(t *testing.T) {
 	results := processMultipleParts(t, tl, parts)
 	require.Len(t, results, 3)
 
-	b0 := results[0].Resource.(*model.Block)
-	b1 := results[1].Resource.(*model.Block)
-	b2 := results[2].Resource.(*model.Block)
+	rf0 := repAnno(t, results[0].Resource.(*model.Block))
+	rf1 := repAnno(t, results[1].Resource.(*model.Block))
+	rf2 := repAnno(t, results[2].Resource.(*model.Block))
 
-	assert.Equal(t, "first-occurrence", b0.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "repetition", b1.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "repetition", b2.Properties[tools.PropRepetitionStatus])
+	assert.Equal(t, "first-occurrence", rf0.Status)
+	assert.Equal(t, "repetition", rf1.Status)
+	assert.Equal(t, "repetition", rf2.Status)
 
 	// All share the same group key.
-	assert.Equal(t, b0.Properties[tools.PropRepetitionGroup], b1.Properties[tools.PropRepetitionGroup])
-	assert.Equal(t, b1.Properties[tools.PropRepetitionGroup], b2.Properties[tools.PropRepetitionGroup])
+	assert.Equal(t, rf0.Group, rf1.Group)
+	assert.Equal(t, rf1.Group, rf2.Group)
 }
 
 func TestRepetitionAnalysisCaseSensitive(t *testing.T) {
@@ -127,13 +134,13 @@ func TestRepetitionAnalysisCaseSensitive(t *testing.T) {
 	results := processMultipleParts(t, tl, parts)
 	require.Len(t, results, 2)
 
-	b0 := results[0].Resource.(*model.Block)
-	b1 := results[1].Resource.(*model.Block)
+	rf0 := repAnno(t, results[0].Resource.(*model.Block))
+	rf1 := repAnno(t, results[1].Resource.(*model.Block))
 
 	// Case-sensitive: these are different texts.
-	assert.Equal(t, "first-occurrence", b0.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "first-occurrence", b1.Properties[tools.PropRepetitionStatus])
-	assert.NotEqual(t, b0.Properties[tools.PropRepetitionGroup], b1.Properties[tools.PropRepetitionGroup])
+	assert.Equal(t, "first-occurrence", rf0.Status)
+	assert.Equal(t, "first-occurrence", rf1.Status)
+	assert.NotEqual(t, rf0.Group, rf1.Group)
 }
 
 func TestRepetitionAnalysisSkipsNonTranslatable(t *testing.T) {
@@ -151,8 +158,8 @@ func TestRepetitionAnalysisSkipsNonTranslatable(t *testing.T) {
 	require.Len(t, results, 1)
 
 	resultBlock := results[0].Resource.(*model.Block)
-	_, hasStatus := resultBlock.Properties[tools.PropRepetitionStatus]
-	assert.False(t, hasStatus, "non-translatable block should not have repetition status")
+	_, hasStatus := model.AnnoAs[*tools.RepetitionAnnotation](resultBlock, string(model.AnnoRepetition))
+	assert.False(t, hasStatus, "non-translatable block should not have repetition annotation")
 }
 
 func TestRepetitionAnalysisMixedUniqueAndRepeated(t *testing.T) {
@@ -173,8 +180,7 @@ func TestRepetitionAnalysisMixedUniqueAndRepeated(t *testing.T) {
 
 	statuses := make([]string, len(results))
 	for i, r := range results {
-		block := r.Resource.(*model.Block)
-		statuses[i] = block.Properties[tools.PropRepetitionStatus]
+		statuses[i] = repAnno(t, r.Resource.(*model.Block)).Status
 	}
 
 	assert.Equal(t, "first-occurrence", statuses[0], "Alpha first")
@@ -184,17 +190,17 @@ func TestRepetitionAnalysisMixedUniqueAndRepeated(t *testing.T) {
 	assert.Equal(t, "repetition", statuses[4], "Beta repeated")
 
 	// Alpha group should link tu1 and tu3.
-	b0 := results[0].Resource.(*model.Block)
-	b2 := results[2].Resource.(*model.Block)
-	assert.Equal(t, b0.Properties[tools.PropRepetitionGroup], b2.Properties[tools.PropRepetitionGroup])
+	rf0 := repAnno(t, results[0].Resource.(*model.Block))
+	rf2 := repAnno(t, results[2].Resource.(*model.Block))
+	assert.Equal(t, rf0.Group, rf2.Group)
 
 	// Beta group should link tu2 and tu5.
-	b1 := results[1].Resource.(*model.Block)
-	b4 := results[4].Resource.(*model.Block)
-	assert.Equal(t, b1.Properties[tools.PropRepetitionGroup], b4.Properties[tools.PropRepetitionGroup])
+	rf1 := repAnno(t, results[1].Resource.(*model.Block))
+	rf4 := repAnno(t, results[4].Resource.(*model.Block))
+	assert.Equal(t, rf1.Group, rf4.Group)
 
 	// Alpha and Beta groups should differ.
-	assert.NotEqual(t, b0.Properties[tools.PropRepetitionGroup], b1.Properties[tools.PropRepetitionGroup])
+	assert.NotEqual(t, rf0.Group, rf1.Group)
 }
 
 func TestRepetitionAnalysisPassesThroughNonBlocks(t *testing.T) {
@@ -219,10 +225,10 @@ func TestRepetitionAnalysisPassesThroughNonBlocks(t *testing.T) {
 	assert.Equal(t, model.PartLayerEnd, results[4].Type)
 
 	// Block parts are annotated.
-	b0 := results[1].Resource.(*model.Block)
-	b1 := results[3].Resource.(*model.Block)
-	assert.Equal(t, "first-occurrence", b0.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "repetition", b1.Properties[tools.PropRepetitionStatus])
+	rf0 := repAnno(t, results[1].Resource.(*model.Block))
+	rf1 := repAnno(t, results[3].Resource.(*model.Block))
+	assert.Equal(t, "first-occurrence", rf0.Status)
+	assert.Equal(t, "repetition", rf1.Status)
 }
 
 func TestRepetitionAnalysisWhitespaceNormalization(t *testing.T) {
@@ -238,13 +244,13 @@ func TestRepetitionAnalysisWhitespaceNormalization(t *testing.T) {
 	results := processMultipleParts(t, tl, parts)
 	require.Len(t, results, 2)
 
-	b0 := results[0].Resource.(*model.Block)
-	b1 := results[1].Resource.(*model.Block)
+	rf0 := repAnno(t, results[0].Resource.(*model.Block))
+	rf1 := repAnno(t, results[1].Resource.(*model.Block))
 
 	// After trimming, these should be considered the same.
-	assert.Equal(t, "first-occurrence", b0.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, "repetition", b1.Properties[tools.PropRepetitionStatus])
-	assert.Equal(t, b0.Properties[tools.PropRepetitionGroup], b1.Properties[tools.PropRepetitionGroup])
+	assert.Equal(t, "first-occurrence", rf0.Status)
+	assert.Equal(t, "repetition", rf1.Status)
+	assert.Equal(t, rf0.Group, rf1.Group)
 }
 
 func TestRepetitionAnalysisConfigToolName(t *testing.T) {

@@ -766,7 +766,7 @@ func runBlockTool(ctx context.Context, t tool.Tool, text string) ([]brand.BrandV
 		return nil, err
 	}
 
-	if ann, ok := block.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](block, "brand-voice"); ok {
 		return ann.Findings, nil
 	}
 	// Fallback: read findings from properties (rule-based or AI key).

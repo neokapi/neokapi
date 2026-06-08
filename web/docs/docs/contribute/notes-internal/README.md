@@ -26,3 +26,4 @@ notes describe the implementation.
 | [TM Matching Algorithm](tm-matching-algorithm.md)          | [AD-009](/contribute/architecture/009-translation-memory) | Tiered matching, TMX mapping                        |
 | [Terminology Data Model](terminology-data-model.md)        | [AD-010](/contribute/architecture/010-terminology)        | Go structs, TermBase interface                      |
 | [MCP Tools Reference](mcp-tools-reference.md)              | [AD-013](/contribute/architecture/013-kapi-cli)           | Tool specs, input/output schemas                    |
+| [Tool & Data Model Rationale](tool-data-model-redesign.md) | [AD-006](/contribute/architecture/006-tool-system) · [AD-002](/contribute/architecture/002-content-model) | Why stand-off overlays + annotations, a typed consumes/produces IO contract, a uniform unit iterator, and typed source/sink bindings |

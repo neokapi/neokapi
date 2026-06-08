@@ -22,7 +22,7 @@ func runDNT(t *testing.T, src, tgt string, terms []string, caseInsensitive bool)
 	tl := NewDNTCheckTool(cfg)
 	require.NoError(t, tl.Annotate(tool.NewBlockView(b)))
 
-	ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation)
+	ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
 	if !ok {
 		return nil
 	}

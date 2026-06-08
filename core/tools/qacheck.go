@@ -133,7 +133,6 @@ func QACheckSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryQuality,
 		DisplayName: "QA Check",
 		Description: "Run rule-based quality checks on translations",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

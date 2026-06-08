@@ -26,7 +26,7 @@ func TestTagProtectTool(t *testing.T) {
 	assert.NotEqual(t, "0", count)
 
 	// Check annotation.
-	ann, ok := resultBlock.Annotations["protected-tags"]
+	ann, ok := resultBlock.Anno("protected-tags")
 	assert.True(t, ok)
 	assert.NotNil(t, ann)
 }

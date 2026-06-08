@@ -174,14 +174,14 @@ func TestExtraction(t *testing.T) {
 	// Comment immediately preceding an entry becomes a developer note.
 	app := by["app_name"]
 	require.NotNil(t, app)
-	note, ok := app.Annotations["note"].(*model.NoteAnnotation)
-	require.True(t, ok, "app_name should carry a note")
+	notes := app.Notes()
+	require.Len(t, notes, 1, "app_name should carry a note")
+	note := notes[0]
 	assert.Equal(t, "Shown on the welcome screen.", note.Text)
 	assert.Equal(t, "developer", note.From)
 
 	// No preceding comment → no note.
-	_, hasNote := by["greeting"].Annotations["note"]
-	assert.False(t, hasNote, "greeting has no preceding comment")
+	assert.Empty(t, by["greeting"].Notes(), "greeting has no preceding comment")
 
 	// Entities are decoded into the source text.
 	assert.Equal(t, "Fish & Chips <tasty>", by["entities"].SourceText())
@@ -211,11 +211,10 @@ func TestPluralAndArrayProps(t *testing.T) {
 	assert.Equal(t, "Monday", w0.SourceText())
 
 	// The array's preceding comment attaches only to the first item.
-	note, ok := w0.Annotations["note"].(*model.NoteAnnotation)
-	require.True(t, ok)
-	assert.Equal(t, "A list of weekday names.", note.Text)
-	_, hasNote := by["weekdays[1]"].Annotations["note"]
-	assert.False(t, hasNote)
+	notes := w0.Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "A list of weekday names.", notes[0].Text)
+	assert.Empty(t, by["weekdays[1]"].Notes())
 }
 
 // TestPlaceholderProtection verifies that printf args, xliff:g spans, and CDATA
@@ -496,7 +495,6 @@ func TestConfigToggles(t *testing.T) {
 	// With ExtractComments=false, no note annotations are produced.
 	bs = read(func(c *androidxml.Config) { c.ExtractComments = false })
 	for _, b := range bs {
-		_, has := b.Annotations["note"]
-		assert.False(t, has, "no notes when ExtractComments=false (%s)", b.Name)
+		assert.Empty(t, b.Notes(), "no notes when ExtractComments=false (%s)", b.Name)
 	}
 }

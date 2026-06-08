@@ -34,7 +34,6 @@ func EncodingDetectSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Encoding Detect",
 		Description: "Detect character encoding of source files",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

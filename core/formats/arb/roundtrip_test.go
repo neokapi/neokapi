@@ -131,8 +131,9 @@ func TestSimpleModeling(t *testing.T) {
 	appTitle := byName["appTitle"]
 	require.NotNil(t, appTitle)
 	assert.Equal(t, "Flutter Gallery", appTitle.SourceText())
-	note, ok := appTitle.Annotations["note"].(*model.NoteAnnotation)
-	require.True(t, ok)
+	notes := appTitle.Notes()
+	require.Len(t, notes, 1)
+	note := notes[0]
 	assert.Equal(t, "The application title shown in the app bar.", note.Text)
 	assert.Equal(t, "developer", note.From)
 
@@ -151,8 +152,7 @@ func TestSimpleModeling(t *testing.T) {
 	// cancel has no @-metadata, so no note.
 	cancel := byName["cancel"]
 	require.NotNil(t, cancel)
-	_, hasNote := cancel.Annotations["note"]
-	assert.False(t, hasNote)
+	assert.Empty(t, cancel.Notes())
 }
 
 // TestPlainTextIsTranslatable verifies the literal text around an ICU
@@ -348,10 +348,9 @@ func TestWriteFromScratch(t *testing.T) {
 			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
 			Targets:      map[model.VariantKey]*model.Target{},
 			Properties:   map[string]string{"arb.key": key},
-			Annotations:  map[string]model.Annotation{},
 		}
 		if desc != "" {
-			b.Annotations["note"] = &model.NoteAnnotation{Text: desc, From: "developer", Annotates: "general"}
+			b.AddNote(&model.NoteAnnotation{Text: desc, From: "developer", Annotates: "general"})
 		}
 		return b
 	}
@@ -380,9 +379,9 @@ func TestWriteFromScratch(t *testing.T) {
 	byName := blocksByName(blocks)
 	require.Len(t, blocks, 2)
 	assert.Equal(t, "Hello", byName["hello"].SourceText())
-	note, ok := byName["hello"].Annotations["note"].(*model.NoteAnnotation)
-	require.True(t, ok)
-	assert.Equal(t, "A greeting", note.Text)
+	notes := byName["hello"].Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "A greeting", notes[0].Text)
 }
 
 // TestConfigApplyMap verifies the config's ApplyMap parsing and validation.

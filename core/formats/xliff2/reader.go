@@ -171,7 +171,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			Properties: map[string]string{
 				"target-language": trgLang,
 			},
-			Annotations: make(map[string]model.Annotation),
 		}
 		if version != "" {
 			layer.Properties["xliff-version"] = version
@@ -196,10 +195,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// is the common case; multi-file falls back to generation mode
 		// for non-first files).
 		if fileIdx == 0 {
-			layer.Annotations["xliff2:source-dom"] = &SourceDOMAnnotation{
+			layer.SetAnno("xliff2:source-dom", &SourceDOMAnnotation{
 				Doc:      doc,
 				Original: content,
-			}
+			})
 		}
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
@@ -264,14 +263,13 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 		Name:         attrValue(unit, "name"),
 		Translatable: translatable,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
 	if notesEl := unit.SelectElement("notes"); notesEl != nil {
-		for i, n := range notesEl.SelectElements("note") {
-			block.Properties[fmt.Sprintf("note-%d", i)] = strings.TrimSpace(n.Text())
+		for _, n := range notesEl.SelectElements("note") {
+			block.AddNote(&model.NoteAnnotation{Text: strings.TrimSpace(n.Text())})
 		}
 	}
 
@@ -286,7 +284,7 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 			entries[id] = &Content{Inlines: parseInlines(dataEl)}
 		}
 		if len(entries) > 0 {
-			block.Annotations["xliff2:original-data"] = &OriginalDataAnnotation{Entries: entries}
+			block.SetAnno("xliff2:original-data", &OriginalDataAnnotation{Entries: entries})
 		}
 	}
 
@@ -1077,7 +1075,6 @@ func (s *xliff2StreamState) emitUnit() {
 		Name:         s.unitName,
 		Translatable: translatable,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
 	for _, st := range s.states {
@@ -1085,8 +1082,8 @@ func (s *xliff2StreamState) emitUnit() {
 			block.Properties["state"] = st
 		}
 	}
-	for i, note := range s.notes {
-		block.Properties[fmt.Sprintf("note-%d", i)] = note
+	for _, note := range s.notes {
+		block.AddNote(&model.NoteAnnotation{Text: note})
 	}
 	// The streaming skeleton path tracks at most one target locale.
 	trgLang := model.LocaleID(s.trgLang)

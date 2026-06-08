@@ -38,6 +38,8 @@ type Entry struct {
 	Tags        []string `json:"tags,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 	Cardinality string   `json:"cardinality,omitempty"`
+	Consumes    []string `json:"consumes,omitempty"`
+	Produces    []string `json:"produces,omitempty"`
 	Aliases     []string `json:"aliases,omitempty"`
 
 	// Schema is the ComponentSchema/FormatSchema JSON consumed verbatim by the

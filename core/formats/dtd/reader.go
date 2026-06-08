@@ -227,9 +227,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			// Attach pending comment as note
 			if pendingComment != "" {
-				block.Annotations["note"] = &model.NoteAnnotation{
+				block.AddNote(&model.NoteAnnotation{
 					Text: pendingComment,
-				}
+				})
 				pendingComment = ""
 			}
 

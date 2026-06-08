@@ -74,6 +74,284 @@ func (x *AnnotationEntry) GetData() []byte {
 	return nil
 }
 
+// RunRangeMessage is a run-anchored byte/run span (the position of a
+// overlay span).
+type RunRangeMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartRun      int32                  `protobuf:"varint,1,opt,name=start_run,json=startRun,proto3" json:"start_run,omitempty"`
+	StartOffset   int32                  `protobuf:"varint,2,opt,name=start_offset,json=startOffset,proto3" json:"start_offset,omitempty"`
+	EndRun        int32                  `protobuf:"varint,3,opt,name=end_run,json=endRun,proto3" json:"end_run,omitempty"`
+	EndOffset     int32                  `protobuf:"varint,4,opt,name=end_offset,json=endOffset,proto3" json:"end_offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunRangeMessage) Reset() {
+	*x = RunRangeMessage{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunRangeMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunRangeMessage) ProtoMessage() {}
+
+func (x *RunRangeMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunRangeMessage.ProtoReflect.Descriptor instead.
+func (*RunRangeMessage) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RunRangeMessage) GetStartRun() int32 {
+	if x != nil {
+		return x.StartRun
+	}
+	return 0
+}
+
+func (x *RunRangeMessage) GetStartOffset() int32 {
+	if x != nil {
+		return x.StartOffset
+	}
+	return 0
+}
+
+func (x *RunRangeMessage) GetEndRun() int32 {
+	if x != nil {
+		return x.EndRun
+	}
+	return 0
+}
+
+func (x *RunRangeMessage) GetEndOffset() int32 {
+	if x != nil {
+		return x.EndOffset
+	}
+	return 0
+}
+
+// VariantMessage identifies a target variant (locale + optional tone/channel).
+// Its absence on an OverlayMessage means the overlay is source-side.
+type VariantMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Locale        string                 `protobuf:"bytes,1,opt,name=locale,proto3" json:"locale,omitempty"`
+	Tone          string                 `protobuf:"bytes,2,opt,name=tone,proto3" json:"tone,omitempty"`
+	Channel       string                 `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VariantMessage) Reset() {
+	*x = VariantMessage{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VariantMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VariantMessage) ProtoMessage() {}
+
+func (x *VariantMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VariantMessage.ProtoReflect.Descriptor instead.
+func (*VariantMessage) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *VariantMessage) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
+func (x *VariantMessage) GetTone() string {
+	if x != nil {
+		return x.Tone
+	}
+	return ""
+}
+
+func (x *VariantMessage) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+// SpanMessage is one occurrence within an overlay: a run-anchored
+// range, optional string props, and the typed payload (carried as an
+// AnnotationEntry so unknown payload types degrade to a generic map, exactly
+// like block-scoped annotations).
+type SpanMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Range         *RunRangeMessage       `protobuf:"bytes,2,opt,name=range,proto3" json:"range,omitempty"`
+	Props         map[string]string      `protobuf:"bytes,3,rep,name=props,proto3" json:"props,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Value         *AnnotationEntry       `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpanMessage) Reset() {
+	*x = SpanMessage{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpanMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpanMessage) ProtoMessage() {}
+
+func (x *SpanMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpanMessage.ProtoReflect.Descriptor instead.
+func (*SpanMessage) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SpanMessage) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SpanMessage) GetRange() *RunRangeMessage {
+	if x != nil {
+		return x.Range
+	}
+	return nil
+}
+
+func (x *SpanMessage) GetProps() map[string]string {
+	if x != nil {
+		return x.Props
+	}
+	return nil
+}
+
+func (x *SpanMessage) GetValue() *AnnotationEntry {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+// OverlayMessage is one stand-off overlay on a block: a typed, optionally
+// variant-scoped, layered set of spans. This carries the full overlay vocabulary
+// across the bridge (term, entity, qa, alignment, and any plugin-defined
+// type), so an overlay type a peer doesn't recognise round-trips by type name and
+// JSON rather than being dropped. Segmentation overlays are NOT carried here —
+// they are reconstructed from the source/target SegmentMessage boundaries.
+type OverlayMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`       // overlay type ("term", "entity", "qa", …)
+	Variant       *VariantMessage        `protobuf:"bytes,2,opt,name=variant,proto3" json:"variant,omitempty"` // absent = source side
+	Layer         string                 `protobuf:"bytes,3,opt,name=layer,proto3" json:"layer,omitempty"`     // "" = primary
+	Spans         []*SpanMessage         `protobuf:"bytes,4,rep,name=spans,proto3" json:"spans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OverlayMessage) Reset() {
+	*x = OverlayMessage{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OverlayMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OverlayMessage) ProtoMessage() {}
+
+func (x *OverlayMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OverlayMessage.ProtoReflect.Descriptor instead.
+func (*OverlayMessage) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *OverlayMessage) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *OverlayMessage) GetVariant() *VariantMessage {
+	if x != nil {
+		return x.Variant
+	}
+	return nil
+}
+
+func (x *OverlayMessage) GetLayer() string {
+	if x != nil {
+		return x.Layer
+	}
+	return ""
+}
+
+func (x *OverlayMessage) GetSpans() []*SpanMessage {
+	if x != nil {
+		return x.Spans
+	}
+	return nil
+}
+
 // RunConstraints control whether an inline-code run may be dropped,
 // duplicated, or reordered by a translation.
 type RunConstraints struct {
@@ -87,7 +365,7 @@ type RunConstraints struct {
 
 func (x *RunConstraints) Reset() {
 	*x = RunConstraints{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[1]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -99,7 +377,7 @@ func (x *RunConstraints) String() string {
 func (*RunConstraints) ProtoMessage() {}
 
 func (x *RunConstraints) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[1]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -112,7 +390,7 @@ func (x *RunConstraints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunConstraints.ProtoReflect.Descriptor instead.
 func (*RunConstraints) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{1}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RunConstraints) GetDeletable() bool {
@@ -146,7 +424,7 @@ type TextRunMessage struct {
 
 func (x *TextRunMessage) Reset() {
 	*x = TextRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[2]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -158,7 +436,7 @@ func (x *TextRunMessage) String() string {
 func (*TextRunMessage) ProtoMessage() {}
 
 func (x *TextRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[2]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,7 +449,7 @@ func (x *TextRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextRunMessage.ProtoReflect.Descriptor instead.
 func (*TextRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{2}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TextRunMessage) GetText() string {
@@ -198,7 +476,7 @@ type PlaceholderRunMessage struct {
 
 func (x *PlaceholderRunMessage) Reset() {
 	*x = PlaceholderRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[3]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -210,7 +488,7 @@ func (x *PlaceholderRunMessage) String() string {
 func (*PlaceholderRunMessage) ProtoMessage() {}
 
 func (x *PlaceholderRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[3]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -223,7 +501,7 @@ func (x *PlaceholderRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceholderRunMessage.ProtoReflect.Descriptor instead.
 func (*PlaceholderRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{3}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PlaceholderRunMessage) GetId() string {
@@ -291,7 +569,7 @@ type PcOpenRunMessage struct {
 
 func (x *PcOpenRunMessage) Reset() {
 	*x = PcOpenRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[4]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -303,7 +581,7 @@ func (x *PcOpenRunMessage) String() string {
 func (*PcOpenRunMessage) ProtoMessage() {}
 
 func (x *PcOpenRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[4]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -316,7 +594,7 @@ func (x *PcOpenRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PcOpenRunMessage.ProtoReflect.Descriptor instead.
 func (*PcOpenRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{4}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PcOpenRunMessage) GetId() string {
@@ -383,7 +661,7 @@ type PcCloseRunMessage struct {
 
 func (x *PcCloseRunMessage) Reset() {
 	*x = PcCloseRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[5]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +673,7 @@ func (x *PcCloseRunMessage) String() string {
 func (*PcCloseRunMessage) ProtoMessage() {}
 
 func (x *PcCloseRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[5]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +686,7 @@ func (x *PcCloseRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PcCloseRunMessage.ProtoReflect.Descriptor instead.
 func (*PcCloseRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{5}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PcCloseRunMessage) GetId() string {
@@ -458,7 +736,7 @@ type SubRunMessage struct {
 
 func (x *SubRunMessage) Reset() {
 	*x = SubRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[6]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -470,7 +748,7 @@ func (x *SubRunMessage) String() string {
 func (*SubRunMessage) ProtoMessage() {}
 
 func (x *SubRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[6]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -483,7 +761,7 @@ func (x *SubRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubRunMessage.ProtoReflect.Descriptor instead.
 func (*SubRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{6}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SubRunMessage) GetId() string {
@@ -519,7 +797,7 @@ type PluralRunMessage struct {
 
 func (x *PluralRunMessage) Reset() {
 	*x = PluralRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[7]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +809,7 @@ func (x *PluralRunMessage) String() string {
 func (*PluralRunMessage) ProtoMessage() {}
 
 func (x *PluralRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[7]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +822,7 @@ func (x *PluralRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PluralRunMessage.ProtoReflect.Descriptor instead.
 func (*PluralRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{7}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PluralRunMessage) GetPivot() string {
@@ -573,7 +851,7 @@ type SelectRunMessage struct {
 
 func (x *SelectRunMessage) Reset() {
 	*x = SelectRunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[8]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -585,7 +863,7 @@ func (x *SelectRunMessage) String() string {
 func (*SelectRunMessage) ProtoMessage() {}
 
 func (x *SelectRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[8]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -598,7 +876,7 @@ func (x *SelectRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectRunMessage.ProtoReflect.Descriptor instead.
 func (*SelectRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{8}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SelectRunMessage) GetPivot() string {
@@ -627,7 +905,7 @@ type RunList struct {
 
 func (x *RunList) Reset() {
 	*x = RunList{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[9]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -639,7 +917,7 @@ func (x *RunList) String() string {
 func (*RunList) ProtoMessage() {}
 
 func (x *RunList) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[9]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -652,7 +930,7 @@ func (x *RunList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunList.ProtoReflect.Descriptor instead.
 func (*RunList) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{9}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RunList) GetRuns() []*RunMessage {
@@ -682,7 +960,7 @@ type RunMessage struct {
 
 func (x *RunMessage) Reset() {
 	*x = RunMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[10]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +972,7 @@ func (x *RunMessage) String() string {
 func (*RunMessage) ProtoMessage() {}
 
 func (x *RunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[10]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +985,7 @@ func (x *RunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunMessage.ProtoReflect.Descriptor instead.
 func (*RunMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{10}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RunMessage) GetKind() isRunMessage_Kind {
@@ -838,7 +1116,7 @@ type SegmentMessage struct {
 
 func (x *SegmentMessage) Reset() {
 	*x = SegmentMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[11]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +1128,7 @@ func (x *SegmentMessage) String() string {
 func (*SegmentMessage) ProtoMessage() {}
 
 func (x *SegmentMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[11]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +1141,7 @@ func (x *SegmentMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SegmentMessage.ProtoReflect.Descriptor instead.
 func (*SegmentMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{11}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SegmentMessage) GetId() string {
@@ -898,7 +1176,7 @@ type TargetEntry struct {
 
 func (x *TargetEntry) Reset() {
 	*x = TargetEntry{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[12]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -910,7 +1188,7 @@ func (x *TargetEntry) String() string {
 func (*TargetEntry) ProtoMessage() {}
 
 func (x *TargetEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[12]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -923,7 +1201,7 @@ func (x *TargetEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TargetEntry.ProtoReflect.Descriptor instead.
 func (*TargetEntry) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{12}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TargetEntry) GetLocale() string {
@@ -963,13 +1241,15 @@ type ContentBlock struct {
 	PreserveWhitespace bool                        `protobuf:"varint,9,opt,name=preserve_whitespace,json=preserveWhitespace,proto3" json:"preserve_whitespace,omitempty"`
 	Annotations        map[string]*AnnotationEntry `protobuf:"bytes,10,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	DisplayHint        *DisplayHintMessage         `protobuf:"bytes,11,opt,name=display_hint,json=displayHint,proto3" json:"display_hint,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Stand-off overlays (see BlockMessage.overlays).
+	Overlays      []*OverlayMessage `protobuf:"bytes,12,rep,name=overlays,proto3" json:"overlays,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContentBlock) Reset() {
 	*x = ContentBlock{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[13]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -981,7 +1261,7 @@ func (x *ContentBlock) String() string {
 func (*ContentBlock) ProtoMessage() {}
 
 func (x *ContentBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[13]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -994,7 +1274,7 @@ func (x *ContentBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentBlock.ProtoReflect.Descriptor instead.
 func (*ContentBlock) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{13}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ContentBlock) GetId() string {
@@ -1074,6 +1354,13 @@ func (x *ContentBlock) GetDisplayHint() *DisplayHintMessage {
 	return nil
 }
 
+func (x *ContentBlock) GetOverlays() []*OverlayMessage {
+	if x != nil {
+		return x.Overlays
+	}
+	return nil
+}
+
 // ContentBlockBatch holds multiple ContentBlocks for batched gRPC transfer.
 type ContentBlockBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1084,7 +1371,7 @@ type ContentBlockBatch struct {
 
 func (x *ContentBlockBatch) Reset() {
 	*x = ContentBlockBatch{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[14]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1383,7 @@ func (x *ContentBlockBatch) String() string {
 func (*ContentBlockBatch) ProtoMessage() {}
 
 func (x *ContentBlockBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[14]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1396,7 @@ func (x *ContentBlockBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentBlockBatch.ProtoReflect.Descriptor instead.
 func (*ContentBlockBatch) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{14}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ContentBlockBatch) GetBlocks() []*ContentBlock {
@@ -1131,7 +1418,7 @@ type SkeletonMessage struct {
 
 func (x *SkeletonMessage) Reset() {
 	*x = SkeletonMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1143,7 +1430,7 @@ func (x *SkeletonMessage) String() string {
 func (*SkeletonMessage) ProtoMessage() {}
 
 func (x *SkeletonMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1156,7 +1443,7 @@ func (x *SkeletonMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkeletonMessage.ProtoReflect.Descriptor instead.
 func (*SkeletonMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{15}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SkeletonMessage) GetStrategy() int32 {
@@ -1193,7 +1480,7 @@ type SkeletonPartMessage struct {
 
 func (x *SkeletonPartMessage) Reset() {
 	*x = SkeletonPartMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1205,7 +1492,7 @@ func (x *SkeletonPartMessage) String() string {
 func (*SkeletonPartMessage) ProtoMessage() {}
 
 func (x *SkeletonPartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1218,7 +1505,7 @@ func (x *SkeletonPartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkeletonPartMessage.ProtoReflect.Descriptor instead.
 func (*SkeletonPartMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{16}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SkeletonPartMessage) GetText() string {
@@ -1262,7 +1549,7 @@ type DisplayHintMessage struct {
 
 func (x *DisplayHintMessage) Reset() {
 	*x = DisplayHintMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1274,7 +1561,7 @@ func (x *DisplayHintMessage) String() string {
 func (*DisplayHintMessage) ProtoMessage() {}
 
 func (x *DisplayHintMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1287,7 +1574,7 @@ func (x *DisplayHintMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DisplayHintMessage.ProtoReflect.Descriptor instead.
 func (*DisplayHintMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{17}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DisplayHintMessage) GetMaxLength() int32 {
@@ -1334,13 +1621,16 @@ type BlockMessage struct {
 	Skeleton           *SkeletonMessage            `protobuf:"bytes,11,opt,name=skeleton,proto3" json:"skeleton,omitempty"`
 	PreserveWhitespace bool                        `protobuf:"varint,12,opt,name=preserve_whitespace,json=preserveWhitespace,proto3" json:"preserve_whitespace,omitempty"`
 	IsReferent         bool                        `protobuf:"varint,13,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Stand-off overlays (term, entity, qa, alignment, plugin types).
+	// Segmentation is reconstructed from source/targets, so it is not repeated here.
+	Overlays      []*OverlayMessage `protobuf:"bytes,14,rep,name=overlays,proto3" json:"overlays,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BlockMessage) Reset() {
 	*x = BlockMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1352,7 +1642,7 @@ func (x *BlockMessage) String() string {
 func (*BlockMessage) ProtoMessage() {}
 
 func (x *BlockMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1365,7 +1655,7 @@ func (x *BlockMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockMessage.ProtoReflect.Descriptor instead.
 func (*BlockMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{18}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *BlockMessage) GetId() string {
@@ -1459,6 +1749,13 @@ func (x *BlockMessage) GetIsReferent() bool {
 	return false
 }
 
+func (x *BlockMessage) GetOverlays() []*OverlayMessage {
+	if x != nil {
+		return x.Overlays
+	}
+	return nil
+}
+
 // LayerMessage represents a structural layer.
 type LayerMessage struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -1479,7 +1776,7 @@ type LayerMessage struct {
 
 func (x *LayerMessage) Reset() {
 	*x = LayerMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1491,7 +1788,7 @@ func (x *LayerMessage) String() string {
 func (*LayerMessage) ProtoMessage() {}
 
 func (x *LayerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1504,7 +1801,7 @@ func (x *LayerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LayerMessage.ProtoReflect.Descriptor instead.
 func (*LayerMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{19}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *LayerMessage) GetId() string {
@@ -1598,7 +1895,7 @@ type DataMessage struct {
 
 func (x *DataMessage) Reset() {
 	*x = DataMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1610,7 +1907,7 @@ func (x *DataMessage) String() string {
 func (*DataMessage) ProtoMessage() {}
 
 func (x *DataMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1623,7 +1920,7 @@ func (x *DataMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataMessage.ProtoReflect.Descriptor instead.
 func (*DataMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{20}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DataMessage) GetId() string {
@@ -1674,7 +1971,7 @@ type GroupStartMessage struct {
 
 func (x *GroupStartMessage) Reset() {
 	*x = GroupStartMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1686,7 +1983,7 @@ func (x *GroupStartMessage) String() string {
 func (*GroupStartMessage) ProtoMessage() {}
 
 func (x *GroupStartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1699,7 +1996,7 @@ func (x *GroupStartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupStartMessage.ProtoReflect.Descriptor instead.
 func (*GroupStartMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{21}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GroupStartMessage) GetId() string {
@@ -1740,7 +2037,7 @@ type GroupEndMessage struct {
 
 func (x *GroupEndMessage) Reset() {
 	*x = GroupEndMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1752,7 +2049,7 @@ func (x *GroupEndMessage) String() string {
 func (*GroupEndMessage) ProtoMessage() {}
 
 func (x *GroupEndMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1765,7 +2062,7 @@ func (x *GroupEndMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupEndMessage.ProtoReflect.Descriptor instead.
 func (*GroupEndMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GroupEndMessage) GetId() string {
@@ -1790,7 +2087,7 @@ type MediaMessage struct {
 
 func (x *MediaMessage) Reset() {
 	*x = MediaMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1802,7 +2099,7 @@ func (x *MediaMessage) String() string {
 func (*MediaMessage) ProtoMessage() {}
 
 func (x *MediaMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1815,7 +2112,7 @@ func (x *MediaMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaMessage.ProtoReflect.Descriptor instead.
 func (*MediaMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *MediaMessage) GetId() string {
@@ -1877,7 +2174,7 @@ type PartMessage struct {
 
 func (x *PartMessage) Reset() {
 	*x = PartMessage{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1889,7 +2186,7 @@ func (x *PartMessage) String() string {
 func (*PartMessage) ProtoMessage() {}
 
 func (x *PartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1902,7 +2199,7 @@ func (x *PartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PartMessage.ProtoReflect.Descriptor instead.
 func (*PartMessage) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{24}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PartMessage) GetPartType() int32 {
@@ -1969,7 +2266,7 @@ type ContentRef struct {
 
 func (x *ContentRef) Reset() {
 	*x = ContentRef{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1981,7 +2278,7 @@ func (x *ContentRef) String() string {
 func (*ContentRef) ProtoMessage() {}
 
 func (x *ContentRef) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1994,7 +2291,7 @@ func (x *ContentRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentRef.ProtoReflect.Descriptor instead.
 func (*ContentRef) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{25}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ContentRef) GetLocation() isContentRef_Location {
@@ -2067,7 +2364,7 @@ type OutputRef struct {
 
 func (x *OutputRef) Reset() {
 	*x = OutputRef{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2079,7 +2376,7 @@ func (x *OutputRef) String() string {
 func (*OutputRef) ProtoMessage() {}
 
 func (x *OutputRef) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2092,7 +2389,7 @@ func (x *OutputRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutputRef.ProtoReflect.Descriptor instead.
 func (*OutputRef) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{26}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *OutputRef) GetDestination() isOutputRef_Destination {
@@ -2147,7 +2444,7 @@ type PartBatch struct {
 
 func (x *PartBatch) Reset() {
 	*x = PartBatch{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2159,7 +2456,7 @@ func (x *PartBatch) String() string {
 func (*PartBatch) ProtoMessage() {}
 
 func (x *PartBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2172,7 +2469,7 @@ func (x *PartBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PartBatch.ProtoReflect.Descriptor instead.
 func (*PartBatch) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{27}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *PartBatch) GetParts() []*PartMessage {
@@ -2199,7 +2496,7 @@ type ProcessRequest struct {
 
 func (x *ProcessRequest) Reset() {
 	*x = ProcessRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2211,7 +2508,7 @@ func (x *ProcessRequest) String() string {
 func (*ProcessRequest) ProtoMessage() {}
 
 func (x *ProcessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2224,7 +2521,7 @@ func (x *ProcessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessRequest.ProtoReflect.Descriptor instead.
 func (*ProcessRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{28}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ProcessRequest) GetRequest() isProcessRequest_Request {
@@ -2330,7 +2627,7 @@ type ProcessResponse struct {
 
 func (x *ProcessResponse) Reset() {
 	*x = ProcessResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2342,7 +2639,7 @@ func (x *ProcessResponse) String() string {
 func (*ProcessResponse) ProtoMessage() {}
 
 func (x *ProcessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2355,7 +2652,7 @@ func (x *ProcessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessResponse.ProtoReflect.Descriptor instead.
 func (*ProcessResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{29}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ProcessResponse) GetResponse() isProcessResponse_Response {
@@ -2459,7 +2756,7 @@ type InlineStep struct {
 
 func (x *InlineStep) Reset() {
 	*x = InlineStep{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +2768,7 @@ func (x *InlineStep) String() string {
 func (*InlineStep) ProtoMessage() {}
 
 func (x *InlineStep) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2484,7 +2781,7 @@ func (x *InlineStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InlineStep.ProtoReflect.Descriptor instead.
 func (*InlineStep) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{30}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *InlineStep) GetStepClass() string {
@@ -2535,7 +2832,7 @@ type ProcessHeader struct {
 
 func (x *ProcessHeader) Reset() {
 	*x = ProcessHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2547,7 +2844,7 @@ func (x *ProcessHeader) String() string {
 func (*ProcessHeader) ProtoMessage() {}
 
 func (x *ProcessHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2560,7 +2857,7 @@ func (x *ProcessHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessHeader.ProtoReflect.Descriptor instead.
 func (*ProcessHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{31}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ProcessHeader) GetFilterClass() string {
@@ -2656,7 +2953,7 @@ type ProcessReadDone struct {
 
 func (x *ProcessReadDone) Reset() {
 	*x = ProcessReadDone{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2668,7 +2965,7 @@ func (x *ProcessReadDone) String() string {
 func (*ProcessReadDone) ProtoMessage() {}
 
 func (x *ProcessReadDone) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2681,7 +2978,7 @@ func (x *ProcessReadDone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessReadDone.ProtoReflect.Descriptor instead.
 func (*ProcessReadDone) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{32}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{36}
 }
 
 // ProcessComplete signals that the output has been written (or read-only is done).
@@ -2696,7 +2993,7 @@ type ProcessComplete struct {
 
 func (x *ProcessComplete) Reset() {
 	*x = ProcessComplete{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2708,7 +3005,7 @@ func (x *ProcessComplete) String() string {
 func (*ProcessComplete) ProtoMessage() {}
 
 func (x *ProcessComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2721,7 +3018,7 @@ func (x *ProcessComplete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessComplete.ProtoReflect.Descriptor instead.
 func (*ProcessComplete) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{33}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ProcessComplete) GetOutput() []byte {
@@ -2753,7 +3050,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2765,7 +3062,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2778,7 +3075,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{34}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{38}
 }
 
 type ShutdownResponse struct {
@@ -2789,7 +3086,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2801,7 +3098,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2814,7 +3111,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{35}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{39}
 }
 
 // StepRequest is sent by the client (Go) to the server (Java) for step processing.
@@ -2831,7 +3128,7 @@ type StepRequest struct {
 
 func (x *StepRequest) Reset() {
 	*x = StepRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2843,7 +3140,7 @@ func (x *StepRequest) String() string {
 func (*StepRequest) ProtoMessage() {}
 
 func (x *StepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2856,7 +3153,7 @@ func (x *StepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRequest.ProtoReflect.Descriptor instead.
 func (*StepRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{36}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StepRequest) GetRequest() isStepRequest_Request {
@@ -2916,7 +3213,7 @@ type StepHeader struct {
 
 func (x *StepHeader) Reset() {
 	*x = StepHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2928,7 +3225,7 @@ func (x *StepHeader) String() string {
 func (*StepHeader) ProtoMessage() {}
 
 func (x *StepHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2941,7 +3238,7 @@ func (x *StepHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepHeader.ProtoReflect.Descriptor instead.
 func (*StepHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{37}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *StepHeader) GetStepClass() string {
@@ -3007,7 +3304,7 @@ type StepResponse struct {
 
 func (x *StepResponse) Reset() {
 	*x = StepResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3019,7 +3316,7 @@ func (x *StepResponse) String() string {
 func (*StepResponse) ProtoMessage() {}
 
 func (x *StepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3032,7 +3329,7 @@ func (x *StepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResponse.ProtoReflect.Descriptor instead.
 func (*StepResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{38}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *StepResponse) GetResponse() isStepResponse_Response {
@@ -3086,7 +3383,7 @@ type StepComplete struct {
 
 func (x *StepComplete) Reset() {
 	*x = StepComplete{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[39]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3098,7 +3395,7 @@ func (x *StepComplete) String() string {
 func (*StepComplete) ProtoMessage() {}
 
 func (x *StepComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[39]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3111,7 +3408,7 @@ func (x *StepComplete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepComplete.ProtoReflect.Descriptor instead.
 func (*StepComplete) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{39}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *StepComplete) GetPartsProcessed() int32 {
@@ -3128,7 +3425,31 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	")core/plugin/proto/v2/neokapi_bridge.proto\x12\x11neokapi.bridge.v2\"9\n" +
 	"\x0fAnnotationEntry\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"n\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\x89\x01\n" +
+	"\x0fRunRangeMessage\x12\x1b\n" +
+	"\tstart_run\x18\x01 \x01(\x05R\bstartRun\x12!\n" +
+	"\fstart_offset\x18\x02 \x01(\x05R\vstartOffset\x12\x17\n" +
+	"\aend_run\x18\x03 \x01(\x05R\x06endRun\x12\x1d\n" +
+	"\n" +
+	"end_offset\x18\x04 \x01(\x05R\tendOffset\"V\n" +
+	"\x0eVariantMessage\x12\x16\n" +
+	"\x06locale\x18\x01 \x01(\tR\x06locale\x12\x12\n" +
+	"\x04tone\x18\x02 \x01(\tR\x04tone\x12\x18\n" +
+	"\achannel\x18\x03 \x01(\tR\achannel\"\x8c\x02\n" +
+	"\vSpanMessage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
+	"\x05range\x18\x02 \x01(\v2\".neokapi.bridge.v2.RunRangeMessageR\x05range\x12?\n" +
+	"\x05props\x18\x03 \x03(\v2).neokapi.bridge.v2.SpanMessage.PropsEntryR\x05props\x128\n" +
+	"\x05value\x18\x04 \x01(\v2\".neokapi.bridge.v2.AnnotationEntryR\x05value\x1a8\n" +
+	"\n" +
+	"PropsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xad\x01\n" +
+	"\x0eOverlayMessage\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12;\n" +
+	"\avariant\x18\x02 \x01(\v2!.neokapi.bridge.v2.VariantMessageR\avariant\x12\x14\n" +
+	"\x05layer\x18\x03 \x01(\tR\x05layer\x124\n" +
+	"\x05spans\x18\x04 \x03(\v2\x1e.neokapi.bridge.v2.SpanMessageR\x05spans\"n\n" +
 	"\x0eRunConstraints\x12\x1c\n" +
 	"\tdeletable\x18\x01 \x01(\bR\tdeletable\x12\x1c\n" +
 	"\tcloneable\x18\x02 \x01(\bR\tcloneable\x12 \n" +
@@ -3198,7 +3519,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"d\n" +
 	"\vTargetEntry\x12\x16\n" +
 	"\x06locale\x18\x01 \x01(\tR\x06locale\x12=\n" +
-	"\bsegments\x18\x02 \x03(\v2!.neokapi.bridge.v2.SegmentMessageR\bsegments\"\xbf\x05\n" +
+	"\bsegments\x18\x02 \x03(\v2!.neokapi.bridge.v2.SegmentMessageR\bsegments\"\xfe\x05\n" +
 	"\fContentBlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3213,7 +3534,8 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x13preserve_whitespace\x18\t \x01(\bR\x12preserveWhitespace\x12R\n" +
 	"\vannotations\x18\n" +
 	" \x03(\v20.neokapi.bridge.v2.ContentBlock.AnnotationsEntryR\vannotations\x12H\n" +
-	"\fdisplay_hint\x18\v \x01(\v2%.neokapi.bridge.v2.DisplayHintMessageR\vdisplayHint\x1a=\n" +
+	"\fdisplay_hint\x18\v \x01(\v2%.neokapi.bridge.v2.DisplayHintMessageR\vdisplayHint\x12=\n" +
+	"\boverlays\x18\f \x03(\v2!.neokapi.bridge.v2.OverlayMessageR\boverlays\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ab\n" +
@@ -3238,7 +3560,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"max_length\x18\x01 \x01(\x05R\tmaxLength\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x18\n" +
 	"\acontext\x18\x03 \x01(\tR\acontext\x12\x18\n" +
-	"\apreview\x18\x04 \x01(\tR\apreview\"\xa0\x06\n" +
+	"\apreview\x18\x04 \x01(\tR\apreview\"\xdf\x06\n" +
 	"\fBlockMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3256,7 +3578,8 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\bskeleton\x18\v \x01(\v2\".neokapi.bridge.v2.SkeletonMessageR\bskeleton\x12/\n" +
 	"\x13preserve_whitespace\x18\f \x01(\bR\x12preserveWhitespace\x12\x1f\n" +
 	"\vis_referent\x18\r \x01(\bR\n" +
-	"isReferent\x1a=\n" +
+	"isReferent\x12=\n" +
+	"\boverlays\x18\x0e \x03(\v2!.neokapi.bridge.v2.OverlayMessageR\boverlays\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ab\n" +
@@ -3443,143 +3766,155 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescData
 }
 
-var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
 var file_core_plugin_proto_v2_neokapi_bridge_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),       // 0: neokapi.bridge.v2.AnnotationEntry
-	(*RunConstraints)(nil),        // 1: neokapi.bridge.v2.RunConstraints
-	(*TextRunMessage)(nil),        // 2: neokapi.bridge.v2.TextRunMessage
-	(*PlaceholderRunMessage)(nil), // 3: neokapi.bridge.v2.PlaceholderRunMessage
-	(*PcOpenRunMessage)(nil),      // 4: neokapi.bridge.v2.PcOpenRunMessage
-	(*PcCloseRunMessage)(nil),     // 5: neokapi.bridge.v2.PcCloseRunMessage
-	(*SubRunMessage)(nil),         // 6: neokapi.bridge.v2.SubRunMessage
-	(*PluralRunMessage)(nil),      // 7: neokapi.bridge.v2.PluralRunMessage
-	(*SelectRunMessage)(nil),      // 8: neokapi.bridge.v2.SelectRunMessage
-	(*RunList)(nil),               // 9: neokapi.bridge.v2.RunList
-	(*RunMessage)(nil),            // 10: neokapi.bridge.v2.RunMessage
-	(*SegmentMessage)(nil),        // 11: neokapi.bridge.v2.SegmentMessage
-	(*TargetEntry)(nil),           // 12: neokapi.bridge.v2.TargetEntry
-	(*ContentBlock)(nil),          // 13: neokapi.bridge.v2.ContentBlock
-	(*ContentBlockBatch)(nil),     // 14: neokapi.bridge.v2.ContentBlockBatch
-	(*SkeletonMessage)(nil),       // 15: neokapi.bridge.v2.SkeletonMessage
-	(*SkeletonPartMessage)(nil),   // 16: neokapi.bridge.v2.SkeletonPartMessage
-	(*DisplayHintMessage)(nil),    // 17: neokapi.bridge.v2.DisplayHintMessage
-	(*BlockMessage)(nil),          // 18: neokapi.bridge.v2.BlockMessage
-	(*LayerMessage)(nil),          // 19: neokapi.bridge.v2.LayerMessage
-	(*DataMessage)(nil),           // 20: neokapi.bridge.v2.DataMessage
-	(*GroupStartMessage)(nil),     // 21: neokapi.bridge.v2.GroupStartMessage
-	(*GroupEndMessage)(nil),       // 22: neokapi.bridge.v2.GroupEndMessage
-	(*MediaMessage)(nil),          // 23: neokapi.bridge.v2.MediaMessage
-	(*PartMessage)(nil),           // 24: neokapi.bridge.v2.PartMessage
-	(*ContentRef)(nil),            // 25: neokapi.bridge.v2.ContentRef
-	(*OutputRef)(nil),             // 26: neokapi.bridge.v2.OutputRef
-	(*PartBatch)(nil),             // 27: neokapi.bridge.v2.PartBatch
-	(*ProcessRequest)(nil),        // 28: neokapi.bridge.v2.ProcessRequest
-	(*ProcessResponse)(nil),       // 29: neokapi.bridge.v2.ProcessResponse
-	(*InlineStep)(nil),            // 30: neokapi.bridge.v2.InlineStep
-	(*ProcessHeader)(nil),         // 31: neokapi.bridge.v2.ProcessHeader
-	(*ProcessReadDone)(nil),       // 32: neokapi.bridge.v2.ProcessReadDone
-	(*ProcessComplete)(nil),       // 33: neokapi.bridge.v2.ProcessComplete
-	(*ShutdownRequest)(nil),       // 34: neokapi.bridge.v2.ShutdownRequest
-	(*ShutdownResponse)(nil),      // 35: neokapi.bridge.v2.ShutdownResponse
-	(*StepRequest)(nil),           // 36: neokapi.bridge.v2.StepRequest
-	(*StepHeader)(nil),            // 37: neokapi.bridge.v2.StepHeader
-	(*StepResponse)(nil),          // 38: neokapi.bridge.v2.StepResponse
-	(*StepComplete)(nil),          // 39: neokapi.bridge.v2.StepComplete
-	nil,                           // 40: neokapi.bridge.v2.PluralRunMessage.FormsEntry
-	nil,                           // 41: neokapi.bridge.v2.SelectRunMessage.CasesEntry
-	nil,                           // 42: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	nil,                           // 43: neokapi.bridge.v2.ContentBlock.PropertiesEntry
-	nil,                           // 44: neokapi.bridge.v2.ContentBlock.AnnotationsEntry
-	nil,                           // 45: neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	nil,                           // 46: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	nil,                           // 47: neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	nil,                           // 48: neokapi.bridge.v2.DataMessage.PropertiesEntry
-	nil,                           // 49: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	nil,                           // 50: neokapi.bridge.v2.MediaMessage.PropertiesEntry
-	nil,                           // 51: neokapi.bridge.v2.InlineStep.StepParamsEntry
-	nil,                           // 52: neokapi.bridge.v2.InlineStep.ParamTypesEntry
-	nil,                           // 53: neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
-	nil,                           // 54: neokapi.bridge.v2.StepHeader.StepParamsEntry
-	nil,                           // 55: neokapi.bridge.v2.StepHeader.ParamTypesEntry
+	(*RunRangeMessage)(nil),       // 1: neokapi.bridge.v2.RunRangeMessage
+	(*VariantMessage)(nil),        // 2: neokapi.bridge.v2.VariantMessage
+	(*SpanMessage)(nil),           // 3: neokapi.bridge.v2.SpanMessage
+	(*OverlayMessage)(nil),        // 4: neokapi.bridge.v2.OverlayMessage
+	(*RunConstraints)(nil),        // 5: neokapi.bridge.v2.RunConstraints
+	(*TextRunMessage)(nil),        // 6: neokapi.bridge.v2.TextRunMessage
+	(*PlaceholderRunMessage)(nil), // 7: neokapi.bridge.v2.PlaceholderRunMessage
+	(*PcOpenRunMessage)(nil),      // 8: neokapi.bridge.v2.PcOpenRunMessage
+	(*PcCloseRunMessage)(nil),     // 9: neokapi.bridge.v2.PcCloseRunMessage
+	(*SubRunMessage)(nil),         // 10: neokapi.bridge.v2.SubRunMessage
+	(*PluralRunMessage)(nil),      // 11: neokapi.bridge.v2.PluralRunMessage
+	(*SelectRunMessage)(nil),      // 12: neokapi.bridge.v2.SelectRunMessage
+	(*RunList)(nil),               // 13: neokapi.bridge.v2.RunList
+	(*RunMessage)(nil),            // 14: neokapi.bridge.v2.RunMessage
+	(*SegmentMessage)(nil),        // 15: neokapi.bridge.v2.SegmentMessage
+	(*TargetEntry)(nil),           // 16: neokapi.bridge.v2.TargetEntry
+	(*ContentBlock)(nil),          // 17: neokapi.bridge.v2.ContentBlock
+	(*ContentBlockBatch)(nil),     // 18: neokapi.bridge.v2.ContentBlockBatch
+	(*SkeletonMessage)(nil),       // 19: neokapi.bridge.v2.SkeletonMessage
+	(*SkeletonPartMessage)(nil),   // 20: neokapi.bridge.v2.SkeletonPartMessage
+	(*DisplayHintMessage)(nil),    // 21: neokapi.bridge.v2.DisplayHintMessage
+	(*BlockMessage)(nil),          // 22: neokapi.bridge.v2.BlockMessage
+	(*LayerMessage)(nil),          // 23: neokapi.bridge.v2.LayerMessage
+	(*DataMessage)(nil),           // 24: neokapi.bridge.v2.DataMessage
+	(*GroupStartMessage)(nil),     // 25: neokapi.bridge.v2.GroupStartMessage
+	(*GroupEndMessage)(nil),       // 26: neokapi.bridge.v2.GroupEndMessage
+	(*MediaMessage)(nil),          // 27: neokapi.bridge.v2.MediaMessage
+	(*PartMessage)(nil),           // 28: neokapi.bridge.v2.PartMessage
+	(*ContentRef)(nil),            // 29: neokapi.bridge.v2.ContentRef
+	(*OutputRef)(nil),             // 30: neokapi.bridge.v2.OutputRef
+	(*PartBatch)(nil),             // 31: neokapi.bridge.v2.PartBatch
+	(*ProcessRequest)(nil),        // 32: neokapi.bridge.v2.ProcessRequest
+	(*ProcessResponse)(nil),       // 33: neokapi.bridge.v2.ProcessResponse
+	(*InlineStep)(nil),            // 34: neokapi.bridge.v2.InlineStep
+	(*ProcessHeader)(nil),         // 35: neokapi.bridge.v2.ProcessHeader
+	(*ProcessReadDone)(nil),       // 36: neokapi.bridge.v2.ProcessReadDone
+	(*ProcessComplete)(nil),       // 37: neokapi.bridge.v2.ProcessComplete
+	(*ShutdownRequest)(nil),       // 38: neokapi.bridge.v2.ShutdownRequest
+	(*ShutdownResponse)(nil),      // 39: neokapi.bridge.v2.ShutdownResponse
+	(*StepRequest)(nil),           // 40: neokapi.bridge.v2.StepRequest
+	(*StepHeader)(nil),            // 41: neokapi.bridge.v2.StepHeader
+	(*StepResponse)(nil),          // 42: neokapi.bridge.v2.StepResponse
+	(*StepComplete)(nil),          // 43: neokapi.bridge.v2.StepComplete
+	nil,                           // 44: neokapi.bridge.v2.SpanMessage.PropsEntry
+	nil,                           // 45: neokapi.bridge.v2.PluralRunMessage.FormsEntry
+	nil,                           // 46: neokapi.bridge.v2.SelectRunMessage.CasesEntry
+	nil,                           // 47: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	nil,                           // 48: neokapi.bridge.v2.ContentBlock.PropertiesEntry
+	nil,                           // 49: neokapi.bridge.v2.ContentBlock.AnnotationsEntry
+	nil,                           // 50: neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	nil,                           // 51: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	nil,                           // 52: neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	nil,                           // 53: neokapi.bridge.v2.DataMessage.PropertiesEntry
+	nil,                           // 54: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	nil,                           // 55: neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	nil,                           // 56: neokapi.bridge.v2.InlineStep.StepParamsEntry
+	nil,                           // 57: neokapi.bridge.v2.InlineStep.ParamTypesEntry
+	nil,                           // 58: neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
+	nil,                           // 59: neokapi.bridge.v2.StepHeader.StepParamsEntry
+	nil,                           // 60: neokapi.bridge.v2.StepHeader.ParamTypesEntry
 }
 var file_core_plugin_proto_v2_neokapi_bridge_proto_depIdxs = []int32{
-	1,  // 0: neokapi.bridge.v2.PlaceholderRunMessage.constraints:type_name -> neokapi.bridge.v2.RunConstraints
-	1,  // 1: neokapi.bridge.v2.PcOpenRunMessage.constraints:type_name -> neokapi.bridge.v2.RunConstraints
-	40, // 2: neokapi.bridge.v2.PluralRunMessage.forms:type_name -> neokapi.bridge.v2.PluralRunMessage.FormsEntry
-	41, // 3: neokapi.bridge.v2.SelectRunMessage.cases:type_name -> neokapi.bridge.v2.SelectRunMessage.CasesEntry
-	10, // 4: neokapi.bridge.v2.RunList.runs:type_name -> neokapi.bridge.v2.RunMessage
-	2,  // 5: neokapi.bridge.v2.RunMessage.text:type_name -> neokapi.bridge.v2.TextRunMessage
-	3,  // 6: neokapi.bridge.v2.RunMessage.ph:type_name -> neokapi.bridge.v2.PlaceholderRunMessage
-	4,  // 7: neokapi.bridge.v2.RunMessage.pc_open:type_name -> neokapi.bridge.v2.PcOpenRunMessage
-	5,  // 8: neokapi.bridge.v2.RunMessage.pc_close:type_name -> neokapi.bridge.v2.PcCloseRunMessage
-	6,  // 9: neokapi.bridge.v2.RunMessage.sub:type_name -> neokapi.bridge.v2.SubRunMessage
-	7,  // 10: neokapi.bridge.v2.RunMessage.plural:type_name -> neokapi.bridge.v2.PluralRunMessage
-	8,  // 11: neokapi.bridge.v2.RunMessage.select:type_name -> neokapi.bridge.v2.SelectRunMessage
-	10, // 12: neokapi.bridge.v2.SegmentMessage.runs:type_name -> neokapi.bridge.v2.RunMessage
-	42, // 13: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	11, // 14: neokapi.bridge.v2.TargetEntry.segments:type_name -> neokapi.bridge.v2.SegmentMessage
-	11, // 15: neokapi.bridge.v2.ContentBlock.source:type_name -> neokapi.bridge.v2.SegmentMessage
-	12, // 16: neokapi.bridge.v2.ContentBlock.targets:type_name -> neokapi.bridge.v2.TargetEntry
-	43, // 17: neokapi.bridge.v2.ContentBlock.properties:type_name -> neokapi.bridge.v2.ContentBlock.PropertiesEntry
-	44, // 18: neokapi.bridge.v2.ContentBlock.annotations:type_name -> neokapi.bridge.v2.ContentBlock.AnnotationsEntry
-	17, // 19: neokapi.bridge.v2.ContentBlock.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
-	13, // 20: neokapi.bridge.v2.ContentBlockBatch.blocks:type_name -> neokapi.bridge.v2.ContentBlock
-	16, // 21: neokapi.bridge.v2.SkeletonMessage.parts:type_name -> neokapi.bridge.v2.SkeletonPartMessage
-	11, // 22: neokapi.bridge.v2.BlockMessage.source:type_name -> neokapi.bridge.v2.SegmentMessage
-	12, // 23: neokapi.bridge.v2.BlockMessage.targets:type_name -> neokapi.bridge.v2.TargetEntry
-	45, // 24: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	46, // 25: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	17, // 26: neokapi.bridge.v2.BlockMessage.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
-	15, // 27: neokapi.bridge.v2.BlockMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	47, // 28: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	48, // 29: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
-	15, // 30: neokapi.bridge.v2.DataMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	49, // 31: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	50, // 32: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
-	18, // 33: neokapi.bridge.v2.PartMessage.block:type_name -> neokapi.bridge.v2.BlockMessage
-	19, // 34: neokapi.bridge.v2.PartMessage.layer:type_name -> neokapi.bridge.v2.LayerMessage
-	20, // 35: neokapi.bridge.v2.PartMessage.data:type_name -> neokapi.bridge.v2.DataMessage
-	21, // 36: neokapi.bridge.v2.PartMessage.group_start:type_name -> neokapi.bridge.v2.GroupStartMessage
-	22, // 37: neokapi.bridge.v2.PartMessage.group_end:type_name -> neokapi.bridge.v2.GroupEndMessage
-	23, // 38: neokapi.bridge.v2.PartMessage.media:type_name -> neokapi.bridge.v2.MediaMessage
-	24, // 39: neokapi.bridge.v2.PartBatch.parts:type_name -> neokapi.bridge.v2.PartMessage
-	31, // 40: neokapi.bridge.v2.ProcessRequest.header:type_name -> neokapi.bridge.v2.ProcessHeader
-	24, // 41: neokapi.bridge.v2.ProcessRequest.part:type_name -> neokapi.bridge.v2.PartMessage
-	27, // 42: neokapi.bridge.v2.ProcessRequest.part_batch:type_name -> neokapi.bridge.v2.PartBatch
-	13, // 43: neokapi.bridge.v2.ProcessRequest.content_block:type_name -> neokapi.bridge.v2.ContentBlock
-	14, // 44: neokapi.bridge.v2.ProcessRequest.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
-	24, // 45: neokapi.bridge.v2.ProcessResponse.part:type_name -> neokapi.bridge.v2.PartMessage
-	32, // 46: neokapi.bridge.v2.ProcessResponse.read_done:type_name -> neokapi.bridge.v2.ProcessReadDone
-	33, // 47: neokapi.bridge.v2.ProcessResponse.complete:type_name -> neokapi.bridge.v2.ProcessComplete
-	27, // 48: neokapi.bridge.v2.ProcessResponse.part_batch:type_name -> neokapi.bridge.v2.PartBatch
-	14, // 49: neokapi.bridge.v2.ProcessResponse.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
-	51, // 50: neokapi.bridge.v2.InlineStep.step_params:type_name -> neokapi.bridge.v2.InlineStep.StepParamsEntry
-	52, // 51: neokapi.bridge.v2.InlineStep.param_types:type_name -> neokapi.bridge.v2.InlineStep.ParamTypesEntry
-	25, // 52: neokapi.bridge.v2.ProcessHeader.input:type_name -> neokapi.bridge.v2.ContentRef
-	53, // 53: neokapi.bridge.v2.ProcessHeader.filter_params:type_name -> neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
-	26, // 54: neokapi.bridge.v2.ProcessHeader.output:type_name -> neokapi.bridge.v2.OutputRef
-	30, // 55: neokapi.bridge.v2.ProcessHeader.inline_steps:type_name -> neokapi.bridge.v2.InlineStep
-	37, // 56: neokapi.bridge.v2.StepRequest.header:type_name -> neokapi.bridge.v2.StepHeader
-	24, // 57: neokapi.bridge.v2.StepRequest.part:type_name -> neokapi.bridge.v2.PartMessage
-	54, // 58: neokapi.bridge.v2.StepHeader.step_params:type_name -> neokapi.bridge.v2.StepHeader.StepParamsEntry
-	55, // 59: neokapi.bridge.v2.StepHeader.param_types:type_name -> neokapi.bridge.v2.StepHeader.ParamTypesEntry
-	24, // 60: neokapi.bridge.v2.StepResponse.part:type_name -> neokapi.bridge.v2.PartMessage
-	39, // 61: neokapi.bridge.v2.StepResponse.complete:type_name -> neokapi.bridge.v2.StepComplete
-	9,  // 62: neokapi.bridge.v2.PluralRunMessage.FormsEntry.value:type_name -> neokapi.bridge.v2.RunList
-	9,  // 63: neokapi.bridge.v2.SelectRunMessage.CasesEntry.value:type_name -> neokapi.bridge.v2.RunList
-	0,  // 64: neokapi.bridge.v2.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	0,  // 65: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	28, // 66: neokapi.bridge.v2.BridgeService.Process:input_type -> neokapi.bridge.v2.ProcessRequest
-	36, // 67: neokapi.bridge.v2.BridgeService.ProcessStep:input_type -> neokapi.bridge.v2.StepRequest
-	34, // 68: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
-	29, // 69: neokapi.bridge.v2.BridgeService.Process:output_type -> neokapi.bridge.v2.ProcessResponse
-	38, // 70: neokapi.bridge.v2.BridgeService.ProcessStep:output_type -> neokapi.bridge.v2.StepResponse
-	35, // 71: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
-	69, // [69:72] is the sub-list for method output_type
-	66, // [66:69] is the sub-list for method input_type
-	66, // [66:66] is the sub-list for extension type_name
-	66, // [66:66] is the sub-list for extension extendee
-	0,  // [0:66] is the sub-list for field type_name
+	1,  // 0: neokapi.bridge.v2.SpanMessage.range:type_name -> neokapi.bridge.v2.RunRangeMessage
+	44, // 1: neokapi.bridge.v2.SpanMessage.props:type_name -> neokapi.bridge.v2.SpanMessage.PropsEntry
+	0,  // 2: neokapi.bridge.v2.SpanMessage.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	2,  // 3: neokapi.bridge.v2.OverlayMessage.variant:type_name -> neokapi.bridge.v2.VariantMessage
+	3,  // 4: neokapi.bridge.v2.OverlayMessage.spans:type_name -> neokapi.bridge.v2.SpanMessage
+	5,  // 5: neokapi.bridge.v2.PlaceholderRunMessage.constraints:type_name -> neokapi.bridge.v2.RunConstraints
+	5,  // 6: neokapi.bridge.v2.PcOpenRunMessage.constraints:type_name -> neokapi.bridge.v2.RunConstraints
+	45, // 7: neokapi.bridge.v2.PluralRunMessage.forms:type_name -> neokapi.bridge.v2.PluralRunMessage.FormsEntry
+	46, // 8: neokapi.bridge.v2.SelectRunMessage.cases:type_name -> neokapi.bridge.v2.SelectRunMessage.CasesEntry
+	14, // 9: neokapi.bridge.v2.RunList.runs:type_name -> neokapi.bridge.v2.RunMessage
+	6,  // 10: neokapi.bridge.v2.RunMessage.text:type_name -> neokapi.bridge.v2.TextRunMessage
+	7,  // 11: neokapi.bridge.v2.RunMessage.ph:type_name -> neokapi.bridge.v2.PlaceholderRunMessage
+	8,  // 12: neokapi.bridge.v2.RunMessage.pc_open:type_name -> neokapi.bridge.v2.PcOpenRunMessage
+	9,  // 13: neokapi.bridge.v2.RunMessage.pc_close:type_name -> neokapi.bridge.v2.PcCloseRunMessage
+	10, // 14: neokapi.bridge.v2.RunMessage.sub:type_name -> neokapi.bridge.v2.SubRunMessage
+	11, // 15: neokapi.bridge.v2.RunMessage.plural:type_name -> neokapi.bridge.v2.PluralRunMessage
+	12, // 16: neokapi.bridge.v2.RunMessage.select:type_name -> neokapi.bridge.v2.SelectRunMessage
+	14, // 17: neokapi.bridge.v2.SegmentMessage.runs:type_name -> neokapi.bridge.v2.RunMessage
+	47, // 18: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	15, // 19: neokapi.bridge.v2.TargetEntry.segments:type_name -> neokapi.bridge.v2.SegmentMessage
+	15, // 20: neokapi.bridge.v2.ContentBlock.source:type_name -> neokapi.bridge.v2.SegmentMessage
+	16, // 21: neokapi.bridge.v2.ContentBlock.targets:type_name -> neokapi.bridge.v2.TargetEntry
+	48, // 22: neokapi.bridge.v2.ContentBlock.properties:type_name -> neokapi.bridge.v2.ContentBlock.PropertiesEntry
+	49, // 23: neokapi.bridge.v2.ContentBlock.annotations:type_name -> neokapi.bridge.v2.ContentBlock.AnnotationsEntry
+	21, // 24: neokapi.bridge.v2.ContentBlock.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
+	4,  // 25: neokapi.bridge.v2.ContentBlock.overlays:type_name -> neokapi.bridge.v2.OverlayMessage
+	17, // 26: neokapi.bridge.v2.ContentBlockBatch.blocks:type_name -> neokapi.bridge.v2.ContentBlock
+	20, // 27: neokapi.bridge.v2.SkeletonMessage.parts:type_name -> neokapi.bridge.v2.SkeletonPartMessage
+	15, // 28: neokapi.bridge.v2.BlockMessage.source:type_name -> neokapi.bridge.v2.SegmentMessage
+	16, // 29: neokapi.bridge.v2.BlockMessage.targets:type_name -> neokapi.bridge.v2.TargetEntry
+	50, // 30: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	51, // 31: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	21, // 32: neokapi.bridge.v2.BlockMessage.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
+	19, // 33: neokapi.bridge.v2.BlockMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
+	4,  // 34: neokapi.bridge.v2.BlockMessage.overlays:type_name -> neokapi.bridge.v2.OverlayMessage
+	52, // 35: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	53, // 36: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
+	19, // 37: neokapi.bridge.v2.DataMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
+	54, // 38: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	55, // 39: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	22, // 40: neokapi.bridge.v2.PartMessage.block:type_name -> neokapi.bridge.v2.BlockMessage
+	23, // 41: neokapi.bridge.v2.PartMessage.layer:type_name -> neokapi.bridge.v2.LayerMessage
+	24, // 42: neokapi.bridge.v2.PartMessage.data:type_name -> neokapi.bridge.v2.DataMessage
+	25, // 43: neokapi.bridge.v2.PartMessage.group_start:type_name -> neokapi.bridge.v2.GroupStartMessage
+	26, // 44: neokapi.bridge.v2.PartMessage.group_end:type_name -> neokapi.bridge.v2.GroupEndMessage
+	27, // 45: neokapi.bridge.v2.PartMessage.media:type_name -> neokapi.bridge.v2.MediaMessage
+	28, // 46: neokapi.bridge.v2.PartBatch.parts:type_name -> neokapi.bridge.v2.PartMessage
+	35, // 47: neokapi.bridge.v2.ProcessRequest.header:type_name -> neokapi.bridge.v2.ProcessHeader
+	28, // 48: neokapi.bridge.v2.ProcessRequest.part:type_name -> neokapi.bridge.v2.PartMessage
+	31, // 49: neokapi.bridge.v2.ProcessRequest.part_batch:type_name -> neokapi.bridge.v2.PartBatch
+	17, // 50: neokapi.bridge.v2.ProcessRequest.content_block:type_name -> neokapi.bridge.v2.ContentBlock
+	18, // 51: neokapi.bridge.v2.ProcessRequest.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
+	28, // 52: neokapi.bridge.v2.ProcessResponse.part:type_name -> neokapi.bridge.v2.PartMessage
+	36, // 53: neokapi.bridge.v2.ProcessResponse.read_done:type_name -> neokapi.bridge.v2.ProcessReadDone
+	37, // 54: neokapi.bridge.v2.ProcessResponse.complete:type_name -> neokapi.bridge.v2.ProcessComplete
+	31, // 55: neokapi.bridge.v2.ProcessResponse.part_batch:type_name -> neokapi.bridge.v2.PartBatch
+	18, // 56: neokapi.bridge.v2.ProcessResponse.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
+	56, // 57: neokapi.bridge.v2.InlineStep.step_params:type_name -> neokapi.bridge.v2.InlineStep.StepParamsEntry
+	57, // 58: neokapi.bridge.v2.InlineStep.param_types:type_name -> neokapi.bridge.v2.InlineStep.ParamTypesEntry
+	29, // 59: neokapi.bridge.v2.ProcessHeader.input:type_name -> neokapi.bridge.v2.ContentRef
+	58, // 60: neokapi.bridge.v2.ProcessHeader.filter_params:type_name -> neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
+	30, // 61: neokapi.bridge.v2.ProcessHeader.output:type_name -> neokapi.bridge.v2.OutputRef
+	34, // 62: neokapi.bridge.v2.ProcessHeader.inline_steps:type_name -> neokapi.bridge.v2.InlineStep
+	41, // 63: neokapi.bridge.v2.StepRequest.header:type_name -> neokapi.bridge.v2.StepHeader
+	28, // 64: neokapi.bridge.v2.StepRequest.part:type_name -> neokapi.bridge.v2.PartMessage
+	59, // 65: neokapi.bridge.v2.StepHeader.step_params:type_name -> neokapi.bridge.v2.StepHeader.StepParamsEntry
+	60, // 66: neokapi.bridge.v2.StepHeader.param_types:type_name -> neokapi.bridge.v2.StepHeader.ParamTypesEntry
+	28, // 67: neokapi.bridge.v2.StepResponse.part:type_name -> neokapi.bridge.v2.PartMessage
+	43, // 68: neokapi.bridge.v2.StepResponse.complete:type_name -> neokapi.bridge.v2.StepComplete
+	13, // 69: neokapi.bridge.v2.PluralRunMessage.FormsEntry.value:type_name -> neokapi.bridge.v2.RunList
+	13, // 70: neokapi.bridge.v2.SelectRunMessage.CasesEntry.value:type_name -> neokapi.bridge.v2.RunList
+	0,  // 71: neokapi.bridge.v2.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	0,  // 72: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	32, // 73: neokapi.bridge.v2.BridgeService.Process:input_type -> neokapi.bridge.v2.ProcessRequest
+	40, // 74: neokapi.bridge.v2.BridgeService.ProcessStep:input_type -> neokapi.bridge.v2.StepRequest
+	38, // 75: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
+	33, // 76: neokapi.bridge.v2.BridgeService.Process:output_type -> neokapi.bridge.v2.ProcessResponse
+	42, // 77: neokapi.bridge.v2.BridgeService.ProcessStep:output_type -> neokapi.bridge.v2.StepResponse
+	39, // 78: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
+	76, // [76:79] is the sub-list for method output_type
+	73, // [73:76] is the sub-list for method input_type
+	73, // [73:73] is the sub-list for extension type_name
+	73, // [73:73] is the sub-list for extension extendee
+	0,  // [0:73] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v2_neokapi_bridge_proto_init() }
@@ -3587,7 +3922,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 	if File_core_plugin_proto_v2_neokapi_bridge_proto != nil {
 		return
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[10].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[14].OneofWrappers = []any{
 		(*RunMessage_Text)(nil),
 		(*RunMessage_Ph)(nil),
 		(*RunMessage_PcOpen)(nil),
@@ -3596,34 +3931,34 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 		(*RunMessage_Plural)(nil),
 		(*RunMessage_Select)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29].OneofWrappers = []any{
 		(*ContentRef_Inline)(nil),
 		(*ContentRef_Path)(nil),
 		(*ContentRef_Uri)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30].OneofWrappers = []any{
 		(*OutputRef_Path)(nil),
 		(*OutputRef_Uri)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32].OneofWrappers = []any{
 		(*ProcessRequest_Header)(nil),
 		(*ProcessRequest_Part)(nil),
 		(*ProcessRequest_PartBatch)(nil),
 		(*ProcessRequest_ContentBlock)(nil),
 		(*ProcessRequest_ContentBatch)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33].OneofWrappers = []any{
 		(*ProcessResponse_Part)(nil),
 		(*ProcessResponse_ReadDone)(nil),
 		(*ProcessResponse_Complete)(nil),
 		(*ProcessResponse_PartBatch)(nil),
 		(*ProcessResponse_ContentBatch)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[40].OneofWrappers = []any{
 		(*StepRequest_Header)(nil),
 		(*StepRequest_Part)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[42].OneofWrappers = []any{
 		(*StepResponse_Part)(nil),
 		(*StepResponse_Complete)(nil),
 	}
@@ -3633,7 +3968,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc), len(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   56,
+			NumMessages:   61,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -32,6 +32,7 @@ import type {
   FlowBinding,
   ToolInfo,
   ComponentSchema,
+  IOPort,
 } from "./types";
 import { SourcePicker, SinkPicker } from "./nodes/EndpointPicker";
 import { parseBinding, formatBinding } from "./defAdapter";
@@ -770,10 +771,14 @@ export function FlowEditor({
       const sourceNode = nodes.find((n) => n.id === connection.source);
       const targetNode = nodes.find((n) => n.id === connection.target);
       if (!sourceNode || !targetNode) return true;
-      const srcOutputs = sourceNode.data.outputs as string[] | undefined;
-      const tgtInputs = targetNode.data.inputs as string[] | undefined;
-      if (!srcOutputs || !tgtInputs) return true; // no metadata = allow
-      return srcOutputs.some((o) => tgtInputs.includes(o));
+      // A connection is meaningful when the source produces at least one port
+      // the target consumes (matched by type@side). Missing metadata or a
+      // target that consumes nothing (a pass-through) is permitted.
+      const srcProduces = sourceNode.data.produces as IOPort[] | undefined;
+      const tgtConsumes = targetNode.data.consumes as IOPort[] | undefined;
+      if (!srcProduces || !tgtConsumes || tgtConsumes.length === 0) return true;
+      const produced = new Set(srcProduces.map((f) => `${f.type}@${f.side ?? "source"}`));
+      return tgtConsumes.some((c) => produced.has(`${c.type}@${c.side ?? "source"}`));
     },
     [nodes],
   );

@@ -28,12 +28,11 @@ func registerDemoMT(reg *registry.ToolRegistry) {
 		Category:     schema.CategoryTranslation,
 		DisplayName:  "MT Translate (demo)",
 		Description:  "Translate content using the demo MT provider (illustrative output)",
-		Inputs:       []string{schema.PartTypeBlock},
 		Tags:         []string{"demo"},
 		WritesOutput: true,
 		Requires:     []string{schema.RequiresTargetLanguage},
 		Cardinality:  schema.Bilingual,
-		Produces:     []schema.AnnotationType{schema.AnnotationTranslation},
+		Produces:     []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 	})
 
 	reg.RegisterWithSchema("mt-translate", func() tool.Tool {

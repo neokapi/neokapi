@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -75,8 +74,10 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
-	assert.Equal(t, "100", resultBlock.Properties[tools.PropTMMatchScore])
-	assert.Equal(t, "exact", resultBlock.Properties[tools.PropTMMatchType])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](resultBlock, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 100, tm.Score)
+	assert.Equal(t, "exact", tm.Type)
 
 	// Whole-block leverage is auditable too: target provenance + an
 	// alt-translation annotation carrying the match metadata.
@@ -86,8 +87,9 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 	assert.Equal(t, "tm-leverage", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
-	alt, ok := resultBlock.Annotations[tools.PropTMAltKey].(*model.AltTranslation)
-	require.True(t, ok, "alt-translation annotation present")
+	alts := resultBlock.AltTranslations()
+	require.Len(t, alts, 1, "one alt-translation candidate present")
+	alt := alts[0]
 	assert.Equal(t, "Hello world", model.RunsText(alt.Source))
 	assert.Equal(t, "Bonjour le monde", model.RunsText(alt.Target))
 	assert.Equal(t, model.MatchExact, alt.MatchType)
@@ -114,8 +116,10 @@ func TestTMLeverageToolFuzzyMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour monde", resultBlock.TargetText(model.LocaleFrench))
-	assert.Equal(t, "85", resultBlock.Properties[tools.PropTMMatchScore])
-	assert.Equal(t, "fuzzy", resultBlock.Properties[tools.PropTMMatchType])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](resultBlock, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 85, tm.Score)
+	assert.Equal(t, "fuzzy", tm.Type)
 }
 
 func TestTMLeverageToolNoMatch(t *testing.T) {
@@ -135,8 +139,8 @@ func TestTMLeverageToolNoMatch(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
-	_, hasScore := resultBlock.Properties[tools.PropTMMatchScore]
-	assert.False(t, hasScore)
+	_, ok := model.AnnoAs[*tools.TMMatchAnnotation](resultBlock, string(model.AnnoTMMatch))
+	assert.False(t, ok)
 }
 
 func TestTMLeverageToolExactOverFuzzy(t *testing.T) {
@@ -164,8 +168,10 @@ func TestTMLeverageToolExactOverFuzzy(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	// Exact match should win.
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
-	assert.Equal(t, "100", resultBlock.Properties[tools.PropTMMatchScore])
-	assert.Equal(t, "exact", resultBlock.Properties[tools.PropTMMatchType])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](resultBlock, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 100, tm.Score)
+	assert.Equal(t, "exact", tm.Type)
 }
 
 func TestTMLeverageToolNullProvider(t *testing.T) {
@@ -308,8 +314,8 @@ func segBlock(id, s1, s2 string) *model.Block {
 func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	t.Parallel()
 	provider := &mockTMProvider{exact: map[string]string{
-		seg1Src: "Bonjour le monde. ",
-		"Goodbye.":      "Au revoir.",
+		seg1Src:    "Bonjour le monde. ",
+		"Goodbye.": "Au revoir.",
 	}}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
 	tl := tools.NewTMLeverageTool(cfg)
@@ -319,9 +325,11 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	rb := result.Resource.(*model.Block)
 
 	assert.Equal(t, "Bonjour le monde. Au revoir.", rb.TargetText(model.LocaleFrench))
-	assert.Equal(t, "100", rb.Properties[tools.PropTMMatchScore])
-	assert.Equal(t, "segmented-exact", rb.Properties[tools.PropTMMatchType])
-	assert.Equal(t, "2/2", rb.Properties[tools.PropTMSegmentMatches])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 100, tm.Score)
+	assert.Equal(t, "segmented-exact", tm.Type)
+	assert.Equal(t, "2/2", tm.SegmentMatches)
 	// Source runs are never rewritten by leverage.
 	assert.Equal(t, "Hello world. Goodbye.", rb.SourceText())
 
@@ -346,14 +354,27 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	assert.Equal(t, model.MatchExact, a1.MatchType)
 }
 
-// altTrans fetches the per-segment AltTranslation annotation by segment index.
+// altTrans fetches the per-segment AltTranslation from the tm-segment-alts
+// collection by its SegmentIndex.
 func altTrans(t *testing.T, b *model.Block, idx int) *model.AltTranslation {
 	t.Helper()
-	a, ok := b.Annotations[tools.PropTMSegmentAltPrefix+strconv.Itoa(idx)]
-	require.True(t, ok, "alt-translation for segment %d present", idx)
-	at, ok := a.(*model.AltTranslation)
-	require.True(t, ok, "annotation is *AltTranslation")
+	at := segAlt(b, idx)
+	require.NotNil(t, at, "alt-translation for segment %d present", idx)
 	return at
+}
+
+// segAlt returns the per-segment alt-translation with the given SegmentIndex, or nil.
+func segAlt(b *model.Block, idx int) *model.AltTranslation {
+	v, ok := model.AnnoAs[*model.AltTranslations](b, tools.PropTMSegmentAlts)
+	if !ok {
+		return nil
+	}
+	for _, a := range v.Items {
+		if a.SegmentIndex == idx {
+			return a
+		}
+	}
+	return nil
 }
 
 func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
@@ -371,9 +392,11 @@ func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 
 	assert.Equal(t, "Bonjour le monde. Au revoir.", rb.TargetText(model.LocaleFrench))
 	// Block score is the weakest leveraged segment.
-	assert.Equal(t, "80", rb.Properties[tools.PropTMMatchScore])
-	assert.Equal(t, "segmented-fuzzy", rb.Properties[tools.PropTMMatchType])
-	assert.Equal(t, "2/2", rb.Properties[tools.PropTMSegmentMatches])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 80, tm.Score)
+	assert.Equal(t, "segmented-fuzzy", tm.Type)
+	assert.Equal(t, "2/2", tm.SegmentMatches)
 	assert.InEpsilon(t, 0.8, rb.Target(model.LocaleFrench).Score, 0.001)
 	// Per-segment annotations carry the individual match type + score.
 	assert.Equal(t, model.MatchExact, altTrans(t, rb, 0).MatchType)
@@ -395,13 +418,14 @@ func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 
 	// Partial leverage must not write a half-translated target.
 	assert.Empty(t, rb.TargetText(model.LocaleFrench))
-	assert.Equal(t, "1/2", rb.Properties[tools.PropTMSegmentMatches])
-	assert.Empty(t, rb.Properties[tools.PropTMMatchType])
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Empty(t, tm.Type)
+	assert.Equal(t, "1/2", tm.SegmentMatches)
 	// ...but the one matched segment is preserved as an AltTranslation for a
 	// later stage / the editor, not discarded.
 	a0 := altTrans(t, rb, 0)
 	assert.Equal(t, "Bonjour le monde. ", model.RunsText(a0.Target))
 	assert.Equal(t, model.MatchExact, a0.MatchType)
-	_, hasSeg1 := rb.Annotations[tools.PropTMSegmentAltPrefix+"1"]
-	assert.False(t, hasSeg1, "unmatched segment has no alt-translation")
+	assert.Nil(t, segAlt(rb, 1), "unmatched segment has no alt-translation")
 }

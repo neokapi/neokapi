@@ -932,7 +932,7 @@ func TestExtractRunFontsInfo(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	ann, ok := blocks[0].Annotations["fonts"]
+	ann, ok := blocks[0].Anno("fonts")
 	require.True(t, ok, "should have fonts annotation")
 	ga, ok := ann.(*model.GenericAnnotation)
 	require.True(t, ok, "should be GenericAnnotation")
@@ -960,7 +960,7 @@ func TestExtractRunFontsInfoDisabled(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	_, ok := blocks[0].Annotations["fonts"]
+	_, ok := blocks[0].Anno("fonts")
 	assert.False(t, ok, "no fonts annotation when disabled")
 }
 

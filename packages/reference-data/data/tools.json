@@ -9,9 +9,6 @@
       "displayName": "AI Brand Voice Check",
       "description": "Check text against a brand voice profile using an LLM and score brand compliance.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered",
         "brand"
@@ -20,6 +17,9 @@
         "credentials"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "brand-voice@target"
+      ],
       "schema": {
         "$id": "brand-voice-check",
         "title": "AI Brand Voice Check",
@@ -30,9 +30,6 @@
           "category": "quality",
           "displayName": "AI Brand Voice Check",
           "description": "Check text against a brand voice profile using an LLM provider",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered",
             "brand"
@@ -42,7 +39,10 @@
           ],
           "cardinality": "monolingual",
           "produces": [
-            "quality.brand-voice"
+            {
+              "type": "brand-voice",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -160,9 +160,6 @@
       "displayName": "AI Entity Extract",
       "description": "Detect named entities and terminology candidates in source content using an LLM.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered"
       ],
@@ -180,9 +177,6 @@
           "category": "analysis",
           "displayName": "AI Entity Extract",
           "description": "Detect named entities (people, organizations, products, locations) using an LLM",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered"
           ],
@@ -344,9 +338,6 @@
       "displayName": "AI QA Check",
       "description": "Check translation quality with an LLM and record the issues it finds.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered"
       ],
@@ -355,6 +346,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "ai-qa",
         "title": "AI QA Check",
@@ -365,9 +359,6 @@
           "category": "quality",
           "displayName": "AI QA Check",
           "description": "Check translation quality using an LLM provider",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered"
           ],
@@ -377,7 +368,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -504,9 +498,6 @@
       "displayName": "AI Review",
       "description": "Review each translation with an LLM, producing a score, assessment, and suggestion.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered"
       ],
@@ -525,9 +516,6 @@
           "category": "quality",
           "displayName": "AI Review",
           "description": "Review translations with scoring using an LLM provider",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered"
           ],
@@ -648,9 +636,6 @@
       "displayName": "AI Terminology Extraction",
       "description": "Extract candidate terminology from source text using an LLM provider.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered",
         "terminology"
@@ -659,6 +644,9 @@
         "credentials"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "term@source"
+      ],
       "schema": {
         "$id": "ai-terminology",
         "title": "AI Terminology Extraction",
@@ -669,9 +657,6 @@
           "category": "analysis",
           "displayName": "AI Terminology Extraction",
           "description": "Extract candidate terminology from content using an LLM provider",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered",
             "terminology"
@@ -681,7 +666,9 @@
           ],
           "cardinality": "monolingual",
           "produces": [
-            "terminology.annotations"
+            {
+              "type": "term"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -803,9 +790,6 @@
       "displayName": "AI Translate",
       "description": "Translate block content using a configured LLM provider.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "ai-powered"
       ],
@@ -814,6 +798,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "aliases": [
         "translate"
       ],
@@ -827,9 +814,6 @@
           "category": "translation",
           "displayName": "AI Translate",
           "description": "Translate content using an LLM provider",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "ai-powered"
           ],
@@ -839,7 +823,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -991,9 +978,6 @@
       "displayName": "Batch Collector",
       "description": "Collect blocks into fixed-size batches before forwarding them downstream.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "batch"
       ],
@@ -1006,9 +990,6 @@
           "id": "batch",
           "category": "text-processing",
           "displayName": "Batch Collector",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "batch"
           ],
@@ -1493,10 +1474,6 @@
       "displayName": "BOM Convert",
       "description": "Add or remove the Unicode byte-order mark (BOM) on document layers.",
       "category": "text-processing",
-      "inputs": [
-        "block",
-        "data"
-      ],
       "cardinality": "monolingual",
       "schema": {
         "$id": "bom-convert",
@@ -1506,10 +1483,6 @@
           "id": "bom-convert",
           "category": "text-processing",
           "displayName": "BOM Convert",
-          "inputs": [
-            "block",
-            "data"
-          ],
           "cardinality": "monolingual"
         },
         "properties": {
@@ -1570,6 +1543,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "brand-voice@target"
+      ],
       "schema": {
         "title": "",
         "type": "",
@@ -1581,8 +1560,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.brand-voice"
+            {
+              "type": "brand-voice",
+              "side": "target"
+            }
           ]
         }
       },
@@ -1614,9 +1602,6 @@
       "displayName": "Case Transform",
       "description": "Change the letter case of source and/or target text to upper, lower, or title case.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -1629,9 +1614,6 @@
           "id": "case-transform",
           "category": "text-processing",
           "displayName": "Case Transform",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -1720,13 +1702,13 @@
       "displayName": "Character Count",
       "description": "Count the characters in each block's source and target text, with and without spaces.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "char-count@source"
+      ],
       "schema": {
         "$id": "char-count",
         "title": "Character Count",
@@ -1735,15 +1717,14 @@
           "id": "char-count",
           "category": "analysis",
           "displayName": "Character Count",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.char-count"
+            {
+              "type": "char-count"
+            }
           ]
         },
         "properties": {
@@ -1976,9 +1957,6 @@
       "displayName": "Characters Check",
       "description": "Check target text for forbidden, missing, out-of-charset, or corrupted characters.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -1986,6 +1964,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "chars-check",
         "title": "Characters Check",
@@ -1994,9 +1978,6 @@
           "id": "chars-check",
           "category": "quality",
           "displayName": "Characters Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -2004,8 +1985,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -2110,13 +2100,13 @@
       "displayName": "Characters Listing",
       "description": "Collect the distinct characters used across source and target text, with their frequencies.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "char-count@source"
+      ],
       "schema": {
         "$id": "chars-listing",
         "title": "Characters Listing",
@@ -2125,15 +2115,14 @@
           "id": "chars-listing",
           "category": "analysis",
           "displayName": "Characters Listing",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.char-count"
+            {
+              "type": "char-count"
+            }
           ]
         },
         "properties": {
@@ -2668,9 +2657,6 @@
       "displayName": "Create Target",
       "description": "Create target segment containers for a locale, optionally seeded with the source text.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "requires": [
         "target-language"
       ],
@@ -2683,9 +2669,6 @@
           "id": "create-target",
           "category": "text-processing",
           "displayName": "Create Target",
-          "inputs": [
-            "block"
-          ],
           "requires": [
             "target-language"
           ],
@@ -2890,9 +2873,6 @@
       "displayName": "DeepL Translate",
       "description": "Translate block content using DeepL.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "mt",
         "machine-translation"
@@ -2902,6 +2882,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "deepl-translate",
         "title": "DeepL Translate",
@@ -2912,9 +2895,6 @@
           "category": "translation",
           "displayName": "DeepL Translate",
           "description": "Translate content using DeepL",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "mt",
             "machine-translation"
@@ -2925,7 +2905,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -3144,13 +3127,14 @@
       "displayName": "Diff Leverage",
       "description": "Reuse translations from a previous document version for unchanged source blocks.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "translation"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "alt-translation@source",
+        "target@target"
+      ],
       "schema": {
         "$id": "diff-leverage",
         "title": "Diff Leverage",
@@ -3159,15 +3143,18 @@
           "id": "diff-leverage",
           "category": "translation",
           "displayName": "Diff Leverage",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "translation"
           ],
           "cardinality": "bilingual",
           "produces": [
-            "leverage.alt-translation"
+            {
+              "type": "alt-translation"
+            },
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "writesOutput": true
         },
@@ -3374,9 +3361,6 @@
       "displayName": "Do-Not-Translate Check",
       "description": "Verify that do-not-translate terms survive verbatim into the target.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -3384,6 +3368,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "aliases": [
         "dnt"
       ],
@@ -3395,9 +3385,6 @@
           "id": "dnt-check",
           "category": "quality",
           "displayName": "Do-Not-Translate Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -3405,8 +3392,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ],
           "aliases": [
             "dnt"
@@ -3677,10 +3673,6 @@
       "displayName": "Encoding Convert",
       "description": "Normalize text through a target character encoding and unescape escape sequences on input.",
       "category": "text-processing",
-      "inputs": [
-        "block",
-        "data"
-      ],
       "cardinality": "monolingual",
       "schema": {
         "$id": "encoding-convert",
@@ -3690,10 +3682,6 @@
           "id": "encoding-convert",
           "category": "text-processing",
           "displayName": "Encoding Convert",
-          "inputs": [
-            "block",
-            "data"
-          ],
           "cardinality": "monolingual"
         },
         "properties": {
@@ -3844,10 +3832,6 @@
       "displayName": "Encoding Detect",
       "description": "Classify the source text of each block as ASCII, UTF-8, or unknown.",
       "category": "analysis",
-      "inputs": [
-        "block",
-        "data"
-      ],
       "cardinality": "monolingual",
       "schema": {
         "$id": "encoding-detect",
@@ -3857,10 +3841,6 @@
           "id": "encoding-detect",
           "category": "analysis",
           "displayName": "Encoding Detect",
-          "inputs": [
-            "block",
-            "data"
-          ],
           "cardinality": "monolingual"
         }
       },
@@ -4964,9 +4944,6 @@
       "displayName": "External Command",
       "description": "Run an external command-line program on block text and use its stdout as the result.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "configurable"
       ],
@@ -4979,9 +4956,6 @@
           "id": "external-command",
           "category": "text-processing",
           "displayName": "External Command",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "configurable"
           ],
@@ -5769,9 +5743,6 @@
       "displayName": "Full Width Convert",
       "description": "Convert between half-width and full-width Latin characters and punctuation for CJK content.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -5784,9 +5755,6 @@
           "id": "fullwidth-convert",
           "category": "text-processing",
           "displayName": "Full Width Convert",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -7434,9 +7402,6 @@
       "displayName": "Google Translate",
       "description": "Translate block content using Google Translate.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "mt",
         "machine-translation"
@@ -7446,6 +7411,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "google-translate",
         "title": "Google Translate Translate",
@@ -7456,9 +7424,6 @@
           "category": "translation",
           "displayName": "Google Translate Translate",
           "description": "Translate content using Google Translate",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "mt",
             "machine-translation"
@@ -7469,7 +7434,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -8028,9 +7996,6 @@
       "displayName": "Inconsistency Check",
       "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -8038,6 +8003,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "inconsistency-check",
         "title": "Inconsistency Check",
@@ -8046,9 +8017,6 @@
           "id": "inconsistency-check",
           "category": "quality",
           "displayName": "Inconsistency Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -8056,8 +8024,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -8621,9 +8598,6 @@
       "displayName": "Inline Codes Remove",
       "description": "Strip inline-code runs (placeholders and paired codes) from segments, leaving plain text.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -8636,9 +8610,6 @@
           "id": "inline-codes-remove",
           "category": "text-processing",
           "displayName": "Inline Codes Remove",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -8883,9 +8854,6 @@
       "displayName": "Length Check",
       "description": "Validate target length against absolute limits and source/target ratio thresholds.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -8893,6 +8861,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "length-check",
         "title": "Length Check",
@@ -8901,9 +8875,6 @@
           "id": "length-check",
           "category": "quality",
           "displayName": "Length Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -8911,8 +8882,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -9545,9 +9525,6 @@
       "displayName": "Line Break Convert",
       "description": "Normalize line endings in block text to LF, CRLF, or CR.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "cardinality": "monolingual",
       "schema": {
         "$id": "linebreak-convert",
@@ -9557,9 +9534,6 @@
           "id": "linebreak-convert",
           "category": "text-processing",
           "displayName": "Line Break Convert",
-          "inputs": [
-            "block"
-          ],
           "cardinality": "monolingual"
         },
         "properties": {
@@ -10168,9 +10142,6 @@
       "displayName": "Microsoft Translator Translate",
       "description": "Translate block content using Microsoft Translator.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "mt",
         "machine-translation"
@@ -10180,6 +10151,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "microsoft-translate",
         "title": "Microsoft Translator Translate",
@@ -10190,9 +10164,6 @@
           "category": "translation",
           "displayName": "Microsoft Translator Translate",
           "description": "Translate content using Microsoft Translator",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "mt",
             "machine-translation"
@@ -10203,7 +10174,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -10307,9 +10281,6 @@
       "displayName": "ModernMT Translate",
       "description": "Translate block content using ModernMT.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "mt",
         "machine-translation"
@@ -10319,6 +10290,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "modernmt-translate",
         "title": "ModernMT Translate",
@@ -10329,9 +10303,6 @@
           "category": "translation",
           "displayName": "ModernMT Translate",
           "description": "Translate content using ModernMT",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "mt",
             "machine-translation"
@@ -10342,7 +10313,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -10548,9 +10522,6 @@
       "displayName": "MyMemory Translate",
       "description": "Translate block content using MyMemory.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "mt",
         "machine-translation"
@@ -10560,6 +10531,9 @@
         "credentials"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "mymemory-translate",
         "title": "MyMemory Translate",
@@ -10570,9 +10544,6 @@
           "category": "translation",
           "displayName": "MyMemory Translate",
           "description": "Translate content using MyMemory",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "mt",
             "machine-translation"
@@ -10583,7 +10554,10 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "api-call"
@@ -10881,9 +10855,6 @@
       "displayName": "Pattern Check",
       "description": "Verify that configured regex patterns are preserved or absent in target text.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality",
         "regex"
@@ -10892,6 +10863,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "pattern-check",
         "title": "Pattern Check",
@@ -10900,9 +10877,6 @@
           "id": "pattern-check",
           "category": "quality",
           "displayName": "Pattern Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality",
             "regex"
@@ -10911,8 +10885,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         }
       },
@@ -11053,9 +11036,6 @@
       "displayName": "Placeholder Check",
       "description": "Verify interpolation placeholders and numbered tags are preserved in the target.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -11063,6 +11043,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "placeholder-check",
         "title": "Placeholder Check",
@@ -11071,9 +11057,6 @@
           "id": "placeholder-check",
           "category": "quality",
           "displayName": "Placeholder Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -11081,8 +11064,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -11234,9 +11226,6 @@
       "displayName": "Properties Set",
       "description": "Set or modify key-value properties on blocks.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "configurable"
       ],
@@ -11249,9 +11238,6 @@
           "id": "properties-set",
           "category": "text-processing",
           "displayName": "Properties Set",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "configurable"
           ],
@@ -11317,9 +11303,6 @@
       "displayName": "Pseudo Translate",
       "description": "Generate deterministic pseudo-translations for localization-readiness testing.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "translation"
       ],
@@ -11327,6 +11310,9 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "aliases": [
         "pseudo"
       ],
@@ -11338,9 +11324,6 @@
           "id": "pseudo-translate",
           "category": "translation",
           "displayName": "Pseudo Translate",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "translation"
           ],
@@ -11350,7 +11333,10 @@
           "cardinality": "bilingual",
           "defaultLocale": "qps",
           "produces": [
-            "translation.output"
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "writesOutput": true,
           "aliases": [
@@ -11427,9 +11413,6 @@
       "displayName": "QA Check",
       "description": "Run a suite of rule-based quality checks comparing source and target text.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -11437,6 +11420,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "qa@target"
+      ],
       "aliases": [
         "qa"
       ],
@@ -11448,9 +11437,6 @@
           "id": "qa-check",
           "category": "quality",
           "displayName": "QA Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -11458,8 +11444,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ],
           "writesOutput": true,
           "aliases": [
@@ -13812,9 +13807,6 @@
       "displayName": "Redact",
       "description": "Replace sensitive spans with protected placeholders before processing.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "security",
         "redaction"
@@ -13830,9 +13822,6 @@
           "category": "text-processing",
           "displayName": "Redact",
           "description": "Replace sensitive spans with protected placeholders before processing",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "security",
             "redaction"
@@ -13935,9 +13924,6 @@
       "displayName": "Remove Target",
       "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "requires": [
         "target-language"
       ],
@@ -13950,9 +13936,6 @@
           "id": "remove-target",
           "category": "text-processing",
           "displayName": "Remove Target",
-          "inputs": [
-            "block"
-          ],
           "requires": [
             "target-language"
           ],
@@ -14186,13 +14169,13 @@
       "displayName": "Repetition Analysis",
       "description": "Identify repeated source segments across blocks for translation-memory leverage.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "repetition@source"
+      ],
       "schema": {
         "$id": "repetition-analysis",
         "title": "Repetition Analysis",
@@ -14201,15 +14184,14 @@
           "id": "repetition-analysis",
           "category": "analysis",
           "displayName": "Repetition Analysis",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.repetition"
+            {
+              "type": "repetition"
+            }
           ]
         },
         "properties": {
@@ -14485,13 +14467,13 @@
       "displayName": "Scoping Report",
       "description": "Classify each block into a scoping category from upstream repetition and match status.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "scoping-report@source"
+      ],
       "schema": {
         "$id": "scoping-report",
         "title": "Scoping Report",
@@ -14500,15 +14482,14 @@
           "id": "scoping-report",
           "category": "analysis",
           "displayName": "Scoping Report",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.scoping-report"
+            {
+              "type": "scoping-report"
+            }
           ]
         }
       },
@@ -14929,10 +14910,6 @@
       "displayName": "Script",
       "description": "Run a user-supplied ES5 JavaScript script over each part to inspect or modify block text.",
       "category": "text-processing",
-      "inputs": [
-        "block",
-        "data"
-      ],
       "tags": [
         "configurable"
       ],
@@ -14945,10 +14922,6 @@
           "id": "script",
           "category": "text-processing",
           "displayName": "Script",
-          "inputs": [
-            "block",
-            "data"
-          ],
           "tags": [
             "configurable"
           ],
@@ -15289,9 +15262,6 @@
       "displayName": "Search and Replace",
       "description": "Find and replace text in blocks, with optional regular-expression matching and flags.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "regex",
         "configurable"
@@ -15305,9 +15275,6 @@
           "id": "search-replace",
           "category": "text-processing",
           "displayName": "Search and Replace",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "regex",
             "configurable"
@@ -15440,13 +15407,13 @@
       "displayName": "Segment Count",
       "description": "Count the source and target segments in each translatable block.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "seg-count@source"
+      ],
       "schema": {
         "$id": "segment-count",
         "title": "Segment Count",
@@ -15455,15 +15422,14 @@
           "id": "segment-count",
           "category": "analysis",
           "displayName": "Segment Count",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.seg-count"
+            {
+              "type": "seg-count"
+            }
           ]
         }
       },
@@ -15492,9 +15458,6 @@
       "displayName": "Segmentation",
       "description": "Split block text into sentence-level segments using SRX-style rules.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -15510,9 +15473,6 @@
           "id": "segmentation",
           "category": "text-processing",
           "displayName": "Segmentation",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -16505,9 +16465,6 @@
       "displayName": "Span Classify",
       "description": "Reclassify generic markup inline codes into semantic vocabulary types.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -16520,9 +16477,6 @@
           "id": "span-classify",
           "category": "text-processing",
           "displayName": "Span Classify",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -16548,9 +16502,6 @@
       "displayName": "Tag Protect",
       "description": "Identify tags and placeholders in source text and mark them for downstream protection.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "regex",
         "configurable"
@@ -16564,9 +16515,6 @@
           "id": "tag-protect",
           "category": "text-processing",
           "displayName": "Tag Protect",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "regex",
             "configurable"
@@ -17035,9 +16983,6 @@
       "displayName": "Terminology Check",
       "description": "Verify that required target terms appear when their source terms are present.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -17046,6 +16991,12 @@
         "termbase"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "term@source"
+      ],
       "schema": {
         "$id": "term-check",
         "title": "Terminology Check",
@@ -17054,9 +17005,6 @@
           "id": "term-check",
           "category": "quality",
           "displayName": "Terminology Check",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -17065,8 +17013,16 @@
             "termbase"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "terminology.annotations"
+            {
+              "type": "term"
+            }
           ],
           "sideEffects": [
             "termbase-read"
@@ -17651,9 +17607,6 @@
       "displayName": "TM Leverage",
       "description": "Pre-fill translations from a translation memory using exact and fuzzy matching.",
       "category": "translation",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "translation"
       ],
@@ -17662,6 +17615,14 @@
         "tm"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "segmentation@source?"
+      ],
+      "produces": [
+        "tm-match@source",
+        "alt-translation@source",
+        "target@target"
+      ],
       "schema": {
         "$id": "tm-leverage",
         "title": "TM Leverage",
@@ -17670,9 +17631,6 @@
           "id": "tm-leverage",
           "category": "translation",
           "displayName": "TM Leverage",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "translation"
           ],
@@ -17681,9 +17639,23 @@
             "tm"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "segmentation",
+              "optional": true
+            }
+          ],
           "produces": [
-            "leverage.tm-match",
-            "leverage.alt-translation"
+            {
+              "type": "tm-match"
+            },
+            {
+              "type": "alt-translation"
+            },
+            {
+              "type": "target",
+              "side": "target"
+            }
           ],
           "sideEffects": [
             "tm-read"
@@ -18129,9 +18101,6 @@
       "displayName": "Translation Comparison",
       "description": "Compare two target translations of the same source and report whether they match.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
@@ -18139,6 +18108,12 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "comparison@target"
+      ],
       "schema": {
         "$id": "translation-comparison",
         "title": "Translation Comparison",
@@ -18147,9 +18122,6 @@
           "id": "translation-comparison",
           "category": "analysis",
           "displayName": "Translation Comparison",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
@@ -18157,8 +18129,17 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "produces": [
-            "analysis.comparison"
+            {
+              "type": "comparison",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -18827,9 +18808,6 @@
       "displayName": "Unredact",
       "description": "Restore original values into redacted content after processing.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "security",
         "redaction"
@@ -18845,9 +18823,6 @@
           "category": "text-processing",
           "displayName": "Unredact",
           "description": "Restore original values into redacted content after processing",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "security",
             "redaction"
@@ -18988,9 +18963,6 @@
       "displayName": "URI Convert",
       "description": "Encode or decode URI percent-escape sequences in block text.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -19003,9 +18975,6 @@
           "id": "uri-convert",
           "category": "text-processing",
           "displayName": "URI Convert",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -19219,9 +19188,6 @@
       "displayName": "Whitespace Correct",
       "description": "Normalize and fix whitespace issues in target translations, including punctuation spacing.",
       "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "text-processing"
       ],
@@ -19237,9 +19203,6 @@
           "id": "whitespace-correct",
           "category": "text-processing",
           "displayName": "Whitespace Correct",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "text-processing"
           ],
@@ -19619,13 +19582,13 @@
       "displayName": "Word Count",
       "description": "Count the words in each block's source and target text for scoping and pricing.",
       "category": "analysis",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "analysis"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "word-count@source"
+      ],
       "aliases": [
         "wc"
       ],
@@ -19637,15 +19600,14 @@
           "id": "word-count",
           "category": "analysis",
           "displayName": "Word Count",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "analysis"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "analysis.word-count"
+            {
+              "type": "word-count"
+            }
           ],
           "aliases": [
             "wc"
@@ -20628,13 +20590,13 @@
       "displayName": "XML Validation",
       "description": "Check that the source and/or target text of each block is well-formed XML.",
       "category": "quality",
-      "inputs": [
-        "block"
-      ],
       "tags": [
         "quality"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "qa@target"
+      ],
       "schema": {
         "$id": "xml-validation",
         "title": "XML Validation",
@@ -20643,15 +20605,15 @@
           "id": "xml-validation",
           "category": "quality",
           "displayName": "XML Validation",
-          "inputs": [
-            "block"
-          ],
           "tags": [
             "quality"
           ],
           "cardinality": "monolingual",
           "produces": [
-            "quality.findings"
+            {
+              "type": "qa",
+              "side": "target"
+            }
           ]
         },
         "properties": {
@@ -20904,10 +20866,6 @@
       "displayName": "XSLT Transform",
       "description": "Apply regex-based tag and text transformation rules to block text.",
       "category": "text-processing",
-      "inputs": [
-        "block",
-        "data"
-      ],
       "tags": [
         "configurable"
       ],
@@ -20920,10 +20878,6 @@
           "id": "xslt-transform",
           "category": "text-processing",
           "displayName": "XSLT Transform",
-          "inputs": [
-            "block",
-            "data"
-          ],
           "tags": [
             "configurable"
           ],

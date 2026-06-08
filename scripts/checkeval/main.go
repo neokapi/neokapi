@@ -106,7 +106,7 @@ func runCase(c Case) (cats []string, score int, err error) {
 	}
 	set := map[string]bool{}
 	var findings []check.Finding
-	if ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation); ok {
+	if ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey); ok {
 		findings = ann.Findings
 		for _, f := range findings {
 			set[f.Category] = true

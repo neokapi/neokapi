@@ -651,10 +651,10 @@ func TestSnippet_ExtraComment(t *testing.T) {
 	assert.Equal(t, "Commented text", b.SourceText())
 
 	// Comments should be preserved as annotations on the block.
-	require.NotNil(t, b.Annotations)
-	note, ok := b.Annotations["note"]
-	require.True(t, ok, "block should have a note annotation")
-	n := note.(*model.NoteAnnotation)
+	require.NotNil(t, b.AnnoMap())
+	notes := b.Notes()
+	require.Len(t, notes, 1, "block should have a note annotation")
+	n := notes[0]
 	assert.NotEmpty(t, n.Text, "note text should not be empty")
 	assert.Contains(t, n.Text, "This is a comment")
 	assert.Contains(t, n.Text, "This is an extra comment")

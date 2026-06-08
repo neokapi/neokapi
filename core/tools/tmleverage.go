@@ -19,10 +19,10 @@ const (
 	// (e.g. "3/5") whenever the block carried a multi-segment source
 	// segmentation overlay, even when the block target was not filled.
 	PropTMSegmentMatches = "tm-segment-matches"
-	// PropTMSegmentAltPrefix is the annotation-key prefix under which each
-	// per-segment TM match is stored as an AltTranslation (the segment index is
-	// appended, e.g. "tm-segment-alt:2").
-	PropTMSegmentAltPrefix = "tm-segment-alt:"
+	// PropTMSegmentAlts is the annotation key under which the per-segment TM
+	// matches are stored as one AltTranslations collection (each carrying its
+	// SegmentIndex).
+	PropTMSegmentAlts = "tm-segment-alts"
 	// PropTMAltKey is the annotation key for a whole-block TM match's
 	// AltTranslation (matches the convention used by the sievepen TM tool).
 	PropTMAltKey = "alt-translation"
@@ -111,7 +111,6 @@ func TMLeverageSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTranslation,
 		DisplayName: "TM Leverage",
 		Description: "Pre-fill translations from translation memory",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresTM},
 	})
 }
@@ -168,8 +167,8 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		}
 
 		// Check no-query threshold: skip TM query if an existing match scores at/above.
-		if existingScore := v.Property(PropTMMatchScore); existingScore != "" && conf.NoQueryThreshold <= 101 {
-			if score, err := strconv.Atoi(existingScore); err == nil && score >= conf.NoQueryThreshold {
+		if conf.NoQueryThreshold <= 101 {
+			if existing, ok := v.Annotations()[string(model.AnnoTMMatch)].(*TMMatchAnnotation); ok && existing.Score >= conf.NoQueryThreshold {
 				return nil
 			}
 		}
@@ -216,7 +215,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 // summary properties remain for quick gating and backward compatibility.
 func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
-	v.Annotate(PropTMAltKey, &model.AltTranslation{
+	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
 		Target:    targetRuns,
 		Locale:    conf.TargetLocale,
@@ -233,8 +232,7 @@ func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translatio
 			Score:  float64(score) / 100,
 		})
 	}
-	v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
-	v.SetProperty(PropTMMatchType, propType)
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: score, Type: propType})
 }
 
 // leverageSegments attempts sentence-level TM leverage over a multi-segment
@@ -262,8 +260,9 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	minScore := 101
 	matched := 0
 	allExact := true
-	for i := range n {
-		segRuns := v.SourceSegmentRuns(i)
+	for seg := range v.SourceUnits(model.LayerPrimary) {
+		i := seg.Index()
+		segRuns := seg.SourceRuns()
 		segTexts[i] = model.RunsText(segRuns)
 		if segTexts[i] == "" {
 			// An empty segment (e.g. a span of only ignorable runs) is treated
@@ -303,7 +302,8 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	// even when the block target is not filled. The per-segment matches above are
 	// recorded as alt-translation annotations regardless of fill, so partial
 	// leverage is never lost.
-	v.SetProperty(PropTMSegmentMatches, strconv.Itoa(matched)+"/"+strconv.Itoa(n))
+	segMatches := strconv.Itoa(matched) + "/" + strconv.Itoa(n)
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{SegmentMatches: segMatches})
 
 	if matched < n {
 		// Partial leverage: leave the block for a later whole-block translation
@@ -339,8 +339,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 			Score:  float64(minScore) / 100,
 		})
 	}
-	v.SetProperty(PropTMMatchScore, strconv.Itoa(minScore))
-	v.SetProperty(PropTMMatchType, matchType)
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: minScore, Type: matchType, SegmentMatches: segMatches})
 	return true
 }
 
@@ -350,14 +349,15 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 // filled. The annotation key carries the segment index; the annotation itself
 // carries the matched source/target, score (0-1), match type, and provenance.
 func annotateSegmentMatch(v tool.TargetView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
-	v.Annotate(PropTMSegmentAltPrefix+strconv.Itoa(idx), &model.AltTranslation{
-		Source:    srcRuns,
-		Target:    []model.Run{{Text: &model.TextRun{Text: translation}}},
-		Locale:    conf.TargetLocale,
-		Origin:    "tm",
-		Score:     float64(score) / 100,
-		MatchType: mt,
-		ToolID:    "tm-leverage",
+	v.AppendAltUnder(PropTMSegmentAlts, &model.AltTranslation{
+		Source:       srcRuns,
+		Target:       []model.Run{{Text: &model.TextRun{Text: translation}}},
+		Locale:       conf.TargetLocale,
+		Origin:       "tm",
+		Score:        float64(score) / 100,
+		MatchType:    mt,
+		ToolID:       "tm-leverage",
+		SegmentIndex: idx,
 	})
 }
 

@@ -514,7 +514,6 @@ func (r *Reader) newBlock(counter int, name string, runs []model.Run) *model.Blo
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 }
 
@@ -541,11 +540,11 @@ func (r *Reader) applyComment(b *model.Block, comment string) {
 	if strings.TrimSpace(comment) == "" {
 		return
 	}
-	b.Annotations["note"] = &model.NoteAnnotation{
+	b.AddNote(&model.NoteAnnotation{
 		Text:      strings.TrimSpace(comment),
 		From:      "developer",
 		Annotates: "general",
-	}
+	})
 }
 
 func (r *Reader) docLocale() model.LocaleID {

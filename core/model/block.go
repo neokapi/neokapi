@@ -17,9 +17,9 @@ type Block struct {
 	Skeleton           *Skeleton
 	Source             []Run                  // source content
 	Targets            map[VariantKey]*Target // committed translations, keyed by variant
-	Overlays           []Overlay              // opt-in stand-off interpretations (usually none)
+	Overlays           []Overlay              // positional, run-anchored stand-off layers (segmentation, term, entity, qa, alignment)
+	Annotations        map[string]Payload     // block-scoped typed metadata (notes, alt-translations, analysis results), keyed by type
 	Properties         map[string]string
-	Annotations        map[string]Annotation
 	Identity           *BlockIdentity // Content-addressable hash for deduplication
 	ContentRef         *ContentRef    // Link to external connector source
 	DisplayHint        *DisplayHint   // UI rendering guidance
@@ -166,7 +166,6 @@ func NewBlock(id, text string) *Block {
 		Source:       []Run{{Text: &TextRun{Text: text}}},
 		Targets:      make(map[VariantKey]*Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]Annotation),
 	}
 }
 
@@ -179,6 +178,5 @@ func NewRunsBlock(id string, runs []Run) *Block {
 		Source:       runs,
 		Targets:      make(map[VariantKey]*Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]Annotation),
 	}
 }

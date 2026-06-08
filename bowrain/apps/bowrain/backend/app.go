@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -252,14 +253,38 @@ type FormatInfo struct {
 	Source      string   `json:"source"`
 }
 
+// IOPort is one entry of a tool's IO contract (mirrors core/schema.IOPort).
+type IOPort struct {
+	Type     string `json:"type"`
+	Side     string `json:"side,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
+	Layer    string `json:"layer,omitempty"`
+}
+
 // ToolInfo describes an available tool.
 type ToolInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Category    string `json:"category"`
+	// Consumes / Produces are the tool's IO contract (AD-006), surfaced
+	// to the flow editor so it can type ports and validate connections.
+	Consumes []IOPort `json:"consumes,omitempty"`
+	Produces []IOPort `json:"produces,omitempty"`
 	// IsSourceTransform reports whether this tool may be placed in the
 	// source-transform stage of a flow (i.e. it rewrites the source model).
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+}
+
+// ioPorts converts a schema IO contract to the wire form.
+func ioPorts(fs []schema.IOPort) []IOPort {
+	if len(fs) == 0 {
+		return nil
+	}
+	out := make([]IOPort, len(fs))
+	for i, f := range fs {
+		out[i] = IOPort{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+	}
+	return out
 }
 
 // PluginInfo describes a loaded plugin.
@@ -344,13 +369,18 @@ func (a *App) ListTools() []ToolInfo {
 			// IsSourceTransform comes from the registry metadata (probed at
 			// registration from tool.CapTransform capability).
 			var isSourceTransform bool
+			var consumes, produces []IOPort
 			if info := a.toolReg.ToolInfo(name); info != nil {
 				isSourceTransform = info.IsSourceTransform
+				consumes = ioPorts(info.Consumes)
+				produces = ioPorts(info.Produces)
 			}
 			result = append(result, ToolInfo{
 				Name:              string(name),
 				Description:       t.Description(),
 				Category:          category,
+				Consumes:          consumes,
+				Produces:          produces,
 				IsSourceTransform: isSourceTransform,
 			})
 		}

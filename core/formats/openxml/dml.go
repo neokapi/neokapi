@@ -298,7 +298,6 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		Source:       b.Runs(),
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
-		Annotations:  make(map[string]model.Annotation),
 	}
 }
 

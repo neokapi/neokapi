@@ -1166,7 +1166,6 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		Translatable:       translatable,
 		PreserveWhitespace: preserveWS || tu.preserveWS,
 		Properties:         make(map[string]string),
-		Annotations:        make(map[string]Annotation),
 		Targets:            make(map[model.VariantKey]*model.Target),
 	}
 
@@ -1235,7 +1234,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			start := len(srcRuns)
 			srcRuns = append(srcRuns, runs...)
 			spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(srcRuns)}}
-			block.Annotations[segNativeKey(seg.mid)] = &SegmentNativeAnnotation{Content: nc}
+			block.SetAnno(segNativeKey(seg.mid), &SegmentNativeAnnotation{Content: nc})
 		}
 		block.Source = srcRuns
 		block.SetSegmentation(nil, spans)
@@ -1243,19 +1242,19 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// raw <source> body (which is unsegmented but mirrors the
 		// inline-code structure). Falls back to building it from the
 		// segments + reasonable separators when <source> wasn't present.
-		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
+		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
 			Content: parseNativeContent(tu.source),
-		}
+		})
 	} else {
 		// Use <source> content. The single segment and the body
 		// annotation cover the same bytes, so parse the native IR once
 		// and share it between both rather than decoding tu.source twice.
 		srcNative := parseNativeContent(tu.source)
 		block.Source = nativeToRuns(srcNative)
-		block.Annotations[segNativeKey("s1")] = &SegmentNativeAnnotation{Content: srcNative}
-		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
+		block.SetAnno(segNativeKey("s1"), &SegmentNativeAnnotation{Content: srcNative})
+		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
 			Content: srcNative,
-		}
+		})
 		// When we dropped the seg-source segments, also clear the
 		// downstream segmentation hints so the writer doesn't try to
 		// re-emit a `target-inject-seg` (segmented target wrapper) for
@@ -1271,7 +1270,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 	// preserves it untouched, matching okapi's "use the segmented
 	// content" branch (XLIFFFilter.java:2281-2291).
 	if segSourceDivergent {
-		block.Annotations["xliff:divergent-segsource"] = &DivergentSegSourceAnnotation{}
+		block.SetAnno("xliff:divergent-segsource", &DivergentSegSourceAnnotation{})
 	}
 
 	// Build target segments. Prefer the file's target-language; fall
@@ -1301,52 +1300,43 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 				start := len(tgtRuns)
 				tgtRuns = append(tgtRuns, runs...)
 				spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(tgtRuns)}}
-				block.Annotations[targetSegNativeKey(effectiveTargetLang, seg.mid)] = &SegmentNativeAnnotation{Content: nc}
+				block.SetAnno(targetSegNativeKey(effectiveTargetLang, seg.mid), &SegmentNativeAnnotation{Content: nc})
 			}
 			block.SetTargetRuns(effectiveTargetLang, tgtRuns)
 			key := model.Variant(effectiveTargetLang)
 			block.SetSegmentation(&key, spans)
 		} else {
 			block.SetTargetRuns(effectiveTargetLang, nativeToRuns(targetNative))
-			block.Annotations[targetSegNativeKey(effectiveTargetLang, "s1")] = &SegmentNativeAnnotation{Content: targetNative}
+			block.SetAnno(targetSegNativeKey(effectiveTargetLang, "s1"), &SegmentNativeAnnotation{Content: targetNative})
 		}
 		// Attach body-level native IR for <target>. Walking this lets
 		// the writer reconstruct mrk wrappers and between-mrk
 		// whitespace exactly as the source file had them.
-		block.Annotations["xliff:target-body"] = &TargetBodyNativeAnnotation{
+		block.SetAnno("xliff:target-body", &TargetBodyNativeAnnotation{
 			Locale:  effectiveTargetLang,
 			Content: targetNative,
-		}
+		})
 	}
 	if hasTargetElem {
 		// Whether target was populated, empty, or self-closing —
 		// preserve its attributes (state, state-qualifier, xml:lang,
 		// custom-namespace) so the writer can re-emit the complete
 		// element verbatim.
-		block.Annotations["xliff:target-attrs"] = newTargetAttrsAnnotation(tu.targetAttrs)
+		block.SetAnno("xliff:target-attrs", newTargetAttrsAnnotation(tu.targetAttrs))
 	}
 
-	// Add notes
-	for i, note := range tu.notes {
-		key := "note"
-		if i > 0 {
-			key = fmt.Sprintf("note-%d", i)
-		}
-		block.Annotations[key] = &model.NoteAnnotation{
+	// Add notes (one note collection, not numbered keys).
+	for _, note := range tu.notes {
+		block.AddNote(&model.NoteAnnotation{
 			Text:      note.text,
 			From:      note.from,
 			Priority:  note.priority,
 			Annotates: note.annotates,
-		}
+		})
 	}
 
-	// Add alt-trans
-	for i, at := range tu.altTrans {
-		key := "alt-translation"
-		if i > 0 {
-			key = fmt.Sprintf("alt-translation-%d", i)
-		}
-
+	// Add alt-trans as alt-translation candidates (one collection, not numbered keys).
+	for _, at := range tu.altTrans {
 		var matchType model.MatchType
 		if at.matchQuality >= 100 {
 			matchType = model.MatchExact
@@ -1366,14 +1356,14 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		if at.target != "" {
 			alt.Target = []model.Run{{Text: &model.TextRun{Text: at.target}}}
 		}
-		block.Annotations[key] = alt
+		block.AddAltTranslation(alt)
 	}
 
 	return block
 }
 
-// Annotation is an alias for model.Annotation to make things cleaner.
-type Annotation = model.Annotation
+// Annotation is an alias for any to make things cleaner.
+type Annotation = any
 
 // copyTargetAttrs copies a <target> element's attributes into the
 // parsed-tu structure. Skips xmlns:* declarations (handled at the

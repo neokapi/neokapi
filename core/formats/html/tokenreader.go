@@ -1002,7 +1002,6 @@ leafClosed:
 			Source:             b.Runs(),
 			Targets:            make(map[model.VariantKey]*model.Target),
 			Properties:         extractBlockPropsFromToken(attrs),
-			Annotations:        make(map[string]model.Annotation),
 		}
 		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
@@ -1463,7 +1462,6 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 				Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
 				Targets:      make(map[model.VariantKey]*model.Target),
 				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
 			}
 			s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
@@ -1736,7 +1734,6 @@ func (s *tokenReaderState) emitAttrBlock(blockID, attrKey, value string, ctx con
 		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -2093,7 +2090,6 @@ func buildBlockWithEntities(blockID, text string) *model.Block {
 		Source:       b.runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 }
 

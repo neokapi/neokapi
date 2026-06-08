@@ -26,7 +26,6 @@ func makeHTMLParts() []*model.Part {
 		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello world"}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"note": "greeting"},
-		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
 			Strategy: model.SkeletonFragmentBased,
 			Parts: []model.SkeletonPart{
@@ -43,7 +42,6 @@ func makeHTMLParts() []*model.Part {
 		Source:       []model.Run{{Text: &model.TextRun{Text: "Welcome"}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
 			Strategy: model.SkeletonFragmentBased,
 			Parts: []model.SkeletonPart{
@@ -222,7 +220,6 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
 			Strategy: model.SkeletonFragmentBased,
 			Parts: []model.SkeletonPart{
@@ -251,7 +248,6 @@ func TestMarkdownPreview(t *testing.T) {
 			Targets:      make(map[model.VariantKey]*model.Target),
 			Type:         "heading",
 			Properties:   map[string]string{"level": "1"},
-			Annotations:  make(map[string]model.Annotation),
 		}},
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu2",
@@ -259,7 +255,6 @@ func TestMarkdownPreview(t *testing.T) {
 			Source:       []model.Run{{Text: &model.TextRun{Text: "Some text"}}},
 			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
-			Annotations:  make(map[string]model.Annotation),
 		}},
 	}
 
@@ -277,7 +272,6 @@ func TestGenericPreview(t *testing.T) {
 			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello <world>"}}},
 			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
-			Annotations:  make(map[string]model.Annotation),
 		}},
 	}
 
@@ -301,7 +295,6 @@ func TestSourceHTMLWithSpans(t *testing.T) {
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	parts := []*model.Part{{Type: model.PartBlock, Resource: block}}

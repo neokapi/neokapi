@@ -222,10 +222,10 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 		if m.rule.NoteGroup > 0 && m.rule.NoteGroup < len(m.groups) {
 			noteText := m.groups[m.rule.NoteGroup]
 			if noteText != "" {
-				block.Annotations["note"] = &model.NoteAnnotation{
+				block.AddNote(&model.NoteAnnotation{
 					Text: noteText,
 					From: "regex",
-				}
+				})
 			}
 		}
 

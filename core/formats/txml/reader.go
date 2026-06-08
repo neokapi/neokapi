@@ -264,7 +264,6 @@ func (r *Reader) parseTranslatable(
 		Source:       nil,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	if datatype != "" {
 		block.Properties["datatype"] = datatype

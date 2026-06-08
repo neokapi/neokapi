@@ -102,12 +102,15 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 			ConceptID:   match.Concept.ID,
 			TargetTerms: targetRefs,
 			Status:      match.Term.Status,
-			Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Score:       match.Score,
 			MatchType:   match.MatchType,
 		}
 
-		v.Annotate(fmt.Sprintf("term:%d", i), annotation)
+		v.AddOverlaySpan(model.OverlayTerm, model.Span{
+			ID:    fmt.Sprintf("term:%d", i),
+			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+			Value: annotation,
+		})
 	}
 
 	// Set the count as a property for quick access.
@@ -243,14 +246,17 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 					Status: tt.Status,
 				})
 			}
-			v.Annotate(fmt.Sprintf("term-violation:%d", violationCount), &model.TermAnnotation{
-				SourceTerm:  match.Term.Text,
-				ConceptID:   match.Concept.ID,
-				TargetTerms: targetRefs,
-				Status:      match.Term.Status,
-				Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
-				Score:       match.Score,
-				MatchType:   match.MatchType,
+			v.AddOverlaySpan(model.OverlayTerm, model.Span{
+				ID:    fmt.Sprintf("term-violation:%d", violationCount),
+				Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+				Value: &model.TermAnnotation{
+					SourceTerm:  match.Term.Text,
+					ConceptID:   match.Concept.ID,
+					TargetTerms: targetRefs,
+					Status:      match.Term.Status,
+					Score:       match.Score,
+					MatchType:   match.MatchType,
+				},
 			})
 			violationCount++
 		}
@@ -264,14 +270,17 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 				Status: tt.Status,
 			})
 		}
-		v.Annotate(fmt.Sprintf("term:%d", i), &model.TermAnnotation{
-			SourceTerm:  match.Term.Text,
-			ConceptID:   match.Concept.ID,
-			TargetTerms: targetRefs,
-			Status:      match.Term.Status,
-			Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
-			Score:       match.Score,
-			MatchType:   match.MatchType,
+		v.AddOverlaySpan(model.OverlayTerm, model.Span{
+			ID:    fmt.Sprintf("term:%d", i),
+			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+			Value: &model.TermAnnotation{
+				SourceTerm:  match.Term.Text,
+				ConceptID:   match.Concept.ID,
+				TargetTerms: targetRefs,
+				Status:      match.Term.Status,
+				Score:       match.Score,
+				MatchType:   match.MatchType,
+			},
 		})
 	}
 

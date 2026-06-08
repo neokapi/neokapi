@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -148,10 +147,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	if len(findings) > 0 {
-		findingsJSON, _ := json.Marshal(findings)
-		v.SetProperty("brand-vocab-findings", string(findingsJSON))
-
-		// Calculate score and add annotation.
+		// Add the brand-voice annotation (which carries the findings + score).
 		score := brand.CalculateScore(findings)
 		profileID := ""
 		if t.profile != nil {

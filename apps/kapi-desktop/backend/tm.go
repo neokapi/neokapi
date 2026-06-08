@@ -660,15 +660,17 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		ID:           "lookup",
 		Translatable: true,
 		Source:       runs,
-		Annotations:  make(map[string]model.Annotation),
 	}
 	for i, ea := range req.Entities {
-		block.Annotations[fmt.Sprintf("entity:%d", i)] = &model.EntityAnnotation{
-			Text:     ea.Text,
-			Type:     model.EntityType(ea.Type),
-			Position: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
-			Source:   model.ExtractionSourceManual,
-		}
+		block.AddOverlaySpan(model.OverlayEntity, model.Span{
+			ID:    fmt.Sprintf("entity:%d", i),
+			Range: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
+			Value: &model.EntityAnnotation{
+				Text:   ea.Text,
+				Type:   model.EntityType(ea.Type),
+				Source: model.ExtractionSourceManual,
+			},
+		})
 	}
 
 	opts := sievepen.LookupOptions{

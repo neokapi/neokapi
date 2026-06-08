@@ -117,10 +117,10 @@ type Block struct {
     SourceLocale LocaleID
     Source       []Run                  // whole source content
     Targets      map[VariantKey]*Target // first-class targets, keyed by variant
-    Overlays     []Overlay              // opt-in stand-off interpretations (usually none)
-    Identity     *BlockIdentity        // content-addressable hash for dedup
-    Annotations  map[string]Annotation // block-level (non-positional) metadata
-    Properties   map[string]string
+    Overlays     []Overlay              // positional, run-anchored stand-off layers
+    Annotations  map[string]any         // block-scoped typed metadata, keyed by type
+    Identity     *BlockIdentity         // content-addressable hash for dedup
+    Properties   map[string]string      // opaque pass-through metadata only
     // …skeleton link, display hint, whitespace flag, etc.
 }
 ```
@@ -152,7 +152,7 @@ type VariantKey struct {
 
 // Target is the committed translation for one variant: content plus its
 // lifecycle and provenance. Candidate/alternative translations (TM, MT, AI
-// proposals) remain stand-off overlays; Target is the chosen one.
+// proposals) remain `alt-translation` annotations; Target is the chosen one.
 type Target struct {
     Runs   []Run
     Status TargetStatus // draft | translated | reviewed | signed-off
@@ -169,7 +169,7 @@ overlays (target-side segmentation, target terms), scoped to that variant.
 
 This separates two things the older `map[LocaleID][]Run` conflated: the
 **committed translation per variant** (a `Target`, with status and provenance)
-from **candidate proposals** (stand-off `alt-translation` overlays, possibly many
+from **candidate proposals** (`alt-translation` annotations, possibly many
 per variant, each scored). The in-flight `Target` holds the current committed
 translation; accumulated history across runs and review trails are a
 persistence-layer concern, outside the content model.
@@ -208,44 +208,63 @@ Properties are serialized and carried through the pipeline. Tools add
 metadata without content-model changes. This replaces the pattern of adding
 dedicated fields for every new piece of metadata.
 
-#### Annotations
+#### Overlays and Annotations (two stand-off carriers)
 
-Block-level, non-positional metadata produced by pipeline tools lives in the
-`Annotations` map. Each annotation implements the `Annotation` interface:
+Typed stand-off interpretations of a Block come in two kinds, kept in two
+fields because they differ in shape and lifecycle:
+
+- **Overlays** are *positional*: run-anchored span sets that point into the
+  content — segmentation, terminology, entities, term candidates, QA findings,
+  source↔target alignment. Each `Span` carries a run `Range` (the position) and
+  an optional typed payload `Value`. Because their ranges anchor to runs, a
+  source rewrite invalidates them (a source-transform tool must drop the
+  overlays it consumed; see AD-006).
+- **Annotations** are *block-scoped*: a keyed map of typed payloads describing
+  the block as a whole, with no position — alt-translations, notes, analysis
+  results (word/char/segment counts, comparison, repetition, brand-voice), and
+  format round-trip state. A source rewrite does not invalidate them.
 
 ```go
-type Annotation interface {
-    AnnotationType() string
+type Block struct {
+    // …
+    Overlays    []Overlay      // positional, run-anchored
+    Annotations map[string]any // block-scoped, keyed by type
+}
+
+type Overlay struct {
+    Type    OverlayType // "segmentation","term","entity","qa","alignment",…
+    Variant *VariantKey // nil = source side
+    Layer   string      // segmentation granularity; LayerPrimary = primary
+    Spans   []Span      // each with a run Range and a typed Value
 }
 ```
 
-Interpretations fall into two carriers. **Positional** ones that point into the
-content — segmentation, terminology, entities, QA findings, source↔target
-alignment — are **stand-off overlays** with run-anchored spans (see
-[Stand-off overlays](#stand-off-overlays-segmentation-terminology-entities)).
-**Non-positional** ones that describe the block as a whole stay in the
-`Annotations` map:
+Whether an interpretation is positional is *structural* — it is an `Overlay` —
+not a runtime flag. Annotations are reached through the
+`Anno`/`SetAnno`/`DelAnno`/`AnnoMap` helpers (keyed by type); overlays through
+`OverlayOf`/`AddOverlaySpan`/`OverlaySpan`/`RemoveOverlay`.
 
-| Interpretation   | Type Key          | Carrier          | Producer              | Purpose                                |
-| ---------------- | ----------------- | ---------------- | --------------------- | -------------------------------------- |
-| Segmentation     | `segmentation`    | overlay (spans)  | segment annotator     | Sentence / chunk boundaries over runs  |
-| Terminology      | `term`            | overlay (spans)  | term-lookup           | Matched terminology with target terms  |
-| Term candidates  | `term-candidate`  | overlay (spans)  | ai-terminology        | Term extraction candidates from an LLM |
-| Entities         | `entity`          | overlay (spans)  | ai-entity-extract     | Named entities (people, places, dates) |
-| QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
-| Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
-| Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |
+| Interpretation   | Carrier / type             | Producer              | Purpose                                |
+| ---------------- | -------------------------- | --------------------- | -------------------------------------- |
+| Segmentation     | overlay `segmentation`     | segment annotator     | Sentence / chunk boundaries over runs  |
+| Terminology      | overlay `term`             | term-lookup           | Matched terminology with target terms  |
+| Term candidates  | overlay `term-candidate`   | ai-terminology        | Term extraction candidates from an LLM |
+| Entities         | overlay `entity`           | ai-entity-extract     | Named entities (people, places, dates) |
+| QA findings      | overlay `qa`               | qa-check              | Quality findings with severity         |
+| Alignment        | overlay `alignment`        | aligner, readers      | Source-span ↔ target-span links        |
+| Alt-translations | annotation `alt-translation` | TM leverage, AI tools | Candidate translations with scores     |
 
-Block annotations are keyed by type and instance (`"alt-translation:0"`,
-`"alt-translation:1"`) to support several of one type per Block.
+Both overlay span values and annotation values are typed payloads registered
+with a single payload registry (`RegisterPayload` / `NewPayload`) so the wire
+and store layers can rehydrate the typed value from its type name.
 
-Some scalar block-level results are carried as **properties** rather than
-annotations: `tm-leverage` writes the best TM match to `tm-match-score`
-(0–100) and `tm-match-type` (`"exact"`/`"fuzzy"`), and `word-count` writes
-`word-count-source` and per-locale `word-count-target:<locale>` (see
-[Dynamic properties](#dynamic-properties)).
+`Properties` is opaque pass-through metadata only (connector keys, format
+hints). Analytic/interpretive results that a tool produces — TM match scores,
+word counts, QA findings — are overlays or annotations, not properties; the IO
+contract ([AD-006](006-tool-system.md)) declares which a tool consumes and
+produces.
 
-Tools communicate by reading annotations and overlays produced upstream and
+Tools communicate by reading the overlays and annotations produced upstream and
 writing their own downstream, keeping tools loosely coupled through the shared
 data model rather than direct dependencies.
 
@@ -290,7 +309,7 @@ interpretation; segmentation is simply the overlay of type `segmentation`.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment" | …
     Variant *VariantKey // which run sequence it annotates; nil = source
-    Layer   string      // segmentation granularity; "" = primary sentence layer
+    Layer   string      // segmentation granularity; LayerPrimary = primary sentence layer
     Spans   []Span
 }
 
@@ -742,7 +761,7 @@ backend's tag-handling capability:
   without forcing segment structure into the content model.
 - Targets are first-class records keyed by a variant (locale plus optional
   tone/channel); committed translations carry status and provenance, candidate
-  proposals stay as `alt-translation` overlays, and the variant axis extends
+  proposals stay as `alt-translation` annotations, and the variant axis extends
   beyond locale without ceremony at locale-only call sites.
 
 ## Related

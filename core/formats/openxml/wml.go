@@ -5633,17 +5633,16 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		Source:       blockRuns,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	// Collect font info if configured
 	if p.cfg.ExtractRunFontsInfo {
 		fonts := collectFonts(runs)
 		if fonts != "" {
-			block.Annotations["fonts"] = &model.GenericAnnotation{
+			block.SetAnno("fonts", &model.GenericAnnotation{
 				Kind:   "fonts",
 				Fields: map[string]any{"names": fonts},
-			}
+			})
 		}
 	}
 
@@ -5655,10 +5654,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	// 96-129); native does not — the equivalence is folded by the parity
 	// comparator's effective-rPr normalizer instead.
 	if commonRPrXML != "" {
-		block.Annotations[openxmlSourceRPrAnnotationKey] = &model.GenericAnnotation{
+		block.SetAnno(openxmlSourceRPrAnnotationKey, &model.GenericAnnotation{
 			Kind:   openxmlSourceRPrAnnotationKey,
 			Fields: map[string]any{"xml": commonRPrXML},
-		}
+		})
 	}
 
 	// Stash the per-text-run rPr fragments sidecar (Phase 1 of the
@@ -5666,10 +5665,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	// writer wire-up (Phase 2) consumes this annotation; until then it
 	// is read-only sidecar data and does not change writer behaviour.
 	if len(perRunRPrXML) > 0 {
-		block.Annotations[openxmlPerRunRPrAnnotationKey] = &model.GenericAnnotation{
+		block.SetAnno(openxmlPerRunRPrAnnotationKey, &model.GenericAnnotation{
 			Kind:   openxmlPerRunRPrAnnotationKey,
 			Fields: map[string]any{"fragments": perRunRPrXML},
-		}
+		})
 	}
 
 	// Stash the per-text-run "starts new source <w:r>" boolean sidecar
@@ -5677,10 +5676,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	// <w:r> from a preceding standalone <w:br/> / <w:tab/> Ph or opens
 	// a fresh <w:r>. See openxmlPerRunSrcRunStartAnnotationKey.
 	if len(perRunSrcRunStart) > 0 {
-		block.Annotations[openxmlPerRunSrcRunStartAnnotationKey] = &model.GenericAnnotation{
+		block.SetAnno(openxmlPerRunSrcRunStartAnnotationKey, &model.GenericAnnotation{
 			Kind:   openxmlPerRunSrcRunStartAnnotationKey,
 			Fields: map[string]any{"flags": perRunSrcRunStart},
-		}
+		})
 	}
 
 	// Stash the per-text-run "inside a complex-field display region"
@@ -5698,10 +5697,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			}
 		}
 		if anyTrue {
-			block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey] = &model.GenericAnnotation{
+			block.SetAnno(openxmlPerRunInFieldDisplayAnnotationKey, &model.GenericAnnotation{
 				Kind:   openxmlPerRunInFieldDisplayAnnotationKey,
 				Fields: map[string]any{"flags": perRunInFieldDisplay},
-			}
+			})
 		}
 	}
 
@@ -5720,10 +5719,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			}
 		}
 		if anyTrue {
-			block.Annotations[openxmlPerRunSourceHadRPrAnnotationKey] = &model.GenericAnnotation{
+			block.SetAnno(openxmlPerRunSourceHadRPrAnnotationKey, &model.GenericAnnotation{
 				Kind:   openxmlPerRunSourceHadRPrAnnotationKey,
 				Fields: map[string]any{"flags": perRunSourceHadRPr},
-			}
+			})
 		}
 	}
 
@@ -6900,7 +6899,6 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 					"partPath": partPath,
 					"element":  blockElementTag,
 				},
-				Annotations: make(map[string]model.Annotation),
 			})
 		} else {
 			out.WriteString(xmlEscapeAttr(a.Value))
@@ -6969,7 +6967,6 @@ func (p *wmlParser) extractBareTextElement(
 							"partPath": partPath,
 							"element":  "alt-content-text",
 						},
-						Annotations: make(map[string]model.Annotation),
 					})
 				}
 				writeRawEndElementTo(out, tt)

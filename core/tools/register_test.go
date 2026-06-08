@@ -33,7 +33,7 @@ func TestPseudoTranslateHasDefaultLocale(t *testing.T) {
 		if info.Name == "pseudo-translate" {
 			assert.Equal(t, schema.Bilingual, info.Cardinality)
 			assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
-			assert.Contains(t, info.Produces, schema.AnnotationTranslation)
+			assert.Contains(t, info.Produces, schema.IOPort{Type: schema.PortTarget, Side: model.SideTarget})
 			return
 		}
 	}
@@ -62,7 +62,7 @@ func TestTMLeverageHasSideEffects(t *testing.T) {
 	for _, info := range reg.ListWithSchemas() {
 		if info.Name == "tm-leverage" {
 			assert.Contains(t, info.SideEffects, schema.SideEffectTMRead)
-			assert.Contains(t, info.Produces, schema.AnnotationTMMatch)
+			assert.Contains(t, info.Produces, schema.IOPort{Type: model.AnnoTMMatch, Side: model.SideSource})
 			return
 		}
 	}

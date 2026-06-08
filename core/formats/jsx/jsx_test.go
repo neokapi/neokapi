@@ -58,7 +58,7 @@ func TestReaderReadsKLF(t *testing.T) {
 	require.Len(t, blocks, 3)
 
 	// The first block has a KLFAnnotation carrying structured runs.
-	ann, ok := blocks[0].Annotations[AnnotationType].(*KLFAnnotation)
+	ann, ok := model.AnnoAs[*KLFAnnotation](blocks[0], AnnotationType)
 	require.True(t, ok)
 	assert.NotEmpty(t, ann.Source)
 	assert.Equal(t, "files-heading", blocks[0].ID)

@@ -235,7 +235,6 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 		Translatable: true,
 		Source:       sourceRuns,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the break placeholder.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
@@ -272,7 +271,6 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 		Translatable: true,
 		Source:       sourceRuns,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target duplicates the variable placeholder.
 	targetRuns := []model.Run{
@@ -310,7 +308,6 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 		Translatable: true,
 		Source:       sourceRuns,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the bold pair (which are deletable).
 	block.SetTargetText(model.LocaleFrench, "Bonjour")
@@ -342,7 +339,6 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 		Translatable: true,
 		Source:       sourceRuns,
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the break placeholder, but check is disabled.
 	block.SetTargetText(model.LocaleFrench, "Hello world")

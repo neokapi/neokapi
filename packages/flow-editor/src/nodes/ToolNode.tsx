@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
+import type { IOPort } from "../types";
 
 /** Accent color for the source-transform stage. */
 const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
@@ -63,8 +64,8 @@ export function ToolNode({ data, selected }: NodeProps) {
   const isParallel = !!data.parallel;
   const execState = data.execState as string | undefined;
   const partCount = data.partCount as number | undefined;
-  const inputs = data.inputs as string[] | undefined;
-  const outputs = data.outputs as string[] | undefined;
+  const consumes = data.consumes as IOPort[] | undefined;
+  const produces = data.produces as IOPort[] | undefined;
   const cardinality = data.cardinality as string | undefined;
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
@@ -212,24 +213,24 @@ export function ToolNode({ data, selected }: NodeProps) {
               {defaultLocale}
             </span>
           )}
-          {/* Port type dots */}
-          {inputs?.map((t) => (
+          {/* IO contract dots: consumed (read) then produced (written) */}
+          {consumes?.map((f) => (
             <span
-              key={`in-${t}`}
-              title={`Input: ${t}`}
-              className="size-1.5 rounded-full opacity-70"
-              style={{ background: portColor(t) }}
+              key={`in-${f.type}-${f.side ?? ""}`}
+              title={`Consumes: ${f.type}@${f.side ?? "source"}${f.optional ? " (optional)" : ""}`}
+              className={cn("size-1.5 rounded-full", f.optional ? "opacity-40" : "opacity-70")}
+              style={{ background: portColor(f.type) }}
             />
           ))}
-          {inputs?.length && outputs?.length ? (
+          {consumes?.length && produces?.length ? (
             <span className="text-[8px] text-muted-foreground">&rarr;</span>
           ) : null}
-          {outputs?.map((t) => (
+          {produces?.map((f) => (
             <span
-              key={`out-${t}`}
-              title={`Output: ${t}`}
+              key={`out-${f.type}-${f.side ?? ""}`}
+              title={`Produces: ${f.type}@${f.side ?? "source"}`}
               className="size-1.5 rounded-full opacity-70"
-              style={{ background: portColor(t) }}
+              style={{ background: portColor(f.type) }}
             />
           ))}
           {/* Side effect indicator */}

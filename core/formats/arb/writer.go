@@ -169,8 +169,8 @@ func (w *Writer) collectBlock(block *model.Block, repl *replacements) {
 	}
 
 	var description string
-	if note, ok := block.Annotations["note"].(*model.NoteAnnotation); ok {
-		description = note.Text
+	if notes := block.Notes(); len(notes) > 0 {
+		description = notes[0].Text
 	}
 	repl.set(key, value, description)
 }

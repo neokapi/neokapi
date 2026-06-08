@@ -244,7 +244,6 @@ func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey s
 		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -261,7 +260,6 @@ func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 		Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -288,7 +286,6 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 		Source:             runs,
 		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         v.reader.extractBlockProperties(n),
-		Annotations:        make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
 			Strategy: model.SkeletonFragmentBased,
 			Parts: []model.SkeletonPart{
@@ -317,7 +314,6 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		Source:             runs,
 		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         v.reader.extractBlockProperties(parent),
-		Annotations:        make(map[string]model.Annotation),
 	}
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }

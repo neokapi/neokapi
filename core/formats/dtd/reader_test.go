@@ -71,11 +71,10 @@ func TestSimpleEntry(t *testing.T) {
 	assert.Equal(t, "Text1", b1.SourceText())
 
 	// The comment "Comment" should be attached as a note annotation.
-	require.NotNil(t, b1.Annotations, "block should have annotations")
-	noteAnn, ok := b1.Annotations["note"]
-	require.True(t, ok, "should have a 'note' annotation key")
-	note, ok := noteAnn.(*model.NoteAnnotation)
-	require.True(t, ok, "annotation should be *model.NoteAnnotation")
+	require.NotNil(t, b1.AnnoMap(), "block should have annotations")
+	notes := b1.Notes()
+	require.Len(t, notes, 1, "should have a 'note' annotation")
+	note := notes[0]
 	assert.Equal(t, "Comment", note.Text)
 
 	// Second text unit should be "text2" with name "test2".
@@ -254,11 +253,10 @@ func TestCommentAttachment(t *testing.T) {
 	assert.Equal(t, "Hello", b.SourceText())
 
 	// Comment should be attached as a note annotation.
-	require.NotNil(t, b.Annotations, "block should have annotations")
-	noteAnn, ok := b.Annotations["note"]
-	require.True(t, ok, "should have a 'note' annotation key")
-	note, ok := noteAnn.(*model.NoteAnnotation)
-	require.True(t, ok, "annotation should be *model.NoteAnnotation")
+	require.NotNil(t, b.AnnoMap(), "block should have annotations")
+	notes := b.Notes()
+	require.Len(t, notes, 1, "should have a 'note' annotation")
+	note := notes[0]
 	assert.Equal(t, "This is a comment", note.Text)
 }
 
@@ -385,10 +383,9 @@ func TestFullFile_Complex(t *testing.T) {
 	b := blockByName(blocks, "findWindow.title")
 	require.NotNil(t, b)
 	assert.Equal(t, "Find Files", b.SourceText())
-	noteAnn, ok := b.Annotations["note"]
-	require.True(t, ok)
-	note, ok := noteAnn.(*model.NoteAnnotation)
-	require.True(t, ok)
+	notes := b.Notes()
+	require.Len(t, notes, 1)
+	note := notes[0]
 	assert.Equal(t, "Window title", note.Text)
 
 	// Check escaped entities resolved

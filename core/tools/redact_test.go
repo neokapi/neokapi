@@ -46,7 +46,7 @@ func TestRedactTool_InProcess(t *testing.T) {
 	assert.Contains(t, model.FlattenRuns(rb.SourceRuns()), "[REDACTED:Role]")
 
 	// The originals live only on the in-process secret annotation.
-	ann, ok := rb.Annotations[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	ann, ok := model.AnnoAs[*redaction.SecretAnnotation](rb, redaction.SecretAnnotationKey)
 	require.True(t, ok, "secret annotation must be attached in-process")
 	assert.Len(t, ann.Values, 2)
 }
@@ -72,7 +72,7 @@ func TestRedactUnredact_InProcessRoundtrip(t *testing.T) {
 	// Both source and target are restored; the secret annotation is gone.
 	assert.Equal(t, beanSentence, block.SourceText())
 	assert.Equal(t, beanSentence, block.TargetText("fr"))
-	_, ok := block.Annotations[redaction.SecretAnnotationKey]
+	_, ok := block.Anno(redaction.SecretAnnotationKey)
 	assert.False(t, ok, "secret annotation must be removed after unredact")
 }
 
@@ -91,7 +91,7 @@ func TestRedactUnredact_ExternalVault(t *testing.T) {
 	rb := result.Resource.(*model.Block)
 
 	// External mode: NO secret annotation on the block (would leak into XLIFF).
-	_, hasAnn := rb.Annotations[redaction.SecretAnnotationKey]
+	_, hasAnn := rb.Anno(redaction.SecretAnnotationKey)
 	assert.False(t, hasAnn, "external mode must not attach the secret annotation")
 	assert.NotContains(t, rb.SourceText(), "Mr Bean")
 
@@ -116,23 +116,30 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 
 	block := model.NewBlock("b1", "Alice met Bob")
 	block.SourceLocale = "en"
-	block.Annotations["entity:0"] = &model.EntityAnnotation{
-		Text:     "Alice",
-		Type:     model.EntityPerson,
-		Position: model.RunRangeForBytes(block.Source, 0, 5),
-	}
-	block.Annotations["entity:1"] = &model.EntityAnnotation{
-		Text:     "Bob",
-		Type:     model.EntityPerson,
-		Position: model.RunRangeForBytes(block.Source, 10, 13),
-	}
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID:    "entity:0",
+		Range: model.RunRangeForBytes(block.Source, 0, 5),
+		Value: &model.EntityAnnotation{
+			Text: "Alice",
+			Type: model.EntityPerson,
+		},
+	})
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID:    "entity:1",
+		Range: model.RunRangeForBytes(block.Source, 10, 13),
+		Value: &model.EntityAnnotation{
+			Text: "Bob",
+			Type: model.EntityPerson,
+		},
+	})
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	rb := result.Resource.(*model.Block)
 	src := rb.SourceText()
 	assert.NotContains(t, src, "Alice")
 	assert.NotContains(t, src, "Bob")
-	ann := rb.Annotations[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation)
+	annv, _ := rb.Anno(redaction.SecretAnnotationKey)
+	ann := annv.(*redaction.SecretAnnotation)
 	assert.Len(t, ann.Values, 2)
 }
 
@@ -147,7 +154,7 @@ func TestRedactTool_NoMatchesPassThrough(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	rb := result.Resource.(*model.Block)
 	assert.Equal(t, beanSentence, rb.SourceText())
-	_, ok := rb.Annotations[redaction.SecretAnnotationKey]
+	_, ok := rb.Anno(redaction.SecretAnnotationKey)
 	assert.False(t, ok)
 }
 

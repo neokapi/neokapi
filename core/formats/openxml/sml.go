@@ -282,7 +282,6 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 							Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
 							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
-							Annotations:  make(map[string]model.Annotation),
 						}
 						emitBlock(block)
 					} else {
@@ -401,7 +400,6 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 			"partPath": partPath,
 			"siIndex":  strconv.Itoa(siIndex),
 		},
-		Annotations: make(map[string]model.Annotation),
 	}
 }
 
@@ -500,7 +498,6 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 					Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
 					Targets:      make(map[model.VariantKey]*model.Target),
 					Properties:   map[string]string{"partPath": partPath},
-					Annotations:  make(map[string]model.Annotation),
 				}
 				emitBlock(block)
 				return
@@ -520,7 +517,6 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 		Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
-		Annotations:  make(map[string]model.Annotation),
 	}
 	emitBlock(block)
 }

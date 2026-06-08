@@ -75,14 +75,13 @@ func AITranslateSchema() *schema.ComponentSchema {
 		Category:              schema.CategoryTranslation,
 		DisplayName:           "AI Translate",
 		Description:           "Translate content using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered"},
 		Aliases:               []string{"translate"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationTranslation},
+		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
@@ -557,7 +556,7 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 }
 
 func (t *AITranslateTool) annotateTranslation(v tool.TargetView, resp *aiprovider.TranslateResponse) {
-	v.Annotate("alt-translations", &model.AltTranslation{
+	v.AddAltTranslation(&model.AltTranslation{
 		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
 		Origin:    "ai:" + string(t.provider.Name()),

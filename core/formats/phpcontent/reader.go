@@ -727,7 +727,6 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				Source:       runs,
 				Targets:      make(map[model.VariantKey]*model.Target),
 				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
 			}
 			if lastArrayKey != "" {
 				block.Properties["arrayKey"] = lastArrayKey

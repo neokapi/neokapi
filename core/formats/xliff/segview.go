@@ -37,10 +37,10 @@ func targetSegNativeKey(loc model.LocaleID, spanID string) string {
 // nativeFromBlock returns the *NativeContent stored under key on the
 // block, or nil if absent / wrong type.
 func nativeFromBlock(block *model.Block, key string) *NativeContent {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, ok := block.Annotations[key]
+	a, ok := block.Anno(key)
 	if !ok {
 		return nil
 	}

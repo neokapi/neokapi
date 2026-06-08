@@ -60,7 +60,6 @@ func ScriptSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Script",
 		Description: "Run a JavaScript processing script on each part",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

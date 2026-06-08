@@ -19,7 +19,7 @@ func runPlaceholder(t *testing.T, src, tgt string, flagExtra bool) []check.Findi
 	cfg.FlagExtra = flagExtra
 	tl := NewPlaceholderCheckTool(cfg)
 	require.NoError(t, tl.Annotate(tool.NewBlockView(b)))
-	ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation)
+	ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
 	if !ok {
 		return nil
 	}

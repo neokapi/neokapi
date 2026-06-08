@@ -1372,7 +1372,6 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 								"paragraphStyle": currentStyle.paragraphStyle,
 								"characterStyle": currentStyle.charStyle,
 							},
-							Annotations: make(map[string]model.Annotation),
 						}
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return nil

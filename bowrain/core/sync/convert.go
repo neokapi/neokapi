@@ -54,9 +54,9 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	}
 
 	// Annotations (serialized as type-discriminated JSON so the polymorphic
-	// model.Annotation interface can be reconstructed on decode).
-	if len(b.Annotations) > 0 {
-		if data, err := marshalAnnotations(b.Annotations); err == nil {
+	// any interface can be reconstructed on decode).
+	if am := b.AnnoMap(); len(am) > 0 {
+		if data, err := marshalAnnotations(am); err == nil {
 			sb.AnnotationsJson = data
 		}
 	}
@@ -139,7 +139,9 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		if err != nil {
 			return b, fmt.Errorf("decode annotations: %w", err)
 		}
-		b.Annotations = anns
+		for k, v := range anns {
+			b.SetAnno(k, v)
+		}
 	}
 
 	// Skeleton.
@@ -428,8 +430,8 @@ func ComputeRootHash(itemHashes map[string]string) string {
 }
 
 // annotationEnvelope carries an annotation's concrete type alongside its JSON
-// payload so the polymorphic model.Annotation interface can be reconstructed.
-// A plain json.Marshal of map[string]model.Annotation cannot round-trip,
+// payload so the polymorphic any interface can be reconstructed.
+// A plain json.Marshal of map[string]any cannot round-trip,
 // because json.Unmarshal has no way to pick the concrete type for an interface.
 type annotationEnvelope struct {
 	Type string          `json:"type"`
@@ -438,7 +440,7 @@ type annotationEnvelope struct {
 
 // marshalAnnotations encodes a block's annotations as type-discriminated
 // envelopes.
-func marshalAnnotations(anns map[string]model.Annotation) ([]byte, error) {
+func marshalAnnotations(anns map[string]model.Payload) ([]byte, error) {
 	env := make(map[string]annotationEnvelope, len(anns))
 	for k, a := range anns {
 		if a == nil {
@@ -448,7 +450,7 @@ func marshalAnnotations(anns map[string]model.Annotation) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("marshal annotation %q: %w", k, err)
 		}
-		env[k] = annotationEnvelope{Type: a.AnnotationType(), Data: data}
+		env[k] = annotationEnvelope{Type: model.PayloadTypeName(a), Data: data}
 	}
 	return json.Marshal(env)
 }
@@ -456,14 +458,14 @@ func marshalAnnotations(anns map[string]model.Annotation) ([]byte, error) {
 // unmarshalAnnotations reconstructs typed annotations from the discriminated
 // envelopes written by marshalAnnotations, falling back to GenericAnnotation
 // for unregistered types.
-func unmarshalAnnotations(data []byte) (map[string]model.Annotation, error) {
+func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 	var env map[string]annotationEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
 		return nil, err
 	}
-	out := make(map[string]model.Annotation, len(env))
+	out := make(map[string]model.Payload, len(env))
 	for k, e := range env {
-		a, ok := model.NewAnnotation(e.Type)
+		a, ok := model.NewPayload(e.Type)
 		if !ok {
 			a = &model.GenericAnnotation{Kind: e.Type}
 		}

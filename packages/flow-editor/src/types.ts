@@ -61,6 +61,20 @@ export interface FlowEdgeInfo {
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 
+export type Side = "source" | "target";
+
+/**
+ * One entry of a tool's IO contract (consumes/produces): a typed
+ * stand-off layer, the side it pertains to, and — for consumed ports —
+ * whether it is optional (graceful degradation) vs a hard requirement.
+ */
+export interface IOPort {
+  type: string;
+  side?: Side;
+  optional?: boolean;
+  layer?: string;
+}
+
 export interface ToolInfo {
   name: string;
   display_name?: string;
@@ -68,13 +82,14 @@ export interface ToolInfo {
   category: string;
   source?: string;
   has_schema?: boolean;
-  inputs?: string[];
-  outputs?: string[];
   tags?: string[];
   requires?: string[];
   cardinality?: LocaleCardinality;
   default_locale?: string;
-  produces?: string[];
+  /** Ports the tool reads upstream (non-optional = a requirement). */
+  consumes?: IOPort[];
+  /** Ports the tool writes. */
+  produces?: IOPort[];
   side_effects?: string[];
   /** Whether this tool may run in the source-transform stage (rewrite source/model). */
   isSourceTransform?: boolean;
@@ -147,8 +162,8 @@ export interface ToolMeta {
   displayName?: string;
   description?: string;
   category?: string;
-  inputs?: string[];
-  outputs?: string[];
+  consumes?: IOPort[];
+  produces?: IOPort[];
   tags?: string[];
   requires?: string[];
 }

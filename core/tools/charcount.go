@@ -2,7 +2,6 @@ package tools
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -51,7 +50,6 @@ func CharCountSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Char Count",
 		Description: "Count characters in source and target text",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 
@@ -87,18 +85,31 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
 		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
 
+		cf := &CharCountAnnotation{}
+		wrote := false
+
 		// Count source characters.
 		if countSource {
 			sourceText := v.SourceText()
-			v.SetProperty(PropCharCountSource, strconv.Itoa(countChars(sourceText)))
-			v.SetProperty(PropCharCountSourceNospace, strconv.Itoa(countCharsNoSpace(sourceText)))
+			cf.Source = countChars(sourceText)
+			cf.SourceNoSpace = countCharsNoSpace(sourceText)
+			wrote = true
 		}
 
 		// Count target characters if locale is set and target exists.
 		if countTarget && !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
 			targetText := v.TargetText(conf.Locale)
-			v.SetProperty(PropCharCountTarget, strconv.Itoa(countChars(targetText)))
-			v.SetProperty(PropCharCountTargetNospace, strconv.Itoa(countCharsNoSpace(targetText)))
+			if cf.Targets == nil {
+				cf.Targets = make(map[model.LocaleID]int)
+				cf.TargetsNoSpace = make(map[model.LocaleID]int)
+			}
+			cf.Targets[conf.Locale] = countChars(targetText)
+			cf.TargetsNoSpace[conf.Locale] = countCharsNoSpace(targetText)
+			wrote = true
+		}
+
+		if wrote {
+			v.Annotate(string(model.AnnoCharCount), cf)
 		}
 
 		return nil

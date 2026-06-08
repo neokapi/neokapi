@@ -227,7 +227,7 @@ func (a *App) runSourceChecks(ctx context.Context, blocks []*model.Block, profil
 	vocab := coretools.NewBrandVocabCheckTool(profile, nil)
 	for _, b := range blocks {
 		runCheckTool(ctx, vocab, b)
-		if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 			out = append(out, ann.Findings...)
 		}
 	}
@@ -236,7 +236,7 @@ func (a *App) runSourceChecks(ctx context.Context, blocks []*model.Block, profil
 
 // findingsFromBlock reads the unified check annotation off a block.
 func findingsFromBlock(b *model.Block) []check.Finding {
-	if ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation); ok {
+	if ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey); ok {
 		return ann.Findings
 	}
 	return nil

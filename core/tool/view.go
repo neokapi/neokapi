@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"iter"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -44,6 +45,13 @@ type BlockView interface {
 	SourceSegmentCount() int
 	SourceSegmentRuns(i int) []model.Run
 
+	// SourceUnits yields the source processing units of the given segmentation
+	// layer (model.LayerPrimary = primary): one per segment span, or a single
+	// whole-block unit when the layer has no segmentation overlay. It is the
+	// uniform replacement for hand-rolled SourceSegmentCount / SourceSegmentRuns
+	// loops.
+	SourceUnits(layer string) iter.Seq[Unit]
+
 	// Targets (read-only).
 	HasTarget(loc model.LocaleID) bool
 	TargetLocales() []model.LocaleID
@@ -58,8 +66,35 @@ type BlockView interface {
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
-	Annotations() map[string]model.Annotation
-	Annotate(key string, a model.Annotation)
+	// AddOverlaySpan appends an overlay span (term, entity, …) to the
+	// source-side overlay of the given type, merging into the existing overlay. The
+	// span's Range is the position and its ID the stable identity.
+	AddOverlaySpan(t model.OverlayType, s model.Span)
+	// OverlaySpans returns the spans of the source-side overlay of the
+	// given type (term, entity, term-candidate, …), or nil. Read-only.
+	OverlaySpans(t model.OverlayType) []model.Span
+	// RemoveOverlay drops the source-side overlay of the given type. A
+	// source-transform tool that consumes an overlay and then rewrites
+	// the source uses this to drop the now-stale run-anchored spans.
+	RemoveOverlay(t model.OverlayType)
+	// AddAltTranslation appends an alternative-translation candidate to the
+	// block's AnnoAltTranslation collection (multiplicity lives in the
+	// collection, never in numbered keys).
+	AddAltTranslation(a *model.AltTranslation)
+	// AppendAltUnder appends an alt-translation to the collection under an
+	// arbitrary key (e.g. the per-segment TM-match set).
+	AppendAltUnder(key string, a *model.AltTranslation)
+	// AddNote appends a note to the block's note collection (multiplicity lives
+	// in the collection, never in numbered keys).
+	AddNote(n *model.NoteAnnotation)
+	// Annotations returns a snapshot of the block annotations (the former
+	// annotation map). Use Annotate to write; writing to the returned map has
+	// no effect.
+	Annotations() map[string]model.Payload
+	// Annotate stores a block annotation payload under key.
+	Annotate(key string, a model.Payload)
+	// RemoveAnnotation deletes the block annotation stored under key.
+	RemoveAnnotation(key string)
 	Properties() map[string]string
 	SetProperty(key, value string)
 	Property(key string) string
@@ -79,6 +114,13 @@ type TargetView interface {
 	SetTargetText(loc model.LocaleID, text string)
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
+
+	// TargetUnits yields writable per-unit target production over the source
+	// segmentation of the given layer (model.LayerPrimary = primary), splicing
+	// each unit's runs back into the block target for loc when iteration
+	// completes. Commit is all-or-nothing across non-ignorable units; see
+	// WritableUnit.
+	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
 }
 
 // SourceView adds source-write access (and includes target writes). Tools that
@@ -151,6 +193,8 @@ func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegm
 func (v *blockView) SourceSegmentCount() int             { return v.b.SourceSegmentCount() }
 func (v *blockView) SourceSegmentRuns(i int) []model.Run { return v.b.SourceSegmentRuns(i) }
 
+func (v *blockView) SourceUnits(layer string) iter.Seq[Unit] { return sourceUnits(v.b, layer) }
+
 func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasTarget(loc) }
 func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
 func (v *blockView) TargetRuns(loc model.LocaleID) []model.Run { return v.b.TargetRuns(loc) }
@@ -171,14 +215,23 @@ func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Spa
 func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
 	v.b.SetSegmentationLayer(variant, layer, spans)
 }
-func (v *blockView) AddOverlay(o model.Overlay) { v.b.Overlays = append(v.b.Overlays, o) }
-func (v *blockView) Annotations() map[string]model.Annotation {
-	if v.b.Annotations == nil {
-		v.b.Annotations = make(map[string]model.Annotation)
+func (v *blockView) AddOverlay(o model.Overlay)                       { v.b.Overlays = append(v.b.Overlays, o) }
+func (v *blockView) AddOverlaySpan(t model.OverlayType, s model.Span) { v.b.AddOverlaySpan(t, s) }
+func (v *blockView) OverlaySpans(t model.OverlayType) []model.Span {
+	if f := v.b.OverlayOf(t); f != nil {
+		return f.Spans
 	}
-	return v.b.Annotations
+	return nil
 }
-func (v *blockView) Annotate(key string, a model.Annotation) { v.Annotations()[key] = a }
+func (v *blockView) RemoveOverlay(t model.OverlayType)         { v.b.RemoveOverlay(t) }
+func (v *blockView) AddAltTranslation(a *model.AltTranslation) { v.b.AddAltTranslation(a) }
+func (v *blockView) AddNote(n *model.NoteAnnotation)           { v.b.AddNote(n) }
+func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
+	v.b.AppendAltUnder(key, a)
+}
+func (v *blockView) Annotations() map[string]model.Payload { return v.b.AnnoMap() }
+func (v *blockView) Annotate(key string, a model.Payload)  { v.b.SetAnno(key, a) }
+func (v *blockView) RemoveAnnotation(key string)           { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)
@@ -206,7 +259,10 @@ func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
 }
 func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) { v.b.SetTargetRuns(loc, runs) }
 func (v *blockView) SetTargetText(loc model.LocaleID, text string)      { v.b.SetTargetText(loc, text) }
-func (v *blockView) RemoveTarget(loc model.LocaleID)                    { delete(v.b.Targets, model.Variant(loc)) }
+func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
+	return targetUnits(v.b, loc, layer)
+}
+func (v *blockView) RemoveTarget(loc model.LocaleID) { delete(v.b.Targets, model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
 	v.b.Targets = make(map[model.VariantKey]*model.Target)
 }
