@@ -30,10 +30,13 @@ are now run-anchored spans on the positional `term`/`entity`/`term-candidate`
 facet (the span's range *is* the position, its id the identity); the unused
 `schema.AnnotationType` vocabulary and registry were removed; the facet contract
 is forwarded through the web (REST) and desktop (Wails) tool adapters so the
-typed ports render in-app; and `FacetType.IsPositional` became registry-driven
-(`RegisterPositionalFacet`) so plugin facet types can be range-anchored. The
-only piece still open is making the facet vocabulary extensible across the
-subprocess plugin gRPC bridge (see Remaining risks).
+typed ports render in-app; `FacetType.IsPositional` became registry-driven
+(`RegisterPositionalFacet`) so plugin facet types can be range-anchored; and the
+full facet vocabulary now crosses the subprocess plugin gRPC bridge
+(`OverlayMessage` on the bridge proto), so positional facets — term, entity, qa,
+alignment, and any plugin-defined type — round-trip by type name and JSON
+(unknown payload types degrade to a `GenericAnnotation` map) instead of being
+dropped.
 
 ## Motivation
 
@@ -398,10 +401,13 @@ than wrapping it.
   wrong `Consumes`/`Produces` on a built-in tool breaks a real flow. The backfill
   in phase 3 must be audited against each tool's actual reads/writes before phase
   4 lands; an end-to-end test per built-in flow is the guardrail.
-- **Plugin tools** (AD-007) declare metadata over gRPC; the facet vocabulary must
-  be extensible by plugins (register facet types) and survive the bridge, or
-  plugin tools are second-class in validation. The bridge descriptor needs a
-  facet-registration channel.
+- **Plugin tools** (AD-007) declare metadata over gRPC; the facet vocabulary is
+  extensible by plugins (`RegisterPositionalFacet` / `RegisterFacetValue`) and now
+  survives the bridge — the `OverlayMessage` facet carrier ferries any facet type
+  across, with unknown payload types degrading to a `GenericAnnotation` map by
+  type name. A facet type a peer doesn't recognise is preserved (round-trips by
+  name + JSON) rather than dropped; full typed rehydration on the peer still
+  requires that peer to have registered the payload constructor.
 - **Alignment is relational**, linking a source span to a target span — it is the
   one facet whose payload references another side's range rather than annotating
   its own. Confirm the single-side `Facet` shape (payload carries the counterpart

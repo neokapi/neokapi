@@ -93,6 +93,114 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]any {
 	return result
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Proto ↔ Model: Overlays (positional facets)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Block-scoped facets cross the bridge as the `annotations` map and segmentation
+// as the source/target segment boundaries. Every *other* positional facet —
+// term, entity, term-candidate, qa, alignment, and any plugin-defined positional
+// type — crosses as an OverlayMessage, so a facet vocabulary the peer doesn't
+// recognise round-trips by type name + JSON (its span values degrade to a
+// GenericAnnotation map) rather than being silently dropped.
+
+// positionalOverlaysToProto converts a block's positional, non-segmentation
+// facets to OverlayMessages. Segmentation is excluded (reconstructed from the
+// segment boundaries) and block-scoped facets are excluded (carried as
+// annotations), so nothing is double-encoded.
+func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
+	var out []*pb.OverlayMessage
+	for i := range b.Overlays {
+		o := &b.Overlays[i]
+		if o.Type == model.FacetSegmentation || !o.Type.IsPositional() {
+			continue
+		}
+		out = append(out, OverlayToProto(*o))
+	}
+	return out
+}
+
+// OverlayToProto converts a model.Overlay (facet) to a proto OverlayMessage.
+func OverlayToProto(o model.Overlay) *pb.OverlayMessage {
+	msg := &pb.OverlayMessage{
+		Type:    string(o.Type),
+		Layer:   o.Layer,
+		Variant: variantToProto(o.Variant),
+	}
+	for _, s := range o.Spans {
+		msg.Spans = append(msg.Spans, spanToProto(s))
+	}
+	return msg
+}
+
+// ProtoToOverlay converts a proto OverlayMessage back to a model.Overlay.
+func ProtoToOverlay(msg *pb.OverlayMessage) model.Overlay {
+	o := model.Overlay{
+		Type:    model.FacetType(msg.Type),
+		Layer:   msg.Layer,
+		Variant: protoToVariant(msg.Variant),
+	}
+	for _, sm := range msg.Spans {
+		o.Spans = append(o.Spans, protoToSpan(sm))
+	}
+	return o
+}
+
+func variantToProto(v *model.VariantKey) *pb.VariantMessage {
+	if v == nil {
+		return nil
+	}
+	return &pb.VariantMessage{Locale: string(v.Locale), Tone: v.Tone, Channel: v.Channel}
+}
+
+func protoToVariant(msg *pb.VariantMessage) *model.VariantKey {
+	if msg == nil {
+		return nil
+	}
+	return &model.VariantKey{Locale: model.LocaleID(msg.Locale), Tone: msg.Tone, Channel: msg.Channel}
+}
+
+func spanToProto(s model.Span) *pb.SpanMessage {
+	msg := &pb.SpanMessage{
+		Id:    s.ID,
+		Range: runRangeToProto(s.Range),
+		Props: s.Props,
+	}
+	if s.Value != nil {
+		msg.Value = AnnotationToProto(s.Value)
+	}
+	return msg
+}
+
+func protoToSpan(msg *pb.SpanMessage) model.Span {
+	s := model.Span{
+		ID:    msg.Id,
+		Range: protoToRunRange(msg.Range),
+		Props: msg.Props,
+	}
+	if msg.Value != nil {
+		s.Value = ProtoToAnnotation(msg.Value)
+	}
+	return s
+}
+
+func runRangeToProto(r model.RunRange) *pb.RunRangeMessage {
+	return &pb.RunRangeMessage{
+		StartRun: int32(r.StartRun), StartOffset: int32(r.StartOffset),
+		EndRun: int32(r.EndRun), EndOffset: int32(r.EndOffset),
+	}
+}
+
+func protoToRunRange(msg *pb.RunRangeMessage) model.RunRange {
+	if msg == nil {
+		return model.RunRange{}
+	}
+	return model.RunRange{
+		StartRun: int(msg.StartRun), StartOffset: int(msg.StartOffset),
+		EndRun: int(msg.EndRun), EndOffset: int(msg.EndOffset),
+	}
+}
+
 // populateAnnotation fills a typed annotation from a raw map.
 // This is used as a fallback when json.Unmarshal fails due to type mismatches
 // (e.g., the bridge sends Source/Target as strings but Go expects []Run).
@@ -486,6 +594,7 @@ func BlockToProto(b *model.Block) *pb.BlockMessage {
 		Skeleton:           SkeletonToProto(b.Skeleton),
 		PreserveWhitespace: b.PreserveWhitespace,
 		IsReferent:         b.IsReferent,
+		Overlays:           positionalOverlaysToProto(b),
 	}
 	msg.Source = sourceSegProtos(b)
 	for _, locale := range b.TargetLocales() {
@@ -528,6 +637,9 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	}
 	for _, te := range msg.Targets {
 		applyTargetSegProtos(b, model.LocaleID(te.Locale), te.Segments)
+	}
+	for _, om := range msg.Overlays {
+		b.Overlays = append(b.Overlays, ProtoToOverlay(om))
 	}
 	return b
 }
@@ -830,6 +942,11 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 		block.DisplayHint = ProtoToDisplayHint(cb.DisplayHint)
 	}
 
+	// Positional facets (term, entity, qa, …).
+	for _, om := range cb.Overlays {
+		block.Overlays = append(block.Overlays, ProtoToOverlay(om))
+	}
+
 	return &model.Part{
 		Type:     model.PartBlock,
 		Resource: block,
@@ -880,6 +997,9 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 	if block.DisplayHint != nil {
 		cb.DisplayHint = DisplayHintToProto(block.DisplayHint)
 	}
+
+	// Positional facets (term, entity, qa, …).
+	cb.Overlays = positionalOverlaysToProto(block)
 
 	return cb
 }

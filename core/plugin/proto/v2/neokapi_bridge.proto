@@ -47,6 +47,47 @@ message AnnotationEntry {
   bytes data = 2;     // JSON-encoded type-specific payload
 }
 
+// RunRangeMessage is a run-anchored byte/run span (the position of a
+// positional facet span).
+message RunRangeMessage {
+  int32 start_run = 1;
+  int32 start_offset = 2;
+  int32 end_run = 3;
+  int32 end_offset = 4;
+}
+
+// VariantMessage identifies a target variant (locale + optional tone/channel).
+// Its absence on an OverlayMessage means the facet is source-side.
+message VariantMessage {
+  string locale = 1;
+  string tone = 2;
+  string channel = 3;
+}
+
+// SpanMessage is one occurrence within a positional facet: a run-anchored
+// range, optional string props, and the typed payload (carried as an
+// AnnotationEntry so unknown payload types degrade to a generic map, exactly
+// like block-scoped annotations).
+message SpanMessage {
+  string id = 1;
+  RunRangeMessage range = 2;
+  map<string, string> props = 3;
+  AnnotationEntry value = 4;
+}
+
+// OverlayMessage is one stand-off facet on a block: a typed, optionally
+// variant-scoped, layered set of spans. This carries the full facet vocabulary
+// across the bridge (term, entity, qa, alignment, and any plugin-defined
+// type), so a facet type a peer doesn't recognise round-trips by type name and
+// JSON rather than being dropped. Segmentation overlays are NOT carried here —
+// they are reconstructed from the source/target SegmentMessage boundaries.
+message OverlayMessage {
+  string type = 1;             // facet type ("term", "entity", "qa", …)
+  VariantMessage variant = 2;  // absent = source side
+  string layer = 3;            // "" = primary
+  repeated SpanMessage spans = 4;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Inline Markup (RFC 0001 Run model)
 // ────────────────────────────────────────────────────────────────────────────
@@ -181,6 +222,8 @@ message ContentBlock {
   bool preserve_whitespace = 9;
   map<string, AnnotationEntry> annotations = 10;
   DisplayHintMessage display_hint = 11;
+  // Stand-off positional facets (see BlockMessage.overlays).
+  repeated OverlayMessage overlays = 12;
 }
 
 // ContentBlockBatch holds multiple ContentBlocks for batched gRPC transfer.
@@ -238,6 +281,9 @@ message BlockMessage {
   SkeletonMessage skeleton = 11;
   bool preserve_whitespace = 12;
   bool is_referent = 13;
+  // Stand-off positional facets (term, entity, qa, alignment, plugin types).
+  // Segmentation is reconstructed from source/targets, so it is not repeated here.
+  repeated OverlayMessage overlays = 14;
 }
 
 // LayerMessage represents a structural layer.
