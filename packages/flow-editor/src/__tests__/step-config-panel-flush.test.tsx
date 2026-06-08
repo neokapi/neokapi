@@ -50,9 +50,7 @@ function renderPanel(onConfigChange: (c: Record<string, unknown>) => void) {
         schema: SCHEMA,
         doc: null,
         config: {},
-        isSourceTransformStage: false,
         onConfigChange,
-        onStageToggle: () => {},
         onClose: () => {},
       }),
     );

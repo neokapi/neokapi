@@ -24,7 +24,6 @@ import {
   ArrowLeftRight,
   Waypoints,
   Loader2,
-  Layers,
 } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
@@ -171,20 +170,13 @@ function ParallelSuggestionBanner({
   );
 }
 
-/** Accent color for source-transform stage — matches ToolNode constant. */
-const SOURCE_TRANSFORM_PANEL_COLOR = "oklch(0.68 0.16 250)";
-const SOURCE_TRANSFORM_PANEL_BG = "oklch(0.68 0.16 250 / 0.10)";
-
 interface StepConfigPanelProps {
   step: { tool: string };
   toolInfo: ToolInfo | null | undefined;
   schema: ComponentSchema | null | undefined;
   doc: ToolDoc | null | undefined;
   config: Record<string, unknown>;
-  /** Whether this step currently runs in the source-transform stage. */
-  isSourceTransformStage: boolean;
   onConfigChange: (config: Record<string, unknown>) => void;
-  onStageToggle: (asSourceTransform: boolean) => void;
   onClose: () => void;
   onRemove?: () => void;
 }
@@ -196,9 +188,7 @@ export function StepConfigPanel({
   schema,
   doc,
   config,
-  isSourceTransformStage,
   onConfigChange,
-  onStageToggle,
   onClose,
   onRemove,
 }: StepConfigPanelProps) {
@@ -207,7 +197,6 @@ export function StepConfigPanel({
   const catStyle = getCategoryStyle(category);
   const Icon = catStyle.icon;
   const displayName = toolInfo?.display_name || step.tool;
-  const canBeSourceTransform = !!toolInfo?.isSourceTransform;
 
   // Local config state -- owns the values to prevent parent re-renders from
   // resetting inputs. Syncs to parent via a debounced controller.
@@ -399,63 +388,6 @@ export function StepConfigPanel({
         </div>
       </ScrollArea>
 
-      {/* Source-transform stage toggle */}
-      <div className="px-3 py-2 border-t border-border">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={isSourceTransformStage}
-            disabled={!canBeSourceTransform}
-            onClick={() => canBeSourceTransform && onStageToggle(!isSourceTransformStage)}
-            className={cn(
-              "relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150",
-              isSourceTransformStage
-                ? "border border-[oklch(0.68_0.16_250)]"
-                : "border border-border bg-muted",
-              !canBeSourceTransform && "opacity-40 cursor-not-allowed",
-            )}
-            style={
-              isSourceTransformStage
-                ? {
-                    background: SOURCE_TRANSFORM_PANEL_BG,
-                    borderColor: SOURCE_TRANSFORM_PANEL_COLOR,
-                  }
-                : undefined
-            }
-            title={
-              canBeSourceTransform
-                ? "Toggle: run this tool in the source-transform stage (before main steps)"
-                : "This tool can't rewrite source"
-            }
-          >
-            <span
-              className="pointer-events-none inline-block h-2.5 w-2.5 rounded-full bg-current shadow transition-transform duration-150"
-              style={{
-                transform: isSourceTransformStage ? "translateX(14px)" : "translateX(1px)",
-                color: isSourceTransformStage
-                  ? SOURCE_TRANSFORM_PANEL_COLOR
-                  : "var(--muted-foreground)",
-              }}
-            />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div
-              className="text-[10px] font-semibold leading-none flex items-center gap-1"
-              style={{ color: isSourceTransformStage ? SOURCE_TRANSFORM_PANEL_COLOR : undefined }}
-            >
-              <Layers size={9} />
-              Source transform
-            </div>
-            <div className="text-[9px] text-muted-foreground mt-0.5">
-              {canBeSourceTransform
-                ? "Settles the model before main tools run"
-                : "This tool can't rewrite source"}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Footer */}
       {onRemove && (
         <div className="px-3 py-2 border-t border-border">
@@ -580,8 +512,9 @@ export function FlowEditor({
     return m;
   }, [initial.nodes]);
 
-  // Ref for remove handler -- breaks circular dependency with enrichedNodes.
+  // Refs for per-node handlers -- break the circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
+  const stageToggleRef = useRef<(nodeId: string) => void>(() => {});
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
@@ -601,6 +534,11 @@ export function FlowEditor({
       }
       if (!readOnly && n.type === "tool") {
         extra.onRemove = () => removeNodeRef.current(n.id);
+        // Transform-capable tools can move into/out of the source-transform
+        // stage via the on-node "pre" badge (parallel branches can't).
+        if (n.data.isSourceTransform && n.data.branchIndex === undefined) {
+          extra.onStageToggle = () => stageToggleRef.current(n.id);
+        }
       }
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
@@ -801,7 +739,7 @@ export function FlowEditor({
       setSelectedNodeId(`tool-${newNodeIndex}`);
       // Fit the entire graph into view so the new node is visible.
       requestAnimationFrame(() => {
-        reactFlowRef.current?.fitView({ padding: 0.3, duration: 300 });
+        reactFlowRef.current?.fitView({ padding: 0.2, maxZoom: 1, duration: 300 });
       });
     },
     [flow, onChange, readOnly],
@@ -932,7 +870,6 @@ export function FlowEditor({
   // duplicate-tool nodes and parallel branches distinct.
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const selectedToolName = selectedNode?.data?.toolName as string | undefined;
-  const selectedIsSTStage = selectedNode?.data?.stage === "source-transform";
 
   const selectedLocation = useMemo(
     () => resolveStepLocation(selectedNode?.data as NodeStepData | undefined),
@@ -957,38 +894,39 @@ export function FlowEditor({
   );
 
   // Toggle a tool between the source-transform stage and the main stage,
-  // resolving the exact step by identity (not tool name).
-  const handleStageToggle = useCallback(
-    (asSourceTransform: boolean) => {
-      if (readOnly || !selectedLocation) return;
-      const step = stepAtLocation(flow, selectedLocation);
+  // resolving the exact step by identity (not tool name). Driven by the on-node
+  // "pre" badge.
+  const handleNodeStageToggle = useCallback(
+    (nodeId: string) => {
+      if (readOnly) return;
+      const node = nodes.find((n) => n.id === nodeId);
+      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
+      // Parallel branches can't move stages.
+      if (!loc || loc.branchIndex !== undefined) return;
+      const step = stepAtLocation(flow, loc);
       if (!step) return;
-      // Parallel branches can't move stages (the toggle is disabled for them).
-      if (selectedLocation.branchIndex !== undefined) return;
 
-      if (asSourceTransform && !selectedLocation.isSourceTransform) {
+      if (!loc.isSourceTransform) {
         // Move from steps → sourceTransforms
-        const updated: FlowSpec = {
+        onChange({
           ...flow,
           sourceTransforms: [...(flow.sourceTransforms ?? []), { ...step }],
-          steps: flow.steps.filter((_, i) => i !== selectedLocation.index),
-        };
-        onChange(updated);
-        setSelectedNodeId(null);
-      } else if (!asSourceTransform && selectedLocation.isSourceTransform) {
+          steps: flow.steps.filter((_, i) => i !== loc.index),
+        });
+      } else {
         // Move from sourceTransforms → steps
-        const newST = (flow.sourceTransforms ?? []).filter((_, i) => i !== selectedLocation.index);
-        const updated: FlowSpec = {
+        const newST = (flow.sourceTransforms ?? []).filter((_, i) => i !== loc.index);
+        onChange({
           ...flow,
           sourceTransforms: newST.length > 0 ? newST : undefined,
           steps: [{ ...step }, ...flow.steps],
-        };
-        onChange(updated);
-        setSelectedNodeId(null);
+        });
       }
+      setSelectedNodeId(null);
     },
-    [readOnly, selectedLocation, flow, onChange],
+    [readOnly, nodes, flow, onChange],
   );
+  stageToggleRef.current = handleNodeStageToggle;
 
   // Template library covers the full editor when shown.
   if (showTemplates) {
@@ -1048,7 +986,9 @@ export function FlowEditor({
               nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
               nodesConnectable={!readOnly}
               fitView
-              fitViewOptions={{ padding: 0.3 }}
+              // Cap zoom at 100% so small flows render at a consistent, readable
+              // scale instead of being blown up to fill the canvas.
+              fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{
                 style: { stroke: "var(--muted-foreground)", strokeWidth: 2 },
@@ -1138,9 +1078,7 @@ export function FlowEditor({
           schema={selectedSchema}
           doc={selectedDoc}
           config={selectedStep.config || {}}
-          isSourceTransformStage={selectedIsSTStage}
           onConfigChange={handleConfigChange}
-          onStageToggle={handleStageToggle}
           onClose={() => setSelectedNodeId(null)}
           onRemove={readOnly ? undefined : handleRemoveSelected}
         />

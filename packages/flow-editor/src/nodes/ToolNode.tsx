@@ -155,6 +155,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
   const isSourceTransformStage = data.stage === "source-transform";
+  // Transform-capable tools can be moved into/out of the source-transform stage
+  // via the "pre" badge (wired by the editor; absent in read-only / for branches).
+  const onStageToggle = data.onStageToggle as (() => void) | undefined;
+  const canSourceTransform = !!data.isSourceTransform;
 
   // Rail color: source-transform stage overrides the category color.
   const railColor = isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.color;
@@ -206,19 +210,35 @@ export function ToolNode({ data, selected }: NodeProps) {
           >
             {style.label}
           </span>
-          {isSourceTransformStage && (
-            <span
-              className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold"
-              style={{
-                background: SOURCE_TRANSFORM_BG,
-                color: SOURCE_TRANSFORM_COLOR,
-                border: `1px solid ${SOURCE_TRANSFORM_COLOR}`,
+          {/* "pre" stage badge — active when in the source-transform stage; a
+              click target on transform-capable tools to move into/out of it. */}
+          {(isSourceTransformStage || (canSourceTransform && onStageToggle)) && (
+            <button
+              type="button"
+              disabled={!onStageToggle}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStageToggle?.();
               }}
-              title="Runs in the source-transform stage — settles the model before main tools"
+              className={cn(
+                "nodrag ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold transition-opacity",
+                onStageToggle && "cursor-pointer",
+                !isSourceTransformStage && "opacity-50 hover:opacity-90",
+              )}
+              style={{
+                background: isSourceTransformStage ? SOURCE_TRANSFORM_BG : "transparent",
+                color: SOURCE_TRANSFORM_COLOR,
+                border: `1px ${isSourceTransformStage ? "solid" : "dashed"} ${SOURCE_TRANSFORM_COLOR}`,
+              }}
+              title={
+                isSourceTransformStage
+                  ? "Runs in the source-transform stage (settles the source before main tools). Click to move back to the main stage."
+                  : "Click to run this tool in the source-transform stage, before the main tools."
+              }
             >
               <Layers size={7} />
               pre
-            </span>
+            </button>
           )}
           {isParallel && !isSourceTransformStage && (
             <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
