@@ -10,20 +10,21 @@ import "unicode/utf8"
 // rewrite the runs they describe, so segmentation is opt-in, multi-layer, and
 // reversible (dropping the overlay restores the unsegmented content).
 
-// OverlayType names a stand-off interpretation layered over a run sequence.
-type OverlayType string
+// OverlayType is a deprecated alias for FacetType (see facet.go); overlays are
+// facets. The Overlay* constants below alias the canonical Facet* constants.
+type OverlayType = FacetType
 
 const (
 	// OverlaySegmentation marks sentence / chunk boundaries over the runs.
-	OverlaySegmentation OverlayType = "segmentation"
+	OverlaySegmentation = FacetSegmentation
 	// OverlayTerm marks matched terminology spans.
-	OverlayTerm OverlayType = "term"
+	OverlayTerm = FacetTerm
 	// OverlayEntity marks recognized named-entity spans.
-	OverlayEntity OverlayType = "entity"
+	OverlayEntity = FacetEntity
 	// OverlayQA marks quality-check findings.
-	OverlayQA OverlayType = "qa"
+	OverlayQA = FacetQA
 	// OverlayAlignment links source spans to target spans.
-	OverlayAlignment OverlayType = "alignment"
+	OverlayAlignment = FacetAlignment
 )
 
 // RunRange anchors a span on a []Run sequence: a start and end run position
