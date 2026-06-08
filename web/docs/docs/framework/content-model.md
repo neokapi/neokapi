@@ -83,6 +83,7 @@ classDiagram
         +[]Run Source
         +map~VariantKey,Target~ Targets
         +[]Overlay Overlays
+        +map~string,any~ Annotations
     }
     class Target {
         +[]Run Runs
@@ -90,6 +91,7 @@ classDiagram
     }
     class Overlay {
         +OverlayType Type
+        +VariantKey Variant
         +[]Span Spans
     }
     class Run {
@@ -102,7 +104,7 @@ classDiagram
     Layer --> Block : contains
     Block --> Run : flat Source sequence
     Block --> Target : per variant
-    Block --> Overlay : stand-off annotations
+    Block --> Overlay : positional stand-off layers
     Target --> Run : flat run sequence
 ```
 
@@ -113,23 +115,77 @@ classDiagram
 - **Block** — the primary translatable unit (Okapi's _TextUnit_). Its `Source` is
   a single flat `[]Run`; its translations are first-class `Target` records keyed
   by a **VariantKey** (locale plus optional tone and channel). It carries a
-  `Translatable` flag, arbitrary properties, and **annotations**.
-- **Overlay** — every interpretation _of_ a block's runs — sentence
-  segmentation, terminology, entities, QA findings, source↔target alignment — is
-  a typed, run-anchored **stand-off overlay** layered over the runs rather than
-  baked into the structure. There is no structural `Segment` type: a segment is
-  just a span in the segmentation overlay, so segmentation is opt-in, multi-layer,
-  and reversible (drop the overlay to get the unsegmented content back). The
-  `segmentation` tool writes that overlay from a pluggable engine chosen with
-  `--engine` — `srx` (the default SRX 2.0 rule engine), `uax29` (the ICU Unicode
-  baseline), `llm` (semantic chunks), or `sat` (the wtpsplit ML model, run via
-  the `kapi-sat` plugin). See [Segmentation](/framework/segmentation) and
+  `Translatable` flag, opaque pass-through `Properties`, and the two stand-off
+  carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block)
+  — positional `Overlays` and block-scoped `Annotations`.
+- **Overlay** — a typed, run-anchored interpretation _of_ a block's runs:
+  sentence segmentation, terminology, entities, QA findings, source↔target
+  alignment. Each overlay is a **positional stand-off layer** over one side of the
+  block, layered over the runs rather than baked into the structure. There is no
+  structural `Segment` type: a segment is just a span in the segmentation overlay,
+  so segmentation is opt-in, multi-layer, and reversible (drop the overlay to get
+  the unsegmented content back). The `segmentation` tool writes that overlay from
+  a pluggable engine chosen with `--engine` — `srx` (the default SRX 2.0 rule
+  engine), `uax29` (the ICU Unicode baseline), `llm` (semantic chunks), or `sat`
+  (the wtpsplit ML model, run via the `kapi-sat` plugin). See
+  [Segmentation](/framework/segmentation) and
   [AD-002](/contribute/architecture/002-content-model).
 - **Run** — one element of a block's inline content: a chunk of text, an opening
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).
 - **Data** and **Media** — non-translatable document structure and binary
   content, which flow through so the writer can reconstruct a faithful output.
+
+## Two ways to annotate a block
+
+A block's content is just its `Source []Run` and its variant-keyed `Targets`.
+Every typed interpretation _of_ that content is **stand-off** — kept separate
+from the runs — so the same content can carry segmentation, terminology, QA
+findings, notes, and analysis results at once without rewriting it. A block
+holds stand-off interpretations in two carriers, chosen by whether the
+interpretation has a position:
+
+- **Overlays** (`Block.Overlays`) are **positional**: each overlay anchors to run
+  ranges. An overlay has a `Type`, an optional `Variant` (nil = the source side;
+  set = a target variant), an optional `Layer` (segmentation granularity; `""` =
+  the primary sentence segmentation), and a list of `Spans`. A `Span` carries a
+  run `Range` (its position), an `ID`, optional `Props`, and a typed payload
+  `Value`. Because spans anchor to runs, a source rewrite invalidates them — a
+  source-transform tool drops the overlays it consumed before rewriting the runs.
+- **Annotations** (`Block.Annotations`) are **block-scoped**: typed metadata keyed
+  by type name, with no position. A source rewrite does not invalidate them.
+  Multiplicity lives inside the value, never in numbered keys — every alternative
+  translation is one `AltTranslations` collection under the single
+  `alt-translation` key, not `alt-translation-1`, `-2`, and so on.
+
+The built-in stand-off types:
+
+| Carrier        | Type                | Anchored to | Description                                       |
+| -------------- | ------------------- | ----------- | ------------------------------------------------- |
+| Overlay        | `segmentation`      | run ranges  | sentence / chunk boundaries (per `Layer`)         |
+| Overlay        | `term`              | run ranges  | matched terminology spans                         |
+| Overlay        | `term-candidate`    | run ranges  | proposed terminology awaiting review              |
+| Overlay        | `entity`            | run ranges  | recognized named-entity spans                     |
+| Overlay        | `qa`                | run ranges  | quality-check findings                            |
+| Overlay        | `alignment`         | run ranges  | links source spans to target spans                |
+| Annotation     | `note`              | whole block | translator / reviewer note                        |
+| Annotation     | `alt-translation`   | whole block | alternative-translation candidates                |
+| Annotation     | `tm-match`          | whole block | translation-memory match metadata                 |
+| Annotation     | `word-count`        | whole block | word-count analysis result                        |
+| Annotation     | `char-count`        | whole block | character-count analysis result                   |
+| Annotation     | `seg-count`         | whole block | segment-count analysis result                     |
+| Annotation     | `comparison`        | whole block | source/target comparison result                   |
+| Annotation     | `repetition`        | whole block | repetition / leverage analysis                    |
+| Annotation     | `brand-voice`       | whole block | brand-voice check result                          |
+
+Both overlay span `Value`s and annotation values are typed payloads registered
+with one payload registry (`RegisterPayload` / `NewPayload`) keyed by type name,
+so the plugin gRPC bridge and store layers can rehydrate the concrete type on the
+far side of the wire.
+
+`Properties` is a separate map for opaque pass-through metadata only — connector
+keys, format round-trip hints. Analytic or interpretive results are overlays or
+annotations, never properties.
 
 ## Runs keep inline markup out of the way
 

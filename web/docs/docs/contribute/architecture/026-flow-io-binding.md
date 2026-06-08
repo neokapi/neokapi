@@ -114,12 +114,12 @@ The defining property: **a flow definition is identical across bindings.** The
 same `ai-translate-qa` flow runs in the file CLI, against a `.klz` workspace, and
 against a project — only the binding differs.
 
-Each binding also advertises the **facets** it provides ([AD-002](002-content-model.md),
+Each binding also advertises the **ports** it provides ([AD-002](002-content-model.md),
 [AD-006](006-tool-system.md)): a plain `file` source carries source content
 only; a bilingual interchange source adds a committed `target`, segmentation
-and alignment; the content store adds every persisted facet. The flow loader
-uses this to validate the contract end to end — a flow whose first tool needs a
-facet the source cannot supply, with no upstream tool to produce it, is rejected
+and alignment; the content store adds every persisted stand-off layer. The flow
+loader uses this to validate the contract end to end — a flow whose first tool
+needs a port the source cannot supply, with no upstream tool to produce it, is rejected
 at build (`FlowDefinition.ValidateDataFlow`). So `qa-check` (which requires a
 `target`) is valid against a bilingual source or after a translate step, but
 rejected against a plain monolingual `file` source on its own.

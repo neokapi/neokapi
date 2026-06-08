@@ -24,9 +24,9 @@ unchanged. The block handler a tool sets also declares what it may write
 (see "Content immutability by capability" below). Tools
 declare parameter schemas via `SchemaProvider`, which drives CLI flag
 generation, flow-editor config panels, and validation. An IO contract on
-`ToolMeta` declares locale cardinality, produced facets, and side
-effects so the runner can infer locale iteration and the flow editor can
-show data flow.
+`ToolMeta` declares locale cardinality, the stand-off layers a tool produces,
+and side effects so the runner can infer locale iteration and the flow editor
+can show data flow.
 
 ## Context
 
@@ -41,7 +41,7 @@ uniformly for CLI, flow editor, and plugin consumers:
 
 - What parameters does this tool accept, and what are their types?
 - How many locales does it operate on? Which ones?
-- What facets does it produce? Which does it consume?
+- What stand-off layers does it produce? Which does it consume?
 - What external systems does it touch (TM, termbase, APIs)?
 
 ## Decision
@@ -137,20 +137,28 @@ ordering:
 ### IO model
 
 Each tool declares an IO contract in its `ToolMeta` (package `core/schema`).
-The contract is expressed over **facets** — the typed stand-off interpretations
-of a Block ([AD-002](002-content-model.md)) — not over coarse part-type names:
-`Consumes` lists the facets a tool reads upstream and `Produces` the facets it
-writes. Each `IOPort` names a facet type, the side it pertains to, and whether
-a consumed facet is optional (graceful degradation) or required.
+The contract is expressed over **`IOPort`s** — typed stand-off layers of a Block
+([AD-002](002-content-model.md)) — not over coarse part-type names: `Consumes`
+lists the ports a tool reads upstream and `Produces` the ports it writes. An
+`IOPort`'s `Type` names an overlay type (`term`, `qa`, …), a block-annotation
+type (`brand-voice`, …), or a pseudo-port (`PortTarget` / `PortSource`); its
+`Side` says which side it pertains to; and `Optional` marks a consumed port as
+degradable (graceful degradation) rather than required.
 
 ```go
 // core/schema/schema.go
 type IOPort struct {
-    Type     model.FacetType // "segmentation","term","qa","target",…
-    Side     model.FacetSide // source | target
-    Optional bool            // consumed: degrades without it, does more with it
-    Layer    string          // segmentation granularity; "" = primary
+    Type     string     // overlay type, annotation type, or "target"/"source"
+    Side     model.Side // source | target
+    Optional bool       // consumed: degrades without it, does more with it
+    Layer    string     // segmentation granularity; "" = primary
 }
+
+// PortTarget is the committed Target; PortSource is a rewritten source.
+const (
+    PortTarget = "target"
+    PortSource = "source"
+)
 
 type ToolMeta struct {
     ID          string
@@ -169,7 +177,7 @@ type ToolMeta struct {
     DefaultLocale model.LocaleID
 
     // Consumes / Produces are the IO contract. Non-Optional consumed
-    // facets are hard requirements the flow validator enforces.
+    // ports are hard requirements the flow validator enforces.
     Consumes []IOPort
     Produces []IOPort
 
@@ -185,7 +193,7 @@ type ToolMeta struct {
 For example `tm-leverage` optionally consumes source segmentation and produces
 `tm-match`, `alt-translation` and `target`; `qa-check` requires a `target` and
 produces `qa`. The flow loader uses these contracts for data-flow validation —
-a flow whose tool needs a facet that no upstream tool or the source binding
+a flow whose tool needs a port that no upstream tool or the source binding
 supplies is rejected at build ([AD-026](026-flow-io-binding.md)).
 
 #### Locale cardinality
@@ -240,39 +248,52 @@ A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
 `SourceText()` and `TargetText(locale)` remain available when a tool
 specifically needs the source-anchored skeleton.
 
-#### Facet types and registry
+#### Stand-off types and the payload registry
 
-Facet types are typed string constants ([AD-002](002-content-model.md)). The
-framework defines the well-known content facets; formats and plugins register
-additional types and their payload constructors via the facet registry
-(`model.RegisterPayload` / `NewPayload`):
+The stand-off types a tool consumes and produces are typed string constants
+([AD-002](002-content-model.md)). Positional, run-anchored layers use the
+`OverlayType` constants (`OverlaySegmentation`, `OverlayTerm`, `OverlayEntity`,
+`OverlayQA`, `OverlayAlignment`, `OverlayTermCandidate`); block-scoped metadata
+uses the annotation-key constants (`AnnoNote`, `AnnoAltTranslation`,
+`AnnoTMMatch`, `AnnoWordCount`, …). Both an overlay span's `Value` and an
+annotation value are typed payloads; the framework registers the well-known
+content payloads, and formats and plugins register additional types and their
+constructors via one payload registry (`model.RegisterPayload` / `NewPayload`):
 
 ```go
-type FacetType string
-
+// Positional layers (Block.Overlays) — core/model/overlay.go
 const (
-    FacetSegmentation  FacetType = "segmentation"
-    FacetTerm          FacetType = "term"
-    FacetEntity        FacetType = "entity"
-    FacetQA            FacetType = "qa"
-    FacetAlignment     FacetType = "alignment"
-    FacetAltTranslation FacetType = "alt-translation"
-    FacetTMMatch       FacetType = "tm-match"
-    FacetWordCount     FacetType = "word-count"
-    // FacetTarget / FacetSource are pseudo-facets for the IO contract:
-    // produced/consumed outputs that are not stored as stand-off facets.
-    FacetTarget        FacetType = "target"
+    OverlaySegmentation  OverlayType = "segmentation"
+    OverlayTerm          OverlayType = "term"
+    OverlayEntity        OverlayType = "entity"
+    OverlayQA            OverlayType = "qa"
+    OverlayAlignment     OverlayType = "alignment"
+    OverlayTermCandidate OverlayType = "term-candidate"
+)
+
+// Block-scoped metadata (Block.Annotations) — core/model/annotation_access.go
+const (
+    AnnoNote           = "note"
+    AnnoAltTranslation = "alt-translation"
+    AnnoTMMatch        = "tm-match"
+    AnnoWordCount      = "word-count"
+    // …char-count, seg-count, comparison, repetition, brand-voice, …
 )
 ```
 
+The IO contract also uses two pseudo-ports — `PortTarget` (`"target"`, the
+committed Target) and `PortSource` (`"source"`, a rewritten source) — which name
+produced/consumed outputs that participate in data-flow validation but are not
+stored as stand-off layers.
+
 Every checker — terminology, do-not-translate, placeholder, QA, brand
-voice — writes the same `qa` facet (a `core/check.FindingsAnnotation` payload
+voice — writes the same `qa` overlay (a `core/check.FindingsAnnotation` payload
 carrying a `[]check.Finding` plus a rolled-up score), so one scoring,
 annotation, and governance path serves them all.
 
-A tool's `Consumes`/`Produces` name facet types, so the same registry that
-discriminates a facet's typed payload on the wire is the vocabulary the flow
-validator checks the IO contract against.
+A tool's `Consumes`/`Produces` name these overlay and annotation types (or a
+pseudo-port), so the same registry that discriminates a payload's concrete type
+on the wire is the vocabulary the flow validator checks the IO contract against.
 
 #### Side effects
 
