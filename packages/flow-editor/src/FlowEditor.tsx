@@ -72,6 +72,9 @@ const nodeTypes: NodeTypes = {
   sink: EndpointNode,
 };
 
+/** Top-left margin for the content within the canvas (px, at 100% zoom). */
+const CANVAS_MARGIN = 80;
+
 const edgeTypes: EdgeTypes = {
   dot: DotEdge,
 };
@@ -451,10 +454,9 @@ export function FlowEditor({
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth;
-      // Leave ~half a column of breathing room so the wrapped grid (incl. the
-      // folded-in Source/Sink stations) sits inside the viewport at 100% while
-      // still using the available width for left-to-right flow.
-      if (w > 0) setColumns(Math.max(1, Math.floor((w - SERP_COL_W * 0.5) / SERP_COL_W)));
+      // Fit as many columns as the width allows (content is anchored top-left
+      // with CANVAS_MARGIN), so short flows stay on one row.
+      if (w > 0) setColumns(Math.max(1, Math.floor((w - CANVAS_MARGIN) / SERP_COL_W)));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -741,9 +743,12 @@ export function FlowEditor({
       onChange(updated);
       // Auto-select the new tool so the config panel opens immediately.
       setSelectedNodeId(`tool-${newNodeIndex}`);
-      // Fit the entire graph into view so the new node is visible.
+      // Re-anchor the content top-left at 100% (keeps Source pinned top-left).
       requestAnimationFrame(() => {
-        reactFlowRef.current?.fitView({ padding: 0.2, minZoom: 1, maxZoom: 1, duration: 300 });
+        reactFlowRef.current?.setViewport(
+          { x: CANVAS_MARGIN, y: CANVAS_MARGIN, zoom: 1 },
+          { duration: 300 },
+        );
       });
     },
     [flow, onChange, readOnly],
@@ -989,11 +994,10 @@ export function FlowEditor({
               edgeTypes={edgeTypes}
               nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
               nodesConnectable={!readOnly}
-              fitView
-              // Zoom is locked at 100% (min == max == 1): no scroll/pinch/double-
-              // click zoom. The auto-layout fits the width; users pan (drag or
-              // scroll) to reach overflow rather than zooming.
-              fitViewOptions={{ padding: 0.2, minZoom: 1, maxZoom: 1 }}
+              // Anchor the content top-left (Source at the top-left) instead of
+              // centering it, at a fixed 100% zoom. Zoom is locked (min == max
+              // == 1): no scroll/pinch/double-click zoom; users pan to navigate.
+              defaultViewport={{ x: CANVAS_MARGIN, y: CANVAS_MARGIN, zoom: 1 }}
               minZoom={1}
               maxZoom={1}
               zoomOnScroll={false}
