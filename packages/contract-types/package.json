@@ -1,5 +1,5 @@
 {
-  "name": "@neokapi/reference-data",
+  "name": "@neokapi/contract-types",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,6 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./data/*": "./data/*",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -17,9 +16,6 @@
     "lint": "vp lint",
     "fmt": "vp fmt",
     "test": "vp test"
-  },
-  "dependencies": {
-    "@neokapi/contract-types": "*"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

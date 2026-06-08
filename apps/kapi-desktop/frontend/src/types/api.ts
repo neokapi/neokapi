@@ -1,5 +1,9 @@
 // Types matching the Go backend structs exposed via Wails bindings.
 
+// IOPort (and the schema-language cluster, re-exported below) is defined once in
+// the shared @neokapi/contract-types package (issue #817).
+import type { IOPort } from "@neokapi/contract-types";
+
 export interface KapiProject {
   version: string;
   name: string;
@@ -101,14 +105,6 @@ export interface FlowInfo {
 }
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
-
-/** One entry of a tool's IO contract (mirrors core/schema.IOPort). */
-export interface IOPort {
-  type: string;
-  side?: "source" | "target";
-  optional?: boolean;
-  layer?: string;
-}
 
 export interface ToolInfo {
   name: string;
@@ -235,14 +231,16 @@ export interface BrowsePathRequest {
   accepts?: string[];
 }
 
-// Schema types — re-exported from the flow-editor package (single source of truth)
+// Schema types — re-exported from the shared contract-types package (single
+// source of truth, issue #817).
 export type {
+  IOPort,
   ComponentSchema,
   FormatMeta,
   ToolMeta,
   ParameterGroup,
   PropertySchema,
-} from "@neokapi/flow-editor";
+} from "@neokapi/contract-types";
 
 // --- Plugin documentation types (from docs.json) ---
 

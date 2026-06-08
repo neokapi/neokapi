@@ -1,4 +1,24 @@
 // Flow editor types — shared between Kapi and Bowrain Desktop.
+//
+// The IO-contract and schema-language types (Side, IOPort, ComponentSchema,
+// ToolMeta, …) live in the shared @neokapi/contract-types package (issue #817).
+// They are re-exported here so existing `@neokapi/flow-editor` importers keep
+// resolving them from this module.
+export type {
+  Side,
+  IOPort,
+  ComponentSchema,
+  FormatMeta,
+  ToolMeta,
+  ParameterGroup,
+  ConditionExpr,
+  LayoutHints,
+  PropertySchema,
+  ToolDoc,
+  ToolDocParam,
+} from "@neokapi/contract-types";
+
+import type { ComponentSchema, IOPort, ToolDoc } from "@neokapi/contract-types";
 
 export interface FlowDefinitionInfo {
   id: string;
@@ -61,20 +81,6 @@ export interface FlowEdgeInfo {
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 
-export type Side = "source" | "target";
-
-/**
- * One entry of a tool's IO contract (consumes/produces): a typed
- * stand-off layer, the side it pertains to, and — for consumed ports —
- * whether it is optional (graceful degradation) vs a hard requirement.
- */
-export interface IOPort {
-  type: string;
-  side?: Side;
-  optional?: boolean;
-  layer?: string;
-}
-
 export interface ToolInfo {
   name: string;
   display_name?: string;
@@ -120,158 +126,6 @@ export interface FlowSpec {
    * Same value space as `source`. Omitted = `file` (the default).
    */
   sink?: string;
-}
-
-// ─── Schema Language Types ─────────────────────────────────────────────────
-//
-// Three extension namespaces:
-//   ui:*         — UI rendering hints (widget, visible, enabled, layout, groups)
-//   (no prefix)  — neokapi data/metadata (formatMeta, toolMeta, presets)
-//   x-okapi-*    — Okapi bridge internals (flatten-path, format, kind)
-
-export interface ComponentSchema {
-  $id?: string;
-  $version?: string;
-  title: string;
-  description?: string;
-  type: string;
-
-  // Data/metadata fields (no prefix)
-  formatMeta?: FormatMeta;
-  toolMeta?: ToolMeta;
-  presets?: Record<string, Record<string, unknown>>;
-
-  // UI extensions
-  "ui:groups"?: ParameterGroup[];
-
-  // Properties
-  properties?: Record<string, PropertySchema>;
-  $defs?: Record<string, PropertySchema>;
-}
-
-/** Format identification metadata. */
-export interface FormatMeta {
-  id: string;
-  extensions?: string[];
-  mimeTypes?: string[];
-}
-
-/** Tool identification and classification metadata. */
-export interface ToolMeta {
-  id?: string;
-  displayName?: string;
-  description?: string;
-  category?: string;
-  consumes?: IOPort[];
-  produces?: IOPort[];
-  tags?: string[];
-  requires?: string[];
-}
-
-export interface ParameterGroup {
-  id: string;
-  label: string;
-  description?: string;
-  collapsible?: boolean;
-  collapsed?: boolean;
-  icon?: string;
-  fields: string[];
-}
-
-/**
- * Condition expression for ui:visible and ui:enabled.
- * Supports simple field comparisons and compound AND/OR/NOT.
- */
-export type ConditionExpr =
-  | { field: string; eq: unknown }
-  | { field: string; empty: boolean }
-  | { all: ConditionExpr[] }
-  | { any: ConditionExpr[] }
-  | { not: ConditionExpr };
-
-/** Layout hints for a field. */
-export interface LayoutHints {
-  hideLabel?: boolean;
-  vertical?: boolean;
-  columns?: number;
-}
-
-export interface PropertySchema {
-  type: string;
-  title?: string;
-  description?: string;
-  default?: unknown;
-  deprecated?: boolean;
-
-  // Validation constraints
-  enum?: unknown[];
-  minimum?: number;
-  maximum?: number;
-  minLength?: number;
-  maxLength?: number;
-
-  // Labeled enum options (consolidated from enum + ui:enum-labels)
-  options?: { value: unknown; label: string }[];
-
-  // UI rendering hints (ui: prefix)
-  "ui:widget"?: string;
-  "ui:widget-options"?: Record<string, unknown>;
-  "ui:placeholder"?: string;
-  "ui:presets"?: Record<string, unknown>;
-  "ui:visible"?: ConditionExpr;
-  "ui:enabled"?: ConditionExpr;
-  "ui:layout"?: LayoutHints;
-  /** @deprecated Use options instead */
-  "ui:enum-labels"?: Record<string, string>;
-  "ui:enum-descriptions"?: Record<string, string>;
-  "ui:order"?: number;
-  "ui:deprecated-message"?: string;
-  "ui:introduced-in"?: string;
-
-  // Okapi bridge extensions (x-okapi- prefix)
-  "x-okapi-flatten-path"?: string;
-  "x-okapi-format"?: string;
-
-  // JSON Schema structural
-  properties?: Record<string, PropertySchema>;
-  additionalProperties?: PropertySchema | boolean;
-  items?: PropertySchema;
-  $ref?: string;
-  prefixItems?: PropertySchema[];
-  minItems?: number;
-  maxItems?: number;
-  oneOf?: PropertySchema[];
-}
-
-/** Documentation for a tool or format, loaded from plugin docs. */
-export interface ToolDoc {
-  /** Display name (e.g. "JSON Filter", "Batch Translation Step"). */
-  displayName?: string;
-  /** Rich overview paragraph describing the tool's purpose and behavior. */
-  overview?: string;
-  /** Per-parameter documentation keyed by parameter path (e.g. "extraction.extractAll"). */
-  parameters?: Record<string, ToolDocParam>;
-  /** Known limitations. */
-  limitations?: string[];
-  /** Processing notes / tips. */
-  processingNotes?: string[];
-  /** Usage examples. */
-  examples?: Array<{ title: string; description?: string; input?: string; output?: string }>;
-  /** URL to external wiki/docs page. */
-  wikiUrl?: string;
-}
-
-export interface ToolDocParam {
-  description?: string;
-  /** Alias for description used in okapi-bridge doc files. */
-  help?: string;
-  notes?: string[];
-  introducedIn?: string;
-  dependsOn?: Array<{ property: string; condition: string }>;
-  /** Allowed values description. */
-  values?: string;
-  /** Cross-reference to related wiki page or parameter. */
-  seeAlso?: string;
 }
 
 /** Props for the FlowEditor component — fully decoupled from any backend. */

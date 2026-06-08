@@ -11,6 +11,7 @@ use (
 	./cli
 	./kapi
 	./scripts/contract-audit
+	./scripts/gen-contract-types
 	./scripts/gen-refs
 	./scripts/okapi-test-scan
 	./scripts/testcompare
