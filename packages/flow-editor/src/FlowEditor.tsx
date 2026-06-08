@@ -61,6 +61,7 @@ import {
   type NodeStepData,
 } from "./stepResolve";
 import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
+import { computeUnmet } from "./ioGraph";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
@@ -183,6 +184,8 @@ interface StepConfigPanelProps {
   schema: ComponentSchema | null | undefined;
   doc: ToolDoc | null | undefined;
   config: Record<string, unknown>;
+  /** Required input ports nothing upstream produces (requirement analysis). */
+  unmet?: string[];
   onConfigChange: (config: Record<string, unknown>) => void;
   onClose: () => void;
   onRemove?: () => void;
@@ -195,6 +198,7 @@ export function StepConfigPanel({
   schema,
   doc,
   config,
+  unmet,
   onConfigChange,
   onClose,
   onRemove,
@@ -364,6 +368,23 @@ export function StepConfigPanel({
             </a>
           )}
         </div>
+
+        {/* Unmet-requirement guidance: a required input nothing upstream produces. */}
+        {unmet && unmet.length > 0 && (
+          <div
+            className="mt-2 rounded-md border px-2 py-1.5 text-[10px] leading-snug"
+            style={{
+              borderColor: "oklch(0.62 0.17 45 / 0.5)",
+              background: "oklch(0.62 0.17 45 / 0.08)",
+              color: "oklch(0.5 0.15 45)",
+            }}
+          >
+            <span className="font-semibold">Missing input: </span>
+            this tool needs <span className="font-mono">{unmet.join(", ")}</span>, but nothing
+            earlier in the flow produces {unmet.length > 1 ? "them" : "it"}. Add a tool that
+            produces {unmet.length > 1 ? "these" : "it"} before this step.
+          </div>
+        )}
       </div>
 
       {/* Docs panel (collapsible) */}
@@ -528,6 +549,22 @@ export function FlowEditor({
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
 
+  // Requirement analysis: which non-optional consumed ports has nothing upstream
+  // produced? Surfaced as the per-node "needs …" warning + config-panel guidance.
+  const unmet = useMemo(() => computeUnmet(flow, toolMap), [flow, toolMap]);
+  const unmetFor = useCallback(
+    (data: Record<string, unknown>): string[] | undefined => {
+      let u: string[] | undefined;
+      if (data.stage === "source-transform" && typeof data.stIndex === "number") {
+        u = unmet.sourceTransforms[data.stIndex];
+      } else if (typeof data.stepIndex === "number") {
+        u = unmet.steps[data.stepIndex];
+      }
+      return u && u.length > 0 ? u : undefined;
+    },
+    [unmet],
+  );
+
   // Enrich nodes with execution state and remove handler.
   const enrichedNodes = useMemo(() => {
     return initial.nodes.map((n) => {
@@ -540,6 +577,10 @@ export function FlowEditor({
             ? "complete"
             : undefined;
         extra.partCount = stats.partsProcessed;
+      }
+      if (n.type === "tool" || n.type === "parallel") {
+        const u = unmetFor(n.data);
+        if (u) extra.unmet = u;
       }
       if (!readOnly && n.type === "tool") {
         extra.onRemove = () => removeNodeRef.current(n.id);
@@ -557,7 +598,7 @@ export function FlowEditor({
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
-  }, [initial.nodes, nodeStats, readOnly]);
+  }, [initial.nodes, nodeStats, readOnly, unmetFor]);
 
   const handleSourceChange = useCallback(
     (binding: FlowBinding) => {
@@ -1127,6 +1168,7 @@ export function FlowEditor({
           schema={selectedSchema}
           doc={selectedDoc}
           config={selectedStep.config || {}}
+          unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
           onConfigChange={handleConfigChange}
           onClose={() => setSelectedNodeId(null)}
           onRemove={readOnly ? undefined : handleRemoveSelected}

@@ -23,6 +23,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const onSelectBranch = data.onSelectBranch as ((index: number) => void) | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
   const selectedBranch = data.selectedBranch as number | undefined;
+  const unmet = data.unmet as string[] | undefined;
 
   const handleStyle = {
     width: 8,
@@ -104,6 +105,17 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
           );
         })}
       </div>
+
+      {unmet && unmet.length > 0 && (
+        <div
+          className="flex items-center gap-1 px-3 pb-1.5 text-[8px] font-medium"
+          style={{ color: "oklch(0.62 0.17 45)" }}
+          title={`Needs upstream: ${unmet.join(", ")}`}
+        >
+          <AlertCircle size={9} />
+          <span>needs {unmet.join(", ")}</span>
+        </div>
+      )}
 
       <Handle type="source" position={outPosition} style={handleStyle} />
 

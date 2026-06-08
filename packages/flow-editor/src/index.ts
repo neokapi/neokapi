@@ -11,6 +11,8 @@ export { ToolNode } from "./nodes/ToolNode";
 export { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "./category";
 export { PortChip, IoContract } from "./nodes/PortChip";
 export { getPortType, PORT_FAMILIES } from "./portTypes";
+export { computeUnmet } from "./ioGraph";
+export type { UnmetReport } from "./ioGraph";
 export { getSystemEffects } from "./sideEffects";
 export type { SystemEffect, SystemDirection } from "./sideEffects";
 export type { PortTypeStyle, PortFamily, FamilyStyle } from "./portTypes";
