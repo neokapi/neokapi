@@ -732,6 +732,13 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
 
+	// Hard data-flow validation (tool/data-model redesign, phase 4): reject a
+	// flow whose tool requires a facet that no upstream tool or the source
+	// binding produces.
+	if err := flowDef.ValidateDataFlow(a.ToolReg); err != nil {
+		return nil, nil, err
+	}
+
 	// Extract tool node names in topological order (by X position).
 	type toolPos struct {
 		name  string
