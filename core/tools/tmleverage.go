@@ -262,8 +262,9 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 	minScore := 101
 	matched := 0
 	allExact := true
-	for i := range n {
-		segRuns := v.SourceSegmentRuns(i)
+	for seg := range v.SourceUnits("") {
+		i := seg.Index()
+		segRuns := seg.SourceRuns()
 		segTexts[i] = model.RunsText(segRuns)
 		if segTexts[i] == "" {
 			// An empty segment (e.g. a span of only ignorable runs) is treated

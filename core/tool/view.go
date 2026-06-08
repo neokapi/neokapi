@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"iter"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -44,6 +45,12 @@ type BlockView interface {
 	SourceSegmentCount() int
 	SourceSegmentRuns(i int) []model.Run
 
+	// SourceUnits yields the source processing units of the given segmentation
+	// layer ("" = primary): one per segment span, or a single whole-block unit
+	// when the layer has no segmentation overlay. It is the uniform replacement
+	// for hand-rolled SourceSegmentCount / SourceSegmentRuns loops.
+	SourceUnits(layer string) iter.Seq[Unit]
+
 	// Targets (read-only).
 	HasTarget(loc model.LocaleID) bool
 	TargetLocales() []model.LocaleID
@@ -79,6 +86,12 @@ type TargetView interface {
 	SetTargetText(loc model.LocaleID, text string)
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
+
+	// TargetUnits yields writable per-unit target production over the source
+	// segmentation of the given layer ("" = primary), splicing each unit's runs
+	// back into the block target for loc when iteration completes. Commit is
+	// all-or-nothing across non-ignorable units; see WritableUnit.
+	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
 }
 
 // SourceView adds source-write access (and includes target writes). Tools that
@@ -151,6 +164,8 @@ func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegm
 func (v *blockView) SourceSegmentCount() int             { return v.b.SourceSegmentCount() }
 func (v *blockView) SourceSegmentRuns(i int) []model.Run { return v.b.SourceSegmentRuns(i) }
 
+func (v *blockView) SourceUnits(layer string) iter.Seq[Unit] { return sourceUnits(v.b, layer) }
+
 func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasTarget(loc) }
 func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
 func (v *blockView) TargetRuns(loc model.LocaleID) []model.Run { return v.b.TargetRuns(loc) }
@@ -206,7 +221,10 @@ func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
 }
 func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) { v.b.SetTargetRuns(loc, runs) }
 func (v *blockView) SetTargetText(loc model.LocaleID, text string)      { v.b.SetTargetText(loc, text) }
-func (v *blockView) RemoveTarget(loc model.LocaleID)                    { delete(v.b.Targets, model.Variant(loc)) }
+func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
+	return targetUnits(v.b, loc, layer)
+}
+func (v *blockView) RemoveTarget(loc model.LocaleID) { delete(v.b.Targets, model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
 	v.b.Targets = make(map[model.VariantKey]*model.Target)
 }
