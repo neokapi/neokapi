@@ -115,16 +115,18 @@ func TestStringsModeling(t *testing.T) {
 	cancel := byName["button.cancel"]
 	require.NotNil(t, cancel)
 	assert.Equal(t, "Cancel", model.RenderRunsWithData(cancel.SourceRuns()))
-	note, ok := model.AnnoAs[*model.NoteAnnotation](cancel, "note")
-	require.True(t, ok)
+	cancelNotes := cancel.Notes()
+	require.Len(t, cancelNotes, 1)
+	note := cancelNotes[0]
 	assert.Equal(t, "Title of the cancel button", note.Text)
 	assert.Equal(t, "developer", note.From)
 
 	// Line comment also becomes a note.
 	okBtn := byName["button.ok"]
 	require.NotNil(t, okBtn)
-	noteOK, ok := model.AnnoAs[*model.NoteAnnotation](okBtn, "note")
-	require.True(t, ok)
+	okNotes := okBtn.Notes()
+	require.Len(t, okNotes, 1)
+	noteOK := okNotes[0]
 	assert.Equal(t, "A line comment preceding an entry", noteOK.Text)
 
 	// printf %@ is a protected placeholder, not flattened text.

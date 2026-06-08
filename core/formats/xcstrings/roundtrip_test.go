@@ -112,8 +112,9 @@ func TestSimpleModeling(t *testing.T) {
 	assert.Equal(t, "Abbrechen", model.RenderRunsWithData(cancelDe.TargetRuns("de")))
 	assert.Equal(t, "Cancel", model.RenderRunsWithData(cancelDe.SourceRuns()))
 	assert.Equal(t, "translated", cancelDe.Properties["state"])
-	note, ok := model.AnnoAs[*model.NoteAnnotation](cancelDe, "note")
-	require.True(t, ok)
+	notes := cancelDe.Notes()
+	require.Len(t, notes, 1)
+	note := notes[0]
 	assert.Equal(t, "Button title to dismiss the sheet", note.Text)
 	assert.Equal(t, "developer", note.From)
 

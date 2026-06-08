@@ -67,7 +67,7 @@ type BlockView interface {
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
 	// AddOverlaySpan appends an overlay span (term, entity, …) to the
-	// source-side overlay of the given type, merging into the existing facet. The
+	// source-side overlay of the given type, merging into the existing overlay. The
 	// span's Range is the position and its ID the stable identity.
 	AddOverlaySpan(t model.OverlayType, s model.Span)
 	// OverlaySpans returns the spans of the source-side overlay of the
@@ -84,6 +84,9 @@ type BlockView interface {
 	// AppendAltUnder appends an alt-translation to the collection under an
 	// arbitrary key (e.g. the per-segment TM-match set).
 	AppendAltUnder(key string, a *model.AltTranslation)
+	// AddNote appends a note to the block's note collection (multiplicity lives
+	// in the collection, never in numbered keys).
+	AddNote(n *model.NoteAnnotation)
 	// Annotations returns a snapshot of the block annotations (the former
 	// annotation map). Use Annotate to write; writing to the returned map has
 	// no effect.
@@ -222,6 +225,7 @@ func (v *blockView) OverlaySpans(t model.OverlayType) []model.Span {
 }
 func (v *blockView) RemoveOverlay(t model.OverlayType)         { v.b.RemoveOverlay(t) }
 func (v *blockView) AddAltTranslation(a *model.AltTranslation) { v.b.AddAltTranslation(a) }
+func (v *blockView) AddNote(n *model.NoteAnnotation)           { v.b.AddNote(n) }
 func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
 	v.b.AppendAltUnder(key, a)
 }

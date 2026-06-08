@@ -733,7 +733,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	}
 
 	// Hard data-flow validation (tool/data-model redesign, phase 4): reject a
-	// flow whose tool requires a facet that no upstream tool or the source
+	// flow whose tool requires a port that no upstream tool or the source
 	// binding produces.
 	if err := flowDef.ValidateDataFlow(a.ToolReg); err != nil {
 		return nil, nil, err

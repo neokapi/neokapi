@@ -75,7 +75,7 @@ func (x *AnnotationEntry) GetData() []byte {
 }
 
 // RunRangeMessage is a run-anchored byte/run span (the position of a
-// positional facet span).
+// overlay span).
 type RunRangeMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StartRun      int32                  `protobuf:"varint,1,opt,name=start_run,json=startRun,proto3" json:"start_run,omitempty"`
@@ -145,7 +145,7 @@ func (x *RunRangeMessage) GetEndOffset() int32 {
 }
 
 // VariantMessage identifies a target variant (locale + optional tone/channel).
-// Its absence on an OverlayMessage means the facet is source-side.
+// Its absence on an OverlayMessage means the overlay is source-side.
 type VariantMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Locale        string                 `protobuf:"bytes,1,opt,name=locale,proto3" json:"locale,omitempty"`
@@ -206,7 +206,7 @@ func (x *VariantMessage) GetChannel() string {
 	return ""
 }
 
-// SpanMessage is one occurrence within a positional facet: a run-anchored
+// SpanMessage is one occurrence within an overlay: a run-anchored
 // range, optional string props, and the typed payload (carried as an
 // AnnotationEntry so unknown payload types degrade to a generic map, exactly
 // like block-scoped annotations).
@@ -278,15 +278,15 @@ func (x *SpanMessage) GetValue() *AnnotationEntry {
 	return nil
 }
 
-// OverlayMessage is one stand-off facet on a block: a typed, optionally
-// variant-scoped, layered set of spans. This carries the full facet vocabulary
+// OverlayMessage is one stand-off overlay on a block: a typed, optionally
+// variant-scoped, layered set of spans. This carries the full overlay vocabulary
 // across the bridge (term, entity, qa, alignment, and any plugin-defined
-// type), so a facet type a peer doesn't recognise round-trips by type name and
+// type), so an overlay type a peer doesn't recognise round-trips by type name and
 // JSON rather than being dropped. Segmentation overlays are NOT carried here —
 // they are reconstructed from the source/target SegmentMessage boundaries.
 type OverlayMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`       // facet type ("term", "entity", "qa", …)
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`       // overlay type ("term", "entity", "qa", …)
 	Variant       *VariantMessage        `protobuf:"bytes,2,opt,name=variant,proto3" json:"variant,omitempty"` // absent = source side
 	Layer         string                 `protobuf:"bytes,3,opt,name=layer,proto3" json:"layer,omitempty"`     // "" = primary
 	Spans         []*SpanMessage         `protobuf:"bytes,4,rep,name=spans,proto3" json:"spans,omitempty"`
@@ -1241,7 +1241,7 @@ type ContentBlock struct {
 	PreserveWhitespace bool                        `protobuf:"varint,9,opt,name=preserve_whitespace,json=preserveWhitespace,proto3" json:"preserve_whitespace,omitempty"`
 	Annotations        map[string]*AnnotationEntry `protobuf:"bytes,10,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	DisplayHint        *DisplayHintMessage         `protobuf:"bytes,11,opt,name=display_hint,json=displayHint,proto3" json:"display_hint,omitempty"`
-	// Stand-off positional facets (see BlockMessage.overlays).
+	// Stand-off overlays (see BlockMessage.overlays).
 	Overlays      []*OverlayMessage `protobuf:"bytes,12,rep,name=overlays,proto3" json:"overlays,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1621,7 +1621,7 @@ type BlockMessage struct {
 	Skeleton           *SkeletonMessage            `protobuf:"bytes,11,opt,name=skeleton,proto3" json:"skeleton,omitempty"`
 	PreserveWhitespace bool                        `protobuf:"varint,12,opt,name=preserve_whitespace,json=preserveWhitespace,proto3" json:"preserve_whitespace,omitempty"`
 	IsReferent         bool                        `protobuf:"varint,13,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
-	// Stand-off positional facets (term, entity, qa, alignment, plugin types).
+	// Stand-off overlays (term, entity, qa, alignment, plugin types).
 	// Segmentation is reconstructed from source/targets, so it is not repeated here.
 	Overlays      []*OverlayMessage `protobuf:"bytes,14,rep,name=overlays,proto3" json:"overlays,omitempty"`
 	unknownFields protoimpl.UnknownFields

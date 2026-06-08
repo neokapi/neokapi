@@ -9,19 +9,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// These tests pin the facet-vocabulary bridge contract: overlays
-// (term, entity, …) and plugin-defined facet types cross the gRPC bridge fully
-// — type, span ranges, props and typed values — instead of being dropped.
-// block annotations keep crossing as `annotations` and segmentation as the
-// segment boundaries, so nothing is double-encoded.
+// These tests pin the bridge contract: overlays (term, entity, …) and
+// plugin-defined overlay types cross the gRPC bridge fully — type, span ranges,
+// props and typed values — instead of being dropped. Block annotations keep
+// crossing as `annotations` and segmentation as the segment boundaries, so
+// nothing is double-encoded.
 
 const pluginOverlay model.OverlayType = "x-plugin-marks"
 
-// buildOverlayBlock returns a block carrying one of each facet flavour.
+// buildOverlayBlock returns a block carrying one of each stand-off flavour.
 func buildOverlayBlock() *model.Block {
 	b := model.NewBlock("b1", "John Smith visited Paris yesterday")
 
-	// Positional, built-in facets with typed values.
+	// Positional, built-in overlays with typed values.
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:0",
 		Range: model.RunRangeForBytes(b.Source, 0, 10),
@@ -43,7 +43,7 @@ func buildOverlayBlock() *model.Block {
 	})
 
 	// A block annotation (must keep crossing as an annotation, not an overlay).
-	b.SetAnno("note", &model.NoteAnnotation{Text: "reviewer note"})
+	b.AddNote(&model.NoteAnnotation{Text: "reviewer note"})
 
 	// A segmentation overlay (must never appear in the overlays field — it is
 	// reconstructed from the segment boundaries).
@@ -69,7 +69,7 @@ func assertRoundTripped(t *testing.T, got *model.Block) {
 	assert.Equal(t, 0, start)
 	assert.Equal(t, 10, end)
 
-	// Term facet (with props).
+	// Term overlay (with props).
 	ts := got.OverlaySpan(model.OverlayTerm, "term:0")
 	require.NotNil(t, ts)
 	ta, ok := ts.Value.(*model.TermAnnotation)
@@ -77,7 +77,7 @@ func assertRoundTripped(t *testing.T, got *model.Block) {
 	assert.Equal(t, "Paris", ta.SourceTerm)
 	assert.Equal(t, "preferred", ts.Props["strength"])
 
-	// Plugin facet: type preserved; unregistered payload degrades to a generic
+	// Plugin overlay: type preserved; unregistered payload degrades to a generic
 	// annotation but keeps its type name (no data loss of identity).
 	pf := got.OverlayOf(pluginOverlay)
 	require.NotNil(t, pf, "plugin-defined overlay must survive")
@@ -87,9 +87,9 @@ func assertRoundTripped(t *testing.T, got *model.Block) {
 	assert.Equal(t, "x-mark", ga.Kind)
 
 	// Block-scoped note still present.
-	n, ok := model.AnnoAs[*model.NoteAnnotation](got, "note")
-	require.True(t, ok)
-	assert.Equal(t, "reviewer note", n.Text)
+	notes := got.Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "reviewer note", notes[0].Text)
 }
 
 func TestBlockOverlayRoundTrip(t *testing.T) {
@@ -124,11 +124,10 @@ func TestContentBlockOverlayRoundTrip(t *testing.T) {
 // No overlays → no overlays emitted (nil, not an empty slice churn).
 func TestBlockNoOverlays(t *testing.T) {
 	b := model.NewBlock("b1", "plain")
-	b.SetAnno("note", &model.NoteAnnotation{Text: "hi"})
+	b.AddNote(&model.NoteAnnotation{Text: "hi"})
 	proto := protoconvert.BlockToProto(b)
 	assert.Empty(t, proto.Overlays)
 	// The block-scoped note still crosses as an annotation.
 	got := protoconvert.ProtoToBlock(proto)
-	_, ok := model.AnnoAs[*model.NoteAnnotation](got, "note")
-	assert.True(t, ok)
+	assert.Len(t, got.Notes(), 1)
 }

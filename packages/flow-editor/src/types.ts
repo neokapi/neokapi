@@ -65,7 +65,7 @@ export type Side = "source" | "target";
 
 /**
  * One entry of a tool's IO contract (consumes/produces): a typed
- * stand-off layer, the side it pertains to, and — for consumed facets —
+ * stand-off layer, the side it pertains to, and — for consumed ports —
  * whether it is optional (graceful degradation) vs a hard requirement.
  */
 export interface IOPort {

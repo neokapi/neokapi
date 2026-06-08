@@ -821,7 +821,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					}
 					if len(noteParts) > 0 {
 						noteText = strings.Join(noteParts, "\n")
-						block.SetAnno("note", &model.NoteAnnotation{
+						block.AddNote(&model.NoteAnnotation{
 							Text: noteText,
 						})
 					}

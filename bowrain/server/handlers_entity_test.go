@@ -13,13 +13,13 @@ import (
 // behaviour (the part of the entity-editing rework most likely to regress)
 // without needing the HTTP/store/auth scaffolding.
 
-func TestNextFacetSpanIndex_Empty(t *testing.T) {
+func TestNextOverlaySpanIndex_Empty(t *testing.T) {
 	t.Parallel()
 	b := model.NewBlock("b1", "hello")
 	assert.Equal(t, 0, nextOverlaySpanIndex(b, model.OverlayEntity, "entity:"))
 }
 
-func TestNextFacetSpanIndex_Sequential(t *testing.T) {
+func TestNextOverlaySpanIndex_Sequential(t *testing.T) {
 	t.Parallel()
 	b := model.NewBlock("b1", "John visited Paris")
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0", Value: &model.EntityAnnotation{Text: "John"}})
@@ -27,7 +27,7 @@ func TestNextFacetSpanIndex_Sequential(t *testing.T) {
 	assert.Equal(t, 2, nextOverlaySpanIndex(b, model.OverlayEntity, "entity:"))
 }
 
-func TestNextFacetSpanIndex_AfterDeleteUsesMaxPlusOne(t *testing.T) {
+func TestNextOverlaySpanIndex_AfterDeleteUsesMaxPlusOne(t *testing.T) {
 	t.Parallel()
 	b := model.NewBlock("b1", "John visited Paris today")
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0", Value: &model.EntityAnnotation{Text: "John"}})
@@ -39,7 +39,7 @@ func TestNextFacetSpanIndex_AfterDeleteUsesMaxPlusOne(t *testing.T) {
 	assert.Equal(t, 3, nextOverlaySpanIndex(b, model.OverlayEntity, "entity:"))
 }
 
-func TestNextFacetSpanIndex_PerOverlayType(t *testing.T) {
+func TestNextOverlaySpanIndex_PerOverlayType(t *testing.T) {
 	t.Parallel()
 	b := model.NewBlock("b1", "John visited Paris")
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0", Value: &model.EntityAnnotation{Text: "John"}})

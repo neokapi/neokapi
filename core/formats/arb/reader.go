@@ -324,7 +324,7 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 	block.Properties["arb.key"] = res.id
 
 	if res.description != "" && r.cfg.DescriptionNotes {
-		block.SetAnno("note", &model.NoteAnnotation{
+		block.AddNote(&model.NoteAnnotation{
 			Text:      res.description,
 			From:      "developer",
 			Annotates: "general",

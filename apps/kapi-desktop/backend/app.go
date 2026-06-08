@@ -596,11 +596,11 @@ type ToolInfo struct {
 	Tags        []string `json:"tags,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 
-	// IO contract fields (Framework AD-006): facet Consumes/Produces.
+	// IO contract fields (Framework AD-006): port Consumes/Produces (IOPort).
 	Cardinality   string   `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
 	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
-	Consumes      []IOPort `json:"consumes,omitempty"`       // facets read upstream
-	Produces      []IOPort `json:"produces,omitempty"`       // facets written
+	Consumes      []IOPort `json:"consumes,omitempty"`       // ports read upstream
+	Produces      []IOPort `json:"produces,omitempty"`       // ports written
 	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 
 	// IsSourceTransform reports whether the tool can rewrite source — i.e.
@@ -609,8 +609,7 @@ type ToolInfo struct {
 }
 
 // IOPort is one entry of a tool's IO contract surfaced to the flow
-// editor: the facet type, the side it pertains to, and whether a consumed
-// facet is optional (graceful degradation) vs required.
+// editor: the port type, the side it pertains to, and whether // port is optional (graceful degradation) vs required.
 type IOPort struct {
 	Type     string `json:"type"`
 	Side     string `json:"side,omitempty"`

@@ -268,8 +268,8 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
 	if notesEl := unit.SelectElement("notes"); notesEl != nil {
-		for i, n := range notesEl.SelectElements("note") {
-			block.Properties[fmt.Sprintf("note-%d", i)] = strings.TrimSpace(n.Text())
+		for _, n := range notesEl.SelectElements("note") {
+			block.AddNote(&model.NoteAnnotation{Text: strings.TrimSpace(n.Text())})
 		}
 	}
 
@@ -1082,8 +1082,8 @@ func (s *xliff2StreamState) emitUnit() {
 			block.Properties["state"] = st
 		}
 	}
-	for i, note := range s.notes {
-		block.Properties[fmt.Sprintf("note-%d", i)] = note
+	for _, note := range s.notes {
+		block.AddNote(&model.NoteAnnotation{Text: note})
 	}
 	// The streaming skeleton path tracks at most one target locale.
 	trgLang := model.LocaleID(s.trgLang)

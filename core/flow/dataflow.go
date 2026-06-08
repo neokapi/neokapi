@@ -121,7 +121,7 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 				continue
 			}
 			if !available[ioKey(c)] {
-				return fmt.Errorf("flow %q: tool %q requires facet %s, but no upstream tool produces it%s",
+				return fmt.Errorf("flow %q: tool %q requires port %s, but no upstream tool produces it%s",
 					d.Name, name, ioKey(c), bindingHint(source))
 			}
 		}

@@ -363,11 +363,22 @@ func annotationViews(b *model.Block) []AnnotationView {
 	sort.Strings(keys)
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
-		// An alt-translation collection expands to one view per candidate so
-		// each match renders individually (keyed "alt-translation[i]").
+		// Collection annotations expand to one view per item so each renders
+		// individually (keyed "alt-translation[i]" / "note[i]").
 		if alts, ok := annos[k].(*model.AltTranslations); ok {
 			for i, alt := range alts.Items {
 				out = append(out, altTranslationView(fmt.Sprintf("%s[%d]", k, i), alt))
+			}
+			continue
+		}
+		if notes, ok := annos[k].(*model.Notes); ok {
+			for i, n := range notes.Items {
+				out = append(out, AnnotationView{
+					Key:     fmt.Sprintf("%s[%d]", k, i),
+					Type:    "note",
+					Summary: n.Text,
+					Fields:  map[string]any{"from": n.From, "priority": n.Priority, "annotates": n.Annotates},
+				})
 			}
 			continue
 		}

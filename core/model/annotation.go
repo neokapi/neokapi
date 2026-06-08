@@ -53,8 +53,18 @@ type NoteAnnotation struct {
 	Annotates string `json:"annotates,omitempty"` // What this note annotates ("source", "target", "general")
 }
 
-// AnnotationType returns the type identifier for this annotation.
+// AnnotationType returns the type identifier for a single note.
 func (n *NoteAnnotation) AnnotationType() string { return "note" }
+
+// Notes is the block annotation holding all notes/comments on a block. It is
+// one typed payload under the AnnoNote key: multiplicity lives in the slice,
+// not in numbered keys ("note-1", …).
+type Notes struct {
+	Items []*NoteAnnotation `json:"items,omitempty"`
+}
+
+// AnnotationType returns the type identifier for the note collection.
+func (*Notes) AnnotationType() string { return "note" }
 
 // GenericAnnotation holds arbitrary metadata as key-value pairs.
 // Used for ITS metadata, custom annotations, and any annotation type

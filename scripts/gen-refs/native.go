@@ -103,7 +103,7 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 }
 
 // portNames renders a IO contract as "type@side" tokens (optional
-// consumed facets get a trailing "?") for the generated reference.
+// consumed ports get a trailing "?") for the generated reference.
 func portNames(fs []coreschema.IOPort) []string {
 	if len(fs) == 0 {
 		return nil

@@ -540,7 +540,7 @@ func (r *Reader) applyComment(b *model.Block, comment string) {
 	if strings.TrimSpace(comment) == "" {
 		return
 	}
-	b.SetAnno("note", &model.NoteAnnotation{
+	b.AddNote(&model.NoteAnnotation{
 		Text:      strings.TrimSpace(comment),
 		From:      "developer",
 		Annotates: "general",

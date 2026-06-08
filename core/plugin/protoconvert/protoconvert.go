@@ -104,8 +104,7 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]any {
 // recognise round-trips by type name + JSON (its span values degrade to a
 // GenericAnnotation map) rather than being silently dropped.
 
-// positionalOverlaysToProto converts a block's positional, non-segmentation
-// facets to OverlayMessages. Segmentation is excluded (reconstructed from the
+// positionalOverlaysToProto converts a block's // overlays to OverlayMessages. Segmentation is excluded (reconstructed from the
 // segment boundaries) and block annotations are excluded (carried as
 // annotations), so nothing is double-encoded.
 func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
@@ -120,7 +119,7 @@ func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
 	return out
 }
 
-// OverlayToProto converts a model.Overlay (facet) to a proto OverlayMessage.
+// OverlayToProto converts a model.Overlay to a proto OverlayMessage.
 func OverlayToProto(o model.Overlay) *pb.OverlayMessage {
 	msg := &pb.OverlayMessage{
 		Type:    string(o.Type),

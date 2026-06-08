@@ -64,7 +64,7 @@ func TestBlockWithTargets(t *testing.T) {
 func TestBlockWithAnnotations(t *testing.T) {
 	b := &model.Block{ID: "b1"}
 	b.SetSourceText("Test")
-	b.SetAnno("note", &model.NoteAnnotation{Text: "translator note", From: "dev"})
+	b.AddNote(&model.NoteAnnotation{Text: "translator note", From: "dev"})
 
 	pb := BlockToProto(b, "en.json")
 	assert.NotEmpty(t, pb.AnnotationsJson)

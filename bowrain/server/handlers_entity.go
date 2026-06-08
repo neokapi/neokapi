@@ -120,7 +120,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
 	}
 
-	// span.Value is a pointer into the block's facet, so these edits mutate it
+	// span.Value is a pointer into the block's overlay, so these edits mutate it
 	// in place — no re-store of the span needed.
 	if req.Type != "" {
 		entity.Type = model.EntityType(req.Type)

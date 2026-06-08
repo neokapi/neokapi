@@ -562,9 +562,9 @@ func TestExtract_NoteAnnotation(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
-	noteAnn, ok := b.Anno("note")
-	require.True(t, ok)
-	note := noteAnn.(*model.NoteAnnotation)
+	notes := b.Notes()
+	require.Len(t, notes, 1)
+	note := notes[0]
 	assert.Equal(t, "This is a developer note", note.Text)
 }
 
@@ -578,9 +578,9 @@ func TestExtract_NoteWithPriority(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
-	noteAnn, ok := b.Anno("note")
-	require.True(t, ok)
-	note := noteAnn.(*model.NoteAnnotation)
+	notes := b.Notes()
+	require.Len(t, notes, 1)
+	note := notes[0]
 	assert.Equal(t, "Important note", note.Text)
 	assert.Equal(t, "developer", note.From)
 	assert.Equal(t, 1, note.Priority)
@@ -599,14 +599,12 @@ func TestExtract_MultipleNotes(t *testing.T) {
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
 
-	note0, ok := b.Anno("note")
-	require.True(t, ok)
-	n0 := note0.(*model.NoteAnnotation)
+	notes := b.Notes()
+	require.Len(t, notes, 2)
+	n0 := notes[0]
 	assert.Equal(t, "First note", n0.Text)
 
-	note1, ok := b.Anno("note-1")
-	require.True(t, ok)
-	n1 := note1.(*model.NoteAnnotation)
+	n1 := notes[1]
 	assert.Equal(t, "Second note", n1.Text)
 	assert.Equal(t, "developer", n1.From)
 }

@@ -791,22 +791,18 @@ func (w *Writer) flush() (retErr error) {
 		}
 
 		// Notes
-		for key, ann := range block.AnnoMap() {
-			if strings.HasPrefix(key, "note") {
-				if note, ok := ann.(*model.NoteAnnotation); ok {
-					fmt.Fprintf(ew, "        <note")
-					if note.From != "" {
-						fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
-					}
-					if note.Priority > 0 {
-						fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
-					}
-					if note.Annotates != "" {
-						fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
-					}
-					fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
-				}
+		for _, note := range block.Notes() {
+			fmt.Fprintf(ew, "        <note")
+			if note.From != "" {
+				fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
 			}
+			if note.Priority > 0 {
+				fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
+			}
+			if note.Annotates != "" {
+				fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
+			}
+			fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
 		}
 
 		// Alt-trans

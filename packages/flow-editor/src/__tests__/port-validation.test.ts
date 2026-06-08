@@ -4,7 +4,7 @@ import type { IOPort } from "../types";
 /**
  * port connection validation — mirrors the isValidConnection callback in
  * FlowEditor. A connection is meaningful when the source produces at least one
- * facet the target consumes (matched by type@side). Missing metadata, or a
+ * port the target consumes (matched by type@side). Missing metadata, or a
  * target that consumes nothing (a pass-through), is permitted.
  */
 function isPortConnectionValid(

@@ -399,10 +399,9 @@ func TestSnippets_NoteRules(t *testing.T) {
 	// The note should be attached as an annotation
 	b := findBlockContainingText(blocks, "Text1")
 	require.NotNil(t, b)
-	note, ok := b.Anno("note")
-	require.True(t, ok, "should have a note annotation")
-	noteAnno, ok := note.(*model.NoteAnnotation)
-	require.True(t, ok)
+	notes := b.Notes()
+	require.Len(t, notes, 1, "should have a note annotation")
+	noteAnno := notes[0]
 	assert.Equal(t, "This is a note", noteAnno.Text)
 }
 

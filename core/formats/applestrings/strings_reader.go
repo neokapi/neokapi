@@ -59,7 +59,7 @@ func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, co
 
 		// The preceding comment (/* */ or //) becomes a translator note.
 		if e.hasComment && r.cfg.ExtractComments && e.comment != "" {
-			block.SetAnno("note", &model.NoteAnnotation{
+			block.AddNote(&model.NoteAnnotation{
 				Text:      e.comment,
 				From:      "developer",
 				Annotates: "general",

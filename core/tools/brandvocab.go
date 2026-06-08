@@ -147,7 +147,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	if len(findings) > 0 {
-		// Add the brand-voice facet (which carries the findings + score).
+		// Add the brand-voice annotation (which carries the findings + score).
 		score := brand.CalculateScore(findings)
 		profileID := ""
 		if t.profile != nil {

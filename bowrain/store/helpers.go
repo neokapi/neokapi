@@ -90,7 +90,7 @@ func deserializeAnnotations(jsonStr string) map[string]any {
 				result[key] = &ann
 			}
 		case "note":
-			var ann model.NoteAnnotation
+			var ann model.Notes
 			if err := json.Unmarshal(payload, &ann); err == nil {
 				result[key] = &ann
 			}

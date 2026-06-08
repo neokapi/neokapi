@@ -60,6 +60,25 @@ func (b *Block) AltTranslations() []*AltTranslation {
 // the collection, never in numbered keys.
 func (b *Block) AddAltTranslation(a *AltTranslation) { b.appendAlt(AnnoAltTranslation, a) }
 
+// Notes returns the block's notes (the []*NoteAnnotation under AnnoNote), or nil.
+func (b *Block) Notes() []*NoteAnnotation {
+	if v, ok := AnnoAs[*Notes](b, AnnoNote); ok {
+		return v.Items
+	}
+	return nil
+}
+
+// AddNote appends a note to the block's AnnoNote collection (creating it if
+// absent). Multiplicity lives in the collection, never in numbered keys.
+func (b *Block) AddNote(n *NoteAnnotation) {
+	v, ok := AnnoAs[*Notes](b, AnnoNote)
+	if !ok || v == nil {
+		v = &Notes{}
+	}
+	v.Items = append(v.Items, n)
+	b.SetAnno(AnnoNote, v)
+}
+
 // AppendAltUnder appends an alt-translation to the AltTranslations collection
 // stored under an arbitrary key (e.g. the per-segment TM-match collection),
 // creating it if absent. The set is one typed payload; the segment is recorded

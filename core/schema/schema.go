@@ -65,7 +65,7 @@ type IOPort struct {
 func Port[T ~string](t T, side model.Side) IOPort { return IOPort{Type: string(t), Side: side} }
 
 // ToolMeta identifies a tool and its capabilities. The IO contract is expressed
-// over facets (Consumes/Produces, AD-006); part-type Inputs/Outputs are retired
+// over typed ports (Consumes/Produces, AD-006); part-type Inputs/Outputs are retired
 // — any coarse part-type set the runtime needs is derived from the tool's
 // capability and handlers, not declared here.
 type ToolMeta struct {
@@ -88,11 +88,11 @@ type ToolMeta struct {
 	// for pseudo-translate). Empty means the runner must provide one.
 	DefaultLocale model.LocaleID `json:"defaultLocale,omitempty"`
 
-	// Consumes lists the facets this tool reads upstream. Non-Optional entries
+	// Consumes lists the ports this tool reads upstream. Non-Optional entries
 	// are requirements; Optional entries upgrade behaviour when present.
 	Consumes []IOPort `json:"consumes,omitempty"`
 
-	// Produces lists the facets this tool writes to Blocks.
+	// Produces lists the ports this tool writes to Blocks.
 	Produces []IOPort `json:"produces,omitempty"`
 
 	// SideEffects lists external systems this tool reads from or writes to.

@@ -285,7 +285,7 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 
 	// Developer comment becomes a block note.
 	if e.Comment != "" {
-		block.SetAnno("note", &model.NoteAnnotation{
+		block.AddNote(&model.NoteAnnotation{
 			Text:      e.Comment,
 			From:      "developer",
 			Annotates: "general",

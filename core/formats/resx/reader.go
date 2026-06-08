@@ -288,7 +288,7 @@ func (r *Reader) emitDataBlock(ctx context.Context, ch chan<- model.PartResult,
 	// Sibling <comment> → translator note.
 	if comment, ok := childElementText(entryToks, "comment"); ok && r.cfg.ExtractComments {
 		if strings.TrimSpace(comment) != "" {
-			block.SetAnno("note", &model.NoteAnnotation{
+			block.AddNote(&model.NoteAnnotation{
 				Text:      comment,
 				From:      "developer",
 				Annotates: "general",

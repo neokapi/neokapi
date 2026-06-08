@@ -1325,13 +1325,9 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		block.SetAnno("xliff:target-attrs", newTargetAttrsAnnotation(tu.targetAttrs))
 	}
 
-	// Add notes
-	for i, note := range tu.notes {
-		key := "note"
-		if i > 0 {
-			key = fmt.Sprintf("note-%d", i)
-		}
-		block.SetAnno(key, &model.NoteAnnotation{
+	// Add notes (one note collection, not numbered keys).
+	for _, note := range tu.notes {
+		block.AddNote(&model.NoteAnnotation{
 			Text:      note.text,
 			From:      note.from,
 			Priority:  note.priority,
