@@ -739,7 +739,7 @@ export function FlowEditor({
       setSelectedNodeId(`tool-${newNodeIndex}`);
       // Fit the entire graph into view so the new node is visible.
       requestAnimationFrame(() => {
-        reactFlowRef.current?.fitView({ padding: 0.2, maxZoom: 1, duration: 300 });
+        reactFlowRef.current?.fitView({ padding: 0.2, minZoom: 1, maxZoom: 1, duration: 300 });
       });
     },
     [flow, onChange, readOnly],
@@ -986,9 +986,10 @@ export function FlowEditor({
               nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
               nodesConnectable={!readOnly}
               fitView
-              // Cap zoom at 100% so small flows render at a consistent, readable
-              // scale instead of being blown up to fill the canvas.
-              fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+              // Always frame at exactly 100% (min == max == 1) so every flow,
+              // large or small, renders at a consistent, readable scale; the
+              // content is centered and overflow is reached by panning.
+              fitViewOptions={{ padding: 0.2, minZoom: 1, maxZoom: 1 }}
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{
                 style: { stroke: "var(--muted-foreground)", strokeWidth: 2 },
