@@ -263,12 +263,21 @@ export function serpentineGraph(
   // text), so Source is top-left and Sink ends bottom-right. Source and Sink are
   // folded in as the first/last stations (slot 0 = Source, 1..N = tools, N+1 =
   // Sink) so they align with the row and wrap with it.
-  const slotGeom = (slot: number) => ({
-    x: (slot % columns) * SERP_COL_W,
-    y: Math.floor(slot / columns) * SERP_ROW_H,
-    inPosition: Position.Left,
-    outPosition: Position.Right,
-  });
+  //
+  // Handle sides follow the neighbour's direction so edges take the nearest
+  // side, not a snake: a node feeds the one to its right (out=Right / in=Left),
+  // unless it is the last in its row — then it wraps DOWN to the next row's
+  // first node (out=Bottom / in=Top). With one column the whole flow is vertical
+  // (every node first AND last in its row → Top/Bottom), giving straight edges.
+  const slotGeom = (slot: number) => {
+    const posInRow = slot % columns;
+    return {
+      x: posInRow * SERP_COL_W,
+      y: Math.floor(slot / columns) * SERP_ROW_H,
+      inPosition: posInRow === 0 ? Position.Top : Position.Left,
+      outPosition: posInRow === columns - 1 ? Position.Bottom : Position.Right,
+    };
+  };
 
   colKeys.forEach((key, g) => {
     const geom = slotGeom(g + 1);

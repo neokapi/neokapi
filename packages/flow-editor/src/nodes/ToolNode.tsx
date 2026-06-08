@@ -149,9 +149,14 @@ export function ToolNode({ data, selected }: NodeProps) {
   const inPosition = (data.inPosition as Position) ?? (vertical ? Position.Top : Position.Left);
   const outPosition =
     (data.outPosition as Position) ?? (vertical ? Position.Bottom : Position.Right);
-  // Side-effect satellites sit on a free side perpendicular to the flow axis so
-  // they never overlap the input/output ports or the edge to the next tool.
-  const flowHorizontal = outPosition === Position.Left || outPosition === Position.Right;
+  // Side-effect satellites sit on a free side (one not used by the in/out ports)
+  // so they never overlap the ports or the edge to the next tool.
+  const usedSides = new Set<Position>([inPosition, outPosition]);
+  const satelliteSide: Position = !usedSides.has(Position.Top)
+    ? Position.Top
+    : !usedSides.has(Position.Right)
+      ? Position.Right
+      : Position.Bottom;
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
   const isSourceTransformStage = data.stage === "source-transform";
@@ -327,78 +332,92 @@ export function ToolNode({ data, selected }: NodeProps) {
         )}
 
         {/* External-system satellites: TM / termbase / API / analytics / vault
-            the tool reads from or writes to. Dashed chips on a free perpendicular
-            side — deliberately distinct from the solid output port and the main
-            edge to the next tool. Part of the node, so collision-safe. */}
-        {systems.length > 0 && (
-          <div
-            className={cn(
-              "absolute z-[1] flex",
-              flowHorizontal
-                ? "bottom-full left-1/2 -translate-x-1/2 -translate-y-1 flex-row items-end gap-1.5"
-                : "left-full top-1/2 -translate-y-1/2 translate-x-1 flex-col gap-1",
-            )}
-          >
-            {systems.map((s) => {
-              const SysIcon = s.icon;
-              const arrow = flowHorizontal
-                ? s.direction === "read"
-                  ? "↓"
-                  : s.direction === "write"
-                    ? "↑"
-                    : "↕"
-                : s.direction === "read"
-                  ? "←"
-                  : s.direction === "write"
-                    ? "→"
-                    : "↔";
-              const chip = (
-                <span
-                  className="flex items-center gap-0.5 rounded-md border border-dashed bg-card px-1 py-0.5 shadow-sm"
-                  style={{ borderColor: s.color }}
-                >
-                  <SysIcon size={10} style={{ color: s.color }} aria-hidden />
-                  <span className="text-[8px] font-medium" style={{ color: s.color }}>
-                    {s.label}
-                  </span>
-                </span>
-              );
-              return flowHorizontal ? (
-                <div
-                  key={s.key}
-                  className="flex flex-col items-center"
-                  title={`${s.label}: ${s.description}`}
-                >
-                  {chip}
-                  <span className="text-[8px] leading-none" style={{ color: s.color }}>
-                    {arrow}
-                  </span>
-                  <span
-                    className="inline-block h-1.5 border-l border-dashed"
-                    style={{ borderColor: s.color }}
-                    aria-hidden
-                  />
-                </div>
-              ) : (
-                <div
-                  key={s.key}
-                  className="flex items-center"
-                  title={`${s.label}: ${s.description}`}
-                >
-                  <span
-                    className="mr-0.5 inline-block w-3 border-t border-dashed"
-                    style={{ borderColor: s.color }}
-                    aria-hidden
-                  />
-                  <span className="mr-0.5 text-[8px] leading-none" style={{ color: s.color }}>
-                    {arrow}
-                  </span>
-                  {chip}
-                </div>
-              );
-            })}
-          </div>
-        )}
+            the tool reads from or writes to. Dashed chips on a free side —
+            deliberately distinct from the solid ports and the main edge to the
+            next tool. Part of the node, so collision-safe across layouts. */}
+        {systems.length > 0 &&
+          (() => {
+            const onTop = satelliteSide === Position.Top;
+            const onBottom = satelliteSide === Position.Bottom;
+            const stacked = onTop || onBottom; // chips laid in a row, stub vertical
+            const containerCls = onTop
+              ? "bottom-full left-1/2 -translate-x-1/2 -translate-y-1 flex-row items-end gap-1.5"
+              : onBottom
+                ? "top-full left-1/2 -translate-x-1/2 translate-y-1 flex-row items-start gap-1.5"
+                : "left-full top-1/2 -translate-y-1/2 translate-x-1 flex-col gap-1";
+            // Arrow points toward the chip for writes, toward the node for reads.
+            const arrowFor = (dir: string) => {
+              if (onTop) return dir === "read" ? "↓" : dir === "write" ? "↑" : "↕";
+              if (onBottom) return dir === "read" ? "↑" : dir === "write" ? "↓" : "↕";
+              return dir === "read" ? "←" : dir === "write" ? "→" : "↔";
+            };
+            return (
+              <div className={cn("absolute z-[1] flex", containerCls)}>
+                {systems.map((s) => {
+                  const SysIcon = s.icon;
+                  const chip = (
+                    <span
+                      className="flex items-center gap-0.5 rounded-md border border-dashed bg-card px-1 py-0.5 shadow-sm"
+                      style={{ borderColor: s.color }}
+                    >
+                      <SysIcon size={10} style={{ color: s.color }} aria-hidden />
+                      <span className="text-[8px] font-medium" style={{ color: s.color }}>
+                        {s.label}
+                      </span>
+                    </span>
+                  );
+                  const arrow = (
+                    <span className="text-[8px] leading-none" style={{ color: s.color }}>
+                      {arrowFor(s.direction)}
+                    </span>
+                  );
+                  const vStub = (
+                    <span
+                      className="inline-block h-1.5 border-l border-dashed"
+                      style={{ borderColor: s.color }}
+                      aria-hidden
+                    />
+                  );
+                  const hStub = (
+                    <span
+                      className="inline-block w-3 border-t border-dashed"
+                      style={{ borderColor: s.color }}
+                      aria-hidden
+                    />
+                  );
+                  return (
+                    <div
+                      key={s.key}
+                      className={cn("flex", stacked ? "flex-col items-center" : "items-center")}
+                      title={`${s.label}: ${s.description}`}
+                    >
+                      {onTop && (
+                        <>
+                          {chip}
+                          {arrow}
+                          {vStub}
+                        </>
+                      )}
+                      {onBottom && (
+                        <>
+                          {vStub}
+                          {arrow}
+                          {chip}
+                        </>
+                      )}
+                      {!stacked && (
+                        <>
+                          {hStub}
+                          {arrow}
+                          {chip}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
         <BoundaryPorts
           handleType="source"
