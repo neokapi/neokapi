@@ -282,9 +282,15 @@ export function serpentineGraph(
   colKeys.forEach((key, g) => {
     const geom = slotGeom(g + 1);
     const group = colMap.get(key)!;
-    const span = (group.length - 1) * SERP_BRANCH_DY;
+    // Parallel branches fan out perpendicular to the flow at this slot: spread
+    // them horizontally when the column flows down (out=Bottom), vertically when
+    // it flows across (out=Right), so they never stack on each other.
+    const spreadX = geom.outPosition === Position.Bottom;
+    const stride = spreadX ? SERP_COL_W : SERP_BRANCH_DY;
+    const span = (group.length - 1) * stride;
     group.forEach((n, b) => {
-      n.position = { x: geom.x, y: geom.y + b * SERP_BRANCH_DY - span / 2 };
+      const off = b * stride - span / 2;
+      n.position = spreadX ? { x: geom.x + off, y: geom.y } : { x: geom.x, y: geom.y + off };
       n.data.inPosition = geom.inPosition;
       n.data.outPosition = geom.outPosition;
     });
