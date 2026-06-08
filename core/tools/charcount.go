@@ -51,7 +51,6 @@ func CharCountSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Char Count",
 		Description: "Count characters in source and target text",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

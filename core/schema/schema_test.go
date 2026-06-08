@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,7 +70,7 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 			ID:          "pseudo-translate",
 			Category:    "transform",
 			DisplayName: "Pseudo Translate",
-			Inputs:      []string{PartTypeBlock},
+			Produces:    []IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
 			Tags:        []string{"translation"},
 			Requires:    []string{RequiresTargetLanguage},
 		},
@@ -93,8 +94,7 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 	assert.Equal(t, s.ID, decoded.ID)
 	assert.Equal(t, s.Title, decoded.Title)
 	assert.Equal(t, s.ToolMeta.Category, decoded.ToolMeta.Category)
-	assert.Equal(t, []string{"block"}, decoded.ToolMeta.Inputs)
-	assert.Empty(t, decoded.ToolMeta.Outputs)
+	assert.Equal(t, []IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}}, decoded.ToolMeta.Produces)
 	assert.Equal(t, []string{"translation"}, decoded.ToolMeta.Tags)
 	assert.Equal(t, []string{"target-language"}, decoded.ToolMeta.Requires)
 	assert.Len(t, decoded.Properties, 3)

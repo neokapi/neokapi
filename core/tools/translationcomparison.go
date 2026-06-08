@@ -68,7 +68,6 @@ func TranslationComparisonSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Translation Comparison",
 		Description: "Compare translations across locales or versions",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

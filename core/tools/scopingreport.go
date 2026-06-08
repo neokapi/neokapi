@@ -42,7 +42,6 @@ func ScopingReportSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Scoping Report",
 		Description: "Generate detailed scoping report (word counts, repetitions, file breakdown)",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -36,12 +36,11 @@ func AITerminologySchema() *schema.ComponentSchema {
 		Category:              schema.CategoryAnalysis,
 		DisplayName:           "AI Terminology Extraction",
 		Description:           "Extract candidate terminology from content using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered", "terminology"},
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationTerms},
+		Produces:              []schema.IOFacet{{Type: model.FacetTerm, Side: model.SideSource}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

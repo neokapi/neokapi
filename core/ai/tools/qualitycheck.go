@@ -39,13 +39,12 @@ func AIQASchema() *schema.ComponentSchema {
 		Category:              schema.CategoryQuality,
 		DisplayName:           "AI QA Check",
 		Description:           "Check translation quality using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationFindings},
+		Produces:              []schema.IOFacet{{Type: model.FacetQA, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

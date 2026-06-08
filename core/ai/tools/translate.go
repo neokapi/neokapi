@@ -75,14 +75,13 @@ func AITranslateSchema() *schema.ComponentSchema {
 		Category:              schema.CategoryTranslation,
 		DisplayName:           "AI Translate",
 		Description:           "Translate content using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered"},
 		Aliases:               []string{"translate"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationTranslation},
+		Produces:              []schema.IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

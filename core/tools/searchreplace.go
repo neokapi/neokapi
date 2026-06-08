@@ -72,7 +72,6 @@ func SearchReplaceSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Search Replace",
 		Description: "Find and replace patterns (literal or regex)",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -34,7 +34,6 @@ func AIReviewSchema() *schema.ComponentSchema {
 		Category:              schema.CategoryQuality,
 		DisplayName:           "AI Review",
 		Description:           "Review translations with scoring using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,

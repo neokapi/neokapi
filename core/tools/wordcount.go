@@ -46,7 +46,6 @@ func WordCountSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Word Count",
 		Description: "Count words in source and target text",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -60,7 +60,6 @@ func MTTranslateSchema(id mtprovider.ProviderID, label string) *schema.Component
 		Category:    schema.CategoryTranslation,
 		DisplayName: label + " Translate",
 		Description: "Translate content using " + label,
-		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"mt", "machine-translation"},
 		// MT is a network round-trip per block, like ai-translate — parallelism
 		// hides API latency. ai-translate defaults to 5; match it.
@@ -68,7 +67,7 @@ func MTTranslateSchema(id mtprovider.ProviderID, label string) *schema.Component
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationTranslation},
+		Produces:              []schema.IOFacet{{Type: model.FacetTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 }

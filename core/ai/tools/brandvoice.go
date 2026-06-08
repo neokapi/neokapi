@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
@@ -45,12 +46,11 @@ func BrandVoiceCheckSchema() *schema.ComponentSchema {
 		Category:              schema.CategoryQuality,
 		DisplayName:           "AI Brand Voice Check",
 		Description:           "Check text against a brand voice profile using an LLM provider",
-		Inputs:                []string{schema.PartTypeBlock},
 		Tags:                  []string{"ai-powered", "brand"},
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationBrandVoice},
+		Produces:              []schema.IOFacet{{Type: model.FacetBrandVoice, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)

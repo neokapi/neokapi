@@ -147,7 +147,6 @@ func SegmentationSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Segmentation",
 		Description: "Split source text into sentence or chunk segments (stand-off overlay)",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

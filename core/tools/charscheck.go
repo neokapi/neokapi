@@ -61,7 +61,6 @@ func CharsCheckSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryQuality,
 		DisplayName: "Chars Check",
 		Description: "Check for invalid or unexpected Unicode characters",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

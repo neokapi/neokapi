@@ -92,7 +92,6 @@ func LengthCheckSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryQuality,
 		DisplayName: "Length Check",
 		Description: "Validate string length against configured limits",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

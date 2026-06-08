@@ -60,7 +60,6 @@ func DiffLeverageSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTranslation,
 		DisplayName: "Diff Leverage",
 		Description: "Leverage translations from previous versions using diff analysis",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

@@ -111,7 +111,6 @@ func TMLeverageSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTranslation,
 		DisplayName: "TM Leverage",
 		Description: "Pre-fill translations from translation memory",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresTM},
 	})
 }

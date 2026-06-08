@@ -46,7 +46,6 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "AI Entity Extract",
 		Description: "Detect named entities (people, organizations, products, locations) using an LLM",
-		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,

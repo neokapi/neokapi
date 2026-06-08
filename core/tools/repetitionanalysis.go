@@ -43,7 +43,6 @@ func RepetitionAnalysisSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Repetition Analysis",
 		Description: "Identify repeated segments across files for TM leverage",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -64,6 +64,20 @@ func (s FacetSide) String() string {
 	}
 }
 
+// MarshalText encodes the side as its string token so facet metadata is
+// human-readable on the wire and in the flow editor.
+func (s FacetSide) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
+
+// UnmarshalText decodes the string token form ("source"/"target").
+func (s *FacetSide) UnmarshalText(b []byte) error {
+	if string(b) == "target" {
+		*s = SideTarget
+	} else {
+		*s = SideSource
+	}
+	return nil
+}
+
 // IsPositional reports whether the facet type is one of the built-in
 // run-anchored positional interpretations (segmentation, term, entity, qa,
 // alignment). Block-scoped facets — the former annotations, keyed by an

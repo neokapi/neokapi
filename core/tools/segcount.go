@@ -38,7 +38,6 @@ func SegCountSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "Segment Count",
 		Description: "Count translatable segments",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -58,7 +58,6 @@ func CaseTransformSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Case Transform",
 		Description: "Transform text case (upper, lower, title)",
-		Inputs:      []string{schema.PartTypeBlock},
 	})
 }
 

@@ -30,15 +30,14 @@ type ToolInfo struct {
 	Category    string   `json:"category,omitempty"`
 	Source      string   `json:"source,omitempty"` // "built-in", plugin name
 	HasSchema   bool     `json:"hasSchema"`
-	Inputs      []string `json:"inputs,omitempty"`   // part types accepted: "block","data","media","layer","group"
-	Outputs     []string `json:"outputs,omitempty"`  // part types produced/modified
 	Tags        []string `json:"tags,omitempty"`     // freeform labels: "ai-powered","regex","batch"
 	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","tm"
 
-	// IO contract fields (Framework AD-006)
+	// IO contract fields (Framework AD-006): facet Consumes/Produces.
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
 	DefaultLocale model.LocaleID           `json:"default_locale,omitempty"`
-	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
+	Consumes      []schema.IOFacet         `json:"consumes,omitempty"`
+	Produces      []schema.IOFacet         `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
 	// IsSourceTransform reports whether the tool can rewrite source
@@ -73,12 +72,11 @@ func probeSourceTransform(factory ToolFactory) (result bool) {
 // copyToolMeta copies all ToolMeta fields into a ToolInfo.
 func copyToolMeta(info *ToolInfo, m *schema.ToolMeta) {
 	info.Category = m.Category
-	info.Inputs = m.Inputs
-	info.Outputs = m.Outputs
 	info.Tags = m.Tags
 	info.Requires = m.Requires
 	info.Cardinality = m.Cardinality
 	info.DefaultLocale = m.DefaultLocale
+	info.Consumes = m.Consumes
 	info.Produces = m.Produces
 	info.SideEffects = m.SideEffects
 	info.WritesOutput = m.WritesOutput

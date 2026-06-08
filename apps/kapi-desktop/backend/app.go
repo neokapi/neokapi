@@ -31,6 +31,7 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -592,20 +593,29 @@ type ToolInfo struct {
 	Category    string   `json:"category"`
 	Source      string   `json:"source,omitempty"` // "built-in" or plugin name
 	HasSchema   bool     `json:"has_schema"`
-	Inputs      []string `json:"inputs,omitempty"`
-	Outputs     []string `json:"outputs,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 
-	// IO contract fields (Framework AD-006)
-	Cardinality   string   `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
-	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
-	Produces      []string `json:"produces,omitempty"`       // annotation types
-	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
+	// IO contract fields (Framework AD-006): facet Consumes/Produces.
+	Cardinality   string    `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
+	DefaultLocale string    `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
+	Consumes      []FacetIO `json:"consumes,omitempty"`       // facets read upstream
+	Produces      []FacetIO `json:"produces,omitempty"`       // facets written
+	SideEffects   []string  `json:"side_effects,omitempty"`   // external interactions
 
 	// IsSourceTransform reports whether the tool can rewrite source — i.e.
 	// whether the flow editor may place it in the source-transform stage.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+}
+
+// FacetIO is one entry of a tool's facet IO contract surfaced to the flow
+// editor: the facet type, the side it pertains to, and whether a consumed
+// facet is optional (graceful degradation) vs required.
+type FacetIO struct {
+	Type     string `json:"type"`
+	Side     string `json:"side,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
+	Layer    string `json:"layer,omitempty"`
 }
 
 // SetLocale configures the active locale for metadata Wails methods.
@@ -668,10 +678,18 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 	t := a.T()
 	infos := make([]ToolInfo, len(all))
 	for i, info := range all {
-		var produces []string
-		for _, p := range info.Produces {
-			produces = append(produces, string(p))
+		toFacetIO := func(fs []schema.IOFacet) []FacetIO {
+			if len(fs) == 0 {
+				return nil
+			}
+			out := make([]FacetIO, len(fs))
+			for i, f := range fs {
+				out[i] = FacetIO{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+			}
+			return out
 		}
+		consumes := toFacetIO(info.Consumes)
+		produces := toFacetIO(info.Produces)
 		var sideEffects []string
 		for _, s := range info.SideEffects {
 			sideEffects = append(sideEffects, string(s))
@@ -685,12 +703,11 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			Category:          info.Category,
 			Source:            info.Source,
 			HasSchema:         info.HasSchema,
-			Inputs:            info.Inputs,
-			Outputs:           info.Outputs,
 			Tags:              info.Tags,
 			Requires:          info.Requires,
 			Cardinality:       string(info.Cardinality),
 			DefaultLocale:     string(info.DefaultLocale),
+			Consumes:          consumes,
 			Produces:          produces,
 			SideEffects:       sideEffects,
 			IsSourceTransform: info.IsSourceTransform,

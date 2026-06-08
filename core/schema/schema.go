@@ -38,18 +38,27 @@ type ComponentSchema struct {
 	RawJSON json.RawMessage `json:"-"`
 }
 
-// ToolMeta identifies a tool and its capabilities.
+// IOFacet is one entry in a tool's facet IO contract: a typed stand-off facet
+// the tool consumes (reads upstream) or produces (writes). Optional consumed
+// facets enable graceful degradation — the tool runs without them and does more
+// with them; non-optional consumed facets are hard requirements the flow
+// validator enforces against upstream producers and the source binding.
+type IOFacet struct {
+	Type     model.FacetType `json:"type"`
+	Side     model.FacetSide `json:"side,omitempty"`
+	Optional bool            `json:"optional,omitempty"`
+	Layer    string          `json:"layer,omitempty"` // segmentation granularity; "" = primary
+}
+
+// ToolMeta identifies a tool and its capabilities. The IO contract is expressed
+// over facets (Consumes/Produces, AD-006); part-type Inputs/Outputs are retired
+// — any coarse part-type set the runtime needs is derived from the tool's
+// capability and handlers, not declared here.
 type ToolMeta struct {
 	ID          string `json:"id"`
 	Category    string `json:"category,omitempty"` // "translate","validate","enrich","convert","transform","pipeline"
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
-
-	// Inputs declares which part types this tool accepts.
-	Inputs []string `json:"inputs,omitempty"` // "block","data","media","layer","group"
-
-	// Outputs declares which part types this tool produces or modifies.
-	Outputs []string `json:"outputs,omitempty"`
 
 	// Tags are freeform classification labels for UI filtering and grouping.
 	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
@@ -65,8 +74,12 @@ type ToolMeta struct {
 	// for pseudo-translate). Empty means the runner must provide one.
 	DefaultLocale model.LocaleID `json:"defaultLocale,omitempty"`
 
-	// Produces lists the annotation types this tool writes to Blocks.
-	Produces []AnnotationType `json:"produces,omitempty"`
+	// Consumes lists the facets this tool reads upstream. Non-Optional entries
+	// are requirements; Optional entries upgrade behaviour when present.
+	Consumes []IOFacet `json:"consumes,omitempty"`
+
+	// Produces lists the facets this tool writes to Blocks.
+	Produces []IOFacet `json:"produces,omitempty"`
 
 	// SideEffects lists external systems this tool reads from or writes to.
 	SideEffects []SideEffect `json:"sideEffects,omitempty"`

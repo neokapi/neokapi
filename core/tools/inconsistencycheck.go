@@ -69,7 +69,6 @@ func InconsistencyCheckSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryQuality,
 		DisplayName: "Inconsistency Check",
 		Description: "Detect inconsistent translations of identical source strings",
-		Inputs:      []string{schema.PartTypeBlock},
 		Requires:    []string{schema.RequiresTargetLanguage},
 	})
 }

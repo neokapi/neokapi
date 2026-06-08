@@ -80,7 +80,6 @@ func RedactSchema() *schema.ComponentSchema {
 		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Redact",
 		Description: "Replace sensitive spans with protected placeholders before processing",
-		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
 	})
