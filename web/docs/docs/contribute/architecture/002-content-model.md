@@ -117,8 +117,9 @@ type Block struct {
     SourceLocale LocaleID
     Source       []Run                  // whole source content
     Targets      map[VariantKey]*Target // first-class targets, keyed by variant
-    Overlays     []Facet                // the single stand-off facet carrier
-    Identity     *BlockIdentity        // content-addressable hash for dedup
+    Overlays     []Overlay              // positional, run-anchored stand-off layers
+    Annotations  map[string]any         // block-scoped typed metadata, keyed by type
+    Identity     *BlockIdentity         // content-addressable hash for dedup
     Properties   map[string]string      // opaque pass-through metadata only
     // …skeleton link, display hint, whitespace flag, etc.
 }
@@ -207,59 +208,65 @@ Properties are serialized and carried through the pipeline. Tools add
 metadata without content-model changes. This replaces the pattern of adding
 dedicated fields for every new piece of metadata.
 
-#### Facets (one stand-off carrier)
+#### Overlays and Annotations (two stand-off carriers)
 
-Every typed interpretation of a Block — positional or not — rides on the single
-`Overlays []Facet` carrier. There is no separate annotation interface or
-annotation map: a `Facet` is a typed span set on one side of the block, and a
-`Span` carries an optional run `Range` and a typed payload `Value`.
+Typed stand-off interpretations of a Block come in two kinds, kept in two
+fields because they differ in shape and lifecycle:
+
+- **Overlays** are *positional*: run-anchored span sets that point into the
+  content — segmentation, terminology, entities, term candidates, QA findings,
+  source↔target alignment. Each `Span` carries a run `Range` (the position) and
+  an optional typed payload `Value`. Because their ranges anchor to runs, a
+  source rewrite invalidates them (a source-transform tool must drop the
+  overlays it consumed; see AD-006).
+- **Annotations** are *block-scoped*: a keyed map of typed payloads describing
+  the block as a whole, with no position — alt-translations, notes, analysis
+  results (word/char/segment counts, comparison, repetition, brand-voice), and
+  format round-trip state. A source rewrite does not invalidate them.
 
 ```go
-type Facet struct {
-    Type    FacetType   // "segmentation","term","entity","qa","alt-translation",…
-    Variant *VariantKey // nil = source side
-    Layer   string      // segmentation granularity; "" = primary
-    Spans   []Span
+type Block struct {
+    // …
+    Overlays    []Overlay      // positional, run-anchored
+    Annotations map[string]any // block-scoped, keyed by type
 }
 
-type Span struct {
-    Range RunRange // zero range = block-scoped (the former annotation)
-    Value any      // typed payload, rehydrated via the facet registry
-    // …id, props…
+type Overlay struct {
+    Type    OverlayType // "segmentation","term","entity","qa","alignment",…
+    Variant *VariantKey // nil = source side
+    Layer   string      // segmentation granularity; "" = primary
+    Spans   []Span      // each with a run Range and a typed Value
 }
 ```
 
-**Positional** facets point into the content with run-anchored spans —
-segmentation, terminology, entities, QA findings, source↔target alignment.
-**Block-scoped** facets describe the block as a whole and carry a single span
-with no range and a typed `Value` — the former annotations (alt-translations,
-notes) and all format round-trip state (XLIFF/openxml native state). Both live
-in the one carrier; `FacetType.IsPositional()` separates them, and the
-block-scoped ones are reached through the `Anno`/`SetAnno`/`DelAnno`/`AnnoMap`
-helpers (keyed by facet type).
+Whether an interpretation is positional is *structural* — it is an `Overlay` —
+not a runtime flag. Annotations are reached through the
+`Anno`/`SetAnno`/`DelAnno`/`AnnoMap` helpers (keyed by type); overlays through
+`OverlayOf`/`AddOverlaySpan`/`OverlaySpan`/`RemoveOverlay`.
 
-| Interpretation   | Facet type        | Span        | Producer              | Purpose                                |
-| ---------------- | ----------------- | ----------- | --------------------- | -------------------------------------- |
-| Segmentation     | `segmentation`    | ranged      | segment annotator     | Sentence / chunk boundaries over runs  |
-| Terminology      | `term`            | ranged      | term-lookup           | Matched terminology with target terms  |
-| Term candidates  | `term-candidate`  | ranged      | ai-terminology        | Term extraction candidates from an LLM |
-| Entities         | `entity`          | ranged      | ai-entity-extract     | Named entities (people, places, dates) |
-| QA findings      | `qa`              | ranged      | qa-check              | Quality findings with severity         |
-| Alignment        | `alignment`       | ranged      | aligner, readers      | Source-span ↔ target-span links        |
-| Alt-translations | `alt-translation` | block-scoped | TM leverage, AI tools | Candidate translations with scores     |
+| Interpretation   | Carrier / type             | Producer              | Purpose                                |
+| ---------------- | -------------------------- | --------------------- | -------------------------------------- |
+| Segmentation     | overlay `segmentation`     | segment annotator     | Sentence / chunk boundaries over runs  |
+| Terminology      | overlay `term`             | term-lookup           | Matched terminology with target terms  |
+| Term candidates  | overlay `term-candidate`   | ai-terminology        | Term extraction candidates from an LLM |
+| Entities         | overlay `entity`           | ai-entity-extract     | Named entities (people, places, dates) |
+| QA findings      | overlay `qa`               | qa-check              | Quality findings with severity         |
+| Alignment        | overlay `alignment`        | aligner, readers      | Source-span ↔ target-span links        |
+| Alt-translations | annotation `alt-translation` | TM leverage, AI tools | Candidate translations with scores     |
 
-Each facet type registers a payload constructor (`RegisterFacetValue` /
-`NewFacetValue`) so the wire and store layers can rehydrate the typed `Value`
-from a type name.
+Both overlay span values and annotation values are typed payloads registered
+with a single payload registry (`RegisterPayload` / `NewPayload`) so the wire
+and store layers can rehydrate the typed value from its type name.
 
 `Properties` is opaque pass-through metadata only (connector keys, format
 hints). Analytic/interpretive results that a tool produces — TM match scores,
-word counts, QA findings — are facets, not properties; the facet IO contract
-([AD-006](006-tool-system.md)) declares which a tool consumes and produces.
+word counts, QA findings — are overlays or annotations, not properties; the IO
+contract ([AD-006](006-tool-system.md)) declares which a tool consumes and
+produces.
 
-Tools communicate by reading facets produced upstream and writing their own
-downstream, keeping tools loosely coupled through the shared data model rather
-than direct dependencies.
+Tools communicate by reading the overlays and annotations produced upstream and
+writing their own downstream, keeping tools loosely coupled through the shared
+data model rather than direct dependencies.
 
 ### The Run sequence
 

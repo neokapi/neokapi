@@ -140,12 +140,12 @@ Each tool declares an IO contract in its `ToolMeta` (package `core/schema`).
 The contract is expressed over **facets** — the typed stand-off interpretations
 of a Block ([AD-002](002-content-model.md)) — not over coarse part-type names:
 `Consumes` lists the facets a tool reads upstream and `Produces` the facets it
-writes. Each `IOFacet` names a facet type, the side it pertains to, and whether
+writes. Each `IOPort` names a facet type, the side it pertains to, and whether
 a consumed facet is optional (graceful degradation) or required.
 
 ```go
 // core/schema/schema.go
-type IOFacet struct {
+type IOPort struct {
     Type     model.FacetType // "segmentation","term","qa","target",…
     Side     model.FacetSide // source | target
     Optional bool            // consumed: degrades without it, does more with it
@@ -168,10 +168,10 @@ type ToolMeta struct {
     // DefaultLocale is an optional default for monolingual and bilingual tools.
     DefaultLocale model.LocaleID
 
-    // Consumes / Produces are the facet IO contract. Non-Optional consumed
+    // Consumes / Produces are the IO contract. Non-Optional consumed
     // facets are hard requirements the flow validator enforces.
-    Consumes []IOFacet
-    Produces []IOFacet
+    Consumes []IOPort
+    Produces []IOPort
 
     // SideEffects lists external systems this tool reads from or writes to.
     SideEffects []SideEffect
@@ -245,7 +245,7 @@ specifically needs the source-anchored skeleton.
 Facet types are typed string constants ([AD-002](002-content-model.md)). The
 framework defines the well-known content facets; formats and plugins register
 additional types and their payload constructors via the facet registry
-(`model.RegisterFacetValue` / `NewFacetValue`):
+(`model.RegisterPayload` / `NewPayload`):
 
 ```go
 type FacetType string

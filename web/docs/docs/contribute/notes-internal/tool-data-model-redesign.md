@@ -7,18 +7,25 @@ keywords: [tool model, data facets, stand-off overlays, annotations, segmentatio
 
 # Design Proposal: Tool & Data-Type Model Redesign
 
-**Status:** Implemented. The redesign below has landed; the canonical
-descriptions now live in the ADs — [AD-002](/contribute/architecture/002-content-model)
-(facets as the single stand-off carrier), [AD-006](/contribute/architecture/006-tool-system)
-(facet IO contract, the unit iterator), and
-[AD-026](/contribute/architecture/026-flow-io-binding) (facet-typed bindings and
-data-flow validation). This note is retained for the design rationale.
+**Status:** Implemented, with one subsequent revision. The redesign below
+landed as written — a single typed stand-off carrier ("facet"). It was then
+**split back into two clear types**, `Overlays` (positional, run-anchored) and
+`Annotations` (block-scoped), dropping the "facet" umbrella and the
+`IsPositional` registry: the two kinds differ in cardinality, access pattern,
+and lifecycle under source edits, the wire already separated them, and the
+accessor API had already forked, so a runtime flag was the wrong seam. The
+canonical descriptions live in the ADs — [AD-002](/contribute/architecture/002-content-model)
+(overlays + annotations as the stand-off carriers), [AD-006](/contribute/architecture/006-tool-system)
+(IO contract, the unit iterator), and
+[AD-026](/contribute/architecture/026-flow-io-binding) (typed bindings and
+data-flow validation). This note is retained for the design rationale; read
+"facet" below as "the stand-off carrier", now realized as `Overlay` + `Annotation`.
 
 **What landed:** the segment/unit iterator on the views
 (`BlockView.SourceUnits` / `TargetView.TargetUnits`); one facet carrier —
 `model.Annotation` and the `Block`/`Layer` annotation maps removed, every
 stand-off interpretation (including format round-trip state) folded into
-`Overlays []Facet` with a typed `Span.Value`; the part-type `Inputs`/`Outputs`
+`Overlays []Overlay` with a typed `Span.Value`; the part-type `Inputs`/`Outputs`
 contract retired in favour of facet `Consumes`/`Produces`; hard data-flow
 validation from the contract (`FlowDefinition.ValidateDataFlow`); and the
 flow-editor's ports + connection validation typed from the facet contract.
@@ -36,7 +43,11 @@ full facet vocabulary now crosses the subprocess plugin gRPC bridge
 (`OverlayMessage` on the bridge proto), so positional facets — term, entity, qa,
 alignment, and any plugin-defined type — round-trip by type name and JSON
 (unknown payload types degrade to a `GenericAnnotation` map) instead of being
-dropped.
+dropped; and finally the single facet carrier was **split into `Overlays`
+(positional) + `Annotations` (block-scoped)** with the `IsPositional` registry
+removed (positional-ness is structural) and the IO contract's `IOFacet` renamed
+to `schema.IOPort` — the wire `type` values are unchanged, so this was a
+rename/reshape, not a data change.
 
 ## Motivation
 
@@ -205,7 +216,7 @@ capability and handlers, so it is no longer a declared field:
 ```go
 // core/schema
 
-type IOFacet struct {
+type IOPort struct {
     Type     model.FacetType
     Side     model.FacetSide
     Optional bool   // graceful degradation: tool runs without it, does more with it
@@ -216,8 +227,8 @@ type ToolMeta struct {
     // … existing fields (ID, Category, Cardinality, Requires, SideEffects, …) …
     // Inputs / Outputs (part-type strings) are removed.
 
-    Consumes []IOFacet // what the tool reads upstream; non-Optional = a requirement
-    Produces []IOFacet // what it writes (replaces the annotation-only Produces)
+    Consumes []IOPort // what the tool reads upstream; non-Optional = a requirement
+    Produces []IOPort // what it writes (replaces the annotation-only Produces)
 }
 ```
 
@@ -385,7 +396,7 @@ than wrapping it.
    reimplement `tm-leverage` segment keys and one per-segment tool on it to prove
    the interface; whole-block tools keep `SourceRuns()`.
 3. **IO contract.** Remove part-type `Inputs`/`Outputs`; add `Consumes`/`Produces`
-   over `IOFacet`. Backfill contracts for built-in tools in
+   over `IOPort`. Backfill contracts for built-in tools in
    `core/tools/register.go` (and `core/ai/tools`, `core/mt/tools`). Reject unknown
    facet types against the registry at registration.
 4. **Flow validation.** Add hard data-flow validation in
@@ -402,7 +413,7 @@ than wrapping it.
   in phase 3 must be audited against each tool's actual reads/writes before phase
   4 lands; an end-to-end test per built-in flow is the guardrail.
 - **Plugin tools** (AD-007) declare metadata over gRPC; the facet vocabulary is
-  extensible by plugins (`RegisterPositionalFacet` / `RegisterFacetValue`) and now
+  extensible by plugins (`RegisterPositionalFacet` / `RegisterPayload`) and now
   survives the bridge — the `OverlayMessage` facet carrier ferries any facet type
   across, with unknown payload types degrading to a `GenericAnnotation` map by
   type name. A facet type a peer doesn't recognise is preserved (round-trips by
