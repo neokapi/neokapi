@@ -150,3 +150,7 @@ platform/docker/traefik/certs
 
 # Throwaway kapi config/data/cache home for in-repo (non-dogfood) invocations — see Makefile KAPI_ISO_ENV
 .kapi-iso/
+
+# Compiled Go tool binaries (built into their module dirs by `go build ./...`)
+/scripts/gen-refs/gen-refs
+/scripts/contract-audit/contract-audit
