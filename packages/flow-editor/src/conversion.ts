@@ -220,13 +220,13 @@ export interface EndpointGeom {
 }
 
 /**
- * Serpentine (boustrophedon) auto-layout: fold the chain into rows that wrap to
- * fit `cols` columns, alternating direction each row (row 0 left→right, row 1
- * right→left, …). Per-node handle sides flip with the row so the inter-row
- * U-turns route cleanly. Built by repositioning the horizontal graph, so node
- * identity + edges are unchanged; only positions and the in/out handle sides
- * (data.inPosition / data.outPosition) are rewritten. Returns the geometry for
- * the Source/Sink endpoints so the editor can place them in the same flow.
+ * Reading-order wrap auto-layout: fold the chain into rows that wrap to fit
+ * `cols` columns, every row flowing left→right and wrapping top-to-bottom (like
+ * text), so Source ends up top-left and Sink bottom-right. Built by
+ * repositioning the horizontal graph, so node identity + edges are unchanged;
+ * only positions and the in/out handle sides (data.inPosition /
+ * data.outPosition) are rewritten. Returns the geometry for the Source/Sink
+ * endpoints so the editor can place them in the same flow.
  */
 export function serpentineGraph(
   spec: FlowSpec,
@@ -259,21 +259,16 @@ export function serpentineGraph(
   }
   const colKeys = [...colMap.keys()].sort((a, b) => a - b);
 
-  // Source and Sink are folded into the wrap as the first and last stations, so
-  // they align with the tool row, wrap with it, and never overflow the width.
-  // Slot 0 = Source, slots 1..N = tool columns, slot N+1 = Sink.
-  const slotGeom = (slot: number) => {
-    const row = Math.floor(slot / columns);
-    const posInRow = slot % columns;
-    const evenRow = row % 2 === 0;
-    const visualCol = evenRow ? posInRow : columns - 1 - posInRow;
-    return {
-      x: visualCol * SERP_COL_W,
-      y: row * SERP_ROW_H,
-      inPosition: evenRow ? Position.Left : Position.Right,
-      outPosition: evenRow ? Position.Right : Position.Left,
-    };
-  };
+  // Reading-order wrap: every row flows left→right and wraps top-to-bottom (like
+  // text), so Source is top-left and Sink ends bottom-right. Source and Sink are
+  // folded in as the first/last stations (slot 0 = Source, 1..N = tools, N+1 =
+  // Sink) so they align with the row and wrap with it.
+  const slotGeom = (slot: number) => ({
+    x: (slot % columns) * SERP_COL_W,
+    y: Math.floor(slot / columns) * SERP_ROW_H,
+    inPosition: Position.Left,
+    outPosition: Position.Right,
+  });
 
   colKeys.forEach((key, g) => {
     const geom = slotGeom(g + 1);
