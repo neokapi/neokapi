@@ -403,7 +403,7 @@ func runBrandVocabOnBlock(ctx context.Context, vocab *coretools.BrandVocabCheckT
 	if err := <-errc; err != nil {
 		return nil
 	}
-	if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 		return ann.Findings
 	}
 	if raw := b.Properties["brand-vocab-findings"]; raw != "" {

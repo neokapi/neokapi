@@ -327,10 +327,10 @@ func pickPseudoBase(b *model.Block, tgt model.LocaleID) model.LocaleID {
 // nil when absent. The annotation carries the per-segment inline IR for
 // both the source and each target locale, keyed by segment span id.
 func unitSegmentsAnn(b *model.Block) *xliff2.UnitSegmentsAnnotation {
-	if b == nil || b.Annotations == nil {
+	if b == nil {
 		return nil
 	}
-	ann, _ := b.Annotations[(&xliff2.UnitSegmentsAnnotation{}).AnnotationType()].(*xliff2.UnitSegmentsAnnotation)
+	ann, _ := model.AnnoAs[*xliff2.UnitSegmentsAnnotation](b, (&xliff2.UnitSegmentsAnnotation{}).AnnotationType())
 	return ann
 }
 
@@ -347,16 +347,13 @@ func unitSourceIR(b *model.Block) map[string]*xliff2.Content {
 // the block's UnitSegmentsAnnotation, creating the annotation if absent.
 func setUnitTargetIR(b *model.Block, loc model.LocaleID, irByID map[string]*xliff2.Content) {
 	key := (&xliff2.UnitSegmentsAnnotation{}).AnnotationType()
-	if b.Annotations == nil {
-		b.Annotations = map[string]model.Annotation{}
-	}
-	ann, ok := b.Annotations[key].(*xliff2.UnitSegmentsAnnotation)
+	ann, ok := model.AnnoAs[*xliff2.UnitSegmentsAnnotation](b, key)
 	if !ok || ann == nil {
 		ann = &xliff2.UnitSegmentsAnnotation{
 			Source: map[string]*xliff2.Content{},
 			Target: map[model.LocaleID]map[string]*xliff2.Content{},
 		}
-		b.Annotations[key] = ann
+		b.SetAnno(key, ann)
 	}
 	if ann.Target == nil {
 		ann.Target = map[model.LocaleID]map[string]*xliff2.Content{}

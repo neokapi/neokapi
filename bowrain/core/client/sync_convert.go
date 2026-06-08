@@ -59,8 +59,8 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 	}
 
 	// Annotations.
-	if len(b.Annotations) > 0 {
-		data, _ := json.Marshal(b.Annotations)
+	if am := b.AnnoMap(); len(am) > 0 {
+		data, _ := json.Marshal(am)
 		sync.Annotations = data
 	}
 
@@ -193,7 +193,12 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 
 	// Annotations.
 	if len(sb.Annotations) > 0 {
-		_ = json.Unmarshal(sb.Annotations, &b.Annotations)
+		anns := map[string]any{}
+		if json.Unmarshal(sb.Annotations, &anns) == nil {
+			for k, v := range anns {
+				b.SetAnno(k, v)
+			}
+		}
 	}
 
 	// Skeleton.

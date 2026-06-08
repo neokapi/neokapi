@@ -1144,11 +1144,7 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 
 // enrichBlockEntities extracts entity and term-candidate annotations from a block.
 func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
-	if block.Annotations == nil {
-		return
-	}
-
-	for key, ann := range block.Annotations {
+	for key, ann := range block.AnnoMap() {
 		switch a := ann.(type) {
 		case *model.EntityAnnotation:
 			start, end := a.Position.ByteSpan(block.Source)

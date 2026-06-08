@@ -31,24 +31,24 @@ func jsonToMap(data []byte) map[string]any {
 // Proto ↔ Model: Annotations
 // ────────────────────────────────────────────────────────────────────────────
 
-// AnnotationToProto converts a model.Annotation to a proto AnnotationEntry.
-func AnnotationToProto(a model.Annotation) *pb.AnnotationEntry {
+// AnnotationToProto converts a any to a proto AnnotationEntry.
+func AnnotationToProto(a any) *pb.AnnotationEntry {
 	data, err := json.Marshal(a)
 	if err != nil {
-		// A model.Annotation that can't be JSON-encoded is a programming error
+		// A any that can't be JSON-encoded is a programming error
 		// (a non-serializable field), not a runtime condition. Fail loudly here
 		// rather than emitting a silently-empty entry that would corrupt the
 		// block on the other side of the bridge.
-		panic(fmt.Sprintf("protoconvert: marshal annotation %q: %v", a.AnnotationType(), err))
+		panic(fmt.Sprintf("protoconvert: marshal annotation %q: %v", model.PayloadTypeName(a), err))
 	}
 	return &pb.AnnotationEntry{
-		Type: a.AnnotationType(),
+		Type: model.PayloadTypeName(a),
 		Data: data,
 	}
 }
 
-// ProtoToAnnotation converts a proto AnnotationEntry to a model.Annotation.
-func ProtoToAnnotation(e *pb.AnnotationEntry) model.Annotation {
+// ProtoToAnnotation converts a proto AnnotationEntry to a any.
+func ProtoToAnnotation(e *pb.AnnotationEntry) any {
 	a, ok := model.NewAnnotation(e.Type)
 	if !ok {
 		return &model.GenericAnnotation{
@@ -70,7 +70,7 @@ func ProtoToAnnotation(e *pb.AnnotationEntry) model.Annotation {
 }
 
 // AnnotationsToProto converts a map of model.Annotations to proto entries.
-func AnnotationsToProto(anns map[string]model.Annotation) map[string]*pb.AnnotationEntry {
+func AnnotationsToProto(anns map[string]any) map[string]*pb.AnnotationEntry {
 	if len(anns) == 0 {
 		return nil
 	}
@@ -82,11 +82,11 @@ func AnnotationsToProto(anns map[string]model.Annotation) map[string]*pb.Annotat
 }
 
 // ProtoToAnnotations converts proto annotation entries to model.Annotations.
-func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model.Annotation {
+func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]any {
 	if len(entries) == 0 {
 		return nil
 	}
-	result := make(map[string]model.Annotation, len(entries))
+	result := make(map[string]any, len(entries))
 	for key, e := range entries {
 		result[key] = ProtoToAnnotation(e)
 	}
@@ -96,7 +96,7 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model
 // populateAnnotation fills a typed annotation from a raw map.
 // This is used as a fallback when json.Unmarshal fails due to type mismatches
 // (e.g., the bridge sends Source/Target as strings but Go expects []Run).
-func populateAnnotation(typeName string, a model.Annotation, m map[string]any) model.Annotation {
+func populateAnnotation(typeName string, a any, m map[string]any) any {
 	switch v := a.(type) {
 	case *model.NoteAnnotation:
 		v.Text, _ = m["text"].(string)
@@ -481,7 +481,7 @@ func BlockToProto(b *model.Block) *pb.BlockMessage {
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
 		Properties:         b.Properties,
-		Annotations:        AnnotationsToProto(b.Annotations),
+		Annotations:        AnnotationsToProto(b.AnnoMap()),
 		DisplayHint:        DisplayHintToProto(b.DisplayHint),
 		Skeleton:           SkeletonToProto(b.Skeleton),
 		PreserveWhitespace: b.PreserveWhitespace,
@@ -510,17 +510,16 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 		Translatable:       msg.Translatable,
 		Properties:         msg.Properties,
 		Targets:            make(map[model.VariantKey]*model.Target),
-		Annotations:        ProtoToAnnotations(msg.Annotations),
 		DisplayHint:        ProtoToDisplayHint(msg.DisplayHint),
 		Skeleton:           ProtoToSkeleton(msg.Skeleton),
 		PreserveWhitespace: msg.PreserveWhitespace,
 		IsReferent:         msg.IsReferent,
 	}
+	for k, v := range ProtoToAnnotations(msg.Annotations) {
+		b.SetAnno(k, v)
+	}
 	if b.Properties == nil {
 		b.Properties = make(map[string]string)
-	}
-	if b.Annotations == nil {
-		b.Annotations = make(map[string]model.Annotation)
 	}
 	srcRuns, srcSpans := segProtosToRunsAndSpans(msg.Source)
 	b.Source = srcRuns
@@ -822,14 +821,8 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 	}
 
 	// Annotations
-	if len(cb.Annotations) > 0 {
-		block.Annotations = make(map[string]model.Annotation)
-		for k, v := range cb.Annotations {
-			block.Annotations[k] = ProtoToAnnotation(v)
-		}
-	}
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
+	for k, v := range cb.Annotations {
+		block.SetAnno(k, ProtoToAnnotation(v))
 	}
 
 	// Display hint
@@ -876,9 +869,9 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 	}
 
 	// Annotations
-	if len(block.Annotations) > 0 {
+	if am := block.AnnoMap(); len(am) > 0 {
 		cb.Annotations = make(map[string]*pb.AnnotationEntry)
-		for k, v := range block.Annotations {
+		for k, v := range am {
 			cb.Annotations[k] = AnnotationToProto(v)
 		}
 	}

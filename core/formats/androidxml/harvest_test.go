@@ -153,7 +153,7 @@ func TestRichFixtureExtraction(t *testing.T) {
 		`<![CDATA[Read our <a href="https://example.com/privacy">Privacy&nbsp;Policy</a> &amp; <b>Terms</b> before continuing.]]>`,
 		model.RenderRunsWithData(privacy.SourceRuns()))
 	// The preceding comment becomes a developer note.
-	note, ok := privacy.Annotations["note"].(*model.NoteAnnotation)
+	note, ok := model.AnnoAs[*model.NoteAnnotation](privacy, "note")
 	require.True(t, ok, "privacy_policy should carry a note")
 	assert.Equal(t, "The privacy policy link is rendered as styled HTML.", note.Text)
 	assert.Equal(t, "developer", note.From)

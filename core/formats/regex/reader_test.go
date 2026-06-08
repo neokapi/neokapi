@@ -299,7 +299,7 @@ func TestNoteExtraction(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "File", blocks[0].SourceText())
 
-	note, hasNote := blocks[0].Annotations["note"]
+	note, hasNote := blocks[0].Anno("note")
 	require.True(t, hasNote, "block should have a note annotation")
 	noteAnnotation := note.(*model.NoteAnnotation)
 	assert.Equal(t, "Menu item", noteAnnotation.Text)

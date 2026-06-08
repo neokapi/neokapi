@@ -261,7 +261,7 @@ func TestBrandVocabCheckWithResolver(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 	bva := ann.(*brand.BrandVoiceAnnotation)
 	assert.Equal(t, "resolved-vocab", bva.ProfileID)
@@ -320,7 +320,7 @@ func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 
 	bva := ann.(*brand.BrandVoiceAnnotation)

@@ -570,7 +570,6 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 		Source:       finalRuns,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	block.Name = path

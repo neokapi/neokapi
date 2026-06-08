@@ -115,7 +115,7 @@ func TestStringsModeling(t *testing.T) {
 	cancel := byName["button.cancel"]
 	require.NotNil(t, cancel)
 	assert.Equal(t, "Cancel", model.RenderRunsWithData(cancel.SourceRuns()))
-	note, ok := cancel.Annotations["note"].(*model.NoteAnnotation)
+	note, ok := model.AnnoAs[*model.NoteAnnotation](cancel, "note")
 	require.True(t, ok)
 	assert.Equal(t, "Title of the cancel button", note.Text)
 	assert.Equal(t, "developer", note.From)
@@ -123,7 +123,7 @@ func TestStringsModeling(t *testing.T) {
 	// Line comment also becomes a note.
 	okBtn := byName["button.ok"]
 	require.NotNil(t, okBtn)
-	noteOK, ok := okBtn.Annotations["note"].(*model.NoteAnnotation)
+	noteOK, ok := model.AnnoAs[*model.NoteAnnotation](okBtn, "note")
 	require.True(t, ok)
 	assert.Equal(t, "A line comment preceding an entry", noteOK.Text)
 
@@ -343,7 +343,6 @@ func TestWriteStringsFromScratch(t *testing.T) {
 			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
 			Targets:      map[model.VariantKey]*model.Target{},
 			Properties:   map[string]string{"applestrings.key": key, "applestrings.leaf": "value"},
-			Annotations:  map[string]model.Annotation{},
 		}
 		return b
 	}
@@ -382,7 +381,6 @@ func TestWriteStringsdictFromScratch(t *testing.T) {
 				"applestrings.var":      variable,
 				"applestrings.category": cat,
 			},
-			Annotations: map[string]model.Annotation{},
 		}
 	}
 	parts := []*model.Part{

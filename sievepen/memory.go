@@ -864,11 +864,11 @@ func LimitResults(matches []TMMatch, max int) []TMMatch {
 // ExtractEntityAnnotations pulls EntityAnnotation instances from a Block's
 // annotations map.
 func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
 	var entities []*model.EntityAnnotation
-	for _, ann := range block.Annotations {
+	for _, ann := range block.AnnoMap() {
 		if ea, ok := ann.(*model.EntityAnnotation); ok {
 			entities = append(entities, ea)
 		}

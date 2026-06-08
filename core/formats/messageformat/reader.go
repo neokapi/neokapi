@@ -301,7 +301,6 @@ func (r *Reader) createBlockWithRuns(id string, seg segment, nodes []node) *mode
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 		Name:         seg.path,
 	}
 	if seg.path != "" {

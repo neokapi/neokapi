@@ -68,8 +68,10 @@ func (t *TMLeverageTool) translate(v tool.TargetView) error {
 	// the view rather than the live block — no source/target write escapes.
 	snapshot := &model.Block{
 		Source:       v.SourceRuns(),
-		Annotations:  v.Annotations(),
 		Translatable: true,
+	}
+	for k, val := range v.Annotations() {
+		snapshot.SetAnno(k, val)
 	}
 	matches, err := t.tm.Lookup(v.Context(), snapshot, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
 		MinScore:   t.cfg.MinScore,

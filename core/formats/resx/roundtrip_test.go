@@ -128,7 +128,7 @@ func TestStringExtraction(t *testing.T) {
 	greeting := byName["GreetingText"]
 	require.NotNil(t, greeting)
 	assert.Equal(t, "Hello, world!", greeting.SourceText())
-	note, ok := greeting.Annotations["note"].(*model.NoteAnnotation)
+	note, ok := model.AnnoAs[*model.NoteAnnotation](greeting, "note")
 	require.True(t, ok, "GreetingText should carry a note")
 	assert.Equal(t, "Shown on the welcome screen.", note.Text)
 	assert.Equal(t, "developer", note.From)
@@ -138,7 +138,7 @@ func TestStringExtraction(t *testing.T) {
 	save := byName["SaveButton"]
 	require.NotNil(t, save)
 	assert.Equal(t, "Save", save.SourceText())
-	_, hasNote := save.Annotations["note"]
+	_, hasNote := save.Anno("note")
 	assert.False(t, hasNote, "SaveButton has no <comment>")
 
 	// Entities are decoded into the source text.

@@ -54,8 +54,8 @@ type scanner = storage.Scanner
 // deserializeAnnotations converts a JSON string into a map of typed Annotations.
 // The JSON format uses a type-discriminated wrapper: {"key": {"type": "...", "data": {...}}}.
 // Used by overlay_sync.go's deserializeSingleAnnotation (#405).
-func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
-	result := make(map[string]model.Annotation)
+func deserializeAnnotations(jsonStr string) map[string]any {
+	result := make(map[string]any)
 	if jsonStr == "" || jsonStr == "{}" || jsonStr == "null" {
 		return result
 	}

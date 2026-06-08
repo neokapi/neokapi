@@ -548,7 +548,6 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 									"partPath": partPath,
 									"element":  t.Name.Local,
 								},
-								Annotations: make(map[string]model.Annotation),
 							}
 						} else {
 							block = model.NewBlock(blockID, raw)

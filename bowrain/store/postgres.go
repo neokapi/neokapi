@@ -636,7 +636,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		}
 
 		// Write targets + annotations into the kind-specific tables.
-		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b.Targets, b.Annotations, now); err != nil {
+		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b.Targets, b.AnnoMap(), now); err != nil {
 			return err
 		}
 
@@ -1045,7 +1045,6 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	// after all rows are scanned — see GetBlock / GetBlocks. Leave
 	// empty here.
 	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
-	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
 }
 
@@ -1082,7 +1081,9 @@ func HydrateOverlays(
 	}
 	for id, anns := range annotations {
 		if sb := byID[id]; sb != nil {
-			sb.Block.Annotations = anns
+			for k, v := range anns {
+				sb.Block.SetAnno(k, v)
+			}
 		}
 	}
 	return nil

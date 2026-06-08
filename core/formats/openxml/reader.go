@@ -671,7 +671,6 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 							"partPath": partPath,
 							"element":  currentElement,
 						},
-						Annotations: make(map[string]model.Annotation),
 					}
 					emitBlock(block)
 				} else {

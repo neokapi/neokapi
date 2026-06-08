@@ -45,7 +45,6 @@ func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult
 			Source:       runsFromValue(leaf.value, r.cfg.ProtectPlaceholders),
 			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
-			Annotations:  make(map[string]model.Annotation),
 		}
 		block.Properties[propBlockKey] = leaf.topKey
 		block.Properties[propBlockLeaf] = string(leaf.kind)

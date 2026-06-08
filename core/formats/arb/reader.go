@@ -320,16 +320,15 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	block.Properties["arb.key"] = res.id
 
 	if res.description != "" && r.cfg.DescriptionNotes {
-		block.Annotations["note"] = &model.NoteAnnotation{
+		block.SetAnno("note", &model.NoteAnnotation{
 			Text:      res.description,
 			From:      "developer",
 			Annotates: "general",
-		}
+		})
 	}
 
 	return block

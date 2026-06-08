@@ -197,7 +197,7 @@ func TestAITranslateToolSetsAnnotation(t *testing.T) {
 	result := <-out
 	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
-	ann, ok := resultBlock.Annotations["alt-translations"]
+	ann, ok := resultBlock.Anno("alt-translations")
 	require.True(t, ok)
 	alt := ann.(*model.AltTranslation)
 	assert.Equal(t, "ai:mock", alt.Origin)

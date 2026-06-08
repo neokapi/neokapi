@@ -86,7 +86,7 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 	assert.Equal(t, "tm-leverage", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
-	alt, ok := resultBlock.Annotations[tools.PropTMAltKey].(*model.AltTranslation)
+	alt, ok := model.AnnoAs[*model.AltTranslation](resultBlock, tools.PropTMAltKey)
 	require.True(t, ok, "alt-translation annotation present")
 	assert.Equal(t, "Hello world", model.RunsText(alt.Source))
 	assert.Equal(t, "Bonjour le monde", model.RunsText(alt.Target))
@@ -308,8 +308,8 @@ func segBlock(id, s1, s2 string) *model.Block {
 func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	t.Parallel()
 	provider := &mockTMProvider{exact: map[string]string{
-		seg1Src: "Bonjour le monde. ",
-		"Goodbye.":      "Au revoir.",
+		seg1Src:    "Bonjour le monde. ",
+		"Goodbye.": "Au revoir.",
 	}}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
 	tl := tools.NewTMLeverageTool(cfg)
@@ -349,7 +349,7 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 // altTrans fetches the per-segment AltTranslation annotation by segment index.
 func altTrans(t *testing.T, b *model.Block, idx int) *model.AltTranslation {
 	t.Helper()
-	a, ok := b.Annotations[tools.PropTMSegmentAltPrefix+strconv.Itoa(idx)]
+	a, ok := b.Anno(tools.PropTMSegmentAltPrefix + strconv.Itoa(idx))
 	require.True(t, ok, "alt-translation for segment %d present", idx)
 	at, ok := a.(*model.AltTranslation)
 	require.True(t, ok, "annotation is *AltTranslation")
@@ -402,6 +402,6 @@ func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 	a0 := altTrans(t, rb, 0)
 	assert.Equal(t, "Bonjour le monde. ", model.RunsText(a0.Target))
 	assert.Equal(t, model.MatchExact, a0.MatchType)
-	_, hasSeg1 := rb.Annotations[tools.PropTMSegmentAltPrefix+"1"]
+	_, hasSeg1 := rb.Anno(tools.PropTMSegmentAltPrefix + "1")
 	assert.False(t, hasSeg1, "unmatched segment has no alt-translation")
 }

@@ -53,12 +53,8 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-
 	// Find next entity index.
-	idx := nextAnnotationIndex(block.Annotations, "entity:")
+	idx := nextAnnotationIndex(block.AnnoMap(), "entity:")
 
 	ann := &model.EntityAnnotation{
 		Text:     req.Text,
@@ -70,7 +66,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	}
 
 	key := fmt.Sprintf("entity:%d", idx)
-	block.Annotations[key] = ann
+	block.SetAnno(key, ann)
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -114,7 +110,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	ann, ok := block.Annotations[entityKey]
+	ann, ok := block.Anno(entityKey)
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
@@ -131,7 +127,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		entity.DNT = *req.DNT
 	}
 
-	block.Annotations[entityKey] = entity
+	block.SetAnno(entityKey, entity)
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -160,11 +156,11 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	if _, ok := block.Annotations[entityKey]; !ok {
+	if _, ok := block.Anno(entityKey); !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
 
-	delete(block.Annotations, entityKey)
+	block.DelAnno(entityKey)
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -193,7 +189,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
 
-	ann, ok := block.Annotations[entityKey]
+	ann, ok := block.Anno(entityKey)
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
@@ -220,9 +216,9 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	}
 
 	// Add term-candidate annotation.
-	tcIdx := nextAnnotationIndex(block.Annotations, "term-candidate:")
+	tcIdx := nextAnnotationIndex(block.AnnoMap(), "term-candidate:")
 	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
-	block.Annotations[tcKey] = candidate
+	block.SetAnno(tcKey, candidate)
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -250,7 +246,7 @@ func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, b
 }
 
 // nextAnnotationIndex finds the next available index for a given annotation prefix.
-func nextAnnotationIndex(annotations map[string]model.Annotation, prefix string) int {
+func nextAnnotationIndex(annotations map[string]any, prefix string) int {
 	max := -1
 	for key := range annotations {
 		if len(key) > len(prefix) && key[:len(prefix)] == prefix {

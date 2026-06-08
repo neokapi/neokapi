@@ -168,9 +168,11 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					}
 					w.inputExtraAttr = extraAttrsFromLayer(layer)
 					w.layerFileNotes = fileNotesFromLayer(layer)
-					if a, ok := layer.Annotations["xliff2:source-dom"].(*SourceDOMAnnotation); ok && a != nil && a.Doc != nil && w.sourceDoc == nil {
-						w.sourceDoc = a.Doc
-						w.sourceBytes = a.Original
+					if av, ok := layer.Anno("xliff2:source-dom"); ok {
+						if a, ok := av.(*SourceDOMAnnotation); ok && a != nil && a.Doc != nil && w.sourceDoc == nil {
+							w.sourceDoc = a.Doc
+							w.sourceBytes = a.Original
+						}
 					}
 				}
 			}
@@ -1324,7 +1326,8 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	}
 
 	// <originalData> emission, only when the unit declares one.
-	if odAnn, ok := block.Annotations["xliff2:original-data"].(*OriginalDataAnnotation); ok && odAnn != nil && len(odAnn.Entries) > 0 {
+	odAnnRaw, _ := block.Anno("xliff2:original-data")
+	if odAnn, ok := odAnnRaw.(*OriginalDataAnnotation); ok && odAnn != nil && len(odAnn.Entries) > 0 {
 		odEl := unitEl.CreateElement("originalData")
 		// Emit data entries in id-sorted order for deterministic output.
 		ids := make([]string, 0, len(odAnn.Entries))

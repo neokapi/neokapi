@@ -78,7 +78,7 @@ func brandVocabFlags(profile *brand.VoiceProfile, text string) bool {
 	if err := coretools.NewBrandVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
 		return false
 	}
-	if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 		return len(ann.Findings) > 0
 	}
 	return false

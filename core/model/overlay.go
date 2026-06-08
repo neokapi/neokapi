@@ -51,17 +51,30 @@ func (r RunRange) IsZero() bool { return r == RunRange{} }
 // format-agnostic marker shared by the native readers and the okapi bridge.
 const SpanPropIgnorable = "ignorable"
 
-// Span is one entry in an Overlay: a run-anchored range with an optional
-// overlay-local id (e.g. a segment id "s1") and type-specific properties.
+// Span is one entry in a Facet: a run-anchored range with an optional
+// facet-local id (e.g. a segment id "s1"), type-specific properties, and an
+// optional typed payload Value. A block-scoped facet (the former annotation)
+// uses a single span with a zero Range and a Value; a positional facet uses
+// one or more spans with real ranges.
 type Span struct {
 	ID    string            `json:"id,omitempty"`
 	Range RunRange          `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
+	Value any               `json:"value,omitempty"` // typed payload (facet registry)
 }
 
 // Ignorable reports whether the span is marked as non-translatable structural
 // content (see [SpanPropIgnorable]).
 func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
+
+// Facet is a typed stand-off layer over one side of a Block: the source
+// (Variant nil) or a specific target variant. It is the single carrier for
+// stand-off block data — positional interpretations (segmentation, term,
+// entity, qa, alignment) carry ranged spans, while block-scoped facets (the
+// former annotations: notes, alt-translations, analysis results, format
+// round-trip state) carry a single span with a Value and a zero range.
+// Overlay is a deprecated alias kept while positional call sites migrate.
+type Facet = Overlay
 
 // Overlay is a typed stand-off layer over one side of a Block: the source
 // (Variant nil) or a specific target variant. Spans are ordered by position.
@@ -319,12 +332,16 @@ func (b *Block) SetSegmentationLayer(variant *VariantKey, layer string, spans []
 	}
 }
 
-// HasSourceOverlays reports whether the block carries any source-side overlay
-// (segmentation, terms, entities, …). Source mutation after an overlay is
-// attached would invalidate its run-anchored ranges.
+// HasSourceOverlays reports whether the block carries any source-side
+// positional facet (segmentation, terms, entities, …). Source mutation after
+// such a facet is attached would invalidate its run-anchored ranges. Only
+// positional facets count: block-scoped facets (the former annotations — notes,
+// alt-translations, redaction secrets, format round-trip state) carry no
+// run-anchored range, so a source rewrite does not invalidate them.
 func (b *Block) HasSourceOverlays() bool {
 	for i := range b.Overlays {
-		if b.Overlays[i].OnSource() {
+		f := &b.Overlays[i]
+		if f.OnSource() && f.Type.IsPositional() {
 			return true
 		}
 	}

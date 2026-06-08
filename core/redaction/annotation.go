@@ -12,7 +12,7 @@ package redaction
 const SecretAnnotationKey = "redaction.secret"
 
 // SecretAnnotation carries redacted originals on a block while it flows
-// through a single-process pipeline. Implements model.Annotation.
+// through a single-process pipeline. Implements any.
 type SecretAnnotation struct {
 	// Values maps each placeholder token (the PlaceholderRun ID) to its
 	// original value.

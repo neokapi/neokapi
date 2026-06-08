@@ -63,3 +63,18 @@ func (s FacetSide) String() string {
 		return "source"
 	}
 }
+
+// IsPositional reports whether the facet type is one of the built-in
+// run-anchored positional interpretations (segmentation, term, entity, qa,
+// alignment). Block-scoped facets — the former annotations, keyed by an
+// arbitrary type string — are non-positional. The distinction lets the single
+// facet carrier hold both kinds while keeping positional iteration and
+// block-scoped (annotation) lookup separate.
+func (t FacetType) IsPositional() bool {
+	switch t {
+	case FacetSegmentation, FacetTerm, FacetEntity, FacetQA, FacetAlignment:
+		return true
+	default:
+		return false
+	}
+}

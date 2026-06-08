@@ -90,7 +90,7 @@ func (w *Writer) transUnitsWithoutSourceTarget() []bool {
 			out = append(out, false)
 			continue
 		}
-		if _, ok := block.Annotations["xliff:target-attrs"]; !ok {
+		if _, ok := block.Anno("xliff:target-attrs"); !ok {
 			out = append(out, true)
 		} else {
 			out = append(out, false)
@@ -113,7 +113,7 @@ func (w *Writer) transUnitsWithDivergentSegSource() []bool {
 			out = append(out, false)
 			continue
 		}
-		_, ok := block.Annotations["xliff:divergent-segsource"]
+		_, ok := block.Anno("xliff:divergent-segsource")
 		out = append(out, ok)
 	}
 	return out
@@ -500,7 +500,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 		EncodableAs:     w.encoderForOkapiCompat(),
 		StripCREntities: compat.StripCDataCREntities,
 	}
-	if a, ok := block.Annotations["xliff:source-body"]; ok {
+	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			return renderNativeWithRunsOpts(sa.Content, nil, opts)
 		}
@@ -570,7 +570,7 @@ func (w *Writer) fullTargetElement(block *model.Block, targetLang, injectLang mo
 	inner := w.targetText(block, targetLang)
 	var b strings.Builder
 	b.WriteString("<target")
-	if a, ok := block.Annotations["xliff:target-attrs"]; ok {
+	if a, ok := block.Anno("xliff:target-attrs"); ok {
 		if ta, ok := a.(*TargetAttrsAnnotation); ok {
 			for _, attr := range ta.Attrs {
 				b.WriteString(` `)
@@ -630,14 +630,14 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	// source body IR so the bpt/ept/ph wrappers actually get emitted.
 	// MQ-12-Test01 has many such trans-units (`<target> </target>`
 	// placeholders around inline-coded source content).
-	if a, ok := block.Annotations["xliff:target-body"]; ok {
+	if a, ok := block.Anno("xliff:target-body"); ok {
 		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
 			if !irLacksInlinesNeededByRuns(ta.Content, tgtSegs) {
 				return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, false)
 			}
 		}
 	}
-	if a, ok := block.Annotations["xliff:source-body"]; ok {
+	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, false)
 		}
@@ -791,7 +791,7 @@ func (w *Writer) flush() (retErr error) {
 		}
 
 		// Notes
-		for key, ann := range block.Annotations {
+		for key, ann := range block.AnnoMap() {
 			if strings.HasPrefix(key, "note") {
 				if note, ok := ann.(*model.NoteAnnotation); ok {
 					fmt.Fprintf(ew, "        <note")
@@ -810,7 +810,7 @@ func (w *Writer) flush() (retErr error) {
 		}
 
 		// Alt-trans
-		for key, ann := range block.Annotations {
+		for key, ann := range block.AnnoMap() {
 			if strings.HasPrefix(key, "alt-translation") {
 				if alt, ok := ann.(*model.AltTranslation); ok {
 					fmt.Fprintf(ew, "        <alt-trans")

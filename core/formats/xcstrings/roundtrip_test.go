@@ -112,7 +112,7 @@ func TestSimpleModeling(t *testing.T) {
 	assert.Equal(t, "Abbrechen", model.RenderRunsWithData(cancelDe.TargetRuns("de")))
 	assert.Equal(t, "Cancel", model.RenderRunsWithData(cancelDe.SourceRuns()))
 	assert.Equal(t, "translated", cancelDe.Properties["state"])
-	note, ok := cancelDe.Annotations["note"].(*model.NoteAnnotation)
+	note, ok := model.AnnoAs[*model.NoteAnnotation](cancelDe, "note")
 	require.True(t, ok)
 	assert.Equal(t, "Button title to dismiss the sheet", note.Text)
 	assert.Equal(t, "developer", note.From)
@@ -313,7 +313,6 @@ func TestWriteFromScratch(t *testing.T) {
 			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
 			Targets:      map[model.VariantKey]*model.Target{},
 			Properties:   map[string]string{},
-			Annotations:  map[string]model.Annotation{},
 		}
 		// Mirror the property scheme the reader uses (see path.go).
 		b.Properties["xcstrings.key"] = key

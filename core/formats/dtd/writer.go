@@ -131,7 +131,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	// Write comment if block has a note annotation
-	if noteAnn, ok := block.Annotations["note"]; ok {
+	if noteAnn, ok := block.Anno("note"); ok {
 		if note, ok := noteAnn.(*model.NoteAnnotation); ok && note.Text != "" {
 			if !w.firstEntry {
 				if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
@@ -150,7 +150,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 
 	if w.firstEntry {
 		w.firstEntry = false
-	} else if _, hasNote := block.Annotations["note"]; !hasNote {
+	} else if _, hasNote := block.Anno("note"); !hasNote {
 		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
 			return err
 		}

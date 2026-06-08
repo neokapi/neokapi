@@ -53,18 +53,17 @@ func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, co
 			Source:       runsFromValue(e.value, r.cfg.ProtectPlaceholders),
 			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
-			Annotations:  make(map[string]model.Annotation),
 		}
 		block.Properties[propBlockKey] = e.key
 		block.Properties[propBlockLeaf] = leafValue
 
 		// The preceding comment (/* */ or //) becomes a translator note.
 		if e.hasComment && r.cfg.ExtractComments && e.comment != "" {
-			block.Annotations["note"] = &model.NoteAnnotation{
+			block.SetAnno("note", &model.NoteAnnotation{
 				Text:      e.comment,
 				From:      "developer",
 				Annotates: "general",
-			}
+			})
 		}
 
 		// Skeleton: structure before the value's inner content → Text; the value

@@ -71,8 +71,8 @@ func TestSimpleEntry(t *testing.T) {
 	assert.Equal(t, "Text1", b1.SourceText())
 
 	// The comment "Comment" should be attached as a note annotation.
-	require.NotNil(t, b1.Annotations, "block should have annotations")
-	noteAnn, ok := b1.Annotations["note"]
+	require.NotNil(t, b1.AnnoMap(), "block should have annotations")
+	noteAnn, ok := b1.Anno("note")
 	require.True(t, ok, "should have a 'note' annotation key")
 	note, ok := noteAnn.(*model.NoteAnnotation)
 	require.True(t, ok, "annotation should be *model.NoteAnnotation")
@@ -254,8 +254,8 @@ func TestCommentAttachment(t *testing.T) {
 	assert.Equal(t, "Hello", b.SourceText())
 
 	// Comment should be attached as a note annotation.
-	require.NotNil(t, b.Annotations, "block should have annotations")
-	noteAnn, ok := b.Annotations["note"]
+	require.NotNil(t, b.AnnoMap(), "block should have annotations")
+	noteAnn, ok := b.Anno("note")
 	require.True(t, ok, "should have a 'note' annotation key")
 	note, ok := noteAnn.(*model.NoteAnnotation)
 	require.True(t, ok, "annotation should be *model.NoteAnnotation")
@@ -385,7 +385,7 @@ func TestFullFile_Complex(t *testing.T) {
 	b := blockByName(blocks, "findWindow.title")
 	require.NotNil(t, b)
 	assert.Equal(t, "Find Files", b.SourceText())
-	noteAnn, ok := b.Annotations["note"]
+	noteAnn, ok := b.Anno("note")
 	require.True(t, ok)
 	note, ok := noteAnn.(*model.NoteAnnotation)
 	require.True(t, ok)

@@ -229,7 +229,7 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 
 	bva := ann.(*brand.BrandVoiceAnnotation)
@@ -272,7 +272,7 @@ func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Verify it used the resolved profile.
-	ann, ok := resultBlock.Annotations["brand-voice"]
+	ann, ok := resultBlock.Anno("brand-voice")
 	require.True(t, ok)
 	bva := ann.(*brand.BrandVoiceAnnotation)
 	assert.Equal(t, "resolved-profile", bva.ProfileID)

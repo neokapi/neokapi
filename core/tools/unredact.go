@@ -130,6 +130,6 @@ func (t *UnredactTool) handleBlock(v tool.SourceView) error {
 		}
 	}
 
-	delete(annotations, redaction.SecretAnnotationKey)
+	v.RemoveAnnotation(redaction.SecretAnnotationKey)
 	return nil
 }

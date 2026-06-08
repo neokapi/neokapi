@@ -275,7 +275,6 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 		Source:       runsFromValue(srcValue),
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 
 	vr.applyToBlockProps(block)
@@ -286,11 +285,11 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 
 	// Developer comment becomes a block note.
 	if e.Comment != "" {
-		block.Annotations["note"] = &model.NoteAnnotation{
+		block.SetAnno("note", &model.NoteAnnotation{
 			Text:      e.Comment,
 			From:      "developer",
 			Annotates: "general",
-		}
+		})
 	}
 	if e.ExtractionState != "" {
 		block.Properties["xcstrings.extractionState"] = e.ExtractionState

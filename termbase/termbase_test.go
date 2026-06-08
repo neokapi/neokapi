@@ -587,7 +587,7 @@ func TestTermLookupTool_Basic(t *testing.T) {
 
 	// Verify at least one term annotation exists.
 	var found bool
-	for key, ann := range result.Annotations {
+	for key, ann := range result.AnnoMap() {
 		if strings.HasPrefix(key, "term:") {
 			ta, ok := ann.(*model.TermAnnotation)
 			require.True(t, ok, "annotation should be TermAnnotation")
@@ -631,7 +631,7 @@ func TestTermLookupTool_NonTranslatable(t *testing.T) {
 	result := processBlock(t, tl, block)
 
 	// Should pass through without annotations.
-	assert.Empty(t, result.Annotations)
+	assert.Empty(t, result.AnnoMap())
 }
 
 func TestTermLookupTool_DomainFilter(t *testing.T) {
@@ -695,7 +695,7 @@ func TestTermEnforceTool_Violation(t *testing.T) {
 
 	// Should have violation annotation.
 	var hasViolation bool
-	for key := range result.Annotations {
+	for key := range result.AnnoMap() {
 		if strings.HasPrefix(key, "term-violation:") {
 			hasViolation = true
 			break

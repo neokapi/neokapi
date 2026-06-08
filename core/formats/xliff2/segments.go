@@ -59,7 +59,7 @@ func (a *UnitSegmentsAnnotation) AnnotationType() string { return "xliff2:unit-s
 const unitSegmentsAnnotationKey = "xliff2:unit-segments"
 
 func init() {
-	model.RegisterAnnotation(unitSegmentsAnnotationKey, func() model.Annotation {
+	model.RegisterAnnotation(unitSegmentsAnnotationKey, func() any {
 		return &UnitSegmentsAnnotation{
 			Source: map[string]*Content{},
 			Target: map[model.LocaleID]map[string]*Content{},
@@ -89,10 +89,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 	}
 
 	if len(ann.Source) > 0 || len(ann.Target) > 0 {
-		if block.Annotations == nil {
-			block.Annotations = map[string]model.Annotation{}
-		}
-		block.Annotations[unitSegmentsAnnotationKey] = ann
+		block.SetAnno(unitSegmentsAnnotationKey, ann)
 	}
 }
 
@@ -190,9 +187,10 @@ func segsFromOverlay(runs []model.Run, overlay *model.Overlay, irByID map[string
 
 // unitSegmentsIR returns the block's UnitSegmentsAnnotation, or nil.
 func unitSegmentsIR(block *model.Block) *UnitSegmentsAnnotation {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, _ := block.Annotations[unitSegmentsAnnotationKey].(*UnitSegmentsAnnotation)
+	av, _ := block.Anno(unitSegmentsAnnotationKey)
+	a, _ := av.(*UnitSegmentsAnnotation)
 	return a
 }

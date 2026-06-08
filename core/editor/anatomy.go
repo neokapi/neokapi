@@ -323,6 +323,11 @@ func overlayViews(b *model.Block) []OverlayView {
 	out := make([]OverlayView, 0, len(b.Overlays))
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
+		// Positional facets only; block-scoped facets (former annotations) are
+		// rendered by annotationViews via AnnoMap.
+		if !o.Type.IsPositional() {
+			continue
+		}
 		side := "source"
 		runs := b.Source
 		if o.Variant != nil {
@@ -349,23 +354,27 @@ func overlayViews(b *model.Block) []OverlayView {
 // annotationViews serializes the block's annotations, summarising the well-known
 // kinds (alt-translation, note) and passing generic ones through as fields.
 func annotationViews(b *model.Block) []AnnotationView {
-	if len(b.Annotations) == 0 {
+	annos := b.AnnoMap()
+	if len(annos) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(b.Annotations))
-	for k := range b.Annotations {
+	keys := make([]string, 0, len(annos))
+	for k := range annos {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
-		out = append(out, annotationView(k, b.Annotations[k]))
+		out = append(out, annotationView(k, annos[k]))
 	}
 	return out
 }
 
-func annotationView(key string, a model.Annotation) AnnotationView {
-	v := AnnotationView{Key: key, Type: a.AnnotationType()}
+func annotationView(key string, a any) AnnotationView {
+	v := AnnotationView{Key: key}
+	if at, ok := a.(interface{ AnnotationType() string }); ok {
+		v.Type = at.AnnotationType()
+	}
 	switch t := a.(type) {
 	case *model.AltTranslation:
 		v.Summary = model.RunsText(t.Target)

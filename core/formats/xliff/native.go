@@ -79,19 +79,19 @@ type DivergentSegSourceAnnotation struct{}
 func (a *DivergentSegSourceAnnotation) AnnotationType() string { return "xliff:divergent-segsource" }
 
 func init() {
-	model.RegisterAnnotation("xliff:native", func() model.Annotation {
+	model.RegisterAnnotation("xliff:native", func() any {
 		return &SegmentNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:source-body", func() model.Annotation {
+	model.RegisterAnnotation("xliff:source-body", func() any {
 		return &SourceBodyNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:target-body", func() model.Annotation {
+	model.RegisterAnnotation("xliff:target-body", func() any {
 		return &TargetBodyNativeAnnotation{Content: &NativeContent{}}
 	})
-	model.RegisterAnnotation("xliff:target-attrs", func() model.Annotation {
+	model.RegisterAnnotation("xliff:target-attrs", func() any {
 		return &TargetAttrsAnnotation{}
 	})
-	model.RegisterAnnotation("xliff:divergent-segsource", func() model.Annotation {
+	model.RegisterAnnotation("xliff:divergent-segsource", func() any {
 		return &DivergentSegSourceAnnotation{}
 	})
 }

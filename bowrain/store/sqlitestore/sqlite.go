@@ -605,7 +605,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 		// Write targets + annotations into the kind-specific tables.
 		nowTime, _ := time.Parse(time.RFC3339, now)
-		if err := bstore.SyncBlockOverlays(ctx, tx, "sqlite", projectID, stream, internalID, b.Targets, b.Annotations, nowTime); err != nil {
+		if err := bstore.SyncBlockOverlays(ctx, tx, "sqlite", projectID, stream, internalID, b.Targets, b.AnnoMap(), nowTime); err != nil {
 			return err
 		}
 
@@ -1062,7 +1062,6 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	// Targets + Annotations hydrated via bstore.HydrateOverlays after
 	// the caller has scanned all rows. Leave empty here.
 	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
-	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
 }
 

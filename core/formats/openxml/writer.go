@@ -1547,10 +1547,10 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 // Returns the empty string when no annotation is present (the writer
 // falls through to its toggle-only rPr path).
 func blockSourceRPrXML(block *model.Block) string {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return ""
 	}
-	a, ok := block.Annotations[openxmlSourceRPrAnnotationKey]
+	a, ok := block.Anno(openxmlSourceRPrAnnotationKey)
 	if !ok {
 		return ""
 	}
@@ -1579,10 +1579,10 @@ func blockSourceRPrXML(block *model.Block) string {
 // Returns nil when no annotation is present (the writer falls
 // through to the paragraph-common sourceRPr path).
 func blockPerRunRPrFragments(block *model.Block) []string {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, ok := block.Annotations[openxmlPerRunRPrAnnotationKey]
+	a, ok := block.Anno(openxmlPerRunRPrAnnotationKey)
 	if !ok {
 		return nil
 	}
@@ -1628,10 +1628,10 @@ func blockPerRunRPrFragments(block *model.Block) []string {
 //
 // Returns nil when the annotation is absent.
 func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, ok := block.Annotations[openxmlPerRunSrcRunStartAnnotationKey]
+	a, ok := block.Anno(openxmlPerRunSrcRunStartAnnotationKey)
 	if !ok {
 		return nil
 	}
@@ -1653,10 +1653,10 @@ func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
 //
 // Returns nil when the annotation is absent.
 func blockPerRunInFieldDisplayFlags(block *model.Block) []bool {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, ok := block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey]
+	a, ok := block.Anno(openxmlPerRunInFieldDisplayAnnotationKey)
 	if !ok {
 		return nil
 	}
@@ -1678,10 +1678,10 @@ func blockPerRunInFieldDisplayFlags(block *model.Block) []bool {
 //
 // Returns nil when the annotation is absent.
 func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
-	if block == nil || block.Annotations == nil {
+	if block == nil {
 		return nil
 	}
-	a, ok := block.Annotations[openxmlPerRunSourceHadRPrAnnotationKey]
+	a, ok := block.Anno(openxmlPerRunSourceHadRPrAnnotationKey)
 	if !ok {
 		return nil
 	}

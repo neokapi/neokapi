@@ -28,8 +28,7 @@ func TestRunQAOnBlock_MapsFindingsToWireShape(t *testing.T) {
 			}},
 			{Text: &model.TextRun{Text: "world"}},
 		},
-		Properties:  map[string]string{},
-		Annotations: map[string]model.Annotation{},
+		Properties: map[string]string{},
 	}
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 

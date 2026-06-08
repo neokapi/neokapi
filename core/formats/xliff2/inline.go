@@ -75,13 +75,13 @@ type SourceDOMAnnotation struct {
 func (a *SourceDOMAnnotation) AnnotationType() string { return "xliff2:source-dom" }
 
 func init() {
-	model.RegisterAnnotation("xliff2:segment-inline", func() model.Annotation {
+	model.RegisterAnnotation("xliff2:segment-inline", func() any {
 		return &SegmentInlineAnnotation{Content: &Content{}}
 	})
-	model.RegisterAnnotation("xliff2:original-data", func() model.Annotation {
+	model.RegisterAnnotation("xliff2:original-data", func() any {
 		return &OriginalDataAnnotation{Entries: make(map[string]*Content)}
 	})
-	model.RegisterAnnotation("xliff2:source-dom", func() model.Annotation {
+	model.RegisterAnnotation("xliff2:source-dom", func() any {
 		return &SourceDOMAnnotation{}
 	})
 }

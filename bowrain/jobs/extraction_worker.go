@@ -237,11 +237,11 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 			continue
 		}
 		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.Annotations == nil {
+		if !ok || len(block.AnnoMap()) == 0 {
 			continue
 		}
 
-		for key, ann := range block.Annotations {
+		for key, ann := range block.AnnoMap() {
 			switch a := ann.(type) {
 			case *model.TermCandidateAnnotation:
 				// Skip rejected terms.

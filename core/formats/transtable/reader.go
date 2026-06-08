@@ -355,7 +355,6 @@ func (r *Reader) buildBlock(g rowGroup, sourceLocale, targetLocale model.LocaleI
 		SourceLocale: sourceLocale,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
 	}
 	blk.Properties["tu_id"] = g.tuID
 

@@ -561,8 +561,8 @@ func TestExtract_NoteAnnotation(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
-	noteAnn, ok := b.Annotations["note"]
+	require.NotNil(t, b.AnnoMap())
+	noteAnn, ok := b.Anno("note")
 	require.True(t, ok)
 	note := noteAnn.(*model.NoteAnnotation)
 	assert.Equal(t, "This is a developer note", note.Text)
@@ -577,8 +577,8 @@ func TestExtract_NoteWithPriority(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
-	noteAnn, ok := b.Annotations["note"]
+	require.NotNil(t, b.AnnoMap())
+	noteAnn, ok := b.Anno("note")
 	require.True(t, ok)
 	note := noteAnn.(*model.NoteAnnotation)
 	assert.Equal(t, "Important note", note.Text)
@@ -597,14 +597,14 @@ func TestExtract_MultipleNotes(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
+	require.NotNil(t, b.AnnoMap())
 
-	note0, ok := b.Annotations["note"]
+	note0, ok := b.Anno("note")
 	require.True(t, ok)
 	n0 := note0.(*model.NoteAnnotation)
 	assert.Equal(t, "First note", n0.Text)
 
-	note1, ok := b.Annotations["note-1"]
+	note1, ok := b.Anno("note-1")
 	require.True(t, ok)
 	n1 := note1.(*model.NoteAnnotation)
 	assert.Equal(t, "Second note", n1.Text)
@@ -631,7 +631,7 @@ func TestExtract_AddXLIFFNote(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	require.NotNil(t, blocks[0].Annotations)
+	require.NotNil(t, blocks[0].AnnoMap())
 }
 
 // okapi: XLIFFFilterTest#testModifyXLIFFNote
@@ -672,9 +672,9 @@ func TestExtract_AltTranslation(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
+	require.NotNil(t, b.AnnoMap())
 
-	altAnn, ok := b.Annotations["alt-translation"]
+	altAnn, ok := b.Anno("alt-translation")
 	require.True(t, ok)
 	alt := altAnn.(*model.AltTranslation)
 	assert.Equal(t, "TM", alt.Origin)
@@ -703,14 +703,16 @@ func TestExtract_MultipleAltTranslations(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
+	require.NotNil(t, b.AnnoMap())
 
-	alt0 := b.Annotations["alt-translation"].(*model.AltTranslation)
+	alt0v, _ := b.Anno("alt-translation")
+	alt0 := alt0v.(*model.AltTranslation)
 	assert.Equal(t, 100.0, alt0.CombinedScore)
 	assert.Equal(t, "TM", alt0.Origin)
 	assert.Equal(t, model.MatchExact, alt0.MatchType)
 
-	alt1 := b.Annotations["alt-translation-1"].(*model.AltTranslation)
+	alt1v, _ := b.Anno("alt-translation-1")
+	alt1 := alt1v.(*model.AltTranslation)
 	assert.Equal(t, 80.0, alt1.CombinedScore)
 	assert.Equal(t, "MT", alt1.Origin)
 }
@@ -728,8 +730,8 @@ func TestExtract_AddAltTrans(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	require.NotNil(t, blocks[0].Annotations)
-	_, ok := blocks[0].Annotations["alt-translation"]
+	require.NotNil(t, blocks[0].AnnoMap())
+	_, ok := blocks[0].Anno("alt-translation")
 	assert.True(t, ok)
 }
 
@@ -760,8 +762,9 @@ func TestExtract_DecimalAltTransValues(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.NotNil(t, b.Annotations)
-	alt := b.Annotations["alt-translation"].(*model.AltTranslation)
+	require.NotNil(t, b.AnnoMap())
+	altv, _ := b.Anno("alt-translation")
+	alt := altv.(*model.AltTranslation)
 	assert.Equal(t, 99.5, alt.CombinedScore)
 }
 

@@ -65,8 +65,14 @@ type BlockView interface {
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
-	Annotations() map[string]model.Annotation
-	Annotate(key string, a model.Annotation)
+	// Annotations returns a snapshot of the block-scoped facets (the former
+	// annotation map). Use Annotate to write; writing to the returned map has
+	// no effect.
+	Annotations() map[string]any
+	// Annotate stores a block-scoped facet payload under key.
+	Annotate(key string, a any)
+	// RemoveAnnotation deletes the block-scoped facet stored under key.
+	RemoveAnnotation(key string)
 	Properties() map[string]string
 	SetProperty(key, value string)
 	Property(key string) string
@@ -186,14 +192,10 @@ func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Spa
 func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
 	v.b.SetSegmentationLayer(variant, layer, spans)
 }
-func (v *blockView) AddOverlay(o model.Overlay) { v.b.Overlays = append(v.b.Overlays, o) }
-func (v *blockView) Annotations() map[string]model.Annotation {
-	if v.b.Annotations == nil {
-		v.b.Annotations = make(map[string]model.Annotation)
-	}
-	return v.b.Annotations
-}
-func (v *blockView) Annotate(key string, a model.Annotation) { v.Annotations()[key] = a }
+func (v *blockView) AddOverlay(o model.Overlay)  { v.b.Overlays = append(v.b.Overlays, o) }
+func (v *blockView) Annotations() map[string]any { return v.b.AnnoMap() }
+func (v *blockView) Annotate(key string, a any)  { v.b.SetAnno(key, a) }
+func (v *blockView) RemoveAnnotation(key string) { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)

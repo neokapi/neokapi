@@ -1,10 +1,5 @@
 package model
 
-// Annotation is an extensible metadata attachment on Blocks and Spans.
-type Annotation interface {
-	AnnotationType() string
-}
-
 // MatchType classifies how an alternative translation was produced.
 type MatchType string
 

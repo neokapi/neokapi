@@ -39,7 +39,7 @@ func TestBlockCreation(t *testing.T) {
 	assert.Equal(t, "Hello world", block.SourceText())
 	assert.NotNil(t, block.Targets)
 	assert.NotNil(t, block.Properties)
-	assert.NotNil(t, block.Annotations)
+	assert.Empty(t, block.AnnoMap())
 }
 
 func TestBlockSourceTarget(t *testing.T) {

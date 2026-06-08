@@ -2,41 +2,66 @@ package model
 
 import "sync"
 
-// AnnotationFactory creates a new zero-valued Annotation of a specific type.
-type AnnotationFactory func() Annotation
+// FacetValueFactory creates a new zero-valued typed facet payload (Span.Value)
+// for a given facet/annotation type name.
+type FacetValueFactory func() any
 
 var (
-	annotationMu        sync.RWMutex
-	annotationFactories = map[string]AnnotationFactory{}
+	facetMu        sync.RWMutex
+	facetFactories = map[string]FacetValueFactory{}
 )
 
 func init() {
-	// Register built-in annotation types.
-	RegisterAnnotation("alt-translation", func() Annotation { return &AltTranslation{} })
-	RegisterAnnotation("note", func() Annotation { return &NoteAnnotation{} })
-	RegisterAnnotation("generic", func() Annotation { return &GenericAnnotation{Kind: "generic"} })
-	RegisterAnnotation("entity", func() Annotation { return &EntityAnnotation{} })
-	RegisterAnnotation("term", func() Annotation { return &TermAnnotation{} })
-	RegisterAnnotation("term-candidate", func() Annotation { return &TermCandidateAnnotation{} })
+	// Register built-in block-scoped facet payload types so the wire and store
+	// layers can rehydrate the typed Value from a type name.
+	RegisterFacetValue("alt-translation", func() any { return &AltTranslation{} })
+	RegisterFacetValue("note", func() any { return &NoteAnnotation{} })
+	RegisterFacetValue("generic", func() any { return &GenericAnnotation{Kind: "generic"} })
+	RegisterFacetValue("entity", func() any { return &EntityAnnotation{} })
+	RegisterFacetValue("term", func() any { return &TermAnnotation{} })
+	RegisterFacetValue("term-candidate", func() any { return &TermCandidateAnnotation{} })
 }
 
-// RegisterAnnotation registers a factory for the given annotation type name.
-// This allows the serialization layer to create typed Annotation instances
-// from wire format without knowing all concrete types at compile time.
-func RegisterAnnotation(typeName string, factory AnnotationFactory) {
-	annotationMu.Lock()
-	defer annotationMu.Unlock()
-	annotationFactories[typeName] = factory
+// RegisterFacetValue registers a factory for the given facet payload type name,
+// so the serialization layer can create typed payload instances from the wire
+// format without knowing all concrete types at compile time. Formats and
+// plugins register their own stand-off payload types here.
+func RegisterFacetValue(typeName string, factory FacetValueFactory) {
+	facetMu.Lock()
+	defer facetMu.Unlock()
+	facetFactories[typeName] = factory
 }
 
-// NewAnnotation creates a new Annotation of the given type.
-// Returns the annotation and true if the type is registered, or nil and false otherwise.
-func NewAnnotation(typeName string) (Annotation, bool) {
-	annotationMu.RLock()
-	defer annotationMu.RUnlock()
-	factory, ok := annotationFactories[typeName]
+// NewFacetValue creates a new typed facet payload for the given type name.
+// Returns the payload and true if the type is registered, or nil and false.
+func NewFacetValue(typeName string) (any, bool) {
+	facetMu.RLock()
+	defer facetMu.RUnlock()
+	factory, ok := facetFactories[typeName]
 	if !ok {
 		return nil, false
 	}
 	return factory(), true
+}
+
+// RegisterAnnotation is a deprecated alias for RegisterFacetValue.
+func RegisterAnnotation(typeName string, factory FacetValueFactory) {
+	RegisterFacetValue(typeName, factory)
+}
+
+// NewAnnotation is a deprecated alias for NewFacetValue.
+func NewAnnotation(typeName string) (any, bool) { return NewFacetValue(typeName) }
+
+// facetTyper is implemented by facet payloads that self-report their type name
+// (the former Annotation interface method), used by the wire/store layers to
+// discriminate the typed Value.
+type facetTyper interface{ AnnotationType() string }
+
+// PayloadTypeName returns the registered type name of a facet payload value, or
+// "" if the value does not self-report one.
+func PayloadTypeName(v any) string {
+	if t, ok := v.(facetTyper); ok {
+		return t.AnnotationType()
+	}
+	return ""
 }

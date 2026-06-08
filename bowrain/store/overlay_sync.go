@@ -31,7 +31,7 @@ func SyncBlockOverlays(
 	dialect string,
 	projectID, stream, blockID string,
 	targets map[model.VariantKey]*model.Target,
-	annotations map[string]model.Annotation,
+	annotations map[string]any,
 	now time.Time,
 ) error {
 	for key, target := range targets {
@@ -77,7 +77,7 @@ func LoadBlockOverlays(
 	dialect string,
 	projectID, stream string,
 	blockIDs []string,
-) (map[string]map[model.VariantKey]*model.Target, map[string]map[string]model.Annotation, error) {
+) (map[string]map[model.VariantKey]*model.Target, map[string]map[string]any, error) {
 	if len(blockIDs) == 0 {
 		return nil, nil, nil
 	}
@@ -119,7 +119,7 @@ func LoadBlockOverlays(
 		return nil, nil, fmt.Errorf("translation rows: %w", err)
 	}
 
-	annotations := map[string]map[string]model.Annotation{}
+	annotations := map[string]map[string]any{}
 	rows, err = db.QueryContext(ctx, sqlListAnnotationsByBlocks(dialect, len(blockIDs)),
 		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
 	)
@@ -138,7 +138,7 @@ func LoadBlockOverlays(
 			return nil, nil, fmt.Errorf("deserialize annotation block=%s kind=%s: %w", bid, kind, err)
 		}
 		if annotations[bid] == nil {
-			annotations[bid] = map[string]model.Annotation{}
+			annotations[bid] = map[string]any{}
 		}
 		annotations[bid][kind] = ann
 	}
@@ -282,9 +282,9 @@ func placeholderList(dialect string, startAt, count int) string {
 // serializeSingleAnnotation emits one Annotation's wire bytes. Matches
 // the type-discriminated wrapper `{"type":"…","data":{…}}` used by
 // serializeAnnotations for cross-compat with existing round-trip code.
-func serializeSingleAnnotation(ann model.Annotation) ([]byte, error) {
+func serializeSingleAnnotation(ann any) ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"type": ann.AnnotationType(),
+		"type": model.PayloadTypeName(ann),
 		"data": ann,
 	})
 }
@@ -293,7 +293,7 @@ func serializeSingleAnnotation(ann model.Annotation) ([]byte, error) {
 // to the existing map-based deserializer by wrapping the payload in a
 // single-entry map under the caller-supplied kind, then picks the one
 // annotation out.
-func deserializeSingleAnnotation(kind string, payload []byte) (model.Annotation, error) {
+func deserializeSingleAnnotation(kind string, payload []byte) (any, error) {
 	wrapped, err := json.Marshal(map[string]json.RawMessage{kind: payload})
 	if err != nil {
 		return nil, err

@@ -158,7 +158,7 @@ func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error
 			vocab := coretools.NewBrandVocabCheckTool(profile, nil)
 			for _, b := range sourceBlocks {
 				runCheckToolOnBlock(ctx, vocab, b)
-				if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
+				if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 					for _, f := range ann.Findings {
 						fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
 						allFindings = append(allFindings, f)
@@ -617,11 +617,11 @@ func runCheckToolOnBlock(ctx context.Context, t interface {
 // block. Clearing lets the same block be run through a second checker without
 // re-collecting the first checker's findings.
 func findingsFromCheckBlock(b *model.Block) []check.Finding {
-	ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation)
+	ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
 	if !ok {
 		return nil
 	}
-	delete(b.Annotations, check.AnnotationKey)
+	b.DelAnno(check.AnnotationKey)
 	return ann.Findings
 }
 

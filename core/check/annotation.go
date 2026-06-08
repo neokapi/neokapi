@@ -17,7 +17,7 @@ type FindingsAnnotation struct {
 	Position model.RunRange `json:"position"`
 }
 
-// AnnotationType implements model.Annotation.
+// AnnotationType implements any.
 func (a *FindingsAnnotation) AnnotationType() string { return AnnotationKey }
 
 // AnnotationKey is the block annotation key and schema type for unified
