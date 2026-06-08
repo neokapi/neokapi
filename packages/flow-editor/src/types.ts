@@ -16,6 +16,11 @@ export type {
   PropertySchema,
   ToolDoc,
   ToolDocParam,
+  // Canonical vocabularies generated from Go (drift-checked).
+  ToolCategory,
+  OverlayType,
+  AnnotationType,
+  PortType,
 } from "@neokapi/contract-types";
 
 import type { ComponentSchema, IOPort, ToolDoc } from "@neokapi/contract-types";
@@ -151,12 +156,3 @@ export interface FlowEditorProps {
   /** Full trace data from a completed execution (includes part snapshots). */
   trace?: import("./traceTypes").FlowTrace;
 }
-
-/** Tool category identifiers with display metadata. */
-export type ToolCategory =
-  | "translate"
-  | "validate"
-  | "transform"
-  | "convert"
-  | "enrich"
-  | "pipeline";

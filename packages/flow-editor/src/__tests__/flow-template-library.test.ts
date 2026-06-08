@@ -9,11 +9,11 @@ describe("FlowTemplateLibrary data layer", () => {
 
   it("each template has a valid category", () => {
     const validCategories: ToolCategory[] = [
-      "translate",
-      "validate",
-      "transform",
+      "translation",
+      "quality",
+      "analysis",
+      "text-processing",
       "convert",
-      "enrich",
       "pipeline",
     ];
     for (const t of FLOW_TEMPLATES) {
@@ -22,18 +22,18 @@ describe("FlowTemplateLibrary data layer", () => {
   });
 
   it("filter by category returns correct subset", () => {
-    const translateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "translate");
+    const translateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "translation");
     expect(translateTemplates.length).toBeGreaterThan(0);
     for (const t of translateTemplates) {
-      expect(t.category).toBe("translate");
+      expect(t.category).toBe("translation");
     }
   });
 
-  it("filter by category 'validate' returns validate templates", () => {
-    const validateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "validate");
+  it("filter by category 'quality' returns quality templates", () => {
+    const validateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "quality");
     expect(validateTemplates.length).toBeGreaterThan(0);
     for (const t of validateTemplates) {
-      expect(t.category).toBe("validate");
+      expect(t.category).toBe("quality");
     }
   });
 

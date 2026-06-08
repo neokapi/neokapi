@@ -18,7 +18,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "translate-qa",
     name: "Translate + QA",
     description: "AI-translate content then run quality checks to catch errors.",
-    category: "translate",
+    category: "translation",
     stepCount: 2,
     hasParallel: false,
     spec: {
@@ -32,7 +32,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "tm-translate",
     name: "TM Leverage + Translate",
     description: "Leverage translation memory first, then AI-translate unmatched segments.",
-    category: "translate",
+    category: "translation",
     stepCount: 2,
     hasParallel: false,
     spec: {
@@ -46,7 +46,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "pseudo-validate",
     name: "Pseudo-translate + Validate",
     description: "Generate pseudo-translations for testing, then validate for issues.",
-    category: "validate",
+    category: "quality",
     stepCount: 2,
     hasParallel: false,
     spec: {
@@ -60,7 +60,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "parallel-qa",
     name: "Translate + Parallel QA",
     description: "Translate, then run QA and brand checks in parallel for faster validation.",
-    category: "validate",
+    category: "quality",
     stepCount: 4,
     hasParallel: true,
     spec: {
@@ -104,7 +104,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     id: "enrich-only",
     name: "Entity Extraction",
     description: "Extract named entities and terminology from content for review.",
-    category: "enrich",
+    category: "analysis",
     stepCount: 2,
     hasParallel: true,
     spec: {
