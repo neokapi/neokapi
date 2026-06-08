@@ -188,7 +188,7 @@ func TestAIEntityExtractTool_WithNER(t *testing.T) {
 	// entity:0 should be LLM's "John Smith" (preferred over NER for same position).
 	span0 := resultBlock.FacetSpan(model.FacetEntity, "entity:0")
 	require.NotNil(t, span0)
-	entityAnn0, _ := any(span0.Value).(*model.EntityAnnotation)
+	entityAnn0, _ := span0.Value.(*model.EntityAnnotation)
 	assert.Equal(t, "John Smith", entityAnn0.Text)
 	assert.Equal(t, model.ExtractionSourceLLM, entityAnn0.Source)
 
