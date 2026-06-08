@@ -990,10 +990,17 @@ export function FlowEditor({
               nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
               nodesConnectable={!readOnly}
               fitView
-              // Always frame at exactly 100% (min == max == 1) so every flow,
-              // large or small, renders at a consistent, readable scale; the
-              // content is centered and overflow is reached by panning.
+              // Zoom is locked at 100% (min == max == 1): no scroll/pinch/double-
+              // click zoom. The auto-layout fits the width; users pan (drag or
+              // scroll) to reach overflow rather than zooming.
               fitViewOptions={{ padding: 0.2, minZoom: 1, maxZoom: 1 }}
+              minZoom={1}
+              maxZoom={1}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
+              zoomOnDoubleClick={false}
+              panOnScroll
+              panOnDrag
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{
                 style: { stroke: "var(--muted-foreground)", strokeWidth: 2 },

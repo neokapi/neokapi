@@ -259,56 +259,60 @@ export function serpentineGraph(
   }
   const colKeys = [...colMap.keys()].sort((a, b) => a - b);
 
-  // Reading-order wrap: every row flows left→right and wraps top-to-bottom (like
-  // text), so Source is top-left and Sink ends bottom-right. Source and Sink are
-  // folded in as the first/last stations (slot 0 = Source, 1..N = tools, N+1 =
-  // Sink) so they align with the row and wrap with it.
-  //
-  // Handle sides follow the neighbour's direction so edges take the nearest
-  // side, not a snake: a node feeds the one to its right (out=Right / in=Left),
-  // unless it is the last in its row — then it wraps DOWN to the next row's
-  // first node (out=Bottom / in=Top). With one column the whole flow is vertical
-  // (every node first AND last in its row → Top/Bottom), giving straight edges.
-  const slotGeom = (slot: number) => {
-    const posInRow = slot % columns;
-    return {
-      x: posInRow * SERP_COL_W,
-      y: Math.floor(slot / columns) * SERP_ROW_H,
-      inPosition: posInRow === 0 ? Position.Top : Position.Left,
-      outPosition: posInRow === columns - 1 ? Position.Bottom : Position.Right,
-    };
-  };
+  // Reading-order wrap: rows fill left→right and wrap top-to-bottom (like text).
+  // Source is the first station (top-left); Sink is pinned to the bottom-right
+  // of the last row. With >1 column the flow runs horizontally (out=Right /
+  // in=Left) and the end-of-row → start-of-next wrap edge sweeps right→left;
+  // with a single column the whole flow is vertical (out=Bottom / in=Top).
+  const vertical = columns === 1;
+  const inPos = vertical ? Position.Top : Position.Left;
+  const outPos = vertical ? Position.Bottom : Position.Right;
+  const slotPos = (slot: number) => ({
+    x: (slot % columns) * SERP_COL_W,
+    y: Math.floor(slot / columns) * SERP_ROW_H,
+  });
 
   colKeys.forEach((key, g) => {
-    const geom = slotGeom(g + 1);
+    const base0 = slotPos(g + 1); // tools occupy slots 1..N (slot 0 is Source)
     const group = colMap.get(key)!;
-    // Parallel branches fan out perpendicular to the flow at this slot: spread
-    // them horizontally when the column flows down (out=Bottom), vertically when
-    // it flows across (out=Right), so they never stack on each other.
-    const spreadX = geom.outPosition === Position.Bottom;
-    const stride = spreadX ? SERP_COL_W : SERP_BRANCH_DY;
+    // Parallel branches fan out perpendicular to the flow so they never stack:
+    // horizontally when the column flows down, vertically when it flows across.
+    const stride = vertical ? SERP_COL_W : SERP_BRANCH_DY;
     const span = (group.length - 1) * stride;
     group.forEach((n, b) => {
       const off = b * stride - span / 2;
-      n.position = spreadX ? { x: geom.x + off, y: geom.y } : { x: geom.x, y: geom.y + off };
-      n.data.inPosition = geom.inPosition;
-      n.data.outPosition = geom.outPosition;
+      n.position = vertical ? { x: base0.x + off, y: base0.y } : { x: base0.x, y: base0.y + off };
+      n.data.inPosition = inPos;
+      n.data.outPosition = outPos;
     });
   });
 
   // Endpoints are shorter than tool nodes; nudge them down so their handle
   // centers line up with the tool row (straight connectors, no vertical jog).
-  const srcGeom = slotGeom(0);
-  const sinkGeom = slotGeom(colKeys.length + 1);
+  const srcPos = slotPos(0);
   const source: EndpointGeom = {
-    x: srcGeom.x,
-    y: srcGeom.y + SERP_ENDPOINT_V,
-    handlePosition: srcGeom.outPosition,
+    x: srcPos.x,
+    y: srcPos.y + SERP_ENDPOINT_V,
+    handlePosition: outPos,
   };
+
+  // Sink: pinned to the bottom-right of the last row (rule #2). With one column
+  // it simply sits below the last tool.
+  const lastSlot = colKeys.length; // slot index of the final tool column
+  let sinkPos: { x: number; y: number };
+  if (vertical) {
+    sinkPos = slotPos(lastSlot + 1);
+  } else {
+    const lastRow = Math.floor(lastSlot / columns);
+    const lastCol = lastSlot % columns;
+    // Same row as the last tool when there's room to its right, else a new row.
+    const sinkRow = lastCol < columns - 1 ? lastRow : lastRow + 1;
+    sinkPos = { x: (columns - 1) * SERP_COL_W, y: sinkRow * SERP_ROW_H };
+  }
   const sink: EndpointGeom = {
-    x: sinkGeom.x,
-    y: sinkGeom.y + SERP_ENDPOINT_V,
-    handlePosition: sinkGeom.inPosition,
+    x: sinkPos.x,
+    y: sinkPos.y + SERP_ENDPOINT_V,
+    handlePosition: inPos,
   };
 
   return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };
