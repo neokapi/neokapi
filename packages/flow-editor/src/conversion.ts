@@ -12,10 +12,12 @@ const NODE_GAP = 60;
 const CENTER = 200; // cross-axis center
 const BRANCH_GAP = 80;
 
-// Serpentine layout geometry.
-const SERP_COL_W = 220; // horizontal stride between columns
-const SERP_ROW_H = 150; // vertical stride between wrapped rows
-const SERP_BRANCH_DY = 96; // vertical offset between parallel branches in a column
+// Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
+// never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
+export const SERP_COL_W = 320; // horizontal stride between columns
+const SERP_ROW_H = 190; // vertical stride between wrapped rows
+const SERP_BRANCH_DY = 110; // vertical offset between parallel branches in a column
+const SERP_ENDPOINT_V = 18; // nudge endpoints down to center with the taller tool row
 
 const EDGE_MARKER = {
   type: MarkerType.Arrow,
@@ -257,42 +259,47 @@ export function serpentineGraph(
   }
   const colKeys = [...colMap.keys()].sort((a, b) => a - b);
 
-  const colCenterY = (group: Node[]) =>
-    group.reduce((sum, n) => sum + n.position.y, 0) / group.length;
-
-  colKeys.forEach((key, g) => {
-    const row = Math.floor(g / columns);
-    const posInRow = g % columns;
+  // Source and Sink are folded into the wrap as the first and last stations, so
+  // they align with the tool row, wrap with it, and never overflow the width.
+  // Slot 0 = Source, slots 1..N = tool columns, slot N+1 = Sink.
+  const slotGeom = (slot: number) => {
+    const row = Math.floor(slot / columns);
+    const posInRow = slot % columns;
     const evenRow = row % 2 === 0;
     const visualCol = evenRow ? posInRow : columns - 1 - posInRow;
-    const x = visualCol * SERP_COL_W;
-    const y = row * SERP_ROW_H;
-    const inPosition = evenRow ? Position.Left : Position.Right;
-    const outPosition = evenRow ? Position.Right : Position.Left;
+    return {
+      x: visualCol * SERP_COL_W,
+      y: row * SERP_ROW_H,
+      inPosition: evenRow ? Position.Left : Position.Right,
+      outPosition: evenRow ? Position.Right : Position.Left,
+    };
+  };
+
+  colKeys.forEach((key, g) => {
+    const geom = slotGeom(g + 1);
     const group = colMap.get(key)!;
     const span = (group.length - 1) * SERP_BRANCH_DY;
     group.forEach((n, b) => {
-      n.position = { x, y: y + b * SERP_BRANCH_DY - span / 2 };
-      n.data.inPosition = inPosition;
-      n.data.outPosition = outPosition;
+      n.position = { x: geom.x, y: geom.y + b * SERP_BRANCH_DY - span / 2 };
+      n.data.inPosition = geom.inPosition;
+      n.data.outPosition = geom.outPosition;
     });
   });
 
-  // Source sits left of the first column (which always faces in from the left);
-  // Sink sits past the last column on its outgoing side.
-  const firstGroup = colMap.get(colKeys[0])!;
+  // Endpoints are shorter than tool nodes; nudge them down so their handle
+  // centers line up with the tool row (straight connectors, no vertical jog).
+  const srcGeom = slotGeom(0);
+  const sinkGeom = slotGeom(colKeys.length + 1);
   const source: EndpointGeom = {
-    x: -SERP_COL_W,
-    y: colCenterY(firstGroup),
-    handlePosition: Position.Right,
+    x: srcGeom.x,
+    y: srcGeom.y + SERP_ENDPOINT_V,
+    handlePosition: srcGeom.outPosition,
   };
-  const lastG = colKeys.length - 1;
-  const lastEven = Math.floor(lastG / columns) % 2 === 0;
-  const lastGroup = colMap.get(colKeys[lastG])!;
-  const lastX = lastGroup[0].position.x;
-  const sink: EndpointGeom = lastEven
-    ? { x: lastX + SERP_COL_W, y: colCenterY(lastGroup), handlePosition: Position.Left }
-    : { x: lastX - SERP_COL_W, y: colCenterY(lastGroup), handlePosition: Position.Right };
+  const sink: EndpointGeom = {
+    x: sinkGeom.x,
+    y: sinkGeom.y + SERP_ENDPOINT_V,
+    handlePosition: sinkGeom.inPosition,
+  };
 
   return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };
 }

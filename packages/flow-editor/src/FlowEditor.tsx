@@ -47,6 +47,7 @@ import {
   stepsToGraph,
   serpentineGraph,
   graphToSteps,
+  SERP_COL_W,
   type LayoutDirection,
   type EndpointGeom,
 } from "./conversion";
@@ -450,7 +451,9 @@ export function FlowEditor({
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth;
-      if (w > 0) setColumns(Math.max(1, Math.floor((w - 220) / 220)));
+      // Leave ~1.5 columns of breathing room so the wrapped grid (incl. the
+      // folded-in Source/Sink stations) sits inside the viewport at 100%.
+      if (w > 0) setColumns(Math.max(1, Math.floor((w - SERP_COL_W * 1.5) / SERP_COL_W)));
     };
     measure();
     const ro = new ResizeObserver(measure);
