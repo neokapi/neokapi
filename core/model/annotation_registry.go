@@ -14,7 +14,7 @@ var (
 func init() {
 	// Register built-in stand-off payload types so the wire and store layers can
 	// rehydrate the typed value from a type name. Block annotations:
-	RegisterPayload("alt-translation", func() any { return &AltTranslation{} })
+	RegisterPayload("alt-translation", func() any { return &AltTranslations{} })
 	RegisterPayload("note", func() any { return &NoteAnnotation{} })
 	RegisterPayload("generic", func() any { return &GenericAnnotation{Kind: "generic"} })
 	// Overlay span payloads:

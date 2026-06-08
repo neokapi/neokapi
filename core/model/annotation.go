@@ -27,10 +27,23 @@ type AltTranslation struct {
 	ToolID        string    `json:"tool_id,omitempty"`        // Tool that produced this translation
 	AltTransType  string    `json:"alt_trans_type,omitempty"` // Okapi alt-trans type (e.g., "proposal", "previous-version")
 	FromOriginal  bool      `json:"from_original,omitempty"`  // Whether this came from the original document
+	SegmentIndex  int       `json:"segment_index,omitempty"`  // -1/0 = whole block; >0 = per-segment match at this segment index
 }
 
-// AnnotationType returns the type identifier for this annotation.
-func (at *AltTranslation) AnnotationType() string { return "alt-translation" }
+// AltTranslations is the block annotation holding all alternative-translation
+// candidates for a block — TM/MT/AI proposals and xliff <alt-trans> entries.
+// It is one typed payload under the AnnoAltTranslation key: multiplicity lives
+// in the slice, not in numbered keys ("alt-translation-1", …). It implements
+// AnnotationType so the payload registry rehydrates it like any other.
+type AltTranslations struct {
+	Items []*AltTranslation `json:"items,omitempty"`
+}
+
+// AnnotationType returns the type identifier for a single alt-translation.
+func (*AltTranslation) AnnotationType() string { return "alt-translation" }
+
+// AnnotationType returns the type identifier for the alt-translation collection.
+func (*AltTranslations) AnnotationType() string { return "alt-translation" }
 
 // NoteAnnotation holds a note/comment attached to a block or span.
 type NoteAnnotation struct {

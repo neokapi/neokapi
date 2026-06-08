@@ -46,6 +46,35 @@ func (b *Block) DelAnno(key string) { delete(b.Annotations, key) }
 // returned map is the block's own storage; use SetAnno/DelAnno to mutate.
 func (b *Block) AnnoMap() map[string]any { return b.Annotations }
 
+// AltTranslations returns the block's alternative-translation candidates (the
+// []*AltTranslation under AnnoAltTranslation), or nil.
+func (b *Block) AltTranslations() []*AltTranslation {
+	if v, ok := AnnoAs[*AltTranslations](b, AnnoAltTranslation); ok {
+		return v.Items
+	}
+	return nil
+}
+
+// AddAltTranslation appends an alt-translation candidate to the block's
+// AnnoAltTranslation collection (creating it if absent). Multiplicity lives in
+// the collection, never in numbered keys.
+func (b *Block) AddAltTranslation(a *AltTranslation) { b.appendAlt(AnnoAltTranslation, a) }
+
+// AppendAltUnder appends an alt-translation to the AltTranslations collection
+// stored under an arbitrary key (e.g. the per-segment TM-match collection),
+// creating it if absent. The set is one typed payload; the segment is recorded
+// on AltTranslation.SegmentIndex rather than in the key.
+func (b *Block) AppendAltUnder(key string, a *AltTranslation) { b.appendAlt(key, a) }
+
+func (b *Block) appendAlt(key string, a *AltTranslation) {
+	v, ok := AnnoAs[*AltTranslations](b, key)
+	if !ok || v == nil {
+		v = &AltTranslations{}
+	}
+	v.Items = append(v.Items, a)
+	b.SetAnno(key, v)
+}
+
 // AnnoAs returns the block annotation under key asserted to type T, reporting
 // ok only when the annotation exists and has that concrete type.
 func AnnoAs[T any](b *Block, key string) (T, bool) {

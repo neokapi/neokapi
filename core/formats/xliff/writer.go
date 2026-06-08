@@ -810,27 +810,23 @@ func (w *Writer) flush() (retErr error) {
 		}
 
 		// Alt-trans
-		for key, ann := range block.AnnoMap() {
-			if strings.HasPrefix(key, "alt-translation") {
-				if alt, ok := ann.(*model.AltTranslation); ok {
-					fmt.Fprintf(ew, "        <alt-trans")
-					if alt.CombinedScore > 0 {
-						fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
-					}
-					if alt.Origin != "" {
-						fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
-					}
-					fmt.Fprintf(ew, ">\n")
-					if len(alt.Source) > 0 {
-						fmt.Fprintf(ew, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
-					}
-					if len(alt.Target) > 0 {
-						fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
-							xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
-					}
-					fmt.Fprintf(ew, "        </alt-trans>\n")
-				}
+		for _, alt := range block.AltTranslations() {
+			fmt.Fprintf(ew, "        <alt-trans")
+			if alt.CombinedScore > 0 {
+				fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
 			}
+			if alt.Origin != "" {
+				fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
+			}
+			fmt.Fprintf(ew, ">\n")
+			if len(alt.Source) > 0 {
+				fmt.Fprintf(ew, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
+			}
+			if len(alt.Target) > 0 {
+				fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
+					xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
+			}
+			fmt.Fprintf(ew, "        </alt-trans>\n")
 		}
 
 		fmt.Fprintf(ew, "      </trans-unit>\n")

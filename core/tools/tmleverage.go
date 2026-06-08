@@ -19,10 +19,10 @@ const (
 	// (e.g. "3/5") whenever the block carried a multi-segment source
 	// segmentation overlay, even when the block target was not filled.
 	PropTMSegmentMatches = "tm-segment-matches"
-	// PropTMSegmentAltPrefix is the annotation-key prefix under which each
-	// per-segment TM match is stored as an AltTranslation (the segment index is
-	// appended, e.g. "tm-segment-alt:2").
-	PropTMSegmentAltPrefix = "tm-segment-alt:"
+	// PropTMSegmentAlts is the annotation key under which the per-segment TM
+	// matches are stored as one AltTranslations collection (each carrying its
+	// SegmentIndex).
+	PropTMSegmentAlts = "tm-segment-alts"
 	// PropTMAltKey is the annotation key for a whole-block TM match's
 	// AltTranslation (matches the convention used by the sievepen TM tool).
 	PropTMAltKey = "alt-translation"
@@ -215,7 +215,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 // summary properties remain for quick gating and backward compatibility.
 func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
-	v.Annotate(PropTMAltKey, &model.AltTranslation{
+	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
 		Target:    targetRuns,
 		Locale:    conf.TargetLocale,
@@ -349,14 +349,15 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 // filled. The annotation key carries the segment index; the annotation itself
 // carries the matched source/target, score (0-1), match type, and provenance.
 func annotateSegmentMatch(v tool.TargetView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
-	v.Annotate(PropTMSegmentAltPrefix+strconv.Itoa(idx), &model.AltTranslation{
-		Source:    srcRuns,
-		Target:    []model.Run{{Text: &model.TextRun{Text: translation}}},
-		Locale:    conf.TargetLocale,
-		Origin:    "tm",
-		Score:     float64(score) / 100,
-		MatchType: mt,
-		ToolID:    "tm-leverage",
+	v.AppendAltUnder(PropTMSegmentAlts, &model.AltTranslation{
+		Source:       srcRuns,
+		Target:       []model.Run{{Text: &model.TextRun{Text: translation}}},
+		Locale:       conf.TargetLocale,
+		Origin:       "tm",
+		Score:        float64(score) / 100,
+		MatchType:    mt,
+		ToolID:       "tm-leverage",
+		SegmentIndex: idx,
 	})
 }
 

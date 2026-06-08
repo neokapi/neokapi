@@ -674,9 +674,9 @@ func TestExtract_AltTranslation(t *testing.T) {
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
 
-	altAnn, ok := b.Anno("alt-translation")
-	require.True(t, ok)
-	alt := altAnn.(*model.AltTranslation)
+	alts := b.AltTranslations()
+	require.Len(t, alts, 1)
+	alt := alts[0]
 	assert.Equal(t, "TM", alt.Origin)
 	assert.Equal(t, 95.0, alt.CombinedScore)
 	assert.Equal(t, model.MatchFuzzy, alt.MatchType)
@@ -705,14 +705,14 @@ func TestExtract_MultipleAltTranslations(t *testing.T) {
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
 
-	alt0v, _ := b.Anno("alt-translation")
-	alt0 := alt0v.(*model.AltTranslation)
+	alts := b.AltTranslations()
+	require.Len(t, alts, 2)
+	alt0 := alts[0]
 	assert.Equal(t, 100.0, alt0.CombinedScore)
 	assert.Equal(t, "TM", alt0.Origin)
 	assert.Equal(t, model.MatchExact, alt0.MatchType)
 
-	alt1v, _ := b.Anno("alt-translation-1")
-	alt1 := alt1v.(*model.AltTranslation)
+	alt1 := alts[1]
 	assert.Equal(t, 80.0, alt1.CombinedScore)
 	assert.Equal(t, "MT", alt1.Origin)
 }
@@ -731,8 +731,7 @@ func TestExtract_AddAltTrans(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	require.NotNil(t, blocks[0].AnnoMap())
-	_, ok := blocks[0].Anno("alt-translation")
-	assert.True(t, ok)
+	assert.Len(t, blocks[0].AltTranslations(), 1)
 }
 
 // okapi: XLIFFFilterTest#testAltTransWithEmptyTarget
@@ -763,8 +762,9 @@ func TestExtract_DecimalAltTransValues(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
 	require.NotNil(t, b.AnnoMap())
-	altv, _ := b.Anno("alt-translation")
-	alt := altv.(*model.AltTranslation)
+	alts := b.AltTranslations()
+	require.Len(t, alts, 1)
+	alt := alts[0]
 	assert.Equal(t, 99.5, alt.CombinedScore)
 }
 

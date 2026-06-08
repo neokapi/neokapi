@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -88,8 +87,9 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 	assert.Equal(t, "tm-leverage", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
-	alt, altOK := model.AnnoAs[*model.AltTranslation](resultBlock, tools.PropTMAltKey)
-	require.True(t, altOK, "alt-translation annotation present")
+	alts := resultBlock.AltTranslations()
+	require.Len(t, alts, 1, "one alt-translation candidate present")
+	alt := alts[0]
 	assert.Equal(t, "Hello world", model.RunsText(alt.Source))
 	assert.Equal(t, "Bonjour le monde", model.RunsText(alt.Target))
 	assert.Equal(t, model.MatchExact, alt.MatchType)
@@ -354,14 +354,27 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	assert.Equal(t, model.MatchExact, a1.MatchType)
 }
 
-// altTrans fetches the per-segment AltTranslation annotation by segment index.
+// altTrans fetches the per-segment AltTranslation from the tm-segment-alts
+// collection by its SegmentIndex.
 func altTrans(t *testing.T, b *model.Block, idx int) *model.AltTranslation {
 	t.Helper()
-	a, ok := b.Anno(tools.PropTMSegmentAltPrefix + strconv.Itoa(idx))
-	require.True(t, ok, "alt-translation for segment %d present", idx)
-	at, ok := a.(*model.AltTranslation)
-	require.True(t, ok, "annotation is *AltTranslation")
+	at := segAlt(b, idx)
+	require.NotNil(t, at, "alt-translation for segment %d present", idx)
 	return at
+}
+
+// segAlt returns the per-segment alt-translation with the given SegmentIndex, or nil.
+func segAlt(b *model.Block, idx int) *model.AltTranslation {
+	v, ok := model.AnnoAs[*model.AltTranslations](b, tools.PropTMSegmentAlts)
+	if !ok {
+		return nil
+	}
+	for _, a := range v.Items {
+		if a.SegmentIndex == idx {
+			return a
+		}
+	}
+	return nil
 }
 
 func TestTMLeverageSegmentedMixedExactFuzzy(t *testing.T) {
@@ -414,6 +427,5 @@ func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 	a0 := altTrans(t, rb, 0)
 	assert.Equal(t, "Bonjour le monde. ", model.RunsText(a0.Target))
 	assert.Equal(t, model.MatchExact, a0.MatchType)
-	_, hasSeg1 := rb.Anno(tools.PropTMSegmentAltPrefix + "1")
-	assert.False(t, hasSeg1, "unmatched segment has no alt-translation")
+	assert.Nil(t, segAlt(rb, 1), "unmatched segment has no alt-translation")
 }

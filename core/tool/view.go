@@ -76,6 +76,13 @@ type BlockView interface {
 	// source-transform tool that consumes an overlay and then rewrites
 	// the source uses this to drop the now-stale run-anchored spans.
 	RemoveOverlay(t model.OverlayType)
+	// AddAltTranslation appends an alternative-translation candidate to the
+	// block's AnnoAltTranslation collection (multiplicity lives in the
+	// collection, never in numbered keys).
+	AddAltTranslation(a *model.AltTranslation)
+	// AppendAltUnder appends an alt-translation to the collection under an
+	// arbitrary key (e.g. the per-segment TM-match set).
+	AppendAltUnder(key string, a *model.AltTranslation)
 	// Annotations returns a snapshot of the block annotations (the former
 	// annotation map). Use Annotate to write; writing to the returned map has
 	// no effect.
@@ -211,10 +218,14 @@ func (v *blockView) OverlaySpans(t model.OverlayType) []model.Span {
 	}
 	return nil
 }
-func (v *blockView) RemoveOverlay(t model.OverlayType) { v.b.RemoveOverlay(t) }
-func (v *blockView) Annotations() map[string]any       { return v.b.AnnoMap() }
-func (v *blockView) Annotate(key string, a any)        { v.b.SetAnno(key, a) }
-func (v *blockView) RemoveAnnotation(key string)       { v.b.DelAnno(key) }
+func (v *blockView) RemoveOverlay(t model.OverlayType)         { v.b.RemoveOverlay(t) }
+func (v *blockView) AddAltTranslation(a *model.AltTranslation) { v.b.AddAltTranslation(a) }
+func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
+	v.b.AppendAltUnder(key, a)
+}
+func (v *blockView) Annotations() map[string]any { return v.b.AnnoMap() }
+func (v *blockView) Annotate(key string, a any)  { v.b.SetAnno(key, a) }
+func (v *blockView) RemoveAnnotation(key string) { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)

@@ -100,7 +100,7 @@ func (t *TMLeverageTool) translate(v tool.TargetView) error {
 	}
 
 	// Add the best match as an AltTranslation annotation.
-	v.Annotate("alt-translation", &model.AltTranslation{
+	v.AddAltTranslation(&model.AltTranslation{
 		Source:    sourceVariant,
 		Target:    targetVariant,
 		Locale:    t.cfg.TargetLocale,

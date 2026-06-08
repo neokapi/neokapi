@@ -1339,13 +1339,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		})
 	}
 
-	// Add alt-trans
-	for i, at := range tu.altTrans {
-		key := "alt-translation"
-		if i > 0 {
-			key = fmt.Sprintf("alt-translation-%d", i)
-		}
-
+	// Add alt-trans as alt-translation candidates (one collection, not numbered keys).
+	for _, at := range tu.altTrans {
 		var matchType model.MatchType
 		if at.matchQuality >= 100 {
 			matchType = model.MatchExact
@@ -1365,7 +1360,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		if at.target != "" {
 			alt.Target = []model.Run{{Text: &model.TextRun{Text: at.target}}}
 		}
-		block.SetAnno(key, alt)
+		block.AddAltTranslation(alt)
 	}
 
 	return block

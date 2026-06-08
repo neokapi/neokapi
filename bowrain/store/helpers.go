@@ -85,7 +85,7 @@ func deserializeAnnotations(jsonStr string) map[string]any {
 
 		switch wrapper.Type {
 		case "alt-translation":
-			var ann model.AltTranslation
+			var ann model.AltTranslations
 			if err := json.Unmarshal(payload, &ann); err == nil {
 				result[key] = &ann
 			}

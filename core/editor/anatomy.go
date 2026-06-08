@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -362,9 +363,34 @@ func annotationViews(b *model.Block) []AnnotationView {
 	sort.Strings(keys)
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
+		// An alt-translation collection expands to one view per candidate so
+		// each match renders individually (keyed "alt-translation[i]").
+		if alts, ok := annos[k].(*model.AltTranslations); ok {
+			for i, alt := range alts.Items {
+				out = append(out, altTranslationView(fmt.Sprintf("%s[%d]", k, i), alt))
+			}
+			continue
+		}
 		out = append(out, annotationView(k, annos[k]))
 	}
 	return out
+}
+
+// altTranslationView renders a single alt-translation candidate.
+func altTranslationView(key string, t *model.AltTranslation) AnnotationView {
+	return AnnotationView{
+		Key:     key,
+		Type:    "alt-translation",
+		Summary: model.RunsText(t.Target),
+		Fields: map[string]any{
+			"locale":    string(t.Locale),
+			"matchType": string(t.MatchType),
+			"score":     t.Score,
+			"origin":    t.Origin,
+			"engine":    t.Engine,
+			"source":    model.RunsText(t.Source),
+		},
+	}
 }
 
 func annotationView(key string, a any) AnnotationView {
@@ -373,16 +399,6 @@ func annotationView(key string, a any) AnnotationView {
 		v.Type = at.AnnotationType()
 	}
 	switch t := a.(type) {
-	case *model.AltTranslation:
-		v.Summary = model.RunsText(t.Target)
-		v.Fields = map[string]any{
-			"locale":    string(t.Locale),
-			"matchType": string(t.MatchType),
-			"score":     t.Score,
-			"origin":    t.Origin,
-			"engine":    t.Engine,
-			"source":    model.RunsText(t.Source),
-		}
 	case *model.NoteAnnotation:
 		v.Summary = t.Text
 		v.Fields = map[string]any{"from": t.From, "priority": t.Priority, "annotates": t.Annotates}

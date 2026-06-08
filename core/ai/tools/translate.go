@@ -556,7 +556,7 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 }
 
 func (t *AITranslateTool) annotateTranslation(v tool.TargetView, resp *aiprovider.TranslateResponse) {
-	v.Annotate("alt-translations", &model.AltTranslation{
+	v.AddAltTranslation(&model.AltTranslation{
 		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
 		Origin:    "ai:" + string(t.provider.Name()),
