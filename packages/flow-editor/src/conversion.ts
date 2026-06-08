@@ -123,7 +123,9 @@ export function stepsToGraph(
 
     for (const prev of prevIds) {
       const prevNode = nodes.find((n) => n.id === prev);
-      edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
+      edges.push(
+        makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))),
+      );
     }
 
     prevIds = [id];
@@ -172,7 +174,13 @@ export function stepsToGraph(
 
         for (const prev of prevIds) {
           const prevNode = nodes.find((n) => n.id === prev);
-          edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
+          edges.push(
+            makeEdge(
+              prev,
+              id,
+              partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined)),
+            ),
+          );
         }
 
         branchIds.push(id);
@@ -194,7 +202,13 @@ export function stepsToGraph(
 
       for (const prev of prevIds) {
         const prevNode = nodes.find((n) => n.id === prev);
-        edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
+        edges.push(
+          makeEdge(
+            prev,
+            id,
+            partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined)),
+          ),
+        );
       }
 
       prevIds = [id];

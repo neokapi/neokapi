@@ -49,7 +49,10 @@ describe("facet connection validation", () => {
 
   it("multiple produced facets satisfying one consumed facet match", () => {
     expect(
-      isFacetConnectionValid([src("tm-match"), src("alt-translation"), tgt("target")], [tgt("target")]),
+      isFacetConnectionValid(
+        [src("tm-match"), src("alt-translation"), tgt("target")],
+        [tgt("target")],
+      ),
     ).toBe(true);
   });
 });
