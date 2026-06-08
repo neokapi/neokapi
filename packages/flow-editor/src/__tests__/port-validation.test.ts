@@ -1,43 +1,55 @@
 import { describe, it, expect } from "vitest";
+import type { FacetIO } from "../types";
 
 /**
- * Port validation logic — matches the isValidConnection callback in FlowEditor.
- * Extracted here for pure-function testing without React/DOM dependencies.
+ * Facet connection validation — mirrors the isValidConnection callback in
+ * FlowEditor. A connection is meaningful when the source produces at least one
+ * facet the target consumes (matched by type@side). Missing metadata, or a
+ * target that consumes nothing (a pass-through), is permitted.
  */
-function isPortCompatible(
-  srcOutputs: string[] | undefined,
-  tgtInputs: string[] | undefined,
+function isFacetConnectionValid(
+  srcProduces: FacetIO[] | undefined,
+  tgtConsumes: FacetIO[] | undefined,
 ): boolean {
-  if (!srcOutputs || !tgtInputs) return true; // no metadata = allow
-  return srcOutputs.some((o) => tgtInputs.includes(o));
+  if (!srcProduces || !tgtConsumes || tgtConsumes.length === 0) return true;
+  const produced = new Set(srcProduces.map((f) => `${f.type}@${f.side ?? "source"}`));
+  return tgtConsumes.some((c) => produced.has(`${c.type}@${c.side ?? "source"}`));
 }
 
-describe("port validation", () => {
-  it("tools with matching ports are compatible", () => {
-    expect(isPortCompatible(["block"], ["block"])).toBe(true);
-    expect(isPortCompatible(["block", "data"], ["block"])).toBe(true);
-    expect(isPortCompatible(["data"], ["block", "data"])).toBe(true);
+const tgt = (type: string): FacetIO => ({ type, side: "target" });
+const src = (type: string): FacetIO => ({ type, side: "source" });
+
+describe("facet connection validation", () => {
+  it("source producing a consumed facet is compatible", () => {
+    // translate produces target@target; qa-check consumes target@target.
+    expect(isFacetConnectionValid([tgt("target")], [tgt("target")])).toBe(true);
   });
 
-  it("tools with non-overlapping ports are incompatible", () => {
-    expect(isPortCompatible(["media"], ["block"])).toBe(false);
-    expect(isPortCompatible(["data"], ["block", "layer"])).toBe(false);
-    expect(isPortCompatible(["layer"], ["media"])).toBe(false);
+  it("matches on side, not just type", () => {
+    // produce term@source, consume term@source → ok.
+    expect(isFacetConnectionValid([src("term")], [src("term")])).toBe(true);
+    // produce term@target but consume term@source → no overlap.
+    expect(isFacetConnectionValid([tgt("term")], [src("term")])).toBe(false);
   });
 
-  it("tools without port metadata default to compatible", () => {
-    expect(isPortCompatible(undefined, ["block"])).toBe(true);
-    expect(isPortCompatible(["block"], undefined)).toBe(true);
-    expect(isPortCompatible(undefined, undefined)).toBe(true);
+  it("non-overlapping facets are incompatible", () => {
+    expect(isFacetConnectionValid([src("word-count")], [tgt("target")])).toBe(false);
+    expect(isFacetConnectionValid([tgt("qa")], [tgt("target")])).toBe(false);
   });
 
-  it("empty arrays are incompatible", () => {
-    expect(isPortCompatible([], ["block"])).toBe(false);
-    expect(isPortCompatible(["block"], [])).toBe(false);
-    expect(isPortCompatible([], [])).toBe(false);
+  it("missing metadata defaults to compatible", () => {
+    expect(isFacetConnectionValid(undefined, [tgt("target")])).toBe(true);
+    expect(isFacetConnectionValid([tgt("target")], undefined)).toBe(true);
+    expect(isFacetConnectionValid(undefined, undefined)).toBe(true);
   });
 
-  it("multiple overlapping types still match", () => {
-    expect(isPortCompatible(["block", "data", "media"], ["media", "layer"])).toBe(true);
+  it("a target that consumes nothing accepts any source (pass-through)", () => {
+    expect(isFacetConnectionValid([tgt("target")], [])).toBe(true);
+  });
+
+  it("multiple produced facets satisfying one consumed facet match", () => {
+    expect(
+      isFacetConnectionValid([src("tm-match"), src("alt-translation"), tgt("target")], [tgt("target")]),
+    ).toBe(true);
   });
 });

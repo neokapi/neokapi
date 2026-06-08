@@ -3,7 +3,7 @@
 // Layout direction is configurable: horizontal (left-to-right) or vertical (top-to-bottom).
 
 import { MarkerType, type Node, type Edge } from "@xyflow/react";
-import type { FlowSpec, FlowStep, ToolInfo } from "./types";
+import type { FacetIO, FlowSpec, FlowStep, ToolInfo } from "./types";
 
 export type LayoutDirection = "horizontal" | "vertical";
 
@@ -23,6 +23,12 @@ const EDGE_MARKER = {
 function partLabel(types?: string[]): string | undefined {
   if (!types || types.length === 0) return undefined;
   return types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(" · ");
+}
+
+/** Facet type names of a produced/consumed contract, for edge labels. */
+function facetTypes(fs?: FacetIO[]): string[] | undefined {
+  if (!fs || fs.length === 0) return undefined;
+  return fs.map((f) => f.type);
 }
 
 function makeEdge(source: string, target: string, label?: string): Edge {
@@ -55,8 +61,8 @@ function makeToolNodeData(
     config: step.config,
     category: info?.category || "pipeline",
     description: info?.description,
-    inputs: info?.inputs,
-    outputs: info?.outputs,
+    consumes: info?.consumes,
+    produces: info?.produces,
     cardinality: info?.cardinality,
     defaultLocale: info?.default_locale,
     sideEffects: info?.side_effects,
@@ -117,7 +123,7 @@ export function stepsToGraph(
 
     for (const prev of prevIds) {
       const prevNode = nodes.find((n) => n.id === prev);
-      edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
+      edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
     }
 
     prevIds = [id];
@@ -148,8 +154,8 @@ export function stepsToGraph(
             config: branch.config,
             category: info?.category || "pipeline",
             description: info?.description,
-            inputs: info?.inputs,
-            outputs: info?.outputs,
+            consumes: info?.consumes,
+            produces: info?.produces,
             cardinality: info?.cardinality,
             defaultLocale: info?.default_locale,
             sideEffects: info?.side_effects,
@@ -166,7 +172,7 @@ export function stepsToGraph(
 
         for (const prev of prevIds) {
           const prevNode = nodes.find((n) => n.id === prev);
-          edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
+          edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
         }
 
         branchIds.push(id);
@@ -188,7 +194,7 @@ export function stepsToGraph(
 
       for (const prev of prevIds) {
         const prevNode = nodes.find((n) => n.id === prev);
-        edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
+        edges.push(makeEdge(prev, id, partLabel(facetTypes(prevNode?.data.produces as FacetIO[] | undefined))));
       }
 
       prevIds = [id];
