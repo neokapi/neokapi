@@ -1,6 +1,9 @@
 package model
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // This file defines the facet vocabulary (AD-002 / tool-data-model redesign).
 // A *facet* is any typed, stand-off interpretation that rides on a Block: the
@@ -82,21 +85,29 @@ func (s *FacetSide) UnmarshalText(b []byte) error {
 
 // IsPositional reports whether the facet type is run-anchored (its spans carry
 // real ranges) rather than block-scoped. The built-in positional types
-// (segmentation, term, entity, qa, alignment) are registered at init; formats
-// and plugins register their own positional types via RegisterPositionalFacet.
-// Block-scoped facets — the former annotations, keyed by an arbitrary type
-// string — are non-positional. The distinction lets the single facet carrier
-// hold both kinds while keeping positional iteration and block-scoped
-// (annotation) lookup separate (see facet_access.go).
+// (segmentation, term, entity, qa, alignment, term-candidate) are registered at
+// init; formats and plugins register their own positional types via
+// RegisterPositionalFacet. Block-scoped facets — the former annotations, keyed
+// by an arbitrary type string — are non-positional. The distinction lets the
+// single facet carrier hold both kinds while keeping positional iteration and
+// block-scoped (annotation) lookup separate (see facet_access.go).
+//
+// IsPositional is read on per-facet, per-block annotation operations (Anno,
+// SetAnno, AnnoMap, …), so reads are lock-free: the registry is a copy-on-write
+// map behind an atomic pointer. A read is a single atomic load + map index with
+// no contention across the pipeline's goroutines; registration (init/plugin
+// load only) is the rare writer that swaps in a fresh map under a mutex.
 func (t FacetType) IsPositional() bool {
-	positionalMu.RLock()
-	defer positionalMu.RUnlock()
-	return positionalFacets[t]
+	return (*positionalFacets.Load())[t]
 }
 
 var (
-	positionalMu     sync.RWMutex
-	positionalFacets = map[FacetType]bool{
+	positionalMu     sync.Mutex // serializes registration (writers only)
+	positionalFacets atomic.Pointer[map[FacetType]bool]
+)
+
+func init() {
+	m := map[FacetType]bool{
 		FacetSegmentation:  true,
 		FacetTerm:          true,
 		FacetEntity:        true,
@@ -104,15 +115,26 @@ var (
 		FacetAlignment:     true,
 		FacetTermCandidate: true,
 	}
-)
+	positionalFacets.Store(&m)
+}
 
 // RegisterPositionalFacet marks a facet type as run-anchored (positional), so
 // its spans are treated as ranged interpretations rather than block-scoped
 // attachments. Built-in positional types are registered automatically; a
 // format or plugin defining its own range-anchored facet calls this from an
-// init() alongside RegisterFacetValue.
+// init() alongside RegisterFacetValue. The copy-on-write swap keeps reads
+// lock-free; registration is rare.
 func RegisterPositionalFacet(t FacetType) {
 	positionalMu.Lock()
 	defer positionalMu.Unlock()
-	positionalFacets[t] = true
+	old := *positionalFacets.Load()
+	if old[t] {
+		return
+	}
+	next := make(map[FacetType]bool, len(old)+1)
+	for k, v := range old {
+		next[k] = v
+	}
+	next[t] = true
+	positionalFacets.Store(&next)
 }
