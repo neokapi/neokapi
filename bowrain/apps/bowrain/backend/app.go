@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -252,14 +253,38 @@ type FormatInfo struct {
 	Source      string   `json:"source"`
 }
 
+// FacetIO is one entry of a tool's facet IO contract (mirrors core/schema.IOFacet).
+type FacetIO struct {
+	Type     string `json:"type"`
+	Side     string `json:"side,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
+	Layer    string `json:"layer,omitempty"`
+}
+
 // ToolInfo describes an available tool.
 type ToolInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Category    string `json:"category"`
+	// Consumes / Produces are the tool's facet IO contract (AD-006), surfaced
+	// to the flow editor so it can type ports and validate connections.
+	Consumes []FacetIO `json:"consumes,omitempty"`
+	Produces []FacetIO `json:"produces,omitempty"`
 	// IsSourceTransform reports whether this tool may be placed in the
 	// source-transform stage of a flow (i.e. it rewrites the source model).
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+}
+
+// facetIOs converts a schema facet contract to the wire form.
+func facetIOs(fs []schema.IOFacet) []FacetIO {
+	if len(fs) == 0 {
+		return nil
+	}
+	out := make([]FacetIO, len(fs))
+	for i, f := range fs {
+		out[i] = FacetIO{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+	}
+	return out
 }
 
 // PluginInfo describes a loaded plugin.
@@ -344,13 +369,18 @@ func (a *App) ListTools() []ToolInfo {
 			// IsSourceTransform comes from the registry metadata (probed at
 			// registration from tool.CapTransform capability).
 			var isSourceTransform bool
+			var consumes, produces []FacetIO
 			if info := a.toolReg.ToolInfo(name); info != nil {
 				isSourceTransform = info.IsSourceTransform
+				consumes = facetIOs(info.Consumes)
+				produces = facetIOs(info.Produces)
 			}
 			result = append(result, ToolInfo{
 				Name:              string(name),
 				Description:       t.Description(),
 				Category:          category,
+				Consumes:          consumes,
+				Produces:          produces,
 				IsSourceTransform: isSourceTransform,
 			})
 		}

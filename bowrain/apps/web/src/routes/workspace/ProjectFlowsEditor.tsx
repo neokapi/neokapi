@@ -66,6 +66,8 @@ export function ProjectFlowsEditor({
         name: t.name,
         description: t.description,
         category: t.category,
+        consumes: t.consumes,
+        produces: t.produces,
         isSourceTransform: t.is_source_transform,
       })),
     [tools],
