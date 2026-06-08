@@ -284,6 +284,29 @@ export const FullPipeline: Story = {
   },
 };
 
+/**
+ * IO-contract showcase: every node shows its typed reads → writes chips, edges
+ * carry the data type flowing across them, and the legend (top-right) decodes
+ * the family colors. segmentation produces a segments overlay that tm-leverage
+ * optionally consumes; translate writes target; term-check / qa-check read
+ * target and write findings.
+ */
+export const IoContractShowcase: Story = {
+  name: "IO Contract Showcase",
+  args: {
+    flow: {
+      steps: [
+        { tool: "segmentation" },
+        { tool: "tm-leverage" },
+        { tool: "ai-translate" },
+        { tool: "term-check" },
+        { tool: "qa-check" },
+      ],
+    },
+    tools,
+  },
+};
+
 export const WithOkapiTools: Story = {
   args: {
     flow: {
@@ -502,10 +525,14 @@ const sourceTransformAwareTools: ToolInfo[] = [
     name: "redact",
     display_name: "Redact",
     description: "Replace sensitive spans with placeholders before translation",
-    category: "transform",
+    category: "text-processing",
     has_schema: true,
-    inputs: ["block"],
-    outputs: ["block"],
+    cardinality: "monolingual",
+    consumes: [{ type: "entity", side: "source", optional: true }],
+    produces: [
+      { type: "source", side: "source" },
+      { type: "redaction.secret", side: "source" },
+    ],
     tags: ["privacy", "pre-processing"],
     isSourceTransform: true,
   },
@@ -513,10 +540,10 @@ const sourceTransformAwareTools: ToolInfo[] = [
     name: "source-normalise",
     display_name: "Source Normalise",
     description: "Normalise quotes, punctuation, and whitespace in source text",
-    category: "transform",
+    category: "text-processing",
     has_schema: true,
-    inputs: ["block"],
-    outputs: ["block"],
+    cardinality: "monolingual",
+    produces: [{ type: "source", side: "source" }],
     tags: ["text-processing", "pre-processing"],
     isSourceTransform: true,
   },
@@ -524,10 +551,10 @@ const sourceTransformAwareTools: ToolInfo[] = [
     name: "source-simplifier",
     display_name: "Source Simplifier",
     description: "Simplify complex source sentences to aid machine translation",
-    category: "transform",
+    category: "text-processing",
     has_schema: false,
-    inputs: ["block"],
-    outputs: ["block"],
+    cardinality: "monolingual",
+    produces: [{ type: "source", side: "source" }],
     tags: ["ai-powered", "pre-processing"],
     isSourceTransform: true,
   },
