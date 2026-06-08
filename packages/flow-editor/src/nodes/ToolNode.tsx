@@ -136,7 +136,8 @@ export function ToolNode({ data, selected }: NodeProps) {
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
   const isValid = data.valid !== false;
-  const label = (data.label as string) || (data.toolName as string) || "";
+  const toolName = (data.toolName as string) || "";
+  const label = (data.label as string) || toolName || "";
   // Port types this tool requires that nothing upstream produces (set by the
   // requirement analysis in Phase 2; absent until then).
   const unmet = data.unmet as string[] | undefined;
@@ -229,26 +230,33 @@ export function ToolNode({ data, selected }: NodeProps) {
           )}
         </div>
 
-        {/* Tool name */}
-        <div className="flex items-center gap-1">
-          <span
-            className={`text-[13px] font-semibold leading-tight ${isValid ? "text-foreground" : "text-foreground/50 line-through"}`}
-          >
-            {label}
-          </span>
+        {/* Tool name (centered) + tool id in code font */}
+        <div className="flex flex-col items-center text-center">
+          <div className="flex items-center justify-center gap-1">
+            <span
+              className={`text-[13px] font-semibold leading-tight ${isValid ? "text-foreground" : "text-foreground/50 line-through"}`}
+            >
+              {label}
+            </span>
+            {!isValid && (
+              <AlertCircle
+                size={12}
+                style={{ color: "oklch(0.7 0.15 85)" }}
+                aria-label="Unknown tool"
+              />
+            )}
+          </div>
+          {toolName && toolName !== label && (
+            <span className="font-mono text-[9px] leading-tight text-muted-foreground">
+              {toolName}
+            </span>
+          )}
           {!isValid && (
-            <AlertCircle
-              size={12}
-              style={{ color: "oklch(0.7 0.15 85)" }}
-              aria-label="Unknown tool"
-            />
+            <div className="text-[9px] font-medium" style={{ color: "oklch(0.65 0.15 85)" }}>
+              Tool not found
+            </div>
           )}
         </div>
-        {!isValid && (
-          <div className="text-[9px] font-medium" style={{ color: "oklch(0.65 0.15 85)" }}>
-            Tool not found
-          </div>
-        )}
 
         {/* Capability/locale meta + side effects */}
         <div className="flex items-center gap-1 mt-1">
