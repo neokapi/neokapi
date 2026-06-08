@@ -53,7 +53,7 @@ describe("stepsToGraph carries step identity on node data", () => {
     expect(dataFor(nodes, "tool-2").stage).toBeUndefined();
   });
 
-  it("threads stepIndex + branchIndex onto parallel branch nodes", () => {
+  it("emits one parallel group node carrying its branches; a branch location is its stepIndex + branchIndex", () => {
     const spec: FlowSpec = {
       steps: [
         { tool: "ai-translate" },
@@ -61,15 +61,26 @@ describe("stepsToGraph carries step identity on node data", () => {
       ],
     };
     const { nodes } = stepsToGraph(spec);
-    // tool-0 = sequential, tool-1/2/3 = the three branches of step index 1.
+    // tool-0 = sequential; the parallel step is a single composite node (tool-1).
     expect(dataFor(nodes, "tool-0").stepIndex).toBe(0);
+    const group = nodes.find((n) => n.type === "parallel")!;
+    expect(group.data.stepIndex).toBe(1);
+    expect((group.data.branches as unknown[]).length).toBe(3);
+    // Selecting branch b resolves to that branch of step index 1.
     for (let b = 0; b < 3; b++) {
-      const d = dataFor(nodes, `tool-${b + 1}`);
-      expect(d.stepIndex).toBe(1);
-      expect(d.branchIndex).toBe(b);
+      expect(
+        resolveStepLocation({ stepIndex: group.data.stepIndex as number, branchIndex: b }),
+      ).toEqual({ isSourceTransform: false, index: 1, branchIndex: b });
     }
   });
 });
+
+/** Build a parallel-branch location from the composite group node (as the UI does). */
+function branchLocation(nodes: RFNode[], branchIndex: number) {
+  const group = nodes.find((n) => n.type === "parallel");
+  if (!group) throw new Error("no parallel group node");
+  return resolveStepLocation({ stepIndex: group.data.stepIndex as number, branchIndex })!;
+}
 
 describe("resolveStepLocation", () => {
   it("returns null for nodes with no resolvable index / empty data", () => {
@@ -147,8 +158,8 @@ describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () =
       ],
     };
     const { nodes } = stepsToGraph(parSpec);
-    // tool-1/2/3 are the branches; remove the 2nd branch (branchIndex 1).
-    const branch = resolveStepLocation(dataFor(nodes, "tool-2"))!;
+    // Remove the 2nd branch (branchIndex 1) of the parallel group.
+    const branch = branchLocation(nodes, 1);
     expect(branch).toEqual({ isSourceTransform: false, index: 1, branchIndex: 1 });
     const updated = removeStepAtLocation(parSpec, branch);
     // The parallel group keeps its other two branches; the sequential step survives.
@@ -163,7 +174,7 @@ describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () =
       steps: [{ tool: "", parallel: [{ tool: "a" }, { tool: "b" }] }],
     };
     const { nodes } = stepsToGraph(parSpec);
-    const branch = resolveStepLocation(dataFor(nodes, "tool-1"))!; // 2nd branch
+    const branch = branchLocation(nodes, 1); // 2nd branch
     const updated = removeStepAtLocation(parSpec, branch);
     expect(updated.steps).toHaveLength(1);
     expect(updated.steps[0].tool).toBe("a");
@@ -186,7 +197,7 @@ describe("config edits to a parallel branch persist to the branch (#11)", () => 
 
   it("writes to step.parallel[branchIndex], never the wrapper", () => {
     const { nodes } = stepsToGraph(spec);
-    const branch = resolveStepLocation(dataFor(nodes, "tool-1"))!; // 2nd branch
+    const branch = branchLocation(nodes, 1); // 2nd branch
     expect(branch.branchIndex).toBe(1);
     const updated = updateStepAtLocation(spec, branch, (s) => ({
       ...s,
@@ -200,9 +211,9 @@ describe("config edits to a parallel branch persist to the branch (#11)", () => 
 
   it("round-trips through the graph: the panel target matches the edited branch", () => {
     const { nodes } = stepsToGraph(spec);
-    // The 2nd branch node resolves to the 2nd branch step, whose config the
-    // panel renders — and updateStepAtLocation writes back to that same branch.
-    const branch = resolveStepLocation(dataFor(nodes, "tool-1"))!;
+    // The 2nd branch resolves to the 2nd branch step, whose config the panel
+    // renders — and updateStepAtLocation writes back to that same branch.
+    const branch = branchLocation(nodes, 1);
     const shown = stepAtLocation(spec, branch);
     expect(shown).toBe(spec.steps[0].parallel![1]);
     expect(shown!.config).toEqual({ targetLang: "de" });

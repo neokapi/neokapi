@@ -4,7 +4,7 @@ import { suggestParallelGroups } from "../parallelChecker";
 import type { FlowSpec, ToolInfo } from "../types";
 
 describe("stepsToGraph with parallel branches", () => {
-  it("creates fan-out nodes for parallel steps", () => {
+  it("creates a single composite node for a parallel step", () => {
     const spec: FlowSpec = {
       steps: [
         { tool: "ai-translate" },
@@ -18,26 +18,16 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { nodes } = stepsToGraph(spec, undefined, "horizontal");
 
-    // ai-translate + ai-qa + tm-leverage + merge-results = 4 tool nodes (no reader/writer)
-    expect(nodes).toHaveLength(4);
+    // ai-translate (tool) + parallel group (1 node) + merge-results (tool) = 3 nodes
+    expect(nodes).toHaveLength(3);
 
-    const toolNodes = nodes.filter((n) => n.type === "tool");
-    expect(toolNodes).toHaveLength(4);
-
-    // The two parallel nodes should have the same X position
-    const qaNode = toolNodes.find((n) => n.data.toolName === "ai-qa")!;
-    const tmNode = toolNodes.find((n) => n.data.toolName === "tm-leverage")!;
-    expect(qaNode.position.x).toBe(tmNode.position.x);
-
-    // But different Y positions
-    expect(qaNode.position.y).not.toBe(tmNode.position.y);
-
-    // Parallel nodes should be marked
-    expect(qaNode.data.parallel).toBe(true);
-    expect(tmNode.data.parallel).toBe(true);
+    const group = nodes.find((n) => n.type === "parallel")!;
+    expect(group).toBeDefined();
+    const branches = group.data.branches as Array<{ toolName: string }>;
+    expect(branches.map((b) => b.toolName)).toEqual(["ai-qa", "tm-leverage"]);
   });
 
-  it("creates fan-out edges from previous node to all branches", () => {
+  it("connects the previous node to the parallel group with a single edge", () => {
     const spec: FlowSpec = {
       steps: [
         { tool: "ai-translate" },
@@ -50,17 +40,13 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { edges } = stepsToGraph(spec);
 
-    // translate → qa, translate → tm = 2 (no reader/writer edges)
-    expect(edges).toHaveLength(2);
-
-    // translate fans out to both qa and tm
-    const fanOutEdges = edges.filter((e) => e.source === "tool-0");
-    expect(fanOutEdges).toHaveLength(2);
-    const targets = fanOutEdges.map((e) => e.target).sort();
-    expect(targets).toEqual(["tool-1", "tool-2"]);
+    // translate → parallel group = 1 edge (no fan-out)
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe("tool-0");
+    expect(edges[0].target).toBe("tool-1");
   });
 
-  it("creates merge edges from all branches to next sequential node", () => {
+  it("connects the parallel group to the next node with a single edge", () => {
     const spec: FlowSpec = {
       steps: [
         {
@@ -73,12 +59,13 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { edges } = stepsToGraph(spec);
 
-    // reader → qa, reader → tm, qa → merge, tm → merge, merge → writer = 5
-    const mergeEdges = edges.filter((e) => e.target === "tool-2");
-    expect(mergeEdges).toHaveLength(2);
+    // group → merge = 1 edge (no merge fan-in)
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe("tool-0");
+    expect(edges[0].target).toBe("tool-1");
   });
 
-  it("handles three-way parallel branches", () => {
+  it("handles three-way parallel branches in one group node", () => {
     const spec: FlowSpec = {
       steps: [
         {
@@ -90,11 +77,10 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { nodes, edges } = stepsToGraph(spec);
 
-    const toolNodes = nodes.filter((n) => n.type === "tool");
-    expect(toolNodes).toHaveLength(3);
-
-    // A lone parallel group has no preceding or following node, so there are no
-    // fan-out or merge edges — the three branches are all entry and exit points.
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type).toBe("parallel");
+    expect((nodes[0].data.branches as unknown[]).length).toBe(3);
+    // A lone group has no preceding or following node, so no edges.
     expect(edges).toHaveLength(0);
   });
 
@@ -112,9 +98,15 @@ describe("stepsToGraph with parallel branches", () => {
     };
 
     const { nodes } = stepsToGraph(spec, undefined, "horizontal");
-    const qaNode = nodes.find((n) => n.data.toolName === "qa")!;
-    expect(qaNode.data.label).toBe("Quality Check");
-    expect(qaNode.data.config).toEqual({ strict: true });
+    const group = nodes.find((n) => n.type === "parallel")!;
+    const branches = group.data.branches as Array<{
+      toolName: string;
+      label: string;
+      config?: Record<string, unknown>;
+    }>;
+    expect(branches[0].label).toBe("Quality Check");
+    expect(branches[0].config).toEqual({ strict: true });
+    expect(branches[1].label).toBe("TM Lookup");
   });
 });
 

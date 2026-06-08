@@ -10,7 +10,6 @@ export type LayoutDirection = "horizontal" | "vertical" | "serpentine";
 const NODE_SIZE = 200; // primary axis node size estimate
 const NODE_GAP = 60;
 const CENTER = 200; // cross-axis center
-const BRANCH_GAP = 80;
 
 // Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
 // never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
@@ -26,10 +25,39 @@ const EDGE_MARKER = {
   color: "var(--muted-foreground)",
 };
 
+/** One tool inside a parallel group, as carried on a composite node's data. */
+export interface ParallelBranch {
+  toolName: string;
+  label: string;
+  config?: Record<string, unknown>;
+  category: string;
+  consumes?: IOPort[];
+  produces?: IOPort[];
+  valid: boolean;
+}
+
 /** Port type names of a produced/consumed contract, for typed edge chips. */
 function portTypes(fs?: IOPort[]): string[] | undefined {
   if (!fs || fs.length === 0) return undefined;
   return fs.map((f) => f.type);
+}
+
+/** Union of IO ports (dedupe by type@side) — the group contract of a parallel set. */
+function unionPorts(ports: IOPort[]): IOPort[] {
+  const seen = new Set<string>();
+  const out: IOPort[] = [];
+  for (const p of ports) {
+    const key = `${p.type}@${p.side ?? "source"}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
+/** A flow node that represents a step (a single tool or a parallel group). */
+function isFlowNode(n: Node): boolean {
+  return n.type === "tool" || n.type === "parallel";
 }
 
 function makeEdge(source: string, target: string, ports?: string[]): Edge {
@@ -130,54 +158,44 @@ export function stepsToGraph(
   // --- Main stage ---
   spec.steps.forEach((step, stepIndex) => {
     if (step.parallel && step.parallel.length > 0) {
-      // Fan-out: create parallel branch nodes spread along cross-axis
-      const branchIds: string[] = [];
-      const branchCount = step.parallel.length;
-      const totalCross = (branchCount - 1) * (NODE_SIZE + BRANCH_GAP);
-      const startCross = CENTER - totalCross / 2;
-
-      for (let b = 0; b < branchCount; b++) {
-        const branch = step.parallel[b];
-        const id = `tool-${toolCounter++}`;
+      // A parallel group is ONE composite node listing its branches inside, with
+      // a single input and single output — no fan-out/merge edges. It occupies a
+      // single slot like any other station.
+      const id = `tool-${toolCounter++}`;
+      const branches: ParallelBranch[] = step.parallel.map((branch) => {
         const info = toolMap?.get(branch.tool);
+        return {
+          toolName: branch.tool,
+          label: branch.label || info?.display_name || branch.tool,
+          config: branch.config,
+          category: info?.category || "pipeline",
+          consumes: info?.consumes,
+          produces: info?.produces,
+          valid: toolMap ? !!info : true,
+        };
+      });
 
-        nodes.push({
-          id,
-          type: "tool",
-          position: pos(primary, startCross + b * (NODE_SIZE + BRANCH_GAP)),
-          data: {
-            label: branch.label || info?.display_name || branch.tool,
-            toolName: branch.tool,
-            config: branch.config,
-            category: info?.category || "pipeline",
-            description: info?.description,
-            consumes: info?.consumes,
-            produces: info?.produces,
-            cardinality: info?.cardinality,
-            defaultLocale: info?.default_locale,
-            sideEffects: info?.side_effects,
-            isSourceTransform: info?.isSourceTransform,
-            valid: toolMap ? !!info : true,
-            parallel: true,
-            // `stepIndex` points at the parallel wrapper in `spec.steps`;
-            // `branchIndex` points at this branch within `step.parallel`. Both
-            // are needed so config edits land on the branch, not the wrapper.
-            stepIndex,
-            branchIndex: b,
-          },
-        });
+      nodes.push({
+        id,
+        type: "parallel",
+        position: pos(primary, CENTER),
+        data: {
+          parallelGroup: true,
+          stepIndex,
+          branches,
+          // Group IO contract = the union across branches.
+          consumes: unionPorts(branches.flatMap((b) => b.consumes ?? [])),
+          produces: unionPorts(branches.flatMap((b) => b.produces ?? [])),
+          valid: branches.every((b) => b.valid),
+        },
+      });
 
-        for (const prev of prevIds) {
-          const prevNode = nodes.find((n) => n.id === prev);
-          edges.push(
-            makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)),
-          );
-        }
-
-        branchIds.push(id);
+      for (const prev of prevIds) {
+        const prevNode = nodes.find((n) => n.id === prev);
+        edges.push(makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)));
       }
 
-      prevIds = branchIds;
+      prevIds = [id];
       primary += NODE_SIZE + NODE_GAP;
     } else {
       // Sequential step
@@ -235,7 +253,7 @@ export function serpentineGraph(
 ): { nodes: Node[]; edges: Edge[]; ends?: { source: EndpointGeom; sink: EndpointGeom } } {
   const base = stepsToGraph(spec, toolMap, "horizontal");
   const columns = Math.max(1, cols);
-  const toolNodes = base.nodes.filter((n) => n.type === "tool");
+  const toolNodes = base.nodes.filter(isFlowNode);
   if (toolNodes.length === 0) return base;
 
   // Order columns: source-transform steps first (by stIndex), then main steps
@@ -343,67 +361,31 @@ export function graphToSteps(
 
   const isVertical = direction === "vertical";
   const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
-  const cross = (n: Node) => (isVertical ? n.position.x : n.position.y);
 
-  const toolNodes = nodes.filter((n) => n.type === "tool").sort((a, b) => primary(a) - primary(b));
+  const flowNodes = nodes.filter(isFlowNode).sort((a, b) => primary(a) - primary(b));
+  if (flowNodes.length === 0) return withBindings({ steps: [] });
 
-  if (toolNodes.length === 0) return withBindings({ steps: [] });
-
-  // Partition into source-transform nodes and main nodes.
-  const stNodes = toolNodes.filter((n) => n.data.stage === "source-transform");
-  const mainNodes = toolNodes.filter((n) => n.data.stage !== "source-transform");
-
-  // Source-transform nodes are always sequential — convert directly.
-  const sourceTransforms: FlowStep[] = stNodes.map((n) => ({
-    tool: (n.data.toolName as string) || "",
-    config: n.data.config as Record<string, unknown> | undefined,
-    label: n.data.label as string | undefined,
-  }));
-
-  if (mainNodes.length === 0) {
-    const result: FlowSpec = { steps: [] };
-    if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
-    return withBindings(result);
-  }
-
-  // Group main nodes by primary-axis position (with tolerance for layout jitter).
-  const groups: Node[][] = [];
-  let currentGroup: Node[] = [mainNodes[0]];
-
-  for (let i = 1; i < mainNodes.length; i++) {
-    if (Math.abs(primary(mainNodes[i]) - primary(currentGroup[0])) < NODE_SIZE / 2) {
-      currentGroup.push(mainNodes[i]);
-    } else {
-      groups.push(currentGroup);
-      currentGroup = [mainNodes[i]];
-    }
-  }
-  groups.push(currentGroup);
-
-  // Convert groups to steps.
-  const steps: FlowStep[] = [];
-  for (const group of groups) {
-    if (group.length === 1) {
-      const n = group[0];
-      steps.push({
-        tool: (n.data.toolName as string) || "",
-        config: n.data.config as Record<string, unknown> | undefined,
-        label: n.data.label as string | undefined,
-      });
-    } else {
-      // Multiple nodes at the same primary position = parallel step.
-      // Sort by cross-axis for stable ordering.
-      group.sort((a, b) => cross(a) - cross(b));
-      steps.push({
+  // A node becomes its step: a parallel group node emits a `parallel` step from
+  // its branches; any other emits a plain step. (No position-grouping needed —
+  // the parallel group is already a single node.)
+  const toStep = (n: Node): FlowStep => {
+    if (n.type === "parallel") {
+      const branches = (n.data.branches as ParallelBranch[] | undefined) ?? [];
+      return {
         tool: "",
-        parallel: group.map((n) => ({
-          tool: (n.data.toolName as string) || "",
-          config: n.data.config as Record<string, unknown> | undefined,
-          label: n.data.label as string | undefined,
-        })),
-      });
+        parallel: branches.map((b) => ({ tool: b.toolName, config: b.config, label: b.label })),
+      };
     }
-  }
+    return {
+      tool: (n.data.toolName as string) || "",
+      config: n.data.config as Record<string, unknown> | undefined,
+      label: n.data.label as string | undefined,
+    };
+  };
+
+  // Source-transform stage (single tools only) vs the main stage.
+  const sourceTransforms = flowNodes.filter((n) => n.data.stage === "source-transform").map(toStep);
+  const steps = flowNodes.filter((n) => n.data.stage !== "source-transform").map(toStep);
 
   const result: FlowSpec = { steps };
   if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;

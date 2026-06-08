@@ -39,6 +39,7 @@ import type {
 import { parseBinding, formatBinding } from "./defAdapter";
 import { ToolNode } from "./nodes/ToolNode";
 import { EndpointNode } from "./nodes/EndpointNode";
+import { ParallelGroupNode } from "./nodes/ParallelGroupNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
@@ -50,6 +51,7 @@ import {
   SERP_COL_W,
   type LayoutDirection,
   type EndpointGeom,
+  type ParallelBranch,
 } from "./conversion";
 import {
   resolveStepLocation,
@@ -70,6 +72,7 @@ const nodeTypes: NodeTypes = {
   tool: ToolNode,
   source: EndpointNode,
   sink: EndpointNode,
+  parallel: ParallelGroupNode,
 };
 
 /** Top-left margin for the content within the canvas (px, at 100% zoom). */
@@ -546,6 +549,11 @@ export function FlowEditor({
           extra.onStageToggle = () => stageToggleRef.current(n.id);
         }
       }
+      if (!readOnly && n.type === "parallel") {
+        extra.onRemove = () => removeNodeRef.current(n.id);
+        extra.onSelectBranch = (branchIndex: number) =>
+          setSelectedNodeId(`${n.id}::b${branchIndex}`);
+      }
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
@@ -705,7 +713,12 @@ export function FlowEditor({
     (_: React.MouseEvent, node: Node) => {
       // Source/Sink are bindings, not steps — they have their own dropdown UI
       // and never open the tool config panel.
-      if (node.type !== "tool") return;
+      if (node.type !== "tool" && node.type !== "parallel") return;
+      // A parallel group selects its first branch (branch rows select their own).
+      if (node.type === "parallel") {
+        setSelectedNodeId(`${node.id}::b0`);
+        return;
+      }
       setSelectedNodeId(node.id);
       // If we have trace data, also open the part inspector for this node.
       if (trace) {
@@ -876,13 +889,33 @@ export function FlowEditor({
 
   // Config panel state -- resolve the selected node by IDENTITY (its position in
   // the FlowSpec, carried on node.data), never by tool name. This keeps
-  // duplicate-tool nodes and parallel branches distinct.
-  const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
-  const selectedToolName = selectedNode?.data?.toolName as string | undefined;
+  // duplicate-tool nodes and parallel branches distinct. A selection of the form
+  // "<groupId>::b<i>" targets branch i of a parallel group node.
+  const sepIdx = selectedNodeId?.indexOf("::b") ?? -1;
+  const selGroupId = sepIdx >= 0 ? selectedNodeId!.slice(0, sepIdx) : selectedNodeId;
+  const selBranchIndex = sepIdx >= 0 ? Number(selectedNodeId!.slice(sepIdx + 3)) : undefined;
+  const selectedNode = selGroupId ? (nodes.find((n) => n.id === selGroupId) ?? null) : null;
+  const selectedBranch =
+    selBranchIndex !== undefined && selectedNode?.type === "parallel"
+      ? (selectedNode.data.branches as ParallelBranch[] | undefined)?.[selBranchIndex]
+      : undefined;
+
+  // The node data used for FlowSpec resolution: a branch resolves to its parent
+  // group's stepIndex + branchIndex; otherwise the node's own data.
+  const resolveData: NodeStepData | undefined = selectedBranch
+    ? { stepIndex: selectedNode!.data.stepIndex, branchIndex: selBranchIndex }
+    : (selectedNode?.data as NodeStepData | undefined);
+
+  const selectedToolName = (selectedBranch?.toolName ??
+    (selectedNode?.type === "parallel" ? undefined : selectedNode?.data?.toolName)) as
+    | string
+    | undefined;
 
   const selectedLocation = useMemo(
-    () => resolveStepLocation(selectedNode?.data as NodeStepData | undefined),
-    [selectedNode],
+    () => resolveStepLocation(resolveData),
+    // resolveData is rebuilt each render; key on its resolvable fields.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolveData?.stage, resolveData?.stIndex, resolveData?.stepIndex, resolveData?.branchIndex],
   );
 
   const selectedStep = useMemo(

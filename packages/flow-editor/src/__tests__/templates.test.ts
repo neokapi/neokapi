@@ -38,9 +38,10 @@ describe("FLOW_TEMPLATES", () => {
   it("all templates produce valid graphs", () => {
     for (const t of FLOW_TEMPLATES) {
       const { nodes, edges } = stepsToGraph(t.spec);
-      // Tool nodes only (a flow owns no I/O); every template has at least one step.
+      // Step nodes only (a flow owns no I/O); every template has at least one
+      // step. A step node is a single tool or a parallel group.
       expect(nodes.length).toBeGreaterThanOrEqual(1);
-      expect(nodes.every((n) => n.type === "tool")).toBe(true);
+      expect(nodes.every((n) => n.type === "tool" || n.type === "parallel")).toBe(true);
       // All edges reference existing node IDs
       const nodeIds = new Set(nodes.map((n) => n.id));
       for (const e of edges) {

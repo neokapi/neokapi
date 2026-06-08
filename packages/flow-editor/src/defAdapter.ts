@@ -87,17 +87,39 @@ export function defToSpec(
   def: FlowDefinitionInfo,
   direction: LayoutDirection = "vertical",
 ): FlowSpec {
-  const nodes: Node[] = (def.nodes ?? []).map((n: FlowNodeInfo) => ({
-    id: n.id,
-    type: n.type,
-    position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
-    data: {
-      label: n.label || n.name,
-      toolName: n.name,
-      config: n.config,
-      stage: n.stage ?? "",
-    },
-  }));
+  const nodes: Node[] = (def.nodes ?? []).map((n: FlowNodeInfo) => {
+    if (n.type === "parallel") {
+      // A parallel group node carries its branches; graphToSteps reads them back
+      // into a `parallel` step. (Category/validity are re-derived by the editor
+      // when it rebuilds the graph from the spec.)
+      return {
+        id: n.id,
+        type: "parallel",
+        position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
+        data: {
+          parallelGroup: true,
+          branches: (n.branches ?? []).map((b) => ({
+            toolName: b.name,
+            label: b.label ?? b.name,
+            config: b.config,
+            category: "pipeline",
+            valid: true,
+          })),
+        },
+      };
+    }
+    return {
+      id: n.id,
+      type: n.type,
+      position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
+      data: {
+        label: n.label || n.name,
+        toolName: n.name,
+        config: n.config,
+        stage: n.stage ?? "",
+      },
+    };
+  });
 
   const spec = graphToSteps(nodes, direction, def.binding);
   if (def.description) spec.description = def.description;
@@ -125,6 +147,25 @@ export function specToDef(
   const { nodes, edges } = stepsToGraph(spec, toolMap, direction);
 
   const nodeInfos: FlowNodeInfo[] = nodes.map((n) => {
+    if (n.type === "parallel") {
+      const branches =
+        (n.data.branches as Array<{
+          toolName: string;
+          label?: string;
+          config?: Record<string, unknown>;
+        }>) ?? [];
+      return {
+        id: n.id,
+        type: "parallel",
+        name: "",
+        branches: branches.map((b) => ({
+          name: b.toolName,
+          ...(b.label ? { label: b.label } : {}),
+          ...(b.config && Object.keys(b.config).length > 0 ? { config: b.config } : {}),
+        })),
+        position: { x: n.position.x, y: n.position.y },
+      };
+    }
     const stage = (n.data.stage as string) || undefined;
     const config = n.data.config as Record<string, unknown> | undefined;
     return {

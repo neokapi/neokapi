@@ -231,11 +231,11 @@ describe("stepsToGraph IO contract fields", () => {
     };
     const { nodes } = stepsToGraph(spec, toolMap);
 
-    const toolNodes = nodes.filter((n) => n.type === "tool");
-    expect(toolNodes).toHaveLength(2);
-    expect(toolNodes[0].data.cardinality).toBe("bilingual");
-    expect(toolNodes[1].data.cardinality).toBe("bilingual");
-    expect(toolNodes[1].data.defaultLocale).toBe("qps");
+    // A parallel step is one composite node listing its branch tools.
+    const group = nodes.find((n) => n.type === "parallel")!;
+    expect(group).toBeDefined();
+    const branches = group.data.branches as Array<{ toolName: string }>;
+    expect(branches.map((b) => b.toolName)).toEqual(["ai-translate", "pseudo-translate"]);
   });
 
   it("handles tools without IO contract fields", () => {
