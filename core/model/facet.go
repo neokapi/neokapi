@@ -1,5 +1,7 @@
 package model
 
+import "sync"
+
 // This file defines the facet vocabulary (AD-002 / tool-data-model redesign).
 // A *facet* is any typed, stand-off interpretation that rides on a Block: the
 // positional ones (segmentation, term, entity, qa, alignment) and the
@@ -78,17 +80,38 @@ func (s *FacetSide) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// IsPositional reports whether the facet type is one of the built-in
-// run-anchored positional interpretations (segmentation, term, entity, qa,
-// alignment). Block-scoped facets — the former annotations, keyed by an
-// arbitrary type string — are non-positional. The distinction lets the single
-// facet carrier hold both kinds while keeping positional iteration and
-// block-scoped (annotation) lookup separate.
+// IsPositional reports whether the facet type is run-anchored (its spans carry
+// real ranges) rather than block-scoped. The built-in positional types
+// (segmentation, term, entity, qa, alignment) are registered at init; formats
+// and plugins register their own positional types via RegisterPositionalFacet.
+// Block-scoped facets — the former annotations, keyed by an arbitrary type
+// string — are non-positional. The distinction lets the single facet carrier
+// hold both kinds while keeping positional iteration and block-scoped
+// (annotation) lookup separate (see facet_access.go).
 func (t FacetType) IsPositional() bool {
-	switch t {
-	case FacetSegmentation, FacetTerm, FacetEntity, FacetQA, FacetAlignment:
-		return true
-	default:
-		return false
+	positionalMu.RLock()
+	defer positionalMu.RUnlock()
+	return positionalFacets[t]
+}
+
+var (
+	positionalMu     sync.RWMutex
+	positionalFacets = map[FacetType]bool{
+		FacetSegmentation: true,
+		FacetTerm:         true,
+		FacetEntity:       true,
+		FacetQA:           true,
+		FacetAlignment:    true,
 	}
+)
+
+// RegisterPositionalFacet marks a facet type as run-anchored (positional), so
+// its spans are treated as ranged interpretations rather than block-scoped
+// attachments. Built-in positional types are registered automatically; a
+// format or plugin defining its own range-anchored facet calls this from an
+// init() alongside RegisterFacetValue.
+func RegisterPositionalFacet(t FacetType) {
+	positionalMu.Lock()
+	defer positionalMu.Unlock()
+	positionalFacets[t] = true
 }
