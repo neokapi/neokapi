@@ -747,6 +747,15 @@ export interface ToolInfo {
   category: string;
   display_name?: string;
   source?: string;
+  tags?: string[];
+  /** External resources required at runtime (target-language, tm, credentials, …). */
+  requires?: string[];
+  /** How many locales the tool operates on (monolingual/bilingual/multilingual). */
+  cardinality?: string;
+  /** Fallback second locale for bilingual tools (e.g. "qps"). */
+  default_locale?: string;
+  /** External systems read/written (tm-read, api-call, …). */
+  side_effects?: string[];
   /** Ports the tool reads upstream (non-optional = a requirement). */
   consumes?: IOPort[];
   /** Ports the tool writes. */

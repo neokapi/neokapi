@@ -64,8 +64,15 @@ export function ProjectFlowsEditor({
     () =>
       (tools ?? []).map((t) => ({
         name: t.name,
+        display_name: t.display_name,
         description: t.description,
         category: t.category,
+        source: t.source,
+        tags: t.tags,
+        requires: t.requires,
+        cardinality: t.cardinality as EditorToolInfo["cardinality"],
+        default_locale: t.default_locale,
+        side_effects: t.side_effects,
         consumes: t.consumes,
         produces: t.produces,
         isSourceTransform: t.is_source_transform,
