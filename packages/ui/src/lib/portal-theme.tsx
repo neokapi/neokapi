@@ -30,7 +30,9 @@ export function PortalThemeProvider({
   children: React.ReactNode;
 }) {
   return (
-    <PortalThemeClassContext.Provider value={className}>{children}</PortalThemeClassContext.Provider>
+    <PortalThemeClassContext.Provider value={className}>
+      {children}
+    </PortalThemeClassContext.Provider>
   );
 }
 
