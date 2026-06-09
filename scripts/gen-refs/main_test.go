@@ -59,7 +59,8 @@ func TestCollectBridge(t *testing.T) {
 	tl := tools[0]
 	assert.Equal(t, "demo-tool", tl.ID)
 	assert.Equal(t, "Does a demo.", tl.Description)
-	assert.Equal(t, "transform", tl.Category)
+	// The bridge category "transform" is folded onto the canonical vocabulary.
+	assert.Equal(t, "text-processing", tl.Category, "bridge category is normalized")
 }
 
 func TestCollectBridgeMissingDir(t *testing.T) {
