@@ -90,6 +90,12 @@ type ToolRegistration struct {
 	ConfigFactory ToolConfigFactory // optional: creates tool from step config
 	Schema        *schema.ComponentSchema
 	Info          ToolInfo
+	// ContractResolver, when set, refines the static IO contract (Consumes/
+	// Produces/Requires) for a specific node config — e.g. a port that is
+	// required only when an option is enabled (redact's entity overlay when
+	// entity detection is on). It must not mutate base in place; return a copy
+	// with the adjusted fields. nil means the static contract always applies.
+	ContractResolver func(config map[string]any, base ToolInfo) ToolInfo
 }
 
 // ToolRegistry manages available Tools.
@@ -173,6 +179,36 @@ func (r *ToolRegistry) SetConfigFactory(name ToolID, factory ToolConfigFactory) 
 	if reg, ok := r.tools[name]; ok {
 		reg.ConfigFactory = factory
 	}
+}
+
+// SetContractResolver registers a contract resolver for an already-registered
+// tool (see ToolRegistration.ContractResolver). The resolver refines the tool's
+// IO contract from a node's config — used by data-flow validation so a port that
+// is required only under certain options (e.g. redact's entity overlay when
+// entity detection is enabled) is enforced exactly when it applies.
+func (r *ToolRegistry) SetContractResolver(name ToolID, fn func(config map[string]any, base ToolInfo) ToolInfo) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if reg, ok := r.tools[name]; ok {
+		reg.ContractResolver = fn
+	}
+}
+
+// ResolveToolInfo returns the tool's metadata with its IO contract refined for
+// the given node config via the registered ContractResolver. Without a resolver
+// it equals ToolInfo. Returns nil if the tool is unknown.
+func (r *ToolRegistry) ResolveToolInfo(name ToolID, config map[string]any) *ToolInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	if !ok {
+		return nil
+	}
+	info := reg.Info
+	if reg.ContractResolver != nil {
+		info = reg.ContractResolver(config, info)
+	}
+	return &info
 }
 
 // SetConfigPreprocessor registers a function that transforms tool config maps

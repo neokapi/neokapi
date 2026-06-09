@@ -246,13 +246,26 @@ func TestRestore_UnknownTokenLeftIntact(t *testing.T) {
 	assert.Equal(t, runs, out)
 }
 
+func TestRedact_EmitsEditSet(t *testing.T) {
+	// "Call Bob now" with "Bob" (runes 5..8) redacted yields one edit covering
+	// that span, with NewLen 0 (the placeholder contributes nothing to the text).
+	runs := []model.Run{{Text: &model.TextRun{Text: "Call Bob now"}}}
+	matches := []Match{{Start: 5, End: 8, Category: CategoryPerson, Original: "Bob"}}
+	out, recs, edits := Redact(runs, matches, RedactOptions{})
+	require.Len(t, recs, 1)
+	require.Len(t, edits, 1)
+	assert.Equal(t, model.RunEdit{Start: 5, End: 8, NewLen: 0}, edits[0])
+	// The new runs flatten without "Bob".
+	assert.NotContains(t, model.RunsText(out), "Bob")
+}
+
 func TestRenderPlaceholder_Slots(t *testing.T) {
 	assert.Equal(t, "[REDACTED:Person]", renderPlaceholder("[REDACTED:{category}]", "person", 1))
 	assert.Equal(t, "<<Role#2>>", renderPlaceholder("<<{category}#{n}>>", "role", 2))
 }
 
 func redactWithDefaults(runs []model.Run, matches []Match) ([]model.Run, []Redacted, int) {
-	out, recs := Redact(runs, matches, RedactOptions{})
+	out, recs, _ := Redact(runs, matches, RedactOptions{})
 	return out, recs, len(recs)
 }
 

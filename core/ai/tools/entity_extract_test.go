@@ -13,6 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestAIEntityExtractSchema_ProducesEntityOverlay locks the NER tool's declared
+// output: it produces the source-side entity overlay that redact consumes, so an
+// ai-entity-extract → redact flow satisfies redact's required entity input.
+func TestAIEntityExtractSchema_ProducesEntityOverlay(t *testing.T) {
+	s := tools.AIEntityExtractSchema()
+	require.NotNil(t, s.ToolMeta)
+	var hasEntity bool
+	for _, p := range s.ToolMeta.Produces {
+		if p.Type == string(model.OverlayEntity) && p.Side == model.SideSource {
+			hasEntity = true
+		}
+	}
+	assert.True(t, hasEntity, "ai-entity-extract must declare it produces the source entity overlay")
+}
+
 // mockNERProvider implements ner.Provider for testing.
 type mockNERProvider struct {
 	entities map[string][]ner.DetectedEntity // keyed by text prefix

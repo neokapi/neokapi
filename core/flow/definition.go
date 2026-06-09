@@ -232,6 +232,34 @@ func (d *FlowDefinition) StagedToolNodes() (sourceTransforms, main []string, err
 	return sourceTransforms, main, nil
 }
 
+// stagedToolNodeRefs returns the flow's tool nodes in execution order — the
+// source-transform stage first, then the main tools — as full nodes (name +
+// config), so callers that need per-node config (data-flow contract resolution)
+// have it. It mirrors StagedToolNodes, which returns names only.
+func (d *FlowDefinition) stagedToolNodeRefs() ([]FlowNode, error) {
+	order, err := d.TopologicalOrder()
+	if err != nil {
+		return nil, err
+	}
+	nodeMap := make(map[string]*FlowNode, len(d.Nodes))
+	for i := range d.Nodes {
+		nodeMap[d.Nodes[i].ID] = &d.Nodes[i]
+	}
+	var sourceTransforms, main []FlowNode
+	for _, id := range order {
+		n := nodeMap[id]
+		if n.Type != NodeTool {
+			continue
+		}
+		if n.Stage == StageSourceTransform {
+			sourceTransforms = append(sourceTransforms, *n)
+		} else {
+			main = append(main, *n)
+		}
+	}
+	return append(sourceTransforms, main...), nil
+}
+
 // BuiltInFlows returns the default set of built-in flow definitions. The graphs
 // are tool nodes only; a flow's I/O ends are bindings resolved at run time, not
 // nodes (AD-026).
@@ -299,6 +327,27 @@ func BuiltInFlows() []FlowDefinition {
 			Edges: []FlowEdge{
 				{ID: "e-redact-translate", Source: "redact", Target: "ai-translate"},
 				{ID: "e-translate-unredact", Source: "ai-translate", Target: "unredact"},
+			},
+		},
+		{
+			ID:          "redact-pii",
+			Name:        "Redact PII",
+			Description: "Detect named entities (NER) and redact people, organizations, locations, and dates before processing",
+			Source:      registry.SourceBuiltIn,
+			// Both tools sit in the source-transform (settle) stage: the NER
+			// annotator runs first and its entity overlay drives redact, which then
+			// rewrites the source. This is the combination the settle-stage relaxation
+			// (AD-006) enables — an annotator feeding a source transform in one flow.
+			Nodes: []FlowNode{
+				{ID: "ai-entity-extract", Type: NodeTool, Name: "ai-entity-extract", Label: "Detect Entities (NER)", Stage: StageSourceTransform, Position: NodePosition{X: 0, Y: 100}},
+				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Stage: StageSourceTransform, Position: NodePosition{X: 250, Y: 100},
+					Config: map[string]any{
+						"detectors":   []string{"entities"},
+						"entityTypes": []string{"person", "org", "location", "date"},
+					}},
+			},
+			Edges: []FlowEdge{
+				{ID: "e-extract-redact", Source: "ai-entity-extract", Target: "redact"},
 			},
 		},
 	}

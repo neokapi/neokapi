@@ -32,13 +32,65 @@ const CategoryPrefix = "redaction:"
 // Recommended categories. Categories are free-form strings — these are the
 // set surfaced in defaults and documentation, not a closed enum.
 const (
-	CategoryPerson   = "person"
-	CategoryRole     = "role"
-	CategoryProduct  = "product"
-	CategoryOrg      = "org"
-	CategoryLocation = "location"
-	CategoryCustom   = "custom"
+	CategoryPerson      = "person"
+	CategoryRole        = "role"
+	CategoryProduct     = "product"
+	CategoryOrg         = "org"
+	CategoryLocation    = "location"
+	CategoryDate        = "date"
+	CategoryTime        = "time"
+	CategoryCurrency    = "currency"
+	CategoryMeasurement = "measurement"
+	CategoryOther       = "other"
+	CategoryCustom      = "custom"
 )
+
+// EntityCategories are the entity-derived categories the redact tool's
+// "entities" detector can target — the bare categories a named-entity annotator
+// (ai-entity-extract) produces, after the model "entity:" prefix is stripped and
+// "organization" is folded to org. They double as the friendly option names a
+// user picks ("redact dates" = category "date"). Categories are free-form
+// strings overall, but these are the recognized, validated names.
+var EntityCategories = []string{
+	CategoryPerson, CategoryOrg, CategoryProduct, CategoryLocation,
+	CategoryDate, CategoryTime, CategoryCurrency, CategoryMeasurement,
+	CategoryRole, CategoryOther,
+}
+
+// NormalizeEntityCategory maps a user-supplied or NER-derived category name to
+// its canonical redaction category, tolerating the model "entity:" prefix,
+// the "organization"/"org" split, and common plurals/synonyms (people, places,
+// money, …). It returns the canonical category and whether the name is
+// recognized; an unrecognized name lets callers reject the config with a
+// helpful error rather than silently redacting nothing.
+func NormalizeEntityCategory(name string) (string, bool) {
+	c := strings.ToLower(strings.TrimSpace(name))
+	c = strings.TrimPrefix(c, model.EntityPrefix) // tolerate "entity:person"
+	switch c {
+	case "person", "people", "persons", "name", "names":
+		return CategoryPerson, true
+	case "org", "organization", "organisation", "organizations", "company", "companies":
+		return CategoryOrg, true
+	case "product", "products":
+		return CategoryProduct, true
+	case "location", "locations", "place", "places", "geo":
+		return CategoryLocation, true
+	case "date", "dates":
+		return CategoryDate, true
+	case "time", "times":
+		return CategoryTime, true
+	case "currency", "currencies", "money":
+		return CategoryCurrency, true
+	case "measurement", "measurements", "measure":
+		return CategoryMeasurement, true
+	case "role", "roles":
+		return CategoryRole, true
+	case "other":
+		return CategoryOther, true
+	default:
+		return "", false
+	}
+}
 
 // PlaceholderType returns the model.PlaceholderRun Type for a category,
 // e.g. "person" → "redaction:person".

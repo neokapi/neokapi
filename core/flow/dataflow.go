@@ -89,7 +89,7 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 	if reg == nil {
 		return nil
 	}
-	sourceTransforms, main, err := d.StagedToolNodes()
+	ordered, err := d.stagedToolNodeRefs()
 	if err != nil {
 		return err
 	}
@@ -107,12 +107,11 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 		available[k] = true
 	}
 
-	ordered := make([]string, 0, len(sourceTransforms)+len(main))
-	ordered = append(ordered, sourceTransforms...)
-	ordered = append(ordered, main...)
-
-	for _, name := range ordered {
-		info := reg.ToolInfo(registry.ToolID(name))
+	for _, n := range ordered {
+		// Resolve the contract for this node's config: a port may be required only
+		// under certain options (e.g. redact needs the entity overlay only when
+		// entity detection is enabled — see core/tools.ResolveRedactContract).
+		info := reg.ResolveToolInfo(registry.ToolID(n.Name), n.Config)
 		if info == nil {
 			continue // unknown/plugin tool: contract not available, skip
 		}
@@ -122,7 +121,7 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 			}
 			if !available[ioKey(c)] {
 				return fmt.Errorf("flow %q: tool %q requires port %s, but no upstream tool produces it%s",
-					d.Name, name, ioKey(c), bindingHint(source))
+					d.Name, n.Name, ioKey(c), bindingHint(source))
 			}
 		}
 		for _, p := range info.Produces {

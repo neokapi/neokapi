@@ -363,6 +363,9 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
 	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
 	reg.SetConfigFactory("redact", NewRedactFromConfig)
+	// Entity detection makes the upstream entity overlay a required input (so a
+	// misconfigured flow fails fast instead of silently leaving PII unredacted).
+	reg.SetContractResolver("redact", ResolveRedactContract)
 	reg.SetConfigFactory("unredact", NewUnredactFromConfig)
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)

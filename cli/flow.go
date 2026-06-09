@@ -741,14 +741,15 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 
 	// Extract tool node names in topological order (by X position).
 	type toolPos struct {
-		name  string
-		x     float64
-		stage flow.FlowStage
+		name   string
+		x      float64
+		stage  flow.FlowStage
+		config map[string]any
 	}
 	var toolNodes []toolPos
 	for _, n := range flowDef.Nodes {
 		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage})
+			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage, config: n.Config})
 		}
 	}
 	slices.SortFunc(toolNodes, func(a, b toolPos) int {
@@ -804,26 +805,58 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		}
 	}
 
+	var stageTools []tool.Tool
 	for _, tn := range toolNodes {
-		t, toolCleanup, err := a.buildToolByName(tn.name, config, cmd...)
+		// A graph/built-in node may carry per-tool config (e.g. redact's detectors
+		// and entityTypes); overlay it on the shared run config for this node only.
+		toolConfig := config
+		if len(tn.config) > 0 {
+			toolConfig = mergeFlowNodeConfig(config, tn.config)
+		}
+		t, toolCleanup, err := a.buildToolByName(tn.name, toolConfig, cmd...)
 		if err != nil {
 			cleanup()
 			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
 		}
-		// Enforce the source-transform stage contract: a tool placed in the
-		// stage must be able to rewrite source (tool.CapTransform). This keeps
-		// the model settled before the main tools, matching AD-006.
-		if tn.stage == flow.StageSourceTransform && !anySourceTransform(t) {
-			cleanup()
-			return nil, nil, fmt.Errorf("tool %q in flow %q is in the source-transform stage but is not source-transform-capable", tn.name, flowName)
+		// Source-transform ("settle") stage contract (AD-006): every tool in the
+		// stage must be an annotator or a source-transform — annotators may
+		// precede the transform so their overlays drive it (e.g. entity-extract →
+		// redact) — and a Translate tool is rejected here. The stage must also
+		// contain at least one source-transform; that is checked after the loop.
+		if tn.stage == flow.StageSourceTransform {
+			for _, st := range t {
+				if !tool.CanPrecedeSettle(st) {
+					cleanup()
+					return nil, nil, fmt.Errorf("tool %q in flow %q is in the source-transform stage but is not an annotator or source-transform", tn.name, flowName)
+				}
+			}
+			stageTools = append(stageTools, t...)
 		}
 		builtTools = append(builtTools, t...)
 		if toolCleanup != nil {
 			cleanups = append(cleanups, toolCleanup)
 		}
 	}
+	if len(stageTools) > 0 && !anySourceTransform(stageTools) {
+		cleanup()
+		return nil, nil, fmt.Errorf("flow %q: the source-transform stage must contain at least one source-transform tool to settle the source", flowName)
+	}
 
 	return builtTools, cleanup, nil
+}
+
+// mergeFlowNodeConfig overlays a flow node's per-tool config onto the shared run
+// config, returning a new map (the node values win). The shared config is left
+// untouched so sibling nodes don't see each other's overrides.
+func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
+	m := make(map[string]any, len(base)+len(over))
+	for k, v := range base {
+		m[k] = v
+	}
+	for k, v := range over {
+		m[k] = v
+	}
+	return m
 }
 
 // anySourceTransform reports whether any of the built tools is
@@ -1320,18 +1353,29 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	}
 
 	var projectTools []tool.Tool
+	var stageHasTransform bool
 	for _, step := range spec.SourceTransforms {
 		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {
 			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
 		}
-		if !tool.IsSourceTransform(t) {
-			return fmt.Errorf("flow %q: tool %q in source_transforms is not source-transform-capable", flowName, step.Tool)
+		// Settle-stage contract (AD-006): annotators may precede the transform so
+		// their overlays drive it (e.g. entity-extract → redact); a Translate tool
+		// is rejected. At least one source-transform must be present (checked
+		// after the loop).
+		if !tool.CanPrecedeSettle(t) {
+			return fmt.Errorf("flow %q: tool %q in source_transforms must be an annotator or source-transform", flowName, step.Tool)
+		}
+		if tool.IsSourceTransform(t) {
+			stageHasTransform = true
 		}
 		if err := injectTM(step, t); err != nil {
 			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
 		}
 		projectTools = append(projectTools, t)
+	}
+	if len(spec.SourceTransforms) > 0 && !stageHasTransform {
+		return fmt.Errorf("flow %q: source_transforms must contain at least one source-transform tool to settle the source", flowName)
 	}
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)

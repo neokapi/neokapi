@@ -170,6 +170,10 @@
         "credentials"
       ],
       "cardinality": "monolingual",
+      "produces": [
+        "entity@source",
+        "term-candidate@source"
+      ],
       "sideEffects": [
         "api-call"
       ],
@@ -190,6 +194,14 @@
             "credentials"
           ],
           "cardinality": "monolingual",
+          "produces": [
+            {
+              "type": "entity"
+            },
+            {
+              "type": "term-candidate"
+            }
+          ],
           "sideEffects": [
             "api-call"
           ]
@@ -1325,7 +1337,7 @@
             "help": "Marks all generated TM entries as machine translation results. When enabled, the `creationId` attribute of the target is set to `\"MT!\"` in the output. This allows downstream tools and editors to distinguish MT output from human translations."
           },
           "origin": {
-            "help": "An optional identifier string stored as a property on each translated entry. In TMX output, it appears as `\u003cprop type=\"Txt::Origin\"\u003evalue\u003c/prop\u003e`. Useful for tracking which translation tool or run produced the entries.",
+            "help": "An optional identifier string stored as a property on each translated entry. In TMX output, it appears as `<prop type=\"Txt::Origin\">value</prop>`. Useful for tracking which translation tool or run produced the entries.",
             "examples": [
               "`apertium-en-fr` — identifies translations from Apertium English-to-French"
             ]
@@ -1367,7 +1379,7 @@
           "None known."
         ],
         "processingNotes": [
-          "The step extracts content into temporary HTML files where each `\u003cp\u003e` element is one source segment or text unit. The external tool must preserve this paragraph structure in its output.",
+          "The step extracts content into temporary HTML files where each `<p>` element is one source segment or text unit. The external tool must preserve this paragraph structure in its output.",
           "Large documents are split into multiple temporary HTML files based on the **block size** setting, with the external tool invoked once per block.",
           "The raw input document passes through the step unmodified (unless **Send TMX to next step** is enabled), so downstream steps see the original document.",
           "Pensieve TM entries are indexed per-document, so downstream steps can only leverage TM entries from previously processed documents in the batch."
@@ -3551,13 +3563,13 @@
             "type": "boolean",
             "default": true,
             "title": "Unescape Numeric Character References",
-            "description": "Un-escape numeric character references (e.g., \u0026#xE1;) when reading the input document."
+            "description": "Un-escape numeric character references (e.g., &#xE1;) when reading the input document."
           },
           "unescapeCER": {
             "type": "boolean",
             "default": true,
             "title": "Unescape Character Entity References",
-            "description": "Un-escape HTML character entity references (e.g., \u0026aacute;) when reading the input document."
+            "description": "Un-escape HTML character entity references (e.g., &aacute;) when reading the input document."
           },
           "unescapeJava": {
             "type": "boolean",
@@ -3637,7 +3649,7 @@
           },
           "escapeNotation": {
             "description": "Select the notation format used when escaping characters in the output (NCR, CER, Java-style, or user-defined).",
-            "help": "Selects the escape notation used when characters must be escaped in the output.\n\n| Value | Notation | Example (`á`) |\n|-------|----------|---------------|\n| 0 | Uppercase hex NCR | `\u0026#xE1;` |\n| 1 | Lowercase hex NCR | `\u0026#xe1;` |\n| 2 | Decimal NCR | `\u0026#255;` |\n| 3 | Character entity reference | `\u0026aacute;` |\n| 4 | Uppercase Java-style | `\\u00E1` |\n| 5 | Lowercase Java-style | `\\u00e1` |\n| 6 | User-defined notation | Uses `userFormat` |\n\nWhen using CER notation (3), if no entity is defined for a character, uppercase hex NCR is used as fallback.",
+            "help": "Selects the escape notation used when characters must be escaped in the output.\n\n| Value | Notation | Example (`á`) |\n|-------|----------|---------------|\n| 0 | Uppercase hex NCR | `&#xE1;` |\n| 1 | Lowercase hex NCR | `&#xe1;` |\n| 2 | Decimal NCR | `&#255;` |\n| 3 | Character entity reference | `&aacute;` |\n| 4 | Uppercase Java-style | `\\u00E1` |\n| 5 | Lowercase Java-style | `\\u00e1` |\n| 6 | User-defined notation | Uses `userFormat` |\n\nWhen using CER notation (3), if no entity is defined for a character, uppercase hex NCR is used as fallback.",
             "values": "Integer `0`–`6` selecting the escape notation. `0` = uppercase hex NCR, `1` = lowercase hex NCR, `2` = decimal NCR, `3` = CER (with hex NCR fallback), `4` = uppercase Java, `5` = lowercase Java, `6` = user-defined format.",
             "notes": [
               "When set to `3` (CER), characters without a corresponding entity definition fall back to uppercase hexadecimal NCR form."
@@ -3648,13 +3660,13 @@
             "help": "Logs all characters that cannot be represented in the output encoding. Each unsupported character is listed in the pipeline log, helping identify potential data loss during encoding conversion."
           },
           "unescapeCER": {
-            "description": "Un-escape HTML character entity references (e.g., \u0026aacute;) when reading the input document.",
-            "help": "Un-escapes standard **HTML character entity references** (CERs) when reading the input document. Converts named entities to their actual characters.\n\nThe five XML-reserved entities are **never** un-escaped regardless of this setting:\n- `\u0026amp;`, `\u0026lt;`, `\u0026gt;`, `\u0026apos;`, `\u0026quot;`\n\nThese are preserved because they may need to remain escaped in HTML and XML documents.",
+            "description": "Un-escape HTML character entity references (e.g., &aacute;) when reading the input document.",
+            "help": "Un-escapes standard **HTML character entity references** (CERs) when reading the input document. Converts named entities to their actual characters.\n\nThe five XML-reserved entities are **never** un-escaped regardless of this setting:\n- `&amp;`, `&lt;`, `&gt;`, `&apos;`, `&quot;`\n\nThese are preserved because they may need to remain escaped in HTML and XML documents.",
             "notes": [
-              "The entities `\u0026amp;`, `\u0026lt;`, `\u0026gt;`, `\u0026apos;`, and `\u0026quot;` are never un-escaped, as they may need to be preserved regardless of encoding in HTML and XML documents."
+              "The entities `&amp;`, `&lt;`, `&gt;`, `&apos;`, and `&quot;` are never un-escaped, as they may need to be preserved regardless of encoding in HTML and XML documents."
             ],
             "examples": [
-              "`\u0026aacute;` → `á`"
+              "`&aacute;` → `á`"
             ]
           },
           "unescapeJava": {
@@ -3666,12 +3678,12 @@
             ]
           },
           "unescapeNCR": {
-            "description": "Un-escape numeric character references (e.g., \u0026#xE1;) when reading the input document.",
-            "help": "Un-escapes all types of **numeric character references** (NCRs) when reading the input document. Converts decimal and hexadecimal forms to their actual characters.\n\n- `\u0026#255;` → `ÿ`\n- `\u0026#xE1;` → `á`\n- `\u0026#e1;` → `á`\n\nIf disabled, NCRs in the input remain in their original form in the output.",
+            "description": "Un-escape numeric character references (e.g., &#xE1;) when reading the input document.",
+            "help": "Un-escapes all types of **numeric character references** (NCRs) when reading the input document. Converts decimal and hexadecimal forms to their actual characters.\n\n- `&#255;` → `ÿ`\n- `&#xE1;` → `á`\n- `&#e1;` → `á`\n\nIf disabled, NCRs in the input remain in their original form in the output.",
             "examples": [
-              "`\u0026#255;` (decimal) → `ÿ`",
-              "`\u0026#xE1;` (hex uppercase) → `á`",
-              "`\u0026#e1;` (hex lowercase) → `á`"
+              "`&#255;` (decimal) → `ÿ`",
+              "`&#xE1;` (hex uppercase) → `á`",
+              "`&#e1;` (hex lowercase) → `á`"
             ]
           },
           "useBytes": {
@@ -3714,13 +3726,13 @@
         },
         "limitations": [
           "Encoding declaration detection operates on raw text (first 1024 chars) and is not XML/HTML-aware — it cannot distinguish declarations inside comments from real ones.",
-          "HTML charset insertion requires a `\u003chead\u003e` element or at minimum an `\u003chtml` string to anchor the insertion point.",
-          "The five XML-reserved character entities (`\u0026amp;`, `\u0026lt;`, `\u0026gt;`, `\u0026apos;`, `\u0026quot;`) are never un-escaped by the CER option."
+          "HTML charset insertion requires a `<head>` element or at minimum an `<html` string to anchor the insertion point.",
+          "The five XML-reserved character entities (`&amp;`, `&lt;`, `&gt;`, `&apos;`, `&quot;`) are never un-escaped by the CER option."
         ],
         "processingNotes": [
           "Encoding declarations are detected and updated by scanning the **first 1024 characters** of each document — the routine is not XML/HTML-aware and cannot distinguish between normal code and comments.",
           "XML documents are detected by encoding declarations, XML declarations, or `.xml` file extension — missing declarations may be inserted or added.",
-          "HTML documents are detected by charset declarations or file extensions starting with `.htm` — missing charset declarations may be inserted after `\u003chead\u003e` or `\u003chtml\u003e`.",
+          "HTML documents are detected by charset declarations or file extensions starting with `.htm` — missing charset declarations may be inserted after `<head>` or `<html>`.",
           "A document can be both XML and HTML and have both types of encoding/charset declarations updated."
         ],
         "examples": [
@@ -3803,7 +3815,7 @@
           "unescapeCER": {
             "type": "boolean",
             "title": "Unescape Character Entity References",
-            "description": "Unescape HTML character entity references (e.g. \u0026aacute;) when reading input",
+            "description": "Unescape HTML character entity references (e.g. &aacute;) when reading input",
             "default": true
           },
           "unescapeJava": {
@@ -3815,7 +3827,7 @@
           "unescapeNCR": {
             "type": "boolean",
             "title": "Unescape Numeric Character References",
-            "description": "Unescape numeric character references (e.g. \u0026#xE1;) when reading input",
+            "description": "Unescape numeric character references (e.g. &#xE1;) when reading input",
             "default": true
           }
         }
@@ -3867,7 +3879,7 @@
           },
           "unescapeCER": {
             "description": "Decode HTML character entity references on input.",
-            "help": "When enabled, named HTML character entity references such as `\u0026aacute;`\nare decoded to their characters before conversion.\n",
+            "help": "When enabled, named HTML character entity references such as `&aacute;`\nare decoded to their characters before conversion.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "unescapeJava": {
@@ -3877,7 +3889,7 @@
           },
           "unescapeNCR": {
             "description": "Decode numeric character references on input.",
-            "help": "When enabled, numeric character references such as `\u0026#xE1;` or `\u0026#225;`\nare decoded to their characters before the text is converted.\n",
+            "help": "When enabled, numeric character references such as `&#xE1;` or `&#225;`\nare decoded to their characters before the text is converted.\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
@@ -5899,7 +5911,7 @@
             "type": "boolean",
             "default": false,
             "title": "Generic Inline Codes",
-            "description": "Replaces original inline codes with generic placeholders like \u003cN\u003e, \u003c/N\u003e, and \u003cN/\u003e",
+            "description": "Replaces original inline codes with generic placeholders like <N>, </N>, and <N/>",
             "ui:widget": "checkbox",
             "ui:layout": {
               "vertical": true
@@ -6019,8 +6031,8 @@
             "help": "Controls what content is placed in the target side of the output. The integer value selects between different target content strategies (e.g., source copied to target, target translation, empty target)."
           },
           "useGenericCodes": {
-            "description": "Replaces original inline codes with generic placeholders like \u003cN\u003e, \u003c/N\u003e, and \u003cN/\u003e",
-            "help": "Replaces original inline codes with generic placeholders in the form `\u003cN\u003e`, `\u003c/N\u003e`, and `\u003cN/\u003e` where `N` is the code's numeric identifier. When disabled, inline codes are output in their original format (except for references).",
+            "description": "Replaces original inline codes with generic placeholders like <N>, </N>, and <N/>",
+            "help": "Replaces original inline codes with generic placeholders in the form `<N>`, `</N>`, and `<N/>` where `N` is the code's numeric identifier. When disabled, inline codes are output in their original format (except for references).",
             "notes": [
               "If the output format is **TMX**, this option is ignored — inline codes always use TMX format regardless of this setting."
             ]
@@ -7735,7 +7747,7 @@
       "source": "okapi",
       "kind": "tool",
       "displayName": "GMX Protected Character Count",
-      "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+      "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
       "category": "translation",
       "inputs": [
         "block"
@@ -7756,7 +7768,7 @@
         "$id": "g-m-x-protected-character-count",
         "title": "GMX Protected Character Count",
         "type": "object",
-        "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+        "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
         "toolMeta": {
           "displayName": "GMX Protected Character Count",
           "category": "translation",
@@ -7768,7 +7780,7 @@
             "analysis",
             "text-processing"
           ],
-          "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+          "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
           "requires": [
             "target-language",
             "source-language"
@@ -7779,7 +7791,7 @@
         }
       },
       "doc": {
-        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedCharacterCount` category — the character count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `\u003cmrk mtype=\"protected\"\u003e` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting characters in their source; for translatable units it removes any previously recorded protected metric. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the protected word-count step.",
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedCharacterCount` category — the character count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `<mrk mtype=\"protected\">` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting characters in their source; for translatable units it removes any previously recorded protected metric. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the protected word-count step.",
         "processingNotes": [
           "Counts only text units marked non-translatable; this is the one GMX count step that does not restrict itself to translatable units.",
           "For translatable units the step actively removes any existing protected metric from the segment, source, and text unit.",
@@ -7792,7 +7804,7 @@
       "source": "okapi",
       "kind": "tool",
       "displayName": "GMX Protected Word Count",
-      "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+      "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
       "category": "translation",
       "inputs": [
         "block"
@@ -7813,7 +7825,7 @@
         "$id": "g-m-x-protected-word-count",
         "title": "GMX Protected Word Count",
         "type": "object",
-        "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+        "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
         "toolMeta": {
           "displayName": "GMX Protected Word Count",
           "category": "translation",
@@ -7825,7 +7837,7 @@
             "analysis",
             "text-processing"
           ],
-          "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in \u003cmrk mtype=\"protected\"\u003e elements). Expects: filter events. Sends back: filter events.",
+          "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
           "requires": [
             "target-language",
             "source-language"
@@ -7836,7 +7848,7 @@
         }
       },
       "doc": {
-        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedWordCount` category — the word count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `\u003cmrk mtype=\"protected\"\u003e` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting the words in their source; for translatable units it removes any previously recorded protected metric. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedWordCount` category — the word count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `<mrk mtype=\"protected\">` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting the words in their source; for translatable units it removes any previously recorded protected metric. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
         "processingNotes": [
           "Counts only text units marked non-translatable; this is the one GMX count step that does not restrict itself to translatable units.",
           "For translatable units the step actively removes any existing protected metric from the segment, source, and text unit.",
@@ -8240,21 +8252,21 @@
         "overview": "Aligns text units from two input files by matching their ids (taken from `TextUnit.getName()`). Works with any filter that produces unique names for its text units, such as the Properties Filter. Can either produce aligned bilingual text units in the pipeline or generate a TMX file as output.",
         "parameters": {
           "copyToTarget": {
-            "help": "Copies the aligned target content directly onto the text unit's target. **This is destructive** — any existing target content is overwritten and the copied target will **not** be segmented.\n\nIf the entry from the target file is marked as *approved*, the approved property is preserved and passed along.\n\nRequired when generating TMX if you want target `\u003ctuv\u003e` elements in the output.",
+            "help": "Copies the aligned target content directly onto the text unit's target. **This is destructive** — any existing target content is overwritten and the copied target will **not** be segmented.\n\nIf the entry from the target file is marked as *approved*, the approved property is preserved and passed along.\n\nRequired when generating TMX if you want target `<tuv>` elements in the output.",
             "notes": [
               "**WARNING**: Copied target will not be segmented and any existing target content will be lost.",
               "An alternate translation annotation is still created if that option is also enabled."
             ]
           },
           "generateTMX": {
-            "help": "Controls the step's output mode:\n\n- **Checked**: produces a TMX file at the specified output path. The filter events passed through the pipeline are **unchanged** — alignment results go only to the TMX file.\n- **Unchecked**: each text unit in the returned events is replaced with a **new bilingual text unit** containing aligned source and target content.\n\n**Note**: for target `\u003ctuv\u003e` data to appear in the generated TMX, the **Copy to/over the target** option must also be checked.",
+            "help": "Controls the step's output mode:\n\n- **Checked**: produces a TMX file at the specified output path. The filter events passed through the pipeline are **unchanged** — alignment results go only to the TMX file.\n- **Unchecked**: each text unit in the returned events is replaced with a **new bilingual text unit** containing aligned source and target content.\n\n**Note**: for target `<tuv>` data to appear in the generated TMX, the **Copy to/over the target** option must also be checked.",
             "notes": [
               "When generating TMX, the pipeline events are passed through unchanged — downstream steps will not see aligned content unless you also enable **Copy to/over the target**."
             ],
             "dependsOn": [
               {
                 "property": "copyToTarget",
-                "condition": "must be enabled for target \u003ctuv\u003e data to appear in the generated TMX"
+                "condition": "must be enabled for target <tuv> data to appear in the generated TMX"
               }
             ]
           },
@@ -8299,7 +8311,7 @@
           },
           {
             "title": "Generate a TMX from two properties files",
-            "description": "Produces a TMX file from aligned properties files. Both `generateTMX` and `copyToTarget` must be enabled for target `\u003ctuv\u003e` data to appear in the TMX output.",
+            "description": "Produces a TMX file from aligned properties files. Both `generateTMX` and `copyToTarget` must be enabled for target `<tuv>` data to appear in the TMX output.",
             "config": "```yaml\ngenerateTMX: true\ntmxOutputPath: /output/en-fr-aligned.tmx\ncopyToTarget: true\nstoreAsAltTranslation: true\n```"
           }
         ],
@@ -8372,7 +8384,7 @@
           },
           "markAsTranslateNo": {
             "description": "When enabled, matched text units in the destination file are marked as non-translatable after the reference text is copied.",
-            "help": "When a text unit in the destination file matches an entry in the reference file, this marks the text unit as **non-translatable** after copying.\n\nEntries that do **not** have a match retain their original translatable/non-translatable state.\n\n\u003e Note: Text units already marked as non-translatable in the destination file are **skipped entirely** — they are not modified even if a matching entry exists in the reference file.",
+            "help": "When a text unit in the destination file matches an entry in the reference file, this marks the text unit as **non-translatable** after copying.\n\nEntries that do **not** have a match retain their original translatable/non-translatable state.\n\n> Note: Text units already marked as non-translatable in the destination file are **skipped entirely** — they are not modified even if a matching entry exists in the reference file.",
             "notes": [
               "Only applies to matched entries. Unmatched entries keep their original properties."
             ]
@@ -8451,7 +8463,7 @@
             "options": [
               {
                 "value": "",
-                "label": "\u003cSame format as the original\u003e"
+                "label": "<Same format as the original>"
               },
               {
                 "value": "png",
@@ -8506,7 +8518,7 @@
         "overview": "This step modifies the size or format of image files. It takes a raw document containing an image and sends back a modified raw document. Supports scaling width and height independently, converting to grayscale, and changing the output image format.",
         "parameters": {
           "format": {
-            "help": "Sets the image format for the output file. Leave empty (or use `\u003csame as the original\u003e`) to keep the original format. If the original format is not supported for output, a warning is generated and the output falls back to **PNG** if possible.",
+            "help": "Sets the image format for the output file. Leave empty (or use `<same as the original>`) to keep the original format. If the original format is not supported for output, a warning is generated and the output falls back to **PNG** if possible.",
             "notes": [
               "Selecting a specific output format does **not** automatically change the file extension — you may need a separate renaming step.",
               "If the original format is unsupported for writing, the step falls back to PNG output with a warning."
@@ -8876,8 +8888,8 @@
           },
           "displayOption": {
             "description": "Controls how inline codes are represented in the report: original codes, generic markers, or plain text.",
-            "help": "Controls how inline codes are rendered in the generated report.\n\n- **Original codes** (`original`): Inline codes appear as they do in the source documents\n- **Generic markers** (`generic`): Codes are replaced with numbered markers like `\u003c1\u003e``\u003c/1\u003e` or `\u003c2/\u003e`\n- **Plain text** (`plainText`): All inline codes are stripped from the report output",
-            "values": "One of: `original` (original codes), `generic` (generic markers like `\u003c1\u003e\u003c/1\u003e`), `plainText` (inline codes removed)"
+            "help": "Controls how inline codes are rendered in the generated report.\n\n- **Original codes** (`original`): Inline codes appear as they do in the source documents\n- **Generic markers** (`generic`): Codes are replaced with numbered markers like `<1>``</1>` or `<2/>`\n- **Plain text** (`plainText`): All inline codes are stripped from the report output",
+            "values": "One of: `original` (original codes), `generic` (generic markers like `<1></1>`), `plainText` (inline codes removed)"
           },
           "outputPath": {
             "description": "Full path of the XML report file to generate; supports ${rootDir} and ${inputRootDir} variables.",
@@ -9068,15 +9080,15 @@
             "options": [
               {
                 "value": "0",
-                "label": "Remove code marker, but keep code content  (\"\u003cph x='1'\u003e[X]\u003c/ph\u003e\" ==\u003e \"[X]\")"
+                "label": "Remove code marker, but keep code content  (\"<ph x='1'>[X]</ph>\" ==> \"[X]\")"
               },
               {
                 "value": "1",
-                "label": "Remove code content, but keep code marker  (\"\u003cph x='1'\u003e[X]\u003c/ph\u003e\" ==\u003e \"\u003cph x='1'/\u003e\")"
+                "label": "Remove code content, but keep code marker  (\"<ph x='1'>[X]</ph>\" ==> \"<ph x='1'/>\")"
               },
               {
                 "value": "2",
-                "label": "Remove code marker and code content  (\"\u003cph x='1'\u003e[X]\u003c/ph\u003e\" ==\u003e \"\")"
+                "label": "Remove code marker and code content  (\"<ph x='1'>[X]</ph>\" ==> \"\")"
               }
             ],
             "ui:widget": "select",
@@ -9122,19 +9134,19 @@
         }
       },
       "doc": {
-        "overview": "Removes inline codes or content of inline codes from text units in a document. Inline codes are spans of data that should normally be left untouched inside translatable text (e.g., `\u003cb\u003e` tags in HTML). The step offers three removal modes: removing just the markers, just the content, or both. It operates on filter events and can selectively target source text, target text, and non-translatable units.",
+        "overview": "Removes inline codes or content of inline codes from text units in a document. Inline codes are spans of data that should normally be left untouched inside translatable text (e.g., `<b>` tags in HTML). The step offers three removal modes: removing just the markers, just the content, or both. It operates on filter events and can selectively target source text, target text, and non-translatable units.",
         "parameters": {
           "includeNonTranslatable": {
             "description": "Apply the removal action even to text units marked as non-translatable",
             "help": "Controls whether the removal action is also applied to text units marked as **non-translatable**. When disabled, all non-translatable text units are left completely untouched."
           },
           "mode": {
-            "help": "An inline code has two parts: **markers** (always present) and **content** (optional).\n\nFor example, in XLIFF: `\u003cbpt id=\"1\"\u003e\u0026lt;b\u0026gt;\u003c/bpt\u003e` — the `\u003cbpt\u003e` / `\u003c/bpt\u003e` tags are the **marker**, and `\u0026lt;b\u0026gt;` is the **content**.\n\n- **Remove code marker, but keep code content** — The content becomes part of the regular text (e.g., the literal `\u003cb\u003e` appears as text).\n- **Remove code content, but keep code marker** — The inline code still exists structurally but is generalized; original format data cannot be recovered.\n- **Remove code marker and code content** — The entire inline code is removed with no trace left.",
+            "help": "An inline code has two parts: **markers** (always present) and **content** (optional).\n\nFor example, in XLIFF: `<bpt id=\"1\">&lt;b&gt;</bpt>` — the `<bpt>` / `</bpt>` tags are the **marker**, and `&lt;b&gt;` is the **content**.\n\n- **Remove code marker, but keep code content** — The content becomes part of the regular text (e.g., the literal `<b>` appears as text).\n- **Remove code content, but keep code marker** — The inline code still exists structurally but is generalized; original format data cannot be recovered.\n- **Remove code marker and code content** — The entire inline code is removed with no trace left.",
             "values": "Integer values mapping to removal modes:\n- `0` — Remove marker only, keep content\n- `1` — Remove content only, keep marker\n- `2` — Remove both marker and content"
           },
           "replaceWithSpace": {
             "description": "Replace line-break inline codes with spaces instead of removing them entirely (only when removing both marker and content)",
-            "help": "Replaces line-break inline codes with a space character instead of simply removing them. A code is treated as a line break if its type is `Code.TYPE_LB` or its content contains any of the following (case-insensitive):\n\n- `\u003cbr\u003e`, `\u003cbr /\u003e`, `\u003cbr/\u003e`\n- `\\n`, `\\r`\n- `\\u0085`, `\\u2028`, `\\u2029`\n\nThis prevents words on adjacent lines from being concatenated when codes are stripped.",
+            "help": "Replaces line-break inline codes with a space character instead of simply removing them. A code is treated as a line break if its type is `Code.TYPE_LB` or its content contains any of the following (case-insensitive):\n\n- `<br>`, `<br />`, `<br/>`\n- `\\n`, `\\r`\n- `\\u0085`, `\\u2028`, `\\u2029`\n\nThis prevents words on adjacent lines from being concatenated when codes are stripped.",
             "notes": [
               "This option only applies when the **Remove code marker and code content** mode is selected (mode = 2)."
             ],
@@ -9166,8 +9178,8 @@
             "title": "Strip all inline codes from XLIFF source and target",
             "description": "Removes both markers and content from all text units, including non-translatable ones. This is the default configuration.",
             "config": "```yaml\nstripSource: true\nstripTarget: true\nmode: 2\nincludeNonTranslatable: true\nreplaceWithSpace: false\n```",
-            "input": "```xml\n\u003csource\u003eClick \u003cbpt id=\"1\"\u003e\u0026lt;b\u0026gt;\u003c/bpt\u003ehere\u003cept id=\"1\"\u003e\u0026lt;/b\u0026gt;\u003c/ept\u003e to continue\u003c/source\u003e\n```",
-            "output": "```xml\n\u003csource\u003eClick here to continue\u003c/source\u003e\n```"
+            "input": "```xml\n<source>Click <bpt id=\"1\">&lt;b&gt;</bpt>here<ept id=\"1\">&lt;/b&gt;</ept> to continue</source>\n```",
+            "output": "```xml\n<source>Click here to continue</source>\n```"
           },
           {
             "title": "Generalize codes by removing content only",
@@ -9176,7 +9188,7 @@
           },
           {
             "title": "Replace line-break codes with spaces",
-            "description": "When removing all code parts, line-break codes (e.g., `\u003cbr\u003e` tags) are replaced with spaces to prevent words from merging.",
+            "description": "When removing all code parts, line-break codes (e.g., `<br>` tags) are replaced with spaces to prevent words from merging.",
             "config": "```yaml\nmode: 2\nreplaceWithSpace: true\nstripSource: true\nstripTarget: true\n```"
           }
         ],
@@ -9270,7 +9282,7 @@
           },
           "replaceWithSpace": {
             "description": "Replace line-break codes with a space instead of removing them.",
-            "help": "When enabled, line-break-style placeholder codes are replaced with a\nsingle space so that, for example, `foo\u003cbr/\u003ebar` becomes `foo bar` rather\nthan `foobar`. Other inline codes are still removed entirely.\n",
+            "help": "When enabled, line-break-style placeholder codes are replaced with a\nsingle space so that, for example, `foo<br/>bar` becomes `foo bar` rather\nthan `foobar`. Other inline codes are still removed entirely.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "targetLocale": {
@@ -10661,7 +10673,7 @@
             ]
           },
           "configPath": {
-            "help": "Path to a properties file that maps category keywords to Microsoft Translator Hub engine identifiers. Supports `${rootDir}`, `${inputRootDir}`, and locale variables (`${srcLoc}`, `${trgLoc}`, etc.).\n\nThe file format is:\n```\n\u003ckeyword\u003e.\u003clanguage\u003e=\u003cengineID\u003e\n```\nWhere `\u003ckeyword\u003e` is case-sensitive (no spaces, `=`, or `.`) and `\u003clanguage\u003e` is the uppercase target language code.",
+            "help": "Path to a properties file that maps category keywords to Microsoft Translator Hub engine identifiers. Supports `${rootDir}`, `${inputRootDir}`, and locale variables (`${srcLoc}`, `${trgLoc}`, etc.).\n\nThe file format is:\n```\n<keyword>.<language>=<engineID>\n```\nWhere `<keyword>` is case-sensitive (no spaces, `=`, or `.`) and `<language>` is the uppercase target language code.",
             "values": "File path to a `.properties` file. Supports `${rootDir}`, `${inputRootDir}`, `${srcLoc}`, `${trgLoc}` variables.",
             "examples": [
               "```properties\ntravel.FR=11111111-2222-3333-4444-e42f530c98b8_tra\nclient1.DE=11111111-2222-3333-4444-90dd26cc9dsd3_gen\nclient1.tech.DE=11111111-2222-3333-4444-90dd26cc9d48_tech\n```",
@@ -10688,7 +10700,7 @@
           },
           "markAsMT": {
             "description": "Marks generated TM entries with a machine translation origin indicator (e.g., creationId=\"MT!\")",
-            "help": "Marks generated TM entries as machine translation output. For example, the `creationId` attribute of the TMX `\u003cTu\u003e` element is set to `\"MT!\"`."
+            "help": "Marks generated TM entries as machine translation output. For example, the `creationId` attribute of the TMX `<Tu>` element is set to `\"MT!\"`."
           },
           "maxEvents": {
             "help": "Controls how many filter events are buffered before sending a single batch query to the MT engine. Larger buffers mean faster processing, but the Microsoft API has limits on the volume of text per request.",
@@ -10753,7 +10765,7 @@
         "examples": [
           {
             "title": "Engine mapping properties file",
-            "description": "Example properties file for mapping category keywords to Microsoft Translator Hub engine identifiers. The format is `\u003ckeyword\u003e.\u003cLANGUAGE\u003e=\u003cengineID\u003e`. A fallback mechanism tries progressively shorter keyword prefixes.",
+            "description": "Example properties file for mapping category keywords to Microsoft Translator Hub engine identifiers. The format is `<keyword>.<LANGUAGE>=<engineID>`. A fallback mechanism tries progressively shorter keyword prefixes.",
             "config": "```properties\ntravel.FR=11111111-2222-3333-4444-e42f530c98b8_tra\nclient1.DE=11111111-2222-3333-4444-90dd26cc9dsd3_gen\nclient1.tech.DE=11111111-2222-3333-4444-90dd26cc9d48_tech\nclient2.DE=11111111-2222-3333-4444-90dd26cc9ds34_gen\n```"
           },
           {
@@ -11372,14 +11384,14 @@
             "help": "Controls whether only cleanly paired (1-to-1) paragraph alignments are output, or whether many-to-many alignments are also included.\n\nWhen enabled, paragraphs that could not be matched to exactly one counterpart are dropped from the output. This produces a cleaner but potentially smaller set of aligned pairs."
           },
           "useSkeletonAlignment": {
-            "help": "Uses the document skeleton (structural markup surrounding text) as additional anchor points during alignment.\n\nStandard Gale \u0026 Church paragraph alignment can drift on long runs of paragraphs. Skeleton alignment exploits formatting cues to provide better anchoring, which may improve results for markup-rich formats (HTML, XML, DITA, etc.).",
+            "help": "Uses the document skeleton (structural markup surrounding text) as additional anchor points during alignment.\n\nStandard Gale & Church paragraph alignment can drift on long runs of paragraphs. Skeleton alignment exploits formatting cues to provide better anchoring, which may improve results for markup-rich formats (HTML, XML, DITA, etc.).",
             "notes": [
               "**Experimental** — results may vary depending on the document format and how much structural markup is present."
             ]
           }
         },
         "limitations": [
-          "Standard Gale \u0026 Church alignment is not accurate for long runs of paragraphs without additional anchoring.",
+          "Standard Gale & Church alignment is not accurate for long runs of paragraphs without additional anchoring.",
           "Only TextUnit events are passed through — all other event types (document parts, skeleton, sub-documents) are lost.",
           "The target input is consumed by this step and is no longer available to subsequent steps."
         ],
@@ -11494,12 +11506,12 @@
         }
       },
       "doc": {
-        "overview": "The Patterns Checker step verifies that content matching a configured regular-expression pattern in one side of a segment has its expected counterpart in the other side. Each pattern rule pairs a source regex with a target regex (or the `\u003csame\u003e` keyword, meaning the exact source match must reappear in the target), and a direction that decides which side is searched first. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "overview": "The Patterns Checker step verifies that content matching a configured regular-expression pattern in one side of a segment has its expected counterpart in the other side. Each pattern rule pairs a source regex with a target regex (or the `<same>` keyword, meaning the exact source match must reappear in the target), and a direction that decides which side is searched first. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
         "processingNotes": [
           "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
           "Delegates to the verification library's `PatternsChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
           "Pattern checking is enabled by default and ships with a built-in rule set: opening parentheses, closing parentheses, other bracketing characters, email addresses, URLs, IP addresses, C-style printf codes, and tripled letters.",
-          "Each rule carries a severity (low, medium, or high); the built-in URL, email, IP and printf rules expect `\u003csame\u003e`, while the tripled-letter rule is checked from the target side rather than the source.",
+          "Each rule carries a severity (low, medium, or high); the built-in URL, email, IP and printf rules expect `<same>`, while the tripled-letter rule is checked from the target side rather than the source.",
           "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
         ],
         "examples": [
@@ -11762,7 +11774,7 @@
         }
       },
       "doc": {
-        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a localized application at\nruntime, so a placeholder present fewer times in the target than in the source\nis flagged as critical. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
+        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `<0>` is the kind of break that crashes a localized application at\nruntime, so a placeholder present fewer times in the target than in the source\nis flagged as critical. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `<0>…</0>`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
         "parameters": {
           "flagExtra": {
             "description": "Report placeholders present in the target but absent from the source.",
@@ -13113,7 +13125,7 @@
                     }
                   }
                 },
-                "description": "Regex pattern pairs for verifying source-target consistency. Each pattern defines a source regex, a target regex (or \u003csame\u003e to reuse the source match), severity, and matching direction.",
+                "description": "Regex pattern pairs for verifying source-target consistency. Each pattern defines a source regex, a target regex (or <same> to reuse the source match), severity, and matching direction.",
                 "title": "Source/Target Pattern Rules",
                 "ui:widget": "patternList",
                 "ui:enabled": {
@@ -13607,7 +13619,7 @@
           },
           "maxCharLengthBelow": {
             "description": "Maximum length percentage for long text.",
-            "help": "The percentage threshold for maximum length of **long** text (source length \u003e `maxCharLengthAbove`).",
+            "help": "The percentage threshold for maximum length of **long** text (source length > `maxCharLengthAbove`).",
             "dependsOn": [
               {
                 "property": "checkMaxCharLength",
@@ -13638,7 +13650,7 @@
           },
           "minCharLengthBelow": {
             "description": "Minimum length percentage for long text.",
-            "help": "The percentage threshold for minimum length of **long** text (source length \u003e `minCharLengthAbove`).",
+            "help": "The percentage threshold for minimum length of **long** text (source length > `minCharLengthAbove`).",
             "dependsOn": [
               {
                 "property": "checkMinCharLength",
@@ -13849,43 +13861,43 @@
             "help": "Uses string-based comparison for terminology matching instead of word-boundary-aware matching."
           },
           "targetPattern0": {
-            "description": "Expected pattern in target for pattern #0, or \u003csame\u003e.",
-            "help": "Expected pattern in the target text. Use `\u003csame\u003e` if the target should contain the exact same match as found in the source.",
-            "values": "Java regex, or the keyword `\u003csame\u003e` to expect an identical match."
+            "description": "Expected pattern in target for pattern #0, or <same>.",
+            "help": "Expected pattern in the target text. Use `<same>` if the target should contain the exact same match as found in the source.",
+            "values": "Java regex, or the keyword `<same>` to expect an identical match."
           },
           "targetPattern1": {
-            "description": "Expected pattern in target for pattern #1, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #1. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #1, or <same>.",
+            "help": "Target regex for pattern rule #1. Use `<same>` for identical match."
           },
           "targetPattern2": {
-            "description": "Expected pattern in target for pattern #2, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #2. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #2, or <same>.",
+            "help": "Target regex for pattern rule #2. Use `<same>` for identical match."
           },
           "targetPattern3": {
-            "description": "Expected pattern in target for pattern #3, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #3. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #3, or <same>.",
+            "help": "Target regex for pattern rule #3. Use `<same>` for identical match."
           },
           "targetPattern4": {
-            "description": "Expected pattern in target for pattern #4, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #4. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #4, or <same>.",
+            "help": "Target regex for pattern rule #4. Use `<same>` for identical match."
           },
           "targetPattern5": {
-            "description": "Expected pattern in target for pattern #5, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #5. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #5, or <same>.",
+            "help": "Target regex for pattern rule #5. Use `<same>` for identical match."
           },
           "targetPattern6": {
-            "description": "Expected pattern in target for pattern #6, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #6. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #6, or <same>.",
+            "help": "Target regex for pattern rule #6. Use `<same>` for identical match."
           },
           "targetPattern7": {
-            "description": "Expected pattern in target for pattern #7, or \u003csame\u003e.",
-            "help": "Target regex for pattern rule #7. Use `\u003csame\u003e` for identical match."
+            "description": "Expected pattern in target for pattern #7, or <same>.",
+            "help": "Target regex for pattern rule #7. Use `<same>` for identical match."
           },
           "targetSameAsSource": {
             "description": "Flag segments where the target translation is identical to the source.",
-            "help": "Flags segments where the target text is identical to the source text. Only checked when the source contains at least one word character matching `[\\p{Ll}\\p{Lu}\\p{Lt}\\p{Lo}\\p{Nd}]` (any Unicode letter or digit). Inline codes are excluded from comparison.\n\nWhen a match is found, the tool cross-references against patterns with `\u003csame\u003e` as the expected target — if the text matches such a pattern, no warning is generated since the target is expected to be identical.",
+            "help": "Flags segments where the target text is identical to the source text. Only checked when the source contains at least one word character matching `[\\p{Ll}\\p{Lu}\\p{Lt}\\p{Lo}\\p{Nd}]` (any Unicode letter or digit). Inline codes are excluded from comparison.\n\nWhen a match is found, the tool cross-references against patterns with `<same>` as the expected target — if the text matches such a pattern, no warning is generated since the target is expected to be identical.",
             "notes": [
-              "Entries like `\u003cb\u003e%s\u003c/b\u003e : %d` (only codes and punctuation) are skipped because they contain no word characters.",
+              "Entries like `<b>%s</b> : %d` (only codes and punctuation) are skipped because they contain no word characters.",
               "Entries like `-------- S= %d` are checked because 'S' is a word character."
             ]
           },
@@ -13990,7 +14002,7 @@
           "With raw documents input: documents are added to a CheckMate session; at batch end CheckMate opens for interactive review.",
           "The step shares its parameter module with CheckMate — configuration is interchangeable.",
           "A *text unit* may contain multiple *segments*; some checks operate at the text-unit level (whitespace) while others at the segment level (empty target, same as source).",
-          "When target-same-as-source is detected, patterns with `\u003csame\u003e` as expected target are cross-referenced — matching patterns suppress the warning."
+          "When target-same-as-source is detected, patterns with `<same>` as expected target are cross-referenced — matching patterns suppress the warning."
         ],
         "examples": [
           {
@@ -14004,9 +14016,9 @@
             "config": "```yaml\ncheckMaxCharLength: true\nmaxCharLengthBreak: 30\nmaxCharLengthAbove: 50\nmaxCharLengthBelow: 20\ncheckAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 128\ncheckMinCharLength: false\n```"
           },
           {
-            "title": "Pattern with \u003csame\u003e keyword",
-            "description": "The `\u003csame\u003e` keyword in a target pattern means the exact match found in the source must also appear in the target. This is the default for URLs, emails, and IP addresses.",
-            "config": "```yaml\nusePattern4: true\nfromSourcePattern4: true\nsourcePattern4: \"https?:[\\\\w/\\\\.:;+\\\\-~\\\\%#\\\\$?=\u0026,()]+\"\ntargetPattern4: \"\u003csame\u003e\"\ndescPattern4: \"URLs\"\nseverityPattern4: 1\n```"
+            "title": "Pattern with <same> keyword",
+            "description": "The `<same>` keyword in a target pattern means the exact match found in the source must also appear in the target. This is the default for URLs, emails, and IP addresses.",
+            "config": "```yaml\nusePattern4: true\nfromSourcePattern4: true\nsourcePattern4: \"https?:[\\\\w/\\\\.:;+\\\\-~\\\\%#\\\\$?=&,()]+\"\ntargetPattern4: \"<same>\"\ndescPattern4: \"URLs\"\nseverityPattern4: 1\n```"
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Quality_Check_Step"
@@ -14167,11 +14179,11 @@
           },
           "supportFiles": {
             "description": "Additional files to include in the package as support material for translators.",
-            "help": "List of additional files to include in the translation package as support material. Each item specifies an origin path and a destination within the package.\n\n**Origin** paths support `*` and `?` wildcards, plus variables (`${rootDir}`, `${inputRootDir}`, locale variables).\n\n**Destination** paths must start with `/` or `\\` (relative to package root). Use `\u003csame\u003e` to keep the original filename. Renaming is possible when the origin has no wildcards.",
+            "help": "List of additional files to include in the translation package as support material. Each item specifies an origin path and a destination within the package.\n\n**Origin** paths support `*` and `?` wildcards, plus variables (`${rootDir}`, `${inputRootDir}`, locale variables).\n\n**Destination** paths must start with `/` or `\\` (relative to package root). Use `<same>` to keep the original filename. Renaming is possible when the origin has no wildcards.",
             "values": "Semicolon-separated list of origin→destination file mappings. Origins support `*` and `?` wildcards.",
             "examples": [
               "Origin: `C:\\myProj\\myExtra.*` — copies all files starting with `myExtra.`",
-              "Destination: `/\u003csame\u003e` — copies to package root with original filename",
+              "Destination: `/<same>` — copies to package root with original filename",
               "Destination: `/ref/glossary.txt` — copies and renames into a `ref` subfolder"
             ]
           },
@@ -14567,7 +14579,7 @@
           "entityTypes": {
             "type": "array",
             "title": "Entity Categories",
-            "description": "Entity categories to redact when 'entities' detection is enabled",
+            "description": "Entity categories to redact: person",
             "items": {
               "type": "string"
             }
@@ -15586,7 +15598,7 @@
             "help": "Words/characters in text units containing only numeric words."
           },
           "countAsNonTranslatable_GMXProtected": {
-            "help": "Words/characters in text marked as 'protected' or not translatable (e.g. XLIFF `\u003cmrk mtype=\"protected\"\u003e` elements). Affects the `PROJECT_GMX_NONTRANSLATABLE_WORD_COUNT` / `PROJECT_GMX_TRANSLATABLE_WORD_COUNT` split in the report."
+            "help": "Words/characters in text marked as 'protected' or not translatable (e.g. XLIFF `<mrk mtype=\"protected\">` elements). Affects the `PROJECT_GMX_NONTRANSLATABLE_WORD_COUNT` / `PROJECT_GMX_TRANSLATABLE_WORD_COUNT` split in the report."
           },
           "countAsNonTranslatable_GMXRepetitionMatched": {
             "help": "Words/characters in repeating text units not matched in any other form. Repetition matching takes precedence over fuzzy matching. Typically provided by the **Repetition Analysis Step**."
@@ -17241,7 +17253,7 @@
         "examples": [
           {
             "title": "Basic space correction around inline codes",
-            "description": "If the source has `Hello \u003cb\u003eworld\u003c/b\u003e` (no space before `\u003cb\u003e`) but the target has `Bonjour \u003cb\u003emonde\u003c/b\u003e` (extra space before `\u003cb\u003e`), the step removes the extra space in the target to match the source pattern."
+            "description": "If the source has `Hello <b>world</b>` (no space before `<b>`) but the target has `Bonjour <b>monde</b>` (extra space before `<b>`), the step removes the extra space in the target to match the source pattern."
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Space_Check_Step"
@@ -17331,7 +17343,7 @@
             "help": "A list of regular expressions; any substring of the source matching a\npattern is recorded as a protected tag. When the list is empty, a\nbuilt-in default set is used (HTML/XML tags, curly-brace placeholders,\nprintf-style placeholders, and `${...}` template expressions).\n",
             "values": "array of regular expressions (default: built-in set)",
             "examples": [
-              "`\u003c[^\u003e]+\u003e` — matches HTML/XML tags",
+              "`<[^>]+>` — matches HTML/XML tags",
               "`\\{[^}]+\\}` — matches curly-brace placeholders"
             ]
           }
@@ -17353,7 +17365,7 @@
           {
             "title": "Protect only HTML tags",
             "description": "Restrict protection to markup tags.",
-            "config": "patterns:\n  - \"\u003c[^\u003e]+\u003e\"\n"
+            "config": "patterns:\n  - \"<[^>]+>\"\n"
           }
         ]
       }
@@ -18160,7 +18172,7 @@
           },
           "expand": {
             "description": "Expand text length to simulate translation growth for UI testing.",
-            "help": "Expands the text to simulate translation length growth, which is useful for testing UI layout capacity:\n\n- Content **≤ 30 characters**: expanded by **50%** (minimum 1 character added)\n- Content **\u003e 30 characters**: expanded by **100%**\n- Empty strings are **not** expanded",
+            "help": "Expands the text to simulate translation length growth, which is useful for testing UI layout capacity:\n\n- Content **≤ 30 characters**: expanded by **50%** (minimum 1 character added)\n- Content **> 30 characters**: expanded by **100%**\n- Empty strings are **not** expanded",
             "notes": [
               "Expansion is applied in addition to any other modifications (prefix, suffix, character replacement, etc.)."
             ]
@@ -18175,7 +18187,7 @@
             "examples": [
               "`{START_` — default bracket-style marker",
               "`[!!` — compact pseudo-localization marker",
-              "`\u003e\u003e\u003e` — directional overflow indicator"
+              "`>>>` — directional overflow indicator"
             ],
             "dependsOn": [
               {
@@ -18200,7 +18212,7 @@
             "examples": [
               "`_END}` — default bracket-style marker",
               "`!!]` — compact pseudo-localization marker",
-              "`\u003c\u003c\u003c` — directional overflow indicator"
+              "`<<<` — directional overflow indicator"
             ],
             "dependsOn": [
               {
@@ -18731,7 +18743,7 @@
             "type": "boolean",
             "default": false,
             "title": "MARKUP",
-            "description": "A run that begins with \"\u003c\" and ends with \"\u003e\" like in HTML and XML."
+            "description": "A run that begins with \"<\" and ends with \">\" like in HTML and XML."
           },
           "EMAIL": {
             "type": "boolean",
@@ -18843,9 +18855,9 @@
             "help": "Matches Japanese Hiragana and Katakana character runs. Useful for CJK text processing where you need to distinguish phonetic scripts from ideographic content."
           },
           "MARKUP": {
-            "help": "Matches runs of text that begin with `\u003c` and end with `\u003e`, capturing HTML/XML-style tags as single tokens.",
+            "help": "Matches runs of text that begin with `<` and end with `>`, capturing HTML/XML-style tags as single tokens.",
             "notes": [
-              "This performs simple delimiter matching, not full XML parsing. Self-closing tags like `\u003cbr/\u003e` and tags with attributes are matched."
+              "This performs simple delimiter matching, not full XML parsing. Self-closing tags like `<br/>` and tags with attributes are matched."
             ]
           },
           "NUMBER": {
@@ -18978,7 +18990,7 @@
           "genericCodes": {
             "type": "boolean",
             "title": "Use Generic Codes",
-            "description": "Use generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in reports",
+            "description": "Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports",
             "default": true
           },
           "punctuationSensitive": {
@@ -19015,7 +19027,7 @@
           },
           "genericCodes": {
             "description": "Use generic numbered tags instead of original inline codes in reports.",
-            "help": "When enabled, inline codes are represented in the report as generic numbered\ntags (for example `\u003c1\u003e...\u003c/1\u003e`) rather than their original markup, which\nkeeps the diff readable.\n",
+            "help": "When enabled, inline codes are represented in the report as generic numbered\ntags (for example `<1>...</1>`) rather than their original markup, which\nkeeps the diff readable.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "punctuationSensitive": {
@@ -19130,8 +19142,8 @@
           "genericCodes": {
             "type": "boolean",
             "default": true,
-            "title": "Use generic representation (e.g. \u003c1\u003e...\u003c/1\u003e) for the inline codes",
-            "description": "Uses generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in the HTML report",
+            "title": "Use generic representation (e.g. <1>...</1>) for the inline codes",
+            "description": "Uses generic numbered tags (e.g. <1>...</1>) instead of original inline codes in the HTML report",
             "ui:widget": "checkbox",
             "ui:enabled": {
               "field": "generateHTML",
@@ -19331,8 +19343,8 @@
         "overview": "Compares translations between two or three documents, calculating similarity scores (ED-Score based on Levenshtein distance, and FM-Score based on Sørensen-Dice coefficient with 3-grams) for each text unit. The input documents **must have the same number of text units** in the **same order**. Outputs HTML reports with per-segment scores and summaries, and optionally a TMX document and tab-delimited score files.",
         "parameters": {
           "altTransOrigin": {
-            "help": "The value of the `origin` attribute on the `\u003calt-trans\u003e` element to match. Only alt-trans elements with this exact origin value are used as the baseline.\n\nTrans-units without a matching alt-trans are **excluded** from the report.",
-            "values": "String matching the `origin` attribute in `\u003calt-trans origin=\"...\"\u003e`. Common values: `BING`, `Google`, `DeepL`, or custom engine identifiers.",
+            "help": "The value of the `origin` attribute on the `<alt-trans>` element to match. Only alt-trans elements with this exact origin value are used as the baseline.\n\nTrans-units without a matching alt-trans are **excluded** from the report.",
+            "values": "String matching the `origin` attribute in `<alt-trans origin=\"...\">`. Common values: `BING`, `Google`, `DeepL`, or custom engine identifiers.",
             "dependsOn": [
               {
                 "property": "useAltTrans",
@@ -19369,8 +19381,8 @@
             "help": "Creates a single TMX document containing all compared translations and their scores across all input documents.\n\nThe TMX path field supports variables `${rootDir}`, `${inputRootDir}`, and locale variables (`${srcLoc}`, `${trgLoc}`, etc.)."
           },
           "genericCodes": {
-            "description": "Uses generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in the HTML report",
-            "help": "Controls how inline codes are displayed in the HTML report.\n\n- **Enabled**: uses generic numbered tags like `\u003c1\u003e...\u003c/1\u003e`\n- **Disabled**: shows the original codes from the document\n\nOriginal codes from some formats can be long and complicated, making the report harder to read.",
+            "description": "Uses generic numbered tags (e.g. <1>...</1>) instead of original inline codes in the HTML report",
+            "help": "Controls how inline codes are displayed in the HTML report.\n\n- **Enabled**: uses generic numbered tags like `<1>...</1>`\n- **Disabled**: shows the original codes from the document\n\nOriginal codes from some formats can be long and complicated, making the report harder to read.",
             "notes": [
               "Some formats may have very long and complex original inline codes — generic representation significantly improves readability in those cases."
             ]
@@ -19405,10 +19417,10 @@
             ]
           },
           "useAltTrans": {
-            "help": "Uses the target from a specific `\u003calt-trans\u003e` element in an XLIFF document as the baseline translation instead of the main `\u003ctarget\u003e`.\n\nThis enables comparing a human translation with an MT candidate within the **same XLIFF file** — specify the same file for both document 1 and document 2.",
+            "help": "Uses the target from a specific `<alt-trans>` element in an XLIFF document as the baseline translation instead of the main `<target>`.\n\nThis enables comparing a human translation with an MT candidate within the **same XLIFF file** — specify the same file for both document 1 and document 2.",
             "notes": [
               "Only applies when document 1 is an XLIFF file.",
-              "If no matching `\u003calt-trans\u003e` element is found for a given trans-unit, that trans-unit is excluded from the report."
+              "If no matching `<alt-trans>` element is found for a given trans-unit, that trans-unit is excluded from the report."
             ],
             "examples": [
               "Compare human translation vs. MT candidate in the same XLIFF: set document 1 and document 2 to the same file, enable this option, and set the origin attribute to the MT engine name (e.g. `BING`)."
@@ -19443,7 +19455,7 @@
           },
           {
             "title": "Compare MT candidate within same XLIFF file",
-            "description": "Use `alt-trans` to compare the linguist's translation in the main `\u003ctarget\u003e` against a Bing MT candidate stored in `\u003calt-trans\u003e` within the same XLIFF file. Specify the same file as both document 1 and document 2.",
+            "description": "Use `alt-trans` to compare the linguist's translation in the main `<target>` against a Bing MT candidate stored in `<alt-trans>` within the same XLIFF file. Specify the same file as both document 1 and document 2.",
             "config": "```yaml\nuseAltTrans: true\naltTransOrigin: \"BING\"\ngenerateHTML: true\ndocument1Label: \"MT Candidate\"\ndocument2Label: \"Human Translation\"\n```"
           },
           {
@@ -19608,7 +19620,7 @@
           "partCount": {
             "description": "The number of output files to create from one input document, split by roughly equal word count.",
             "help": "Controls how many output files are created from one input document. The step calculates roughly equal word-count splits based on the total source word count of the original TTX file.\n\nThe output files are written alongside the input document with an extra marker and sequential number appended to the filename. This naming convention is required by the **TTX Joiner Step** to reassemble the parts.",
-            "values": "Integer \u003e= 2. Each output file will contain approximately `total_word_count / partCount` source words.",
+            "values": "Integer >= 2. Each output file will contain approximately `total_word_count / partCount` source words.",
             "notes": [
               "The split is based on source word count, so individual files may differ slightly in segment count."
             ]
@@ -19731,7 +19743,7 @@
           },
           "escapeList": {
             "type": "string",
-            "default": "%{}[]()\u0026",
+            "default": "%{}[]()&",
             "title": "Characters to Escape",
             "description": "The set of characters to convert to URI escape sequences."
           }
@@ -19754,16 +19766,16 @@
         "parameters": {
           "conversionType": {
             "description": "Whether to un-escape (decode) or escape (encode) URI sequences.",
-            "help": "Controls the direction of URI conversion:\n\n- **0** — Un-escape URI escape sequences (e.g. `%20` → space). Converts percent-encoded sequences back into normal text.\n- **1** — Escape content to URI escape sequences (e.g. `\u0026` → `%26`). Converts characters in the escape list into percent-encoded form.\n\nWhen escaping, which characters get converted is controlled by `escapeList` and `updateAll`.",
+            "help": "Controls the direction of URI conversion:\n\n- **0** — Un-escape URI escape sequences (e.g. `%20` → space). Converts percent-encoded sequences back into normal text.\n- **1** — Escape content to URI escape sequences (e.g. `&` → `%26`). Converts characters in the escape list into percent-encoded form.\n\nWhen escaping, which characters get converted is controlled by `escapeList` and `updateAll`.",
             "values": "`0` = un-escape (decode), `1` = escape (encode)"
           },
           "escapeList": {
             "description": "The set of characters to convert to URI escape sequences.",
-            "help": "The set of characters that will be converted to URI escape sequences when escaping. Each character in the string is escaped individually.\n\nThe `%` character is **always** escaped regardless of whether it appears in this list.\n\nCommon presets based on [RFC 2396](http://tools.ietf.org/html/rfc2396):\n\n- **All But Marks** — escape everything except RFC 2396 \"marks\": `-`, `_`, `.`, `!`, `~`, `*`, `'`, `(`, `)`\n- **All But Marks And Reserved** — escape everything except marks and RFC 2396 \"reserved\" characters: `;`, `/`, `?`, `:`, `@`, `\u0026`, `=`, `+`, `$`, `,`",
+            "help": "The set of characters that will be converted to URI escape sequences when escaping. Each character in the string is escaped individually.\n\nThe `%` character is **always** escaped regardless of whether it appears in this list.\n\nCommon presets based on [RFC 2396](http://tools.ietf.org/html/rfc2396):\n\n- **All But Marks** — escape everything except RFC 2396 \"marks\": `-`, `_`, `.`, `!`, `~`, `*`, `'`, `(`, `)`\n- **All But Marks And Reserved** — escape everything except marks and RFC 2396 \"reserved\" characters: `;`, `/`, `?`, `:`, `@`, `&`, `=`, `+`, `$`, `,`",
             "values": "A string where each character represents a character to be escaped. The `%` character is always implicitly included.",
             "examples": [
-              "`%{}[]()\u0026` — default set, escapes braces, brackets, parentheses, ampersand, and percent",
-              "Include `\u003c` and `\u003e` to escape angle brackets for HTML-safe URIs"
+              "`%{}[]()&` — default set, escapes braces, brackets, parentheses, ampersand, and percent",
+              "Include `<` and `>` to escape angle brackets for HTML-safe URIs"
             ],
             "dependsOn": [
               {
@@ -19802,8 +19814,8 @@
           {
             "title": "Encode content for URI safety",
             "description": "Escape special characters in translatable text to URI percent-encoded form using the default escape list.",
-            "config": "```yaml\nconversionType: 1\nescapeList: \"%{}[]()\u0026\"\nupdateAll: false\n```",
-            "input": "```\nkey={value}\u0026other=(test)\n```",
+            "config": "```yaml\nconversionType: 1\nescapeList: \"%{}[]()&\"\nupdateAll: false\n```",
+            "input": "```\nkey={value}&other=(test)\n```",
             "output": "```\nkey=%7Bvalue%7D%26other=%28test%29\n```"
           }
         ],
@@ -20780,7 +20792,7 @@
         }
       },
       "doc": {
-        "overview": "Re-joins multiple XLIFF documents that were previously split (e.g., by the XLIFF Splitter Step) back into one or more combined documents based on filename patterns. Files sharing the same naming pattern (differing only by an index after the marker) are merged by collecting their `\u003cfile\u003e` elements into a single output document. The first document in each group provides the surrounding XLIFF structure, while subsequent documents contribute only their `\u003cfile\u003e` elements.",
+        "overview": "Re-joins multiple XLIFF documents that were previously split (e.g., by the XLIFF Splitter Step) back into one or more combined documents based on filename patterns. Files sharing the same naming pattern (differing only by an index after the marker) are merged by collecting their `<file>` elements into a single output document. The first document in each group provides the surrounding XLIFF structure, while subsequent documents contribute only their `<file>` elements.",
         "parameters": {
           "inputFileMarker": {
             "description": "Marker text in input filenames used to identify and group split XLIFF files for joining.",
@@ -20812,8 +20824,8 @@
           "None known."
         ],
         "processingNotes": [
-          "The first document in each naming-pattern group provides the XLIFF structure (content before the first `\u003cfile\u003e` and after the last `\u003cfile\u003e` element). Subsequent documents in the group contribute only their `\u003cfile\u003e` elements and any content between multiple `\u003cfile\u003e` elements.",
-          "Content before the first `\u003cfile\u003e` and after the last `\u003cfile\u003e` in subsequent documents of the same group is discarded, since the XLIFF Splitter Step duplicates this structural content into every split file.",
+          "The first document in each naming-pattern group provides the XLIFF structure (content before the first `<file>` and after the last `<file>` element). Subsequent documents in the group contribute only their `<file>` elements and any content between multiple `<file>` elements.",
+          "Content before the first `<file>` and after the last `<file>` in subsequent documents of the same group is discarded, since the XLIFF Splitter Step duplicates this structural content into every split file.",
           "Files are joined in pipeline arrival order, regardless of the numeric index appended by the XLIFF Splitter Step.",
           "Files whose names do not contain the input file marker are skipped — they pass through unchanged."
         ],
@@ -20834,7 +20846,7 @@
       "source": "okapi",
       "kind": "tool",
       "displayName": "XLIFF Splitter",
-      "description": "Split an XLIFF document into separate files for each \u003cfile\u003e element. Expects: raw document. Sends back: raw document.",
+      "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
       "category": "pipeline",
       "inputs": [
         "block"
@@ -20850,7 +20862,7 @@
         "$id": "xliff-splitter",
         "title": "XLIFF Splitter",
         "type": "object",
-        "description": "Split an XLIFF document into separate files for each \u003cfile\u003e element. Expects: raw document. Sends back: raw document.",
+        "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
         "properties": {
           "bigFile": {
             "type": "boolean",
@@ -20877,7 +20889,7 @@
             "type": "boolean",
             "default": false,
             "title": "Update WorldServer Translation Status",
-            "description": "Update translation_type and translation_status flags in \u003ciws:status\u003e elements (WorldServer XLIFF-specific).",
+            "description": "Update translation_type and translation_status flags in <iws:status> elements (WorldServer XLIFF-specific).",
             "ui:widget": "checkbox",
             "ui:layout": {
               "vertical": true
@@ -20919,7 +20931,7 @@
         "toolMeta": {
           "displayName": "XLIFF Splitter",
           "category": "pipeline",
-          "description": "Split an XLIFF document into separate files for each \u003cfile\u003e element. Expects: raw document. Sends back: raw document.",
+          "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
           "outputs": [
             "data"
           ],
@@ -20933,13 +20945,13 @@
         }
       },
       "doc": {
-        "overview": "Splits a single XLIFF document into multiple documents, one per `\u003cfile\u003e` element. All content outside `\u003cfile\u003e` elements is copied as-is into each split document. An XLIFF document with only one `\u003cfile\u003e` element is written out unaltered. Use the **XLIFF Joiner Step** to reassemble split files.",
+        "overview": "Splits a single XLIFF document into multiple documents, one per `<file>` element. All content outside `<file>` elements is copied as-is into each split document. An XLIFF document with only one `<file>` element is written out unaltered. Use the **XLIFF Joiner Step** to reassemble split files.",
         "parameters": {
           "bigFile": {
             "description": "Use a stream-based parser to handle very large XLIFF files that would not fit in memory with the default DOM parser.",
             "help": "Uses a **stream-based parser** instead of the default DOM-based parser. This allows processing very large XLIFF input documents (e.g. several hundreds of MB) that would not fit into memory with the DOM parser.",
             "notes": [
-              "**Limitation:** When enabled, any XML parts between `\u003cfile\u003e` elements are ignored and not copied into the new files."
+              "**Limitation:** When enabled, any XML parts between `<file>` elements are ignored and not copied into the new files."
             ]
           },
           "fileMarker": {
@@ -20955,7 +20967,7 @@
             "help": "Restores the original file names of the split output documents instead of using the generated numbered names with the file marker."
           },
           "translationStatusValue": {
-            "help": "The value written into the `translation_status` attribute of `\u003ciws:status\u003e` elements in each output document.",
+            "help": "The value written into the `translation_status` attribute of `<iws:status>` elements in each output document.",
             "examples": [
               "`finished` (default)",
               "`unfinished`"
@@ -20968,7 +20980,7 @@
             ]
           },
           "translationTypeValue": {
-            "help": "The value written into the `translation_type` attribute of `\u003ciws:status\u003e` elements in each output document.",
+            "help": "The value written into the `translation_type` attribute of `<iws:status>` elements in each output document.",
             "examples": [
               "`manual_translation` (default)",
               "`machine_translation`"
@@ -20981,31 +20993,31 @@
             ]
           },
           "updateSDLTranslationStatus": {
-            "description": "Update translation_type and translation_status flags in \u003ciws:status\u003e elements (WorldServer XLIFF-specific).",
-            "help": "Updates the `translation_type` and `translation_status` flags in `\u003ciws:status\u003e` elements of the output documents. This also **removes** the `target_content` attribute. This is specific to **WorldServer XLIFF** documents.",
+            "description": "Update translation_type and translation_status flags in <iws:status> elements (WorldServer XLIFF-specific).",
+            "help": "Updates the `translation_type` and `translation_status` flags in `<iws:status>` elements of the output documents. This also **removes** the `target_content` attribute. This is specific to **WorldServer XLIFF** documents.",
             "notes": [
-              "This option also removes the `target_content` attribute from `\u003ciws:status\u003e` elements."
+              "This option also removes the `target_content` attribute from `<iws:status>` elements."
             ]
           }
         },
         "limitations": [
-          "When using the **Process large files** option, any XML parts between `\u003cfile\u003e` elements are ignored and not copied into the new files.",
-          "An XLIFF document with only one `\u003cfile\u003e` element is written out unaltered (no splitting occurs)."
+          "When using the **Process large files** option, any XML parts between `<file>` elements are ignored and not copied into the new files.",
+          "An XLIFF document with only one `<file>` element is written out unaltered (no splitting occurs)."
         ],
         "processingNotes": [
           "The received event is unaltered — the step outputs multiple numbered XLIFF documents in the output path.",
-          "All content outside `\u003cfile\u003e` elements (e.g. `\u003cheader\u003e`, processing instructions) is copied as-is to each split document.",
+          "All content outside `<file>` elements (e.g. `<header>`, processing instructions) is copied as-is to each split document.",
           "The default DOM-based parser requires the entire file to fit in memory; use **Process big file** for very large inputs."
         ],
         "examples": [
           {
             "title": "Split into numbered parts",
-            "description": "Split a multi-`\u003cfile\u003e` XLIFF into one document per `\u003cfile\u003e`, using a custom marker in the output names. With `fileMarker: _chunk`, `document.xlf` produces `document_chunk1.xlf`, `document_chunk2.xlf`, and so on.",
+            "description": "Split a multi-`<file>` XLIFF into one document per `<file>`, using a custom marker in the output names. With `fileMarker: _chunk`, `document.xlf` produces `document_chunk1.xlf`, `document_chunk2.xlf`, and so on.",
             "config": "```yaml\nfileMarker: _chunk\n```"
           },
           {
             "title": "Stream a large file and stamp WorldServer status",
-            "description": "Use the stream-based parser for very large inputs and update the `\u003ciws:status\u003e` flags in each split document, which is specific to WorldServer XLIFF. Note that with `bigFile` enabled, XML parts between `\u003cfile\u003e` elements are not copied into the outputs.",
+            "description": "Use the stream-based parser for very large inputs and update the `<iws:status>` flags in each split document, which is specific to WorldServer XLIFF. Note that with `bigFile` enabled, XML parts between `<file>` elements are not copied into the outputs.",
             "config": "```yaml\nbigFile: true\nupdateSDLTranslationStatus: true\ntranslationTypeValue: machine_translation\ntranslationStatusValue: unfinished\n```"
           }
         ],
@@ -21079,7 +21091,7 @@
         ],
         "processingNotes": [
           "Word counting uses the source content of each trans-unit; trans-units marked `translate=\"no\"` and those with a `state-qualifier` of `x-numeric`, `x-alphanum`, or `x-punctuation` are excluded from the count.",
-          "Output parts are written as `\u003cinput\u003e_PART###.xlf` next to the input, each encoded as UTF-8 with a leading byte-order mark, and DTD processing is disabled on the XML reader for safety.",
+          "Output parts are written as `<input>_PART###.xlf` next to the input, each encoded as UTF-8 with a leading byte-order mark, and DTD processing is disabled on the XML reader for safety.",
           "The source locale is taken from the incoming raw document rather than configured on the step."
         ],
         "examples": [
@@ -21245,7 +21257,7 @@
         }
       },
       "doc": {
-        "overview": "Replaces characters that are invalid in XML documents with a configurable marker string. The step processes raw documents, recognizing both raw invalid characters and numeric character references (NCRs) such as `\u0026#000B;` or `\u0026#11;`. Output preserves the input encoding, and Byte-Order-Marks are maintained if present.",
+        "overview": "Replaces characters that are invalid in XML documents with a configurable marker string. The step processes raw documents, recognizing both raw invalid characters and numeric character references (NCRs) such as `&#000B;` or `&#11;`. Output preserves the input encoding, and Byte-Order-Marks are maintained if present.",
         "parameters": {
           "replacement": {
             "help": "The replacement string uses [Java Formatter syntax](http://download.oracle.com/javase/6/docs/api/java/util/Formatter.html). The parameter passed to the formatter is always the **integer value** of the Unicode code-point of the invalid character.\n\nTo **remove** invalid characters entirely, leave this field empty.\n\nSpecial characters like `%` must be escaped (e.g., `%%` to produce a literal `%`).",
@@ -21254,7 +21266,7 @@
               "`_#x%X;` — replaces U+000B with `_#xB;` (default)",
               "`x%03X` — replaces U+000B with `x0B` (zero-padded hex)",
               "`?` — replaces any invalid character with a literal `?`",
-              "`\u0026#xFFFD;` — replaces with the Unicode replacement character reference",
+              "`&#xFFFD;` — replaces with the Unicode replacement character reference",
               "`%%%d%%` — replaces U+000B with `%11%` (escaped percent signs around decimal value)",
               "Empty string — removes invalid characters entirely"
             ]
@@ -21266,15 +21278,15 @@
         "processingNotes": [
           "Input encoding must be specified unless the document has a Byte-Order-Mark (BOM).",
           "Output encoding matches the input encoding; BOMs are preserved if present.",
-          "The step recognizes both raw invalid characters and numeric character references (NCRs) like `\u0026#000B;` or `\u0026#11;`."
+          "The step recognizes both raw invalid characters and numeric character references (NCRs) like `&#000B;` or `&#11;`."
         ],
         "examples": [
           {
             "title": "Replace invalid characters with hex reference markers",
             "description": "Using the default replacement string to convert invalid XML characters into hex-based markers that are visually identifiable in the output.",
             "config": "```yaml\nreplacement: \"_#x%X;\"\n```",
-            "input": "```xml\n\u003ctext\u003eHello\\u000bWorld\u003c/text\u003e\n```",
-            "output": "```xml\n\u003ctext\u003eHello_#xB;World\u003c/text\u003e\n```"
+            "input": "```xml\n<text>Hello\\u000bWorld</text>\n```",
+            "output": "```xml\n<text>Hello_#xB;World</text>\n```"
           },
           {
             "title": "Remove invalid characters",
@@ -21284,7 +21296,7 @@
           {
             "title": "Replace with Unicode replacement character",
             "description": "Replace invalid characters with an NCR for U+FFFD (the standard Unicode replacement character).",
-            "config": "```yaml\nreplacement: \"\u0026#xFFFD;\"\n```"
+            "config": "```yaml\nreplacement: \"&#xFFFD;\"\n```"
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/XML_Characters_Fixing_Step"
@@ -21423,7 +21435,7 @@
           },
           "useFoundDTD": {
             "description": "Use DTD declarations found in the input documents for validation.",
-            "help": "Controls whether DTD declarations found inside the input documents are used for validation.\n\nWhen disabled, any `\u003c!DOCTYPE\u003e` declarations in the documents are ignored during processing.",
+            "help": "Controls whether DTD declarations found inside the input documents are used for validation.\n\nWhen disabled, any `<!DOCTYPE>` declarations in the documents are ignored during processing.",
             "notes": [
               "When performing DTD validation, the DTD **must** be specified in the input documents — there is no option to provide an external DTD path."
             ]
@@ -21463,7 +21475,7 @@
           },
           {
             "title": "DTD validation",
-            "description": "Validate documents against DTD declarations embedded in the input files. The DTD must be declared in the document via `\u003c!DOCTYPE\u003e`.",
+            "description": "Validate documents against DTD declarations embedded in the input files. The DTD must be declared in the document via `<!DOCTYPE>`.",
             "config": "```yaml\nvalidate: true\nvalidationType: 0\nuseFoundDTD: true\n```"
           },
           {
@@ -21854,7 +21866,7 @@
           {
             "title": "Rewrite a tag in source text",
             "description": "Replace one element name with another using a regex rule.",
-            "config": "applySource: true\nrules:\n  - pattern: \"\u003cb\u003e(.*?)\u003c/b\u003e\"\n    replace: \"\u003cstrong\u003e$1\u003c/strong\u003e\"\n"
+            "config": "applySource: true\nrules:\n  - pattern: \"<b>(.*?)</b>\"\n    replace: \"<strong>$1</strong>\"\n"
           }
         ]
       }

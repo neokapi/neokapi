@@ -140,6 +140,33 @@ func (r RunRange) ExtractRuns(runs []Run) []Run {
 	return out
 }
 
+// InBounds reports whether the range anchors to valid positions within runs:
+// run indices lie within [0, len(runs)] (an index equal to len(runs) is the
+// half-open end boundary), start does not run past end, and each offset lies
+// within its text run's rune length — offset 0 on an inline-code/non-text run or
+// at the end boundary. It is the post-rewrite backstop check (a remapped or
+// surviving overlay must still anchor cleanly).
+func (r RunRange) InBounds(runs []Run) bool {
+	if r.StartRun < 0 || r.EndRun < r.StartRun || r.EndRun > len(runs) {
+		return false
+	}
+	return offsetInBounds(runs, r.StartRun, r.StartOffset) &&
+		offsetInBounds(runs, r.EndRun, r.EndOffset)
+}
+
+func offsetInBounds(runs []Run, idx, off int) bool {
+	if off < 0 {
+		return false
+	}
+	if idx == len(runs) {
+		return off == 0 // end boundary just past the last run
+	}
+	if r := runs[idx]; r.Text != nil {
+		return off <= len([]rune(r.Text.Text))
+	}
+	return off == 0 // inline-code / non-text run carries offset 0
+}
+
 // runFlatLen returns the rune width a single run contributes to the text-only
 // flattening produced by [RunsText]: a TextRun contributes its rune count,
 // inline-code runs (Ph / PcOpen / PcClose / Sub) contribute nothing, and a
