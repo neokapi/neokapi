@@ -1,0 +1,26 @@
+name: golangci-lint (one module)
+description: >
+  Run golangci-lint over a single Go module with the repository's standard
+  settings. Factored out so the lint jobs don't repeat the version pin and the
+  only-new-issues rationale six times.
+
+inputs:
+  working-directory:
+    description: Module directory to lint (passed to golangci-lint-action).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: golangci/golangci-lint-action@v9
+      with:
+        install-mode: binary
+        verify: false
+        version: v2.9.0
+        working-directory: ${{ inputs.working-directory }}
+        # Full lint on PRs too: the GitHub patch API the action uses for
+        # only-new-issues filtering 406s on diffs over 20000 lines (large
+        # generated artifacts / lockfile churn). Push to main already lints in
+        # full and is the clean gate, so PRs lint identically.
+        only-new-issues: false
+        args: --timeout=5m ./...

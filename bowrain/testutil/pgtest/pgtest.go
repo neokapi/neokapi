@@ -38,6 +38,15 @@ var (
 func NewTestDB(t *testing.T) *storage.PgDB {
 	t.Helper()
 
+	// In -short mode (PR fast-feedback CI), skip the container-backed suites
+	// unless a ready PostgreSQL instance is supplied. Starting a throwaway
+	// container per test binary dominates bowrain's test wall-clock; push to
+	// main and the nightly run exercise these without -short. An explicit
+	// BOWRAIN_TEST_POSTGRES_URL still opts in (e.g. a docker-compose database).
+	if testing.Short() && os.Getenv("BOWRAIN_TEST_POSTGRES_URL") == "" {
+		t.Skip("skipping PostgreSQL container test in -short mode")
+	}
+
 	sharedMu.Lock()
 	if sharedDB == nil {
 		// Allow using an existing PostgreSQL instance via env var (e.g., from docker compose).

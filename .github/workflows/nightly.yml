@@ -1,0 +1,43 @@
+name: Nightly
+
+# The full gate on the forward-compat Go toolchain. ci.yml pins Go 1.26.0 on
+# every PR and push (fast feedback); this nightly re-runs the heavier suites on
+# Go `stable` with the race detector, so a toolchain regression surfaces within
+# a day without taxing the per-commit path. The event is `schedule`, so the
+# Makefile's event-aware profile uses the FULL mode (race + shuffle + coverage,
+# containers included) — same as a push to main.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  full-suite:
+    name: Full suite (Go stable, race)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          go-version: stable
+
+      # The Wails app backends link GTK/WebKit on Linux; the bowrain module's
+      # cgo build also needs these. Mirrors the desktop CI jobs.
+      - name: Install Linux system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+
+      - name: Framework + CLI + kapi (race, stable)
+        run: make test-framework test-cli test-kapi
+
+      - name: Platform + bowrain (race, containers, stable)
+        run: make test-platform test-bowrain

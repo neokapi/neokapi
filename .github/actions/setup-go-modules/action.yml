@@ -44,6 +44,25 @@ runs:
         echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
         echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
+    # Effective build-cache flavor. On pull_request the test jobs build WITHOUT
+    # -race (see the Makefile's event-aware profile), so their object files
+    # differ from the race-instrumented push/nightly build. Key them under a
+    # separate "pr" flavor so the two never thrash one another's cache; PR runs
+    # self-warm from the previous PR via the restore-keys prefix. Jobs that pass
+    # an explicit non-"race" flavor (e.g. "plain" for build/tidy) are untouched.
+    - name: Resolve build-cache flavor
+      id: flavor
+      shell: bash
+      env:
+        REQUESTED: ${{ inputs.cache-flavor }}
+        EVENT: ${{ github.event_name }}
+      run: |
+        if [ "$REQUESTED" = "race" ] && [ "$EVENT" = "pull_request" ]; then
+          echo "value=pr" >> "$GITHUB_OUTPUT"
+        else
+          echo "value=$REQUESTED" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Restore module download cache (flavor-independent)
       uses: actions/cache@v5
       with:
@@ -58,9 +77,9 @@ runs:
         path: ${{ steps.gocache.outputs.build }}
         # SHA-suffixed key always saves a fresh post-build cache; restore-keys
         # warms it from the most recent run of the same flavor + Go version.
-        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ inputs.cache-flavor }}-${{ github.sha }}
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-${{ github.sha }}
         restore-keys: |
-          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ inputs.cache-flavor }}-
+          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-
 
     - name: Install ICU development libraries
       if: runner.os == 'Linux'
