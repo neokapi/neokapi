@@ -1,4 +1,6 @@
 export { FlowEditor } from "./FlowEditor";
+export { FlowsWorkspace } from "./FlowsWorkspace";
+export type { FlowsWorkspaceProps, FlowsDataAdapter } from "./FlowsWorkspace";
 export { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 export { FLOW_TEMPLATES } from "./templates";
 export type { FlowTemplate } from "./templates";
