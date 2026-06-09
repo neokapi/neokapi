@@ -289,13 +289,15 @@ export function serpentineGraph(
   }
   const colKeys = [...colMap.keys()].sort((a, b) => a - b);
 
-  // Reading-order wrap: rows fill left→right and wrap top-to-bottom (like text).
-  // Source is the first station (top-left); Sink is pinned to the bottom-right
-  // of the last row. Rows are CENTER-aligned on a lane so a tall parallel group
-  // shares its centerline with the short tool/endpoint nodes beside it — every
-  // handle then lands at the same cross-axis coordinate and the in-row connector
-  // is dead straight. Handle SIDES follow the chain: an edge crossing to another
-  // row uses Bottom→Top (a clean vertical wrap), within a row Right→Left.
+  // Reading-order wrap: rows fill left→right and wrap top-to-bottom (like text),
+  // Source(slot 0) → tools(1..N) → Sink(N+1) filling each cell in turn. EVERY
+  // horizontal node takes input on the LEFT and emits on the RIGHT — including
+  // the last node of a row: a wrap is a carriage return, sweeping from that
+  // node's right edge down and back into the LEFT of the next row's first node
+  // (never into its top). Rows are CENTER-aligned on a lane so a tall parallel
+  // group shares its centerline with the short tool/endpoint nodes beside it,
+  // keeping every in-row connector dead straight. (A single column flips to a
+  // top→bottom vertical flow instead.)
   const vertical = columns === 1;
   const N = colKeys.length;
   const rowOf = (slot: number) => Math.floor(slot / columns);
@@ -308,39 +310,36 @@ export function serpentineGraph(
       : TOOL_NODE_H;
   const nodeWidth = (n: Node) => (n.type === "parallel" ? PARALLEL_W : TOOL_NODE_W);
 
-  // Sink placement: same row to the right when there's room, else the rightmost
-  // column of a new row (bottom-right). Computed first because the last tool's
-  // output side depends on whether the sink wrapped to a new row.
-  const lastRow = rowOf(N);
-  const lastCol = N % columns;
-  const sinkRow = vertical ? N + 1 : lastCol < columns - 1 ? lastRow : lastRow + 1;
-  const sinkCol = vertical ? 0 : lastCol < columns - 1 ? lastCol + 1 : columns - 1;
+  const inPos = vertical ? Position.Top : Position.Left;
+  const outPos = vertical ? Position.Bottom : Position.Right;
 
   colKeys.forEach((key, g) => {
     const slot = g + 1; // tools occupy slots 1..N (slot 0 is Source)
     const row = rowOf(slot);
-    const inPosition = row > rowOf(slot - 1) ? Position.Top : Position.Left;
-    const nextRow = slot < N ? rowOf(slot + 1) : sinkRow;
-    const outPosition = nextRow > row ? Position.Bottom : Position.Right;
     for (const n of colMap.get(key)!) {
       n.position = vertical
         ? { x: laneCenterX - nodeWidth(n) / 2, y: row * SERP_ROW_H }
         : { x: slotX(slot), y: laneCenterY(row) - nodeHeight(n) / 2 };
-      n.data.inPosition = inPosition;
-      n.data.outPosition = outPosition;
+      n.data.inPosition = inPos;
+      n.data.outPosition = outPos;
     }
   });
+
+  // Sink continues the reading order: the cell right after the last tool. When
+  // it wraps it becomes the leftmost node of a new row, entered from the left.
+  const sinkSlot = N + 1;
+  const sinkRow = rowOf(sinkSlot);
 
   const source: EndpointGeom = {
     x: vertical ? laneCenterX - ENDPOINT_W / 2 : 0,
     y: vertical ? 0 : laneCenterY(0) - ENDPOINT_H / 2,
-    handlePosition: rowOf(1) > 0 ? Position.Bottom : Position.Right,
+    handlePosition: outPos,
   };
 
   const sink: EndpointGeom = {
-    x: vertical ? laneCenterX - ENDPOINT_W / 2 : sinkCol * SERP_COL_W,
-    y: vertical ? sinkRow * SERP_ROW_H : laneCenterY(sinkRow) - ENDPOINT_H / 2,
-    handlePosition: sinkRow > lastRow ? Position.Top : Position.Left,
+    x: vertical ? laneCenterX - ENDPOINT_W / 2 : slotX(sinkSlot),
+    y: vertical ? sinkSlot * SERP_ROW_H : laneCenterY(sinkRow) - ENDPOINT_H / 2,
+    handlePosition: inPos,
   };
 
   return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };
