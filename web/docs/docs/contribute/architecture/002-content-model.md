@@ -217,11 +217,11 @@ fields because they differ in shape and lifecycle:
   content — segmentation, terminology, entities, term candidates, QA findings,
   source↔target alignment. Each `Span` carries a run `Range` (the position) and
   an optional typed payload `Value`. Because their ranges anchor to runs, a
-  source rewrite shifts them: a source-transform tool must drop the overlays it
-  invalidates, or — for a *structured* edit with a known span→replacement map
-  (redaction) — rebase the survivors onto the new runs with `model.RemapOverlays`
-  (spans overlapping an edit are dropped; the rest shift to follow it). See
-  AD-006.
+  source rewrite shifts them. A transformer's edit plan is a structured
+  span→replacement map, so the framework applier rebases the survivors onto the
+  new runs with `model.RemapOverlays` (spans overlapping an edit are dropped; the
+  rest shift to follow it); an opaque whole-block rewrite has no mapping and drops
+  them. See AD-006.
 - **Annotations** are *block-scoped*: a keyed map of typed payloads describing
   the block as a whole, with no position — alt-translations, notes, analysis
   results (word/char/segment counts, comparison, repetition, brand-voice), and

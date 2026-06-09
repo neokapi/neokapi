@@ -62,9 +62,9 @@ type bounds what it may write:
 
 ```go
 type BaseTool struct {
-    Annotate  func(BlockView) error  // read-only: overlays/annotations/properties
-    Translate func(TargetView) error // writes target
-    Transform func(SourceView) error // rewrites source (and may write target)
+    Annotate  func(BlockView) error           // read-only: overlays/annotations/properties
+    Translate func(TargetView) error           // writes target
+    Transform func(BlockView) (EditPlan, error) // read-only producer; the applier rewrites source
 
     HandleDataFn  func(ctx context.Context, data *Data)   (*Data, error)
     HandleMediaFn func(ctx context.Context, media *Media) (*Media, error)
@@ -638,7 +638,7 @@ wrong writes unrepresentable.
 | --- | --- | --- |
 | `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
 | `Translate(TargetView)` | source read-only | target content (+ the above) |
-| `Transform(SourceView)` | source writable | source content (+ the above) |
+| `Transform` (edit producer) | source + target read-only | an edit plan the framework applies to source |
 
 - **Analysis / annotation** tools (qa-check, word-count, term-lookup,
   entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
@@ -647,50 +647,57 @@ wrong writes unrepresentable.
 - **Translation** tools (ai-translate, the MT tools, tm-leverage,
   create-target) set `Translate` and write `Block.Targets`; source stays
   read-only.
-- **Source-transform** tools (redaction, normalization, case/encoding
-  conversion) set `Transform` and may rewrite `Block.Source`. They belong in a
-  flow's source-transform stage (below). A source rewrite shifts the run-anchored
-  ranges of any source overlay (segmentation, terms, entities; see
-  [AD-002](002-content-model.md)), so a transform must either **drop** the
-  overlays it invalidates or, for a *structured* edit with a known
-  span→replacement map (redaction), **rebase** the survivors with
-  `SourceView.RemapSourceOverlays` / `model.RemapOverlays` so they follow the
-  rewrite. Recoverable transforms (redaction) record the original as a block
-  annotation (or a sidecar vault) and restore it on the way out.
+- **Transformers** (redaction, normalization, case/encoding conversion) are the
+  only tools that rewrite `Block.Source`, and they never do so directly. A
+  transformer is a read-only **edit producer**: it inspects the block and returns
+  an *edit plan* — a set of structured `model.RunEdit`s (a span→replacement map),
+  any originals to vault (recoverable transformers such as redaction), or an
+  opaque whole-block replacement for rewrites with no derivable mapping (LLM
+  simplification). A single framework-owned **applier** is the one place that
+  mutates the block: it applies the edits, **rebases** the surviving run-anchored
+  overlays once (`model.RemapOverlays`) so segmentation, terms, and entities
+  (see [AD-002](002-content-model.md)) follow the rewrite, vaults any secrets, and
+  bounds-checks the result — atomically. Because tool code holds no source setter,
+  a transformer cannot corrupt run-anchoring or leak a secret; an opaque
+  whole-block replacement drops the overlays it cannot rebase. Recoverable
+  transformers (redaction) keep the original in a block annotation or a sidecar
+  vault and restore it on the way out.
 
 The read views hand back the block's live run slices, which Go cannot make
 deeply immutable without copying. So a dev/test **backstop** in
 `BaseTool.handleBlock` content-hashes source and targets around each handler and
 errors if a handler edited a surface its tier forbids (catching in-place edits
-through those aliased slices). After a source rewrite the backstop additionally
-checks that every *surviving* source overlay span still anchors **in-bounds**
-against the new runs (`Block.SourceOverlaysInBounds`) — a transform that neither
-dropped nor rebased a now-dangling overlay is rejected. The backstop is gated by
-`tool.EnforceImmutability` (on by default). A tool that genuinely needs the
-maximal surface — `script`, which runs arbitrary JavaScript — overrides `Process`
-instead and self-gates source mutation behind its `allowSourceMutation` flag.
+through those aliased slices). The applier likewise asserts that every *surviving*
+source overlay span still anchors **in-bounds** against the rewritten runs
+(`Block.SourceOverlaysInBounds`), so a rebase that left an overlay dangling is
+rejected. The backstop is gated by `tool.EnforceImmutability` (on by default). A
+tool that genuinely needs the maximal surface — `script`, which runs arbitrary
+JavaScript — overrides `Process` instead and self-gates source mutation behind its
+`allowSourceMutation` flag.
 
-#### The source-transform (settle) stage
+#### Transformer placement
 
-A `Flow` has an optional leading **source-transform stage**: the tools that
-settle the source/model — redaction, a simplifier, normalization — before the
-main tools run. The executor runs the stage ahead of the main tools
-(`Flow.Pipeline()` concatenates them), so downstream tools — segmentation,
-terminology, translation, QA — all operate on one settled, canonical source.
+Transformers and analyzers are ordinary steps in one ordered tool list; there is
+no separate structural stage. Because the applier mutates inline and in order,
+each transformer settles the source before later steps observe it, so analysis
+that depends on a transform — segmentation over normalized text, an annotator
+feeding a redactor (`ai-entity-extract` → `redact`) — sees the applied result.
 
-The stage may also hold **annotators** ahead of the settling transform, so an
-annotator's overlay can drive the transform — e.g. `ai-entity-extract` →
-`redact`, where redact consumes the entity overlay to decide what to hide. The
-membership rule (`tool.CanPrecedeSettle`) is therefore: every stage step is
-`Annotate`- or `Transform`-capable, and the stage must contain **at least one**
-`Transform` (the step that actually settles the source). A `Translate` tool is
-rejected here — translation runs in the main stage, after the source settles,
-because its targets anchor to the settled source (this ordering invariant is
-enforced structurally at build time, not by author discipline; the declarative
-data-flow contract validates annotator→transform port dependencies *within* the
-stage). The stage is **explicit**, not inferred from capability: a `Transform`
-tool used late on the target (e.g. `case-transform` configured for the target
-only) is never auto-hoisted.
+Ordering safety is a **placement pass** that runs beside the data-flow contract,
+using the `Capability` and `SideEffects` a tool already declares:
+
+| Severity | Rule | Rationale |
+| --- | --- | --- |
+| Error | a transformer must not follow a `Translate` | rewriting source orphans the targets, which anchor to it |
+| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink | otherwise unprotected source leaks before redaction applies |
+| Warning | a transformer placed later than its earliest valid slot (after its last required input) | every overlay present at apply time must be rebased; an earlier slot avoids the work |
+
+The remote-egress rule keys off a *remote source egress* side-effect, distinct
+from a plain API call, so a local detector or termbase lookup does not trip it
+while a cloud-provider call does. Tools — including plugins — contribute their own
+placement diagnostics through the same config-derived contract hook that resolves
+a tool's required inputs from its configuration (e.g. redaction requires an
+upstream `entity` overlay only when entity detection is enabled).
 
 ## Consequences
 

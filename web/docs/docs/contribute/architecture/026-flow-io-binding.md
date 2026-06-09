@@ -27,10 +27,10 @@ operation (`merge` / `export` / `pack`). This gives the `.klz` lifecycle a
 first-class shape: `extract` (source → store), `run` / transform (store → store),
 `merge` (store → file).
 
-The leading **source-transform stage** ([AD-004](004-processing-engine.md)) is of
-two kinds: *idempotent model-settling transforms* that run **once at ingest** and
-persist to the store, and *round-trip-paired brackets* (redact … unredact) that
-are part of a **run's** source/sink wiring.
+**Transformers** ([AD-006](006-tool-system.md)) are of two kinds: *idempotent
+model-settling transforms* that run **once at ingest** and persist to the store,
+and *round-trip-paired brackets* (redact … unredact) that are part of a **run's**
+source/sink wiring.
 
 Bindings are named by one scheme vocabulary across the CLI, the flow document,
 and the existing resource URIs. A concrete binding resolves by precedence —
@@ -91,8 +91,9 @@ carrying the four things a flat list of tool names cannot:
   portable, declarative intent and owns no I/O, so it travels in a project's
   portable twin — the `.klz` package — like any other recipe field
   ([AD-025](025-klf-package.md) §6).
-- **Phase structure** — the leading settle stage and the round-trip brackets
-  (§4) are a typed two-phase shape, not a flat run of tools.
+- **Transformer roles** — ingest-time settlers and the round-trip brackets (§4)
+  are distinct transformer roles with their own placement rules
+  ([AD-006](006-tool-system.md)), not a flat run of tools.
 
 What a flow is **not**: it is not an I/O harness (that is the binding), it is not
 a runtime primitive beyond an ordered tool chain over a session
@@ -167,10 +168,10 @@ is **idempotent and resumable**: re-running skips work whose overlay already
 exists, anchored to the current block hashes ([AD-025](025-klf-package.md) §5).
 The store *is* the workspace.
 
-### 4. The source-transform stage: settlers and brackets
+### 4. Transformers: settlers and brackets
 
-The leading source-transform stage ([AD-004](004-processing-engine.md)) settles
-a single canonical model before the main tools run. Its two uses are distinct:
+Transformers ([AD-006](006-tool-system.md)) settle a single canonical model
+before the steps that depend on it. Their two uses are distinct:
 
 - **Ingest-time settlers** — *idempotent, model-settling* transforms
   (segmentation, normalization) belong to **bringing content into the store**,
@@ -276,9 +277,9 @@ already present and recomputes only what changed
 - Ingest-time settling avoids per-run segmentation/normalization recomputation
   and keeps the canonical model stable across a project's lifetime.
 - The flow editor surfaces source/sink as **endpoint pickers** (file · store ·
-  import/export · none) rather than reader/writer nodes; capability gating for the
-  source-transform stage ([AD-002](002-content-model.md) overlays, segmentation)
-  is independent of bindings.
+  import/export · none) rather than reader/writer nodes; transformer placement
+  ([AD-006](006-tool-system.md)) and overlay capability
+  ([AD-002](002-content-model.md)) are independent of bindings.
 - The executor binds nothing: it orchestrates tools over a session, and the
   bindings sit outside it.
 - The flow noun means *composition*: with I/O at the edges, a flow carries

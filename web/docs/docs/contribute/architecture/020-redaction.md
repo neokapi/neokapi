@@ -83,9 +83,9 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   already on the block — produced upstream by the `ai-entity-extract` tool —
   and redacts the configured entity categories. The detection model is the
   caller's choice; a local model keeps everything on the machine, a cloud model
-  trades that for coverage during the *detection* step only. Because the
-  annotator runs ahead of redact in the flow's source-transform (settle) stage,
-  `ai-entity-extract` and `redact` can sit in the same flow (see AD-006).
+  trades that for coverage during the *detection* step only. Because an annotator
+  can precede the redactor in the flow, `ai-entity-extract` and `redact` sit in
+  the same flow (see AD-006).
 
   The categories are the **option surface** a user picks — "redact people",
   "redact dates", … — via `redact`'s `entityTypes` (person, org, product,
@@ -110,12 +110,14 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   rule-based detection redact reads no upstream port and the contract is
   unchanged.
 
-Redaction rewrites the source, so `redact` drops the entity overlay it consumed
-(its spans are now stale) and **rebases** any *other* surviving source overlay —
-e.g. a term tag from an upstream term annotator — onto the redacted runs via
-`SourceView.RemapSourceOverlays`, so those overlays still reach the main stage.
-Redaction is a structured edit (a known span→replacement map), which is what
-makes the rebase well-defined; spans that overlap a redacted span are dropped.
+`redact` is a **transformer** (AD-006): it produces an edit plan — the
+span→replacement edits plus the originals to vault — and the framework applier is
+what rewrites the source. Redaction is a structured edit (a known span→replacement
+map), so the applier **rebases** the surviving run-anchored source overlays onto
+the redacted runs in one pass: a term tag from an upstream annotator follows the
+rewrite and still reaches downstream steps, while a span overlapping a redacted
+span (including the consumed `entity` spans) is dropped. The applier vaults the
+originals as it replaces, so source rewrite and secret capture are atomic.
 
 ### Restoration
 
@@ -133,10 +135,11 @@ formats differ in whether they preserve inline structure on write:
 - `kapi run secure-translate -i <file> --target-lang <l>` — the in-process flow
   `reader → redact → ai-translate → unredact → writer`.
 - `kapi run redact-pii -i <file>` — the built-in NER flow: `ai-entity-extract`
-  (detect entities) → `redact` (configured for person/org/location/date), both
-  in the settle stage. Equivalent recipe:
+  (detect entities) → `redact` (configured for person/org/location/date). The
+  placement pass (AD-006) keeps `redact` ahead of any remote-egress step.
+  Equivalent recipe:
   ```yaml
-  source_transforms:
+  steps:
     - tool: ai-entity-extract
     - tool: redact
       config:
