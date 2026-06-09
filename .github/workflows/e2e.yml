@@ -2,10 +2,10 @@ name: E2E
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "0 2 * * *" # Nightly at 2 AM UTC
-  # push:
-  #   branches: [main]
+  schedule:
+    - cron: "0 2 * * *" # Nightly at 2 AM UTC
+  # Intentionally not on push/PR: the e2e suites (CLI e2e + Playwright) are heavy
+  # and run nightly. Use workflow_dispatch to trigger on demand for a branch.
 
 permissions:
   contents: read

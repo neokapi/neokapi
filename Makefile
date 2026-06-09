@@ -61,19 +61,47 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
-# GitHub Actions sets CI=true. When active, test targets add race detection,
-# coverage profiling, and JSON output for JUnit reporting.
+# GitHub Actions sets CI=true and GITHUB_EVENT_NAME=<event>. We run two CI
+# profiles, keyed off the event, to keep PR feedback fast without weakening the
+# main gate:
+#
+#   • pull_request  → FAST: no race detector, no -shuffle, no coverage. Dropping
+#     -shuffle/-coverprofile lets Go's per-package test cache serve unchanged
+#     packages (both flags otherwise force a re-run), and dropping -race removes
+#     a 2–3× compile+run multiplier. JUnit -json output is kept (it caches).
+#   • push / schedule → FULL: -race, -shuffle, coverage — the canonical record.
+#     Every commit merged to main and the nightly run still get the full gate.
+#
+# Locally (no CI) we keep -shuffle but no race/coverage, as before.
 
 ifdef CI
-  _RACE     := -race
-  _COVMODE  := -covermode=atomic
+  _COVMODE := -covermode=atomic
+  ifeq ($(GITHUB_EVENT_NAME),pull_request)
+    _RACE    :=
+    _SHUFFLE :=
+    _CI_FAST := 1
+  else
+    _RACE    := -race
+    _SHUFFLE := -shuffle=on
+    _CI_FAST :=
+  endif
 else
-  _RACE     :=
-  _COVMODE  :=
+  _RACE    :=
+  _SHUFFLE := -shuffle=on
+  _COVMODE :=
+  _CI_FAST :=
 endif
 
-# Base test command: always shuffles, adds race in CI
-GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on
+# Base test command: shuffles outside fast-PR mode, adds race on push/nightly.
+GOTEST_BASE := $(GOTEST) $(_RACE) $(_SHUFFLE)
+
+# cov,<outfile>: expands to coverage flags on the full gate, and to nothing in
+# fast-PR mode (a -coverprofile flag would disable Go's test result cache).
+ifdef _CI_FAST
+  cov =
+else
+  cov = -coverprofile=$(1) $(_COVMODE)
+endif
 
 # ── Forwarded targets ───────────────────────────────────────────────────────
 # Targets listed here run at root (framework) then forward to bowrain/Makefile.
@@ -220,7 +248,7 @@ _fw-deps-update:
 test-framework: ## Run framework module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/framework.out $(_COVMODE) -json ./... > test-results-framework.json
+	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/framework.out) -json ./... > test-results-framework.json
 else
 	$(GOTEST_BASE) ./... -count=1
 endif
@@ -228,7 +256,7 @@ endif
 test-cli: ## Run cli module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd cli && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/cli.out $(_COVMODE) -json ./... > ../test-results-cli.json
+	cd cli && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/cli.out) -json ./... > ../test-results-cli.json
 else
 	cd cli && $(GOTEST_BASE) ./... -count=1
 endif
@@ -236,7 +264,7 @@ endif
 test-kapi: ## Run kapi CLI tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd kapi && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/kapi.out $(_COVMODE) -json ./... > ../test-results-kapi.json
+	cd kapi && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/kapi.out) -json ./... > ../test-results-kapi.json
 else
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 endif

@@ -82,3 +82,41 @@ jobs:
           done
           echo "::error::pages push failed after retries"
           exit 1
+
+  # Reclaim the Actions caches a closed PR's CI runs created. PR runs are scoped
+  # to refs/pull/<N>/merge; once the PR is closed those build/test caches are
+  # dead weight. The repo's cache total runs near GitHub's 10 GB cap, where
+  # least-recently-used eviction starts dropping still-useful caches (the shared
+  # module cache, main's race-instrumented build cache), so freeing per-PR
+  # caches on close keeps the working set healthy. A reopened/next PR rewarms
+  # from the most recent same-flavor cache via restore-keys.
+  prune-caches:
+    name: Prune PR caches
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete caches scoped to the closed PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+        run: |
+          set -euo pipefail
+          # PR is an integer from the pull_request event or an untrusted manual
+          # input; hard-validate it is purely numeric before it reaches an API ref.
+          case "$PR" in
+            ''|*[!0-9]*) echo "::error::PR must be a number, got: '$PR'"; exit 1 ;;
+          esac
+          ref="refs/pull/${PR}/merge"
+          ids=$(gh api --paginate \
+            "repos/${REPO}/actions/caches?ref=${ref}&per_page=100" \
+            --jq '.actions_caches[].id')
+          if [ -z "$ids" ]; then
+            echo "::notice::no caches for PR #${PR}"
+            exit 0
+          fi
+          for id in $ids; do
+            gh api -X DELETE "repos/${REPO}/actions/caches/${id}" >/dev/null \
+              && echo "deleted cache ${id}"
+          done

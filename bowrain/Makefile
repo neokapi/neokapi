@@ -52,15 +52,41 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
+# Two CI profiles keyed off GITHUB_EVENT_NAME (see the root Makefile for the
+# rationale). On pull_request we run FAST: no race, no -shuffle, no coverage
+# (so Go's test cache serves unchanged packages) and -short — which skips the
+# testcontainers-backed PostgreSQL suites (gated in testutil/pgtest). Push and
+# the nightly schedule run the FULL suite, containers included.
 ifdef CI
-  _RACE     := -race
-  _COVMODE  := -covermode=atomic
+  _COVMODE := -covermode=atomic
+  ifeq ($(GITHUB_EVENT_NAME),pull_request)
+    _RACE    :=
+    _SHUFFLE :=
+    _SHORT   := -short
+    _CI_FAST := 1
+  else
+    _RACE    := -race
+    _SHUFFLE := -shuffle=on
+    _SHORT   :=
+    _CI_FAST :=
+  endif
 else
-  _RACE     :=
-  _COVMODE  :=
+  _RACE    :=
+  _SHUFFLE := -shuffle=on
+  _COVMODE :=
+  _SHORT   :=
+  _CI_FAST :=
 endif
 
-GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on -timeout 15m
+GOTEST_BASE := $(GOTEST) $(_RACE) $(_SHUFFLE) -timeout 15m
+
+# cov,<outfile>: coverage flags on the full gate; nothing in fast-PR mode
+# (a -coverprofile flag would disable Go's test result cache).
+ifdef _CI_FAST
+  cov =
+else
+  cov = -coverprofile=$(1) $(_COVMODE)
+endif
 
 # Docker
 DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server
@@ -394,7 +420,7 @@ test-integration: ## Run platform integration tests
 test-platform: ## Run platform core module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd core && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/platform.out $(_COVMODE) -json ./... > ../test-results-platform.json
+	cd core && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/platform.out) $(_SHORT) -json ./... > ../test-results-platform.json
 else
 	cd core && $(GOTEST_BASE) ./... -count=1
 endif
@@ -402,7 +428,7 @@ endif
 test-bowrain-cli: ## Run Bowrain CLI tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd cli && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-cli.out $(_COVMODE) -json ./... > ../test-results-bowrain-cli.json
+	cd cli && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-cli.out) $(_SHORT) -json ./... > ../test-results-bowrain-cli.json
 else
 	cd cli && $(GOTEST_BASE) ./... -count=1
 endif
@@ -410,8 +436,8 @@ endif
 test-bowrain-plugin: ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd plugin && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin.out $(_COVMODE) -json ./... > ../test-results-bowrain-plugin.json
-	cd plugin/schema && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin-schema.out $(_COVMODE) -json ./... > ../../test-results-bowrain-plugin-schema.json
+	cd plugin && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-plugin.out) $(_SHORT) -json ./... > ../test-results-bowrain-plugin.json
+	cd plugin/schema && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-plugin-schema.out) $(_SHORT) -json ./... > ../../test-results-bowrain-plugin-schema.json
 else
 	cd plugin && $(GOTEST_BASE) ./... -count=1
 	cd plugin/schema && $(GOTEST_BASE) ./... -count=1
@@ -420,7 +446,7 @@ endif
 test-bowrain: ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
 else
 	$(GOTEST_BASE) ./... -count=1
 endif
