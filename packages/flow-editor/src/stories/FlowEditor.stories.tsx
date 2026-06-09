@@ -436,6 +436,35 @@ export const ThreeWayParallel: Story = {
   },
 };
 
+/**
+ * A tall parallel group (6 branches) followed by a wrap. Guards that the
+ * carriage-return wrap edge clears the group instead of cutting through it —
+ * row spacing grows with the tallest node so the wrap's mid-gap sweep stays
+ * below the parallel (see centerAlignRows).
+ */
+export const ManyBranchParallel: Story = {
+  name: "Many-Branch Parallel (wrap clearance)",
+  args: {
+    flow: {
+      steps: [
+        { tool: "tm-leverage", label: "TM Lookup" },
+        {
+          tool: "",
+          parallel: [
+            { tool: "qa-check", label: "Quality" },
+            { tool: "brand-vocab-check", label: "Brand" },
+            { tool: "entity-extract", label: "Entities" },
+            { tool: "term-check", label: "Terminology" },
+            { tool: "word-count", label: "Word Count" },
+            { tool: "ai-translate", label: "Back-translate" },
+          ],
+        },
+      ],
+    },
+    tools,
+  },
+};
+
 export const ParallelizationSuggestion: Story = {
   name: "Parallelization Suggestion",
   args: {
