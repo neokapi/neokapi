@@ -32,6 +32,10 @@ export function DotEdge({
   markerEnd,
   data,
 }: EdgeProps) {
+  // For a wrap edge the editor supplies wrapCenterY — the middle of the gap below
+  // the source row — so the horizontal sweep routes through that gap and clears a
+  // tall parallel group, instead of cutting through it at the default Y midpoint.
+  const wrapCenterY = (data as { wrapCenterY?: number } | undefined)?.wrapCenterY;
   const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -40,6 +44,7 @@ export function DotEdge({
     sourcePosition,
     targetPosition,
     borderRadius: 12,
+    ...(wrapCenterY !== undefined ? { centerY: wrapCenterY } : {}),
   });
 
   const flowing = !!(data as { flowing?: boolean } | undefined)?.flowing;

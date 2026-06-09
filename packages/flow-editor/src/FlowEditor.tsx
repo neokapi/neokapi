@@ -753,9 +753,29 @@ export function FlowEditor({
       (n) => heightCache.current.get(n.id) ?? estimateNodeHeight(n),
     );
 
+    // A wrap edge (carriage return: it drops to a lower row and sweeps back
+    // left) is routed THROUGH the inter-row gap rather than at the source/target
+    // Y midpoint — otherwise a tall parallel's bottom dips past the midpoint and
+    // the edge cuts through the group. `wrapCenterY` is the middle of the gap
+    // below the source row; DotEdge feeds it to getSmoothStepPath as centerY.
+    const boundsOf = (id: string) => {
+      const n = aligned.find((x) => x.id === id);
+      if (!n) return null;
+      const h = heightCache.current.get(id) ?? estimateNodeHeight(n);
+      return { x: n.position.x, top: n.position.y, bottom: n.position.y + h };
+    };
+    const routeWrap = (e: Edge): Edge => {
+      const s = boundsOf(e.source);
+      const t = boundsOf(e.target);
+      if (s && t && t.top >= s.bottom && t.x < s.x) {
+        return { ...e, data: { ...e.data, wrapCenterY: (s.bottom + t.top) / 2 } };
+      }
+      return e;
+    };
+
     return {
       displayNodes: aligned,
-      displayEdges: [...initial.edges, ...endpointEdges],
+      displayEdges: [...initial.edges, ...endpointEdges].map(routeWrap),
     };
   }, [
     enrichedNodes,

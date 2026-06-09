@@ -396,10 +396,11 @@ export function centerAlignRows<T extends Node>(
       const h = heightOf(n);
       if (h !== undefined) moved.set(n.id, top + (maxH - h) / 2);
     }
-    // Gap below the row. The 0.6·maxH term keeps the wrap edge's mid-gap sweep
-    // below a tall parallel for any branch count; SERP_ROW_GAP keeps ordinary
-    // tool rows at their usual ~SERP_ROW_H stride.
-    top += maxH + Math.max(SERP_ROW_GAP, 0.6 * maxH);
+    // Uniform gap below every row (independent of the row's height), so a tall
+    // parallel doesn't open a proportionally large void before the next row. The
+    // wrap edge is routed THROUGH this gap by the editor (DotEdge centerY), so it
+    // clears the tall node without the gap having to grow.
+    top += maxH + SERP_ROW_GAP;
   }
   if (moved.size === 0) return nodes;
 
