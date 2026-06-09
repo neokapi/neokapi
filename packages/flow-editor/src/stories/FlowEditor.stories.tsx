@@ -285,6 +285,52 @@ export const FullPipeline: Story = {
 };
 
 /**
+ * Flowing dots on a wrapped, multi-row pipeline. A trace is present, so DotEdge
+ * streams dots along every edge. Each edge animates over the same duration, so a
+ * hop to the next row (a long wrap edge) is covered as fast as a short in-row
+ * hop — the cadence node-to-node is equal, only the dot's speed differs. Shown
+ * in a deliberately narrow frame so the five steps wrap across rows.
+ */
+export const FlowingDotsMultiRow: Story = {
+  name: "Flowing Dots (multi-row)",
+  decorators: [
+    (Story) => (
+      <div style={{ width: 760, height: 660 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    flow: {
+      steps: [
+        { tool: "tm-leverage" },
+        { tool: "ai-translate" },
+        { tool: "pseudo-translate" },
+        { tool: "qa-check" },
+        { tool: "word-count" },
+      ],
+    },
+    tools,
+    readOnly: true,
+    onRun: undefined,
+    // Minimal completed trace — its presence turns on the flowing-dot animation
+    // (DotEdge data.flowing). One enter/exit per node keeps the overlay simple.
+    traceEvents: [
+      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
+      { ts: 100, type: "exit", nodeId: "tool-0", partId: "p1" },
+      { ts: 120, type: "enter", nodeId: "tool-1", partId: "p1" },
+      { ts: 220, type: "exit", nodeId: "tool-1", partId: "p1" },
+      { ts: 240, type: "enter", nodeId: "tool-2", partId: "p1" },
+      { ts: 340, type: "exit", nodeId: "tool-2", partId: "p1" },
+      { ts: 360, type: "enter", nodeId: "tool-3", partId: "p1" },
+      { ts: 460, type: "exit", nodeId: "tool-3", partId: "p1" },
+      { ts: 480, type: "enter", nodeId: "tool-4", partId: "p1" },
+      { ts: 580, type: "exit", nodeId: "tool-4", partId: "p1" },
+    ],
+  },
+};
+
+/**
  * IO-contract showcase: every node shows its typed reads → writes chips, edges
  * carry the data type flowing across them, and the legend (top-right) decodes
  * the family colors. segmentation produces a segments overlay that tm-leverage

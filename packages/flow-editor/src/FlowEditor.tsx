@@ -797,6 +797,16 @@ export function FlowEditor({
     setEdges(displayEdges);
   }, [displayNodes, displayEdges, setNodes, setEdges]);
 
+  // While a trace is present, animate dots flowing along every edge (DotEdge
+  // reads data.flowing). Each edge animates over the same duration, so a hop to
+  // a node on the next row (a long wrap edge) is covered as quickly as a short
+  // in-row hop — equal time per node-to-node step.
+  const flowEdges = useMemo(() => {
+    const flowing = !!(traceEvents && traceEvents.length > 0);
+    if (!flowing) return edges;
+    return edges.map((e) => ({ ...e, data: { ...e.data, flowing: true } }));
+  }, [edges, traceEvents]);
+
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
       onNodesChange(changes);
@@ -1120,7 +1130,7 @@ export function FlowEditor({
           >
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={flowEdges}
               onNodesChange={handleNodesChange}
               onEdgesChange={onEdgesChange}
               onNodeClick={handleNodeClick}
