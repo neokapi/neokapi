@@ -41,26 +41,13 @@ describe("stepsToGraph — source-transform stage", () => {
     expect(toolNodes[2].data.toolName).toBe("ai-translate");
   });
 
-  it("positions source-transform nodes before main nodes on the primary axis (vertical)", () => {
+  it("positions source-transform nodes before main nodes along the chain", () => {
     const spec: FlowSpec = {
       sourceTransforms: [{ tool: "redact" }],
       steps: [{ tool: "ai-translate" }],
     };
 
-    const { nodes } = stepsToGraph(spec, undefined, "vertical");
-    const redact = nodes.find((n) => n.data.toolName === "redact")!;
-    const translate = nodes.find((n) => n.data.toolName === "ai-translate")!;
-
-    expect(redact.position.y).toBeLessThan(translate.position.y);
-  });
-
-  it("positions source-transform nodes before main nodes on the primary axis (horizontal)", () => {
-    const spec: FlowSpec = {
-      sourceTransforms: [{ tool: "redact" }],
-      steps: [{ tool: "ai-translate" }],
-    };
-
-    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
+    const { nodes } = stepsToGraph(spec);
     const redact = nodes.find((n) => n.data.toolName === "redact")!;
     const translate = nodes.find((n) => n.data.toolName === "ai-translate")!;
 
@@ -156,8 +143,8 @@ describe("graphToSteps — source-transform extraction", () => {
       steps: [{ tool: "ai-translate" }],
     };
 
-    const { nodes } = stepsToGraph(spec, undefined, "vertical");
-    const result = graphToSteps(nodes, "vertical");
+    const { nodes } = stepsToGraph(spec);
+    const result = graphToSteps(nodes);
 
     expect(result.sourceTransforms).toHaveLength(2);
     expect(result.sourceTransforms![0].tool).toBe("redact");
@@ -196,8 +183,8 @@ describe("round-trip stability — source-transform", () => {
       steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
     };
 
-    const { nodes } = stepsToGraph(original, undefined, "vertical");
-    const result = graphToSteps(nodes, "vertical");
+    const { nodes } = stepsToGraph(original);
+    const result = graphToSteps(nodes);
 
     expect(result.sourceTransforms).toHaveLength(1);
     expect(result.sourceTransforms![0].tool).toBe("redact");
@@ -213,8 +200,8 @@ describe("round-trip stability — source-transform", () => {
       steps: [{ tool: "ai-translate" }],
     };
 
-    const { nodes } = stepsToGraph(original, undefined, "horizontal");
-    const result = graphToSteps(nodes, "horizontal");
+    const { nodes } = stepsToGraph(original, undefined);
+    const result = graphToSteps(nodes);
 
     expect(result.sourceTransforms).toHaveLength(1);
     expect(result.sourceTransforms![0].tool).toBe("redact");

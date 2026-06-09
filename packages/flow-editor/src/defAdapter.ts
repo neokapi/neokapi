@@ -27,13 +27,13 @@ import type {
   FlowEdgeInfo,
   ToolInfo,
 } from "./types";
-import { type LayoutDirection } from "./conversion";
 
 // Persisted-graph geometry. The node/edge FlowDefinition stores parallel groups
 // as the legacy fan-out (sibling nodes sharing the same primary-axis position),
 // independent of how the editor *renders* a flow (which uses the composite
-// parallel node). defToSpec reconstructs groups by primary-axis position; the
-// editor never reads these positions for layout — it re-lays-out from the spec.
+// parallel node). The persisted graph uses a fixed vertical axis (y is the chain
+// axis); defToSpec reconstructs groups along it. The editor never reads these
+// positions for layout — it re-lays-out from the spec.
 const PERSIST_NODE_SIZE = 200;
 const PERSIST_NODE_GAP = 60;
 const PERSIST_CROSS = 200;
@@ -90,14 +90,10 @@ export function formatBinding(binding: FlowBinding | undefined | null): string |
  * nodes (by `stage`) become `spec.sourceTransforms`; the rest become `steps`,
  * with sibling nodes sharing a primary-axis position reconstructed into a
  * `parallel` step. The definition's I/O binding is carried onto `source`/`sink`.
- * `direction` selects which axis is primary (default vertical = y).
+ * The persisted graph's chain axis is y.
  */
-export function defToSpec(
-  def: FlowDefinitionInfo,
-  direction: LayoutDirection = "vertical",
-): FlowSpec {
-  const isVertical = direction !== "horizontal"; // serpentine/vertical → y is primary
-  const primary = (n: FlowNodeInfo) => (isVertical ? (n.position?.y ?? 0) : (n.position?.x ?? 0));
+export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
+  const primary = (n: FlowNodeInfo) => n.position?.y ?? 0;
 
   const toStep = (n: FlowNodeInfo): FlowStep => ({
     tool: n.name,
@@ -148,11 +144,8 @@ export function specToDef(
   spec: FlowSpec,
   base: Pick<FlowDefinitionInfo, "id" | "name" | "source"> & { description?: string },
   _tools?: ToolInfo[],
-  direction: LayoutDirection = "vertical",
 ): FlowDefinitionInfo {
-  const isVertical = direction !== "horizontal";
-  const pos = (main: number, cross: number) =>
-    isVertical ? { x: cross, y: main } : { x: main, y: cross };
+  const pos = (main: number, cross: number) => ({ x: cross, y: main });
 
   const nodeInfos: FlowNodeInfo[] = [];
   const edgeInfos: FlowEdgeInfo[] = [];

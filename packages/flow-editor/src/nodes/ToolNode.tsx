@@ -143,12 +143,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   // Port types this tool requires that nothing upstream produces (set by the
   // requirement analysis in Phase 2; absent until then).
   const unmet = data.unmet as string[] | undefined;
-  const vertical = data.layoutDirection === "vertical";
-  // Explicit handle sides (serpentine flips them per row); fall back to the
-  // linear vertical/horizontal convention.
-  const inPosition = (data.inPosition as Position) ?? (vertical ? Position.Top : Position.Left);
-  const outPosition =
-    (data.outPosition as Position) ?? (vertical ? Position.Bottom : Position.Right);
+  // Handle sides come from the serpentine layout (it flips them per wrapped row);
+  // fall back to a left→right flow.
+  const inPosition = (data.inPosition as Position) ?? Position.Left;
+  const outPosition = (data.outPosition as Position) ?? Position.Right;
   // Side-effect satellites sit on a free side (one not used by the in/out ports)
   // so they never overlap the ports or the edge to the next tool.
   const usedSides = new Set<Position>([inPosition, outPosition]);

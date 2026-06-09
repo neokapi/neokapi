@@ -16,10 +16,8 @@ const PARALLEL_COLOR = "oklch(0.62 0.15 300)";
 
 export function ParallelGroupNode({ data, selected }: NodeProps) {
   const branches = (data.branches as ParallelBranch[] | undefined) ?? [];
-  const vertical = data.layoutDirection === "vertical";
-  const inPosition = (data.inPosition as Position) ?? (vertical ? Position.Top : Position.Left);
-  const outPosition =
-    (data.outPosition as Position) ?? (vertical ? Position.Bottom : Position.Right);
+  const inPosition = (data.inPosition as Position) ?? Position.Left;
+  const outPosition = (data.outPosition as Position) ?? Position.Right;
   const onSelectBranch = data.onSelectBranch as ((index: number) => void) | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
   const selectedBranch = data.selectedBranch as number | undefined;

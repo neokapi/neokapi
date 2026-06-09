@@ -1,11 +1,9 @@
 // Conversion between FlowSpec (steps format) and React Flow graph (nodes + edges).
-// Supports both sequential and parallel (fan-out/merge) topologies.
-// Layout direction is configurable: horizontal (left-to-right) or vertical (top-to-bottom).
+// Supports both sequential and parallel topologies. The graph is laid out by the
+// serpentine (reading-order wrap) layout — the editor's only layout.
 
 import { MarkerType, Position, type Node, type Edge } from "@xyflow/react";
 import type { IOPort, FlowSpec, FlowStep, ToolInfo } from "./types";
-
-export type LayoutDirection = "horizontal" | "vertical" | "serpentine";
 
 const NODE_SIZE = 200; // primary axis node size estimate
 const NODE_GAP = 60;
@@ -14,7 +12,7 @@ const CENTER = 200; // cross-axis center
 // Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
 // never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
 export const SERP_COL_W = 240; // horizontal stride between columns (node max-w 200 + side chips + gap)
-const SERP_ROW_H = 200; // vertical stride between wrapped rows
+export const SERP_ROW_H = 200; // vertical stride between wrapped rows
 
 // Known node box dimensions (ToolNode is fixed-height; the others are stable
 // enough to center against). Rows are CENTER-aligned on a lane so mixed-height
@@ -128,17 +126,17 @@ function makeToolNodeData(
 export function stepsToGraph(
   spec: FlowSpec,
   toolMap?: Map<string, ToolInfo>,
-  direction: LayoutDirection = "vertical",
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  const isVertical = direction === "vertical";
 
-  let primary = 0; // x for horizontal, y for vertical
+  let primary = 0; // distance along the chain (x)
   let toolCounter = 0;
 
-  const pos = (main: number, cross: number) =>
-    isVertical ? { x: cross, y: main } : { x: main, y: cross };
+  // Lay the chain out left→right; the serpentine layout repositions these into
+  // reading-order rows. This base layout only needs distinct slots so structure
+  // (order, parallel groups) is well-defined.
+  const pos = (main: number, _cross: number) => ({ x: main, y: CENTER });
 
   // No reader node: the first tool(s) are the entry point. `prevIds` starts empty
   // so the leading tools get no incoming edge.
@@ -232,12 +230,8 @@ export function stepsToGraph(
   });
 
   // No writer node: the last tool(s) are the exit point and get no outgoing edge.
-  // `prevIds` is intentionally left dangling.
-
-  // Inject layout direction into all nodes so handles render correctly.
-  for (const node of nodes) {
-    node.data.layoutDirection = direction;
-  }
+  // `prevIds` is intentionally left dangling. Handle sides (in/out position) are
+  // assigned by the serpentine layout, not here.
 
   return { nodes, edges };
 }
@@ -263,7 +257,7 @@ export function serpentineGraph(
   toolMap: Map<string, ToolInfo> | undefined,
   cols: number,
 ): { nodes: Node[]; edges: Edge[]; ends?: { source: EndpointGeom; sink: EndpointGeom } } {
-  const base = stepsToGraph(spec, toolMap, "horizontal");
+  const base = stepsToGraph(spec, toolMap);
   const columns = Math.max(1, cols);
   const toolNodes = base.nodes.filter(isFlowNode);
   if (toolNodes.length === 0) return base;
@@ -294,20 +288,16 @@ export function serpentineGraph(
   // horizontal node takes input on the LEFT and emits on the RIGHT — including
   // the last node of a row: a wrap is a carriage return, sweeping from that
   // node's right edge down and back into the LEFT of the next row's first node
-  // (never into its top). Rows are CENTER-aligned on a lane so a tall parallel
-  // group shares its centerline with the short tool/endpoint nodes beside it,
-  // keeping every in-row connector dead straight. (A single column flips to a
-  // top→bottom vertical flow instead.)
+  // (never into its top). Nodes are emitted TOP-aligned per row; `centerAlignRows`
+  // (run by the editor once heights are measured) slides each node onto the row's
+  // shared centerline so a tall parallel group lines up with the short tool/
+  // endpoint nodes beside it and every in-row connector is dead straight. (A
+  // single column flips to a top→bottom vertical flow instead.)
   const vertical = columns === 1;
   const N = colKeys.length;
   const rowOf = (slot: number) => Math.floor(slot / columns);
   const slotX = (slot: number) => (slot % columns) * SERP_COL_W;
-  const laneCenterY = (row: number) => row * SERP_ROW_H + TOOL_NODE_H / 2;
   const laneCenterX = TOOL_NODE_W / 2;
-  const nodeHeight = (n: Node) =>
-    n.type === "parallel"
-      ? parallelHeight((n.data.branches as unknown[] | undefined)?.length ?? 1)
-      : TOOL_NODE_H;
   const nodeWidth = (n: Node) => (n.type === "parallel" ? PARALLEL_W : TOOL_NODE_W);
 
   const inPos = vertical ? Position.Top : Position.Left;
@@ -317,9 +307,11 @@ export function serpentineGraph(
     const slot = g + 1; // tools occupy slots 1..N (slot 0 is Source)
     const row = rowOf(slot);
     for (const n of colMap.get(key)!) {
+      // Horizontal: top-align (centerAlignRows centers later). Vertical: the rare
+      // single-column flow centers on the lane by known width.
       n.position = vertical
         ? { x: laneCenterX - nodeWidth(n) / 2, y: row * SERP_ROW_H }
-        : { x: slotX(slot), y: laneCenterY(row) - nodeHeight(n) / 2 };
+        : { x: slotX(slot), y: row * SERP_ROW_H };
       n.data.inPosition = inPos;
       n.data.outPosition = outPos;
     }
@@ -332,17 +324,71 @@ export function serpentineGraph(
 
   const source: EndpointGeom = {
     x: vertical ? laneCenterX - ENDPOINT_W / 2 : 0,
-    y: vertical ? 0 : laneCenterY(0) - ENDPOINT_H / 2,
+    y: 0,
     handlePosition: outPos,
   };
 
   const sink: EndpointGeom = {
     x: vertical ? laneCenterX - ENDPOINT_W / 2 : slotX(sinkSlot),
-    y: vertical ? sinkSlot * SERP_ROW_H : laneCenterY(sinkRow) - ENDPOINT_H / 2,
+    y: (vertical ? sinkSlot : sinkRow) * SERP_ROW_H,
     handlePosition: inPos,
   };
 
   return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };
+}
+
+/**
+ * Rough node height for the first paint, before React Flow has measured the DOM.
+ * Seeding centerAlignRows with this makes the initial render approximately
+ * centered, so the correction once real heights arrive is sub-perceptible.
+ */
+export function estimateNodeHeight(n: Node): number {
+  if (n.type === "parallel") {
+    return parallelHeight((n.data.branches as unknown[] | undefined)?.length ?? 1);
+  }
+  if (n.type === "source" || n.type === "sink") return ENDPOINT_H;
+  return TOOL_NODE_H;
+}
+
+/**
+ * Slide each station vertically so every node sharing a row lands on one
+ * centerline — the connecting edges (which meet each node at its vertical
+ * center) then run straight even though stations differ in height (a parallel
+ * group is taller than a tool node). Rows are grouped by top-aligned y; within a
+ * row the centerline is the tallest node's center, so the tallest stays put and
+ * shorter nodes drop to meet it. `heightOf` returns the measured height (or
+ * undefined before measurement, in which case the node is left as-is).
+ */
+export function centerAlignRows<T extends Node>(
+  nodes: T[],
+  rowHeight: number,
+  heightOf: (n: T) => number | undefined,
+): T[] {
+  const rows = new Map<number, T[]>();
+  for (const n of nodes) {
+    const band = Math.round(n.position.y / rowHeight);
+    const row = rows.get(band);
+    if (row) row.push(n);
+    else rows.set(band, [n]);
+  }
+
+  const moved = new Map<string, number>();
+  for (const row of rows.values()) {
+    if (row.every((n) => heightOf(n) === undefined)) continue;
+    const top = Math.min(...row.map((n) => n.position.y));
+    const maxH = Math.max(...row.map((n) => heightOf(n) ?? 0));
+    const centerline = top + maxH / 2;
+    for (const n of row) {
+      const h = heightOf(n);
+      if (h !== undefined) moved.set(n.id, centerline - h / 2);
+    }
+  }
+  if (moved.size === 0) return nodes;
+
+  return nodes.map((n) => {
+    const y = moved.get(n.id);
+    return y === undefined || y === n.position.y ? n : { ...n, position: { ...n.position, y } };
+  });
 }
 
 /**
@@ -359,7 +405,6 @@ export function serpentineGraph(
  */
 export function graphToSteps(
   nodes: Node[],
-  direction: LayoutDirection = "vertical",
   bindings?: { source?: string; sink?: string },
 ): FlowSpec {
   const withBindings = (spec: FlowSpec): FlowSpec => {
@@ -368,10 +413,12 @@ export function graphToSteps(
     return spec;
   };
 
-  const isVertical = direction === "vertical";
-  const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
-
-  const flowNodes = nodes.filter(isFlowNode).sort((a, b) => primary(a) - primary(b));
+  // Reading order: rows top-to-bottom, left-to-right within a row. Correct for
+  // the serpentine wrap, and reduces to a single-axis sort for a straight row
+  // (equal y) or column (equal x).
+  const flowNodes = nodes
+    .filter(isFlowNode)
+    .sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
   if (flowNodes.length === 0) return withBindings({ steps: [] });
 
   // A node becomes its step: a parallel group node emits a `parallel` step from

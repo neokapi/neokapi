@@ -16,7 +16,7 @@ describe("stepsToGraph with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
+    const { nodes } = stepsToGraph(spec, undefined);
 
     // ai-translate (tool) + parallel group (1 node) + merge-results (tool) = 3 nodes
     expect(nodes).toHaveLength(3);
@@ -97,7 +97,7 @@ describe("stepsToGraph with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
+    const { nodes } = stepsToGraph(spec, undefined);
     const group = nodes.find((n) => n.type === "parallel")!;
     const branches = group.data.branches as Array<{
       toolName: string;
@@ -123,8 +123,8 @@ describe("graphToSteps with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
-    const result = graphToSteps(nodes, "horizontal");
+    const { nodes } = stepsToGraph(spec, undefined);
+    const result = graphToSteps(nodes);
 
     expect(result.steps).toHaveLength(3);
     expect(result.steps[0].tool).toBe("translate");

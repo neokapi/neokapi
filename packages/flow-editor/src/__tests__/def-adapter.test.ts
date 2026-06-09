@@ -92,7 +92,7 @@ describe("defToSpec", () => {
       edges: [],
     };
 
-    const spec = defToSpec(def, "horizontal");
+    const spec = defToSpec(def);
     expect(spec.steps).toHaveLength(1);
     expect(spec.steps[0].tool).toBe("ai-translate");
     expect(spec.sourceTransforms).toBeUndefined();
@@ -124,7 +124,7 @@ describe("defToSpec", () => {
       edges: [],
     };
 
-    const spec = defToSpec(def, "horizontal");
+    const spec = defToSpec(def);
     expect(spec.sourceTransforms).toHaveLength(1);
     expect(spec.sourceTransforms![0].tool).toBe("redact");
     expect(spec.steps).toHaveLength(1);
@@ -147,7 +147,7 @@ describe("defToSpec", () => {
       ],
       edges: [],
     };
-    const spec = defToSpec(def, "horizontal");
+    const spec = defToSpec(def);
     expect(spec.steps[0].config).toEqual({ provider: "anthropic", model: "claude" });
   });
 
@@ -164,7 +164,7 @@ describe("defToSpec", () => {
       nodes: [{ id: "t", type: "tool", name: "ai-translate", position: { x: 0, y: 0 } }],
       edges: [],
     };
-    const spec = defToSpec(def, "horizontal");
+    const spec = defToSpec(def);
     // Steps spec uses the same flat string locators.
     expect(spec.source).toBe("xliff");
     expect(spec.sink).toBe("store");
@@ -173,7 +173,7 @@ describe("defToSpec", () => {
 
 describe("specToDef", () => {
   it("produces tool-only nodes (no reader/writer)", () => {
-    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools, "horizontal");
+    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools);
     expect(def.id).toBe("f1");
     expect(def.name).toBe("My Flow");
     expect(def.source).toBe("user");
@@ -191,7 +191,6 @@ describe("specToDef", () => {
       { sourceTransforms: [{ tool: "redact" }], steps: [{ tool: "ai-translate" }] },
       base,
       tools,
-      "horizontal",
     );
     const redact = def.nodes.find((n) => n.name === "redact")!;
     expect(redact.stage).toBe("source-transform");
@@ -208,7 +207,6 @@ describe("specToDef", () => {
       },
       base,
       tools,
-      "horizontal",
     );
     expect(def.binding).toEqual({
       source: "po",
@@ -217,7 +215,7 @@ describe("specToDef", () => {
   });
 
   it("omits def.binding when the spec has no source/sink", () => {
-    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools, "horizontal");
+    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools);
     expect(def.binding).toBeUndefined();
   });
 });
@@ -236,28 +234,28 @@ describe("round-trip def → spec → def", () => {
           name: "redact",
           label: "Redact",
           stage: "source-transform",
-          position: { x: 250, y: 100 },
+          position: { x: 200, y: 0 },
         },
         {
           id: "tool-1",
           type: "tool",
           name: "ai-translate",
           label: "AI Translate",
-          position: { x: 500, y: 100 },
+          position: { x: 200, y: 260 },
         },
         {
           id: "tool-2",
           type: "tool",
           name: "unredact",
           label: "Unredact",
-          position: { x: 750, y: 100 },
+          position: { x: 200, y: 520 },
         },
       ],
       edges: [],
     };
 
-    const spec = defToSpec(original, "horizontal");
-    const back = specToDef(spec, original, tools, "horizontal");
+    const spec = defToSpec(original);
+    const back = specToDef(spec, original, tools);
 
     const toolNames = back.nodes.filter((n) => n.type === "tool").map((n) => n.name);
     expect(toolNames).toEqual(["redact", "ai-translate", "unredact"]);
@@ -266,7 +264,7 @@ describe("round-trip def → spec → def", () => {
     expect(redact.stage).toBe("source-transform");
 
     // The spec round-trips identically through a second pass.
-    const spec2 = defToSpec(back, "horizontal");
+    const spec2 = defToSpec(back);
     expect(spec2.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
     expect(spec2.steps.map((s) => s.tool)).toEqual(["ai-translate", "unredact"]);
   });
@@ -278,8 +276,8 @@ describe("round-trip def → spec → def", () => {
         { tool: "", parallel: [{ tool: "ai-qa" }, { tool: "term-check" }] },
       ],
     };
-    const def = specToDef(spec, base, tools, "horizontal");
-    const spec2 = defToSpec(def, "horizontal");
+    const def = specToDef(spec, base, tools);
+    const spec2 = defToSpec(def);
 
     expect(spec2.steps[0].tool).toBe("ai-translate");
     expect(spec2.steps[1].parallel).toBeDefined();

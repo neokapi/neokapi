@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stepsToGraph, graphToSteps } from "../conversion";
+import { stepsToGraph, graphToSteps, centerAlignRows } from "../conversion";
 import type { FlowSpec, ToolInfo } from "../types";
 
 describe("stepsToGraph", () => {
@@ -41,7 +41,7 @@ describe("stepsToGraph", () => {
     };
 
     const { nodes } = stepsToGraph(spec);
-    const result = graphToSteps(nodes, "vertical", {
+    const result = graphToSteps(nodes, {
       source: spec.source,
       sink: spec.sink,
     });
@@ -50,27 +50,11 @@ describe("stepsToGraph", () => {
     expect(result.sink).toBe("store");
   });
 
-  it("auto-layouts nodes left to right in horizontal mode", () => {
-    const { nodes } = stepsToGraph(
-      { steps: [{ tool: "a" }, { tool: "b" }] },
-      undefined,
-      "horizontal",
-    );
+  it("auto-layouts the chain left to right", () => {
+    const { nodes } = stepsToGraph({ steps: [{ tool: "a" }, { tool: "b" }] });
 
     for (let i = 1; i < nodes.length; i++) {
       expect(nodes[i].position.x).toBeGreaterThan(nodes[i - 1].position.x);
-    }
-  });
-
-  it("auto-layouts nodes top to bottom in vertical mode", () => {
-    const { nodes } = stepsToGraph(
-      { steps: [{ tool: "a" }, { tool: "b" }] },
-      undefined,
-      "vertical",
-    );
-
-    for (let i = 1; i < nodes.length; i++) {
-      expect(nodes[i].position.y).toBeGreaterThan(nodes[i - 1].position.y);
     }
   });
 
@@ -129,26 +113,12 @@ describe("stepsToGraph", () => {
 });
 
 describe("graphToSteps", () => {
-  it("extracts tool nodes in correct order (vertical)", () => {
+  it("extracts tool nodes in chain order", () => {
     const { nodes } = stepsToGraph({
       steps: [{ tool: "a" }, { tool: "b" }, { tool: "c" }],
     });
 
     const result = graphToSteps(nodes);
-    expect(result.steps).toHaveLength(3);
-    expect(result.steps[0].tool).toBe("a");
-    expect(result.steps[1].tool).toBe("b");
-    expect(result.steps[2].tool).toBe("c");
-  });
-
-  it("extracts tool nodes in correct order (horizontal)", () => {
-    const { nodes } = stepsToGraph(
-      { steps: [{ tool: "a" }, { tool: "b" }, { tool: "c" }] },
-      undefined,
-      "horizontal",
-    );
-
-    const result = graphToSteps(nodes, "horizontal");
     expect(result.steps).toHaveLength(3);
     expect(result.steps[0].tool).toBe("a");
     expect(result.steps[1].tool).toBe("b");
@@ -266,5 +236,36 @@ describe("stepsToGraph IO contract fields", () => {
     const { nodes } = stepsToGraph({ steps: [{ tool: "anything" }] });
     const toolNode = nodes.find((n) => n.type === "tool");
     expect(toolNode!.data.valid).toBe(true);
+  });
+});
+
+describe("centerAlignRows", () => {
+  const node = (id: string, x: number, y: number) => ({
+    id,
+    type: "tool",
+    position: { x, y },
+    data: {},
+  });
+
+  it("centers shorter nodes on the tallest node's centerline within a row", () => {
+    const nodes = [node("a", 0, 0), node("b", 240, 0), node("c", 480, 0)];
+    const h: Record<string, number> = { a: 80, b: 160, c: 100 };
+    const out = centerAlignRows(nodes, 200, (n) => h[n.id]);
+    const centerOf = (id: string) => out.find((n) => n.id === id)!.position.y + h[id] / 2;
+    expect(out.find((n) => n.id === "b")!.position.y).toBe(0); // tallest stays put
+    expect(centerOf("a")).toBeCloseTo(centerOf("b"));
+    expect(centerOf("c")).toBeCloseTo(centerOf("b"));
+  });
+
+  it("aligns rows independently and leaves singletons untouched", () => {
+    const nodes = [node("a", 0, 0), node("b", 0, 200)];
+    const out = centerAlignRows(nodes, 200, () => 120);
+    expect(out.find((n) => n.id === "a")!.position.y).toBe(0);
+    expect(out.find((n) => n.id === "b")!.position.y).toBe(200);
+  });
+
+  it("leaves nodes untouched until their height is known", () => {
+    const nodes = [node("a", 0, 0), node("b", 240, 0)];
+    expect(centerAlignRows(nodes, 200, () => undefined)).toBe(nodes);
   });
 });

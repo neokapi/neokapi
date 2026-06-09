@@ -15,19 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flowEditor.css";
-import {
-  Play,
-  Plus,
-  X,
-  GitBranch,
-  Zap,
-  Eye,
-  ArrowDownUp,
-  ArrowLeftRight,
-  Waypoints,
-  Loader2,
-  Lock,
-} from "lucide-react";
+import { Play, Plus, X, GitBranch, Zap, Eye, Loader2, Lock } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
 import type {
@@ -60,11 +48,12 @@ import {
   DialogTitle,
 } from "@neokapi/ui-primitives";
 import {
-  stepsToGraph,
   serpentineGraph,
   graphToSteps,
+  centerAlignRows,
+  estimateNodeHeight,
   SERP_COL_W,
-  type LayoutDirection,
+  SERP_ROW_H,
   type EndpointGeom,
   type ParallelBranch,
 } from "./conversion";
@@ -522,7 +511,14 @@ export function FlowEditor({
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("serpentine");
+
+  // Measured node heights, by id, used to center-align each row (stations differ
+  // in height — a parallel group is taller than a tool node — so the connecting
+  // edges only run straight once every node in a row shares a centerline).
+  // Unknown on first paint (nodes render top-aligned, seeded by estimate), then
+  // captured from React Flow's measurements and fed back via heightVersion.
+  const heightCache = useRef<Map<string, number>>(new Map());
+  const [heightVersion, setHeightVersion] = useState(0);
 
   // Canvas width drives how many columns the serpentine layout wraps at.
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -575,11 +571,8 @@ export function FlowEditor({
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on topology, not flow
   const initial = useMemo(
-    () =>
-      layoutDirection === "serpentine"
-        ? serpentineGraph(flow, toolMap, columns)
-        : stepsToGraph(flow, toolMap, layoutDirection),
-    [topologyKey, toolMap, layoutDirection, columns],
+    () => serpentineGraph(flow, toolMap, columns),
+    [topologyKey, toolMap, columns],
   );
 
   // Compute per-node trace stats for execution state overlay.
@@ -686,43 +679,23 @@ export function FlowEditor({
     if (toolNodes.length === 0) {
       return { displayNodes: enrichedNodes, displayEdges: initial.edges };
     }
-    const isVertical = layoutDirection === "vertical";
-    const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
-    const cross = (n: Node) => (isVertical ? n.position.x : n.position.y);
     const targets = new Set(initial.edges.map((e) => e.target));
     const sources = new Set(initial.edges.map((e) => e.source));
     const roots = toolNodes.filter((n) => !targets.has(n.id));
     const leaves = toolNodes.filter((n) => !sources.has(n.id));
 
-    // Serpentine layout supplies its own endpoint geometry (positions + the
-    // handle side that faces the flow); linear layouts derive it from the
-    // chain's extent.
-    const ends = (initial as { ends?: { source: EndpointGeom; sink: EndpointGeom } }).ends;
-    const minPrimary = Math.min(...toolNodes.map(primary));
-    const maxPrimary = Math.max(...toolNodes.map(primary));
-    const crossCenter = roots.length ? cross(roots[0]) : 200;
-
-    const srcPos = ends
-      ? { x: ends.source.x, y: ends.source.y }
-      : isVertical
-        ? { x: crossCenter, y: minPrimary - 96 }
-        : { x: minPrimary - 220, y: crossCenter };
-    const sinkPos = ends
-      ? { x: ends.sink.x, y: ends.sink.y }
-      : isVertical
-        ? { x: crossCenter, y: maxPrimary + 132 }
-        : { x: maxPrimary + 240, y: crossCenter };
+    // The serpentine layout supplies its own endpoint geometry (positions + the
+    // handle side that faces the flow). `initial.nodes` here are all flow nodes,
+    // so `ends` is always present.
+    const ends = (initial as { ends?: { source: EndpointGeom; sink: EndpointGeom } }).ends!;
+    const srcPos = { x: ends.source.x, y: ends.source.y };
+    const sinkPos = { x: ends.sink.x, y: ends.sink.y };
 
     const endpointData = (role: "source" | "sink", binding?: string) => ({
       role,
       binding: parseBinding(binding),
       readOnly,
-      layoutDirection,
-      handlePosition: ends
-        ? role === "source"
-          ? ends.source.handlePosition
-          : ends.sink.handlePosition
-        : undefined,
+      handlePosition: role === "source" ? ends.source.handlePosition : ends.sink.handlePosition,
       onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
     });
 
@@ -772,20 +745,28 @@ export function FlowEditor({
       })),
     ];
 
+    // Center-align each row so the edges run straight. Seeded with an estimate
+    // for the first paint; heightVersion re-runs this with measured heights.
+    const aligned = centerAlignRows(
+      [...enrichedNodes, sourceNode, sinkNode],
+      SERP_ROW_H,
+      (n) => heightCache.current.get(n.id) ?? estimateNodeHeight(n),
+    );
+
     return {
-      displayNodes: [...enrichedNodes, sourceNode, sinkNode],
+      displayNodes: aligned,
       displayEdges: [...initial.edges, ...endpointEdges],
     };
   }, [
     enrichedNodes,
     initial.nodes,
     initial.edges,
-    layoutDirection,
     readOnly,
     flow.source,
     flow.sink,
     handleSourceChange,
     handleSinkChange,
+    heightVersion,
   ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(displayNodes);
@@ -796,6 +777,28 @@ export function FlowEditor({
     setNodes(displayNodes);
     setEdges(displayEdges);
   }, [displayNodes, displayEdges, setNodes, setEdges]);
+
+  // Node content (and therefore height) changes with topology and wrap width;
+  // drop stale measurements so rows re-measure and re-center.
+  useEffect(() => {
+    heightCache.current.clear();
+    setHeightVersion((v) => v + 1);
+  }, [topologyKey, columns]);
+
+  // Capture React Flow's measured heights; bump heightVersion (→ re-run the
+  // center-align in displayNodes) only when a height actually changes, so this
+  // settles after the first measured frame instead of looping.
+  useEffect(() => {
+    let changed = false;
+    for (const n of nodes) {
+      const h = n.measured?.height;
+      if (h && heightCache.current.get(n.id) !== h) {
+        heightCache.current.set(n.id, h);
+        changed = true;
+      }
+    }
+    if (changed) setHeightVersion((v) => v + 1);
+  }, [nodes]);
 
   // While a trace is present, animate dots flowing along every edge (DotEdge
   // reads data.flowing). Each edge animates over the same duration, so a hop to
@@ -963,14 +966,15 @@ export function FlowEditor({
   }, []);
 
   // Sync graph changes back to steps format on drag end. The source/sink
-  // bindings are not nodes, so carry them through unchanged.
+  // bindings are not nodes, so carry them through unchanged. (Inert under the
+  // serpentine layout, which is non-draggable, but kept defensive.)
   const handleNodeDragStop = useCallback(() => {
-    const updated = graphToSteps(nodes, layoutDirection, {
+    const updated = graphToSteps(nodes, {
       source: flow.source,
       sink: flow.sink,
     });
     onChange(updated);
-  }, [nodes, onChange, layoutDirection, flow.source, flow.sink]);
+  }, [nodes, onChange, flow.source, flow.sink]);
 
   // Update a source/sink binding (from the endpoint pickers). The pickers work
   // in the internal FlowBinding object; serialize it to the wire-format string
@@ -1124,7 +1128,7 @@ export function FlowEditor({
         {!showTemplates && (
           <div
             ref={canvasRef}
-            className={cn("flex-1", layoutDirection === "serpentine" && "nk-flow-anim")}
+            className={cn("flex-1", "nk-flow-anim")}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
@@ -1142,7 +1146,7 @@ export function FlowEditor({
               isValidConnection={isValidConnection}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              nodesDraggable={!readOnly && layoutDirection !== "serpentine"}
+              nodesDraggable={false}
               nodesConnectable={!readOnly}
               // Anchor the content top-left (Source at the top-left) instead of
               // centering it, at a fixed 100% zoom. Zoom is locked (min == max
@@ -1180,32 +1184,6 @@ export function FlowEditor({
                   </Button>
                 </Panel>
               )}
-
-              <Panel position="bottom-left">
-                <Button
-                  variant="outline"
-                  size="icon-xs"
-                  onClick={() => {
-                    // Cycle: serpentine → vertical → horizontal → serpentine.
-                    setLayoutDirection((d) =>
-                      d === "serpentine"
-                        ? "vertical"
-                        : d === "vertical"
-                          ? "horizontal"
-                          : "serpentine",
-                    );
-                  }}
-                  title={`Layout: ${layoutDirection} (click to switch)`}
-                >
-                  {layoutDirection === "serpentine" ? (
-                    <Waypoints size={12} />
-                  ) : layoutDirection === "vertical" ? (
-                    <ArrowDownUp size={12} />
-                  ) : (
-                    <ArrowLeftRight size={12} />
-                  )}
-                </Button>
-              </Panel>
 
               <Panel position="top-right">
                 <FlowLegend />
