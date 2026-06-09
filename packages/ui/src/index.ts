@@ -3,6 +3,7 @@
 
 // Utility
 export { cn } from "./lib/utils";
+export { PortalThemeProvider, usePortalThemeClass } from "./lib/portal-theme";
 
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";

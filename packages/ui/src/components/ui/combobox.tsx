@@ -2,6 +2,7 @@ import * as React from "react";
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 
 import { cn } from "../../lib/utils";
+import { usePortalThemeClass } from "../../lib/portal-theme";
 import { Button } from "./button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "./input-group";
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react";
@@ -85,6 +86,7 @@ function ComboboxContent({
     ComboboxPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "anchor"
   >) {
+  const portalThemeClass = usePortalThemeClass();
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
@@ -93,7 +95,7 @@ function ComboboxContent({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
-        className="isolate z-50"
+        className={cn("isolate z-50", portalThemeClass)}
       >
         <ComboboxPrimitive.Popup
           data-slot="combobox-content"

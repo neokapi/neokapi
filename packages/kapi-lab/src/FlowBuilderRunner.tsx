@@ -11,6 +11,7 @@ import type { FileSourceValue } from "./FileSource";
 import FlowTracePlayer from "./FlowTracePlayer";
 import { SAMPLES } from "./samples";
 import type { FlowTrace } from "@neokapi/ui-primitives/preview";
+import { PortalThemeProvider } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
 
@@ -45,6 +46,24 @@ const CATEGORY_MAP: Record<string, string> = {
   "text-processing": "transform",
 };
 
+// The reference dataset encodes IO ports as "type@side" tokens (a consumed port
+// carries a trailing "?" when optional); the flow editor's ToolInfo wants typed
+// IOPort objects. parsePorts bridges the two so the lab's nodes render the same
+// typed IO chips as the desktop/web editors.
+type IOPort = NonNullable<ToolInfo["consumes"]>[number];
+
+function parsePorts(tokens: string[] | undefined): IOPort[] | undefined {
+  if (!tokens?.length) return undefined;
+  return tokens.map((tok) => {
+    const optional = tok.endsWith("?");
+    const body = optional ? tok.slice(0, -1) : tok;
+    const at = body.lastIndexOf("@");
+    const type = at >= 0 ? body.slice(0, at) : body;
+    const side = (at >= 0 ? body.slice(at + 1) : "source") as IOPort["side"];
+    return { type, side, ...(optional ? { optional: true } : {}) };
+  });
+}
+
 // Build the palette's ToolInfo[] from the generated reference dataset so the
 // names, descriptions and IO contracts stay truthful to the live engine. We
 // keep only the browser-safe ids and remap the category for display.
@@ -59,8 +78,9 @@ export function buildToolInfos(): ToolInfo[] {
       description: entry.description ?? "",
       category: CATEGORY_MAP[entry.category ?? ""] ?? "pipeline",
       has_schema: !!entry.schema,
-      inputs: entry.inputs,
-      outputs: entry.outputs,
+      consumes: parsePorts(entry.consumes),
+      produces: parsePorts(entry.produces),
+      side_effects: entry.sideEffects,
       tags: entry.tags,
       requires: entry.requires,
       cardinality: entry.cardinality as ToolInfo["cardinality"],
@@ -254,52 +274,57 @@ export default function FlowBuilderRunner({
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
     // --border, …) the flow-editor's Tailwind classes resolve against; the docs
     // site scopes those vars to that class so they don't leak into Infima docs.
-    <div className={`${shared.explorer} kapi-reference`}>
-      <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />
+    // PortalThemeProvider carries that same class onto popover content (the
+    // source/sink dropdowns, tool-config selects) which Radix portals to
+    // document.body — outside this wrapper — so their theme vars still resolve.
+    <PortalThemeProvider className="kapi-reference">
+      <div className={`${shared.explorer} kapi-reference`}>
+        <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />
 
-      {/* Sized container — FlowEditor lays out as `h-full`, so the host must
+        {/* Sized container — FlowEditor lays out as `h-full`, so the host must
           give it explicit dimensions or it collapses to zero height. */}
-      <div className={styles.editorFrame}>
-        <FlowEditor
-          flow={flow}
-          tools={toolInfos}
-          onChange={setFlow}
-          onGetSchema={handleGetSchema}
-          onGetDoc={handleGetDoc}
-          onRun={(spec) => void runFlow(spec)}
-          runDisabled={!runtime.ready || busy}
-        />
-      </div>
+        <div className={styles.editorFrame}>
+          <FlowEditor
+            flow={flow}
+            tools={toolInfos}
+            onChange={setFlow}
+            onGetSchema={handleGetSchema}
+            onGetDoc={handleGetDoc}
+            onRun={(spec) => void runFlow(spec)}
+            runDisabled={!runtime.ready || busy}
+          />
+        </div>
 
-      <div className={shared.pickerRow}>
-        <span className={shared.pickerLabel}>
-          {stepCount} tool{stepCount !== 1 ? "s" : ""} in this flow
-        </span>
-        <button
-          className={shared.runButton}
-          onClick={() => void runFlow(flow)}
-          disabled={!runtime.ready || busy}
-        >
-          <Play size={14} /> Run flow
-        </button>
-      </div>
+        <div className={shared.pickerRow}>
+          <span className={shared.pickerLabel}>
+            {stepCount} tool{stepCount !== 1 ? "s" : ""} in this flow
+          </span>
+          <button
+            className={shared.runButton}
+            onClick={() => void runFlow(flow)}
+            disabled={!runtime.ready || busy}
+          >
+            <Play size={14} /> Run flow
+          </button>
+        </div>
 
-      <div className={`${shared.statusBar} ${error ? shared.statusError : ""}`}>
-        {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
-        {runtime.status === "error" && `Failed to start: ${runtime.error}`}
-        {runtime.ready && busy && "Running your flow…"}
-        {runtime.ready && !busy && error && `Error: ${error}`}
-      </div>
+        <div className={`${shared.statusBar} ${error ? shared.statusError : ""}`}>
+          {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
+          {runtime.status === "error" && `Failed to start: ${runtime.error}`}
+          {runtime.ready && busy && "Running your flow…"}
+          {runtime.ready && !busy && error && `Error: ${error}`}
+        </div>
 
-      {trace ? (
-        <FlowTracePlayer trace={trace} showDescription={false} />
-      ) : (
-        !error && (
-          <div className={shared.emptyHint}>
-            Edit the flow above, then press Run flow to watch it execute step by step.
-          </div>
-        )
-      )}
-    </div>
+        {trace ? (
+          <FlowTracePlayer trace={trace} showDescription={false} />
+        ) : (
+          !error && (
+            <div className={shared.emptyHint}>
+              Edit the flow above, then press Run flow to watch it execute step by step.
+            </div>
+          )
+        )}
+      </div>
+    </PortalThemeProvider>
   );
 }
