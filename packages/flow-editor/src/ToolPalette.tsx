@@ -3,6 +3,7 @@ import { Search, ChevronDown, ChevronRight, GripVertical, Layers } from "lucide-
 import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
+import { IoContract } from "./nodes/PortChip";
 
 interface ToolPaletteProps {
   tools: ToolInfo[];
@@ -201,6 +202,13 @@ function PaletteItem({
             </span>
           )}
         </div>
+        {/* Compact IO preview: what this tool reads → writes */}
+        {((tool.consumes && tool.consumes.length > 0) ||
+          (tool.produces && tool.produces.length > 0)) && (
+          <div className="mt-0.5">
+            <IoContract consumes={tool.consumes} produces={tool.produces} max={3} />
+          </div>
+        )}
       </div>
     </button>
   );

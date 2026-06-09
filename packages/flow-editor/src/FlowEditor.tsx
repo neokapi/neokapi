@@ -41,6 +41,7 @@ import { parseBinding, formatBinding } from "./defAdapter";
 import { ToolNode } from "./nodes/ToolNode";
 import { EndpointNode } from "./nodes/EndpointNode";
 import { ParallelGroupNode } from "./nodes/ParallelGroupNode";
+import { IoContract } from "./nodes/PortChip";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
@@ -361,6 +362,20 @@ export function StepConfigPanel({
                 ⚡ {se}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Typed IO contract: what this tool reads → writes */}
+        {((toolInfo?.consumes && toolInfo.consumes.length > 0) ||
+          (toolInfo?.produces && toolInfo.produces.length > 0)) && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">IO</span>
+            <IoContract
+              consumes={toolInfo?.consumes}
+              produces={toolInfo?.produces}
+              max={8}
+              showLabels
+            />
           </div>
         )}
 
