@@ -14,9 +14,21 @@ const CENTER = 200; // cross-axis center
 // Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
 // never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
 export const SERP_COL_W = 240; // horizontal stride between columns (node max-w 200 + side chips + gap)
-const SERP_ROW_H = 190; // vertical stride between wrapped rows
-const SERP_BRANCH_DY = 110; // vertical offset between parallel branches in a column
-const SERP_ENDPOINT_V = 18; // nudge endpoints down to center with the taller tool row
+const SERP_ROW_H = 200; // vertical stride between wrapped rows
+
+// Known node box dimensions (ToolNode is fixed-height; the others are stable
+// enough to center against). Rows are CENTER-aligned on a lane so mixed-height
+// nodes (a tall parallel group beside short tool/endpoint nodes) share one
+// centerline — every handle then sits at the same cross-axis coordinate and the
+// connectors are straight.
+export const TOOL_NODE_H = 84;
+const TOOL_NODE_W = 200;
+const ENDPOINT_H = 48;
+const ENDPOINT_W = 190;
+const PARALLEL_W = 220;
+// Estimated parallel-group height: header + one row per branch. Kept in sync
+// with ParallelGroupNode's layout so the group centers on the row lane.
+const parallelHeight = (branches: number) => 40 + Math.max(1, branches) * 33;
 
 const EDGE_MARKER = {
   type: MarkerType.Arrow,
@@ -279,58 +291,56 @@ export function serpentineGraph(
 
   // Reading-order wrap: rows fill left→right and wrap top-to-bottom (like text).
   // Source is the first station (top-left); Sink is pinned to the bottom-right
-  // of the last row. With >1 column the flow runs horizontally (out=Right /
-  // in=Left) and the end-of-row → start-of-next wrap edge sweeps right→left;
-  // with a single column the whole flow is vertical (out=Bottom / in=Top).
+  // of the last row. Rows are CENTER-aligned on a lane so a tall parallel group
+  // shares its centerline with the short tool/endpoint nodes beside it — every
+  // handle then lands at the same cross-axis coordinate and the in-row connector
+  // is dead straight. Handle SIDES follow the chain: an edge crossing to another
+  // row uses Bottom→Top (a clean vertical wrap), within a row Right→Left.
   const vertical = columns === 1;
-  const inPos = vertical ? Position.Top : Position.Left;
-  const outPos = vertical ? Position.Bottom : Position.Right;
-  const slotPos = (slot: number) => ({
-    x: (slot % columns) * SERP_COL_W,
-    y: Math.floor(slot / columns) * SERP_ROW_H,
-  });
+  const N = colKeys.length;
+  const rowOf = (slot: number) => Math.floor(slot / columns);
+  const slotX = (slot: number) => (slot % columns) * SERP_COL_W;
+  const laneCenterY = (row: number) => row * SERP_ROW_H + TOOL_NODE_H / 2;
+  const laneCenterX = TOOL_NODE_W / 2;
+  const nodeHeight = (n: Node) =>
+    n.type === "parallel"
+      ? parallelHeight((n.data.branches as unknown[] | undefined)?.length ?? 1)
+      : TOOL_NODE_H;
+  const nodeWidth = (n: Node) => (n.type === "parallel" ? PARALLEL_W : TOOL_NODE_W);
+
+  // Sink placement: same row to the right when there's room, else the rightmost
+  // column of a new row (bottom-right). Computed first because the last tool's
+  // output side depends on whether the sink wrapped to a new row.
+  const lastRow = rowOf(N);
+  const lastCol = N % columns;
+  const sinkRow = vertical ? N + 1 : lastCol < columns - 1 ? lastRow : lastRow + 1;
+  const sinkCol = vertical ? 0 : lastCol < columns - 1 ? lastCol + 1 : columns - 1;
 
   colKeys.forEach((key, g) => {
-    const base0 = slotPos(g + 1); // tools occupy slots 1..N (slot 0 is Source)
-    const group = colMap.get(key)!;
-    // Parallel branches fan out perpendicular to the flow so they never stack:
-    // horizontally when the column flows down, vertically when it flows across.
-    const stride = vertical ? SERP_COL_W : SERP_BRANCH_DY;
-    const span = (group.length - 1) * stride;
-    group.forEach((n, b) => {
-      const off = b * stride - span / 2;
-      n.position = vertical ? { x: base0.x + off, y: base0.y } : { x: base0.x, y: base0.y + off };
-      n.data.inPosition = inPos;
-      n.data.outPosition = outPos;
-    });
+    const slot = g + 1; // tools occupy slots 1..N (slot 0 is Source)
+    const row = rowOf(slot);
+    const inPosition = row > rowOf(slot - 1) ? Position.Top : Position.Left;
+    const nextRow = slot < N ? rowOf(slot + 1) : sinkRow;
+    const outPosition = nextRow > row ? Position.Bottom : Position.Right;
+    for (const n of colMap.get(key)!) {
+      n.position = vertical
+        ? { x: laneCenterX - nodeWidth(n) / 2, y: row * SERP_ROW_H }
+        : { x: slotX(slot), y: laneCenterY(row) - nodeHeight(n) / 2 };
+      n.data.inPosition = inPosition;
+      n.data.outPosition = outPosition;
+    }
   });
 
-  // Endpoints are shorter than tool nodes; nudge them down so their handle
-  // centers line up with the tool row (straight connectors, no vertical jog).
-  const srcPos = slotPos(0);
   const source: EndpointGeom = {
-    x: srcPos.x,
-    y: srcPos.y + SERP_ENDPOINT_V,
-    handlePosition: outPos,
+    x: vertical ? laneCenterX - ENDPOINT_W / 2 : 0,
+    y: vertical ? 0 : laneCenterY(0) - ENDPOINT_H / 2,
+    handlePosition: rowOf(1) > 0 ? Position.Bottom : Position.Right,
   };
 
-  // Sink: pinned to the bottom-right of the last row (rule #2). With one column
-  // it simply sits below the last tool.
-  const lastSlot = colKeys.length; // slot index of the final tool column
-  let sinkPos: { x: number; y: number };
-  if (vertical) {
-    sinkPos = slotPos(lastSlot + 1);
-  } else {
-    const lastRow = Math.floor(lastSlot / columns);
-    const lastCol = lastSlot % columns;
-    // Same row as the last tool when there's room to its right, else a new row.
-    const sinkRow = lastCol < columns - 1 ? lastRow : lastRow + 1;
-    sinkPos = { x: (columns - 1) * SERP_COL_W, y: sinkRow * SERP_ROW_H };
-  }
   const sink: EndpointGeom = {
-    x: sinkPos.x,
-    y: sinkPos.y + SERP_ENDPOINT_V,
-    handlePosition: inPos,
+    x: vertical ? laneCenterX - ENDPOINT_W / 2 : sinkCol * SERP_COL_W,
+    y: vertical ? sinkRow * SERP_ROW_H : laneCenterY(sinkRow) - ENDPOINT_H / 2,
+    handlePosition: sinkRow > lastRow ? Position.Top : Position.Left,
   };
 
   return { nodes: base.nodes, edges: base.edges, ends: { source, sink } };

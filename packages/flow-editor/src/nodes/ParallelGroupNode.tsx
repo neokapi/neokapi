@@ -25,19 +25,15 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const selectedBranch = data.selectedBranch as number | undefined;
   const unmet = data.unmet as string[] | undefined;
 
+  // Handles sit at the group's own center; the serpentine layout center-aligns
+  // every node in a row on a shared lane, so this still lines up with the
+  // adjacent single-tool nodes for straight connectors.
   const handleStyle = {
     width: 8,
     height: 8,
     background: PARALLEL_COLOR,
     border: "2px solid var(--card)",
   } as const;
-
-  // When the group flows horizontally it is taller than a single tool node, so
-  // pin its in/out handles to the tool-row center (42px = 84px tool height / 2)
-  // instead of the group's own mid-height — keeping the connectors to adjacent
-  // single nodes perfectly horizontal.
-  const horizontal = inPosition === Position.Left || inPosition === Position.Right;
-  const hStyle = horizontal ? { ...handleStyle, top: 42 } : handleStyle;
 
   return (
     <div
@@ -49,7 +45,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
           : "0 2px 8px oklch(0 0 0 / 0.2)",
       }}
     >
-      <Handle type="target" position={inPosition} style={hStyle} />
+      <Handle type="target" position={inPosition} style={handleStyle} />
 
       {/* Header */}
       <div className="flex items-center gap-1 px-3 pt-2">
@@ -124,7 +120,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle type="source" position={outPosition} style={hStyle} />
+      <Handle type="source" position={outPosition} style={handleStyle} />
 
       {onRemove && (
         <button

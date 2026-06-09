@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { evaluateCondition } from "../components/schema-form/hooks/useConditionalVisibility";
 import { resolveWidgetName, WIDGET_NAMES } from "../components/schema-form/registry";
-import { resolveRef, hasAdditionalProperties } from "../components/schema-form/utils";
+import { resolveRef, hasAdditionalProperties, humanizeKey } from "../components/schema-form/utils";
 import type { PropertySchema, ConditionExpr } from "../components/schema-form/types";
 
 // ── evaluateCondition ──────────────────────────────────────────────────
@@ -198,5 +198,26 @@ describe("hasAdditionalProperties", () => {
 
   it("returns false when undefined", () => {
     expect(hasAdditionalProperties({ type: "object" })).toBe(false);
+  });
+});
+
+// ── humanizeKey ────────────────────────────────────────────────────────
+
+describe("humanizeKey", () => {
+  it("splits camelCase into title-cased words", () => {
+    expect(humanizeKey("checkLeadingWhitespace")).toBe("Check Leading Whitespace");
+  });
+
+  it("splits snake_case and kebab-case", () => {
+    expect(humanizeKey("target_language")).toBe("Target Language");
+    expect(humanizeKey("source-locale")).toBe("Source Locale");
+  });
+
+  it("keeps acronym runs together", () => {
+    expect(humanizeKey("enableTMLookup")).toBe("Enable TM Lookup");
+  });
+
+  it("title-cases a single lowercase word", () => {
+    expect(humanizeKey("model")).toBe("Model");
   });
 });

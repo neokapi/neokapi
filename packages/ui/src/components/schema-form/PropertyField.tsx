@@ -7,7 +7,7 @@ import { evaluateCondition } from "./hooks/useConditionalVisibility";
 import { useFieldEnabled } from "./hooks/useFieldEnabled";
 import { usePresetComparison } from "./hooks/usePresetComparison";
 import { resolveWidgetName } from "./registry";
-import { resolveRef, hasAdditionalProperties } from "./utils";
+import { resolveRef, hasAdditionalProperties, humanizeKey } from "./utils";
 import { FieldWrapper } from "./primitives/FieldWrapper";
 import { CodeInput } from "../ui/code-input";
 import { TagInput } from "../ui/tag-input";
@@ -61,7 +61,7 @@ export function PropertyField({
   const visible = evaluateCondition(schema["ui:visible"], allValues, allProperties);
   if (!visible) return null;
 
-  const label = schema.title || name;
+  const label = schema.title || humanizeKey(name);
   const resolved = value ?? schema.default;
   const widget = resolveWidgetName(schema["ui:widget"]);
   const options = schema.options;
