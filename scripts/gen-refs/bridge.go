@@ -31,6 +31,8 @@ type bridgeCap struct {
 	Category     string   `json:"category"`
 	Inputs       []string `json:"inputs"`
 	Outputs      []string `json:"outputs"`
+	Consumes     []string `json:"consumes"`
+	Produces     []string `json:"produces"`
 	Tags         []string `json:"tags"`
 	Requires     []string `json:"requires"`
 	Schema       string   `json:"schema"`
@@ -96,6 +98,8 @@ func collectBridge(pluginDir string) (formats, tools []Entry, err error) {
 			e.Category = coreschema.NormalizeCategory(cap.Category)
 			e.Inputs = cap.Inputs
 			e.Outputs = cap.Outputs
+			e.Consumes = cap.Consumes
+			e.Produces = cap.Produces
 			e.Tags = cap.Tags
 			e.Requires = cap.Requires
 		default:
