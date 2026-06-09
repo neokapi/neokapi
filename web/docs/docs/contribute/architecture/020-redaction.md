@@ -87,6 +87,29 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   annotator runs ahead of redact in the flow's source-transform (settle) stage,
   `ai-entity-extract` and `redact` can sit in the same flow (see AD-006).
 
+  The categories are the **option surface** a user picks — "redact people",
+  "redact dates", … — via `redact`'s `entityTypes` (person, org, product,
+  location, date, time, currency, measurement, role, other; aliases and the
+  model `entity:` prefix normalize, validated against `redaction.EntityCategories`).
+  Naming any category enables entity detection, so the user doesn't also list the
+  `entities` detector. Dates/times/currencies/measurements are excluded from the
+  defaults (they usually need locale formatting, not hiding) but are opt-in.
+
+  **Conditional requirement, not a new schema language.** Two distinct
+  "requirements" are in play and neither needs a config-condition DSL: the
+  *resource* requirement (NER ⇒ an LLM credential) lives statically on
+  `ai-entity-extract`; `redact` calls no provider and declares no `Requires`, so
+  enabling a category adds no resource requirement to redact — you add the NER
+  tool to the flow (composition). The *input* requirement — redact needs an
+  entity overlay when entity detection is on — is a **config-derived IO
+  contract**: `tools.ResolveRedactContract` (registered via
+  `ToolRegistry.SetContractResolver`) flips redact's `entity` consumed port from
+  optional to **required** when its config enables entities, so a flow that
+  redacts entities with no upstream producer fails `ValidateDataFlow` instead of
+  silently leaving the content unredacted (and leaking it downstream). With only
+  rule-based detection redact reads no upstream port and the contract is
+  unchanged.
+
 Redaction rewrites the source, so `redact` drops the entity overlay it consumed
 (its spans are now stale) and **rebases** any *other* surviving source overlay —
 e.g. a term tag from an upstream term annotator — onto the redacted runs via
@@ -109,6 +132,17 @@ formats differ in whether they preserve inline structure on write:
 
 - `kapi run secure-translate -i <file> --target-lang <l>` — the in-process flow
   `reader → redact → ai-translate → unredact → writer`.
+- `kapi run redact-pii -i <file>` — the built-in NER flow: `ai-entity-extract`
+  (detect entities) → `redact` (configured for person/org/location/date), both
+  in the settle stage. Equivalent recipe:
+  ```yaml
+  source_transforms:
+    - tool: ai-entity-extract
+    - tool: redact
+      config:
+        detectors: [entities]
+        entityTypes: [person, org, location, date]
+  ```
 - `kapi extract --redact` (or `--redact-rules <path>`) — emits a redacted
   bilingual file and writes the vault sidecar for the batch.
 - `kapi merge` — restores originals from the batch sidecar after applying the

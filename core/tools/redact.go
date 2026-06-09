@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/redaction"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -33,7 +34,7 @@ type RedactConfig struct {
 	Detectors   []string `json:"detectors,omitempty" schema:"title=Detectors,description=Detection backends to run: rules and/or entities"`
 	RulesPath   string   `json:"rulesPath,omitempty" schema:"title=Rules File,description=Path to a redaction rules YAML file"`
 	Placeholder string   `json:"placeholder,omitempty" schema:"title=Placeholder Template,description=Visible stand-in template; supports {category} and {n}"`
-	EntityTypes []string `json:"entityTypes,omitempty" schema:"title=Entity Categories,description=Entity categories to redact when 'entities' detection is enabled"`
+	EntityTypes []string `json:"entityTypes,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as ai-entity-extract)."`
 
 	// Rules supplies rules inline as an alternative (or addition) to RulesPath.
 	Rules []redaction.Rule `json:"rules,omitempty" schema:"-"`
@@ -70,7 +71,25 @@ func (c *RedactConfig) Validate() error {
 			return fmt.Errorf("redact: unknown detector %q (want %q or %q)", d, DetectRules, DetectEntities)
 		}
 	}
+	for _, et := range c.EntityTypes {
+		if _, ok := redaction.NormalizeEntityCategory(et); !ok {
+			return fmt.Errorf("redact: unknown entity category %q (want one of: %s)", et, strings.Join(redaction.EntityCategories, ", "))
+		}
+	}
 	return nil
+}
+
+// entityDetectionEnabled reports whether the config selects the entity detector
+// — explicitly via Detectors, or implicitly by naming entity categories to
+// redact (e.g. "redact dates"). When true, redact needs an upstream entity
+// overlay (see ResolveRedactContract).
+func (c *RedactConfig) entityDetectionEnabled() bool {
+	for _, d := range c.Detectors {
+		if d == DetectEntities {
+			return true
+		}
+	}
+	return len(c.EntityTypes) > 0
 }
 
 // RedactSchema returns the auto-generated schema for the redact tool.
@@ -91,6 +110,34 @@ func RedactSchema() *schema.ComponentSchema {
 			schema.Port(redaction.SecretAnnotationKey, model.SideSource),
 		},
 	})
+}
+
+// ResolveRedactContract refines redact's IO contract from its config: when
+// entity detection is enabled (the "entities" detector, or any entityTypes set),
+// the upstream entity overlay becomes a *required* input. So a flow that redacts
+// entities without an entity producer upstream (an NER step such as
+// ai-entity-extract, or a store/interchange source carrying entities) fails
+// data-flow validation instead of silently redacting nothing — which would leak
+// the very content it was meant to hide to the downstream translator. With only
+// rule-based detection, redact reads no upstream port and the contract is
+// unchanged. Registered via ToolRegistry.SetContractResolver; see AD-020/AD-006.
+func ResolveRedactContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
+	var cfg RedactConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return base
+	}
+	if !cfg.entityDetectionEnabled() {
+		return base
+	}
+	consumes := make([]schema.IOPort, len(base.Consumes))
+	copy(consumes, base.Consumes)
+	for i := range consumes {
+		if consumes[i].Type == string(model.OverlayEntity) && consumes[i].Side == model.SideSource {
+			consumes[i].Optional = false
+		}
+	}
+	base.Consumes = consumes
+	return base
 }
 
 // RedactTool replaces sensitive source spans with protected redaction
@@ -156,12 +203,21 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		}
 	}
 
+	// Naming entity categories to redact (e.g. "redact dates") implies entity
+	// detection, so the user doesn't also have to list the "entities" detector.
+	if len(cfg.EntityTypes) > 0 {
+		t.useEntities = true
+	}
 	cats := cfg.EntityTypes
 	if len(cats) == 0 {
 		cats = defaultEntityCategories
 	}
 	for _, c := range cats {
-		t.entityCats[c] = true
+		// Normalize so "Dates"/"organization"/"entity:person" all map to a
+		// canonical category; unknown names are rejected by Validate upstream.
+		if canon, ok := redaction.NormalizeEntityCategory(c); ok {
+			t.entityCats[canon] = true
+		}
 	}
 
 	if cfg.VaultPath != "" {

@@ -741,14 +741,15 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 
 	// Extract tool node names in topological order (by X position).
 	type toolPos struct {
-		name  string
-		x     float64
-		stage flow.FlowStage
+		name   string
+		x      float64
+		stage  flow.FlowStage
+		config map[string]any
 	}
 	var toolNodes []toolPos
 	for _, n := range flowDef.Nodes {
 		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage})
+			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage, config: n.Config})
 		}
 	}
 	slices.SortFunc(toolNodes, func(a, b toolPos) int {
@@ -806,7 +807,13 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 
 	var stageTools []tool.Tool
 	for _, tn := range toolNodes {
-		t, toolCleanup, err := a.buildToolByName(tn.name, config, cmd...)
+		// A graph/built-in node may carry per-tool config (e.g. redact's detectors
+		// and entityTypes); overlay it on the shared run config for this node only.
+		toolConfig := config
+		if len(tn.config) > 0 {
+			toolConfig = mergeFlowNodeConfig(config, tn.config)
+		}
+		t, toolCleanup, err := a.buildToolByName(tn.name, toolConfig, cmd...)
 		if err != nil {
 			cleanup()
 			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
@@ -836,6 +843,20 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	}
 
 	return builtTools, cleanup, nil
+}
+
+// mergeFlowNodeConfig overlays a flow node's per-tool config onto the shared run
+// config, returning a new map (the node values win). The shared config is left
+// untouched so sibling nodes don't see each other's overrides.
+func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
+	m := make(map[string]any, len(base)+len(over))
+	for k, v := range base {
+		m[k] = v
+	}
+	for k, v := range over {
+		m[k] = v
+	}
+	return m
 }
 
 // anySourceTransform reports whether any of the built tools is

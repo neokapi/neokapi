@@ -50,6 +50,14 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+		// NER annotator: produces the source-side entity and term-candidate
+		// overlays a later tool (e.g. redact) consumes. Declaring them lets the
+		// data-flow contract satisfy redact's required entity input when the two
+		// run in one flow's settle stage (AD-006).
+		Produces: []schema.IOPort{
+			{Type: string(model.OverlayEntity), Side: model.SideSource},
+			{Type: string(model.OverlayTermCandidate), Side: model.SideSource},
+		},
 	})
 	injectProviderOptions(s)
 	return s

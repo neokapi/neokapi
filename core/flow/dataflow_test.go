@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,6 +117,59 @@ func TestValidateDataFlow_QABeforeTranslateRejected(t *testing.T) {
 		Binding: &flow.FlowBinding{Source: "file"},
 	}
 	assert.Error(t, def.ValidateDataFlow(reg))
+}
+
+// Config-derived contract: redact configured for entity detection requires an
+// upstream entity overlay. On a plain file source with no NER step, the flow is
+// rejected — so a misconfigured PII-redaction flow fails fast instead of
+// silently leaving entities unredacted.
+func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
+	t.Parallel()
+	reg := dataflowReg(t)
+
+	redactEntities := flow.FlowNode{
+		ID: "r", Type: flow.NodeTool, Name: "redact", Stage: flow.StageSourceTransform,
+		Position: flow.NodePosition{X: 250},
+		Config:   map[string]any{"detectors": []string{"entities"}, "entityTypes": []string{"person"}},
+	}
+
+	bad := flow.FlowDefinition{
+		ID: "redact-no-ner", Name: "redact no ner",
+		Nodes:   []flow.FlowNode{redactEntities},
+		Binding: &flow.FlowBinding{Source: "file"},
+	}
+	err := bad.ValidateDataFlow(reg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "redact")
+	assert.Contains(t, err.Error(), string(model.OverlayEntity))
+
+	// A rules-only redact on the same file source has no such requirement.
+	rulesOnly := flow.FlowDefinition{
+		ID: "redact-rules", Name: "redact rules",
+		Nodes: []flow.FlowNode{{ID: "r", Type: flow.NodeTool, Name: "redact", Stage: flow.StageSourceTransform,
+			Config: map[string]any{"detectors": []string{"rules"}}}},
+		Binding: &flow.FlowBinding{Source: "file"},
+	}
+	assert.NoError(t, rulesOnly.ValidateDataFlow(reg))
+
+	// With an upstream NER step producing the entity overlay, entity redaction is
+	// satisfied.
+	reg.RegisterWithSchema("stub-ner", func() tool.Tool {
+		return &tool.BaseTool{ToolName: "stub-ner", Annotate: func(tool.BlockView) error { return nil }}
+	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
+		ID:       "stub-ner",
+		Produces: []schema.IOPort{{Type: string(model.OverlayEntity), Side: model.SideSource}},
+	}})
+	good := flow.FlowDefinition{
+		ID: "ner-redact", Name: "ner then redact",
+		Nodes: []flow.FlowNode{
+			{ID: "n", Type: flow.NodeTool, Name: "stub-ner", Stage: flow.StageSourceTransform, Position: flow.NodePosition{X: 0}},
+			redactEntities,
+		},
+		Edges:   []flow.FlowEdge{{ID: "e", Source: "n", Target: "r"}},
+		Binding: &flow.FlowBinding{Source: "file"},
+	}
+	assert.NoError(t, good.ValidateDataFlow(reg))
 }
 
 // Unknown (plugin) tools are skipped, not rejected.

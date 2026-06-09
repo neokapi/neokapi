@@ -7,6 +7,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/redaction"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,6 +171,60 @@ func TestRedactTool_PreservesUpstreamTermOverlay(t *testing.T) {
 	sp := rb.OverlaySpan(model.OverlayTerm, "term:england")
 	require.NotNil(t, sp, "the unrelated term overlay must survive the redaction")
 	assert.Equal(t, "England", model.RunsText(sp.Range.ExtractRuns(rb.Source)))
+}
+
+func TestRedactConfig_EntityCategoryValidation(t *testing.T) {
+	// Friendly names and aliases (plurals, "organization") are accepted.
+	require.NoError(t, (&tools.RedactConfig{EntityTypes: []string{"person", "dates", "organization"}}).Validate())
+	// An unknown category is rejected with a helpful message.
+	err := (&tools.RedactConfig{EntityTypes: []string{"bogus"}}).Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown entity category")
+}
+
+// TestRedactTool_EntityTypesEnablesEntities shows the ergonomic options: naming
+// categories to redact ("redact dates", "redact person names") enables entity
+// detection without also listing the "entities" detector, and aliases/case
+// normalize to canonical categories.
+func TestRedactTool_EntityTypesEnablesEntities(t *testing.T) {
+	tl, err := tools.NewRedactTool(&tools.RedactConfig{EntityTypes: []string{"Dates", "people"}})
+	require.NoError(t, err)
+
+	block := model.NewBlock("b1", "Bob shipped on 2024-01-02")
+	block.SourceLocale = "en"
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID: "e0", Range: model.RunRangeForBytes(block.Source, 0, 3),
+		Value: &model.EntityAnnotation{Text: "Bob", Type: model.EntityPerson},
+	})
+	dateStart := strings.Index(block.SourceText(), "2024-01-02")
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID: "e1", Range: model.RunRangeForBytes(block.Source, dateStart, dateStart+len("2024-01-02")),
+		Value: &model.EntityAnnotation{Text: "2024-01-02", Type: model.EntityDate},
+	})
+
+	rb := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block}).Resource.(*model.Block)
+	assert.NotContains(t, rb.SourceText(), "Bob", "person redacted")
+	assert.NotContains(t, rb.SourceText(), "2024-01-02", "date redacted")
+}
+
+// TestResolveRedactContract is the config-derived contract: entity detection
+// makes the upstream entity overlay a required input, so a flow that redacts
+// entities without an NER step fails data-flow validation instead of silently
+// leaving PII unredacted. Rule-based detection requires no upstream port.
+func TestResolveRedactContract(t *testing.T) {
+	base := registry.ToolInfo{
+		Consumes: []schema.IOPort{{Type: string(model.OverlayEntity), Side: model.SideSource, Optional: true}},
+	}
+	rulesOnly := tools.ResolveRedactContract(map[string]any{"detectors": []string{"rules"}}, base)
+	assert.True(t, rulesOnly.Consumes[0].Optional, "rules-only: entity input stays optional")
+
+	withEntities := tools.ResolveRedactContract(map[string]any{"detectors": []string{"entities"}}, base)
+	assert.False(t, withEntities.Consumes[0].Optional, "entities detector: entity input is required")
+
+	byCategories := tools.ResolveRedactContract(map[string]any{"entityTypes": []string{"person"}}, base)
+	assert.False(t, byCategories.Consumes[0].Optional, "naming categories also requires the entity input")
+
+	assert.True(t, base.Consumes[0].Optional, "resolver must not mutate the base contract")
 }
 
 func TestRedactTool_NoMatchesPassThrough(t *testing.T) {
