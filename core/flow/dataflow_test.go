@@ -150,7 +150,7 @@ func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
 			Config: map[string]any{"detectors": []string{"rules"}}}},
 		Binding: &flow.FlowBinding{Source: "file"},
 	}
-	assert.NoError(t, rulesOnly.ValidateDataFlow(reg))
+	require.NoError(t, rulesOnly.ValidateDataFlow(reg))
 
 	// With an upstream NER step producing the entity overlay, entity redaction is
 	// satisfied.
