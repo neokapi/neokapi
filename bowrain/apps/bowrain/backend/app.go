@@ -266,6 +266,12 @@ type ToolInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Category    string `json:"category"`
+	// Cardinality / DefaultLocale / Requires / SideEffects are the rest of the
+	// tool's metadata (AD-006), surfaced to the flow editor for its badges.
+	Cardinality   string   `json:"cardinality,omitempty"`
+	DefaultLocale string   `json:"default_locale,omitempty"`
+	Requires      []string `json:"requires,omitempty"`
+	SideEffects   []string `json:"side_effects,omitempty"`
 	// Consumes / Produces are the tool's IO contract (AD-006), surfaced
 	// to the flow editor so it can type ports and validate connections.
 	Consumes []IOPort `json:"consumes,omitempty"`
@@ -323,75 +329,58 @@ func (a *App) ListFormats() []FormatInfo {
 	return result
 }
 
-// toolCategory maps tool names to their categories.
-var toolCategory = map[string]string{
-	// utility tools
-	"word-count":      "utility",
-	"char-count":      "utility",
-	"segment-count":   "utility",
-	"encoding-detect": "utility",
-	// transform tools
-	"pseudo-translate": "transform",
-	"search-replace":   "transform",
-	"case-transform":   "transform",
-	"xslt-transform":   "transform",
-	"segmentation":     "transform",
-	// validate tools
-	"xml-validation": "validate",
-	"qa-check":       "validate",
-	"term-check":     "validate",
-	// enrich tools
-	"tag-protect":     "enrich",
-	"tm-leverage":     "enrich",
-	"layer-processor": "transform",
-	// AI tools
-	"ai-translate":   "transform",
-	"ai-qa":          "validate",
-	"ai-terminology": "enrich",
-	"ai-review":      "validate",
+// sideEffectStrings stringifies a tool's side-effect enum values for the wire.
+func sideEffectStrings(fs []schema.SideEffect) []string {
+	if len(fs) == 0 {
+		return nil
+	}
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		out[i] = string(f)
+	}
+	return out
 }
 
 // ListTools returns all available tools.
 func (a *App) ListTools() []ToolInfo {
 	var result []ToolInfo
 
-	// Add tools from the registry.
+	// Add tools from the registry. All metadata — canonical category, IO
+	// contract, cardinality, requirements, side-effects, source-transform
+	// capability — comes from the framework registry (AD-006), so the desktop
+	// flow editor renders the same badges as kapi-desktop and the web app.
 	if a.toolReg != nil {
 		for _, name := range a.toolReg.Names() {
 			t, err := a.toolReg.NewTool(name)
 			if err != nil {
 				continue
 			}
-			category := toolCategory[string(name)]
-			if category == "" {
-				category = "utility"
+			ti := ToolInfo{
+				Name:        string(name),
+				Description: t.Description(),
+				Category:    schema.CategoryPipeline,
 			}
-			// IsSourceTransform comes from the registry metadata (probed at
-			// registration from tool.CapTransform capability).
-			var isSourceTransform bool
-			var consumes, produces []IOPort
 			if info := a.toolReg.ToolInfo(name); info != nil {
-				isSourceTransform = info.IsSourceTransform
-				consumes = ioPorts(info.Consumes)
-				produces = ioPorts(info.Produces)
+				ti.Category = schema.NormalizeCategory(info.Category)
+				ti.Cardinality = string(info.Cardinality)
+				ti.DefaultLocale = string(info.DefaultLocale)
+				ti.Requires = info.Requires
+				ti.SideEffects = sideEffectStrings(info.SideEffects)
+				ti.Consumes = ioPorts(info.Consumes)
+				ti.Produces = ioPorts(info.Produces)
+				ti.IsSourceTransform = info.IsSourceTransform
 			}
-			result = append(result, ToolInfo{
-				Name:              string(name),
-				Description:       t.Description(),
-				Category:          category,
-				Consumes:          consumes,
-				Produces:          produces,
-				IsSourceTransform: isSourceTransform,
-			})
+			result = append(result, ti)
 		}
 	}
 
-	// AI tools (not in tool registry, managed separately).
+	// AI tools (not in tool registry, managed separately). Categories use the
+	// canonical vocabulary so the editor colors them consistently.
 	aiTools := []ToolInfo{
-		{Name: "ai-translate", Description: "Translate content using AI/LLM", Category: "transform"},
-		{Name: "ai-qa", Description: "Quality check translations using AI", Category: "validate"},
-		{Name: "ai-terminology", Description: "Extract terminology using AI", Category: "enrich"},
-		{Name: "ai-review", Description: "Review translations using AI", Category: "validate"},
+		{Name: "ai-translate", Description: "Translate content using AI/LLM", Category: schema.CategoryTranslation},
+		{Name: "ai-qa", Description: "Quality check translations using AI", Category: schema.CategoryQuality},
+		{Name: "ai-terminology", Description: "Extract terminology using AI", Category: schema.CategoryAnalysis},
+		{Name: "ai-review", Description: "Review translations using AI", Category: schema.CategoryQuality},
 	}
 	result = append(result, aiTools...)
 

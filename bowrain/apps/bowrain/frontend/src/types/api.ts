@@ -19,8 +19,19 @@ export interface FormatInfo {
 export interface ToolInfo {
   name: string;
   description: string;
-  category: "transform" | "validate" | "enrich" | "convert" | "pipeline" | "utility";
+  /** Canonical tool category (translation/quality/analysis/text-processing/convert/pipeline). */
+  category: string;
   hasSchema?: boolean;
+  /** Freeform labels (e.g. "ai-powered", "regex"). */
+  tags?: string[];
+  /** Runtime requirements (e.g. "target-language", "credentials"). */
+  requires?: string[];
+  /** Locale cardinality (monolingual/bilingual/multilingual). */
+  cardinality?: string;
+  /** Default target locale, when the tool declares one. */
+  default_locale?: string;
+  /** External effects the tool has (e.g. "tm-write", "api-call"). */
+  side_effects?: string[];
   /** Ports the tool reads upstream (non-optional = a requirement). */
   consumes?: IOPort[];
   /** Ports the tool writes. */
