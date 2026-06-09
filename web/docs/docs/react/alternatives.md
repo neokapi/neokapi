@@ -1,8 +1,8 @@
 ---
 sidebar_position: 12
 title: kapi-react vs. Alternatives
-description: A comparison of kapi-react with react-i18next, LinguiJS, next-intl, and react-intl — covering source identifiers, JSX wrapping, extraction, format, and runtime tradeoffs.
-keywords: [react-i18next, LinguiJS, next-intl, react-intl, alternatives, i18n comparison, kapi-react]
+description: A comparison of kapi-react with react-i18next, FormatJS (react-intl), LinguiJS, fbtee, and Paraglide — covering source identifiers, JSX wrapping, extraction, format, and runtime tradeoffs.
+keywords: [react-i18next, FormatJS, react-intl, LinguiJS, fbtee, Paraglide, alternatives, i18n comparison, kapi-react]
 ---
 
 # Alternatives
@@ -48,6 +48,20 @@ The closest in philosophy — Lingui uses macros (`<Trans>`, `t` tagged template
 
 Lingui and kapi-react agree on "source text as key". The core difference: Lingui asks you to opt every string into the macro (`<Trans>`, `` t`...` ``); kapi-react opts in by default. `t()` in kapi-react is a small escape hatch for non-JSX strings, not the normal authoring pattern.
 
+## fbtee
+
+The modern continuation of Meta's `fbt` (Meta archived `fbt` in late 2024). fbtee rebuilds it for TypeScript, React 19, ESM, and Vite / Next.js with both Babel and SWC transforms, while keeping fbt's authoring model: every translatable string is wrapped in an explicit `<fbt>` marker, and the source text is the key.
+
+|                   | fbtee                                                  | kapi-react                                               |
+| ----------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| Source identifier | Source text + required `desc`                          | Source text + structural context                        |
+| JSX wrapping      | `<fbt desc="...">`, `fbt()` / `fbs()`                  | Plain JSX                                                |
+| Plurals / gender  | `<fbt:plural>`, `<fbt:pronoun>`, `<fbt:enum>`          | `<Plural>` / `<Select>` authoring components             |
+| Extraction        | `fbtee collect` → `prepare-translations` → `translate` | Plugin during normal build                               |
+| Format            | JSON (`source_strings.json` + per-locale files)        | KLF with structural context, placeholders, plural forms |
+
+fbtee shares kapi-react's "source text as key" philosophy, but takes the opposite stance on wrapping: it deliberately requires an `<fbt>` marker (with a `desc`) around every translatable string so the Babel / SWC compiler and ESLint plugin can statically analyse, type-check, and extract it. That buys compile-time guarantees and declarative inline plural / gender handling, at the cost of wrapping ceremony on every string — the same wrapping tax kapi-react removes by extracting plain JSX automatically.
+
 ## Paraglide (Inlang)
 
 Typed, per-message functions generated at build time. A message `welcome` becomes `m.welcome()`.
@@ -65,6 +79,7 @@ Paraglide's typed-function model gives strong refactoring support but requires t
 - **You want zero-wrapper ergonomics and your strings mostly live in JSX** → kapi-react.
 - **You want typed message functions with best-in-class tree-shaking** → Paraglide.
 - **You're deeply invested in ICU-as-source** → FormatJS.
+- **You want explicit, compile-time-checked inline markers with declarative plural/gender** → fbtee.
 - **You have a large existing react-i18next codebase** → stay with react-i18next unless you're doing a rewrite anyway.
 
 ## When kapi-react isn't the right fit
