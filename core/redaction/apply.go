@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -55,18 +56,22 @@ type Redacted struct {
 }
 
 // Redact rewrites a run sequence, replacing each match with a protected
-// redaction PlaceholderRun. It returns the new runs and the replacements
-// made. Matches are taken relative to the flattened text of the sequence's
-// TextRuns (the same coordinate space as [TextOf] and model.Block.SourceText),
-// so detector offsets line up directly.
+// redaction PlaceholderRun. It returns the new runs, the replacements made, and
+// the edit set applied to the flattened source text (RunEdits, in rune offsets) —
+// the latter lets callers rebase surviving run-anchored overlays onto the
+// redacted runs (see model.RemapOverlays). Each redaction replaces matched text
+// with an inline placeholder run, which contributes nothing to the text
+// flattening, so every edit has NewLen 0. Matches are taken relative to the
+// flattened text of the sequence's TextRuns (the same coordinate space as
+// [TextOf] and model.Block.SourceText), so detector offsets line up directly.
 //
 // A match whose span crosses a non-text (inline-code) run is skipped rather
 // than risk dropping that code; in practice sensitive spans sit within plain
 // text. Matches are normalized defensively before application.
-func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run, []Redacted) {
+func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run, []Redacted, []model.RunEdit) {
 	matches = NormalizeMatches(matches)
 	if len(runs) == 0 || len(matches) == 0 {
-		return runs, nil
+		return runs, nil, nil
 	}
 
 	tmpl := opts.placeholder()
@@ -86,9 +91,10 @@ func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run,
 	var (
 		out      []model.Run
 		records  []Redacted
-		globalAt int // byte offset into the flattened text
-		mi       int // index into matches
-		counter  int // token counter
+		applied  [][2]int // byte spans [start,end) of applied matches in flattened text
+		globalAt int      // byte offset into the flattened text
+		mi       int      // index into matches
+		counter  int      // token counter
 	)
 
 	// Group consecutive TextRuns so a span split across adjacent text runs
@@ -105,9 +111,10 @@ func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run,
 			return
 		}
 		text := groupText.String()
-		emitted, recs, used := carveGroup(text, groupStart, matches[mi:], rd, &counter)
+		emitted, recs, spans, used := carveGroup(text, groupStart, matches[mi:], rd, &counter)
 		out = append(out, emitted...)
 		records = append(records, recs...)
+		applied = append(applied, spans...)
 		mi += used
 		groupText.Reset()
 		groupOpen = false
@@ -129,18 +136,48 @@ func Redact(runs []model.Run, matches []Match, opts RedactOptions) ([]model.Run,
 	}
 	flush()
 
-	return out, records
+	return out, records, editsFromSpans(model.RunsText(runs), applied)
+}
+
+// editsFromSpans converts the applied matches' byte spans in the flattened text
+// into RunEdits in rune-offset coordinates. Each redacted span is replaced by an
+// inline placeholder that contributes nothing to the flattening, so NewLen is 0.
+func editsFromSpans(flat string, spans [][2]int) []model.RunEdit {
+	if len(spans) == 0 {
+		return nil
+	}
+	edits := make([]model.RunEdit, 0, len(spans))
+	for _, sp := range spans {
+		edits = append(edits, model.RunEdit{
+			Start: utf8.RuneCountInString(byteSlice(flat, sp[0])),
+			End:   utf8.RuneCountInString(byteSlice(flat, sp[1])),
+		})
+	}
+	return edits
+}
+
+// byteSlice returns flat[:n] clamped to valid bounds.
+func byteSlice(flat string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	if n >= len(flat) {
+		return flat
+	}
+	return flat[:n]
 }
 
 // carveGroup splits one contiguous text group around the matches that fall
 // entirely within it. start is the group's byte offset in the flattened
 // text. It returns the emitted runs (text + placeholders), the records for
-// replacements made, and how many leading entries of matches it consumed.
-func carveGroup(text string, start int, matches []Match, rd *redactor, counter *int) ([]model.Run, []Redacted, int) {
+// replacements made, the flattened-text byte spans [start,end) of the matches it
+// replaced, and how many leading entries of matches it consumed.
+func carveGroup(text string, start int, matches []Match, rd *redactor, counter *int) ([]model.Run, []Redacted, [][2]int, int) {
 	end := start + len(text)
 	var (
 		out     []model.Run
 		records []Redacted
+		applied [][2]int
 		cursor  = start // byte offset in flattened text
 		used    int
 	)
@@ -160,12 +197,13 @@ func carveGroup(text string, start int, matches []Match, rd *redactor, counter *
 		token, disp := rd.next(m.Category, counter)
 		out = append(out, redactionRun(token, m.Category, disp))
 		records = append(records, Redacted{Token: token, Category: m.Category, Disp: disp, Original: m.Original})
+		applied = append(applied, [2]int{m.Start, m.End})
 		cursor = m.End
 	}
 	if cursor < end {
 		out = append(out, textRun(text[cursor-start:]))
 	}
-	return out, records, used
+	return out, records, applied, used
 }
 
 // redactor generates a token and a visible placeholder per match, keeping

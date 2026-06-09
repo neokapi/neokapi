@@ -649,9 +649,12 @@ wrong writes unrepresentable.
   read-only.
 - **Source-transform** tools (redaction, normalization, case/encoding
   conversion) set `Transform` and may rewrite `Block.Source`. They belong in a
-  flow's source-transform stage (below), which runs before any stand-off
-  overlay is attached — run-anchored overlays (segmentation, terms, entities;
-  see [AD-002](002-content-model.md)) would be invalidated by a later source
+  flow's source-transform stage (below). A source rewrite shifts the run-anchored
+  ranges of any source overlay (segmentation, terms, entities; see
+  [AD-002](002-content-model.md)), so a transform must either **drop** the
+  overlays it invalidates or, for a *structured* edit with a known
+  span→replacement map (redaction), **rebase** the survivors with
+  `SourceView.RemapSourceOverlays` / `model.RemapOverlays` so they follow the
   rewrite. Recoverable transforms (redaction) record the original as a block
   annotation (or a sidecar vault) and restore it on the way out.
 
@@ -659,24 +662,35 @@ The read views hand back the block's live run slices, which Go cannot make
 deeply immutable without copying. So a dev/test **backstop** in
 `BaseTool.handleBlock` content-hashes source and targets around each handler and
 errors if a handler edited a surface its tier forbids (catching in-place edits
-through those aliased slices), or if a source transform ran while an overlay was
-already attached. The backstop is gated by `tool.EnforceImmutability` (on by
-default). A tool that genuinely needs the maximal surface — `script`, which runs
-arbitrary JavaScript — overrides `Process` instead and self-gates source
-mutation behind its `allowSourceMutation` flag.
+through those aliased slices). After a source rewrite the backstop additionally
+checks that every *surviving* source overlay span still anchors **in-bounds**
+against the new runs (`Block.SourceOverlaysInBounds`) — a transform that neither
+dropped nor rebased a now-dangling overlay is rejected. The backstop is gated by
+`tool.EnforceImmutability` (on by default). A tool that genuinely needs the
+maximal surface — `script`, which runs arbitrary JavaScript — overrides `Process`
+instead and self-gates source mutation behind its `allowSourceMutation` flag.
 
-#### The source-transform stage
+#### The source-transform (settle) stage
 
-A `Flow` has an optional leading **source-transform stage**: `Transform`-capable
-tools that settle the source/model — redaction, a simplifier, normalization —
-before the main tools run. The executor runs the stage ahead of the main tools
+A `Flow` has an optional leading **source-transform stage**: the tools that
+settle the source/model — redaction, a simplifier, normalization — before the
+main tools run. The executor runs the stage ahead of the main tools
 (`Flow.Pipeline()` concatenates them), so downstream tools — segmentation,
-terminology, entities, translation, QA — all operate on one settled, canonical
-source. The stage is **explicit**, not inferred from capability: a tool is
-source-transform-*capable* (it can write source) independently of whether it is
-*placed* early, so a `Transform` tool used late on the target (e.g.
-`case-transform` configured for the target only) is never auto-hoisted. `Build`
-rejects any tool in the stage that is not `tool.CapTransform`.
+terminology, translation, QA — all operate on one settled, canonical source.
+
+The stage may also hold **annotators** ahead of the settling transform, so an
+annotator's overlay can drive the transform — e.g. `ai-entity-extract` →
+`redact`, where redact consumes the entity overlay to decide what to hide. The
+membership rule (`tool.CanPrecedeSettle`) is therefore: every stage step is
+`Annotate`- or `Transform`-capable, and the stage must contain **at least one**
+`Transform` (the step that actually settles the source). A `Translate` tool is
+rejected here — translation runs in the main stage, after the source settles,
+because its targets anchor to the settled source (this ordering invariant is
+enforced structurally at build time, not by author discipline; the declarative
+data-flow contract validates annotator→transform port dependencies *within* the
+stage). The stage is **explicit**, not inferred from capability: a `Transform`
+tool used late on the target (e.g. `case-transform` configured for the target
+only) is never auto-hoisted.
 
 ## Consequences
 

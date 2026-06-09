@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -141,6 +142,33 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 	annv, _ := rb.Anno(redaction.SecretAnnotationKey)
 	ann := annv.(*redaction.SecretAnnotation)
 	assert.Len(t, ann.Values, 2)
+}
+
+// TestRedactTool_PreservesUpstreamTermOverlay proves a source-transform that
+// rewrites the source now rebases the surviving source overlays (a term tag from
+// an upstream annotator) rather than dropping them: the unrelated term span
+// follows the redaction onto the new runs (AD-006 / model.RemapOverlays).
+func TestRedactTool_PreservesUpstreamTermOverlay(t *testing.T) {
+	tl, err := tools.NewRedactTool(&tools.RedactConfig{
+		Detectors: []string{tools.DetectRules},
+		Rules:     []redaction.Rule{{Term: "Mr Bean", Category: "person"}},
+	})
+	require.NoError(t, err)
+
+	block := newBeanBlock()
+	start := strings.Index(beanSentence, "England")
+	block.AddOverlaySpan(model.OverlayTerm, model.Span{
+		ID:    "term:england",
+		Range: model.RunRangeForBytes(block.Source, start, start+len("England")),
+	})
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+	rb := result.Resource.(*model.Block)
+
+	assert.NotContains(t, rb.SourceText(), "Mr Bean")
+	sp := rb.OverlaySpan(model.OverlayTerm, "term:england")
+	require.NotNil(t, sp, "the unrelated term overlay must survive the redaction")
+	assert.Equal(t, "England", model.RunsText(sp.Range.ExtractRuns(rb.Source)))
 }
 
 func TestRedactTool_NoMatchesPassThrough(t *testing.T) {

@@ -35,7 +35,7 @@ func recordSourceTool() *tool.BaseTool {
 }
 
 func TestSourceTransformStage_Validation(t *testing.T) {
-	// An annotator may not sit in the source-transform stage.
+	// An annotator-only settle stage settles nothing → rejected.
 	_, err := flow.NewFlow("bad").AddSourceTransform(recordSourceTool()).Build()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "source-transform")
@@ -46,6 +46,85 @@ func TestSourceTransformStage_Validation(t *testing.T) {
 		AddTool(recordSourceTool()).
 		Build()
 	require.NoError(t, err)
+}
+
+// termTagTool is an annotator that tags a term span over [from,to) of the
+// source's flattened text — a stand-in for ai-entity-extract / term lookup.
+func termTagTool(id string, from, to int) *tool.BaseTool {
+	return &tool.BaseTool{
+		ToolName: "tag",
+		Annotate: func(v tool.BlockView) error {
+			v.AddOverlaySpan(model.OverlayTerm, model.Span{ID: id, Range: model.RunRangeFor(v.SourceRuns(), from, to)})
+			return nil
+		},
+	}
+}
+
+func TestSettleStage_AnnotatorMayPrecedeTransform(t *testing.T) {
+	// An annotator may sit ahead of the settling transform so its overlay can
+	// drive the transform (e.g. entity-extract → redact).
+	f, err := flow.NewFlow("settle").
+		AddSourceTransform(termTagTool("t1", 0, 5)). // annotator
+		AddSourceTransform(srcUpperTool()).          // settling transform
+		AddTool(recordSourceTool()).
+		Build()
+	require.NoError(t, err)
+	pipe := f.Pipeline()
+	require.Len(t, pipe, 3)
+	assert.Equal(t, "tag", pipe[0].Name())
+	assert.Equal(t, "src-upper", pipe[1].Name())
+}
+
+func TestSettleStage_RejectsTranslate(t *testing.T) {
+	tr := &tool.BaseTool{ToolName: "translator", Translate: func(tool.TargetView) error { return nil }}
+	_, err := flow.NewFlow("bad-translate").
+		AddSourceTransform(tr).
+		AddSourceTransform(srcUpperTool()).
+		Build()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "annotator or a source-transform")
+}
+
+// TestSettleStage_AnnotatorFeedsTransform_EndToEnd drives a settle stage of
+// [annotator, structured transform] through the executor and asserts the
+// annotator's overlay survives the transform's source rewrite (rebased) into the
+// main stage.
+func TestSettleStage_AnnotatorFeedsTransform_EndToEnd(t *testing.T) {
+	// trim deletes the leading "hello " (runes 0..6) and rebases overlays.
+	trim := &tool.BaseTool{ToolName: "trim", Transform: func(v tool.SourceView) error {
+		old := v.SourceRuns()
+		v.SetSourceText("world")
+		v.RemapSourceOverlays(old, []model.RunEdit{{Start: 0, End: 6, NewLen: 0}})
+		return nil
+	}}
+	var seenSpans int
+	var seenText string
+	rec := &tool.BaseTool{ToolName: "rec", Annotate: func(v tool.BlockView) error {
+		seenSpans = len(v.OverlaySpans(model.OverlayTerm))
+		seenText = v.SourceText()
+		return nil
+	}}
+	f, err := flow.NewFlow("settle-e2e").
+		AddSourceTransform(termTagTool("t1", 6, 11)). // term over "world"
+		AddSourceTransform(trim).
+		AddTool(rec).
+		Build()
+	require.NoError(t, err)
+
+	ex := flow.NewExecutor()
+	in, out, wait := ex.ExecuteWithChannels(t.Context(), f)
+	block := model.NewBlock("b1", "hello world")
+	block.Translatable = true
+	go func() {
+		in <- &model.Part{Type: model.PartBlock, Resource: block}
+		close(in)
+	}()
+	for range out { //nolint:revive // drain
+	}
+	require.NoError(t, wait())
+
+	assert.Equal(t, "world", seenText)
+	assert.Equal(t, 1, seenSpans, "the term overlay survived the rewrite, rebased onto the new runs")
 }
 
 func TestSourceTransformStage_RunsBeforeMainTools(t *testing.T) {

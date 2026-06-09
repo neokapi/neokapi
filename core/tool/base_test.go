@@ -244,14 +244,37 @@ func TestImmutabilityGuard(t *testing.T) {
 		}
 		require.NoError(t, run(bt, mkBlock()))
 	})
-	t.Run("source transform after an overlay is attached is rejected", func(t *testing.T) {
+	t.Run("source transform leaving an overlay out of bounds is rejected", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "late-xform"}
 		bt.Transform = func(v tool.SourceView) error {
-			v.SetSourceText("changed")
+			v.SetSourceText("hi") // far shorter than the term span below
 			return nil
 		}
 		b := mkBlock()
-		b.SetSegmentation(nil, oneSpanOverlay)
-		require.ErrorContains(t, run(bt, b), "overlay")
+		// A term span covering "Hello world" (11 runes). Shrinking the source to
+		// "hi" without dropping or rebasing the overlay leaves it dangling, which
+		// the backstop must reject.
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRange{EndRun: 0, EndOffset: 11}})
+		require.ErrorContains(t, run(bt, b), "out of bounds")
+	})
+	t.Run("source transform rebasing its overlays is allowed", func(t *testing.T) {
+		// The transform deletes the leading "Hello " (runes 0..6) and rebases the
+		// term overlay over "world", so the surviving span still anchors in-bounds.
+		bt := &tool.BaseTool{ToolName: "rebase-xform"}
+		bt.Transform = func(v tool.SourceView) error {
+			old := v.SourceRuns()
+			v.SetSourceText("world")
+			v.RemapSourceOverlays(old, []model.RunEdit{{Start: 0, End: 6, NewLen: 0}})
+			return nil
+		}
+		b := mkBlock()
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 6, 11)})
+		require.NoError(t, run(bt, b))
+		// The span was rebased onto the new runs and now covers "world" (0..5).
+		sp := b.OverlaySpan(model.OverlayTerm, "t1")
+		require.NotNil(t, sp)
+		s, e := sp.Range.TextSpan(b.Source)
+		assert.Equal(t, 0, s)
+		assert.Equal(t, 5, e)
 	})
 }

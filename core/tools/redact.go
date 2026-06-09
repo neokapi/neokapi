@@ -232,7 +232,7 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 		return nil
 	}
 
-	newRuns, records := redaction.Redact(runs, matches, t.opts)
+	newRuns, records, edits := redaction.Redact(runs, matches, t.opts)
 	if len(records) == 0 {
 		return nil
 	}
@@ -243,6 +243,10 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 		v.RemoveOverlay(model.OverlayEntity)
 	}
 	v.SetSourceRuns(newRuns)
+	// Rebase any other surviving source overlays (e.g. term tags from an upstream
+	// annotator in the settle stage) onto the redacted runs so they still reach
+	// the main stage. Spans overlapping a redacted span are dropped.
+	v.RemapSourceOverlays(runs, edits)
 	t.store(v, records)
 	return nil
 }

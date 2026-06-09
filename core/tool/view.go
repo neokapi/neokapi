@@ -130,6 +130,14 @@ type SourceView interface {
 	TargetView
 	SetSourceRuns(runs []model.Run)
 	SetSourceText(text string)
+	// RemapSourceOverlays rebases the block's surviving source overlays onto the
+	// just-rewritten source runs, given the structured edits applied to the
+	// source text (oldRuns are the pre-rewrite runs the overlays still anchor
+	// to). Spans overlapping an edit are dropped; the rest shift to follow it.
+	// Call it after SetSourceRuns when a structured transform (e.g. redaction)
+	// must keep an upstream annotator's overlays (terms, entities). See
+	// model.RemapOverlays.
+	RemapSourceOverlays(oldRuns []model.Run, edits []model.RunEdit)
 }
 
 // blockView is the single concrete view; the handler field's parameter type
@@ -270,6 +278,9 @@ func (v *blockView) ClearTargets() {
 // Source writes (SourceView).
 func (v *blockView) SetSourceRuns(runs []model.Run) { v.b.SetSourceRuns(runs) }
 func (v *blockView) SetSourceText(text string)      { v.b.SetSourceText(text) }
+func (v *blockView) RemapSourceOverlays(oldRuns []model.Run, edits []model.RunEdit) {
+	model.RemapOverlays(v.b, oldRuns, edits)
+}
 
 // Compile-time checks that blockView satisfies every view tier.
 var (

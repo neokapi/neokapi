@@ -34,10 +34,12 @@ func (fb *Builder) AddTool(t tool.Tool) *Builder {
 	return fb
 }
 
-// AddSourceTransform appends a source-transform to the flow's leading stage —
-// tools that settle the source/model (redaction, simplification, normalization)
-// before the main tools run. Build rejects any tool here that is not
-// source-transform-capable (tool.CapTransform).
+// AddSourceTransform appends a tool to the flow's leading source-transform
+// ("settle") stage — tools that settle the source/model (redaction,
+// simplification, normalization) before the main tools run. The stage may also
+// hold annotators (e.g. ai-entity-extract) ahead of the transform so their
+// overlays can drive it; Build rejects a Translate tool here and requires the
+// stage to contain at least one source-transform (tool.CapTransform).
 func (fb *Builder) AddSourceTransform(t tool.Tool) *Builder {
 	fb.sourceTransforms = append(fb.sourceTransforms, t)
 	return fb
@@ -79,10 +81,8 @@ func (fb *Builder) Build() (*Flow, error) {
 	if total == 0 {
 		return nil, errors.New("flow must have at least one tool or tool factory")
 	}
-	for _, t := range fb.sourceTransforms {
-		if !tool.IsSourceTransform(t) {
-			return nil, fmt.Errorf("flow %q: tool %q in the source-transform stage is not source-transform-capable (it must use a Transform handler)", fb.name, t.Name())
-		}
+	if err := validateSettleStage(fb.name, fb.sourceTransforms); err != nil {
+		return nil, err
 	}
 	return &Flow{
 		Name:                     fb.name,
@@ -96,4 +96,29 @@ func (fb *Builder) Build() (*Flow, error) {
 // Items returns the configured batch items.
 func (fb *Builder) Items() []*Item {
 	return fb.items
+}
+
+// validateSettleStage checks the leading source-transform ("settle") stage:
+// every tool must be Annotate- or Transform-capable (a Translate tool is
+// rejected — translation belongs in the main stage, after the source settles),
+// and a non-empty stage must contain at least one source-transform
+// (tool.CapTransform), the step that actually settles the source. Annotators may
+// precede the transform so their overlays drive it (AD-006).
+func validateSettleStage(flowName string, stage []tool.Tool) error {
+	if len(stage) == 0 {
+		return nil
+	}
+	hasTransform := false
+	for _, t := range stage {
+		if !tool.CanPrecedeSettle(t) {
+			return fmt.Errorf("flow %q: tool %q in the source-transform stage must be an annotator or a source-transform (it may not write targets)", flowName, t.Name())
+		}
+		if tool.IsSourceTransform(t) {
+			hasTransform = true
+		}
+	}
+	if !hasTransform {
+		return fmt.Errorf("flow %q: the source-transform stage must contain at least one source-transform tool to settle the source", flowName)
+	}
+	return nil
 }

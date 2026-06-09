@@ -83,7 +83,16 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   already on the block — produced upstream by the `ai-entity-extract` tool —
   and redacts the configured entity categories. The detection model is the
   caller's choice; a local model keeps everything on the machine, a cloud model
-  trades that for coverage during the *detection* step only.
+  trades that for coverage during the *detection* step only. Because the
+  annotator runs ahead of redact in the flow's source-transform (settle) stage,
+  `ai-entity-extract` and `redact` can sit in the same flow (see AD-006).
+
+Redaction rewrites the source, so `redact` drops the entity overlay it consumed
+(its spans are now stale) and **rebases** any *other* surviving source overlay —
+e.g. a term tag from an upstream term annotator — onto the redacted runs via
+`SourceView.RemapSourceOverlays`, so those overlays still reach the main stage.
+Redaction is a structured edit (a known span→replacement map), which is what
+makes the rebase well-defined; spans that overlap a redacted span are dropped.
 
 ### Restoration
 
