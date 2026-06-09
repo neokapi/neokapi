@@ -24,6 +24,7 @@ import {
   ArrowLeftRight,
   Waypoints,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
@@ -62,6 +63,7 @@ import {
 } from "./stepResolve";
 import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
 import { computeUnmet } from "./ioGraph";
+import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactionWrap";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
@@ -94,6 +96,10 @@ interface FlowToolbarProps {
   onRun?: (flow: FlowSpec) => void;
   runDisabled?: boolean;
   flow: FlowSpec;
+  /** Whether the flow currently has the redaction wrap (redact … unredact). */
+  redacted?: boolean;
+  /** Toggle the redaction wrap; absent in read-only flows. */
+  onToggleRedaction?: () => void;
 }
 
 function FlowToolbar({
@@ -103,6 +109,8 @@ function FlowToolbar({
   onRun,
   runDisabled,
   flow,
+  redacted,
+  onToggleRedaction,
 }: FlowToolbarProps) {
   return (
     <PanelHeader
@@ -110,6 +118,23 @@ function FlowToolbar({
       className="py-1.5"
       actions={
         <>
+          {onToggleRedaction && (
+            <Button
+              variant={redacted ? "outline" : "ghost"}
+              size="xs"
+              onClick={onToggleRedaction}
+              className={cn(redacted && "border-[oklch(0.6_0.2_15)] text-[oklch(0.6_0.2_15)]")}
+              title={
+                redacted
+                  ? "Remove redaction: stop protecting sensitive content"
+                  : "Protect sensitive content: wrap the flow with redact … unredact"
+              }
+            >
+              <Lock size={12} />
+              {redacted ? "Protected" : "Protect"}
+            </Button>
+          )}
+
           <Button
             variant={showPreview ? "outline" : "ghost"}
             size="xs"
@@ -1038,6 +1063,13 @@ export function FlowEditor({
           onRun={onRun}
           runDisabled={runDisabled}
           flow={flow}
+          redacted={hasRedactionWrap(flow)}
+          onToggleRedaction={
+            readOnly
+              ? undefined
+              : () =>
+                  onChange(hasRedactionWrap(flow) ? unwrapRedaction(flow) : wrapWithRedaction(flow))
+          }
         />
 
         {/* Parallelization suggestion banner */}

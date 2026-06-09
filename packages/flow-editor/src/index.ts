@@ -13,6 +13,12 @@ export { PortChip, IoContract } from "./nodes/PortChip";
 export { getPortType, PORT_FAMILIES } from "./portTypes";
 export { computeUnmet } from "./ioGraph";
 export type { UnmetReport } from "./ioGraph";
+export {
+  hasRedactionWrap,
+  redactionIncomplete,
+  wrapWithRedaction,
+  unwrapRedaction,
+} from "./redactionWrap";
 export { getSystemEffects } from "./sideEffects";
 export type { SystemEffect, SystemDirection } from "./sideEffects";
 export type { PortTypeStyle, PortFamily, FamilyStyle } from "./portTypes";
