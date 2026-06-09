@@ -4,27 +4,16 @@
     "description": "Translate content using AI/LLM",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "ai-powered",
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "credentials",
-      "retryable"
-    ],
+    "inputs": ["block"],
+    "tags": ["ai-powered", "translation"],
+    "requires": ["target-language", "credentials", "retryable"],
     "produces": [
       {
         "type": "target",
         "side": "target"
       }
     ],
-    "side_effects": [
-      "api-call"
-    ],
+    "side_effects": ["api-call"],
     "cardinality": "bilingual"
   },
   {
@@ -32,27 +21,16 @@
     "description": "AI-powered quality assessment",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "ai-powered",
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "credentials",
-      "retryable"
-    ],
+    "inputs": ["block"],
+    "tags": ["ai-powered", "quality"],
+    "requires": ["target-language", "credentials", "retryable"],
     "produces": [
       {
         "type": "qa",
         "side": "target"
       }
     ],
-    "side_effects": [
-      "api-call"
-    ],
+    "side_effects": ["api-call"],
     "cardinality": "bilingual"
   },
   {
@@ -60,21 +38,10 @@
     "description": "AI-powered translation review",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "ai-powered",
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "credentials",
-      "retryable"
-    ],
-    "side_effects": [
-      "api-call"
-    ],
+    "inputs": ["block"],
+    "tags": ["ai-powered", "quality"],
+    "requires": ["target-language", "credentials", "retryable"],
+    "side_effects": ["api-call"],
     "cardinality": "bilingual"
   },
   {
@@ -82,15 +49,9 @@
     "description": "Generate pseudo-translations for testing",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "translation"
-    ],
-    "requires": [
-      "target-language"
-    ],
+    "inputs": ["block"],
+    "tags": ["translation"],
+    "requires": ["target-language"],
     "produces": [
       {
         "type": "target",
@@ -104,15 +65,9 @@
     "description": "Run rule-based quality checks",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language"
-    ],
+    "inputs": ["block"],
+    "tags": ["quality"],
+    "requires": ["target-language"],
     "consumes": [
       {
         "type": "target",
@@ -132,12 +87,8 @@
     "description": "Count words in content",
     "category": "analysis",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "analysis"
-    ],
+    "inputs": ["block"],
+    "tags": ["analysis"],
     "produces": [
       {
         "type": "word-count",
@@ -151,16 +102,9 @@
     "description": "Pre-fill translations from TM",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "tm"
-    ],
+    "inputs": ["block"],
+    "tags": ["translation"],
+    "requires": ["target-language", "tm"],
     "consumes": [
       {
         "type": "segmentation",
@@ -182,9 +126,7 @@
         "side": "target"
       }
     ],
-    "side_effects": [
-      "tm-read"
-    ],
+    "side_effects": ["tm-read"],
     "cardinality": "bilingual"
   },
   {
@@ -192,13 +134,8 @@
     "description": "Search and replace text",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "regex",
-      "configurable"
-    ],
+    "inputs": ["block"],
+    "tags": ["regex", "configurable"],
     "isSourceTransform": true,
     "cardinality": "monolingual"
   },
@@ -207,12 +144,8 @@
     "description": "Apply SRX segmentation rules",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "text-processing"
-    ],
+    "inputs": ["block"],
+    "tags": ["text-processing"],
     "produces": [
       {
         "type": "segmentation",
@@ -230,10 +163,7 @@
     "description": "Convert character encoding",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block",
-      "data"
-    ],
+    "inputs": ["block", "data"],
     "isSourceTransform": true,
     "cardinality": "monolingual"
   },
@@ -242,12 +172,8 @@
     "description": "Transform text case",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "tags": [
-      "text-processing"
-    ],
+    "inputs": ["block"],
+    "tags": ["text-processing"],
     "isSourceTransform": true,
     "cardinality": "monolingual"
   },
@@ -256,258 +182,150 @@
     "description": "Add or remove Unicode Byte-Order-Mark (BOM) in a text-based file. Expects: raw document. Sends back: raw document.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:batch-tm-leveraging",
     "description": "Simple and fast batch leveraging step that delegates to connectors",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "batch",
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["batch", "translation"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:batch-translation",
     "description": "Creates translations from an external program for a given input document. Expects: raw document. Sends back: raw document.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "batch",
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["batch", "translation"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:char-listing",
     "description": "Generate a list of all the characters in the source content of a set of documents. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:character-count",
     "description": "Count the number of characters in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:characters-checker",
     "description": "Compare source and target for character inconsistencies. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:cleanup",
     "description": "Cleans strings by normalizing quotes, punctuation, etc. ready for further processing. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:code-simplifier",
     "description": "Merges adjacent inline codes in the source part of a text unit. Also where possible, moves leading and trailing codes of the source to the skeleton (Only for GenericSkeleton!). Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:codes-removal",
     "description": "Removes inline codes from the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:concordance-character-count",
     "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:concordance-word-count",
     "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:convert-segments-to-text-units",
     "description": "Convert each aligned segment pair (for all target locales) to its own complete text unit Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:copy-or-move",
     "description": "Copies or moves the listed files to the specified location. Expects: raw documents. Sends back: raw documents.",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:copy-source-on-empty-target",
     "description": "copy-source-on-empty-target",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:create-target",
     "description": "Create target segment container. Optionally copy source content to the target. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"],
     "cardinality": "bilingual"
   },
   {
@@ -515,36 +333,20 @@
     "description": "Joins all segments into a single content. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:diff-leverage",
     "description": "Compare two source documents (i.e., different versions) and copy the old target content when we find a match. Can be a monolingual and bi-lingual input or three monolingual inputs. Paragraphs (TextUnits) must align in all cases",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block",
-      "data"
-    ],
+    "inputs": ["block", "data"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"],
     "produces": [
       {
         "type": "alt-translation",
@@ -562,409 +364,230 @@
     "description": "Convert the character set encoding of a text-based file. Expects: raw document. Sends back: raw document.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:enrycher",
     "description": "Applies Enrycher ITS annotations to the source content. Expects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-document-context-match-character-count",
     "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-document-context-match-word-count",
     "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-local-context-match-character-count",
     "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-local-context-match-word-count",
     "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-match-character-count",
     "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-match-word-count",
     "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-previous-version-match-character-count",
     "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-previous-version-match-word-count",
     "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-repaired-character-count",
     "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-repaired-word-count",
     "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-structural-match-character-count",
     "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-structural-match-word-count",
     "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-character-count",
     "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-previous-version-match-character-count",
     "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-previous-version-match-word-count",
     "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-unique-id-match-character-count",
     "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-unique-id-match-word-count",
     "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-text-only-word-count",
     "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-unique-id-match-character-count",
     "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:exact-unique-id-match-word-count",
     "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:external-command",
     "description": "Execute an external command line.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "requires": ["target-language", "source-language"],
     "isSourceTransform": true,
     "cardinality": "monolingual"
   },
@@ -973,627 +596,350 @@
     "description": "Verifies a raw document can be extracted, merged, then extracted again and produces the same set of events during both extractions. Expects: raw document. Sends back: unmodified raw document.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:extraction",
     "description": "Generates a Rainbow translation kit for a batch of input documents. Expects: filter events. Sends back: filter events or raw document",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "batch",
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["batch", "translation"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:filter-events-to-raw-document",
     "description": "Combine filter events into a full document and pass it along as a raw document. Expects: filter events. Sends back: raw document or NO_OP if writing to a stream.",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:filter-events-writer",
     "description": "Write out filter events into a document or stream.",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:format-conversion",
     "description": "Converts the output of a filter into a specified file format. Expects: filter events. Sends back: filter events.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:full-width-conversion",
     "description": "Convert the text units content of a document to or from full-width characters (zenkaku). Expects: filter events. Sends back: filter events.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-match-character-count",
     "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-match-word-count",
     "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-previous-version-match-character-count",
     "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-previous-version-match-word-count",
     "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-repaired-character-count",
     "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-repaired-word-count",
     "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-unique-id-match-character-count",
     "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:fuzzy-unique-id-match-word-count",
     "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-alphanumeric-only-text-unit-character-count",
     "description": "An accumulation of the character count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-alphanumeric-only-text-unit-word-count",
     "description": "An accumulation of the word count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-exact-matched-character-count",
     "description": "An accumulation of the character count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-exact-matched-word-count",
     "description": "An accumulation of the word count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-fuzzy-match-character-count",
     "description": "An accumulation of the character count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-fuzzy-match-word-count",
     "description": "An accumulation of the word count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-leveraged-matched-character-count",
     "description": "An accumulation of the character count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-leveraged-matched-word-count",
     "description": "An accumulation of the word count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-measurement-only-text-unit-character-count",
     "description": "An accumulation of the character count from measurement-only text units. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-measurement-only-text-unit-word-count",
     "description": "An accumulation of the word count from measurement-only text units. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-numeric-only-text-unit-character-count",
     "description": "An accumulation of the character count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-numeric-only-text-unit-word-count",
     "description": "An accumulation of the word count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-protected-character-count",
     "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-protected-word-count",
     "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-repetition-matched-character-count",
     "description": "An accumulation of the character count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:g-m-x-repetition-matched-word-count",
     "description": "An accumulation of the word count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:general-checker",
     "description": "Compare source and target for general quality. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:id-based-aligner",
     "description": "Align text units in two id-based files (e.g. Java properties). Expects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:id-based-copy",
     "description": "Copies the source text of the second input into the target of the first input based on matching id.\nExpects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:image-modification",
     "description": "Create a modified copy of image files. Expects: image raw document. Sends back: image raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:inconsistency-check",
     "description": "Checks for source entries that are the same but have different translations or target entries that are the same but have different sources. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["translation", "quality"],
+    "requires": ["target-language", "source-language"],
     "consumes": [
       {
         "type": "target",
@@ -1613,350 +959,200 @@
     "description": "Compare source and target for inline code differences. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:length-checker",
     "description": "Compare source and target lengths and annotate those that seem mismatched. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:leveraging",
     "description": "Leverage existing translation into the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:line-break-conversion",
     "description": "Convert the type of line-breaks in a text-based file. Expects: raw document. Sends back: raw document.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:localizable-checker",
     "description": "Compare source and target number, date and time patterns to assure they are localized. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "regex",
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["regex", "quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:m-s-batch-translation",
     "description": "Annotates text units with Microsoft Translator matches or/and creates a TM from them. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "batch",
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["batch", "translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:m-t-character-count",
     "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:m-t-word-count",
     "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:merging",
     "description": "Post-process a Rainbow translation kit. Expects: filter events. Sends back: filter events or raw documents.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:paragraph-aligner",
     "description": "Align paragraphs (text units) between a source and a target document. Only TextUnit events are passed along - all other events are lost",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block",
-      "data"
-    ],
+    "inputs": ["block", "data"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:patterns-checker",
     "description": "Compare source and target for pattern differences. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "regex",
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["regex", "quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:phrase-assembled-character-count",
     "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:phrase-assembled-word-count",
     "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:post-segmentation-code-simplifier",
     "description": "Merges adjacent inline codes in the source and target part of a text unit. Also where possible, moves leading and trailing codes of the source to inter-segment TextParts. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:quality-check",
     "description": "Compare source and target for quality. Expects: filter events or raw documents. Sends back: filter events or raw document.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:r-t-f-conversion",
     "description": "Remove the RTF layer from a text-based file. Expects: raw document. Sends back: raw document.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:raw-document-to-filter-events",
     "description": "Convert a raw document into filter events. Expects: raw document. Sends back: filter events.",
     "category": "convert",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:raw-document-to-output-stream",
     "description": "Write a RawDocument to an output stream.",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:raw-document-writer",
     "description": "Write a RawDocument to an output file.",
     "category": "pipeline",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:remove-target",
     "description": "Remove targets in all or a given set of text units. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"],
     "cardinality": "bilingual"
   },
   {
@@ -1964,18 +1160,10 @@
     "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
     "category": "analysis",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"],
     "produces": [
       {
         "type": "repetition",
@@ -1989,35 +1177,20 @@
     "description": "Simplify resources. Simplification algorythm is format-specific. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:scoping-report",
     "description": "Create a template-based scoping report based on word count and leverage annotations. Expects: filter events. Sends back: filter events.",
     "category": "analysis",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "translation",
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["translation", "analysis"],
+    "requires": ["target-language", "source-language"],
     "produces": [
       {
         "type": "scoping-report",
@@ -2031,36 +1204,20 @@
     "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "inputs": ["block"],
+    "outputs": ["data"],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:segmentation",
     "description": "Apply SRX segmentation to the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "text-processing",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"],
     "produces": [
       {
         "type": "segmentation",
@@ -2078,188 +1235,110 @@
     "description": "Aligns sentences within text units (paragraphs). Produces sentence alignments as bilingual text units or a TMX file.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:simple-word-count",
     "description": "Annotates each text unit source with a total word count and gives total source word counts for batches Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "batch",
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["batch", "analysis", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:space-check",
     "description": "Compare and fix spaces around inline codes in target based on the source. Expects: filter events. Sends back: filter events.",
     "category": "quality",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "quality"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["quality"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:t-m-import",
     "description": "Import text into a new or existing Pensieve TM. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:t-t-x-joiner",
     "description": "Rebuilds previously split TTX documents into their original documents. Expects: raw document. Sends back: raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:t-t-x-splitter",
     "description": "Splits a TTX document into several ones of roughly equal word count. Expects: raw document. Sends back: raw document.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:term-extraction",
     "description": "Extract a list of possible terms found in the source content. Expects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:terminology-leveraging",
     "description": "Leverage terminology into the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:text-modification",
     "description": "Apply various modifications to the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:tokenization",
     "description": "Extracts tokens from the text units content of a document. Expects: filter events. Sends back: filter events.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:translation-comparison",
     "description": "Compare the translated text units between several documents. Expects: filter events. Sends back: filter events.",
     "category": "analysis",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"],
     "consumes": [
       {
         "type": "target",
@@ -2279,69 +1358,40 @@
     "description": "Set the non-translatable flag to the text units accepted by the text unit filter specified in step's parameters. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:uri-conversion",
     "description": "Encodes or Decodes URI escape sequences. Expects: filter events. Sends back: filter events.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:whitespace-correction",
     "description": "Correct whitespace following segment-ending punctuation when translating from  a space-delimited language (such as English) to a non-space-delimited language (Chinese or Japanese), or vice-versa. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "translation",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["translation", "text-processing"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:word-count",
     "description": "Count the number of words in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
     "category": "analysis",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis",
-      "text-processing"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ],
+    "tags": ["analysis", "text-processing"],
+    "requires": ["target-language", "source-language"],
     "produces": [
       {
         "type": "word-count",
@@ -2355,116 +1405,69 @@
     "description": "Generate an analysis report of a set of XML documents. Expects: raw document. Sends back: raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:x-m-l-char-fixing",
     "description": "Fixes invalid characters in XML documents. Expects: raw document. Sends back: raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:x-m-l-validation",
     "description": "Validate XML documents. Expects: raw XML document. Sends back: raw XML document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:x-s-l-transform",
     "description": "Apply an XSLT template to an XML document. Expects: raw XML document. Sends back: raw document.",
     "category": "convert",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:xliff-joiner",
     "description": "Join multiple XLIFF documents into one. Expects: raw document. Sends back: raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:xliff-splitter",
     "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
     "category": "pipeline",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
-    "outputs": [
-      "data"
-    ],
+    "inputs": ["block"],
+    "outputs": ["data"],
     "tags": [],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "requires": ["target-language", "source-language"]
   },
   {
     "name": "okapi:xliff-w-c-splitter",
     "description": "Split an XLIFF document into separate documents based on word count.Expects: raw document. Sends back: raw document.",
     "category": "quality",
     "has_schema": true,
-    "inputs": [
-      "block"
-    ],
+    "inputs": ["block"],
     "outputs": [],
-    "tags": [
-      "analysis"
-    ],
-    "requires": [
-      "target-language",
-      "source-language"
-    ]
+    "tags": ["analysis"],
+    "requires": ["target-language", "source-language"]
   }
 ]
