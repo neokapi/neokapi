@@ -170,7 +170,7 @@ export function ToolNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative flex min-w-[170px] max-w-[200px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
+      className="relative flex h-[84px] min-w-[170px] max-w-[200px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
       style={{
         border: !isValid
           ? "2px solid oklch(0.7 0.15 85)"
@@ -194,7 +194,7 @@ export function ToolNode({ data, selected }: NodeProps) {
       {/* Category / stage rail */}
       <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: railColor }} />
 
-      <div className="flex-1 px-3 py-2 relative">
+      <div className="flex-1 px-3 relative flex flex-col justify-center">
         <BoundaryPorts
           handleType="target"
           position={inPosition}
@@ -319,10 +319,13 @@ export function ToolNode({ data, selected }: NodeProps) {
           )}
         </div>
 
-        {/* Unmet-requirement warning (a required input nothing upstream produces) */}
+        {/* Unmet-requirement warning (a required input nothing upstream
+            produces). Rendered as an absolute overlay BELOW the node so it never
+            changes the node's fixed height — keeping handle centers aligned
+            across a row for straight connectors. */}
         {unmet && unmet.length > 0 && (
           <div
-            className="flex items-center gap-1 mt-1 text-[8px] font-medium"
+            className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
             style={{ color: "oklch(0.62 0.17 45)" }}
             title={`Needs upstream: ${unmet.join(", ")} — add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
           >

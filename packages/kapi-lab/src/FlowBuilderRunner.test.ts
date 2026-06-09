@@ -130,11 +130,11 @@ describe("buildToolInfos", () => {
     expect(wc?.isSourceTransform).toBeFalsy();
   });
 
-  it("maps search-replace and redact to the transform category", () => {
+  it("carries the canonical text-processing category for search-replace and redact", () => {
     const infos = buildToolInfos();
     for (const id of ["search-replace", "redact"]) {
       const info = infos.find((t) => t.name === id);
-      expect(info?.category).toBe("transform");
+      expect(info?.category).toBe("text-processing");
     }
   });
 });

@@ -32,6 +32,13 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
     border: "2px solid var(--card)",
   } as const;
 
+  // When the group flows horizontally it is taller than a single tool node, so
+  // pin its in/out handles to the tool-row center (42px = 84px tool height / 2)
+  // instead of the group's own mid-height — keeping the connectors to adjacent
+  // single nodes perfectly horizontal.
+  const horizontal = inPosition === Position.Left || inPosition === Position.Right;
+  const hStyle = horizontal ? { ...handleStyle, top: 42 } : handleStyle;
+
   return (
     <div
       className="relative flex w-[220px] flex-col rounded-lg bg-card overflow-visible"
@@ -42,7 +49,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
           : "0 2px 8px oklch(0 0 0 / 0.2)",
       }}
     >
-      <Handle type="target" position={inPosition} style={handleStyle} />
+      <Handle type="target" position={inPosition} style={hStyle} />
 
       {/* Header */}
       <div className="flex items-center gap-1 px-3 pt-2">
@@ -117,7 +124,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle type="source" position={outPosition} style={handleStyle} />
+      <Handle type="source" position={outPosition} style={hStyle} />
 
       {onRemove && (
         <button

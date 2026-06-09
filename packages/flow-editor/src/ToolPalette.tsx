@@ -8,9 +8,12 @@ import { IoContract } from "./nodes/PortChip";
 interface ToolPaletteProps {
   tools: ToolInfo[];
   onAddTool: (toolName: string) => void;
+  /** When embedded (e.g. inside the add-tool modal), fill the host width with no
+      side border instead of rendering as a fixed-width sidebar. */
+  embedded?: boolean;
 }
 
-export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
+export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -52,8 +55,12 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
 
   return (
     <div
-      className="flex flex-col overflow-hidden border-r border-border bg-background"
-      style={{ width: 240, minWidth: 240, maxWidth: 240 }}
+      className={
+        embedded
+          ? "flex h-full w-full flex-col overflow-hidden bg-background"
+          : "flex flex-col overflow-hidden border-r border-border bg-background"
+      }
+      style={embedded ? undefined : { width: 240, minWidth: 240, maxWidth: 240 }}
     >
       {/* Search */}
       <PaletteSearchBar value={search} onChange={setSearch} />

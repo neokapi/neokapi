@@ -14,8 +14,10 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "./flowEditor.css";
 import {
   Play,
+  Plus,
   X,
   GitBranch,
   Zap,
@@ -45,7 +47,18 @@ import { IoContract } from "./nodes/PortChip";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
-import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
+import {
+  cn,
+  SchemaForm,
+  Button,
+  Badge,
+  ScrollArea,
+  PanelHeader,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@neokapi/ui-primitives";
 import {
   stepsToGraph,
   serpentineGraph,
@@ -508,6 +521,7 @@ export function FlowEditor({
     (flow.sourceTransforms?.length ?? 0) === 0;
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("serpentine");
 
   // Canvas width drives how many columns the serpentine layout wraps at.
@@ -835,7 +849,9 @@ export function FlowEditor({
         steps: [...flow.steps, { tool: toolName }],
       };
       onChange(updated);
-      // Auto-select the new tool so the config panel opens immediately.
+      // Close the browse modal (if open) and auto-select the new tool so the
+      // config panel opens immediately.
+      setAddOpen(false);
       setSelectedNodeId(`tool-${newNodeIndex}`);
       // Re-anchor the content top-left at 100% (keeps Source pinned top-left).
       requestAnimationFrame(() => {
@@ -1064,12 +1080,10 @@ export function FlowEditor({
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* Tool Palette (left) */}
-      {!readOnly && <ToolPalette tools={tools} onAddTool={handleAddTool} />}
-
-      {/* Canvas (center) */}
-      <div className="flex-1 flex flex-col">
+    <div className="relative flex h-full overflow-hidden">
+      {/* Canvas (full width — palette and config are overlays, not flex siblings,
+          so selecting a node or browsing tools never reflows the graph). */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
         <FlowToolbar
           stepCount={(flow.sourceTransforms?.length ?? 0) + flow.steps.length}
@@ -1098,7 +1112,12 @@ export function FlowEditor({
 
         {/* Graph canvas */}
         {!showTemplates && (
-          <div ref={canvasRef} className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
+          <div
+            ref={canvasRef}
+            className={cn("flex-1", layoutDirection === "serpentine" && "nk-flow-anim")}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+          >
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -1140,6 +1159,17 @@ export function FlowEditor({
 
               {/* Source / Sink are now graph nodes (see the endpoint injection
                   above), connected to the chain's roots/leaves by edges. */}
+
+              {/* Add-tool affordance — opens the browse modal. Keeps the canvas
+                  full-width (no permanent palette sidebar). */}
+              {!readOnly && (
+                <Panel position="top-left">
+                  <Button size="sm" onClick={() => setAddOpen(true)} aria-label="Add tool">
+                    <Plus size={14} />
+                    Add tool
+                  </Button>
+                </Panel>
+              )}
 
               <Panel position="bottom-left">
                 <Button
@@ -1206,20 +1236,37 @@ export function FlowEditor({
         />
       )}
 
-      {/* Config Panel (right) */}
+      {/* Config Panel — a floating overlay pinned to the right of the canvas,
+          NOT a flex sibling, so opening it never resizes the graph. */}
       {selectedStep && (
-        <StepConfigPanel
-          key={selectedNodeId}
-          step={selectedStep}
-          toolInfo={selectedToolInfo}
-          schema={selectedSchema}
-          doc={selectedDoc}
-          config={selectedStep.config || {}}
-          unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
-          onConfigChange={handleConfigChange}
-          onClose={() => setSelectedNodeId(null)}
-          onRemove={readOnly ? undefined : handleRemoveSelected}
-        />
+        <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+          <StepConfigPanel
+            key={selectedNodeId}
+            step={selectedStep}
+            toolInfo={selectedToolInfo}
+            schema={selectedSchema}
+            doc={selectedDoc}
+            config={selectedStep.config || {}}
+            unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+            onConfigChange={handleConfigChange}
+            onClose={() => setSelectedNodeId(null)}
+            onRemove={readOnly ? undefined : handleRemoveSelected}
+          />
+        </div>
+      )}
+
+      {/* Browse-and-add tools — a modal so the canvas stays full-width. */}
+      {!readOnly && (
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
+            <DialogHeader className="px-4 pb-2 pt-4">
+              <DialogTitle className="text-sm">Add a tool</DialogTitle>
+            </DialogHeader>
+            <div className="h-[60vh]">
+              <ToolPalette tools={tools} onAddTool={handleAddTool} embedded />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -1,0 +1,13 @@
+/* Animate node position changes (re-layout, wrap, add/remove) when the editor
+   is in the auto-wrap "serpentine" mode, where nodes are not user-draggable.
+   Scoped to `.nk-flow-anim` so it never lags drag interactions in the linear
+   (draggable) layouts and never affects other React Flow instances. Panning
+   moves the viewport transform, not node transforms, so this stays clear of pan. */
+.nk-flow-anim .react-flow__node {
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Edges fade in rather than pop when the graph re-flows. */
+.nk-flow-anim .react-flow__edge-path {
+  transition: d 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}

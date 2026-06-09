@@ -34,18 +34,6 @@ const BROWSER_SAFE_TOOLS = [
 // toggle only for these tools.
 const SOURCE_TRANSFORM_TOOLS = new Set(["search-replace", "redact"]);
 
-// The flow-editor's palette and node colours key off its own ToolCategory set
-// (translate / validate / …), whereas the reference dataset uses the engine's
-// raw category names (translation / quality / analysis / text-processing). Map
-// between them so the palette groups the tools sensibly instead of dumping
-// them all under Pipeline.
-const CATEGORY_MAP: Record<string, string> = {
-  translation: "translate",
-  quality: "validate",
-  analysis: "enrich",
-  "text-processing": "transform",
-};
-
 // The reference dataset encodes IO ports as "type@side" tokens (a consumed port
 // carries a trailing "?" when optional); the flow editor's ToolInfo wants typed
 // IOPort objects. parsePorts bridges the two so the lab's nodes render the same
@@ -66,8 +54,8 @@ function parsePorts(tokens: string[] | undefined): IOPort[] | undefined {
 
 // Build the palette's ToolInfo[] from the generated reference dataset so the
 // names, descriptions and IO contracts stay truthful to the live engine. We
-// keep only the browser-safe ids and remap the category for display.
-// Exported for unit tests.
+// keep only the browser-safe ids; categories pass through unchanged (already
+// canonical). Exported for unit tests.
 export function buildToolInfos(): ToolInfo[] {
   const byId = new Map<string, ToolInfo>();
   for (const entry of toolReference.entries) {
@@ -76,7 +64,10 @@ export function buildToolInfos(): ToolInfo[] {
       name: entry.id,
       display_name: entry.displayName,
       description: entry.description ?? "",
-      category: CATEGORY_MAP[entry.category ?? ""] ?? "pipeline",
+      // The reference dataset's categories are already the canonical editor
+      // vocabulary (translation / quality / analysis / text-processing / …), so
+      // pass them through; the palette groups and colours key off the same set.
+      category: entry.category || "pipeline",
       has_schema: !!entry.schema,
       consumes: parsePorts(entry.consumes),
       produces: parsePorts(entry.produces),

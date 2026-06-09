@@ -134,7 +134,10 @@ export function EndpointPicker({ role, binding, onChange, readOnly }: EndpointPi
       disabled={readOnly}
       aria-label={`${meta.typeLabel}: ${detail}`}
       className={cn(
-        "group flex min-w-[150px] items-center gap-2 rounded-full border border-dashed bg-card/80 px-3 py-1.5",
+        // Fixed h-12 (48px) so the handle center sits at a known offset; the
+        // serpentine layout nudges the endpoint down by (toolHeight-48)/2 so its
+        // connector to the tool row is perfectly horizontal.
+        "group flex h-12 min-w-[150px] items-center gap-2 rounded-full border border-dashed bg-card/80 px-3",
         "shadow-[0_1px_4px_oklch(0_0_0/0.15)] backdrop-blur-sm transition-colors duration-150",
         !readOnly && "cursor-pointer hover:bg-card",
         readOnly && "cursor-default opacity-90",
