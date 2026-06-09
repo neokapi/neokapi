@@ -257,11 +257,21 @@ describe("centerAlignRows", () => {
     expect(centerOf("c")).toBeCloseTo(centerOf("b"));
   });
 
-  it("aligns rows independently and leaves singletons untouched", () => {
+  it("stacks rows by height: an ordinary row keeps the ~200 stride", () => {
+    // two short rows → gap is SERP_ROW_GAP (116), so row 2 top = 84 + 116 = 200
     const nodes = [node("a", 0, 0), node("b", 0, 200)];
-    const out = centerAlignRows(nodes, 200, () => 120);
+    const out = centerAlignRows(nodes, 200, () => 84);
     expect(out.find((n) => n.id === "a")!.position.y).toBe(0);
     expect(out.find((n) => n.id === "b")!.position.y).toBe(200);
+  });
+
+  it("a tall row pushes the next row further down (clears the wrap edge)", () => {
+    // row 0 holds a tall node; row 1 must start below row 0's bottom by a gap
+    // larger than a fixed stride would give.
+    const nodes = [node("tall", 0, 0), node("next", 0, 200)];
+    const out = centerAlignRows(nodes, 200, (n) => (n.id === "tall" ? 240 : 48));
+    const nextTop = out.find((n) => n.id === "next")!.position.y;
+    expect(nextTop).toBeGreaterThan(240); // below the tall node's bottom
   });
 
   it("leaves nodes untouched until their height is known", () => {

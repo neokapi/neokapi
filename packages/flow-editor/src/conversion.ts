@@ -12,7 +12,11 @@ const CENTER = 200; // cross-axis center
 // Serpentine layout geometry. SERP_COL_W must exceed the widest node so columns
 // never overlap; SERP_ROW_H leaves room for the satellite chips above each node.
 export const SERP_COL_W = 240; // horizontal stride between columns (node max-w 200 + side chips + gap)
-export const SERP_ROW_H = 200; // vertical stride between wrapped rows
+export const SERP_ROW_H = 200; // vertical stride between wrapped rows (banding unit)
+// Minimum gap below a row, sized so an ordinary tool row keeps the SERP_ROW_H
+// stride (TOOL_NODE_H + gap ≈ SERP_ROW_H). Taller rows widen the gap; see
+// centerAlignRows.
+const SERP_ROW_GAP = 116;
 
 // Known node box dimensions (ToolNode is fixed-height; the others are stable
 // enough to center against). Rows are CENTER-aligned on a lane so mixed-height
@@ -351,13 +355,21 @@ export function estimateNodeHeight(n: Node): number {
 }
 
 /**
- * Slide each station vertically so every node sharing a row lands on one
- * centerline — the connecting edges (which meet each node at its vertical
- * center) then run straight even though stations differ in height (a parallel
- * group is taller than a tool node). Rows are grouped by top-aligned y; within a
- * row the centerline is the tallest node's center, so the tallest stays put and
- * shorter nodes drop to meet it. `heightOf` returns the measured height (or
- * undefined before measurement, in which case the node is left as-is).
+ * Re-flow the rows by measured height: stack them top-to-bottom with a gap that
+ * grows with the row's tallest node, and within each row slide every node onto
+ * that row's centerline. Two things fall out of this:
+ *
+ *  - Mixed-height nodes in a row (a tall parallel group beside short tool/
+ *    endpoint nodes) share one centerline → the in-row connectors are straight.
+ *  - A tall row (a parallel group with many branches) pushes the next row far
+ *    enough down that the carriage-return wrap edge — which sweeps from the row's
+ *    right back to the next row's left at roughly the mid-gap — clears the tall
+ *    node instead of cutting through it. A FIXED row stride could not: the wrap's
+ *    sweep sits near the source/target midpoint, and a growing parallel's bottom
+ *    eventually drops below it.
+ *
+ * `heightOf` returns the measured height (or undefined before measurement, in
+ * which case the layout is left as the serpentine top-aligned grid).
  */
 export function centerAlignRows<T extends Node>(
   nodes: T[],
@@ -371,17 +383,23 @@ export function centerAlignRows<T extends Node>(
     if (row) row.push(n);
     else rows.set(band, [n]);
   }
+  if (nodes.every((n) => heightOf(n) === undefined)) return nodes;
 
+  const bands = [...rows.keys()].sort((a, b) => a - b);
   const moved = new Map<string, number>();
-  for (const row of rows.values()) {
-    if (row.every((n) => heightOf(n) === undefined)) continue;
-    const top = Math.min(...row.map((n) => n.position.y));
-    const maxH = Math.max(...row.map((n) => heightOf(n) ?? 0));
-    const centerline = top + maxH / 2;
+  // Anchor at the first row's original top so the flow keeps its vertical start.
+  let top = bands.length ? bands[0] * rowHeight : 0;
+  for (const band of bands) {
+    const row = rows.get(band)!;
+    const maxH = Math.max(0, ...row.map((n) => heightOf(n) ?? 0));
     for (const n of row) {
       const h = heightOf(n);
-      if (h !== undefined) moved.set(n.id, centerline - h / 2);
+      if (h !== undefined) moved.set(n.id, top + (maxH - h) / 2);
     }
+    // Gap below the row. The 0.6·maxH term keeps the wrap edge's mid-gap sweep
+    // below a tall parallel for any branch count; SERP_ROW_GAP keeps ordinary
+    // tool rows at their usual ~SERP_ROW_H stride.
+    top += maxH + Math.max(SERP_ROW_GAP, 0.6 * maxH);
   }
   if (moved.size === 0) return nodes;
 
