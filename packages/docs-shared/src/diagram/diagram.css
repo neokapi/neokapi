@@ -143,6 +143,27 @@
   fill: var(--kdx-surface);
 }
 
+/* redaction censor bar — solid ink, so it reads as a black-out bar on light and
+   inverts to a light bar on dark (RedactionDiagram). Paired with a marker
+   roughen filter + a small per-bar rotation for the felt-tip look. */
+.kdx-blackout {
+  fill: var(--kdx-ink);
+  stroke: var(--kdx-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* placeholder chip — a rough-outlined box showing the redacted category. */
+.kdx-redact-chip {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-ink);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+.kdx-redact-label {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+
 /* self-loop arc (PhaseFlow) */
 .kdx-loop {
   fill: none;

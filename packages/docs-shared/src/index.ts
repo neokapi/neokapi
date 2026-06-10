@@ -13,6 +13,7 @@ export {
   PhaseFlow,
   LanesDiagram,
   SwimlaneDiagram,
+  RedactionDiagram,
 } from "./diagram";
 export type {
   ArchitectureDiagramProps,
@@ -30,4 +31,6 @@ export type {
   SwimlaneDiagramProps,
   SwimlaneActor,
   SwimlaneMessage,
+  RedactionDiagramProps,
+  RedactSpan,
 } from "./diagram";

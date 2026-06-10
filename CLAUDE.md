@@ -448,6 +448,20 @@ providers, filters) — name categories and link to generated references; state
 each topic once and cross-link rather than duplicate; and verify every command,
 flag, import path, and flow name against the code before publishing.
 
+### Diagrams in docs: real React, not ASCII
+
+Documentation diagrams must be **real React diagram-kit components**, never ASCII
+art in a code fence. The themed, light/dark SVG kit lives in
+`@neokapi/docs-shared` (`packages/docs-shared/src/diagram/`): `PipelineDiagram`,
+`StreamDiagram`, `PhaseFlow`, `RoundTripDiagram`, `LanesDiagram`,
+`SwimlaneDiagram`, `ArchitectureDiagram`, and `RedactionDiagram` (censor-bar
+blackout). Import the component into the `.md`/`.mdx` page and pass the data as
+props. Every component has a story under **Diagrams** in the Kapi Storybook
+(`packages/docs-shared/src/diagram/*.stories.tsx`) — add or reuse one there when
+you introduce a diagram, and check it renders in both themes. ASCII code fences
+are only for *code*: CLI output, file/directory trees, and config snippets — not
+for flows, sequences, or relationships.
+
 ## Architecture Decisions
 
 ADs live in `web/docs/docs/contribute/architecture/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.

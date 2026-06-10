@@ -157,11 +157,11 @@ operation — `merge` (store → file via skeleton), `export` (store → interch
 or `pack` (store → `.klz`). This separates *doing the work* from *handing it
 out*, and gives the workspace lifecycle its natural grain:
 
-```
-extract  sources → store        (source: file,  sink: store)
-run/xfm  store   → store         (source: store, sink: store)   ← process-only
-merge    store   → files         (source: store, sink: file)
-```
+| Command | Source | Sink | |
+| --- | --- | --- | --- |
+| `extract` | file | store | ingest sources into the store |
+| `run` / transform | store | store | **process-only** — commit overlays, emit nothing |
+| `merge` | store | file | materialize via the skeleton |
 
 Because the block store is append-only and content-addressed, a process-only run
 is **idempotent and resumable**: re-running skips work whose overlay already

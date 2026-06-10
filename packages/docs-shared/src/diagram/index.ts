@@ -16,3 +16,5 @@ export { LanesDiagram } from "./LanesDiagram";
 export type { LanesDiagramProps, LaneThread } from "./LanesDiagram";
 export { SwimlaneDiagram } from "./SwimlaneDiagram";
 export type { SwimlaneDiagramProps, SwimlaneActor, SwimlaneMessage } from "./SwimlaneDiagram";
+export { RedactionDiagram } from "./RedactionDiagram";
+export type { RedactionDiagramProps, RedactSpan } from "./RedactionDiagram";

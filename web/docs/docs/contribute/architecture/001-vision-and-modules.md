@@ -80,14 +80,18 @@ at the repository root:
 
 The dependency graph is strictly hierarchical:
 
-```
-framework
-    ↑
-    └── cli          (depends on framework only)
-         ↑
-         ├── kapi    (depends on framework + cli)
-         └── kapi-desktop  (depends on framework + cli)
-```
+<PipelineDiagram
+  channelLabel=""
+  caption="Each module depends only on those to its left; CI enforces the boundaries."
+  stages={[
+    { label: "framework", sub: "core/ · no platform deps", role: "io" },
+    { label: "cli", sub: "shared CLI base" },
+    {
+      lanes: [{ label: "kapi" }, { label: "kapi-desktop" }],
+      parallelLabel: "depend on framework + cli",
+    },
+  ]}
+/>
 
 ### Dependency rules
 
