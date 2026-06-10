@@ -181,3 +181,30 @@ describe("buildToolInfos", () => {
     }
   });
 });
+
+describe("buildRecipe multi-line strings", () => {
+  it("emits a script step's code as a YAML literal block, not one escaped string", () => {
+    const code = 'function process(part) {\n  log("hi");\n  return part;\n}\n';
+    const recipe = buildRecipe({
+      steps: [{ tool: "script", config: { allowSourceMutation: true, code } }],
+    });
+    expect(recipe).toContain("          code: |");
+    expect(recipe).toContain("            function process(part) {");
+    expect(recipe).toContain('              log("hi");');
+    expect(recipe).not.toContain("\\n");
+  });
+
+  it("keeps blank code lines as empty YAML lines and single-line strings quoted", () => {
+    const recipe = buildRecipe(
+      { steps: [{ tool: "script", config: { code: "a\n\nb" } }] },
+      { redact: { note: "one line" } },
+    );
+    const lines = recipe.split("\n");
+    const a = lines.indexOf("            a");
+    expect(a).toBeGreaterThan(0);
+    expect(lines[a + 1]).toBe("");
+    expect(lines[a + 2]).toBe("            b");
+    // Presets use the same emitter; single-line strings stay quoted scalars.
+    expect(recipe).toContain('      note: "one line"');
+  });
+});

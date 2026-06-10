@@ -108,7 +108,7 @@ export function buildRecipe(
     for (const [tool, config] of Object.entries(presets)) {
       lines.push(`    ${tool}:`);
       for (const [key, value] of Object.entries(config)) {
-        lines.push(`      ${key}: ${formatScalar(value)}`);
+        lines.push(...emitEntry(key, value, 6));
       }
     }
   }
@@ -121,11 +121,26 @@ export function buildRecipe(
     if (config && Object.keys(config).length > 0) {
       lines.push("        config:");
       for (const [key, value] of Object.entries(config)) {
-        lines.push(`          ${key}: ${formatScalar(value)}`);
+        lines.push(...emitEntry(key, value, 10));
       }
     }
   }
   return lines.join("\n") + "\n";
+}
+
+// Emit one `key: value` config entry at the given indent. Multi-line strings
+// (a script step's code) become a YAML literal block (`key: |`) so the recipe
+// reads — and round-trips — as real lines rather than one escaped string.
+function emitEntry(key: string, value: unknown, indent: number): string[] {
+  const pad = " ".repeat(indent);
+  if (typeof value === "string" && value.includes("\n")) {
+    const body = value.split("\n");
+    // The literal block's default (clip) chomping restores the single
+    // trailing newline a code blob conventionally ends with.
+    if (body.at(-1) === "") body.pop();
+    return [`${pad}${key}: |`, ...body.map((l) => (l ? `${pad}  ${l}` : ""))];
+  }
+  return [`${pad}${key}: ${formatScalar(value)}`];
 }
 
 // Render a config value as a YAML scalar. Strings are quoted so values like
