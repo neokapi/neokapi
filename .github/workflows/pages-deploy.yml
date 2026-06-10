@@ -118,7 +118,10 @@ jobs:
             fi
             {
               echo "bowrain_app_dest=web/prs/${PR_NUMBER}/bowrain"
-              echo "kapi_docs_dest=web/prs/${PR_NUMBER}/neokapi"
+              # PR previews keep the legacy /neokapi/docs/ slot (production moves
+              # to the /neokapi/ root). docs-kapi.yml builds the preview with a
+              # matching base URL; the two must agree or the preview's assets 404.
+              echo "kapi_docs_dest=web/prs/${PR_NUMBER}/neokapi/docs"
               echo "bowrain_docs_dest=web/prs/${PR_NUMBER}/bowrain/docs"
               echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi"
               echo "bowrain_storybook_dest=storybook/prs/${PR_NUMBER}/bowrain"
@@ -329,7 +332,7 @@ jobs:
           MARKER="<!-- pr-preview-links -->"
           BODY="${MARKER}
           📚 Preview deployed:
-          - neokapi site: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/
+          - neokapi site: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/docs/
           - bowrain landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/
           - bowrain docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/docs/
           - kapi storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/kapi/

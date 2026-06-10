@@ -19,13 +19,15 @@ const buildStamp = (() => {
   return `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · ${sha}`;
 })();
 
-// This Docusaurus instance IS the neokapi site: it sits at the /web/neokapi/
-// root and its home page (src/pages/index.tsx) is the product landing page. (A
-// separate Vite landing app previously occupied this root; it was retired and
-// its content folded into the docs home — see src/components/home/.) PR previews
-// are served from /web/prs/<N>/neokapi/ instead, so the deploy workflow
-// overrides the base path via DOCS_BASE_URL — without it, internal links would
-// carry the production prefix and navigate out of the preview.
+// This Docusaurus instance IS the neokapi site: in production it sits at the
+// /web/neokapi/ root and its home page (src/pages/index.tsx) is the product
+// landing page. (A separate Vite landing app previously occupied this root; it
+// was retired and its content folded into the docs home — see
+// src/components/home/.) PR previews are instead served from
+// /web/prs/<N>/neokapi/docs/ (the deploy step runs from the default branch and
+// slots PR docs there), so the deploy workflow overrides the base path via
+// DOCS_BASE_URL — without it, internal links would carry the production prefix
+// and navigate out of the preview.
 const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/";
 
 const config: Config = {
