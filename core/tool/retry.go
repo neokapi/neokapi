@@ -73,8 +73,14 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 		defer func() { bt.Translate = orig }()
 	case bt.Transform != nil:
 		orig := bt.Transform
-		bt.Transform = func(v SourceView) error {
-			return t.retryAttempt(ctx, func() error { return orig(v) })
+		bt.Transform = func(v BlockView) (EditPlan, error) {
+			var plan EditPlan
+			err := t.retryAttempt(ctx, func() error {
+				var attemptErr error
+				plan, attemptErr = orig(v)
+				return attemptErr
+			})
+			return plan, err
 		}
 		defer func() { bt.Transform = orig }()
 	default:

@@ -45,7 +45,7 @@ func AIQASchema() *schema.ComponentSchema {
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
 		Produces:              []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
 	return s

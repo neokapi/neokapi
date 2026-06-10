@@ -57,31 +57,24 @@ func NewURIConvertTool(cfg *URIConvertConfig) *tool.BaseTool {
 		ToolDescription: "Encodes or decodes URI escape sequences in text",
 		Cfg:             cfg,
 	}
-	// Transform: uri-convert may rewrite source and/or target text.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the URI-escape rewrite as an edit plan; the
+	// framework applier rewrites the block (AD-006).
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
-
 		conf := t.Cfg.(*URIConvertConfig)
-
-		if conf.ApplySource {
-			converted, err := convertURI(v.SourceText(), conf.Mode)
-			if err != nil {
-				return fmt.Errorf("uri-convert source: %w", err)
-			}
-			v.SetSourceText(converted)
+		var targets []model.LocaleID
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
+			targets = []model.LocaleID{conf.TargetLocale}
 		}
-
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			converted, err := convertURI(v.TargetText(conf.TargetLocale), conf.Mode)
-			if err != nil {
-				return fmt.Errorf("uri-convert target: %w", err)
-			}
-			v.SetTargetText(conf.TargetLocale, converted)
+		plan, err := textPlan(v, conf.ApplySource, targets, func(s string) (string, error) {
+			return convertURI(s, conf.Mode)
+		})
+		if err != nil {
+			return tool.EditPlan{}, fmt.Errorf("uri-convert: %w", err)
 		}
-
-		return nil
+		return plan, nil
 	}
 	return t
 }

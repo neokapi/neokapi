@@ -209,13 +209,74 @@ func TestImmutabilityGuard(t *testing.T) {
 		}
 		require.ErrorContains(t, run(bt, mkBlock()), "changed source")
 	})
-	t.Run("transform handler may rewrite source", func(t *testing.T) {
+	t.Run("transform producer's plan rewrites source via the applier", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "src-xform"}
-		bt.Transform = func(v tool.SourceView) error {
-			v.SetSourceText("changed")
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			changed := "changed"
+			return tool.EditPlan{ReplaceAll: &changed}, nil
+		}
+		b := mkBlock()
+		require.NoError(t, run(bt, b))
+		assert.Equal(t, "changed", b.SourceText())
+	})
+	t.Run("transform producer mutating source in place is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "sneaky-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			v.SourceRuns()[0].Text.Text = "changed" // in-place edit through the live slice
+			return tool.EditPlan{}, nil
+		}
+		require.ErrorContains(t, run(bt, mkBlock()), "read-only producer")
+	})
+	t.Run("transform producer mutating target in place is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "sneaky-tgt-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			v.TargetRuns("fr")[0].Text.Text = "changed"
+			return tool.EditPlan{}, nil
+		}
+		b := mkBlock()
+		b.SetTargetText("fr", "Bonjour")
+		require.ErrorContains(t, run(bt, b), "changed target")
+	})
+	t.Run("transform plan with secrets and no vault sink is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "leaky-redactor"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			changed := "[REDACTED]"
+			return tool.EditPlan{
+				ReplaceAll: &changed,
+				Secrets:    []tool.Secret{{Token: "rdx1", Original: "Hello world"}},
+			}, nil
+		}
+		b := mkBlock()
+		require.ErrorContains(t, run(bt, b), "no VaultSecrets sink")
+		// Fail-closed: the rewrite must not have landed.
+		assert.Equal(t, "Hello world", b.SourceText())
+	})
+	t.Run("transform plan vaults secrets before the rewrite", func(t *testing.T) {
+		var vaulted []tool.Secret
+		bt := &tool.BaseTool{ToolName: "redactor"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			changed := "[REDACTED]"
+			return tool.EditPlan{
+				ReplaceAll: &changed,
+				Secrets:    []tool.Secret{{Token: "rdx1", Original: "Hello world"}},
+			}, nil
+		}
+		bt.VaultSecrets = func(v tool.BlockView, secrets []tool.Secret) error {
+			vaulted = secrets
 			return nil
 		}
-		require.NoError(t, run(bt, mkBlock()))
+		b := mkBlock()
+		require.NoError(t, run(bt, b))
+		assert.Equal(t, "[REDACTED]", b.SourceText())
+		require.Len(t, vaulted, 1)
+		assert.Equal(t, "Hello world", vaulted[0].Original)
+	})
+	t.Run("transform plan changing text without edits is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "unmapped-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			return tool.EditPlan{NewRuns: []model.Run{{Text: &model.TextRun{Text: "different"}}}}, nil
+		}
+		require.ErrorContains(t, run(bt, mkBlock()), "without a mapping")
 	})
 	t.Run("annotate handler mutating target via aliased slice is rejected", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "bad-tgt"}
@@ -244,28 +305,34 @@ func TestImmutabilityGuard(t *testing.T) {
 		}
 		require.NoError(t, run(bt, mkBlock()))
 	})
-	t.Run("source transform leaving an overlay out of bounds is rejected", func(t *testing.T) {
+	t.Run("structured plan with inconsistent edits drops the overlay span", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "late-xform"}
-		bt.Transform = func(v tool.SourceView) error {
-			v.SetSourceText("hi") // far shorter than the term span below
-			return nil
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			// Shrink "Hello world" (11 runes) to "hi" but claim only a 2-rune
+			// deletion: the edits do not describe the rewrite.
+			return tool.EditPlan{
+				NewRuns: []model.Run{{Text: &model.TextRun{Text: "hi"}}},
+				Edits:   []model.RunEdit{{Start: 0, End: 2, NewLen: 0}},
+			}, nil
 		}
 		b := mkBlock()
-		// A term span covering "Hello world" (11 runes). Shrinking the source to
-		// "hi" without dropping or rebasing the overlay leaves it dangling, which
-		// the backstop must reject.
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRange{EndRun: 0, EndOffset: 11}})
-		require.ErrorContains(t, run(bt, b), "out of bounds")
+		// A term span over the trailing "ld" (runes 9..11): outside the claimed
+		// edit, but its shifted range (7..9) cannot fit "hi" — the remap drops it
+		// rather than mis-anchor it, and the bounds invariant holds.
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 9, 11)})
+		require.NoError(t, run(bt, b))
+		assert.Equal(t, "hi", b.SourceText())
+		assert.Nil(t, b.OverlayOf(model.OverlayTerm), "the unmappable span (and its emptied overlay) is dropped")
 	})
-	t.Run("source transform rebasing its overlays is allowed", func(t *testing.T) {
-		// The transform deletes the leading "Hello " (runes 0..6) and rebases the
-		// term overlay over "world", so the surviving span still anchors in-bounds.
+	t.Run("structured plan rebases overlays across the rewrite", func(t *testing.T) {
+		// The plan deletes the leading "Hello " (runes 0..6); the applier rebases
+		// the term overlay over "world", so the surviving span anchors in-bounds.
 		bt := &tool.BaseTool{ToolName: "rebase-xform"}
-		bt.Transform = func(v tool.SourceView) error {
-			old := v.SourceRuns()
-			v.SetSourceText("world")
-			v.RemapSourceOverlays(old, []model.RunEdit{{Start: 0, End: 6, NewLen: 0}})
-			return nil
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			return tool.EditPlan{
+				NewRuns: []model.Run{{Text: &model.TextRun{Text: "world"}}},
+				Edits:   []model.RunEdit{{Start: 0, End: 6, NewLen: 0}},
+			}, nil
 		}
 		b := mkBlock()
 		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 6, 11)})
@@ -276,5 +343,49 @@ func TestImmutabilityGuard(t *testing.T) {
 		s, e := sp.Range.TextSpan(b.Source)
 		assert.Equal(t, 0, s)
 		assert.Equal(t, 5, e)
+	})
+	t.Run("opaque ReplaceAll drops source overlays", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "opaque-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			rewritten := "a fully rewritten sentence"
+			return tool.EditPlan{ReplaceAll: &rewritten}, nil
+		}
+		b := mkBlock()
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 0, 5)})
+		require.NoError(t, run(bt, b))
+		assert.Equal(t, "a fully rewritten sentence", b.SourceText())
+		assert.Nil(t, b.OverlayOf(model.OverlayTerm))
+	})
+	t.Run("structure-only plan re-anchors overlays onto the new runs", func(t *testing.T) {
+		// Splitting one text run into two changes run indices but not the text;
+		// the plan carries no edits and the applier re-anchors the span.
+		bt := &tool.BaseTool{ToolName: "split-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			return tool.EditPlan{NewRuns: []model.Run{
+				{Text: &model.TextRun{Text: "Hello "}},
+				{Text: &model.TextRun{Text: "world"}},
+			}}, nil
+		}
+		b := mkBlock()
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 6, 11)})
+		require.NoError(t, run(bt, b))
+		sp := b.OverlaySpan(model.OverlayTerm, "t1")
+		require.NotNil(t, sp)
+		s, e := sp.Range.TextSpan(b.Source)
+		assert.Equal(t, 6, s)
+		assert.Equal(t, 11, e)
+	})
+	t.Run("plan target replacement preserves variant metadata", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "tgt-xform"}
+		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+			var plan tool.EditPlan
+			plan.SetTarget("fr", []model.Run{{Text: &model.TextRun{Text: "BONJOUR"}}})
+			return plan, nil
+		}
+		b := mkBlock()
+		b.SetTarget("fr", model.NewTarget([]model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}, model.TargetStatusTranslated))
+		require.NoError(t, run(bt, b))
+		assert.Equal(t, "BONJOUR", b.TargetText("fr"))
+		assert.Equal(t, model.TargetStatusTranslated, b.Target("fr").Status)
 	})
 }

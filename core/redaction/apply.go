@@ -288,6 +288,94 @@ func Restore(runs []model.Run, get func(token string) (string, bool)) ([]model.R
 	return out, restored
 }
 
+// RestorePlan restores originals into a run sequence in one walk — by
+// placeholder ID (via get, for structure-preserving carriers) and by visible
+// token text (via entries' Disp, for carriers that flattened the placeholder
+// on write) — and returns the rewritten runs, the count restored, and the
+// structured edits applied to the flattened text (model.RunEdit, rune
+// offsets, ascending). The edits let the framework applier rebase surviving
+// run-anchored overlays across the restore (AD-006): a placeholder restore is
+// a pure insertion at the placeholder's position (it contributed nothing to
+// the flattening), a token restore replaces the token's span.
+func RestorePlan(runs []model.Run, get func(token string) (string, bool), entries []RedactedValue) ([]model.Run, int, []model.RunEdit) {
+	if len(runs) == 0 {
+		return runs, 0, nil
+	}
+	var (
+		out      []model.Run
+		edits    []model.RunEdit
+		restored int
+		at       int // rune offset into the old flattened text
+	)
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil:
+			if get != nil {
+				if original, found := get(r.Ph.ID); found {
+					out = append(out, textRun(original))
+					edits = append(edits, model.RunEdit{Start: at, End: at, NewLen: utf8.RuneCountInString(original)})
+					restored++
+					continue
+				}
+			}
+			out = append(out, r)
+		case r.Text != nil:
+			text := r.Text.Text
+			var nb strings.Builder
+			cursor := 0 // byte offset into text
+			for cursor < len(text) {
+				b, e, original, ok := nextTokenMatch(text, cursor, entries)
+				if !ok {
+					break
+				}
+				nb.WriteString(text[cursor:b])
+				nb.WriteString(original)
+				edits = append(edits, model.RunEdit{
+					Start:  at + utf8.RuneCountInString(text[:b]),
+					End:    at + utf8.RuneCountInString(text[:e]),
+					NewLen: utf8.RuneCountInString(original),
+				})
+				restored++
+				cursor = e
+			}
+			if cursor == 0 {
+				out = append(out, r)
+			} else {
+				nb.WriteString(text[cursor:])
+				out = append(out, textRun(nb.String()))
+			}
+			at += utf8.RuneCountInString(text)
+		default:
+			out = append(out, r)
+		}
+	}
+	if restored == 0 {
+		return runs, 0, nil
+	}
+	return out, restored, edits
+}
+
+// nextTokenMatch finds the earliest occurrence at or after byte offset from of
+// any entry's visible token (Disp) in text, returning its byte span and the
+// original to restore. Ties at the same position prefer the longest token.
+func nextTokenMatch(text string, from int, entries []RedactedValue) (start, end int, original string, ok bool) {
+	best := -1
+	for _, e := range entries {
+		if e.Disp == "" {
+			continue
+		}
+		i := strings.Index(text[from:], e.Disp)
+		if i < 0 {
+			continue
+		}
+		pos := from + i
+		if best == -1 || pos < best || (pos == best && len(e.Disp) > end-start) {
+			best, start, end, original = pos, pos, pos+len(e.Disp), e.Original
+		}
+	}
+	return start, end, original, best != -1
+}
+
 // TextOf returns the flattened plain text of a run sequence using only
 // TextRun content — the coordinate space detectors and [Redact] share. It
 // mirrors model.Block.SourceText for a single run slice.

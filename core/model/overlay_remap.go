@@ -31,8 +31,13 @@ type RunEdit struct {
 // delta of the edits before it and re-anchored to b.Source. An overlay left with
 // no spans is removed. Target-side overlays are untouched. It returns the number
 // of spans dropped.
+//
+// With no edits the call still re-anchors: a structure-only rewrite (runs
+// added, removed, or reclassified without changing the text flattening) shifts
+// run indices, so every span is re-projected through its text range onto the
+// new runs.
 func RemapOverlays(b *Block, oldRuns []Run, edits []RunEdit) int {
-	if b == nil || len(edits) == 0 || len(b.Overlays) == 0 {
+	if b == nil || len(b.Overlays) == 0 {
 		return 0
 	}
 	dropped := 0
@@ -67,6 +72,11 @@ func RemapOverlays(b *Block, oldRuns []Run, edits []RunEdit) int {
 // delta of edits before it and re-anchors it to newRuns. Edits are ascending and
 // non-overlapping, so a surviving span has every edit entirely before its start
 // or entirely after its end — both endpoints carry the same delta.
+//
+// A shifted span that does not fit the new flattening is dropped rather than
+// clamped: the edits then do not describe the rewrite (RunRangeFor would
+// silently mis-anchor the span at the end), and a missing span is honest while
+// a misplaced one is corrupt.
 func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
 	start, end := s.Range.TextSpan(oldRuns)
 	delta := 0
@@ -78,9 +88,34 @@ func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
 			delta += e.NewLen - (e.End - e.Start)
 		}
 	}
+	if newLen := len([]rune(RunsText(newRuns))); start+delta < 0 || end+delta > newLen {
+		return Span{}, false // the edits do not describe the rewrite
+	}
 	ns := s
 	ns.Range = RunRangeFor(newRuns, start+delta, end+delta)
 	return ns, true
+}
+
+// DropSourceOverlays removes every source-side overlay from b — the opaque
+// rewrite path (AD-006): a whole-source replacement with no derivable mapping
+// cannot rebase run-anchored spans, so the framework applier drops them rather
+// than leave them dangling. Target-side overlays are untouched. It returns the
+// number of overlays dropped.
+func DropSourceOverlays(b *Block) int {
+	if b == nil || len(b.Overlays) == 0 {
+		return 0
+	}
+	dropped := 0
+	out := b.Overlays[:0]
+	for _, o := range b.Overlays {
+		if o.OnSource() {
+			dropped++
+			continue
+		}
+		out = append(out, o)
+	}
+	b.Overlays = out
+	return dropped
 }
 
 // SourceOverlaysInBounds reports whether every source-side overlay span anchors

@@ -74,40 +74,34 @@ func NewEncodingConvertTool(cfg *EncodingConvertConfig) *tool.BaseTool {
 		ToolDescription: "Converts character encoding of text content",
 		Cfg:             cfg,
 	}
-	// Transform: encoding-convert may rewrite source and/or target text.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the encoding normalization as an edit plan;
+	// the framework applier rewrites the block (AD-006). The target-encoding
+	// property is written directly — properties are the view's writable surface.
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
 		conf := t.Cfg.(*EncodingConvertConfig)
 
 		enc, err := ianaindex.IANA.Encoding(conf.TargetEncoding)
 		if err != nil {
-			return fmt.Errorf("encoding-convert: unsupported encoding %q: %w", conf.TargetEncoding, err)
+			return tool.EditPlan{}, fmt.Errorf("encoding-convert: unsupported encoding %q: %w", conf.TargetEncoding, err)
 		}
 
 		v.SetProperty(PropEncodingTarget, conf.TargetEncoding)
 
-		if conf.ApplySource {
-			sourceText := unescapeText(v.SourceText(), conf)
-			converted, convErr := convertThroughEncoding(sourceText, enc)
-			if convErr != nil {
-				return fmt.Errorf("encoding-convert: source conversion failed: %w", convErr)
-			}
-			v.SetSourceText(converted)
+		var targets []model.LocaleID
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
+			targets = []model.LocaleID{conf.TargetLocale}
 		}
-
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			targetText := unescapeText(v.TargetText(conf.TargetLocale), conf)
-			converted, convErr := convertThroughEncoding(targetText, enc)
-			if convErr != nil {
-				return fmt.Errorf("encoding-convert: target conversion failed: %w", convErr)
-			}
-			v.SetTargetText(conf.TargetLocale, converted)
+		plan, err := textPlan(v, conf.ApplySource, targets, func(s string) (string, error) {
+			return convertThroughEncoding(unescapeText(s, conf), enc)
+		})
+		if err != nil {
+			return tool.EditPlan{}, fmt.Errorf("encoding-convert: %w", err)
 		}
-
-		return nil
+		return plan, nil
 	}
 	return t
 }

@@ -41,7 +41,7 @@ func AITerminologySchema() *schema.ComponentSchema {
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
 		Produces:              []schema.IOPort{schema.Port(model.OverlayTerm, model.SideSource)},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
 	return s

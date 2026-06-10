@@ -200,6 +200,21 @@ const (
 	Demo ProviderID = "demo"
 )
 
+// IsLocalProvider reports whether the provider keeps content on the machine:
+// Ollama serves a local model and Demo is offline, while the cloud providers
+// (Anthropic, OpenAI, Gemini, Azure OpenAI — and any unknown provider, which
+// is assumed remote fail-closed) send content to a remote endpoint. The flow
+// placement pass uses this to refine a tool's remote-source-egress side
+// effect from its configuration (AD-006).
+func IsLocalProvider(id ProviderID) bool {
+	switch id {
+	case Ollama, Demo:
+		return true
+	default:
+		return false
+	}
+}
+
 // ProviderFactory creates an LLMProvider from a Config.
 type ProviderFactory func(cfg Config) LLMProvider
 

@@ -84,20 +84,14 @@ func TestDeleteFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 	assert.Contains(t, err.Error(), "not connected")
 }
 
-func TestFlowDefToInfo_StageSerialization(t *testing.T) {
+func TestFlowDefToInfo_Serialization(t *testing.T) {
 	def := flow.FlowDefinition{
-		ID:   "test-stage",
-		Name: "Test Stage",
+		ID:   "test-flow",
+		Name: "Test Flow",
 		Nodes: []flow.FlowNode{
 			{ID: "reader", Type: flow.NodeReader, Name: "auto", Position: flow.NodePosition{X: 0, Y: 0}},
-			{
-				ID:       "redact",
-				Type:     flow.NodeTool,
-				Name:     "redact",
-				Stage:    flow.StageSourceTransform,
-				Position: flow.NodePosition{X: 200, Y: 0},
-			},
-			{ID: "t1", Type: flow.NodeTool, Name: "ai-translate", Stage: flow.StageMain, Position: flow.NodePosition{X: 400, Y: 0}},
+			{ID: "redact", Type: flow.NodeTool, Name: "redact", Position: flow.NodePosition{X: 200, Y: 0}},
+			{ID: "t1", Type: flow.NodeTool, Name: "ai-translate", Position: flow.NodePosition{X: 400, Y: 0}},
 			{ID: "writer", Type: flow.NodeWriter, Name: "auto", Position: flow.NodePosition{X: 600, Y: 0}},
 		},
 		Edges: []flow.FlowEdge{
@@ -112,21 +106,18 @@ func TestFlowDefToInfo_StageSerialization(t *testing.T) {
 	for _, n := range info.Nodes {
 		byID[n.ID] = n
 	}
-	assert.Equal(t, string(flow.StageSourceTransform), byID["redact"].Stage, "source-transform stage serialized")
-	assert.Equal(t, "", byID["t1"].Stage, "main stage serializes as empty string")
+	assert.Equal(t, "redact", byID["redact"].Name)
+	assert.Equal(t, "tool", byID["t1"].Type)
+	assert.Len(t, info.Edges, 3)
 }
 
-func TestSecureTranslateBuiltInHasSourceTransformNode(t *testing.T) {
+func TestSecureTranslateBuiltInOrdersRedactFirst(t *testing.T) {
 	app := NewApp()
 	info, err := app.GetFlowDefinition("proj-1", "secure-translate")
 	require.NoError(t, err)
 
-	var found bool
-	for _, n := range info.Nodes {
-		if n.Name == "redact" {
-			assert.Equal(t, string(flow.StageSourceTransform), n.Stage, "redact node should be source-transform stage")
-			found = true
-		}
-	}
-	assert.True(t, found, "secure-translate should contain a redact node")
+	// Transformers are ordinary ordered steps (AD-006): redact is simply the
+	// first tool node, ahead of the remote-egress translate step.
+	require.NotEmpty(t, info.Nodes)
+	assert.Equal(t, "redact", info.Nodes[0].Name, "secure-translate starts with redact")
 }

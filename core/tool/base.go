@@ -48,15 +48,24 @@ type BaseTool struct {
 	//                          writes only overlays, annotations, properties.
 	//                          The default surface; no content writes exist.
 	//   Translate(TargetView)— target production: reads source, writes target.
-	//   Transform(SourceView)— source transformation: rewrites source (and may
-	//                          write target). Runs early, before overlays exist;
-	//                          may record recovery for a later restore (e.g. redact).
+	//   Transform(BlockView) — a read-only EDIT PRODUCER: inspects the block
+	//                          and returns an EditPlan; the framework applier
+	//                          (the sole mutator) applies it — rewrites source,
+	//                          rebases surviving overlays, vaults secrets, and
+	//                          bounds-checks, atomically. Tool code holds no
+	//                          source setter.
 	//
 	// Each is 1→1 (mutate in place) or 1→0 (call view.Drop()). A tool needing
 	// 1→N, cross-block state, batching, or stream control overrides Process.
 	Annotate  func(BlockView) error
 	Translate func(TargetView) error
-	Transform func(SourceView) error
+	Transform func(BlockView) (EditPlan, error)
+
+	// VaultSecrets is the sink the applier hands a plan's Secrets to, set by
+	// recoverable transformers (redaction) at construction: in-process mode
+	// writes the on-block secret annotation, external mode writes a sidecar
+	// vault. A plan with secrets and no sink is an apply error (fail closed).
+	VaultSecrets func(BlockView, []Secret) error
 
 	// Non-block handlers stay untyped: the immutability model governs Block
 	// source/target content; Data/Media/Layer/Group parts carry no such content.
@@ -153,32 +162,13 @@ func (b *BaseTool) Capability() Capability {
 	}
 }
 
-// IsSourceTransform reports whether t may rewrite source (CapTransform). Tools
+// IsSourceTransform reports whether t may rewrite source (CapTransform) — a
+// transformer in AD-006 terms. The placement pass uses this (via the registry
+// probe) to validate a transformer's position among the ordered steps. Tools
 // that don't implement Capable are treated as not source-transforms.
 func IsSourceTransform(t Tool) bool {
 	c, ok := t.(Capable)
 	return ok && c.Capability() == CapTransform
-}
-
-// CanPrecedeSettle reports whether t may appear in a flow's leading
-// source-transform ("settle") stage: it must be Annotate- or Transform-capable.
-// Annotators are allowed so their overlays can drive a following source
-// transform within the stage — e.g. ai-entity-extract → redact (AD-006). A
-// Translate tool may not: translation must run in the main stage, after the
-// source has settled (its targets anchor to the settled source). A stage built
-// only of annotators settles nothing; callers also require at least one
-// Transform (see IsSourceTransform) in a non-empty settle stage.
-func CanPrecedeSettle(t Tool) bool {
-	c, ok := t.(Capable)
-	if !ok {
-		return false
-	}
-	switch c.Capability() {
-	case CapAnnotate, CapTransform:
-		return true
-	default:
-		return false
-	}
 }
 
 // Apply runs a single Part through the tool's per-part dispatch — the same
@@ -291,36 +281,38 @@ func (b *BaseTool) runTranslate(ctx context.Context, part *model.Part) (*model.P
 	return v.result(part), nil
 }
 
-// runTransform drives a source-transform handler (source + target writable).
-// Backstop: source must not change once a stand-off overlay is attached — the
-// overlay's run-anchored ranges would rot. Source transforms run early.
+// runTransform drives a transform as a read-only edit producer, then hands its
+// plan to the framework applier — the only code that mutates the block's
+// representation (AD-006). Backstop: the producer itself may change nothing
+// (it holds no setter, and the aliased-slice guard catches in-place edits);
+// the applier rebases overlays, vaults secrets, and bounds-checks atomically.
 func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.Part, error) {
 	block, _ := part.Resource.(*model.Block)
 	if block == nil {
 		return part, nil
 	}
 	v := newBlockView(ctx, block)
-	if !EnforceImmutability {
-		if err := b.Transform(v); err != nil {
-			return nil, err
-		}
-		return v.result(part), nil
+	var srcBefore, tgtBefore uint64
+	if EnforceImmutability {
+		srcBefore, tgtBefore = blockSourceSig(block), blockTargetsSig(block)
 	}
-	srcBefore := blockSourceSig(block)
-	if err := b.Transform(v); err != nil {
+	plan, err := b.Transform(v)
+	if err != nil {
 		return nil, err
 	}
-	// A source rewrite shifts the run-anchored ranges of any source overlay. The
-	// hazard is leaving an overlay *dangling* over the new runs, so we check the
-	// post-transform state: every surviving source overlay span must still anchor
-	// in-bounds. A structured transform keeps overlays by rebasing them
-	// (SourceView.RemapSourceOverlays / model.RemapOverlays); a transform with no
-	// derivable mapping must drop them (e.g. redact drops the entity overlay it
-	// consumes). An out-of-bounds span means neither was done.
-	if blockSourceSig(block) != srcBefore {
-		if bad, ok := block.SourceOverlaysInBounds(); !ok {
-			return nil, fmt.Errorf("immutability: transform tool %q rewrote the source of block %q but left source overlay %q anchored out of bounds — drop it or rebase it (model.RemapOverlays) after rewriting source (overlays anchor to runs)", b.ToolName, block.ID, bad)
+	if EnforceImmutability {
+		if blockSourceSig(block) != srcBefore {
+			return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q in place — a transform is a read-only producer; return the rewrite in its EditPlan", b.ToolName, block.ID)
 		}
+		if blockTargetsSig(block) != tgtBefore {
+			return nil, fmt.Errorf("immutability: transform tool %q changed target of block %q in place — return target replacements in its EditPlan", b.ToolName, block.ID)
+		}
+	}
+	if v.dropped {
+		return nil, nil
+	}
+	if err := applyEditPlan(b.ToolName, v, block, plan, b.VaultSecrets); err != nil {
+		return nil, err
 	}
 	return v.result(part), nil
 }

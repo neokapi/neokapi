@@ -51,7 +51,7 @@ func BrandVoiceCheckSchema() *schema.ComponentSchema {
 		Requires:              []string{schema.RequiresCredentials},
 		Cardinality:           schema.Monolingual,
 		Produces:              []schema.IOPort{{Type: model.AnnoBrandVoice, Side: model.SideTarget}},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
 	return s

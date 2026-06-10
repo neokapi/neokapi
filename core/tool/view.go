@@ -15,8 +15,8 @@ import (
 //   - Annotate(BlockView)   — analysis / annotation (the default; no content
 //     writes possible — the methods simply don't exist here)
 //   - Translate(TargetView) — writes target content
-//   - Transform(SourceView) — rewrites source (and may write target); runs in
-//     the early phase, before any stand-off overlay is attached
+//   - Transform(BlockView)  — a read-only edit producer returning an EditPlan;
+//     the framework applier is the sole source mutator (AD-006)
 //
 // Because the read methods hand back the Block's live run slices, tools must
 // treat returned runs as read-only; the dispatcher's backstop check
@@ -123,25 +123,10 @@ type TargetView interface {
 	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
 }
 
-// SourceView adds source-write access (and includes target writes). Tools that
-// transform source — redaction, normalization, case/encoding conversion —
-// receive this via TransformBlockFn and must run before overlays exist.
-type SourceView interface {
-	TargetView
-	SetSourceRuns(runs []model.Run)
-	SetSourceText(text string)
-	// RemapSourceOverlays rebases the block's surviving source overlays onto the
-	// just-rewritten source runs, given the structured edits applied to the
-	// source text (oldRuns are the pre-rewrite runs the overlays still anchor
-	// to). Spans overlapping an edit are dropped; the rest shift to follow it.
-	// Call it after SetSourceRuns when a structured transform (e.g. redaction)
-	// must keep an upstream annotator's overlays (terms, entities). See
-	// model.RemapOverlays.
-	RemapSourceOverlays(oldRuns []model.Run, edits []model.RunEdit)
-}
-
 // blockView is the single concrete view; the handler field's parameter type
-// (BlockView / TargetView / SourceView) narrows which methods a tool can call.
+// (BlockView / TargetView) narrows which methods a tool can call. There is no
+// source-write view: a Transform handler is a read-only producer and the
+// framework applier mutates the block directly (AD-006).
 type blockView struct {
 	ctx     context.Context
 	b       *model.Block
@@ -152,27 +137,23 @@ func newBlockView(ctx context.Context, b *model.Block) *blockView {
 	return &blockView{ctx: ctx, b: b}
 }
 
-// NewBlockView, NewTargetView and NewSourceView build an explicit view over a
-// Block at the matching capability tier. Dispatched handlers receive a view
-// automatically; these constructors are for Process-override tools (batched or
-// session-aware translators, stream operators) that hold a *model.Block
-// directly and want to reuse the same capability-scoped surface. The view's
-// Context() reports context.Background(); use the WithContext variants from a
-// Process override to propagate cancellation into provider/network calls.
+// NewBlockView and NewTargetView build an explicit view over a Block at the
+// matching capability tier. Dispatched handlers receive a view automatically;
+// these constructors are for Process-override tools (batched or session-aware
+// translators, stream operators) that hold a *model.Block directly and want to
+// reuse the same capability-scoped surface. The view's Context() reports
+// context.Background(); use the WithContext variants from a Process override
+// to propagate cancellation into provider/network calls.
 func NewBlockView(b *model.Block) BlockView   { return newBlockView(context.Background(), b) }
 func NewTargetView(b *model.Block) TargetView { return newBlockView(context.Background(), b) }
-func NewSourceView(b *model.Block) SourceView { return newBlockView(context.Background(), b) }
 
-// NewBlockViewWithContext, NewTargetViewWithContext and NewSourceViewWithContext
-// are the cancellation-aware constructors for Process-override tools: the view's
+// NewBlockViewWithContext and NewTargetViewWithContext are the
+// cancellation-aware constructors for Process-override tools: the view's
 // Context() returns ctx, so handlers can honour deadlines/cancellation.
 func NewBlockViewWithContext(ctx context.Context, b *model.Block) BlockView {
 	return newBlockView(ctx, b)
 }
 func NewTargetViewWithContext(ctx context.Context, b *model.Block) TargetView {
-	return newBlockView(ctx, b)
-}
-func NewSourceViewWithContext(ctx context.Context, b *model.Block) SourceView {
 	return newBlockView(ctx, b)
 }
 
@@ -275,16 +256,8 @@ func (v *blockView) ClearTargets() {
 	v.b.Targets = make(map[model.VariantKey]*model.Target)
 }
 
-// Source writes (SourceView).
-func (v *blockView) SetSourceRuns(runs []model.Run) { v.b.SetSourceRuns(runs) }
-func (v *blockView) SetSourceText(text string)      { v.b.SetSourceText(text) }
-func (v *blockView) RemapSourceOverlays(oldRuns []model.Run, edits []model.RunEdit) {
-	model.RemapOverlays(v.b, oldRuns, edits)
-}
-
 // Compile-time checks that blockView satisfies every view tier.
 var (
 	_ BlockView  = (*blockView)(nil)
 	_ TargetView = (*blockView)(nil)
-	_ SourceView = (*blockView)(nil)
 )

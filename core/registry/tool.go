@@ -41,9 +41,14 @@ type ToolInfo struct {
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
 	// IsSourceTransform reports whether the tool can rewrite source
-	// (tool.CapTransform) — i.e. whether it may sit in a flow's source-transform
-	// stage. Derived from the tool's handler at registration. (AD-006)
+	// (tool.CapTransform) — a transformer in AD-006 terms; the placement pass
+	// validates where such a tool sits among the ordered steps. Derived from
+	// the tool's handler at registration.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+
+	// Recoverable marks a transformer that vaults originals for later restore
+	// (redaction); the placement pass holds it to the remote-egress rule.
+	Recoverable bool `json:"recoverable,omitempty"`
 
 	// CLI metadata
 	WritesOutput          bool     `json:"writes_output,omitempty"`
@@ -79,6 +84,7 @@ func copyToolMeta(info *ToolInfo, m *schema.ToolMeta) {
 	info.Consumes = m.Consumes
 	info.Produces = m.Produces
 	info.SideEffects = m.SideEffects
+	info.Recoverable = m.Recoverable
 	info.WritesOutput = m.WritesOutput
 	info.DefaultParallelBlocks = m.DefaultParallelBlocks
 	info.Aliases = m.Aliases

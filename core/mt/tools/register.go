@@ -68,7 +68,7 @@ func MTTranslateSchema(id mtprovider.ProviderID, label string) *schema.Component
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
 		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 }
 

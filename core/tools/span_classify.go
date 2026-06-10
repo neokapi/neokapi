@@ -61,21 +61,26 @@ func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
 	}
 	t.ToolName = "span-classify"
 	t.ToolDescription = "Reclassifies code:markup inline-code runs into semantic vocabulary types"
-	// Transform: span-classify rewrites source and target inline-code runs.
+	// Transform producer: returns reclassified runs as an edit plan; the
+	// framework applier rewrites the block (AD-006). Reclassification is a
+	// structure-only rewrite — run types change, the text flattening does not —
+	// so the plan carries NewRuns with no edits and overlays re-anchor in place.
 	t.Transform = t.handleBlock
 	return t
 }
 
-func (t *SpanClassifyTool) handleBlock(v tool.SourceView) error {
+func (t *SpanClassifyTool) handleBlock(v tool.BlockView) (tool.EditPlan, error) {
+	var plan tool.EditPlan
+
 	// Classify inline codes in the source content.
-	v.SetSourceRuns(t.classifyRuns(v.SourceRuns()))
+	plan.NewRuns = t.classifyRuns(v.SourceRuns())
 
 	// Classify inline codes in every target locale's content.
 	for _, loc := range v.TargetLocales() {
-		v.SetTargetRuns(loc, t.classifyRuns(v.TargetRuns(loc)))
+		plan.SetTarget(loc, t.classifyRuns(v.TargetRuns(loc)))
 	}
 
-	return nil
+	return plan, nil
 }
 
 // classifyRuns walks a run sequence and reclassifies any "code:markup"

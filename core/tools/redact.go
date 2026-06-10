@@ -101,7 +101,11 @@ func RedactSchema() *schema.ComponentSchema {
 		Description: "Replace sensitive spans with protected placeholders before processing",
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
-		// Source-transform: rewrites the source. Optionally upgrades on an entity
+		// Recoverable transformer (AD-006): vaults the originals it removes and
+		// restores them via unredact, so the placement pass holds it to the
+		// remote-egress rule.
+		Recoverable: true,
+		// Transformer: rewrites the source. Optionally upgrades on an entity
 		// overlay; emits the rewritten source plus the in-process secret
 		// annotation that unredact restores from.
 		Consumes: []schema.IOPort{{Type: string(model.OverlayEntity), Side: model.SideSource, Optional: true}},
@@ -233,12 +237,13 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		ToolDescription: "Replaces sensitive spans with protected placeholders before processing",
 		Cfg:             cfg,
 	}
-	// Transform: redact rewrites the source (replacing sensitive spans) and
-	// records recovery — on the block as a SecretAnnotation, or in a sidecar
-	// vault. It is a recoverable source-transform: it must run before any
-	// stand-off overlay is attached, and a later unredact restores the
-	// originals from the recovery record.
+	// Transform producer (AD-006): redact detects sensitive spans and returns
+	// an edit plan — the redacted runs, the span mapping, and the originals to
+	// vault. The framework applier rewrites the source, rebases surviving
+	// overlays, and hands the secrets to VaultSecrets atomically; a later
+	// unredact restores the originals from the recovery record.
 	base.Transform = t.transform
+	base.VaultSecrets = t.vaultSecrets
 	t.BaseTool = base
 	return t, nil
 }
@@ -262,13 +267,18 @@ func (t *RedactTool) Flush() error {
 	return nil
 }
 
-func (t *RedactTool) transform(v tool.SourceView) error {
+// transform is the read-only edit producer: it detects sensitive spans and
+// returns the redacted runs, the span mapping (so the applier rebases the
+// surviving source overlays — a term tag outside the redacted spans follows
+// the rewrite, while spans overlapping a redaction, including the consumed
+// entity spans, are dropped), and the originals to vault.
+func (t *RedactTool) transform(v tool.BlockView) (tool.EditPlan, error) {
 	if !v.Translatable() {
-		return nil
+		return tool.EditPlan{}, nil
 	}
 	runs := v.SourceRuns()
 	if len(runs) == 0 {
-		return nil
+		return tool.EditPlan{}, nil
 	}
 	text := v.SourceText()
 
@@ -276,7 +286,7 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 	if t.rules != nil {
 		ms, err := t.rules.Detect(v.Context(), text, v.SourceLocale())
 		if err != nil {
-			return fmt.Errorf("redact: %w", err)
+			return tool.EditPlan{}, fmt.Errorf("redact: %w", err)
 		}
 		matches = append(matches, ms...)
 	}
@@ -285,59 +295,56 @@ func (t *RedactTool) transform(v tool.SourceView) error {
 	}
 	matches = redaction.NormalizeMatches(matches)
 	if len(matches) == 0 {
-		return nil
+		return tool.EditPlan{}, nil
 	}
 
 	newRuns, records, edits := redaction.Redact(runs, matches, t.opts)
 	if len(records) == 0 {
-		return nil
+		return tool.EditPlan{}, nil
 	}
-	// Redaction rewrites the source, invalidating the run-anchored ranges of any
-	// entity overlay we consumed; drop it before mutating source so the spans
-	// don't dangle (and so the immutability backstop's overlay check passes).
-	if t.useEntities {
-		v.RemoveOverlay(model.OverlayEntity)
+	secrets := make([]tool.Secret, len(records))
+	for i, r := range records {
+		secrets[i] = tool.Secret{Token: r.Token, Category: r.Category, Disp: r.Disp, Original: r.Original}
 	}
-	v.SetSourceRuns(newRuns)
-	// Rebase any other surviving source overlays (e.g. term tags from an upstream
-	// annotator in the settle stage) onto the redacted runs so they still reach
-	// the main stage. Spans overlapping a redacted span are dropped.
-	v.RemapSourceOverlays(runs, edits)
-	t.store(v, records)
-	return nil
+	return tool.EditPlan{NewRuns: newRuns, Edits: edits, Secrets: secrets}, nil
 }
 
-// store persists the recovery records: to the sidecar vault in external mode,
-// or to an in-process SecretAnnotation on the block otherwise. The annotation
-// is the on-block recovery record a later unredact reads to restore originals.
-func (t *RedactTool) store(v tool.SourceView, records []redaction.Redacted) {
-	toValue := func(r redaction.Redacted) redaction.RedactedValue {
+// vaultSecrets is the applier's secret sink: it persists the recovery records
+// to the sidecar vault in external mode, or to an in-process SecretAnnotation
+// on the block otherwise. The annotation is the on-block recovery record a
+// later unredact reads to restore originals. The applier calls it before the
+// rewrite lands, so a vault failure aborts the transform fail-closed.
+func (t *RedactTool) vaultSecrets(v tool.BlockView, secrets []tool.Secret) error {
+	toValue := func(s tool.Secret) redaction.RedactedValue {
 		return redaction.RedactedValue{
-			Token:    r.Token,
-			Category: r.Category,
-			Disp:     r.Disp,
-			Original: r.Original,
+			Token:    s.Token,
+			Category: s.Category,
+			Disp:     s.Disp,
+			Original: s.Original,
 			Locale:   v.SourceLocale(),
 			BlockID:  v.ID(),
 		}
 	}
 	if t.vault != nil {
-		for _, r := range records {
-			_ = t.vault.Put(toValue(r))
+		for _, s := range secrets {
+			if err := t.vault.Put(toValue(s)); err != nil {
+				return err
+			}
 		}
-		return
+		return nil
 	}
-	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(records))}
-	for _, r := range records {
-		ann.Values[r.Token] = toValue(r)
+	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(secrets))}
+	for _, s := range secrets {
+		ann.Values[s.Token] = toValue(s)
 	}
 	v.Annotate(redaction.SecretAnnotationKey, ann)
+	return nil
 }
 
 // entityMatches turns the block's EntityAnnotations into redaction matches,
 // keeping only the configured categories. Offsets reported by the extractor
 // are reconciled against the source text so byte spans are exact.
-func (t *RedactTool) entityMatches(v tool.SourceView, text string) []redaction.Match {
+func (t *RedactTool) entityMatches(v tool.BlockView, text string) []redaction.Match {
 	var out []redaction.Match
 	for _, span := range v.OverlaySpans(model.OverlayEntity) {
 		ea, ok := span.Value.(*model.EntityAnnotation)

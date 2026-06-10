@@ -98,6 +98,13 @@ type ToolMeta struct {
 	// SideEffects lists external systems this tool reads from or writes to.
 	SideEffects []SideEffect `json:"sideEffects,omitempty"`
 
+	// Recoverable marks a transformer that vaults the originals it removes and
+	// restores them later (redaction). The placement pass (AD-006) holds such a
+	// transformer to the remote-egress rule: it must run before any step that
+	// sends source to a remote sink, because its purpose is protecting content
+	// from exactly that egress.
+	Recoverable bool `json:"recoverable,omitempty"`
+
 	// WritesOutput indicates the tool produces modified output files.
 	// When true, the CLI adds an -o/--output flag.
 	WritesOutput bool `json:"writesOutput,omitempty"`

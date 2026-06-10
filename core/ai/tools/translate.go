@@ -82,7 +82,7 @@ func AITranslateSchema() *schema.ComponentSchema {
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
 		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
 	return s

@@ -348,39 +348,41 @@ func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.
 		ToolName:        "ksed",
 		ToolDescription: "stream editor for translatable text",
 	}
-	t.Transform = func(v tool.SourceView) error {
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+		var plan tool.EditPlan
 		if !v.Translatable() {
-			return nil
+			return plan, nil
 		}
 		if scopeSource {
 			runs := v.SourceRuns()
 			if !model.HasStructuredRuns(runs) {
 				if out, changed := prog.applyRuns(runs); changed {
-					v.SetSourceRuns(out)
+					plan.NewRuns = out
+					plan.Edits = tool.FullSpanEdit(runs, out)
 				}
-				return nil
+				return plan, nil
 			}
 			src := v.SourceText()
 			if out := prog.apply(src); out != src {
-				v.SetSourceText(out)
+				plan.ReplaceAll = &out
 			}
-			return nil
+			return plan, nil
 		}
 		if locale.IsEmpty() || !v.HasTarget(locale) {
-			return nil
+			return plan, nil
 		}
 		runs := v.TargetRuns(locale)
 		if !model.HasStructuredRuns(runs) {
 			if out, changed := prog.applyRuns(runs); changed {
-				v.SetTargetRuns(locale, out)
+				plan.SetTarget(locale, out)
 			}
-			return nil
+			return plan, nil
 		}
 		tgt := v.TargetText(locale)
 		if out := prog.apply(tgt); out != tgt {
-			v.SetTargetText(locale, out)
+			plan.SetTarget(locale, []model.Run{{Text: &model.TextRun{Text: out}}})
 		}
-		return nil
+		return plan, nil
 	}
 	return t
 }

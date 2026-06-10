@@ -49,7 +49,7 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,
-		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 		// NER annotator: produces the source-side entity and term-candidate
 		// overlays a later tool (e.g. redact) consumes. Declaring them lets the
 		// data-flow contract satisfy redact's required entity input when the two

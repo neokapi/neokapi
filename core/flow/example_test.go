@@ -12,9 +12,9 @@ func exampleUppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName:        "uppercase",
 		ToolDescription: "Uppercases source text",
-		Transform: func(v tool.SourceView) error {
-			v.SetSourceText(strings.ToUpper(v.SourceText()))
-			return nil
+		Transform: func(v tool.BlockView) (tool.EditPlan, error) {
+			upper := strings.ToUpper(v.SourceText())
+			return tool.EditPlan{ReplaceAll: &upper}, nil
 		},
 	}
 }

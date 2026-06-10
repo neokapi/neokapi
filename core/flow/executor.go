@@ -390,7 +390,7 @@ func runTool(
 // For parallel execution (multiple documents), it creates fresh instances
 // via ToolFactories. For single/sequential, it uses f.Tools directly.
 func (e *DefaultExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
-	if factories := f.PipelineFactories(); len(factories) > 0 {
+	if factories := f.ToolFactories; len(factories) > 0 {
 		tools := make([]tool.Tool, len(factories))
 		for i, factory := range factories {
 			t, err := factory()
@@ -401,7 +401,7 @@ func (e *DefaultExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
 		}
 		return tools, nil
 	}
-	return f.Pipeline(), nil
+	return f.Tools, nil
 }
 
 // feedCollectors passes output parts to all registered collectors.
@@ -418,8 +418,7 @@ func (e *DefaultExecutor) feedCollectors(ctx context.Context, item *Item, parts 
 // The caller feeds Parts into the input channel and receives them from the output channel.
 // The caller must close the input channel when done.
 func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in chan<- *model.Part, out <-chan *model.Part, wait func() error) {
-	// The source-transform stage runs ahead of the main tools (see Flow.Pipeline).
-	tools := f.Pipeline()
+	tools := f.Tools
 	if len(tools) == 0 {
 		ch := make(chan *model.Part, e.config.ChannelSize)
 		return ch, ch, func() error { return nil }

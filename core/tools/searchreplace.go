@@ -101,16 +101,17 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 	// is surfaced on first use, preserving the prior apply-time error behavior.
 	compiled, compileErr := compilePairs(buildEffectivePairs(cfg))
 
-	// Transform: search-replace may rewrite source and/or target text.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the replacements as an edit plan; the
+	// framework applier rewrites the block (AD-006).
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 		if compileErr != nil {
-			return fmt.Errorf("search-replace: %w", compileErr)
+			return tool.EditPlan{}, fmt.Errorf("search-replace: %w", compileErr)
 		}
 		if len(compiled) == 0 {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
 		conf := t.Cfg.(*SearchReplaceConfig)
@@ -131,25 +132,17 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 			applyTarget = true
 		}
 
-		// Apply to source text if enabled.
-		if applySource {
-			sourceText := v.SourceText()
-			newSource := applyReplacements(sourceText, compiled, replaceAll)
-			if newSource != sourceText {
-				v.SetSourceText(newSource)
-			}
+		var targets []model.LocaleID
+		if applyTarget && !conf.TargetLocale.IsEmpty() {
+			targets = []model.LocaleID{conf.TargetLocale}
 		}
-
-		// Apply to target text if enabled and locale is set and target exists.
-		if applyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			targetText := v.TargetText(conf.TargetLocale)
-			newTarget := applyReplacements(targetText, compiled, replaceAll)
-			if newTarget != targetText {
-				v.SetTargetText(conf.TargetLocale, newTarget)
-			}
+		plan, err := textPlan(v, applySource, targets, func(s string) (string, error) {
+			return applyReplacements(s, compiled, replaceAll), nil
+		})
+		if err != nil {
+			return tool.EditPlan{}, fmt.Errorf("search-replace: %w", err)
 		}
-
-		return nil
+		return plan, nil
 	}
 	return t
 }

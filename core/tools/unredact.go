@@ -79,13 +79,18 @@ func NewUnredactTool(cfg *UnredactConfig) (*UnredactTool, error) {
 		ToolDescription: "Restores original values into redacted content after processing",
 		Cfg:             cfg,
 	}
-	// Transform: unredact rewrites both source and target runs to restore originals.
+	// Transform producer (AD-006): unredact returns the restored source and
+	// target runs as an edit plan — restore is a structured rewrite (each
+	// placeholder restore is a known insertion), so the applier rebases
+	// surviving source overlays across it. The framework applier rewrites the
+	// block; the in-process secret annotation is removed so nothing sensitive
+	// reaches the writer.
 	base.Transform = t.handleBlock
 	t.BaseTool = base
 	return t, nil
 }
 
-func (t *UnredactTool) handleBlock(v tool.SourceView) error {
+func (t *UnredactTool) handleBlock(v tool.BlockView) (tool.EditPlan, error) {
 	// Retrieve the block's annotations to find the secret annotation.
 	// We need to use the Annotations() map to find the secret key and delete it.
 	annotations := v.Annotations()
@@ -115,27 +120,24 @@ func (t *UnredactTool) handleBlock(v tool.SourceView) error {
 	}
 
 	if get == nil {
-		return nil
+		return tool.EditPlan{}, nil
 	}
 
-	restore := func(runs []model.Run) ([]model.Run, int) {
-		// ID-based restore first (structure-preserving formats: in-process
-		// pipelines, XLIFF inline codes), then text-based restore for formats
-		// that flattened the placeholder to its visible string on write.
-		runs, n1 := redaction.Restore(runs, get)
-		runs, n2 := redaction.RestoreText(runs, entries)
-		return runs, n1 + n2
-	}
-
-	if sr, n := restore(v.SourceRuns()); n > 0 {
-		v.SetSourceRuns(sr)
+	var plan tool.EditPlan
+	// Restore by placeholder ID (structure-preserving formats: in-process
+	// pipelines, XLIFF inline codes) and by visible token text (formats that
+	// flattened the placeholder to its string on write), in one pass that also
+	// yields the structured edits for overlay rebasing.
+	if sr, n, edits := redaction.RestorePlan(v.SourceRuns(), get, entries); n > 0 {
+		plan.NewRuns = sr
+		plan.Edits = edits
 	}
 	for _, locale := range v.TargetLocales() {
-		if tr, n := restore(v.TargetRuns(locale)); n > 0 {
-			v.SetTargetRuns(locale, tr)
+		if tr, n, _ := redaction.RestorePlan(v.TargetRuns(locale), get, entries); n > 0 {
+			plan.SetTarget(locale, tr)
 		}
 	}
 
 	v.RemoveAnnotation(redaction.SecretAnnotationKey)
-	return nil
+	return plan, nil
 }

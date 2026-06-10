@@ -49,25 +49,38 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 		ToolDescription: "Strips inline-code runs from block content, producing clean plain text",
 		Cfg:             cfg,
 	}
-	// Transform: inline-codes-remove may rewrite source and/or target runs.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the stripped runs as an edit plan; the
+	// framework applier rewrites the block (AD-006). Without ReplaceWithSpace
+	// the strip is structure-only (codes contribute no text), so source
+	// overlays re-anchor onto the stripped runs; with spaces inserted the
+	// flattening changes with no per-span mapping, so a whole-text edit drops
+	// the source overlays.
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		conf := t.Cfg.(*InlineCodesRemoveConfig)
 
 		if !v.Translatable() && !conf.IncludeNonTranslatable {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
+		var plan tool.EditPlan
+
 		if conf.ApplySource {
-			v.SetSourceRuns(stripInlineRuns(v.SourceRuns(), conf.ReplaceWithSpace))
+			old := v.SourceRuns()
+			stripped := stripInlineRuns(old, conf.ReplaceWithSpace)
+			if stripped == nil {
+				stripped = []model.Run{}
+			}
+			plan.NewRuns = stripped
+			plan.Edits = tool.FullSpanEdit(old, stripped)
 		}
 
 		if conf.ApplyTarget {
 			if runs := v.TargetRuns(conf.TargetLocale); runs != nil {
-				v.SetTargetRuns(conf.TargetLocale, stripInlineRuns(runs, conf.ReplaceWithSpace))
+				plan.SetTarget(conf.TargetLocale, stripInlineRuns(runs, conf.ReplaceWithSpace))
 			}
 		}
 
-		return nil
+		return plan, nil
 	}
 	return t
 }

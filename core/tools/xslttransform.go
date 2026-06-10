@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -57,45 +58,31 @@ func NewXSLTTransformTool(cfg *XSLTTransformConfig) *tool.BaseTool {
 		ToolDescription: "Applies regex-based tag/text transformations to block text",
 		Cfg:             cfg,
 	}
-	// Transform: xslt-transform may rewrite source and/or target text.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the rule rewrite as an edit plan; the
+	// framework applier rewrites the block (AD-006).
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
 		conf := t.Cfg.(*XSLTTransformConfig)
 		if len(conf.Rules) == 0 {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
 		// Default to source if neither scope is explicitly set.
 		applySource := conf.ApplySource || (!conf.ApplySource && !conf.ApplyTarget)
-
-		if applySource {
-			sourceText := v.SourceText()
-			newText, err := applyTransformRules(sourceText, conf.Rules)
-			if err != nil {
-				return fmt.Errorf("xslt-transform: source: %w", err)
-			}
-			if newText != sourceText {
-				v.SetSourceText(newText)
-			}
-		}
-
+		var targets []model.LocaleID
 		if conf.ApplyTarget {
-			for _, locale := range v.TargetLocales() {
-				targetText := v.TargetText(locale)
-				newText, err := applyTransformRules(targetText, conf.Rules)
-				if err != nil {
-					return fmt.Errorf("xslt-transform: target: %w", err)
-				}
-				if newText != targetText {
-					v.SetTargetText(locale, newText)
-				}
-			}
+			targets = v.TargetLocales()
 		}
-
-		return nil
+		plan, err := textPlan(v, applySource, targets, func(s string) (string, error) {
+			return applyTransformRules(s, conf.Rules)
+		})
+		if err != nil {
+			return tool.EditPlan{}, fmt.Errorf("xslt-transform: %w", err)
+		}
+		return plan, nil
 	}
 	return t
 }

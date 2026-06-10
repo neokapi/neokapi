@@ -738,18 +738,23 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	if err := flowDef.ValidateDataFlow(a.ToolReg); err != nil {
 		return nil, nil, err
 	}
+	// Transformer placement gate (AD-006): errors (a transformer after a
+	// target producer, a redactor after remote egress) reject the flow;
+	// warnings (avoidable overlay rebasing) are surfaced but don't block.
+	if err := a.checkFlowPlacement(flowDef); err != nil {
+		return nil, nil, err
+	}
 
 	// Extract tool node names in topological order (by X position).
 	type toolPos struct {
 		name   string
 		x      float64
-		stage  flow.FlowStage
 		config map[string]any
 	}
 	var toolNodes []toolPos
 	for _, n := range flowDef.Nodes {
 		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage, config: n.Config})
+			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, config: n.Config})
 		}
 	}
 	slices.SortFunc(toolNodes, func(a, b toolPos) int {
@@ -805,7 +810,6 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		}
 	}
 
-	var stageTools []tool.Tool
 	for _, tn := range toolNodes {
 		// A graph/built-in node may carry per-tool config (e.g. redact's detectors
 		// and entityTypes); overlay it on the shared run config for this node only.
@@ -818,31 +822,29 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 			cleanup()
 			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
 		}
-		// Source-transform ("settle") stage contract (AD-006): every tool in the
-		// stage must be an annotator or a source-transform — annotators may
-		// precede the transform so their overlays drive it (e.g. entity-extract →
-		// redact) — and a Translate tool is rejected here. The stage must also
-		// contain at least one source-transform; that is checked after the loop.
-		if tn.stage == flow.StageSourceTransform {
-			for _, st := range t {
-				if !tool.CanPrecedeSettle(st) {
-					cleanup()
-					return nil, nil, fmt.Errorf("tool %q in flow %q is in the source-transform stage but is not an annotator or source-transform", tn.name, flowName)
-				}
-			}
-			stageTools = append(stageTools, t...)
-		}
 		builtTools = append(builtTools, t...)
 		if toolCleanup != nil {
 			cleanups = append(cleanups, toolCleanup)
 		}
 	}
-	if len(stageTools) > 0 && !anySourceTransform(stageTools) {
-		cleanup()
-		return nil, nil, fmt.Errorf("flow %q: the source-transform stage must contain at least one source-transform tool to settle the source", flowName)
-	}
 
 	return builtTools, cleanup, nil
+}
+
+// checkFlowPlacement runs the AD-006 transformer placement pass over a flow
+// definition: error-severity diagnostics reject the flow (the unconditional
+// build gate beside ValidateDataFlow), warnings are printed to stderr.
+func (a *App) checkFlowPlacement(def *flow.FlowDefinition) error {
+	diags, err := def.ValidatePlacement(a.ToolReg)
+	if err != nil {
+		return err
+	}
+	for _, d := range diags {
+		if d.Severity == flow.PlacementWarning {
+			fmt.Fprintf(os.Stderr, "warning: flow %q: %s\n", def.Name, d.Message)
+		}
+	}
+	return def.CheckPlacement(a.ToolReg)
 }
 
 // mergeFlowNodeConfig overlays a flow node's per-tool config onto the shared run
@@ -857,17 +859,6 @@ func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
 		m[k] = v
 	}
 	return m
-}
-
-// anySourceTransform reports whether any of the built tools is
-// source-transform-capable (tool.CapTransform).
-func anySourceTransform(tools []tool.Tool) bool {
-	for _, t := range tools {
-		if tool.IsSourceTransform(t) {
-			return true
-		}
-	}
-	return false
 }
 
 // buildToolByName creates tool(s) for a named tool, returning any resource
@@ -1314,9 +1305,9 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 		return errors.New("--target-lang is required")
 	}
 
-	// Build tools from step definitions using the tool registry.
-	// Source-transform tools run first (they settle the source/model before the
-	// main steps) so they are prepended to the tool chain.
+	// Build tools from step definitions using the tool registry. Transformers
+	// are ordinary ordered steps (AD-006); their position is validated by the
+	// placement pass at flow load, not by a structural stage here.
 	//
 	// Tools that require a TM (e.g. tm-leverage) need the project's TM provider
 	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
@@ -1352,31 +1343,18 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 		return nil
 	}
 
+	if len(spec.SourceTransforms) > 0 {
+		return fmt.Errorf("flow %q uses the removed source_transforms stage (AD-006): list transformers as ordered steps", flowName)
+	}
+	// Transformer placement gate (AD-006) over the compiled steps graph —
+	// unconditional at load, like the built-in flow path.
+	if nodes, edges, err := flow.StepsToGraph(spec); err == nil {
+		def := &flow.FlowDefinition{ID: flowName, Name: flowName, Nodes: nodes, Edges: edges}
+		if err := a.checkFlowPlacement(def); err != nil {
+			return err
+		}
+	}
 	var projectTools []tool.Tool
-	var stageHasTransform bool
-	for _, step := range spec.SourceTransforms {
-		t, err := a.toolFromStep(step, cmd, rCtx)
-		if err != nil {
-			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
-		}
-		// Settle-stage contract (AD-006): annotators may precede the transform so
-		// their overlays drive it (e.g. entity-extract → redact); a Translate tool
-		// is rejected. At least one source-transform must be present (checked
-		// after the loop).
-		if !tool.CanPrecedeSettle(t) {
-			return fmt.Errorf("flow %q: tool %q in source_transforms must be an annotator or source-transform", flowName, step.Tool)
-		}
-		if tool.IsSourceTransform(t) {
-			stageHasTransform = true
-		}
-		if err := injectTM(step, t); err != nil {
-			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
-		}
-		projectTools = append(projectTools, t)
-	}
-	if len(spec.SourceTransforms) > 0 && !stageHasTransform {
-		return fmt.Errorf("flow %q: source_transforms must contain at least one source-transform tool to settle the source", flowName)
-	}
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {

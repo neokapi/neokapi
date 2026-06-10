@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -183,15 +182,17 @@ func TestSedApplyRunsMultiCmd(t *testing.T) {
 	assert.Equal(t, "Hi <1>ugly</1> earth", sigRuns(got))
 }
 
-// TestSedToolPreservesCodesSource exercises the wired Transform: editing source
-// through the SourceView keeps inline codes instead of flattening the block.
+// TestSedToolPreservesCodesSource exercises the wired Transform producer via
+// the dispatch applier: editing source keeps inline codes instead of
+// flattening the block.
 func TestSedToolPreservesCodesSource(t *testing.T) {
 	prog, err := parseSedProgram([]string{"s/ugly/pretty/"})
 	require.NoError(t, err)
 	tl := newSedTool(prog, "", true)
 
 	b := &model.Block{ID: "b1", Translatable: true, Source: boldUglyRuns()}
-	require.NoError(t, tl.Transform(tool.NewSourceView(b)))
+	_, err = tl.Apply(&model.Part{Type: model.PartBlock, Resource: b})
+	require.NoError(t, err)
 	assert.Equal(t, "Hello <1>pretty</1> world", sigRuns(b.Source))
 }
 
@@ -210,7 +211,8 @@ func TestSedToolPreservesCodesTarget(t *testing.T) {
 		{Text: &model.TextRun{Text: " monde"}},
 	})
 
-	require.NoError(t, tl.Transform(tool.NewSourceView(b)))
+	_, err = tl.Apply(&model.Part{Type: model.PartBlock, Resource: b})
+	require.NoError(t, err)
 	assert.Equal(t, "Bonjour <1>moche</1> monde", sigRuns(b.TargetRuns("fr")))
 }
 
@@ -228,7 +230,8 @@ func TestSedToolStructuredFallback(t *testing.T) {
 			model.PluralOther: {{Text: &model.TextRun{Text: "world"}}},
 		}}},
 	}}
-	require.NoError(t, tl.Transform(tool.NewSourceView(b)))
+	_, err = tl.Apply(&model.Part{Type: model.PartBlock, Resource: b})
+	require.NoError(t, err)
 	assert.Equal(t, "EARTH", b.SourceText())
 }
 

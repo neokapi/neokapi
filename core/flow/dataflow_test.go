@@ -128,7 +128,7 @@ func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
 	reg := dataflowReg(t)
 
 	redactEntities := flow.FlowNode{
-		ID: "r", Type: flow.NodeTool, Name: "redact", Stage: flow.StageSourceTransform,
+		ID: "r", Type: flow.NodeTool, Name: "redact",
 		Position: flow.NodePosition{X: 250},
 		Config:   map[string]any{"detectors": []string{"entities"}, "entityTypes": []string{"person"}},
 	}
@@ -146,7 +146,7 @@ func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
 	// A rules-only redact on the same file source has no such requirement.
 	rulesOnly := flow.FlowDefinition{
 		ID: "redact-rules", Name: "redact rules",
-		Nodes: []flow.FlowNode{{ID: "r", Type: flow.NodeTool, Name: "redact", Stage: flow.StageSourceTransform,
+		Nodes: []flow.FlowNode{{ID: "r", Type: flow.NodeTool, Name: "redact",
 			Config: map[string]any{"detectors": []string{"rules"}}}},
 		Binding: &flow.FlowBinding{Source: "file"},
 	}
@@ -163,7 +163,7 @@ func TestValidateDataFlow_RedactEntitiesRequiresNER(t *testing.T) {
 	good := flow.FlowDefinition{
 		ID: "ner-redact", Name: "ner then redact",
 		Nodes: []flow.FlowNode{
-			{ID: "n", Type: flow.NodeTool, Name: "stub-ner", Stage: flow.StageSourceTransform, Position: flow.NodePosition{X: 0}},
+			{ID: "n", Type: flow.NodeTool, Name: "stub-ner", Position: flow.NodePosition{X: 0}},
 			redactEntities,
 		},
 		Edges:   []flow.FlowEdge{{ID: "e", Source: "n", Target: "r"}},

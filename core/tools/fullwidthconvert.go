@@ -64,23 +64,24 @@ func NewFullWidthConvertTool(cfg *FullWidthConvertConfig) *tool.BaseTool {
 		ToolDescription: "Converts between half-width and full-width characters",
 		Cfg:             cfg,
 	}
-	// Transform: fullwidth-convert may rewrite source and/or target.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the width conversion as an edit plan; the
+	// framework applier rewrites the block (AD-006).
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
-
 		conf := t.Cfg.(*FullWidthConvertConfig)
-
-		if conf.ApplySource {
-			v.SetSourceText(convertFullWidth(v.SourceText(), conf.Mode))
+		var targets []model.LocaleID
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
+			targets = []model.LocaleID{conf.TargetLocale}
 		}
-
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
-			v.SetTargetText(conf.TargetLocale, convertFullWidth(v.TargetText(conf.TargetLocale), conf.Mode))
+		plan, err := textPlan(v, conf.ApplySource, targets, func(s string) (string, error) {
+			return convertFullWidth(s, conf.Mode), nil
+		})
+		if err != nil {
+			return tool.EditPlan{}, fmt.Errorf("fullwidth-convert: %w", err)
 		}
-
-		return nil
+		return plan, nil
 	}
 	return t
 }

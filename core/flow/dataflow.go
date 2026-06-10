@@ -89,7 +89,7 @@ func (d *FlowDefinition) ValidateDataFlow(reg *registry.ToolRegistry) error {
 	if reg == nil {
 		return nil
 	}
-	ordered, err := d.stagedToolNodeRefs()
+	ordered, err := d.toolNodeRefs()
 	if err != nil {
 		return err
 	}

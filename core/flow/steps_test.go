@@ -91,10 +91,23 @@ func TestStepsToGraph_SingleStep(t *testing.T) {
 	assert.Empty(t, edges)
 }
 
-func TestStepsToGraph_SourceTransformStage(t *testing.T) {
+func TestStepsToGraph_SourceTransformsRejected(t *testing.T) {
+	// The structural source-transform stage is removed (AD-006): a flow that
+	// still uses it gets an actionable error instead of a silently dropped
+	// stage — transformers are ordinary ordered steps.
 	spec := &StepsSpec{
 		SourceTransforms: []FlowStep{{Tool: "redact"}},
 		Steps:            []FlowStep{{Tool: "ai-translate"}},
+	}
+
+	_, _, err := StepsToGraph(spec)
+	require.ErrorContains(t, err, "source_transforms")
+	require.ErrorContains(t, err, "ordered steps")
+}
+
+func TestStepsToGraph_TransformerAsOrderedStep(t *testing.T) {
+	spec := &StepsSpec{
+		Steps: []FlowStep{{Tool: "redact"}, {Tool: "ai-translate"}},
 	}
 
 	nodes, edges, err := StepsToGraph(spec)
@@ -102,9 +115,7 @@ func TestStepsToGraph_SourceTransformStage(t *testing.T) {
 
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "redact", nodes[0].Name)
-	assert.Equal(t, StageSourceTransform, nodes[0].Stage)
 	assert.Equal(t, "ai-translate", nodes[1].Name)
-	assert.Equal(t, StageMain, nodes[1].Stage)
 	// redact -> ai-translate; redact is the root.
 	require.Len(t, edges, 1)
 	assert.Equal(t, nodes[0].ID, edges[0].Source)

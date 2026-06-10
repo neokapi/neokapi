@@ -64,10 +64,12 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		ToolDescription: "Executes an external command on block text",
 		Cfg:             cfg,
 	}
-	// Transform: external-command may rewrite source and/or target text.
-	t.Transform = func(v tool.SourceView) error {
+	// Transform producer: returns the command output as an edit plan; the
+	// framework applier rewrites the block (AD-006). A command failure is
+	// recorded in block properties and leaves the content untouched.
+	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		if !v.Translatable() {
-			return nil
+			return tool.EditPlan{}, nil
 		}
 
 		conf := t.Cfg.(*ExternalCommandConfig)
@@ -77,15 +79,19 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 			timeout = 30
 		}
 
+		var plan tool.EditPlan
+
 		// Process source text.
 		if conf.ApplySource {
 			result, exitCode, err := runCommand(v.Context(), conf, v.SourceText(), timeout)
 			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
-				return nil
+				return tool.EditPlan{}, nil
 			}
-			v.SetSourceText(result)
+			if result != v.SourceText() {
+				plan.ReplaceAll = &result
+			}
 		}
 
 		// Process target text.
@@ -94,12 +100,14 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
 				v.SetProperty(PropExternalCommandError, err.Error())
-				return nil
+				return tool.EditPlan{}, nil
 			}
-			v.SetTargetText(conf.TargetLocale, result)
+			if result != v.TargetText(conf.TargetLocale) {
+				plan.SetTarget(conf.TargetLocale, []model.Run{{Text: &model.TextRun{Text: result}}})
+			}
 		}
 
-		return nil
+		return plan, nil
 	}
 	return t
 }

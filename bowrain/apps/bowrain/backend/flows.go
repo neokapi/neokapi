@@ -38,15 +38,13 @@ type FlowDefinitionInfo struct {
 	ModifiedAt  string         `json:"modified_at,omitempty"`
 }
 
-// FlowNodeInfo is the frontend-facing flow node type.
+// FlowNodeInfo is the frontend-facing flow node type. Tool nodes are one
+// ordered list — transformers are ordinary steps (AD-006).
 type FlowNodeInfo struct {
-	ID    string `json:"id"`
-	Type  string `json:"type"`
-	Name  string `json:"name"`
-	Label string `json:"label,omitempty"`
-	// Stage is the pipeline stage for this node. Empty means the main stage;
-	// "source-transform" means the leading source-rewrite stage.
-	Stage    string         `json:"stage,omitempty"`
+	ID       string         `json:"id"`
+	Type     string         `json:"type"`
+	Name     string         `json:"name"`
+	Label    string         `json:"label,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 	Position PositionInfo   `json:"position"`
 }
@@ -72,7 +70,6 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 			Type:     string(n.Type),
 			Name:     n.Name,
 			Label:    n.Label,
-			Stage:    string(n.Stage),
 			Config:   n.Config,
 			Position: PositionInfo{X: n.Position.X, Y: n.Position.Y},
 		}

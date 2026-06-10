@@ -31,11 +31,14 @@ type StepsSpec struct {
 	// Source/Sink takes precedence.
 	Input  string `json:"input,omitempty" yaml:"input,omitempty"`
 	Output string `json:"output,omitempty" yaml:"output,omitempty"`
-	// SourceTransforms is the leading source-transform stage: tools that settle
-	// the source/model (redaction, simplification, normalization) before the
-	// main steps run. Each must be a source-transform-capable tool. See AD-006.
+
+	// SourceTransforms is the retired source-transform stage (AD-006 removed
+	// it; transformers are ordinary ordered steps). The field exists only so a
+	// flow that still uses it gets an actionable error from StepsToGraph
+	// instead of a silently dropped stage.
 	SourceTransforms []FlowStep `json:"sourceTransforms,omitempty" yaml:"source_transforms,omitempty"`
-	Steps            []FlowStep `json:"steps" yaml:"steps"`
+
+	Steps []FlowStep `json:"steps" yaml:"steps"`
 }
 
 // SourceLocator returns the flow's declared source binding and true when the
@@ -57,12 +60,15 @@ func (s *StepsSpec) SinkLocator() (Locator, bool) {
 }
 
 // StepsToGraph compiles a steps-based spec into FlowDefinition nodes and edges.
-// The graph is tool nodes only (AD-026): the source-transform stage first, then
-// the main steps chained sequentially, with fan-out for parallel blocks. A flow's
-// I/O ends are bindings resolved at run time, not nodes — so no reader or writer
-// node is emitted, and the first tool has no incoming edge.
+// The graph is tool nodes only (AD-026): steps chained sequentially, with
+// fan-out for parallel blocks. A flow's I/O ends are bindings resolved at run
+// time, not nodes — so no reader or writer node is emitted, and the first tool
+// has no incoming edge.
 func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
-	if len(spec.Steps) == 0 && len(spec.SourceTransforms) == 0 {
+	if len(spec.SourceTransforms) > 0 {
+		return nil, nil, errors.New("flow uses the removed source_transforms stage (AD-006): list transformers as ordered steps — the placement pass validates their position")
+	}
+	if len(spec.Steps) == 0 {
 		return nil, nil, errors.New("flow has no steps")
 	}
 
@@ -79,7 +85,7 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	// first tool (it is a graph root — content arrives via the source binding).
 	var prevIDs []string
 
-	addTool := func(step FlowStep, stage FlowStage, x, y float64) string {
+	addTool := func(step FlowStep, x, y float64) string {
 		id := nextID("tool")
 		label := step.Label
 		if label == "" {
@@ -90,7 +96,6 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 			Type:     NodeTool,
 			Name:     step.Tool,
 			Label:    label,
-			Stage:    stage,
 			Config:   step.Config,
 			Position: NodePosition{X: x, Y: y},
 		})
@@ -106,28 +111,20 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 
 	xPos := 0.0
 
-	// Source-transform stage: sequential tools that settle the source/model
-	// ahead of the main steps.
-	for _, step := range spec.SourceTransforms {
-		id := addTool(step, StageSourceTransform, xPos, 100)
-		prevIDs = []string{id}
-		xPos += 250
-	}
-
 	for _, step := range spec.Steps {
 		if len(step.Parallel) > 0 {
 			// Fan-out: each branch connects from the same predecessors.
 			var branchEndIDs []string
 			yPos := 0.0
 			for _, branch := range step.Parallel {
-				id := addTool(branch, StageMain, xPos, yPos)
+				id := addTool(branch, xPos, yPos)
 				branchEndIDs = append(branchEndIDs, id)
 				yPos += 150
 			}
 			prevIDs = branchEndIDs
 			xPos += 250
 		} else {
-			id := addTool(step, StageMain, xPos, 100)
+			id := addTool(step, xPos, 100)
 			prevIDs = []string{id}
 			xPos += 250
 		}
