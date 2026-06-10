@@ -20,6 +20,6 @@ limitations:
   - Exposes no schema parameters; the optional sidecar vault path is supplied programmatically by callers (e.g. extract → merge).
   - Restores only placeholders recorded by a preceding `redact` run; there is nothing to restore without that recovery record.
 processingNotes:
-  - A source-transform that rewrites both source and target runs to restore originals.
+  - A transformer that restores originals into both source and target runs — it returns an edit plan and the framework applier rewrites the block, rebasing surviving source overlays across the restore.
   - Reads the in-process secret annotation by default, or a sidecar vault in external mode.
   - Removes the secret annotation after restoring, so sensitive originals never reach the writer.

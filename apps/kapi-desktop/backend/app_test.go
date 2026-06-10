@@ -147,36 +147,37 @@ func TestListTools(t *testing.T) {
 	assert.NotEmpty(t, app.ListTools())
 }
 
-func TestListToolsExposesSourceTransform(t *testing.T) {
+func TestListToolsExposesTransformerFlags(t *testing.T) {
 	app := NewApp()
 	byName := map[string]ToolInfo{}
 	for _, ti := range app.ListTools() {
 		byName[ti.Name] = ti
 	}
 	if redact, ok := byName["redact"]; ok {
-		assert.True(t, redact.IsSourceTransform, "redact should be source-transform-capable")
+		assert.True(t, redact.IsSourceTransform, "redact is a transformer")
+		assert.True(t, redact.Recoverable, "redact is a recoverable transformer")
 	}
 	if wc, ok := byName["word-count"]; ok {
-		assert.False(t, wc.IsSourceTransform, "word-count should not be source-transform-capable")
+		assert.False(t, wc.IsSourceTransform, "word-count is not a transformer")
 	}
 }
 
-func TestFlowSourceTransformsRoundTrip(t *testing.T) {
+func TestFlowOrderedTransformerRoundTrip(t *testing.T) {
 	app := NewApp()
 	tab := newTestProject(t, app, "ST")
 
+	// Transformers are ordinary ordered steps (AD-006): redact leads, the
+	// remote-egress translate step follows.
 	spec := &flow.StepsSpec{
-		SourceTransforms: []flow.FlowStep{{Tool: "redact"}},
-		Steps:            []flow.FlowStep{{Tool: "ai-translate"}},
+		Steps: []flow.FlowStep{{Tool: "redact"}, {Tool: "ai-translate"}},
 	}
 	require.NoError(t, app.SaveFlow(tab.ID, "secure", spec))
 
 	got := app.GetFlow(tab.ID, "secure")
 	require.NotNil(t, got)
-	require.Len(t, got.SourceTransforms, 1)
-	assert.Equal(t, "redact", got.SourceTransforms[0].Tool)
-	require.Len(t, got.Steps, 1)
-	assert.Equal(t, "ai-translate", got.Steps[0].Tool)
+	require.Len(t, got.Steps, 2)
+	assert.Equal(t, "redact", got.Steps[0].Tool)
+	assert.Equal(t, "ai-translate", got.Steps[1].Tool)
 }
 
 func TestListFormats(t *testing.T) {

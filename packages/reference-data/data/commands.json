@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-09T14:07:29Z",
+  "generatedAt": "2026-06-10T02:45:23Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -4334,7 +4334,7 @@
         },
         {
           "name": "entity-types",
-          "usage": "Entity categories to redact when 'entities' detection is enabled",
+          "usage": "Entity categories to redact: person",
           "default": "[]",
           "type": "stringSlice"
         },

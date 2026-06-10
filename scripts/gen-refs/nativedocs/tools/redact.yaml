@@ -6,8 +6,10 @@ overview: |
   placeholders before the content is processed (for example, before it is sent
   to a translation provider), and stashes the originals locally so a later
   `unredact` can restore them. It never emits the original value into the
-  rewritten content. It is a recoverable source-transform: it runs before any
-  stand-off overlay is attached, rewriting the source runs in place.
+  rewritten content. It is a recoverable transformer: it produces an edit plan
+  — the span replacements plus the originals to vault — and the framework
+  applier rewrites the source, rebasing surviving run-anchored overlays so an
+  upstream annotator's terms or entities follow the rewrite.
 
   Two detection backends can run, alone or together: `rules` matches literal
   terms and regular expressions from a rules file or inline rules, and
@@ -59,8 +61,8 @@ limitations:
   - Inline rules and the sidecar vault path are supplied programmatically by callers (e.g. extract → merge) rather than through the schema fields documented here.
   - Operates on translatable source spans; dates, times, currencies, and measurements are excluded from the default entity set.
 processingNotes:
-  - A recoverable source-transform — it rewrites the source runs and must run before any stand-off overlay is attached.
-  - Originals are recorded as an in-process secret annotation by default, or in a sidecar vault when a vault path is supplied (external mode).
+  - A recoverable transformer — it returns an edit plan and the framework applier rewrites the source, rebasing surviving overlays across the rewrite. The placement pass requires it to run before any step that sends source to a remote sink.
+  - Originals are recorded as an in-process secret annotation by default, or in a sidecar vault when a vault path is supplied (external mode); the applier vaults them atomically with the rewrite.
   - A later `unredact` reads the recovery record to restore the originals.
 examples:
   - title: Redact by rules file

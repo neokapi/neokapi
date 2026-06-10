@@ -64,6 +64,7 @@ export interface ToolMeta {
   consumes?: IOPort[];
   produces?: IOPort[];
   sideEffects?: string[];
+  recoverable?: boolean;
   writesOutput?: boolean;
   defaultParallelBlocks?: number;
   aliases?: string[];

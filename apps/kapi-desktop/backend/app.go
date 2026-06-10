@@ -603,9 +603,13 @@ type ToolInfo struct {
 	Produces      []IOPort `json:"produces,omitempty"`       // ports written
 	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 
-	// IsSourceTransform reports whether the tool can rewrite source — i.e.
-	// whether the flow editor may place it in the source-transform stage.
+	// IsSourceTransform reports whether the tool is a transformer — it may
+	// rewrite source (AD-006); the placement pass validates its position.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+
+	// Recoverable marks a transformer that vaults originals for later restore
+	// (redaction); the placement pass holds it to the remote-egress rule.
+	Recoverable bool `json:"recoverable,omitempty"`
 }
 
 // IOPort is one entry of a tool's IO contract surfaced to the flow
@@ -710,6 +714,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			Produces:          produces,
 			SideEffects:       sideEffects,
 			IsSourceTransform: info.IsSourceTransform,
+			Recoverable:       info.Recoverable,
 		}
 	}
 	slices.SortFunc(infos, func(a, b ToolInfo) int { return cmp.Compare(a.Name, b.Name) })

@@ -147,6 +147,7 @@ func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 			Produces:          portNames(info.Produces),
 			SideEffects:       sideEffectNames(info.SideEffects),
 			IsSourceTransform: info.IsSourceTransform,
+			Recoverable:       info.Recoverable,
 			Tags:              info.Tags,
 			Requires:          info.Requires,
 			Cardinality:       string(info.Cardinality),

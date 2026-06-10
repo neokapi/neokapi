@@ -41,10 +41,14 @@ type Entry struct {
 	Consumes    []string `json:"consumes,omitempty"`
 	Produces    []string `json:"produces,omitempty"`
 	SideEffects []string `json:"sideEffects,omitempty"`
-	// IsSourceTransform reports a source-rewriting tool that may run in a flow's
-	// leading source-transform stage (derived from CapTransform; AD-006).
-	IsSourceTransform bool     `json:"isSourceTransform,omitempty"`
-	Aliases           []string `json:"aliases,omitempty"`
+	// IsSourceTransform reports a transformer — a tool that may rewrite source
+	// (derived from CapTransform; AD-006). The placement pass validates where
+	// it sits among a flow's ordered steps.
+	IsSourceTransform bool `json:"isSourceTransform,omitempty"`
+	// Recoverable marks a transformer that vaults originals for later restore
+	// (redaction); the placement pass holds it to the remote-egress rule.
+	Recoverable bool     `json:"recoverable,omitempty"`
+	Aliases     []string `json:"aliases,omitempty"`
 
 	// Schema is the ComponentSchema/FormatSchema JSON consumed verbatim by the
 	// shared SchemaForm renderer. Passed through unchanged for bridge entries

@@ -276,9 +276,12 @@ type ToolInfo struct {
 	// to the flow editor so it can type ports and validate connections.
 	Consumes []IOPort `json:"consumes,omitempty"`
 	Produces []IOPort `json:"produces,omitempty"`
-	// IsSourceTransform reports whether this tool may be placed in the
-	// source-transform stage of a flow (i.e. it rewrites the source model).
+	// IsSourceTransform reports whether this tool is a transformer — it may
+	// rewrite source (AD-006); the placement pass validates its position.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+	// Recoverable marks a transformer that vaults originals for later restore
+	// (redaction); the placement pass holds it to the remote-egress rule.
+	Recoverable bool `json:"recoverable,omitempty"`
 }
 
 // ioPorts converts a schema IO contract to the wire form.
@@ -369,6 +372,7 @@ func (a *App) ListTools() []ToolInfo {
 				ti.Consumes = ioPorts(info.Consumes)
 				ti.Produces = ioPorts(info.Produces)
 				ti.IsSourceTransform = info.IsSourceTransform
+				ti.Recoverable = info.Recoverable
 			}
 			result = append(result, ti)
 		}
