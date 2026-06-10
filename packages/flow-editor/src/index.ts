@@ -31,6 +31,7 @@ export type { PreviewResult } from "./PreviewPanel";
 export { PartInspector } from "./PartInspector";
 export { TracePanel } from "./TracePanel";
 export { RunInspectorPanel } from "./RunInspectorPanel";
+export { EndpointInspectorPanel } from "./EndpointInspectorPanel";
 export {
   remapEventsToEditor,
   traceNodeToEditorNode,

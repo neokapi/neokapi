@@ -5,6 +5,7 @@
 // edge anchors to, and reuses the EndpointPicker UI for the dropdown.
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Eye } from "lucide-react";
 import { EndpointPicker } from "./EndpointPicker";
 import type { FlowBinding } from "../types";
 
@@ -13,6 +14,7 @@ export function EndpointNode({ data }: NodeProps) {
   const binding = data.binding as FlowBinding | undefined;
   const readOnly = data.readOnly as boolean | undefined;
   const onBindingChange = data.onBindingChange as ((b: FlowBinding) => void) | undefined;
+  const onInspect = data.onInspect as (() => void) | undefined;
   const isSource = role === "source";
   // The serpentine layout supplies the handle side that faces the flow; fall
   // back to a left→right flow (source out the right, sink in from the left).
@@ -27,6 +29,26 @@ export function EndpointNode({ data }: NodeProps) {
         onChange={onBindingChange}
         readOnly={readOnly}
       />
+      {/* Inspect satellite — opens the host's endpoint inspector (the pill
+          itself is the binding dropdown trigger, so this needs its own
+          affordance). Hangs centered under the pill, like the side-effect
+          satellites on tool nodes. */}
+      {onInspect && (
+        <button
+          type="button"
+          onClick={onInspect}
+          aria-label={isSource ? "Inspect the source content" : "Inspect the written output"}
+          title={
+            isSource
+              ? "See the content model the reader produces from this input"
+              : "See what the flow wrote"
+          }
+          className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Eye size={10} />
+          Inspect
+        </button>
+      )}
       <Handle
         type={isSource ? "source" : "target"}
         position={handlePosition}

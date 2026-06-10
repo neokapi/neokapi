@@ -176,4 +176,13 @@ export interface FlowEditorProps {
    * inherited values with override indicators.
    */
   projectPresets?: Record<string, Record<string, unknown>>;
+  /**
+   * Host-rendered inspector content for the Source / Sink endpoint nodes. When
+   * provided, each endpoint pill gains an Inspect affordance that opens the
+   * editor's right overlay panel with this content — e.g. the content-model
+   * tree the reader produces from the bound input (source), or the written
+   * output with a round-trip diff (sink). The flow editor supplies the panel
+   * chrome; the host supplies only the body.
+   */
+  renderEndpointPanel?: (role: "source" | "sink", close: () => void) => import("react").ReactNode;
 }

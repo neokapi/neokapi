@@ -269,6 +269,27 @@ export const MultiStep: Story = {
   },
 };
 
+// With a host-supplied renderEndpointPanel, the Source/Sink pills grow an
+// Inspect satellite that opens the host's content in the right overlay — the
+// lab uses this to show the reader's content model (source) and the written
+// output with a round-trip diff (sink).
+export const EndpointInspectors: Story = {
+  name: "Endpoint inspectors (Inspect satellites)",
+  args: {
+    flow: {
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools,
+    renderEndpointPanel: (role: "source" | "sink") => (
+      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+        {role === "source"
+          ? "Host-rendered source inspector — e.g. the content-model tree the reader produced."
+          : "Host-rendered sink inspector — e.g. the written output with a round-trip diff."}
+      </div>
+    ),
+  },
+};
+
 export const FullPipeline: Story = {
   args: {
     flow: {

@@ -72,6 +72,7 @@ import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TracePanel } from "./TracePanel";
 import { RunInspectorPanel } from "./RunInspectorPanel";
+import { EndpointInspectorPanel } from "./EndpointInspectorPanel";
 import { computeNodeStats } from "./traceTypes";
 // (PartInspector and TraceTimeline remain exported from the package for hosts
 // that render trace data outside the editor; in-editor, the run data lives ON
@@ -568,6 +569,7 @@ export function FlowEditor({
   trace,
   onTraceDismiss,
   projectPresets,
+  renderEndpointPanel,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -816,6 +818,11 @@ export function FlowEditor({
       readOnly,
       handlePosition: role === "source" ? ends.source.handlePosition : ends.sink.handlePosition,
       onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
+      // With a host-supplied inspector, the pill grows an Inspect satellite
+      // that opens the endpoint panel (selection drives the right overlay).
+      onInspect: renderEndpointPanel
+        ? () => setSelectedNodeId(role === "source" ? "endpoint-source" : "endpoint-sink")
+        : undefined,
     });
 
     const sourceNode: Node = {
@@ -905,6 +912,7 @@ export function FlowEditor({
     flow.sink,
     handleSourceChange,
     handleSinkChange,
+    renderEndpointPanel,
     heightVersion,
   ]);
 
@@ -1323,6 +1331,23 @@ export function FlowEditor({
           />
         )}
       </div>
+
+      {/* Endpoint inspector — same floating right overlay, but for the Source /
+          Sink terminals: the host renders the body (input content model,
+          written output) via renderEndpointPanel. */}
+      {renderEndpointPanel &&
+        (selectedNodeId === "endpoint-source" || selectedNodeId === "endpoint-sink") && (
+          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+            <EndpointInspectorPanel
+              role={selectedNodeId === "endpoint-source" ? "source" : "sink"}
+              onClose={() => setSelectedNodeId(null)}
+            >
+              {renderEndpointPanel(selectedNodeId === "endpoint-source" ? "source" : "sink", () =>
+                setSelectedNodeId(null),
+              )}
+            </EndpointInspectorPanel>
+          </div>
+        )}
 
       {/* Right panel — a floating overlay pinned to the right of the canvas,
           NOT a flex sibling, so opening it never resizes the graph. With a run

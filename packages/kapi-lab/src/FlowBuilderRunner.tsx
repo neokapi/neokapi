@@ -7,7 +7,7 @@ import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
-import OutputView from "./OutputView";
+import { SourceContentPanel, SinkOutputPanel } from "./EndpointPanels";
 import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario } from "./labScenarios";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
@@ -269,6 +269,25 @@ export default function FlowBuilderRunner({
     setTrace(null);
   }, []);
 
+  // Endpoint inspectors: the Source pill opens the content-model tree the
+  // reader produces from the selected input (the anatomy lesson, in place);
+  // the Sink pill opens the written output with its Native bytes diffed
+  // against the input (the round-trip lesson, in place).
+  const renderEndpointPanel = useCallback(
+    (role: "source" | "sink") =>
+      role === "source" ? (
+        <SourceContentPanel runtime={runtime} file={file} />
+      ) : (
+        <SinkOutputPanel
+          runtime={runtime}
+          outPath={outPath}
+          version={outVersion}
+          baseline={file.bytes ? null : file.content}
+        />
+      ),
+    [runtime, file, outPath, outVersion],
+  );
+
   const runFlow = useCallback(
     async (spec: FlowSpec) => {
       if (!runtime.ready) return;
@@ -399,6 +418,7 @@ export default function FlowBuilderRunner({
             trace={trace ?? undefined}
             onTraceDismiss={() => setTrace(null)}
             projectPresets={presets}
+            renderEndpointPanel={renderEndpointPanel}
           />
         </div>
 
@@ -424,11 +444,8 @@ export default function FlowBuilderRunner({
             !busy &&
             !error &&
             trace &&
-            "Run complete — scrub the transport under the canvas and click a node to inspect what it did."}
+            "Run complete — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written."}
         </div>
-
-        {/* The sink side: what the flow wrote, in the shared output viewer. */}
-        {outPath && trace && <OutputView runtime={runtime} path={outPath} version={outVersion} />}
 
         {!trace && !error && (
           <div className={shared.emptyHint}>
