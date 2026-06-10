@@ -168,6 +168,14 @@ func TestValidatePlacement_LocalProviderDoesNotTrip(t *testing.T) {
 		toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
 	)
 	require.Error(t, cloud.CheckPlacement(reg))
+
+	// The on-device NER engine calls no provider at all: nothing leaves the
+	// machine, so even a rules-only redact after it passes.
+	onDevice := chain(
+		toolNode("n", "ai-entity-extract", map[string]any{"engine": "ner"}),
+		toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
+	)
+	require.NoError(t, onDevice.CheckPlacement(reg))
 }
 
 // A local termbase/TM step (no remote egress declared) before redact never

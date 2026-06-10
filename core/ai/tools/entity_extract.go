@@ -27,8 +27,22 @@ type AIEntityExtractTool struct {
 	concurrency int
 }
 
+// Extraction engines for AIEntityExtractConfig.Engine.
+const (
+	// EngineLLM extracts with the configured LLM provider (the default).
+	EngineLLM = "llm"
+	// EngineNER extracts with the local on-device NER model only — no LLM
+	// call, no credentials, and no content leaves the machine. Requires a
+	// registered local NER provider (ner.LocalProvider): the browser build's
+	// JS-bridged GLiNER model, or a native local-model provider.
+	EngineNER = "ner"
+	// EngineHybrid runs the local NER model AND the LLM, merging results.
+	EngineHybrid = "hybrid"
+)
+
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
+	Engine      string         `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
 	Provider    string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey      string         `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
@@ -64,17 +78,32 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 }
 
 // NewAIEntityExtractFromConfig creates an entity-extraction tool from a config
-// map, resolving the LLM provider the same way ai-translate does.
+// map, resolving the LLM provider the same way ai-translate does. With
+// `engine: ner` no LLM provider is resolved at all — extraction runs on the
+// registered local NER model (ner.LocalProvider) and nothing leaves the
+// machine; `hybrid` resolves both.
 func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, error) {
 	var cfg AIEntityExtractConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("ai-entity-extract config: %w", err)
 	}
+
+	var nerProvider ner.Provider
+	if cfg.Engine == EngineNER || cfg.Engine == EngineHybrid {
+		nerProvider = ner.LocalProvider()
+		if nerProvider == nil {
+			return nil, fmt.Errorf("ai-entity-extract: engine %q needs a local NER model, but none is available in this environment — in the browser load the local NER model first; natively use the default llm engine", cfg.Engine)
+		}
+	}
+	if cfg.Engine == EngineNER {
+		return NewAIEntityExtractTool(nil, nerProvider, cfg), nil
+	}
+
 	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}
-	return NewAIEntityExtractTool(p, nil, cfg), nil
+	return NewAIEntityExtractTool(p, nerProvider, cfg), nil
 }
 
 // NewAIEntityExtractTool creates a new entity/term extraction tool.
@@ -136,12 +165,17 @@ func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
 		}
 	}
 
-	// Run LLM extraction.
-	llmResult, err := t.extractWithLLM(v.Context(), []extractionEntry{
-		{blockID: v.ID(), text: sourceText},
-	})
-	if err != nil {
-		return fmt.Errorf("ai-entity-extract: %w", err)
+	// Run LLM extraction (skipped for the ner engine — t.llm is nil and the
+	// local model's entities are the whole result).
+	var llmResult *llmExtractionResult
+	if t.llm != nil {
+		var err error
+		llmResult, err = t.extractWithLLM(v.Context(), []extractionEntry{
+			{blockID: v.ID(), text: sourceText},
+		})
+		if err != nil {
+			return fmt.Errorf("ai-entity-extract: %w", err)
+		}
 	}
 
 	// Merge and attach annotations.
@@ -204,22 +238,24 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 		}
 	}
 
-	// 4. Run LLM extraction over batches with bounded concurrency. Each batch
-	// writes its own result slot, so no mutex is needed; goBatches returns the
-	// first error.
+	// 4. Run LLM extraction over batches with bounded concurrency (skipped for
+	// the ner engine — t.llm is nil). Each batch writes its own result slot,
+	// so no mutex is needed; goBatches returns the first error.
 	batches := chunkBlocks(entries, t.batchSize)
 	llmResults := make([]*llmExtractionResult, len(batches))
-	if err := goBatches(batches, t.concurrency, func(idx int, batch []extractionEntry) error {
-		llmEntries := make([]extractionEntry, len(batch))
-		copy(llmEntries, batch)
-		result, err := t.extractWithLLM(ctx, llmEntries)
-		if err != nil {
+	if t.llm != nil {
+		if err := goBatches(batches, t.concurrency, func(idx int, batch []extractionEntry) error {
+			llmEntries := make([]extractionEntry, len(batch))
+			copy(llmEntries, batch)
+			result, err := t.extractWithLLM(ctx, llmEntries)
+			if err != nil {
+				return err
+			}
+			llmResults[idx] = result
+			return nil
+		}); err != nil {
 			return err
 		}
-		llmResults[idx] = result
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	// 5. Merge each batch's LLM result with its NER results and attach.

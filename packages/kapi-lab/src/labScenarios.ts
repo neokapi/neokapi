@@ -49,6 +49,22 @@ export const LAB_SCENARIOS: LabScenario[] = [
     sampleId: "support-reply",
   },
   {
+    id: "redaction-ner",
+    label: "Redaction (on-device NER)",
+    description:
+      "Entity-driven redaction with nothing leaving your browser: a GLiNER model (ONNX, run by onnxruntime-web) detects people, organizations and locations on-device, redact replaces them using the entity overlay, and unredact restores the originals after translation. Because the detector is local, the placement check has no remote egress to object to — the first run downloads the model (~50 MB) once.",
+    steps: [
+      { tool: "ai-entity-extract", config: { engine: "ner" } },
+      {
+        tool: "redact",
+        config: { detectors: ["entities"], entityTypes: ["person", "org", "location"] },
+      },
+      { tool: "ai-translate" },
+      { tool: "unredact" },
+    ],
+    sampleId: "support-reply",
+  },
+  {
     id: "segmentation",
     label: "Segmentation",
     description:

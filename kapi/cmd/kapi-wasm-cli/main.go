@@ -37,6 +37,9 @@ func main() {
 	// …) are already registered by InitRegistries; the demo provider is forced
 	// for them per command run via forceDemoProviders (see buildRoot).
 	registerDemoMT(app.ToolReg)
+	// On-device NER (ai-entity-extract engine "ner"): bridge to a JS-loaded
+	// model (GLiNER via onnxruntime-web); errors actionably until loaded.
+	registerLocalNER()
 
 	// Route the one-time "demo mode" honesty notice to stderr so it surfaces in
 	// the browser terminal exactly like a real provider's diagnostics.

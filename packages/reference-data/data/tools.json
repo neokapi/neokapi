@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T02:45:23Z",
+  "generatedAt": "2026-06-10T06:43:36Z",
   "kind": "tool",
   "entries": [
     {
@@ -238,6 +238,26 @@
             "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
             "default": 1,
             "minimum": 1
+          },
+          "engine": {
+            "type": "string",
+            "title": "Extraction Engine",
+            "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+            "default": "llm",
+            "options": [
+              {
+                "value": "llm",
+                "label": "llm"
+              },
+              {
+                "value": "ner",
+                "label": "ner"
+              },
+              {
+                "value": "hybrid",
+                "label": "hybrid"
+              }
+            ]
           },
           "knownTerms": {
             "type": "array",

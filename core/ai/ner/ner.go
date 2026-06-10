@@ -59,3 +59,18 @@ type Config struct {
 	APIKey   string            // API key or credential
 	Options  map[string]string // Provider-specific options
 }
+
+// localProvider is the process-wide ON-DEVICE NER provider, when one is
+// available: a local ML model that detects entities without any network call.
+// The browser build registers a JS-bridged GLiNER model here; a native plugin
+// can register an in-process ONNX model the same way. nil means no local
+// model is available and `ai-entity-extract` with `engine: ner` fails with an
+// actionable error instead of silently extracting nothing.
+var localProvider Provider
+
+// SetLocalProvider registers the process-wide local NER provider. Call once
+// during initialization, before tools run.
+func SetLocalProvider(p Provider) { localProvider = p }
+
+// LocalProvider returns the registered local NER provider, or nil.
+func LocalProvider() Provider { return localProvider }

@@ -11,6 +11,7 @@ import type { FileSourceValue } from "./FileSource";
 import OutputView from "./OutputView";
 import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario } from "./labScenarios";
+import { ensureLocalNer, localNerLoaded } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
@@ -28,6 +29,7 @@ const BROWSER_SAFE_TOOLS = [
   "pseudo-translate",
   "word-count",
   "term-check",
+  "ai-entity-extract",
   "ai-translate",
   "qa-check",
 ];
@@ -207,6 +209,7 @@ export default function FlowBuilderRunner({
   const [outPath, setOutPath] = useState<string | null>(null);
   const [outVersion, setOutVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const selectScenario = useCallback(
@@ -241,6 +244,32 @@ export default function FlowBuilderRunner({
       }
       setBusy(true);
       setError(null);
+      setNotice(null);
+
+      // On-device NER: a step running ai-entity-extract with engine "ner"
+      // needs the GLiNER model loaded in the page (the wasm engine bridges to
+      // it). Load lazily on first use — everything stays in the browser.
+      const needsLocalNer = steps.some(
+        (s) =>
+          (s.tool === "ai-entity-extract" &&
+            (s.config as { engine?: string } | undefined)?.engine === "ner") ||
+          s.parallel?.some(
+            (b) =>
+              b.tool === "ai-entity-extract" &&
+              (b.config as { engine?: string } | undefined)?.engine === "ner",
+          ),
+      );
+      if (needsLocalNer && !localNerLoaded()) {
+        try {
+          await ensureLocalNer(setNotice);
+        } catch (err) {
+          setError(`failed to load the on-device NER model: ${String(err)}`);
+          setBusy(false);
+          return;
+        }
+      }
+      setNotice(null);
+
       const recipe = buildRecipe({ steps }, presets);
       runtime.writeFile("flow.kapi", recipe);
       const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
@@ -354,7 +383,7 @@ export default function FlowBuilderRunner({
         <div className={`${shared.statusBar} ${error ? shared.statusError : ""}`}>
           {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
           {runtime.status === "error" && `Failed to start: ${runtime.error}`}
-          {runtime.ready && busy && "Running your flow…"}
+          {runtime.ready && busy && (notice ?? "Running your flow…")}
           {runtime.ready && !busy && error && `Error: ${error}`}
           {runtime.ready &&
             !busy &&

@@ -102,8 +102,12 @@ const config: Config = {
               ? // `icu` is ESM-only (no require/node export condition), so the
                 // SSR/node webpack build can't resolve it. It's dynamic-imported
                 // client-only (the segmentation lab is BrowserOnly), so externalize
-                // it on the server: never resolved or executed there.
-                { externals: ["icu"] }
+                // it on the server: never resolved or executed there. `gliner`
+                // (the lab's on-device NER, via onnxruntime-web) is in the same
+                // boat: browser-only export conditions and bundled wasm binaries
+                // that don't resolve under node, loaded by a BrowserOnly
+                // dynamic import.
+                { externals: ["icu", "gliner"] }
               : // On the client, `icu`'s loader has a Node branch importing `fs`;
                 // the browser branch uses fetch, so stub the Node builtins out.
                 { resolve: { fallback: { fs: false, path: false } } }),
