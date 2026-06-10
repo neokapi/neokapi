@@ -80,9 +80,10 @@ jobs:
       # bowrain frontends and packages/ui|flow-editor via the desktop job);
       # its unit tests run here, where every kapi-lab change already lands.
       - name: Lab package checks and tests
+        working-directory: packages/kapi-lab
         run: |
-          pnpm --filter @neokapi/kapi-lab exec vp check --no-fmt
-          pnpm --filter @neokapi/kapi-lab exec vp test -- --run
+          vp check --no-fmt
+          vp test -- --run
 
       # All docs videos are produced by the harness on the desktop (make
       # harness-videos / harness-videos-staged) and published to the docs-assets
