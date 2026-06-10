@@ -1,0 +1,337 @@
+---
+sidebar_position: 2
+sidebar_label: Interchange
+title: Interchange — XLIFF, PO, and your TMS
+description: How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop.
+keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, merge, round-trip, translation memory, terminology]
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+import { RoundTripDiagram } from "@neokapi/docs-shared";
+import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
+
+# Utveksling: arbeid med ethvert TMS eller CAT-verktøy
+
+:::info Krever et .kapi-prosjekt
+Utveksling er **prosjektbasert**. `kapi extract` og `kapi merge` leser
+oppskriftens innholdsglobber og målspråk og bruker prosjektets oversettelsesminne
+pluss uttreksbokføringen kapi fører for deg, så start med `kapi init` (se
+[Dag 0](#dag-0-initialiser-og-fyll-oversettelsesminnet)) og kjør kommandoene fra
+innsiden av prosjektkatalogen. Se [Prosjektfil](/reference/project-file) for
+oppskriften og den git-aktige oppdagelsen. (Ad hoc, énveis format-_konvertering_
+uten rundtur trenger ikke noe prosjekt — det er bare `kapi run -i <file>`.)
+:::
+
+**Utveksling** er måten kapi leverer innhold til omverdenen på i en standard,
+verktøynøytral fil og tar resultatet tilbake. Det meste av seriøs lokalisering
+kjører på tospråklige utvekslingsformater som **XLIFF 2.x** og **PO (gettext)**:
+oversettere åpner dem i et CAT-verktøy (Trados, memoQ, OmegaT, Phrase, Lokalise,
+Crowdin, Poedit, …), oversetter og sender dem tilbake. kapis jobb er
+**ingeniørlimet** på hver side av den overleveringen — skriv ut en ren tospråklig
+fil, ta imot den returnerte, gjenoppbygg kildeformatet byte for byte fra et
+fanget **skjelett**, og hold prosjektets **oversettelsesminne** og **terminologi**
+i sløyfen slik at hver fletting gjør neste uttrekk billigere.
+
+## Utvekslingslandskapet
+
+«Utveksling» spenner over tre ulike grenser. De deler én søm — de samme
+formatleserne og -skriverne over kapis innholdsmodell — men skiller seg i hvem de
+snakker med og hvor den varige tilstanden bor:
+
+| Boundary | What crosses | Driven by | Counterpart |
+| --- | --- | --- | --- |
+| **Format conversion** (ad-hoc, one-way) | one file, no round-trip state | `kapi run -i` + a format writer | none — just the pipeline |
+| **Bilingual round-trip** _(this page)_ | a document as a bilingual `.klz` (native) or XLIFF 2.x / PO (interop), worked elsewhere, merged back | `kapi extract` / `kapi merge` | a translator/reviewer, or an external TMS / CAT tool |
+| **Asset interchange** | accumulated TM and terminology | `kapi tm import`/`export` (TMX), `kapi termbase import`/`export` (TBX) | corporate TM / term archives |
+
+Den klare linjen: **tospråklig rundtur og ressursutveksling leverer begge en fil
+til en motpart og henter resultatet tilbake, med prosjekttilstand som holder
+veien tilbake; formatkonvertering er énveis.** Denne siden er den tospråklige
+rundturen — overleveringen til en oversetter eller et TMS.
+
+**To bærere, valgt etter mottaker.** neokapis egne utvekslingsformat er den
+tapsfrie **tospråklige `.klz`-en** (`kapi extract --format klz`) — for en
+oversetter eller korrekturleser som arbeider i kapi eller neokapis
+gjennomgangsverktøy; den bærer inline-koder, TM-treff og termkontekst i én fil og
+gir integritetsverifisert, diff-bar gjennomgang. For en mottaker på et
+tredjeparts CAT-verktøy skriver `kapi extract` ut **XLIFF 2.x / PO** (standard),
+bransjeinterop-nivået denne siden fokuserer på. Begge går ut og kommer tilbake
+gjennom de samme verbene `extract` / `merge`. Se
+[KLF vs XLIFF](/reference/klf/vs-xliff).
+
+For arkitekturkontekst og designbeslutninger, se [AD-017: Bilingual
+Format Interop](/contribute/architecture/017-bilingual-format-interop).
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/bilingual-workflow-light.webm",
+    dark: "/video/kapi/bilingual-workflow-dark.webm",
+  }}
+  maxWidth="900px"
+/>
+
+## Oversettelsesminnet i sløyfen
+
+De to kommandoene som definerer denne arbeidsflyten er `kapi extract` og
+`kapi merge`. Oversettelsesminnet deltar på begge sider:
+
+<RoundTripDiagram
+  forward={[
+    { label: "authored source", role: "io" },
+    { label: "kapi extract", role: "annotate" },
+    { label: "XLIFF / PO", role: "translate" },
+    { label: "translator" },
+  ]}
+  back={[
+    { label: "kapi merge", role: "annotate" },
+    { label: "translated XLIFF / PO", role: "translate" },
+    { label: "returned by translator" },
+  ]}
+  hub={{ label: "project TM" }}
+  forwardLabel="pre-fill"
+  backLabel="absorb"
+/>
+
+- **TM-forhåndsutfylling ved uttrekk** — hvert segment slås opp mot prosjektets
+  oversettelsesminne før det lander i XLIFF-en. Eksakte treff forhåndsutfylles
+  med `state="translated"`; fuzzy-treff over oppskriftens `tm.fuzzy_threshold`
+  forhåndsutfylles som fuzzy. Oversetterens CAT-verktøy viser gjenbruket som et
+  vanlig TM-treff.
+
+- **TM-absorbering ved fletting** — hvert akseptert målsegment blir en ny eller
+  oppdatert oversettelsesenhet (TU) i prosjektets oversettelsesminne, med
+  proveniens (flettebatch-id, kildefilsti, blokkens innholdshash, opprinnelig
+  XLIFF-filnavn) slik at en senere `kapi tm audit --batch <id>` kan spore hver TU
+  tilbake til flettingen som innførte den.
+
+### Se rundturen på en tospråklig fil
+
+Diagrammet over er arbeidsflyten; utforskeren under er motoren som gjør den
+trygg. Velg det tospråklige XLIFF-eksempelet, kjør det gjennom, og sammenlign
+kilden med utdataene fra rundturen — kapi leser filen inn i innholdsmodellen,
+bladteksten byttes ut, og alt annet (struktur, identifikatorer, skjelettet
+`kapi merge` senere skriver om fra) kommer tilbake uendret. Den samme leseren og
+skriveren ligger bak `kapi extract` og `kapi merge`, og kjører her i nettleseren
+din via WebAssembly.
+
+<RoundTripExplorer defaultSampleId="app-xliff" />
+
+Begge er på som standard. `--no-tm` og `--no-tm-update` slår dem av
+(f.eks. for arbeidsflyter med kald oversettelse eller gjennomgang som tørrkjøring).
+
+## .kapi-oppskriften
+
+En minimal oppskrift som kobler extract/merge inn i en React-app:
+
+```yaml
+# app.kapi
+version: v1
+name: My App
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, es-ES]
+  merge:
+    conflict_policy: translator-wins # | existing-wins | newest-wins
+  tm:
+    fuzzy_threshold: 75 # percent; 0..100
+  segmentation:
+    source: false # opt-in SRX segmentation
+content:
+  - path: src/locales/en/*.json
+    format: json
+    target: src/locales/{lang}/*.json
+```
+
+Seksjonene `merge`, `tm` og `segmentation` er beskrevet i detalj i
+[referansen for Kapi-prosjektfiler](/reference/project-file). Alle tre er
+valgfrie — standardverdier gjelder når en seksjon utelates.
+
+## Dag 0: initialiser og fyll oversettelsesminnet
+
+```bash
+kapi init                          # scaffold app.kapi + .kapi/
+```
+
+Rediger den genererte `app.kapi` for å oppgi innholdsglobber, målspråk og
+eventuelle valgfrie oppskriftsseksjoner. Fyll deretter prosjektets
+oversettelsesminne fra eksisterende minne, hvis du har noe:
+
+```bash
+kapi tm import ./corporate-en-fr.tmx
+```
+
+## Dag 1: første uttrekk
+
+Fra innsiden av prosjektkatalogen (ingen `-p` nødvendig — kommandoen oppdager
+`.kapi`-oppskriften automatisk fra arbeidskatalogen, git-aktig):
+
+```bash
+kapi extract
+```
+
+Som skriver:
+
+- Én XLIFF 2.2 per kilde → mål-par under `out/`:
+  - `out/src-locales-en-app.en-US-to-fr-FR.xliff`
+  - `out/src-locales-en-app.en-US-to-de-DE.xliff`
+  - `out/src-locales-en-app.en-US-to-es-ES.xliff`
+- Uttrekksbokføring (de fangede skjelettene og et manifest) lagret i prosjektets
+  gitignorerte hurtigbuffer slik at `kapi merge` kan feste de returnerte
+  oversettelsene igjen og gjenoppbygge kilden byte for byte — for dokument- og
+  markupformater så vel som for nøkkelbaserte katalogformater (JSON, YAML,
+  `.properties`, Android XML, `.resx`, Apple
+  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, designtokener)
+- En `<note category="kapi">` på filnivå i hver XLIFF som stempler batch-id,
+  kildefil og kildehash
+
+Stdout oppsummerer:
+
+```
+Extracting batch 6f2e8a1c... (format=xliff2, targets=[fr-FR de-DE es-ES], sources=1)
+  fr-FR: 1 files, 412 blocks, TM exact=108 fuzzy=67 new=237
+  de-DE: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
+  es-ES: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
+
+Batch 6f2e8a1c... complete. 3 files written to out/
+Aggregate TM leverage: exact=108 fuzzy=67 new=1061 (total=1236)
+```
+
+### Vanlige uttrekksvalg
+
+```bash
+kapi extract --target-lang fr                  # single target
+kapi extract --target-lang fr,de               # subset (comma-separated)
+kapi extract --only marketing                  # one collection by name
+kapi extract --pattern 'src/**/*.json'         # extra glob
+kapi extract --xliff-version 2.0               # pin older namespace
+kapi extract --no-tm                           # skip pre-fill
+kapi extract --out-dir dist/bilingual          # alternate output dir
+kapi extract --redact-rules .kapi/redaction.yaml  # hide sensitive content
+```
+
+Flere mål i én omgang er standard. Utelat `--target-lang` for å bruke hvert
+språk i `defaults.target_languages`; send en kommaseparert delmengde for å
+begrense.
+
+Når uttrekket er sladdet (`--redact`, `--redact-rules`, eller
+`defaults.redaction` i oppskriften), bærer den utskrevne filen bare
+plassholdere og originalene blir i et lokalt hvelv; `kapi merge` gjenoppretter
+dem automatisk. Se [Sladding](/framework/redaction).
+
+## Dag 2: oversetterarbeid
+
+Utenfor kapis ansvar. Oversetteren åpner XLIFF-en/PO-en i sitt foretrukne
+CAT-verktøy, oversetter den og returnerer den. Kapi er helt ute av sløyfen i
+denne fasen — som er nettopp poenget. Ethvert tospråklig verktøy som snakker
+XLIFF 2.x fungerer.
+
+## Dag N: flett inn returen
+
+```bash
+kapi merge -i vendor-return/app.en-US-to-fr-FR.xliff
+```
+
+Flettingen finner uttrekksmanifestet ved å lese batch-id-en fra filens
+`<note category="kapi" id="batch-id">` — filnavnet kan endre seg under
+leverandør-rundturen, og flettingen finner fortsatt riktig batch.
+
+Flere filer i én omgang:
+
+```bash
+kapi merge -i vendor-return/                   # every .xliff in the directory
+kapi merge -i 'vendor-return/*.xliff'          # glob
+kapi merge -i fr-FR.xliff -i de-DE.xliff       # multiple -i
+```
+
+Hver returnerende XLIFF behandles uavhengig. En feil på én inndatafil
+(parsefeil, manglende manifest, foreldet kilde) avbryter ikke de andre —
+utfallet rapporteres per fil, og avslutningskoden gjenspeiler enhver feil.
+
+### Foreldede segmenter
+
+Flettingen sammenligner hver innkommende blokks `<source>` med den gjeldende
+kildefilen. Hvis kildeteksten har endret seg siden uttrekket (noen redigerte
+JSON-en mens XLIFF-en var ute hos oversetteren), rapporteres den blokken som
+**foreldet** og **hoppes over** — verken anvendt eller absorbert i
+oversettelsesminnet. Du kan trekke ut og oversette den endrede delen på nytt.
+
+### Konfliktpolicy
+
+Når et mål på disk (eller en TU i oversettelsesminnet) allerede bærer en
+oversettelse for en blokk, velger `merge.conflict_policy` hva som skjer:
+
+| Policy            | Behavior                                                          |
+| ----------------- | ----------------------------------------------------------------- |
+| `translator-wins` | Default. The translator's target always replaces the existing.    |
+| `existing-wins`   | Preserve the existing target; skip the translator's.              |
+| `newest-wins`     | Compare timestamps (file mtime / TU `UpdatedAt`); pick the newer. |
+
+Samme policy gjelder for TM-tilbakeskriving når en TU for denne kilden allerede
+har en oversettelse — aldri tvetydig, aldri interaktiv.
+
+## Revisjon: hva bidro denne flettingen med?
+
+```bash
+kapi tm audit --batch <merge-batch-id>
+```
+
+Lister hver TM-oppføring skrevet eller oppdatert av en bestemt fletting, med
+tidsstempel, kildefilsti, blokkens innholdshash og opprinnelig XLIFF-filnavn —
+svaret på «hva gjorde denne flettingen?» uten å forlate CLI-en.
+
+## PO-alternativet (gettext)
+
+Samme flyt, annet utvekslingsformat:
+
+```bash
+kapi extract --format po                       # emits .po files
+kapi merge -i vendor-return/app.en-US-to-fr-FR.po
+```
+
+PO-utdata bærer kapis bokføring som uttrukne kommentarer:
+
+- På filnivå (på hodeoppføringen): `#. kapi-batch:`,
+  `#. kapi-source-file:`, `#. kapi-source-hash:`
+- Per oppføring: `#. kapi-block: <block-id>` for flettekorrelasjon
+- `#, fuzzy` på oppføringer forhåndsutfylt fra fuzzy TM-treff
+
+Ett enkelt `kapi merge -i`-kall kan blande XLIFF- og PO-inndata fra samme
+batch — nyttig når ulike leverandører leverer i ulike formater.
+
+:::note
+PO-utdata er én oppføring per blokk (tilsvarer tilfellet med segmentering av).
+Å slå på `defaults.segmentation.source: true` sammen med `--format po` feiler
+tidlig; skriv ut XLIFF for prosjekter som er avhengige av segmentering på
+setningsnivå.
+:::
+
+## Hva som blir i prosjektet
+
+XLIFF og PO bærer nøyaktig ett valgt mål per språk, kildens runs og
+inline-kodene, og — med det fangede skjelettet — nok til å gjenoppbygge
+originalfilen byte for byte. Alt annet i kapis innholdsmodell projiseres
+**bevisst ikke** inn i den tospråklige filen; det blir i prosjekttilstanden
+(oversettelsesminnet, termbasen og de frittstående overleggene):
+
+- **Frittstående overlegg** — terminologi-, entitets- og QA-annotasjoner forankret
+  til run-områder.
+- **Tone-/kanalvarianter** — alternative mål nøklet på mer enn språkkode.
+- **Proveniens og status** — hvor hvert mål kom fra (TM-forhåndsutfylling, en
+  bestemt flettebatch, et MT- eller AI-verktøy) og dets gjennomgangsstatus.
+
+Dette er tilsiktet: den tospråklige filen er den slanke, verktøynøytrale
+overleveringen, og prosjektet er den autoritative kilden. Det er også derfor
+flettingen trenger det samme prosjektet uttrekket kjørte i — skjelettet og
+manifestet som gjør rundturen byte-eksakt bor der, ikke i filen oversetteren
+returnerer.
+
+## Videre lesning
+
+- [AD-017: Bilingual Format Interop](/contribute/architecture/017-bilingual-format-interop)
+  — fullt designrasjonale, innrammingen med seks grenser, konfliktpolicy-tabellen
+- [AD-009: Translation Memory](/contribute/architecture/009-translation-memory) —
+  treffnivåer, TM-skjema, `LookupSegment` for gjenbruk på setningsnivå
+- [AD-008: Project Model](/contribute/architecture/008-project-model) —
+  bokføringen for uttrekksbatcher og oppskriftsformen for `merge.conflict_policy`
+- [AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — kommandotreet og
+  semantikken for automatisk oppdagelse

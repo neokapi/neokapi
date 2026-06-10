@@ -130,10 +130,17 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 				continue
 			}
 
-			pattern := filepath.Join(ctx.ProjectDir, item.Path)
-			matches, err := filepath.Glob(pattern)
+			// Expand via ExpandGlob (doublestar) so `**` recurses like the
+			// content-listing path does — filepath.Glob has no `**` support
+			// and silently matched only one directory level. Project-wide
+			// excludes apply here exactly as they do for `kapi ls`.
+			rels, err := ExpandGlob(ctx.ProjectDir, item.Path, ctx.Project.Defaults.Exclude...)
 			if err != nil {
 				continue
+			}
+			matches := make([]string, 0, len(rels))
+			for _, rel := range rels {
+				matches = append(matches, filepath.Join(ctx.ProjectDir, rel))
 			}
 
 			for _, f := range matches {

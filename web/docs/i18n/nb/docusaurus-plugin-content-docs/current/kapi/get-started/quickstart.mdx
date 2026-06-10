@@ -1,0 +1,149 @@
+---
+sidebar_position: 3
+title: Quick Start
+description: Get kapi running in minutes — pseudo-translate files, count words, and run AI translation from the command line. Runnable examples included; no install required.
+keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, ai translation, command line]
+---
+
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+
+# Hurtigstart
+
+Kjørbare første steg med kapi — ingen installasjon, ikke noe oppsett. Dette er
+**ad hoc**-kjøringer: én kommando, én fil, konfigurert med flagg. Det er den
+raskeste måten å se hva kapi gjør, og riktig form for engangsjobber, skripting og
+CI. For innhold du lokaliserer gjentatte ganger går du videre til et
+[prosjekt](/kapi/get-started/first-project) — se slutten av denne siden.
+
+De fleste kommandoene under har en **▸ Run**-knapp. Trykker du på den, kjøres
+den **ekte `kapi`-binærfilen** i nettleseren din — ingen installasjon, og
+ingenting forlater maskinen din. Første kjøring tar et øyeblikk å starte; etter
+det er den umiddelbar. Kommandoene som trenger en API-nøkkel vises som statiske
+blokker; kjør dem etter at du har [installert](/kapi/get-started/installation)
+og lagt til legitimasjon.
+
+## Pseudooversett en fil
+
+Generer pseudooversettelser for å teste grensesnittet ditt for avkutting og
+layoutproblemer. Trykk **▸ Run** — den oppretter en liten `messages.json` og
+skriver `messages-qps.json`, som du kan forhåndsvise i **Files**-panelet:
+
+<RunnableSnippet
+  cmd="kapi pseudo-translate messages.json -o messages-qps.json"
+  seed={["messages.json"]}
+/>
+
+Utdataene er aksenttekst som `▒ Ĥéļļö, Ŵöŕļđ! ▒` som avslører uoversatte
+strenger og layoutproblemer. Uten `--target-lang` bruker kapi pseudospråkkoden
+`qps`; send `--target-lang` for å sikte på en ekte språkkode.
+
+## Tell ord
+
+Anslå oversettelsesvolum for kostnadsplanlegging:
+
+<RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
+
+## Utforsk formater, verktøy og flyter
+
+List opp hvert format kapi forstår — ingen inndatafil kreves:
+
+<RunnableSnippet cmd="kapi formats" />
+
+List opp de tilgjengelige prosesseringsverktøyene, sammensetbare flytene og
+forhåndsinnstillingene:
+
+<RunnableSnippet cmd="kapi tools" />
+<RunnableSnippet cmd="kapi flows" />
+<RunnableSnippet cmd="kapi presets list" />
+
+## Rediger før du kjører
+
+Med `editable` plasseres kommandoen ved ledeteksten i stedet for å kjøre
+automatisk — trykk **Enter** når du er klar, eller juster den først:
+
+<RunnableSnippet cmd="kapi word-count messages.json --json" seed={["messages.json"]} editable />
+
+For en fullverdig interaktiv terminal, åpne [CLI-lekeplassen](/playground-cli).
+
+## Oversett med AI
+
+Oversett en fil med en LLM, og kjør deretter en kvalitetskontroll i samme flyt:
+
+```bash
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+```
+
+Dette krever leverandørlegitimasjon, så installer først og legg til en med
+`kapi credentials add` — se [Installering](/kapi/get-started/installation). Når en
+merkevarestemme-profil er bundet til flyten, settes guiden dens inn i
+oversettelsesprompten, slik at utdataene følger merkevaren allerede ved
+generering.
+
+## Hold AI-utdata i tråd med merkevaren
+
+Skriv ut en merkevarestemme-guide du kan lime inn i AI-assistentens kontekst,
+med utgangspunkt i en innebygd startpakke:
+
+```bash
+kapi brand guide --pack friendly-dtc
+```
+
+Vurder et utkast mot en profil. `--min-score` gjør det til en CI-port — kapi
+avslutter med ikke-null når poengsummen er under terskelen:
+
+```bash
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+```
+
+Inndata kan være et filargument, `--text "…"`, eller sendes via stdin. Skriv om
+innhold som bryter med stemmen — forbudte termer, konkurrentomtaler, sjargong:
+
+```bash
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution to drive synergy."
+```
+
+Fem startpakker følger med innebygd: `professional-b2b`, `friendly-dtc`,
+`technical-docs`, `marketing-blog` og `customer-support`. Se
+[Merkevarestemme](/framework/checks/brand-voice).
+
+## Håndter terminologi
+
+```bash
+# Import terms from CSV
+kapi termbase import terms.csv --format csv -s en -t fr
+
+# Look up terms in text
+kapi termbase lookup "authentication module" -s en -t fr
+```
+
+## Bruk den i AI-assistenten din
+
+Eksponer merkevare- og terminologiverktøy over MCP slik at assistenten din
+holder seg til merkevaren mens den skriver:
+
+```bash
+kapi mcp
+```
+
+Se [Bruke kapi med Claude](/kapi/get-started/use-with-claude) for den
+ferdighetsbaserte arbeidsflyten, eller [Bruke Kapi med AI-assistenter](/reference/mcp)
+for MCP-oppsett med Claude Code, Cursor og Windsurf.
+
+## Neste: sett opp et prosjekt
+
+Kjøringene over er ad hoc — perfekte for en rask sjekk eller et CI-steg. Når du
+lokaliserer samme kodelager eller innholdssett mer enn én gang, fang språkene,
+innholdsmønstrene og flytene i et `.kapi`-prosjekt slik at du slutter å gjenta
+flagg og begynner å bygge opp oversettelsesminne.
+
+- [Opprett ditt første prosjekt](/kapi/get-started/first-project) — `kapi init`,
+  les oppskriften, kjør en flyt, flett ut filene.
+- [Moduser og bindinger](/kapi/modes) — hvordan ad hoc- og prosjektkjøringer
+  skiller seg, og når du bør kombinere dem.
+
+## Neste steg
+
+- [Bruke kapi med Claude](/kapi/get-started/use-with-claude) — AI-assistentturen
+- [Merkevarestemme](/framework/checks/brand-voice) — profiler, vurdering og håndheving
+- [Kapi CLI-oversikt](/kapi/cli) — full kommandoreferanse
+- [Formatreferanse](/formats) — støttede filformater

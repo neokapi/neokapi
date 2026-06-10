@@ -149,5 +149,1595 @@ and Kapi Desktop (macOS cask).</seg></tuv>
       <tuv xml:lang="nb"><seg>Se [Installering](/kapi/get-started/installation) for CLI-en (Homebrew eller
 nedlasting) og Kapi Desktop (macOS-cask).</seg></tuv>
     </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Interchange: work with any TMS or CAT tool</seg></tuv>
+      <tuv xml:lang="nb"><seg>Utveksling: arbeid med ethvert TMS eller CAT-verktøy</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>:::info Needs a .kapi project
+Interchange is **project-based**. `kapi extract` and `kapi merge` read the
+recipe's content globs and target locales and use the project's translation
+memory plus the extraction bookkeeping kapi records for you, so start with
+`kapi init` (see [Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands
+from inside the project directory. See [Project file](/reference/project-file)
+for the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_
+with no round-trip needs no project — that is plain `kapi run -i &lt;file&gt;`.)
+:::</seg></tuv>
+      <tuv xml:lang="nb"><seg>:::info Krever et .kapi-prosjekt
+Utveksling er **prosjektbasert**. `kapi extract` og `kapi merge` leser
+oppskriftens innholdsglobber og målspråk og bruker prosjektets oversettelsesminne
+pluss uttreksbokføringen kapi fører for deg, så start med `kapi init` (se
+[Dag 0](#dag-0-initialiser-og-fyll-oversettelsesminnet)) og kjør kommandoene fra
+innsiden av prosjektkatalogen. Se [Prosjektfil](/reference/project-file) for
+oppskriften og den git-aktige oppdagelsen. (Ad hoc, énveis format-_konvertering_
+uten rundtur trenger ikke noe prosjekt — det er bare `kapi run -i &lt;file&gt;`.)
+:::</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Interchange** is how kapi hands content to the outside world in a
+standard, tool-neutral file and takes the result back. Most serious
+localization runs on bilingual exchange formats like **XLIFF 2.x** and
+**PO (gettext)**: translators open them in a CAT tool (Trados, memoQ,
+OmegaT, Phrase, Lokalise, Crowdin, Poedit, …), translate, and send them
+back. kapi's job is the **engineering glue** on either side of that
+handoff — emit a clean bilingual file, accept the returned one, rebuild
+the source format byte-for-byte from a captured **skeleton**, and keep the
+project's **translation memory** and **terminology** in the loop so every
+merge makes the next extract cheaper.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Utveksling** er måten kapi leverer innhold til omverdenen på i en standard,
+verktøynøytral fil og tar resultatet tilbake. Det meste av seriøs lokalisering
+kjører på tospråklige utvekslingsformater som **XLIFF 2.x** og **PO (gettext)**:
+oversettere åpner dem i et CAT-verktøy (Trados, memoQ, OmegaT, Phrase, Lokalise,
+Crowdin, Poedit, …), oversetter og sender dem tilbake. kapis jobb er
+**ingeniørlimet** på hver side av den overleveringen — skriv ut en ren tospråklig
+fil, ta imot den returnerte, gjenoppbygg kildeformatet byte for byte fra et
+fanget **skjelett**, og hold prosjektets **oversettelsesminne** og **terminologi**
+i sløyfen slik at hver fletting gjør neste uttrekk billigere.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The interchange landscape</seg></tuv>
+      <tuv xml:lang="nb"><seg>Utvekslingslandskapet</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>"Interchange" spans three distinct boundaries. They share one seam — the
+same format readers and writers over kapi's content model — but differ in
+who they talk to and where the durable state lives:</seg></tuv>
+      <tuv xml:lang="nb"><seg>«Utveksling» spenner over tre ulike grenser. De deler én søm — de samme
+formatleserne og -skriverne over kapis innholdsmodell — men skiller seg i hvem de
+snakker med og hvor den varige tilstanden bor:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The bright line: **bilingual round-trip and asset interchange both hand a
+file to a counterpart and bring the result back, with project state holding the
+way back; format conversion is one-way.** This page is the bilingual round-trip —
+the handoff to a translator or TMS.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Den klare linjen: **tospråklig rundtur og ressursutveksling leverer begge en fil
+til en motpart og henter resultatet tilbake, med prosjekttilstand som holder
+veien tilbake; formatkonvertering er énveis.** Denne siden er den tospråklige
+rundturen — overleveringen til en oversetter eller et TMS.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Two carriers, chosen by recipient.** neokapi's native interchange format is the
+lossless **bilingual `.klz`** (`kapi extract --format klz`) — for a translator or
+reviewer working in kapi or the neokapi review tool; it carries inline codes, TM
+matches, and term context in one file and gives integrity-verified, diffable
+review. For a recipient on a third-party CAT tool, `kapi extract` emits **XLIFF
+2.x / PO** (the default), the industry-interop tier this page focuses on. Both go
+out and come back through the same `extract` / `merge` verbs. See
+[KLF vs XLIFF](/reference/klf/vs-xliff).</seg></tuv>
+      <tuv xml:lang="nb"><seg>**To bærere, valgt etter mottaker.** neokapis egne utvekslingsformat er den
+tapsfrie **tospråklige `.klz`-en** (`kapi extract --format klz`) — for en
+oversetter eller korrekturleser som arbeider i kapi eller neokapis
+gjennomgangsverktøy; den bærer inline-koder, TM-treff og termkontekst i én fil og
+gir integritetsverifisert, diff-bar gjennomgang. For en mottaker på et
+tredjeparts CAT-verktøy skriver `kapi extract` ut **XLIFF 2.x / PO** (standard),
+bransjeinterop-nivået denne siden fokuserer på. Begge går ut og kommer tilbake
+gjennom de samme verbene `extract` / `merge`. Se
+[KLF vs XLIFF](/reference/klf/vs-xliff).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>For architectural context and design decisions see [AD-017: Bilingual
+Format Interop](/contribute/architecture/017-bilingual-format-interop).</seg></tuv>
+      <tuv xml:lang="nb"><seg>For arkitekturkontekst og designbeslutninger, se [AD-017: Bilingual
+Format Interop](/contribute/architecture/017-bilingual-format-interop).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>TM in the loop</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oversettelsesminnet i sløyfen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The two commands that define this workflow are `kapi extract` and
+`kapi merge`. The translation memory participates on both sides:</seg></tuv>
+      <tuv xml:lang="nb"><seg>De to kommandoene som definerer denne arbeidsflyten er `kapi extract` og
+`kapi merge`. Oversettelsesminnet deltar på begge sider:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**TM pre-fill on extract** — every segment is looked up against the
+  project TM before it lands in the XLIFF. Exact matches are pre-filled
+  with `state="translated"`; fuzzy matches above the recipe's
+  `tm.fuzzy_threshold` are pre-filled as fuzzy. The translator's CAT
+  tool shows leverage as a normal TM match.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**TM-forhåndsutfylling ved uttrekk** — hvert segment slås opp mot prosjektets
+  oversettelsesminne før det lander i XLIFF-en. Eksakte treff forhåndsutfylles
+  med `state="translated"`; fuzzy-treff over oppskriftens `tm.fuzzy_threshold`
+  forhåndsutfylles som fuzzy. Oversetterens CAT-verktøy viser gjenbruket som et
+  vanlig TM-treff.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**TM absorb on merge** — every accepted target segment becomes a new
+  or updated translation unit (TU) in the project TM, carrying
+  provenance (merge batch id, source file path, block content hash,
+  originating XLIFF filename) so a later `kapi tm audit --batch &lt;id&gt;`
+  can trace every TU back to the merge that introduced it.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**TM-absorbering ved fletting** — hvert akseptert målsegment blir en ny eller
+  oppdatert oversettelsesenhet (TU) i prosjektets oversettelsesminne, med
+  proveniens (flettebatch-id, kildefilsti, blokkens innholdshash, opprinnelig
+  XLIFF-filnavn) slik at en senere `kapi tm audit --batch &lt;id&gt;` kan spore hver TU
+  tilbake til flettingen som innførte den.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>See the round-trip on a bilingual file</seg></tuv>
+      <tuv xml:lang="nb"><seg>Se rundturen på en tospråklig fil</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The diagram above is the workflow; the explorer below is the engine that
+makes it safe. Pick the bilingual XLIFF sample, run it through, and compare
+the source with the round-tripped output — kapi reads the file into the
+content model, the leaf text is replaced, and everything else (structure,
+identifiers, the skeleton `kapi merge` later rewrites from) comes back
+unchanged. The same reader and writer back `kapi extract` and `kapi merge`,
+running here in your browser via WebAssembly.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Diagrammet over er arbeidsflyten; utforskeren under er motoren som gjør den
+trygg. Velg det tospråklige XLIFF-eksempelet, kjør det gjennom, og sammenlign
+kilden med utdataene fra rundturen — kapi leser filen inn i innholdsmodellen,
+bladteksten byttes ut, og alt annet (struktur, identifikatorer, skjelettet
+`kapi merge` senere skriver om fra) kommer tilbake uendret. Den samme leseren og
+skriveren ligger bak `kapi extract` og `kapi merge`, og kjører her i nettleseren
+din via WebAssembly.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Both are on by default. `--no-tm` and `--no-tm-update` disable them
+(e.g. cold-translation workflows or dry-run review).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Begge er på som standard. `--no-tm` og `--no-tm-update` slår dem av
+(f.eks. for arbeidsflyter med kald oversettelse eller gjennomgang som tørrkjøring).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The .kapi recipe</seg></tuv>
+      <tuv xml:lang="nb"><seg>.kapi-oppskriften</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A minimal recipe wiring extract/merge into a React app:</seg></tuv>
+      <tuv xml:lang="nb"><seg>En minimal oppskrift som kobler extract/merge inn i en React-app:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The `merge`, `tm`, and `segmentation` sections are described in detail
+on the [Kapi project file reference](/reference/project-file). All three are
+optional — defaults apply when a section is omitted.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Seksjonene `merge`, `tm` og `segmentation` er beskrevet i detalj i
+[referansen for Kapi-prosjektfiler](/reference/project-file). Alle tre er
+valgfrie — standardverdier gjelder når en seksjon utelates.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Day 0: initialize and seed the TM</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dag 0: initialiser og fyll oversettelsesminnet</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Edit the generated `app.kapi` to declare content globs, target
+locales, and any optional recipe sections. Then seed the project TM
+from existing memory, if you have any:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Rediger den genererte `app.kapi` for å oppgi innholdsglobber, målspråk og
+eventuelle valgfrie oppskriftsseksjoner. Fyll deretter prosjektets
+oversettelsesminne fra eksisterende minne, hvis du har noe:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Day 1: first extraction</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dag 1: første uttrekk</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>From inside the project directory (no `-p` needed — the command
+auto-discovers the `.kapi` recipe from cwd, git-style):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Fra innsiden av prosjektkatalogen (ingen `-p` nødvendig — kommandoen oppdager
+`.kapi`-oppskriften automatisk fra arbeidskatalogen, git-aktig):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Which writes:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Som skriver:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>One XLIFF 2.2 per source → target pair under `out/`:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Én XLIFF 2.2 per kilde → mål-par under `out/`:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>`out/src-locales-en-app.en-US-to-fr-FR.xliff`</seg></tuv>
+      <tuv xml:lang="nb"><seg>`out/src-locales-en-app.en-US-to-fr-FR.xliff`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>`out/src-locales-en-app.en-US-to-de-DE.xliff`</seg></tuv>
+      <tuv xml:lang="nb"><seg>`out/src-locales-en-app.en-US-to-de-DE.xliff`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>`out/src-locales-en-app.en-US-to-es-ES.xliff`</seg></tuv>
+      <tuv xml:lang="nb"><seg>`out/src-locales-en-app.en-US-to-es-ES.xliff`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Extraction bookkeeping (the captured skeletons and a manifest) recorded
+  in the project's gitignored cache so `kapi merge` can reattach the
+  returned translations and rebuild the source byte-for-byte — for document
+  and markup formats and for keyed catalog formats alike (JSON, YAML,
+  `.properties`, Android XML, `.resx`, Apple
+  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Uttrekksbokføring (de fangede skjelettene og et manifest) lagret i prosjektets
+  gitignorerte hurtigbuffer slik at `kapi merge` kan feste de returnerte
+  oversettelsene igjen og gjenoppbygge kilden byte for byte — for dokument- og
+  markupformater så vel som for nøkkelbaserte katalogformater (JSON, YAML,
+  `.properties`, Android XML, `.resx`, Apple
+  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, designtokener)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A file-level `&lt;note category="kapi"&gt;` on each XLIFF stamping the
+  batch id, source file, and source hash</seg></tuv>
+      <tuv xml:lang="nb"><seg>En `&lt;note category="kapi"&gt;` på filnivå i hver XLIFF som stempler batch-id,
+  kildefil og kildehash</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Stdout summarizes:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Stdout oppsummerer:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Common extract options</seg></tuv>
+      <tuv xml:lang="nb"><seg>Vanlige uttrekksvalg</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Multi-target in one pass is the default. Omit `--target-lang` to use
+every locale in `defaults.target_languages`; pass a comma-separated
+subset to restrict.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Flere mål i én omgang er standard. Utelat `--target-lang` for å bruke hvert
+språk i `defaults.target_languages`; send en kommaseparert delmengde for å
+begrense.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>When extraction is redacted (`--redact`, `--redact-rules`, or
+`defaults.redaction` in the recipe), the emitted file carries only
+placeholders and the originals stay in a local vault; `kapi merge`
+restores them automatically. See [Redaction](/framework/redaction).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Når uttrekket er sladdet (`--redact`, `--redact-rules`, eller
+`defaults.redaction` i oppskriften), bærer den utskrevne filen bare
+plassholdere og originalene blir i et lokalt hvelv; `kapi merge` gjenoppretter
+dem automatisk. Se [Sladding](/framework/redaction).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Day 2: translator work</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dag 2: oversetterarbeid</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Out-of-scope for kapi. The translator opens the XLIFF/PO in their CAT
+tool of choice, translates it, and returns it. Kapi is entirely out of
+the loop during this phase — which is exactly the point. Any bilingual
+tool that speaks XLIFF 2.x works.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Utenfor kapis ansvar. Oversetteren åpner XLIFF-en/PO-en i sitt foretrukne
+CAT-verktøy, oversetter den og returnerer den. Kapi er helt ute av sløyfen i
+denne fasen — som er nettopp poenget. Ethvert tospråklig verktøy som snakker
+XLIFF 2.x fungerer.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Day N: merge the return</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dag N: flett inn returen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Merge resolves the extraction manifest by reading the batch id from the
+file's `&lt;note category="kapi" id="batch-id"&gt;` — the filename can
+change during the vendor round-trip and merge still finds the right
+batch.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Flettingen finner uttrekksmanifestet ved å lese batch-id-en fra filens
+`&lt;note category="kapi" id="batch-id"&gt;` — filnavnet kan endre seg under
+leverandør-rundturen, og flettingen finner fortsatt riktig batch.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Multi-file in one pass:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Flere filer i én omgang:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Each returning XLIFF is applied independently. A failure on one
+input (parse error, missing manifest, stale source) doesn't abort the
+others — per-file outcomes are reported and the exit code reflects any
+failure.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hver returnerende XLIFF behandles uavhengig. En feil på én inndatafil
+(parsefeil, manglende manifest, foreldet kilde) avbryter ikke de andre —
+utfallet rapporteres per fil, og avslutningskoden gjenspeiler enhver feil.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Stale segments</seg></tuv>
+      <tuv xml:lang="nb"><seg>Foreldede segmenter</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Merge compares every incoming block's `&lt;source&gt;` against the current
+source file. If the source text drifted since extract (someone edited
+the JSON while the XLIFF was out with the translator), that block is
+reported as **stale** and **skipped** — neither applied nor TM-absorbed.
+You can re-extract and re-translate the drifted portion.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Flettingen sammenligner hver innkommende blokks `&lt;source&gt;` med den gjeldende
+kildefilen. Hvis kildeteksten har endret seg siden uttrekket (noen redigerte
+JSON-en mens XLIFF-en var ute hos oversetteren), rapporteres den blokken som
+**foreldet** og **hoppes over** — verken anvendt eller absorbert i
+oversettelsesminnet. Du kan trekke ut og oversette den endrede delen på nytt.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Conflict policy</seg></tuv>
+      <tuv xml:lang="nb"><seg>Konfliktpolicy</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>When an on-disk target (or TM TU) already carries a translation for a
+block, `merge.conflict_policy` picks what happens:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Når et mål på disk (eller en TU i oversettelsesminnet) allerede bærer en
+oversettelse for en blokk, velger `merge.conflict_policy` hva som skjer:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The same policy applies to TM write-back when a TU for this source already
+has a translation — never ambiguous, never interactive.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Samme policy gjelder for TM-tilbakeskriving når en TU for denne kilden allerede
+har en oversettelse — aldri tvetydig, aldri interaktiv.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Audit: what did this merge contribute?</seg></tuv>
+      <tuv xml:lang="nb"><seg>Revisjon: hva bidro denne flettingen med?</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Lists every TM entry written or updated by a specific merge with
+timestamp, source file path, block content hash, and originating
+XLIFF filename — the answer to "what did this merge do?" without
+leaving the CLI.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Lister hver TM-oppføring skrevet eller oppdatert av en bestemt fletting, med
+tidsstempel, kildefilsti, blokkens innholdshash og opprinnelig XLIFF-filnavn —
+svaret på «hva gjorde denne flettingen?» uten å forlate CLI-en.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>PO (gettext) alternative</seg></tuv>
+      <tuv xml:lang="nb"><seg>PO-alternativet (gettext)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Same flow, different exchange format:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Samme flyt, annet utvekslingsformat:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>PO output carries kapi's bookkeeping as extracted comments:</seg></tuv>
+      <tuv xml:lang="nb"><seg>PO-utdata bærer kapis bokføring som uttrukne kommentarer:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>File-level (on the header entry): `#. kapi-batch:`,
+  `#. kapi-source-file:`, `#. kapi-source-hash:`</seg></tuv>
+      <tuv xml:lang="nb"><seg>På filnivå (på hodeoppføringen): `#. kapi-batch:`,
+  `#. kapi-source-file:`, `#. kapi-source-hash:`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Per-entry: `#. kapi-block: &lt;block-id&gt;` for merge correlation</seg></tuv>
+      <tuv xml:lang="nb"><seg>Per oppføring: `#. kapi-block: &lt;block-id&gt;` for flettekorrelasjon</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>`#, fuzzy` on entries pre-filled from fuzzy TM matches</seg></tuv>
+      <tuv xml:lang="nb"><seg>`#, fuzzy` på oppføringer forhåndsutfylt fra fuzzy TM-treff</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A single `kapi merge -i` invocation can mix XLIFF and PO inputs from
+the same batch — useful when different vendors ship in different
+formats.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ett enkelt `kapi merge -i`-kall kan blande XLIFF- og PO-inndata fra samme
+batch — nyttig når ulike leverandører leverer i ulike formater.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>:::note
+PO output is one entry per block (matches the segmentation-off case).
+Enabling `defaults.segmentation.source: true` together with
+`--format po` errors early; emit XLIFF for projects that rely on
+sentence-level segmentation.
+:::</seg></tuv>
+      <tuv xml:lang="nb"><seg>:::note
+PO-utdata er én oppføring per blokk (tilsvarer tilfellet med segmentering av).
+Å slå på `defaults.segmentation.source: true` sammen med `--format po` feiler
+tidlig; skriv ut XLIFF for prosjekter som er avhengige av segmentering på
+setningsnivå.
+:::</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>What stays in the project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hva som blir i prosjektet</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>XLIFF and PO carry exactly one chosen target per locale, the source runs
+and inline codes, and — with the captured skeleton — enough to rebuild the
+original file byte-for-byte. Everything else in kapi's content model is
+**deliberately not** projected into the bilingual file; it stays in project
+state (the translation memory, termbase, and stand-off overlays):</seg></tuv>
+      <tuv xml:lang="nb"><seg>XLIFF og PO bærer nøyaktig ett valgt mål per språk, kildens runs og
+inline-kodene, og — med det fangede skjelettet — nok til å gjenoppbygge
+originalfilen byte for byte. Alt annet i kapis innholdsmodell projiseres
+**bevisst ikke** inn i den tospråklige filen; det blir i prosjekttilstanden
+(oversettelsesminnet, termbasen og de frittstående overleggene):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Stand-off overlays** — terminology, entity, and QA annotations anchored
+  to run ranges.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Frittstående overlegg** — terminologi-, entitets- og QA-annotasjoner forankret
+  til run-områder.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Tone / channel variants** — alternate targets keyed by more than locale.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Tone-/kanalvarianter** — alternative mål nøklet på mer enn språkkode.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Provenance and status** — where each target came from (TM pre-fill, a
+  specific merge batch, an MT or AI tool) and its review state.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Proveniens og status** — hvor hvert mål kom fra (TM-forhåndsutfylling, en
+  bestemt flettebatch, et MT- eller AI-verktøy) og dets gjennomgangsstatus.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>This is by design: the bilingual file is the lean, tool-neutral handoff,
+and the project is the system of record. It is also why merge needs the
+same project the extract ran in — the skeleton and manifest that make the
+round-trip byte-exact live there, not in the file the translator returns.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dette er tilsiktet: den tospråklige filen er den slanke, verktøynøytrale
+overleveringen, og prosjektet er den autoritative kilden. Det er også derfor
+flettingen trenger det samme prosjektet uttrekket kjørte i — skjelettet og
+manifestet som gjør rundturen byte-eksakt bor der, ikke i filen oversetteren
+returnerer.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Deeper reading</seg></tuv>
+      <tuv xml:lang="nb"><seg>Videre lesning</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[AD-017: Bilingual Format Interop](/contribute/architecture/017-bilingual-format-interop)
+  — full design rationale, six-boundary framing, conflict policy table</seg></tuv>
+      <tuv xml:lang="nb"><seg>[AD-017: Bilingual Format Interop](/contribute/architecture/017-bilingual-format-interop)
+  — fullt designrasjonale, innrammingen med seks grenser, konfliktpolicy-tabellen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[AD-009: Translation Memory](/contribute/architecture/009-translation-memory) —
+  matching tiers, TM schema, `LookupSegment` for sentence-level
+  leverage</seg></tuv>
+      <tuv xml:lang="nb"><seg>[AD-009: Translation Memory](/contribute/architecture/009-translation-memory) —
+  treffnivåer, TM-skjema, `LookupSegment` for gjenbruk på setningsnivå</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[AD-008: Project Model](/contribute/architecture/008-project-model) —
+  the extraction-batch bookkeeping and `merge.conflict_policy` recipe
+  shape</seg></tuv>
+      <tuv xml:lang="nb"><seg>[AD-008: Project Model](/contribute/architecture/008-project-model) —
+  bokføringen for uttrekksbatcher og oppskriftsformen for `merge.conflict_policy`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — command tree and
+  auto-discovery semantics</seg></tuv>
+      <tuv xml:lang="nb"><seg>[AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — kommandotreet og
+  semantikken for automatisk oppdagelse</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>How Kapi runs: modes &amp; bindings</seg></tuv>
+      <tuv xml:lang="nb"><seg>Slik kjører Kapi: moduser og bindinger</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi doesn't have separate "ad-hoc commands" and "project commands." It has **one
+set of commands**, and what changes is the **binding** — where content comes from
+and where results go. Understanding that one idea makes every workflow below click.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi har ikke separate «ad hoc-kommandoer» og «prosjektkommandoer». Den har **ett
+sett med kommandoer**, og det som endres er **bindingen** — hvor innholdet kommer
+fra og hvor resultatene går. Forstår du den ene ideen, faller hver arbeidsflyt nedenfor på plass.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Two ways to run</seg></tuv>
+      <tuv xml:lang="nb"><seg>To måter å kjøre på</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi runs the **same commands** two ways — the only difference is whether state is kept:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi kjører de **samme kommandoene** på to måter — den eneste forskjellen er om tilstand beholdes:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Ad-hoc** — run a tool or flow directly on files; nothing is saved.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Ad hoc** — kjør et verktøy eller en flyt direkte på filer; ingenting lagres.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Project** — capture the workflow once in a portable `.kapi` recipe (languages,
+  content patterns, flows, defaults) plus a `.kapi/` state directory that
+  accumulates translation memory and per-block work.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Prosjekt** — fang arbeidsflyten én gang i en portabel `.kapi`-oppskrift (språk,
+  innholdsmønstre, flyter, standardvalg) pluss en `.kapi/`-tilstandskatalog som
+  bygger opp oversettelsesminne og arbeid per blokk.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A **`.klz` parcel** moves work between the two: `pack` a project into a single
+file (or `extract` loose files into one), then `merge`/`unpack` on the other side.</seg></tuv>
+      <tuv xml:lang="nb"><seg>En **`.klz`-pakke** flytter arbeid mellom de to: `pack` et prosjekt til én enkelt
+fil (eller `extract` løse filer til én), og deretter `merge`/`unpack` på den andre siden.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The binding model: source → flow → sink</seg></tuv>
+      <tuv xml:lang="nb"><seg>Bindingsmodellen: kilde → flyt → sluk</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A **flow** is just an ordered set of tools — it owns no input or output. Where the
+content enters (the **source**) and where results go (the **sink**) are *bindings*
+resolved when you run it:</seg></tuv>
+      <tuv xml:lang="nb"><seg>En **flyt** er bare en ordnet rekke verktøy — den eier verken inndata eller utdata.
+Hvor innholdet kommer inn (**kilden**) og hvor resultatene går (**sluket**) er
+*bindinger* som løses når du kjører den:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The mode you're in is just which binding gets resolved:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Modusen du er i, er bare hvilken binding som blir løst:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Ad-hoc** = the `file` binding — you name `-i`/`-o`.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Ad hoc** = `file`-bindingen — du angir `-i`/`-o`.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**In a project**, the default *sink* becomes the **store** (a *process-only* run);
+  pass `-o` to force a file instead.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**I et prosjekt** blir standard-*sluket* **lageret** (en kjøring med *ren prosessering*);
+  send `-o` for å tvinge en fil i stedet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Run `kapi run &lt;flow&gt; --explain` any time to print the resolved `source → sink`
+without executing:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kjør `kapi run &lt;flow&gt; --explain` når som helst for å skrive ut den løste
+`source → sink`-bindingen uten å kjøre:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Ad-hoc: loose files</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ad hoc: løse filer</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Project: two loops, both ending at `merge`</seg></tuv>
+      <tuv xml:lang="nb"><seg>Prosjekt: to sløyfer som begge ender i `merge`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Set up and manage the tracked content (these are core commands — no plugin needed):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Sett opp og håndter det sporede innholdet (dette er kjernekommandoer — ingen tillegg kreves):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**1 — Interchange loop** (hand bilingual files to a translator or CAT tool):</seg></tuv>
+      <tuv xml:lang="nb"><seg>**1 — Utvekslingssløyfe** (lever tospråklige filer til en oversetter eller et CAT-verktøy):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**2 — Process-only loop** (work lands in the store; materialize when ready):</seg></tuv>
+      <tuv xml:lang="nb"><seg>**2 — Ren prosesseringssløyfe** (arbeidet lander i lageret; materialiser når du er klar):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The `.klz` parcel: move work without a server</seg></tuv>
+      <tuv xml:lang="nb"><seg>`.klz`-pakken: flytt arbeid uten server</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A `.klz` is a portable, single-file carrier — the way you hand work between
+machines or people without a server. It comes in two profiles:</seg></tuv>
+      <tuv xml:lang="nb"><seg>En `.klz` er en portabel bærer i én fil — måten du leverer arbeid mellom maskiner
+eller personer på uten en server. Den finnes i to profiler:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Source travels as identity + a round-trip skeleton by default; add `--with-source`
+to embed the raw originals (for offline re-extraction).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kilden reiser som identitet + et rundtur-skjelett som standard; legg til `--with-source`
+for å bygge inn de rå originalene (for frakoblet re-uttrekk).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Do ad-hoc and project mode mix?</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kan ad hoc og prosjektmodus kombineres?</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Yes — because they're the same commands over different bindings, not rival
+toolsets. The guidance:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ja — fordi de er de samme kommandoene over ulike bindinger, ikke rivaliserende
+verktøysett. Rettesnoren:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Coherent mixes:** a tool run *inside* a project (`kapi ai-translate src/app.json`)
+still picks up the project's defaults and TM while working on a single file; the
+same flow runs ad-hoc or process-only with no change; a `.klz` made in a project
+is consumed ad-hoc by a reviewer and `merge`d back.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Kombinasjoner som henger sammen:** et verktøy kjørt *inne i* et prosjekt (`kapi ai-translate src/app.json`)
+plukker fortsatt opp prosjektets standardvalg og oversettelsesminne mens det
+arbeider på én enkelt fil; den samme flyten kjører ad hoc eller med ren
+prosessering uten endring; en `.klz` laget i et prosjekt brukes ad hoc av en
+korrekturleser og flettes tilbake med `merge`.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**The one thing to avoid:** running **two stateful stores over the same content** —
+an ad-hoc `.klz` workspace *and* a `.kapi` project for the same files. Use the
+`.klz` workspace when there is no project; use the project store when there is.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Det ene du bør unngå:** å kjøre **to tilstandsfulle lagre over samme innhold** —
+et ad hoc `.klz`-arbeidsområde *og* et `.kapi`-prosjekt for de samme filene. Bruk
+`.klz`-arbeidsområdet når det ikke finnes noe prosjekt; bruk prosjektlageret når
+det gjør det.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Worth knowing:** inside a project, an explicit `-o` writes a file and skips the
+store (process-only) — that's intentional, and `--explain` shows you which you got.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Verdt å vite:** inne i et prosjekt skriver en eksplisitt `-o` en fil og hopper
+over lageret (ren prosessering) — det er tilsiktet, og `--explain` viser deg
+hvilken du fikk.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>See also</seg></tuv>
+      <tuv xml:lang="nb"><seg>Se også</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Bilingual workflow](/kapi/bilingual-workflow) — the `extract` / `merge` interchange loop in depth.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Tospråklig arbeidsflyt](/kapi/bilingual-workflow) — utvekslingssløyfen `extract` / `merge` i dybden.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Work in a `.klz` workspace](/kapi/recipes/resumable-workspace) — the serverless single-file path.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Arbeid i et `.klz`-arbeidsområde](/kapi/recipes/resumable-workspace) — den serverløse enfilsveien.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Flows](/framework/flows) — authoring composed flows and the source/sink ends.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Flyter](/framework/flows) — å lage sammensatte flyter og kilde-/sluk-endene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[`.kapi` project file](/reference/project-file) — the recipe format.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[`.kapi`-prosjektfil](/reference/project-file) — oppskriftsformatet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi Desktop</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi Desktop</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi Desktop er den visuelle følgesvennen til [kapi-CLI-en](/kapi/cli). Den gir et eget skrivebordsgrensesnitt for å bygge lokaliseringsflyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon — alt uten å skrive YAML eller huske CLI-flagg.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Som CLI-en er skrivebordsappen **prosjekt-først**: den åpner til prosjektene dine og gjenåpner dem du hadde sist, slik at et `.kapi`-prosjekt — dets språk, innhold, flyter, oversettelsesminne og termbase — er hjemmet du arbeider fra. Engangskjøringer på enkeltfiler ligger fortsatt ett klikk unna som **hurtigverktøy** (ad hoc-modusen), for når du bare vil sende én fil gjennom et verktøy uten å sette opp et prosjekt.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A quick tour</seg></tuv>
+      <tuv xml:lang="nb"><seg>En rask omvisning</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Create and manage a project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Opprett og håndter et prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually. The project home shows each content collection's translation status — how many blocks are covered per locale — and lets you extract content into the project store to refresh it.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Et prosjekt parer et kildespråk med språkene du oversetter til, filene i omfang og flytene som behandler dem. Å navngi det er det eneste obligatoriske steget — alt annet konfigureres visuelt. Prosjekthjemmet viser oversettelsesstatusen for hver innholdssamling — hvor mange blokker som er dekket per språk — og lar deg trekke innhold ut i prosjektlageret for å friske den opp.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Manage content in a project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Håndter innhold i et prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A project's content is the set of files it translates. Glob patterns are grouped into named collections — documentation, store UI, contracts, templates — each mapping source files to their translated counterparts. The Content view shows the patterns alongside the real files they match and the format Kapi detected for each.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Et prosjekts innhold er settet av filer det oversetter. Globmønstre grupperes i navngitte samlinger — dokumentasjon, butikkgrensesnitt, kontrakter, maler — som hver kartlegger kildefiler til sine oversatte motstykker. Innholdsvisningen viser mønstrene side om side med de virkelige filene de treffer og formatet Kapi oppdaget for hver av dem.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Compose flows</seg></tuv>
+      <tuv xml:lang="nb"><seg>Sett sammen flyter</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A project's flows are the pipelines it runs over its content — a plain AI translation, a translation followed by quality checks, a pseudo-translation for testing. Each flow is a named sequence of steps, saved alongside the project and shared through version control. Open one to see and edit its pipeline.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Et prosjekts flyter er pipelinene det kjører over innholdet sitt — en ren AI-oversettelse, en oversettelse fulgt av kvalitetskontroller, en pseudooversettelse for testing. Hver flyt er en navngitt sekvens av steg, lagret sammen med prosjektet og delt gjennom versjonskontroll. Åpne en for å se og redigere pipelinen dens.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Configure appearance, providers, and plugins</seg></tuv>
+      <tuv xml:lang="nb"><seg>Konfigurer utseende, leverandører og tillegg</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Settings gather everything in one place: light or dark appearance, the AI providers Kapi translates with (keys stay in your OS keychain), and the plugins that extend its formats and tools.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Innstillinger samler alt på ett sted: lyst eller mørkt utseende, AI-leverandørene Kapi oversetter med (nøklene blir i operativsystemets nøkkelring), og tilleggene som utvider formatene og verktøyene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Browse terminology and translation memory</seg></tuv>
+      <tuv xml:lang="nb"><seg>Bla i terminologi og oversettelsesminne</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi keeps a glossary of multi-locale terms and a memory of past translations. Both are searchable, with inline formatting and entity placeholders preserved.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi holder en ordliste med termer på flere språk og et minne over tidligere oversettelser. Begge er søkbare, med inline-formatering og entitetsplassholdere bevart.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Using the Okapi plugin</seg></tuv>
+      <tuv xml:lang="nb"><seg>Bruke Okapi-tillegget</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi Framework](https://okapiframework.org/)'s filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Tillegg utvider Kapi med nye formater og verktøy. Okapi-broen legger til filtrene fra [Okapi Framework](https://okapiframework.org/) — dusinvis av dokumentformater utover det innebygde settet. Installer det fra registeret med ett klikk, og prosjekter bygget på de filtrene, som OkapiMart-eksempelet, åpner og behandler filene sine gjennom dem.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Features</seg></tuv>
+      <tuv xml:lang="nb"><seg>Funksjoner</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and per-locale translation status, with flows a click from running.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Prosjektoversikt** — Åpne til prosjektene dine og fortsett der du slapp. Hvert prosjekthjem viser språkene, innholdssamlingene og oversettelsesstatusen per språk, med flytene ett klikk fra å kjøre.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Flytredigering** — Bygg pipeliner med flere verktøy visuelt. Lenk AI-oversettelse, kvalitetskontroller, pseudooversettelse og mer sammen i gjenbrukbare flyter lagret i prosjektet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Flow runner** — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Flytkjøring** — Utfør et prosjekts flyter med direkte fremdriftsvisning: status per fil, nodeutheving og tidsbruk. Kjøringer bruker oppskriftens språk og innhold, så det er ingen flagg å gjenta.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Quick tools (ad-hoc)** — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Hurtigverktøy (ad hoc)** — For engangstilfeller, kjør et enkeltverktøy eller en flyt på en løs fil med dynamiske konfigurasjonsskjemaer generert fra verktøyskjemaene — ikke noe prosjekt kreves.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Tilleggshåndtering** — Bla i tilleggsregisteret, installer, oppdater og håndter tillegg fra et grensesnitt.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Credential vault** — Store AI provider API keys securely in your OS keychain.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Legitimasjonshvelv** — Lagre API-nøkler for AI-leverandører trygt i operativsystemets nøkkelring.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Project files** — The `.kapi` recipe is a portable file you can share via git or open with double-click.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Prosjektfiler** — `.kapi`-oppskriften er en portabel fil du kan dele via git eller åpne med et dobbeltklikk.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>On macOS, the cask installs the app and bundles the `kapi` CLI:</seg></tuv>
+      <tuv xml:lang="nb"><seg>På macOS installerer casken appen og inkluderer `kapi`-CLI-en:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>For the Windows installer and the macOS DMG / Linux tarball builds, see
+[Installation](/kapi/get-started/installation#install-kapi-desktop).</seg></tuv>
+      <tuv xml:lang="nb"><seg>For Windows-installasjonsprogrammet og macOS-DMG-/Linux-tarball-byggene, se
+[Installering](/kapi/get-started/installation#installer-kapi-desktop).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Your first project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ditt første prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The tour above shows each surface in motion; here is the path through them when
+you start from nothing. Everything is configured visually — there is no YAML to
+write by hand.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Omvisningen over viser hver flate i bevegelse; her er veien gjennom dem når du
+starter fra ingenting. Alt konfigureres visuelt — det er ingen YAML å skrive for
+hånd.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Create the project.** Launch Kapi Desktop and click **New Project**. Give
+   it a name, set the **source language** (e.g. `en-US`), and add the **target
+   languages** you translate into (e.g. `fr-FR`, `de-DE`). Naming it is the only
+   required step.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Opprett prosjektet.** Start Kapi Desktop og klikk **New Project**. Gi det
+   et navn, sett **kildespråket** (f.eks. `en-US`), og legg til **målspråkene**
+   du oversetter til (f.eks. `fr-FR`, `de-DE`). Å navngi det er det eneste
+   obligatoriske steget.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Add content.** In the **Content** view, add a pattern that points at your
+   source files — for example `src/locales/en/*.json`. Kapi lists the files it
+   matches and the format it detected for each, grouped into a named collection.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Legg til innhold.** I **Content**-visningen, legg til et mønster som peker på
+   kildefilene dine — for eksempel `src/locales/en/*.json`. Kapi lister filene
+   det treffer og formatet den oppdaget for hver av dem, gruppert i en navngitt
+   samling.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Add a provider key.** In **Settings → Providers** (or **Credentials**),
+   add an AI provider and paste your API key. Keys are stored in your OS
+   keychain, never in the project file.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Legg til en leverandørnøkkel.** I **Settings → Providers** (eller
+   **Credentials**), legg til en AI-leverandør og lim inn API-nøkkelen din.
+   Nøkler lagres i operativsystemets nøkkelring, aldri i prosjektfilen.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Compose a flow.** In **Flows**, create a flow and add the steps you need —
+   an AI translation, optionally followed by a quality or terminology check.
+   Each flow is a named pipeline saved alongside the project.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Sett sammen en flyt.** I **Flows**, opprett en flyt og legg til stegene du
+   trenger — en AI-oversettelse, eventuelt fulgt av en kvalitets- eller
+   terminologikontroll. Hver flyt er en navngitt pipeline lagret sammen med
+   prosjektet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Run it.** Select the flow, pick input files and a target language, and
+   click **Run**. You'll see per-file progress, node highlighting, timing, and
+   the output file locations.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Kjør den.** Velg flyten, velg inndatafiler og et målspråk, og klikk
+   **Run**. Du ser fremdrift per fil, nodeutheving, tidsbruk og plasseringen av
+   utdatafilene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Install plugins (optional).** In **Plugins**, browse the registry and
+   install the **Okapi Bridge** to add its document formats and filters; new
+   formats appear automatically.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Installer tillegg (valgfritt).** I **Plugins**, bla i registeret og
+   installer **Okapi Bridge** for å legge til dokumentformatene og filtrene
+   dens; nye formater dukker opp automatisk.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Everything you configure is written to a portable `&lt;name&gt;.kapi` recipe file.
+Commit it to git to share with your team, reopen it in Kapi Desktop, or run it
+from the command line:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Alt du konfigurerer skrives til en portabel `&lt;name&gt;.kapi`-oppskriftsfil. Sjekk
+den inn i git for å dele med laget ditt, gjenåpne den i Kapi Desktop, eller kjør
+den fra kommandolinjen:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Next Steps</seg></tuv>
+      <tuv xml:lang="nb"><seg>Neste steg</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Kapi Project Files](/reference/project-file) — Full format reference</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Kapi-prosjektfiler](/reference/project-file) — full formatreferanse</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Kapi CLI](/kapi/cli) — Command-line reference</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Kapi CLI](/kapi/cli) — kommandolinjereferanse</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Installation](/kapi/get-started/installation) — all platforms and options</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Installering](/kapi/get-started/installation) — alle plattformer og alternativer</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Create your first project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Opprett ditt første prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The [Quick Start](/kapi/get-started/quickstart) runs kapi ad-hoc — one command,
+one file, flags for everything. That's the right shape for a one-off. For content
+you localize **more than once** — a repository, a product's strings, a docs set —
+a **`.kapi` project** is the working model worth adopting: you capture the
+languages, content patterns, and flows in a committed recipe once, then drive
+everything through short commands with no repeated flags.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Hurtigstarten](/kapi/get-started/quickstart) kjører kapi ad hoc — én kommando,
+én fil, flagg for alt. Det er riktig form for et engangstilfelle. For innhold du
+lokaliserer **mer enn én gang** — et kodelager, et produkts strenger, et
+dokumentasjonssett — er et **`.kapi`-prosjekt** arbeidsmodellen verdt å ta i
+bruk: du fanger språkene, innholdsmønstrene og flytene i en innsjekket oppskrift
+én gang, og driver deretter alt gjennom korte kommandoer uten gjentatte flagg.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>This page walks the smallest end-to-end loop: `init` → read the recipe → run a
+flow → `merge` the files out.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Denne siden går gjennom den minste ende-til-ende-sløyfen: `init` → les
+oppskriften → kjør en flyt → `merge` filene ut.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>1. Initialize the project</seg></tuv>
+      <tuv xml:lang="nb"><seg>1. Initialiser prosjektet</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Run `kapi init` in the directory you want to localize. It scaffolds a
+`&lt;dir-name&gt;.kapi` recipe and an adjacent `.kapi/` state directory:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kjør `kapi init` i katalogen du vil lokalisere. Den setter opp en
+`&lt;dir-name&gt;.kapi`-oppskrift og en tilstøtende `.kapi/`-tilstandskatalog:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The recipe is committed; the `.kapi/` state directory is regenerable and belongs
+in `.gitignore`. A fresh `init` declares your languages but **no content yet** —
+that's the next step.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oppskriften sjekkes inn; `.kapi/`-tilstandskatalogen kan regenereres og hører
+hjemme i `.gitignore`. En fersk `init` oppgir språkene dine, men **ennå ikke noe
+innhold** — det er neste steg.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>2. Declare the content to localize</seg></tuv>
+      <tuv xml:lang="nb"><seg>2. Oppgi innholdet som skal lokaliseres</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Tell the project which files to translate with `kapi add` — a glob, plus the
+format (auto-detected if you omit it):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Fortell prosjektet hvilke filer som skal oversettes med `kapi add` — et
+globmønster, pluss formatet (auto-oppdaget hvis du utelater det):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Each `kapi add` appends a content entry to the recipe; `kapi rm` removes one and
+`kapi ls` lists the files the project currently tracks (add `--stats` for per-file
+block and word counts):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hver `kapi add` legger til en innholdsoppføring i oppskriften; `kapi rm` fjerner
+én og `kapi ls` lister filene prosjektet for øyeblikket sporer (legg til
+`--stats` for blokk- og ordtellinger per fil):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>If your strings live in a known stack's i18n catalogs, skip the manual `add` and
+let `kapi init --framework &lt;stack&gt;` (for example `react-i18next`, `nextjs`,
+`flutter`) pre-fill the content mapping for you — see
+`kapi presets list --framework`.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hvis strengene dine ligger i i18n-katalogene til en kjent teknologistabel, hopp
+over den manuelle `add`-en og la `kapi init --framework &lt;stack&gt;` (for eksempel
+`react-i18next`, `nextjs`, `flutter`) forhåndsutfylle innholdskartleggingen for
+deg — se `kapi presets list --framework`.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>3. Read the recipe</seg></tuv>
+      <tuv xml:lang="nb"><seg>3. Les oppskriften</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The `&lt;dir-name&gt;.kapi` recipe is a portable YAML document. A minimal one declares
+its languages, the content globs to localize, and the flows to run:</seg></tuv>
+      <tuv xml:lang="nb"><seg>`&lt;dir-name&gt;.kapi`-oppskriften er et portabelt YAML-dokument. En minimal en
+oppgir språkene sine, innholdsglobene som skal lokaliseres, og flytene som skal
+kjøres:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>`kapi add` wrote the `content` entry's source `path` and `format`. The optional
+`target` glob — with the `{lang}` placeholder — tells `merge` where each locale's
+files go; set it for a custom layout (or let `--framework` fill it), otherwise
+kapi defaults to a locale-suffixed path beside the source. `defaults` carries the
+source and target languages every command inherits, and `flows` names reusable
+tool chains. See the [project file reference](/reference/project-file) for the
+full schema.</seg></tuv>
+      <tuv xml:lang="nb"><seg>`kapi add` skrev innholdsoppføringens kilde-`path` og `format`. Den valgfrie
+`target`-globen — med `{lang}`-plassholderen — forteller `merge` hvor hvert
+språks filer går; sett den for en tilpasset struktur (eller la `--framework`
+fylle den), ellers bruker kapi som standard en språkkode-suffiksert sti ved siden
+av kilden. `defaults` bærer kilde- og målspråkene hver kommando arver, og `flows`
+navngir gjenbrukbare verktøykjeder. Se
+[referansen for prosjektfiler](/reference/project-file) for det fulle skjemaet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>4. Run a flow</seg></tuv>
+      <tuv xml:lang="nb"><seg>4. Kjør en flyt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>From anywhere inside the project tree, run a flow by name:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Fra hvor som helst i prosjekttreet, kjør en flyt ved navn:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>kapi discovers the nearest recipe by walking up the directory tree (like git),
+resolves the project's languages and content, and runs the flow. In a project, a
+run is **process-only** — it commits results to the project store
+(`.kapi/cache/blocks.db`) rather than writing files directly. That keeps repeated
+runs cheap and lets the store accumulate translation memory and overlays as you
+work.</seg></tuv>
+      <tuv xml:lang="nb"><seg>kapi oppdager nærmeste oppskrift ved å gå oppover i katalogtreet (som git),
+løser prosjektets språk og innhold, og kjører flyten. I et prosjekt er en kjøring
+**ren prosessering** — den skriver resultatene til prosjektlageret
+(`.kapi/cache/blocks.db`) i stedet for å skrive filer direkte. Det holder
+gjentatte kjøringer billige og lar lageret bygge opp oversettelsesminne og
+overlegg mens du arbeider.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>5. Merge the files out</seg></tuv>
+      <tuv xml:lang="nb"><seg>5. Flett filene ut</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>When you're ready to materialize the localized files, `merge` writes them to the
+targets declared in the recipe:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Når du er klar til å materialisere de lokaliserte filene, skriver `merge` dem
+til målene oppgitt i oppskriften:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>This replays the stored translations onto each source and writes
+`src/locales/fr/*.json`, `src/locales/de/*.json`, and so on — no flags, because
+the recipe already says where each locale goes.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dette spiller de lagrede oversettelsene tilbake på hver kilde og skriver
+`src/locales/fr/*.json`, `src/locales/de/*.json` og så videre — ingen flagg,
+fordi oppskriften allerede sier hvor hvert språk går.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Inspect a project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Inspiser et prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The lab below is a project, interactive. Pick a sample, step through a declared
+flow, and watch the recipe, the per-locale state, and the output files update:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Laben under er et prosjekt, interaktivt. Velg et eksempel, gå gjennom en
+deklarert flyt steg for steg, og se oppskriften, tilstanden per språk og
+utdatafilene oppdatere seg:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Why project mode</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hvorfor prosjektmodus</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Project mode trades a one-time `init` for less repetition and more memory:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Prosjektmodus bytter en engangs `init` mot mindre gjentakelse og mer minne:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Defaults captured once.** Source and target languages, content globs, and
+  flow definitions live in the recipe. You stop passing `--source-lang`,
+  `--target-lang`, and `-i/-o` on every command.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Standardvalg fanget én gang.** Kilde- og målspråk, innholdsglobber og
+  flytdefinisjoner bor i oppskriften. Du slutter å sende `--source-lang`,
+  `--target-lang` og `-i/-o` på hver kommando.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Translation memory accumulates.** The project store keeps a TM and termbase
+  that every run reads and writes, so each pass recycles the last one's work.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Oversettelsesminnet bygger seg opp.** Prosjektlageret holder et
+  oversettelsesminne og en termbase som hver kjøring leser og skriver, så hver
+  omgang gjenbruker den forriges arbeid.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Git-style discovery.** Run `kapi` from any subdirectory and it finds the
+  project automatically — no `-p` flag, no cwd dance.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Git-aktig oppdagelse.** Kjør `kapi` fra en hvilken som helst underkatalog, og
+  den finner prosjektet automatisk — ingen `-p`-flagg, ingen cwd-dans.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Portable and shareable.** The recipe is a committed YAML file; a teammate who
+  clones the repository runs the same flows with the same configuration.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Portabel og delbar.** Oppskriften er en innsjekket YAML-fil; en lagkamerat
+  som kloner kodelageret kjører de samme flytene med samme konfigurasjon.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Ad-hoc runs stay available for one-offs, scripting, and CI — the two are the same
+commands over a different **binding** (where content enters and leaves). See
+**[Modes &amp; bindings](/kapi/modes)** for the full model.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ad hoc-kjøringer er fortsatt tilgjengelige for engangstilfeller, skripting og CI
+— de to er de samme kommandoene over en ulik **binding** (hvor innholdet kommer
+inn og går ut). Se **[Moduser og bindinger](/kapi/modes)** for hele modellen.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Next</seg></tuv>
+      <tuv xml:lang="nb"><seg>Neste</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Modes &amp; bindings](/kapi/modes) — the source/sink binding model and when to mix
+  ad-hoc and project runs.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Moduser og bindinger](/kapi/modes) — kilde-/sluk-bindingsmodellen og når du bør
+  kombinere ad hoc- og prosjektkjøringer.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Interchange — XLIFF, PO, and your TMS](/kapi/bilingual-workflow) — extract a
+  project to bilingual files for vendor or human translation, then merge back.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Utveksling — XLIFF, PO og TMS-et ditt](/kapi/bilingual-workflow) — trekk ut et
+  prosjekt til tospråklige filer for leverandør- eller menneskeoversettelse, og
+  flett tilbake.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Project file reference](/reference/project-file) — the full `.kapi` recipe
+  schema and discovery rules.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Referanse for prosjektfiler](/reference/project-file) — det fulle
+  `.kapi`-oppskriftsskjemaet og oppdagelsesreglene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Installation</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installering</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>neokapi ships two artifacts you can install independently:</seg></tuv>
+      <tuv xml:lang="nb"><seg>neokapi leveres som to artefakter du kan installere uavhengig av hverandre:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>the **`kapi` CLI** — a single self-contained binary that runs offline by
+  default and operates directly on your files;</seg></tuv>
+      <tuv xml:lang="nb"><seg>**`kapi`-CLI-en** — én selvstendig binærfil som kjører frakoblet som standard
+  og arbeider direkte på filene dine;</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Kapi Desktop** — the visual companion app, which bundles the CLI.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Kapi Desktop** — den visuelle følgeappen, som inkluderer CLI-en.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The two sections below cover each. If you only want the command line, you need
+the first section alone.</seg></tuv>
+      <tuv xml:lang="nb"><seg>De to seksjonene under dekker hver av dem. Vil du bare ha kommandolinjen,
+trenger du kun den første seksjonen.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Install the Kapi CLI</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installer Kapi CLI</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Once you've [tried kapi in the browser](/kapi/get-started/quickstart), install
+the binary to run it locally against your own files.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Når du har [prøvd kapi i nettleseren](/kapi/get-started/quickstart), installer
+binærfilen for å kjøre den lokalt mot dine egne filer.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Homebrew (macOS/Linux)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Homebrew (macOS/Linux)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>WinGet (Windows)</seg></tuv>
+      <tuv xml:lang="nb"><seg>WinGet (Windows)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Binary Downloads</seg></tuv>
+      <tuv xml:lang="nb"><seg>Binærnedlastinger</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Forhåndsbygde binærfiler for alle plattformer er tilgjengelige på
+[GitHub Releases](https://github.com/neokapi/neokapi/releases)-siden:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Linux (amd64, arm64)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Linux (amd64, arm64)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>macOS (amd64, arm64)</seg></tuv>
+      <tuv xml:lang="nb"><seg>macOS (amd64, arm64)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Windows (amd64, arm64)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Windows (amd64, arm64)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>From source (Go developers)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Fra kildekode (Go-utviklere)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Install the latest with Go:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installer siste versjon med Go:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Or build the repository:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Eller bygg kodelageret:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Verify the install</seg></tuv>
+      <tuv xml:lang="nb"><seg>Verifiser installasjonen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Add a provider credential (optional)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Legg til leverandørlegitimasjon (valgfritt)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The rule-based commands — pseudo-translate, word-count, brand checks against a
+profile file — need no credential. For LLM-backed translation, QA, and review,
+save a provider key once under a name you'll reference in flows:</seg></tuv>
+      <tuv xml:lang="nb"><seg>De regelbaserte kommandoene — pseudooversettelse, ordtelling, merkevaresjekker
+mot en profilfil — trenger ingen legitimasjon. For LLM-basert oversettelse,
+kvalitetskontroll og gjennomgang lagrer du en leverandørnøkkel én gang under et
+navn du refererer til i flyter:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Credentials live in your OS keychain. See the
+[Quick Start](/kapi/get-started/quickstart) for what to run next.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Legitimasjon ligger i operativsystemets nøkkelring. Se
+[hurtigstarten](/kapi/get-started/quickstart) for hva du kan kjøre videre.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Install Kapi Desktop</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installer Kapi Desktop</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi Desktop is the visual companion to the CLI. Each package below installs the
+`kapi` CLI as a dependency, so a single install covers both. See the
+[Kapi Desktop overview](/kapi/desktop/overview) for what it does.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi Desktop er den visuelle følgesvennen til CLI-en. Hver pakke under
+installerer `kapi`-CLI-en som en avhengighet, så én enkelt installasjon dekker
+begge. Se [Kapi Desktop-oversikten](/kapi/desktop/overview) for hva den gjør.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>macOS (Homebrew)</seg></tuv>
+      <tuv xml:lang="nb"><seg>macOS (Homebrew)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Windows (installer)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Windows (installasjonsprogram)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Download and run the signed installer from [GitHub Releases](https://github.com/neokapi/neokapi/releases):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Last ned og kjør det signerte installasjonsprogrammet fra
+[GitHub Releases](https://github.com/neokapi/neokapi/releases):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**amd64**: `kapi-desktop-X.Y.Z-windows-amd64-setup.exe`</seg></tuv>
+      <tuv xml:lang="nb"><seg>**amd64**: `kapi-desktop-X.Y.Z-windows-amd64-setup.exe`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**arm64**: `kapi-desktop-X.Y.Z-windows-arm64-setup.exe`</seg></tuv>
+      <tuv xml:lang="nb"><seg>**arm64**: `kapi-desktop-X.Y.Z-windows-arm64-setup.exe`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The installer is Authenticode-signed and registers a Start-menu entry and uninstaller.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installasjonsprogrammet er Authenticode-signert og registrerer en
+startmenyoppføring og et avinstalleringsprogram.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Manual download (macOS, Linux)</seg></tuv>
+      <tuv xml:lang="nb"><seg>Manuell nedlasting (macOS, Linux)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):</seg></tuv>
+      <tuv xml:lang="nb"><seg>Last ned siste utgivelse fra
+[GitHub Releases](https://github.com/neokapi/neokapi/releases):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**macOS**: `kapi-desktop-X.Y.Z-macOS-arm64.dmg` (Apple Silicon)</seg></tuv>
+      <tuv xml:lang="nb"><seg>**macOS**: `kapi-desktop-X.Y.Z-macOS-arm64.dmg` (Apple Silicon)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Linux**: `kapi-desktop-X.Y.Z-linux-amd64.tar.gz` or `kapi-desktop-X.Y.Z-linux-arm64.tar.gz`</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Linux**: `kapi-desktop-X.Y.Z-linux-amd64.tar.gz` eller `kapi-desktop-X.Y.Z-linux-arm64.tar.gz`</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Quick Start</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hurtigstart</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Runnable first steps with kapi — no install, no setup. These are **ad-hoc** runs:
+one command, one file, configured by flags. It's the fastest way to see what kapi
+does, and the right shape for one-off jobs, scripting, and CI. For content you
+localize repeatedly, you'll graduate to a [project](/kapi/get-started/first-project) —
+see the end of this page.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kjørbare første steg med kapi — ingen installasjon, ikke noe oppsett. Dette er
+**ad hoc**-kjøringer: én kommando, én fil, konfigurert med flagg. Det er den
+raskeste måten å se hva kapi gjør, og riktig form for engangsjobber, skripting og
+CI. For innhold du lokaliserer gjentatte ganger går du videre til et
+[prosjekt](/kapi/get-started/first-project) — se slutten av denne siden.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Most commands below carry a **▸ Run** button. Pressing it runs the **real `kapi`
+binary** in your browser — no install, and nothing leaves your machine. The
+first run takes a moment to start; after that it's instant. The commands that
+need an API key are shown as static blocks; run those after
+[installing](/kapi/get-started/installation) and adding a credential.</seg></tuv>
+      <tuv xml:lang="nb"><seg>De fleste kommandoene under har en **▸ Run**-knapp. Trykker du på den, kjøres
+den **ekte `kapi`-binærfilen** i nettleseren din — ingen installasjon, og
+ingenting forlater maskinen din. Første kjøring tar et øyeblikk å starte; etter
+det er den umiddelbar. Kommandoene som trenger en API-nøkkel vises som statiske
+blokker; kjør dem etter at du har [installert](/kapi/get-started/installation)
+og lagt til legitimasjon.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Pseudo-translate a file</seg></tuv>
+      <tuv xml:lang="nb"><seg>Pseudooversett en fil</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Generate pseudo-translations to test your UI for truncation and layout issues.
+Press **▸ Run** — it seeds a small `messages.json` and writes `messages-qps.json`,
+which you can preview in the **Files** panel:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Generer pseudooversettelser for å teste grensesnittet ditt for avkutting og
+layoutproblemer. Trykk **▸ Run** — den oppretter en liten `messages.json` og
+skriver `messages-qps.json`, som du kan forhåndsvise i **Files**-panelet:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The output is accented text like `▒ Ĥéļļö, Ŵöŕļđ! ▒` that exposes untranslated
+strings and layout problems. With no `--target-lang`, kapi uses the `qps`
+pseudo-locale; pass `--target-lang` to target a real locale.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Utdataene er aksenttekst som `▒ Ĥéļļö, Ŵöŕļđ! ▒` som avslører uoversatte
+strenger og layoutproblemer. Uten `--target-lang` bruker kapi pseudospråkkoden
+`qps`; send `--target-lang` for å sikte på en ekte språkkode.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Count words</seg></tuv>
+      <tuv xml:lang="nb"><seg>Tell ord</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Estimate translation volume for cost planning:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Anslå oversettelsesvolum for kostnadsplanlegging:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Explore formats, tools, and flows</seg></tuv>
+      <tuv xml:lang="nb"><seg>Utforsk formater, verktøy og flyter</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>List every format kapi understands — no input file required:</seg></tuv>
+      <tuv xml:lang="nb"><seg>List opp hvert format kapi forstår — ingen inndatafil kreves:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>List the available processing tools, composable flows, and presets:</seg></tuv>
+      <tuv xml:lang="nb"><seg>List opp de tilgjengelige prosesseringsverktøyene, sammensetbare flytene og
+forhåndsinnstillingene:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Edit before you run</seg></tuv>
+      <tuv xml:lang="nb"><seg>Rediger før du kjører</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>With `editable`, the command is placed at the prompt instead of running
+automatically — press **Enter** when you're ready, or tweak it first:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Med `editable` plasseres kommandoen ved ledeteksten i stedet for å kjøre
+automatisk — trykk **Enter** når du er klar, eller juster den først:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>For a full interactive terminal, open the [CLI Playground](/playground-cli).</seg></tuv>
+      <tuv xml:lang="nb"><seg>For en fullverdig interaktiv terminal, åpne [CLI-lekeplassen](/playground-cli).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Translate with AI</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oversett med AI</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Translate a file with an LLM, then run a QA check in the same flow:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oversett en fil med en LLM, og kjør deretter en kvalitetskontroll i samme flyt:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>This needs a provider credential, so install first and add one with
+`kapi credentials add` — see [Installation](/kapi/get-started/installation). When a
+brand voice profile is bound on the flow, its guide is injected into the
+translation prompt, so output is on-brand at generation time.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Dette krever leverandørlegitimasjon, så installer først og legg til en med
+`kapi credentials add` — se [Installering](/kapi/get-started/installation). Når en
+merkevarestemme-profil er bundet til flyten, settes guiden dens inn i
+oversettelsesprompten, slik at utdataene følger merkevaren allerede ved
+generering.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Keep AI output on-brand</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hold AI-utdata i tråd med merkevaren</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Print a brand voice guide to paste into your AI assistant's context, starting
+from a built-in starter pack:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Skriv ut en merkevarestemme-guide du kan lime inn i AI-assistentens kontekst,
+med utgangspunkt i en innebygd startpakke:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Score a draft against a profile. `--min-score` makes it a CI gate — kapi exits
+non-zero when the score is below the threshold:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Vurder et utkast mot en profil. `--min-score` gjør det til en CI-port — kapi
+avslutter med ikke-null når poengsummen er under terskelen:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Input can be a file argument, `--text "…"`, or piped via stdin. Rewrite off-voice
+content — forbidden terms, competitor mentions, jargon:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Inndata kan være et filargument, `--text "…"`, eller sendes via stdin. Skriv om
+innhold som bryter med stemmen — forbudte termer, konkurrentomtaler, sjargong:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,
+`technical-docs`, `marketing-blog`, and `customer-support`. See
+[Brand Voice](/framework/checks/brand-voice).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Fem startpakker følger med innebygd: `professional-b2b`, `friendly-dtc`,
+`technical-docs`, `marketing-blog` og `customer-support`. Se
+[Merkevarestemme](/framework/checks/brand-voice).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Manage terminology</seg></tuv>
+      <tuv xml:lang="nb"><seg>Håndter terminologi</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Use it inside your AI assistant</seg></tuv>
+      <tuv xml:lang="nb"><seg>Bruk den i AI-assistenten din</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Expose brand and terminology tools over MCP so your assistant stays on-brand
+while it writes:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Eksponer merkevare- og terminologiverktøy over MCP slik at assistenten din
+holder seg til merkevaren mens den skriver:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>See [Using kapi with Claude](/kapi/get-started/use-with-claude) for the skill-based
+workflow, or [Using Kapi with AI Assistants](/reference/mcp) for MCP setup with
+Claude Code, Cursor, and Windsurf.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Se [Bruke kapi med Claude](/kapi/get-started/use-with-claude) for den
+ferdighetsbaserte arbeidsflyten, eller [Bruke Kapi med AI-assistenter](/reference/mcp)
+for MCP-oppsett med Claude Code, Cursor og Windsurf.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Next: set up a project</seg></tuv>
+      <tuv xml:lang="nb"><seg>Neste: sett opp et prosjekt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're
+localizing the same repository or content set more than once, capture the
+languages, content patterns, and flows in a `.kapi` project so you stop repeating
+flags and start accumulating translation memory.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kjøringene over er ad hoc — perfekte for en rask sjekk eller et CI-steg. Når du
+lokaliserer samme kodelager eller innholdssett mer enn én gang, fang språkene,
+innholdsmønstrene og flytene i et `.kapi`-prosjekt slik at du slutter å gjenta
+flagg og begynner å bygge opp oversettelsesminne.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Create your first project](/kapi/get-started/first-project) — `kapi init`,
+  read the recipe, run a flow, merge the files out.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Opprett ditt første prosjekt](/kapi/get-started/first-project) — `kapi init`,
+  les oppskriften, kjør en flyt, flett ut filene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Modes &amp; bindings](/kapi/modes) — how ad-hoc and project runs differ, and when
+  to mix them.</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Moduser og bindinger](/kapi/modes) — hvordan ad hoc- og prosjektkjøringer
+  skiller seg, og når du bør kombinere dem.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Next steps</seg></tuv>
+      <tuv xml:lang="nb"><seg>Neste steg</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Using kapi with Claude](/kapi/get-started/use-with-claude) — the AI assistant tour</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Bruke kapi med Claude](/kapi/get-started/use-with-claude) — AI-assistentturen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Merkevarestemme](/framework/checks/brand-voice) — profiler, vurdering og håndheving</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Kapi CLI Overview](/kapi/cli) — full command reference</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Kapi CLI-oversikt](/kapi/cli) — full kommandoreferanse</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Format Reference](/formats) — supported file formats</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Formatreferanse](/formats) — støttede filformater</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Using kapi with Claude</seg></tuv>
+      <tuv xml:lang="nb"><seg>Bruke kapi med Claude</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>You keep building with Claude Code as usual. kapi gives Claude a **structured,
+repeatable** way to handle localization and brand — so making your product
+multilingual and keeping its copy on-voice is an engineering pipeline, not a
+one-off translation. kapi extracts the text from your **code** and
+**documents**, round-trips it back **faithfully** (structure, formatting, and
+placeholders intact), reuses **translation memory**, and enforces your **glossary**
+and **brand voice** — the same way every time, and gate-able in CI.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Du fortsetter å bygge med Claude Code som vanlig. kapi gir Claude en
+**strukturert, repeterbar** måte å håndtere lokalisering og merkevare på — slik
+at det å gjøre produktet ditt flerspråklig og holde teksten på stemmen er en
+ingeniørpipeline, ikke en engangsoversettelse. kapi trekker teksten ut av
+**koden** og **dokumentene** dine, fører den tilbake **formattro** (struktur,
+formatering og plassholdere intakt), gjenbruker **oversettelsesminne**, og
+håndhever **ordlisten** og **merkevarestemmen** din — på samme måte hver gang,
+og kan brukes som port i CI.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>You install it once. After that you ask Claude in plain language; it decides when
+to call `kapi`.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Du installerer det én gang. Etter det spør du Claude i naturlig språk; den
+avgjør når den skal kalle `kapi`.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>:::note
+kapi also speaks [MCP](/reference/mcp), for assistants that prefer structured tools
+over a CLI. This page follows the skill (CLI) path — the two work together.
+:::</seg></tuv>
+      <tuv xml:lang="nb"><seg>:::note
+kapi snakker også [MCP](/reference/mcp), for assistenter som foretrekker
+strukturerte verktøy fremfor en CLI. Denne siden følger ferdighetssporet (CLI) —
+de to virker sammen.
+:::</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>1. Plug kapi into Claude</seg></tuv>
+      <tuv xml:lang="nb"><seg>1. Koble kapi til Claude</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Install the skill into a project, or into your user account for every project:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installer ferdigheten i et prosjekt, eller i brukerkontoen din for alle
+prosjekter:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Claude Code discovers the skill and invokes it when a task fits its description —
+you never call it by name. It's one router that loads the relevant section on
+demand (progressive disclosure), so it covers the whole workflow without crowding
+the context window.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Claude Code oppdager ferdigheten og kaller den når en oppgave passer
+beskrivelsen dens — du kaller den aldri ved navn. Det er én ruter som laster den
+relevante seksjonen ved behov (progressiv avsløring), så den dekker hele
+arbeidsflyten uten å fylle opp kontekstvinduet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The only prerequisite is the `kapi` CLI on your `PATH` (`kapi version` — see
+[installation](/kapi/get-started/installation)). The rule-based checks need no
+credential; for provider-backed translation, add one with `kapi credentials add`
+(or let the assistant translate within kapi's guardrails — more below).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Den eneste forutsetningen er `kapi`-CLI-en på `PATH` (`kapi version` — se
+[installering](/kapi/get-started/installation)). De regelbaserte sjekkene trenger
+ingen legitimasjon; for leverandørstøttet oversettelse, legg til en med
+`kapi credentials add` (eller la assistenten oversette innenfor kapis rekkverk —
+mer under).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>2. Ship your app in another language</seg></tuv>
+      <tuv xml:lang="nb"><seg>2. Lever appen din på et annet språk</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>You're taking a React or Next.js app to a new market. The English text in your JSX
+stays as it is — no message IDs, no `t("...")` wrappers. You just ask:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Du tar en React- eller Next.js-app til et nytt marked. Den engelske teksten i
+JSX-en din blir som den er — ingen meldings-ID-er, ingen `t("...")`-innpakninger.
+Du bare spør:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>We're launching in Japan. Set up i18n with kapi-react and add a Japanese translation.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Vi lanserer i Japan. Sett opp i18n med kapi-react og legg til en japansk oversettelse.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Claude adopts the zero-wrapper [kapi-react](/react/introduction) stack and runs
+a structured pipeline — the same steps every time the UI changes:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Claude tar i bruk null-innpaknings-stabelen [kapi-react](/react/introduction) og
+kjører en strukturert pipeline — de samme stegene hver gang grensesnittet endres:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>The strings stay in your components as plain JSX; kapi handles the build-time
+extraction and the round-trip into a runtime dictionary, carrying placeholders like
+`{userName}` through untouched. The note *data* in your components is left alone —
+only the UI copy is translated. Add the next locale by re-running the same pipeline.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Strengene blir i komponentene dine som ren JSX; kapi håndterer uttrekket ved
+byggetid og rundturen inn i en kjøretidsordbok, og bærer plassholdere som
+`{userName}` urørt gjennom. Notat-*dataene* i komponentene dine får være i fred —
+bare grensesnittsteksten oversettes. Legg til neste språk ved å kjøre samme
+pipeline på nytt.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>3. Translate documents, structure intact</seg></tuv>
+      <tuv xml:lang="nb"><seg>3. Oversett dokumenter med strukturen intakt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Next, a launch one-pager — a Word document. Claude drives kapi for a structured,
+format-faithful round-trip: kapi parses the `.docx`, translates the text, and writes
+it back with the headings, lists, bold runs, and inline fields preserved — applying
+your glossary and translation memory along the way.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Deretter, en énsider for lanseringen — et Word-dokument. Claude driver kapi for
+en strukturert, formattro rundtur: kapi parser `.docx`-en, oversetter teksten og
+skriver den tilbake med overskrifter, lister, fete tekstløp og innebygde felter
+bevart — og anvender ordlisten og oversettelsesminnet ditt underveis.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Translate announcement.docx into Japanese.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oversett announcement.docx til japansk.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi CLI recipes</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi CLI-oppskrifter</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Each recipe takes a single task — estimate a job, catch UI truncation, enforce a
+glossary — states the goal, walks the steps, and lets you run the commands
+yourself. The interactive embeds run the real `kapi` binary in your browser: no
+install, no server, no API key. Every command shown is the command that runs.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hver oppskrift tar én enkelt oppgave — anslå en jobb, fange opp avkutting i
+grensesnittet, håndheve en ordliste — angir målet, går gjennom stegene og lar deg
+kjøre kommandoene selv. De interaktive innbyggingene kjører den ekte
+`kapi`-binærfilen i nettleseren din: ingen installasjon, ingen server, ingen
+API-nøkkel. Hver kommando som vises er kommandoen som kjører.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>For what kapi is and how the CLI and Kapi Desktop relate, see the
+[Kapi overview](/kapi/overview). For every command and flag, see the
+[command reference](/commands).</seg></tuv>
+      <tuv xml:lang="nb"><seg>For hva kapi er og hvordan CLI-en og Kapi Desktop henger sammen, se
+[Kapi-oversikten](/kapi/overview). For hver kommando og hvert flagg, se
+[kommandoreferansen](/commands).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Ad-hoc or project?</seg></tuv>
+      <tuv xml:lang="nb"><seg>Ad hoc eller prosjekt?</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>A **`.kapi` project is the recommended working model** for any repository or
+content set you localize repeatedly. It captures the languages, content patterns,
+and flows in a committed recipe once, adds git-style upward discovery of that
+recipe from any subdirectory, and keeps a project-local translation memory and
+termbase that every run reuses — so you stop repeating flags and start
+accumulating work. [Create your first project](/kapi/get-started/first-project)
+walks the setup; the [project file reference](/reference/project-file) covers the
+recipe format and discovery rules.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Et **`.kapi`-prosjekt er den anbefalte arbeidsmodellen** for ethvert kodelager
+eller innholdssett du lokaliserer gjentatte ganger. Det fanger språkene,
+innholdsmønstrene og flytene i en innsjekket oppskrift én gang, legger til
+git-aktig oppdagelse av oppskriften oppover fra enhver underkatalog, og holder et
+prosjektlokalt oversettelsesminne og en termbase som hver kjøring gjenbruker —
+slik at du slutter å gjenta flagg og begynner å bygge opp arbeid.
+[Opprett ditt første prosjekt](/kapi/get-started/first-project) går gjennom
+oppsettet; [referansen for prosjektfiler](/reference/project-file) dekker
+oppskriftsformatet og oppdagelsesreglene.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>kapi also runs **ad-hoc**: a command operates directly on the files you name,
+configured by flags, with nothing saved —
+`kapi ai-translate -i messages.json --target-lang fr`. That's the quick path for
+one-off jobs, scripting, and CI, and a fine on-ramp. Many recipes here are shown
+ad-hoc because they're genuine one-offs; each notes the project-mode equivalent
+where it helps.</seg></tuv>
+      <tuv xml:lang="nb"><seg>kapi kjører også **ad hoc**: en kommando arbeider direkte på filene du navngir,
+konfigurert med flagg, uten at noe lagres —
+`kapi ai-translate -i messages.json --target-lang fr`. Det er den raske veien for
+engangsjobber, skripting og CI, og en fin innkjøring. Mange oppskrifter her vises
+ad hoc fordi de er genuine engangstilfeller; hver av dem nevner
+prosjektmodus-ekvivalenten der det hjelper.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Every recipe is marked at the top with its mode — **Runs anywhere** (ad-hoc) or
+**Needs a `.kapi` project**.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hver oppskrift er merket øverst med modusen sin — **Kjører hvor som helst**
+(ad hoc) eller **Krever et `.kapi`-prosjekt**.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Recipes</seg></tuv>
+      <tuv xml:lang="nb"><seg>Oppskrifter</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Installation](/kapi/get-started/installation) — Homebrew, WinGet, and binary downloads</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Installering](/kapi/get-started/installation) — Homebrew, WinGet og binærnedlastinger</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Command reference](/commands) — every command and flag</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Kommandoreferanse](/commands) — hver kommando og hvert flagg</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Kapi Desktop](/kapi/desktop/overview) — the visual companion for building flows and running tools</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Kapi Desktop](/kapi/desktop/overview) — den visuelle følgesvennen for å bygge flyter og kjøre verktøy</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>[Using kapi with AI assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more</seg></tuv>
+      <tuv xml:lang="nb"><seg>[Bruke kapi med AI-assistenter](/reference/mcp) — koble kapi til Claude Code, Cursor og mer</seg></tuv>
+    </tu>
   </body>
 </tmx>
