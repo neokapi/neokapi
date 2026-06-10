@@ -79,8 +79,7 @@ whichever capability-typed handler is set (and other Part types to their
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
 stream — batching, 1→N fan-out, cross-block state (e.g. the batch collector, the
 concurrent ai-translate path) — overrides `Process` directly; it may reuse a
-typed handler over a held block via `tool.NewBlockView`/`NewTargetView`/
-`NewSourceView`.
+typed handler over a held block via `tool.NewBlockView`/`NewTargetView`.
 
 ### SessionTool extension
 
@@ -183,6 +182,11 @@ type ToolMeta struct {
 
     // SideEffects lists external systems this tool reads from or writes to.
     SideEffects []SideEffect
+
+    // Recoverable marks a transformer that vaults the originals it removes
+    // and restores them later (redaction); the placement pass holds it to
+    // the remote-egress rule.
+    Recoverable bool
 
     WritesOutput          bool     // CLI adds -o/--output when true
     DefaultParallelBlocks int      // concurrency for IO-bound tools
@@ -309,14 +313,23 @@ const (
     SideEffectTermbaseWrite SideEffect = "termbase-write"
     SideEffectAPICall       SideEffect = "api-call"
     SideEffectAnalytics     SideEffect = "analytics"
+
+    // RemoteSourceEgress marks a tool that sends source content to a remote
+    // system — deliberately distinct from APICall: a local detector or TM
+    // lookup must not carry it, every cloud-provider call must.
+    SideEffectRemoteSourceEgress SideEffect = "remote-source-egress"
 )
 ```
 
-Side-effect declarations are informational metadata for the flow editor
+Most side-effect declarations are informational metadata for the flow editor
 and documentation. They are not enforced at runtime — a tool with
 `SideEffects: [SideEffectTMWrite]` still runs normally even if no TM is
 configured (it simply skips the write). This keeps the tool interface
-simple while giving the UI enough information to warn meaningfully.
+simple while giving the UI enough information to warn meaningfully. The one
+exception is `RemoteSourceEgress`: the transformer placement pass (below) keys
+a hard build/load error off it, and a tool whose remoteness depends on
+configuration (an AI tool pointed at a local Ollama or the offline demo
+provider) refines it away through its contract resolver.
 
 #### Flow locale inference
 
@@ -487,7 +500,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `span-classify`       | Reclassify `code:markup` spans into semantic vocabulary types             |
 | `tag-protect`         | Identify and mark tags and placeholders for protection                    |
 | `xslt-transform`      | Apply regex-based tag/text transformations to block text                  |
-| `redact`              | Replace sensitive spans with placeholders pre-translation (recoverable source-transform) |
+| `redact`              | Replace sensitive spans with placeholders pre-translation (recoverable transformer) |
 | `unredact`            | Restore redacted spans from the vault post-translation                    |
 
 **Enrich tools** — add metadata or overlays via annotations:
@@ -688,16 +701,21 @@ using the `Capability` and `SideEffects` a tool already declares:
 
 | Severity | Rule | Rationale |
 | --- | --- | --- |
-| Error | a transformer must not follow a `Translate` | rewriting source orphans the targets, which anchor to it |
-| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink | otherwise unprotected source leaks before redaction applies |
+| Error | a transformer must not follow a step that produces a committed target — unless it produces the target port itself (unredact rewrites both sides coherently) | rewriting source orphans the targets, which anchor to it |
+| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink — except the step(s) producing an input its config-resolved contract *requires* | otherwise unprotected source leaks before redaction applies; a cloud NER feeding entity-driven redaction is the documented detection trade-off ([AD-020](020-redaction.md)) |
 | Warning | a transformer placed later than its earliest valid slot (after its last required input) | every overlay present at apply time must be rebased; an earlier slot avoids the work |
 
-The remote-egress rule keys off a *remote source egress* side-effect, distinct
-from a plain API call, so a local detector or termbase lookup does not trip it
-while a cloud-provider call does. Tools — including plugins — contribute their own
-placement diagnostics through the same config-derived contract hook that resolves
-a tool's required inputs from its configuration (e.g. redaction requires an
-upstream `entity` overlay only when entity detection is enabled).
+The remote-egress rule keys off a *remote source egress* side-effect
+(`schema.SideEffectRemoteSourceEgress`), distinct from a plain API call, so a
+local detector or termbase lookup does not trip it while a cloud-provider call
+does. The effect itself is config-refined: an AI tool pointed at a local
+provider (Ollama, the offline demo) carries no remote egress. Tools — including
+plugins — contribute their own placement diagnostics through the same
+config-derived contract hook that resolves a tool's required inputs from its
+configuration (e.g. redaction requires an upstream `entity` overlay only when
+entity detection is enabled — and only a *required* input exempts its producer
+from the egress rule, so a rules-only redact placed after a cloud NER step is
+still rejected).
 
 ## Consequences
 

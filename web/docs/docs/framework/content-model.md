@@ -150,8 +150,9 @@ interpretation has a position:
   set = a target variant), an optional `Layer` (segmentation granularity; `""` =
   the primary sentence segmentation), and a list of `Spans`. A `Span` carries a
   run `Range` (its position), an `ID`, optional `Props`, and a typed payload
-  `Value`. Because spans anchor to runs, a source rewrite invalidates them — a
-  source-transform tool drops the overlays it consumed before rewriting the runs.
+  `Value`. Because spans anchor to runs, a source rewrite moves them — when a
+  transformer rewrites the runs, the framework applier rebases surviving spans
+  onto the new runs and drops any span that overlaps a rewritten range.
 - **Annotations** (`Block.Annotations`) are **block-scoped**: typed metadata keyed
   by type name, with no position. A source rewrite does not invalidate them.
   Multiplicity lives inside the value, never in numbered keys — every alternative

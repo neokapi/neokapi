@@ -358,9 +358,12 @@ type PartHandler func(part *model.Part) (*model.Part, error)
 // handler. Embed it and set only the handlers you need; unset handlers pass the
 // Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
 // the view it receives bounds what the tool may write (immutability, AD-006):
-//   Annotate(BlockView)   — read-only: overlays / annotations / properties
+//   Annotate(BlockView)  — read-only: overlays / annotations / properties
 //   Translate(TargetView) — writes the target; source read-only
-//   Transform(SourceView) — rewrites source (and may write target)
+//   Transform(BlockView) — edit producer: returns an EditPlan the framework
+//                          applier applies to the source (the sole mutator —
+//                          it rewrites, rebases overlays, vaults secrets,
+//                          bounds-checks, atomically)
 type BaseTool struct {
     ToolName        string
     ToolDescription string
@@ -369,7 +372,12 @@ type BaseTool struct {
 
     Annotate  func(BlockView) error
     Translate func(TargetView) error
-    Transform func(SourceView) error
+    Transform func(BlockView) (EditPlan, error)
+
+    // VaultSecrets is the sink the applier hands a plan's Secrets to, set by
+    // recoverable transformers (redaction). A plan with secrets and no sink
+    // is an apply error (fail closed).
+    VaultSecrets func(BlockView, []Secret) error
 
     HandleDataFn       PartHandler
     HandleMediaFn      PartHandler
@@ -379,10 +387,12 @@ type BaseTool struct {
     HandleGroupEndFn   PartHandler
 }
 
-// BlockView ⊂ TargetView ⊂ SourceView are the read/write surfaces a block
-// handler sees. BlockView reads source/target and writes overlays, annotations
-// and properties; TargetView adds SetTarget*; SourceView adds SetSource*. A tool
-// needing batching, 1→N fan-out, or stream control overrides Process instead.
+// BlockView ⊂ TargetView are the read/write surfaces a block handler sees.
+// BlockView reads source/target and writes overlays, annotations and
+// properties; TargetView adds SetTarget*. There is no source-write view — a
+// Transform handler is a read-only producer and the framework applier is the
+// only code that rewrites source. A tool needing batching, 1→N fan-out, or
+// stream control overrides Process instead.
 ```
 
 ### SessionTool (random access to project block state)
@@ -416,22 +426,16 @@ package flow
 type ToolFactory func() (tool.Tool, error)
 
 // Flow is a configured sequence of Tools that Parts stream through.
+// Transformers (tool.CapTransform) are ordinary entries in the ordered list;
+// the framework applier rewrites the source inline, so each transformer
+// settles the block before later tools observe it. The placement pass
+// (core/flow/placement.go) validates transformer positions at build/load.
 type Flow struct {
     Name string
-
-    // Leading source-transform stage: source-settling transforms (redaction,
-    // normalization, simplifier) run before Tools so downstream tools see one
-    // settled source. Only tool.CapTransform tools may sit here.
-    SourceTransforms         []tool.Tool   // sequential / single-document
-    SourceTransformFactories []ToolFactory // parallel: fresh instance per document
 
     Tools         []tool.Tool   // sequential / single-document execution
     ToolFactories []ToolFactory // parallel: fresh tool chain per document
 }
-
-// Flow.Pipeline() / Flow.PipelineFactories() return the source-transform stage
-// followed by the main tools, so a front-loaded transform settles each block
-// before any later tool sees it.
 
 // Item represents a single document to process in a batch.
 type Item struct {

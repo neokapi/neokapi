@@ -91,13 +91,23 @@ is only ever in memory:
 kapi run secure-translate -i src/locales/en.json --target-lang fr
 ```
 
-The flow is `reader → redact → ai-translate → unredact → writer`. `redact` runs
-in the flow's [source-transform stage](/framework/flows#the-source-transform-stage):
-it settles the source — replacing sensitive spans with placeholders — before
-translation or any annotation reads it. `unredact` is an ordinary late step that
-restores the originals on the way out. You can compose both into your own flows;
-in the steps format, put `redact` under `source_transforms:` and `unredact`
-among the `steps:`.
+The flow is `reader → redact → ai-translate → unredact → writer`. `redact` is
+an ordinary [transformer step](/framework/flows#transformers): the framework
+applier rewrites the source — replacing sensitive spans with placeholders and
+vaulting the originals fail-closed — before the next step observes it. Because
+redaction's edit plan is structured, run-anchored overlays attached upstream
+(terms, entities) survive the rewrite by rebasing; only spans overlapping a
+redacted span are dropped. The flow's placement pass keeps the ordering safe:
+it rejects a `redact` placed after any step that sends source to a remote
+service. `unredact` is an ordinary late step that restores the originals on
+the way out. You can compose both into your own flows as ordered steps:
+
+```yaml
+steps:
+  - tool: redact
+  - tool: ai-translate
+  - tool: unredact
+```
 
 ### External: extract, translate, merge
 

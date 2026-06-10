@@ -28,37 +28,42 @@ type FlowStep struct {
 }
 ```
 
-## Source-transform stage
+## Transformers as ordered steps
 
-An optional `source_transforms:` list declares the leading **source-transform
-stage** — tools that rewrite the source/model (redaction, a simplifier,
-normalization) and run *before* the main steps, so downstream tools see one
-settled, canonical source ([AD-006](../architecture/006-tool-system.md)). It
-takes the same `FlowStep` shape as `steps`. Only source-transform-capable tools
-(those that may rewrite source) are permitted here; placing any other tool in
-the stage is rejected at flow-resolution time.
+Tools that rewrite the source/model (redaction, a simplifier, normalization)
+are ordinary entries in `steps:`; there is no separate structural stage
+([AD-006](../architecture/006-tool-system.md)). A flow that declares the
+removed `source_transforms:` field is rejected by `StepsToGraph` with a
+migration error pointing at AD-006 and directing the author to list the
+transformers as ordered steps.
 
 ```yaml
-source_transforms:
-  - tool: redact          # settle the model first
 steps:
-  - tool: ai-translate    # downstream sees the redacted source
+  - tool: redact          # applied inline; later steps see the redacted source
+  - tool: ai-translate
   - tool: qa-check
 ```
+
+Transformer ordering is validated by the placement pass
+(`core/flow/placement.go`), which runs beside data-flow validation at every
+flow build/load gate and emits these diagnostics:
+
+| Rule id | Severity | Trigger |
+| --- | --- | --- |
+| `transformer-after-target` | error | a transformer follows a step that produces a committed target; exempt when the transformer produces the target port itself (e.g. `unredact`) |
+| `transformer-after-remote-egress` | error | a recoverable transformer (`redact`) follows a step with the remote-source-egress side effect; exempt for the step(s) producing an input the transformer's config-resolved contract requires |
+| `transformer-late-placement` | warning | a transformer sits later than its earliest valid slot (after its last required input), forcing avoidable overlay rebasing |
 
 ## Compilation
 
 `StepsToGraph(spec)` generates:
 
-1. Source-transform tool nodes from `spec.source_transforms`, chained first and
-   marked `stage: source-transform`
-2. Tool nodes from `steps`, chained sequentially after the source-transform stage
-3. Parallel branches for `parallel:` blocks (tee from previous, join at next)
+1. Tool nodes from `steps`, chained sequentially
+2. Parallel branches for `parallel:` blocks (tee from previous, join at next)
 
-Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right,
-so the graph order is source-transforms → main tools. The graph is tool nodes
-only; the flow's source and sink are bindings resolved at run time
-([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
+Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
+The graph is tool nodes only; the flow's source and sink are bindings resolved
+at run time ([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
 
 ## Examples
 

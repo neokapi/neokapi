@@ -34,10 +34,11 @@ segmentation overlay
 ```
 
 Because segmentation is an overlay rather than an edit, it is a [check-like
-annotation](/framework/content-model): it is produced in the annotation phase,
-after the [source-transform stage](/framework/flows#the-source-transform-stage)
-has settled the source, so every boundary is anchored to the canonical runs that
-translation and TM will also see.
+annotation](/framework/content-model): it is produced after any
+[transformers](/framework/flows#transformers) have settled the source, so
+every boundary is anchored to the canonical runs that translation and TM will
+also see. If a later transformer does rewrite the source, the framework
+applier rebases the boundaries onto the new runs.
 
 ## Why stand-off
 

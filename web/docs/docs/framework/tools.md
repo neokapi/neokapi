@@ -86,9 +86,9 @@ type BaseTool struct {
     Cfg             ToolConfig
 
     // Block handler — set exactly one. The view type bounds what it may write.
-    Annotate  func(BlockView) error  // read-only: overlays / annotations / properties
-    Translate func(TargetView) error // writes target
-    Transform func(SourceView) error // rewrites source (and may write target)
+    Annotate  func(BlockView) error             // read-only: overlays / annotations / properties
+    Translate func(TargetView) error            // writes target
+    Transform func(BlockView) (EditPlan, error) // edit producer: the framework applier rewrites source
 
     // Other Part types stay untyped.
     HandleDataFn       PartHandler
@@ -107,12 +107,14 @@ to the output channel unchanged. For Blocks, a tool sets one of three
 capability-typed handlers and the view it receives decides what it may write
 (the immutability model — see [the tool-system AD](/contribute/architecture/006-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
-properties; `Translate` writes the target; `Transform` rewrites the source. The
-forbidden writes simply aren't on the view, so a quality check can't accidentally
-mutate the source.
+properties; `Translate` writes the target; `Transform` is a read-only edit
+producer — it returns an edit plan, and a framework-owned applier performs the
+source rewrite, rebasing surviving overlays and vaulting any secrets. The
+forbidden writes simply aren't on the view, so a quality check can't
+accidentally mutate the source, and a transformer holds no source setter.
 
 The case-transform tool is a representative example. It can rewrite the source,
-so it sets `Transform`:
+so it sets `Transform` and returns the rewrite as a plan:
 
 ```go
 func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
@@ -121,15 +123,21 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
         ToolDescription: "Transforms the case of source and/or target text",
         Cfg:             cfg,
     }
-    t.Transform = func(v tool.SourceView) error {
+    // Transform producer: returns the case rewrite as an edit plan; the
+    // framework applier rewrites the block (AD-006).
+    t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
         if !v.Translatable() {
-            return nil // pass through
+            return tool.EditPlan{}, nil // pass through
         }
         conf := t.Cfg.(*CaseTransformConfig)
+        var plan tool.EditPlan
         if conf.ApplySource {
-            v.SetSourceText(transformCase(v.SourceText(), conf.Mode))
+            converted := transformCase(v.SourceText(), conf.Mode)
+            if converted != v.SourceText() {
+                plan.ReplaceAll = &converted // opaque whole-source rewrite
+            }
         }
-        return nil
+        return plan, nil
     }
     return t
 }

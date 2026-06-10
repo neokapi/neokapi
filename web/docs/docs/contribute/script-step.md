@@ -214,12 +214,12 @@ if (part.type !== "block") {
 
 Normalize whitespace in the source before translation. Source edits are
 **ignored by default** — the source is read-only to the script (immutability
-contract). Opt in with `allowSourceMutation: true`, and place the step in a
-flow's [source-transform stage](/contribute/flow-authoring) so the model is
-settled before any annotation or translation runs:
+contract). Opt in with `allowSourceMutation: true`, and place the step ahead
+of the steps that should observe the rewritten source — typically first (see
+[flow authoring](/contribute/flow-authoring)):
 
 ```yaml
-source_transforms:
+steps:
   - tool: script
     config:
       allowSourceMutation: true
@@ -230,6 +230,7 @@ source_transforms:
           part.block.source[0].content.text = text;
           emit(part);
         }
+  - tool: ai-translate
 ```
 
 ### Log and pass through

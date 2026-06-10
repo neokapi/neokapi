@@ -45,8 +45,9 @@ interpretation has a position:
   side; set = a target variant), an optional `Layer` (segmentation granularity;
   `LayerPrimary` = primary), and `Spans`. A `Span` carries a run `Range` (its position), an
   `ID`, optional `Props`, and a typed payload `Value`. Because a span's range
-  anchors into the runs, a source rewrite invalidates it — a source-transform
-  tool drops the overlays it consumed before rewriting the runs.
+  anchors into the runs, a source rewrite moves it — the framework applier
+  rebases surviving spans onto the rewritten runs (`model.RemapOverlays`) and
+  drops any span overlapping a rewritten range.
 - **Annotations** (`Block.Annotations map[string]any`) are **block-scoped**:
   typed metadata keyed by type name, with no position — notes, alt-translations,
   analysis results, and format round-trip state. A source rewrite does not
@@ -211,7 +212,7 @@ With a typed `Consumes`/`Produces` contract, the flow loader/builder
 part-type contract cannot:
 
 - For each tool's **required** (non-optional) consumed port, some upstream
-  producer must supply it — an earlier tool's `Produces`, the ingest settle stage
+  producer must supply it — an earlier tool's `Produces`, ingest-time settlers
   (AD-026 — segmentation/normalization persisted at extract), or the **source
   binding** (below). Otherwise the flow is rejected at load/build with a precise
   message ("`qa-check` requires a `target`; no upstream tool produces one")
@@ -219,9 +220,9 @@ part-type contract cannot:
 - Optional consumed ports never gate validation; they feed the editor's "this
   upgrades when X is present" affordance.
 
-This complements the structural checks (cycle detection, stage capability gating)
-and the source-transform rule that `Build` enforces (only `CapTransform` tools in
-the leading stage).
+This complements the structural checks (cycle detection) and the transformer
+**placement pass** (`core/flow/placement.go`, AD-006), which runs beside
+data-flow validation at the same build/load gates.
 
 ## Bindings as port producers/consumers
 

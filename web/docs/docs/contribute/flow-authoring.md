@@ -77,7 +77,7 @@ steps:
       targetLocale: fr
 ```
 
-This creates a three-stage pipeline: create the target, clean up placeholder text, then run quality checks.
+This creates a three-step pipeline: create the target, clean up placeholder text, then run quality checks.
 
 ## Parallel blocks for fan-out
 
@@ -107,44 +107,54 @@ steps:
 
 All three analysis tools run at the same time, each in its own goroutine.
 
-## Source-transform stage
+## Transformers
 
-An optional `source_transforms:` list declares a leading stage that runs
-**before** the main `steps`. Use it for tools that rewrite the source — redaction,
-whitespace/markup normalization, a source-mutating `script` — so the model is
-settled before any annotation or translation sees it. A run-anchored overlay
-(segmentation, terms) attached during the main stage would rot if a later tool
-still mutated the source, which is why source rewrites belong here, up front.
+Tools that rewrite the source — redaction, whitespace/markup normalization, a
+source-mutating `script` — are ordinary steps in the same ordered list as
+everything else. A transformer returns an edit plan; the framework applier
+performs the rewrite inline and in order, rebasing surviving run-anchored
+overlays (segmentation, terms) onto the new runs, so each transformer settles
+the source before later steps observe it.
 
 ```yaml
-source_transforms:
+steps:
   - tool: redact
     config:
       detectors: [rules]
       rulesPath: redaction-rules.yaml
 
-steps:
   - tool: ai-translate
     config:
       targetLocale: fr
 ```
 
-Only **source-transform-capable** tools (those exposing the `Transform`
-capability) may appear in this stage; the flow build rejects others. Note that
-capability is not placement: a `Transform`-capable tool is allowed to run early,
-but it is not hoisted automatically — a tool that happens to be able to rewrite
-the source (e.g. `case-transform` on a target) stays in `steps` unless you
-declare it here. See the [tool-system AD](/contribute/architecture/006-tool-system)
-for the immutability model behind the stage.
+A **placement pass** (`core/flow/placement.go`) validates transformer
+positions beside data-flow validation at every flow build and load:
+
+- **Error** — a transformer follows a step that produces a committed target
+  (rewriting source orphans the targets). A transformer that produces targets
+  itself, such as `unredact`, is exempt.
+- **Error** — a recoverable transformer (`redact`) follows a step with the
+  remote-source-egress side effect, except a step producing an input the
+  transformer's config-resolved contract requires (a cloud NER step feeding
+  entity-driven redaction is the documented detection trade-off,
+  [AD-020](/contribute/architecture/020-redaction)). AI tools configured with
+  a local provider (ollama, demo) carry no egress effect.
+- **Warning** — a transformer placed later than its earliest valid slot, since
+  every overlay present at apply time must be rebased.
+
+A flow that declares the removed `source_transforms:` field is rejected at
+load with a migration error directing you to list the transformers as ordered
+steps. See the [tool-system AD](/contribute/architecture/006-tool-system) for
+the immutability model and the producer/applier split.
 
 ## How steps compile to the graph
 
 The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `FlowEdge` slices:
 
-1. Each `source_transforms:` entry becomes a stage-marked **tool** node, chained first so the source is settled before the main tools
-2. Each sequential step becomes a **tool** node, chained by edges
-3. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
-4. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
+1. Each sequential step becomes a **tool** node, chained by edges
+2. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
+3. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
 
 The graph is tool nodes only. The flow's source and sink are bindings supplied at
 run time ([AD-026](architecture/026-flow-io-binding)), not nodes in the graph.

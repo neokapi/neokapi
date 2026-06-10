@@ -19,8 +19,8 @@ source runs are written once, settled, and then read by everything downstream.
 
 ```
 source ──▶ settle ──▶ segment ──▶ recognize ──▶ check ──▶ translate
-            (source     (sentence    (terms,       (QA,        (TM, AI, MT
-            transforms)  overlay)     entities)     findings)   read one model)
+            (trans-     (sentence    (terms,       (QA,        (TM, AI, MT
+            formers)     overlay)     entities)     findings)   read one model)
 ```
 
 This page is the map; each stage links to its own concept page.
@@ -29,12 +29,13 @@ This page is the map; each stage links to its own concept page.
 
 Some operations rewrite the source itself — [redaction](/framework/redaction)
 replacing sensitive spans with placeholders, a normalizer, a simplifier. These
-run first, in the flow's
-[source-transform stage](/framework/flows#the-source-transform-stage), so that
-the model is **settled before any annotation is anchored to it**. Run-anchored
-overlays (segments, term and entity spans) must attach to runs that won't move
-afterward; settling first is what guarantees that. A flow declares these under
-`source_transforms:` ahead of its `steps:`.
+[transformers](/framework/flows#transformers) are ordinary ordered steps: the
+framework applier performs each rewrite inline and in order, rebasing any
+surviving run-anchored overlays (segments, term and entity spans) onto the new
+runs, so **each transformer settles the source before later steps observe
+it**. Placing a transformer early keeps that rebasing to a minimum — the
+flow's placement pass warns when one sits later than its earliest valid slot
+and rejects unsafe orderings outright.
 
 ## 2. Segment
 
@@ -91,14 +92,13 @@ returns the block to its prior state.
 
 ## Putting it in a flow
 
-The preparation pass is an ordinary [flow](/framework/flows): a source-transform
-stage to settle the model, then annotation stages, then translation, then a
-check gate.
+The preparation pass is an ordinary [flow](/framework/flows): one ordered list
+of steps — a transformer to settle the model, then annotation steps, then
+translation, then a check gate.
 
 ```yaml
-source_transforms:
-  - tool: redact              # settle the source first (optional)
 steps:
+  - tool: redact              # settle the source first (optional)
   - tool: segmentation        # sentence boundaries
     config: { engine: srx }
   - tool: term-lookup         # match the termbase

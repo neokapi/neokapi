@@ -3,7 +3,7 @@ id: 026-flow-io-binding
 sidebar_position: 26
 title: "AD-026: Flow I/O Binding — Source → Flow → Sink"
 description: "Architecture decision: a flow is a pure transformation over a stream of Blocks backed by a block-store session; where content enters (the source binding) and where results go (the sink binding) are resolved from invocation context rather than baked into the flow graph. The same flow runs over a file, a .klz workspace, the project block store, or an imported interchange file, and a sink is optional — a process-only run lands its work as overlays in the project/.klz and defers materialization to a later merge/export."
-keywords: [flow, source, sink, binding, block store, klz, process-only, source-transform, redaction, segmentation, reader, writer, pipeline, architecture decision]
+keywords: [flow, source, sink, binding, block store, klz, process-only, transformer, redaction, segmentation, reader, writer, pipeline, architecture decision]
 ---
 
 # AD-026: Flow I/O Binding — Source → Flow → Sink
@@ -69,8 +69,8 @@ I/O sits outside the flow, leaving three concepts, each with exactly one job:
   Part stream — `Annotate`, `Translate`, or `Transform`
   ([AD-006](006-tool-system.md)). A tool runs on its own; it needs no flow.
 - **Flow** — a named, reusable **composition** of tools. A flow carries the
-  ordering, the branching (`parallel:`, tee, batch), the per-tool configuration,
-  and the settle/main phase split — and nothing else. It is *the recipe*.
+  ordering, the branching (`parallel:`, tee, batch), and the per-tool
+  configuration — and nothing else. It is *the recipe*.
 - **Binding** — the ends. Where content enters (source) and where results leave
   (sink). A binding belongs to neither the tool nor the flow; it is supplied by
   the invocation and the project (§1–§5).
@@ -92,7 +92,7 @@ carrying the four things a flat list of tool names cannot:
   portable twin — the `.klz` package — like any other recipe field
   ([AD-025](025-klf-package.md) §6).
 - **Transformer roles** — ingest-time settlers and the round-trip brackets (§4)
-  are distinct transformer roles with their own placement rules
+  are distinct transformer roles, validated by the placement pass
   ([AD-006](006-tool-system.md)), not a flat run of tools.
 
 What a flow is **not**: it is not an I/O harness (that is the binding), it is not
@@ -170,8 +170,10 @@ The store *is* the workspace.
 
 ### 4. Transformers: settlers and brackets
 
-Transformers ([AD-006](006-tool-system.md)) settle a single canonical model
-before the steps that depend on it. Their two uses are distinct:
+Transformers ([AD-006](006-tool-system.md)) are ordinary ordered steps; the
+framework applier rewrites the source inline, so each transformer settles the
+model before the steps that follow it, and the placement pass validates the
+ordering. At the binding level their two uses are distinct:
 
 - **Ingest-time settlers** — *idempotent, model-settling* transforms
   (segmentation, normalization) belong to **bringing content into the store**,

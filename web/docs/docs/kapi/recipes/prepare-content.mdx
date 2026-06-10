@@ -82,9 +82,8 @@ jobs:
 
 ```yaml
 # .kapi/flows/prepare.yaml
-source_transforms:
-  - tool: redact              # Job 1: protect sensitive content
 steps:
+  - tool: redact              # Job 1: protect sensitive content
   - tool: segmentation        # split into sentences so reuse + checks work per unit
   - tool: ai-entity-extract   # detect names so TM can generalize over them
   - tool: tm-leverage         # Job 2: reuse past translations

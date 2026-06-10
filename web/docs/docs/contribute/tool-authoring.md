@@ -15,8 +15,10 @@ Every tool is built on `tool.BaseTool`. For Blocks — the translatable unit —
 tool sets exactly one capability-typed handler, and the view it receives bounds
 what it may write (AD-006): `Annotate(BlockView)` reads source and target and
 writes only overlays, annotations, and properties; `Translate(TargetView)`
-writes the target; `Transform(SourceView)` rewrites the source. The wrong writes
-are simply not on the view — an annotator has no target setter to call. Other
+writes the target; `Transform(BlockView)` returns an edit plan that the
+framework applier uses to rewrite the source. The wrong writes
+are simply not on the view — an annotator has no target setter to call, and a
+transformer holds no source setter at all. Other
 Part types (Data, Media, Layer, Group) use the untyped `Handle*Fn` fields. Parts
 you don't handle pass through unchanged; a handler returns an `error` (and may
 call `v.Drop()` to remove the block from the stream).
@@ -39,9 +41,10 @@ func NewMyTool(cfg *MyToolConfig) *tool.BaseTool {
     }
     // A tool declares its capability by which block handler it sets — the
     // parameter type bounds what it may write (AD-006):
-    //   Annotate(BlockView)   — read-only: overlays / annotations / properties
+    //   Annotate(BlockView)  — read-only: overlays / annotations / properties
     //   Translate(TargetView) — writes the target; source stays read-only
-    //   Transform(SourceView) — rewrites the source (runs in the early stage)
+    //   Transform(BlockView) — edit producer: returns an EditPlan the
+    //                          framework applier applies to the source
     // This tool writes a target, so it sets Translate.
     t.Translate = func(v tool.TargetView) error {
         if !v.Translatable() {
@@ -197,18 +200,28 @@ func NewWrapTextTool(cfg *WrapTextConfig) *tool.BaseTool {
         ToolDescription: "Wraps block text with prefix and suffix",
         Cfg:             cfg,
     }
-    // It can rewrite the source (SourceOnly), so it sets Transform — the only
-    // handler whose view exposes a source setter. Source-transform tools run
-    // in a flow's leading source-transform stage, before any overlay attaches.
-    t.Transform = func(v tool.SourceView) error {
+    // It can rewrite the source (SourceOnly), so it sets Transform. A
+    // transformer is a read-only edit producer: it returns an EditPlan and the
+    // framework applier performs the rewrite — applying the edits and rebasing
+    // surviving run-anchored overlays. The structured Edits (here two pure
+    // insertions) are what lets the applier rebase rather than drop overlays.
+    t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
         conf := t.Cfg.(*WrapTextConfig)
-        wrapped := fmt.Sprintf("%s%s%s", conf.Prefix, v.SourceText(), conf.Suffix)
+        text := v.SourceText()
+        wrapped := fmt.Sprintf("%s%s%s", conf.Prefix, text, conf.Suffix)
+        var plan tool.EditPlan
         if conf.SourceOnly {
-            v.SetSourceText(wrapped)
+            n := len([]rune(text))
+            plan.NewRuns = []model.Run{{Text: &model.TextRun{Text: wrapped}}}
+            plan.Edits = []model.RunEdit{
+                {Start: 0, End: 0, NewLen: len([]rune(conf.Prefix))}, // insert prefix
+                {Start: n, End: n, NewLen: len([]rune(conf.Suffix))}, // append suffix
+            }
         } else {
-            v.SetTargetText(model.LocaleID(conf.TargetLocale), wrapped)
+            plan.SetTarget(model.LocaleID(conf.TargetLocale),
+                []model.Run{{Text: &model.TextRun{Text: wrapped}}})
         }
-        return nil
+        return plan, nil
     }
     return t
 }

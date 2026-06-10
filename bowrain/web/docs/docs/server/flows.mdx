@@ -87,8 +87,9 @@ The Bowrain web app exposes a **superset flow + automation editor** under
 3. **Flows** — the flow canvas. This is the same `@neokapi/flow-editor`
    component the desktop apps render, wired to the flow-definition REST API.
    It lists the built-in flows alongside the project's stored flows and edits
-   the latter on a reader → tool(s) → writer graph (with a source-transform
-   stage for redaction/normalization tools).
+   the latter on a reader → tool(s) → writer graph; transformers such as
+   redaction and normalization are ordinary ordered steps whose placement is
+   validated when the flow is built.
 
 Flows are **connector-agnostic**: a flow runs server-side on content from any
 connector. The graph never names a connector — Kapi is one content source

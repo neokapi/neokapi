@@ -21,8 +21,10 @@ type bounds what the tool may write (immutability model, AD-006):
 - `Annotate(tool.BlockView) error` — read-only; writes only overlays,
   annotations, and properties.
 - `Translate(tool.TargetView) error` — reads source, writes target.
-- `Transform(tool.SourceView) error` — rewrites source (and may write target);
-  runs early, before overlays exist.
+- `Transform(tool.BlockView) (tool.EditPlan, error)` — a read-only edit
+  producer: returns an edit plan, and the framework applier rewrites the
+  source — rebasing surviving overlays, vaulting secrets, and bounds-checking,
+  atomically. The flow's placement pass validates where a transformer may sit.
 
 For the non-Block parts (Data, Media, Layer/Group start/end), set the untyped
 `Handle*Fn` fields, which use `tool.PartHandler` =

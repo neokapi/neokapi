@@ -80,7 +80,7 @@ tool's output channel feeds the next tool's input channel. A flow carries only
 its steps — *where content comes from and goes to* is a binding decided when you
 run it, not part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
 
-A [check](/framework/checks) such as `qa-check` is just a read-only stage: it
+A [check](/framework/checks) such as `qa-check` is just a read-only step: it
 attaches findings to each block as annotations rather than rewriting content, so
 it typically sits last and a CI gate reads its result.
 
@@ -97,29 +97,40 @@ steps:
       - tool: chars-listing
 ```
 
-### The source-transform stage
+### Transformers
 
 Some tools rewrite the **source** itself — redaction replacing sensitive spans
-with placeholders, a simplifier rephrasing for clarity, a normalizer. These run
-in a leading **source-transform stage**, declared with `source_transforms:`,
-ahead of the main steps. The point is a single settled model: everything
-downstream — segmentation, terminology, translation, QA — sees the same
-canonical source.
+with placeholders, a simplifier rephrasing for clarity, a normalizer. These
+**transformers** are ordinary steps in the same ordered list as everything
+else:
 
 ```yaml
-source_transforms:
-  - tool: redact          # settle the model first
 steps:
+  - tool: redact          # rewrites the source in place
   - tool: ai-translate    # translates the redacted source
   - tool: qa-check
 ```
 
-Only tools that can rewrite source may sit in this stage; the editor offers it
-only for those tools, and a hand-written flow that puts an analysis or
-translation tool there is rejected when the flow runs. The stage exists because
-source edits must land *before* any run-anchored annotation (segments, term and
-entity spans) is attached — see
-[the tool system AD](/contribute/architecture/006-tool-system) for why.
+A transformer does not edit the block directly: it is a read-only **edit
+producer** that returns an edit plan, and a single framework-owned **applier**
+performs the rewrite — applying the edits, rebasing surviving run-anchored
+overlays (segments, term and entity spans) onto the new runs, vaulting any
+secrets fail-closed, and bounds-checking the result, atomically. Because the
+applier mutates inline and in order, each transformer settles the source
+before later steps observe it.
+
+Ordering safety is a **placement pass** that validates every flow at build and
+load time. It rejects a transformer placed after a step that produces a
+committed target (rewriting source would orphan the targets — `unredact` is
+exempt because it rewrites both sides), rejects a recoverable transformer such
+as `redact` placed after a step that sends source to a remote service (except
+a step producing an input the transformer's configuration requires), and warns
+when a transformer sits later than its earliest valid slot, since every
+overlay present at apply time must be rebased. See
+[the tool system AD](/contribute/architecture/006-tool-system) for the model.
+
+A flow that declares the removed `source_transforms:` field is rejected at
+load with a migration error: list the transformers as ordered steps instead.
 
 ### Graph — the canonical form
 
