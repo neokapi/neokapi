@@ -508,3 +508,55 @@ func TestTracingTool_NoInterceptorLeakOnCancel(t *testing.T) {
 
 	traceWaitGoroutinesSettle(t, baseline)
 }
+
+// TestSnapshotOverlaysAndAnnotations verifies a block snapshot summarizes its
+// stand-off state (AD-002) eagerly: overlay spans projected to rune offsets
+// with covered text and payload notes, and block annotations with compact
+// summaries — so a trace inspector can show what each tool attached.
+func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
+	block := model.NewBlock("b1", "Alice met Bob in Paris")
+	block.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID:    "e1",
+		Range: model.RunRangeFor(block.Source, 0, 5),
+		Value: &model.EntityAnnotation{Text: "Alice", Type: model.EntityType("entity:person")},
+	})
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRangeFor(block.Source, 0, 22)},
+	})
+	block.AddNote(&model.NoteAnnotation{Text: "reviewed"})
+
+	rec := flow.NewTraceRecorder()
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	rec.SnapshotPart(part, "", "initial")
+
+	snaps := rec.Snapshots()
+	require.Contains(t, snaps, "b1")
+	detail := snaps["b1"].Initial.Detail
+	require.NotNil(t, detail)
+
+	byType := map[string]flow.OverlaySnapshot{}
+	for _, o := range detail.Overlays {
+		byType[o.Type] = o
+	}
+
+	entity, ok := byType["entity"]
+	require.True(t, ok, "entity overlay snapshotted")
+	assert.Equal(t, "source", entity.Side)
+	require.Len(t, entity.Spans, 1)
+	assert.Equal(t, 0, entity.Spans[0].Start)
+	assert.Equal(t, 5, entity.Spans[0].End)
+	assert.Equal(t, "Alice", entity.Spans[0].Text)
+	assert.Equal(t, "entity:person", entity.Spans[0].Note)
+
+	seg, ok := byType["segmentation"]
+	require.True(t, ok, "segmentation overlay snapshotted")
+	require.Len(t, seg.Spans, 1)
+	assert.Equal(t, "Alice met Bob in Paris", seg.Spans[0].Text)
+
+	require.NotEmpty(t, detail.Annotations)
+	keys := make([]string, 0, len(detail.Annotations))
+	for _, a := range detail.Annotations {
+		keys = append(keys, a.Key)
+	}
+	assert.Contains(t, keys, model.AnnoNote)
+}

@@ -2,10 +2,13 @@ package flow
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -42,7 +45,12 @@ type PartSnapshot struct {
 
 // PartDetail is the run-native, full view of a Block at a point in time, for the
 // "drill into a part" inspector. Source/Targets are run sequences (not flattened
-// strings) so inline placeholders and paired codes survive.
+// strings) so inline placeholders and paired codes survive. Overlays and
+// Annotations carry the block's stand-off state so an inspector can show what
+// each tool attached (AD-002): segmentation spans, term/entity tags, QA
+// findings, the redaction secret annotation. They are summarized eagerly at
+// snapshot time — blocks mutate in place as they flow, so a snapshot must not
+// alias live maps.
 type PartDetail struct {
 	Name         string                 `json:"name,omitempty"`
 	Translatable bool                   `json:"translatable,omitempty"`
@@ -50,6 +58,33 @@ type PartDetail struct {
 	Targets      map[string][]model.Run `json:"targets,omitempty"`
 	Properties   map[string]string      `json:"properties,omitempty"`
 	HasSkeleton  bool                   `json:"hasSkeleton,omitempty"`
+	Overlays     []OverlaySnapshot      `json:"overlays,omitempty"`
+	Annotations  []AnnotationSnapshot   `json:"annotations,omitempty"`
+}
+
+// OverlaySnapshot summarizes one stand-off overlay (AD-002) at snapshot time:
+// its type, the side it annotates, and each span projected to rune offsets in
+// that side's flattened text (with the covered text, so an inspector can
+// highlight without re-deriving run anchoring).
+type OverlaySnapshot struct {
+	Type  string         `json:"type"`            // "segmentation", "term", "entity", "qa", …
+	Side  string         `json:"side"`            // "source" or the target variant key
+	Layer string         `json:"layer,omitempty"` // segmentation layer; "" = primary
+	Spans []SpanSnapshot `json:"spans,omitempty"`
+}
+
+// SpanSnapshot is one overlay span projected to the flattened text.
+type SpanSnapshot struct {
+	Start int    `json:"start"` // rune offset, half-open [Start, End)
+	End   int    `json:"end"`
+	Text  string `json:"text,omitempty"` // covered text (clipped to 80 runes)
+	Note  string `json:"note,omitempty"` // compact payload summary (entity type, QA message, …)
+}
+
+// AnnotationSnapshot is one block-scoped annotation (key + compact summary).
+type AnnotationSnapshot struct {
+	Key     string `json:"key"`
+	Summary string `json:"summary,omitempty"`
 }
 
 // PartSnapshotSet holds the initial snapshot and snapshots after each node.
@@ -203,6 +238,8 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 					detail.Targets[string(loc)] = block.TargetRuns(loc)
 				}
 			}
+			detail.Overlays = snapshotOverlays(block)
+			detail.Annotations = snapshotAnnotations(block)
 			snap.Detail = detail
 		}
 	case model.PartLayerStart:
@@ -247,6 +284,114 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 
 	return snap
 }
+
+// snapshotOverlays summarizes the block's stand-off overlays eagerly: each
+// span is projected to rune offsets in its side's flattened text and carries
+// the covered text plus a compact payload note. Nothing in the result aliases
+// the live block (blocks mutate in place as they flow).
+func snapshotOverlays(b *model.Block) []OverlaySnapshot {
+	if len(b.Overlays) == 0 {
+		return nil
+	}
+	out := make([]OverlaySnapshot, 0, len(b.Overlays))
+	for i := range b.Overlays {
+		o := &b.Overlays[i]
+		side := "source"
+		runs := b.Source
+		if o.Variant != nil {
+			if key, err := o.Variant.MarshalText(); err == nil {
+				side = string(key)
+			}
+			if t := b.Targets[*o.Variant]; t != nil {
+				runs = t.Runs
+			} else {
+				runs = nil
+			}
+		}
+		text := model.RunsText(runs)
+		os := OverlaySnapshot{Type: string(o.Type), Side: side, Layer: o.Layer}
+		for _, s := range o.Spans {
+			start, end := s.Range.TextSpan(runs)
+			os.Spans = append(os.Spans, SpanSnapshot{
+				Start: start,
+				End:   end,
+				Text:  clipRunes(sliceRunes(text, start, end), 80),
+				Note:  payloadNote(s.Value),
+			})
+		}
+		out = append(out, os)
+	}
+	return out
+}
+
+// snapshotAnnotations summarizes the block-scoped annotations (key + note),
+// sorted by key for stable output.
+func snapshotAnnotations(b *model.Block) []AnnotationSnapshot {
+	annos := b.AnnoMap()
+	if len(annos) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(annos))
+	for k := range annos {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]AnnotationSnapshot, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, AnnotationSnapshot{Key: k, Summary: payloadNote(annos[k])})
+	}
+	return out
+}
+
+// payloadNote renders a compact, human-readable summary of a stand-off
+// payload for the trace inspector: the well-known content payloads get a
+// specific note, anything else falls back to its registered type name.
+func payloadNote(p model.Payload) string {
+	switch v := p.(type) {
+	case nil:
+		return ""
+	case *model.EntityAnnotation:
+		return string(v.Type)
+	case *model.TermAnnotation:
+		note := "term: " + v.SourceTerm
+		if v.ConceptID != "" {
+			note += " (" + v.ConceptID + ")"
+		}
+		return note
+	case *check.FindingsAnnotation:
+		if len(v.Findings) == 0 {
+			return "no findings"
+		}
+		note := fmt.Sprintf("%d finding(s)", len(v.Findings))
+		if msg := v.Findings[0].Message; msg != "" {
+			note += ": " + clipRunes(msg, 80)
+		}
+		return note
+	case fmt.Stringer:
+		return clipRunes(v.String(), 80)
+	default:
+		return p.TypeName()
+	}
+}
+
+// sliceRunes returns text[start:end) in rune offsets, clamped to bounds.
+func sliceRunes(text string, start, end int) string {
+	r := []rune(text)
+	start = clampInt(start, 0, len(r))
+	end = clampInt(end, start, len(r))
+	return string(r[start:end])
+}
+
+// clipRunes truncates s to at most n runes, appending an ellipsis when clipped.
+func clipRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
+}
+
+func clampInt(v, lo, hi int) int { return min(max(v, lo), hi) }
 
 // TracingTool wraps a tool.Tool and records enter/exit events for each Part.
 type TracingTool struct {
