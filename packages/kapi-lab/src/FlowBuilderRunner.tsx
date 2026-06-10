@@ -17,6 +17,8 @@ import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios
 import WalkthroughCard from "./WalkthroughCard";
 import ScriptStepPanel from "./ScriptStepPanel";
 import RecipeView from "./RecipeView";
+import { TraceImportControl, specFromTrace } from "./traceImport";
+import type { RecordedTraceInfo } from "./traceImport";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
@@ -180,6 +182,12 @@ export interface FlowBuilderRunnerProps {
   defaultScenarioId?: string;
   /** Restrict the scenario picker (default: all). */
   scenarioIds?: string[];
+  /**
+   * Built-in recorded traces (`kapi run --trace` output) offered for replay —
+   * native runs the wasm engine can't reproduce live (parallel workers, the
+   * Java bridge's gRPC boundary). URLs must already be base-resolved.
+   */
+  recordedTraces?: RecordedTraceInfo[];
 }
 
 // FlowBuilderRunner is the lab's flow workspace: a learner picks a teaching
@@ -196,6 +204,7 @@ export default function FlowBuilderRunner({
   sampleIds,
   defaultScenarioId,
   scenarioIds,
+  recordedTraces,
 }: FlowBuilderRunnerProps): React.ReactElement {
   const runtime = useLabRuntime(assets);
 
@@ -274,6 +283,20 @@ export default function FlowBuilderRunner({
   const activeRun = activeFile ? runs[activeFile.path] : undefined;
   const trace = activeRun?.trace ?? null;
   const outPath = activeRun?.outPath ?? null;
+
+  // Imported recorded trace (replay mode): the trace's tool nodes reconstruct
+  // a read-only flow on the same canvas, and the transport plays the recorded
+  // events back — showing what live wasm runs can't (parallel workers, the
+  // Java bridge boundary). Dismissing the run returns to the editable flow.
+  const [imported, setImported] = useState<{
+    trace: FlowTrace;
+    spec: FlowSpec;
+    label: string;
+  } | null>(null);
+  const handleTraceImport = useCallback((t: FlowTrace, label: string) => {
+    setImported({ trace: t, spec: specFromTrace(t), label });
+    setError(null);
+  }, []);
 
   // Guided walkthrough state: the active step of the scenario's lesson, plus
   // the focus request fed to the editor (one application per nonce). Stepping
@@ -525,7 +548,7 @@ export default function FlowBuilderRunner({
         {/* The scenario's lesson: a walkthrough card that drives the workspace
             (each step focuses the node/panel it talks about), or the static
             description for free-play scenarios. */}
-        {scenario.walkthrough ? (
+        {scenario.walkthrough && !imported ? (
           <WalkthroughCard
             steps={scenario.walkthrough}
             index={walkIndex}
@@ -570,8 +593,28 @@ export default function FlowBuilderRunner({
           </p>
         )}
 
-        {/* The project lens toggle: the canvas IS a .kapi recipe — show it. */}
-        <div className="flex items-center justify-end">
+        {/* Workspace lenses: replay a recorded trace (native runs the wasm
+            engine can't reproduce) and the project lens (the recipe the canvas
+            serializes to). */}
+        <div className="flex items-center justify-between gap-2">
+          {imported ? (
+            <span className="text-[11px] text-muted-foreground">
+              Replaying <strong>{imported.label}</strong> (recorded native run, read-only) —{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2 hover:text-foreground"
+                onClick={() => setImported(null)}
+              >
+                back to your flow
+              </button>
+            </span>
+          ) : (
+            <TraceImportControl
+              traces={recordedTraces}
+              onLoad={handleTraceImport}
+              onError={setError}
+            />
+          )}
           <button
             type="button"
             className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
@@ -585,25 +628,31 @@ export default function FlowBuilderRunner({
           give it explicit dimensions or it collapses to zero height. */}
         <div className={styles.editorFrame}>
           <FlowEditor
-            flow={flow}
+            flow={imported?.spec ?? flow}
             tools={toolInfos}
             onChange={handleFlowChange}
             onGetSchema={handleGetSchema}
             onGetDoc={handleGetDoc}
             onRun={(spec) => void runFlow(spec)}
-            runDisabled={!runtime.ready || busy}
-            trace={trace ?? undefined}
-            onTraceDismiss={() => setRuns({})}
-            projectPresets={presets}
-            renderEndpointPanel={renderEndpointPanel}
-            focusRequest={focusRequest}
+            runDisabled={!runtime.ready || busy || !!imported}
+            readOnly={!!imported}
+            trace={imported?.trace ?? trace ?? undefined}
+            onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}
+            projectPresets={imported ? undefined : presets}
+            renderEndpointPanel={imported ? undefined : renderEndpointPanel}
+            focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
           />
         </div>
 
         {/* The project lens: the live recipe the canvas serializes to. */}
         {recipeOpen && (
-          <RecipeView recipe={buildRecipe({ steps: flow.steps.filter((s) => s.tool) }, presets)} />
+          <RecipeView
+            recipe={buildRecipe(
+              { steps: (imported?.spec ?? flow).steps.filter((s) => s.tool) },
+              imported ? undefined : presets,
+            )}
+          />
         )}
 
         {runtime.status === "booting" && (

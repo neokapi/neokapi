@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
 // Docusaurus adapter for the @neokapi/kapi-lab FlowBuilderRunner explorer.
@@ -27,18 +28,62 @@ export interface FlowBuilderRunnerProps {
   defaultScenarioId?: string;
   /** Restrict the scenario picker (default: all). */
   scenarioIds?: string[];
+  /** Offer the built-in recorded native traces for replay (default: off). */
+  withRecordedTraces?: boolean;
 }
 
-export function FlowBuilderRunner(props: FlowBuilderRunnerProps): React.ReactElement {
+// Recorded `kapi run --trace` outputs from native runs — the workspace replays
+// them to show what live wasm runs can't: parallel workers and the Java
+// bridge's gRPC boundary.
+const RECORDED_TRACES = [
+  {
+    name: "Pseudo-translate JSON",
+    description: "Basic native pipeline with 6 Parts",
+    path: "/data/traces/pseudo-translate-json.json",
+  },
+  {
+    name: "Multi-tool pipeline",
+    description: "Multiple tools, concurrency, buffering",
+    path: "/data/traces/multi-tool-pipeline.json",
+  },
+  {
+    name: "Bridge HTML (gRPC boundary)",
+    description: "Java/Okapi bridge with gRPC boundary",
+    path: "/data/traces/bridge-html-pseudo.json",
+  },
+  {
+    name: "AI Translate (parallel workers)",
+    description: "Parallel block processing with 3 concurrent workers",
+    path: "/data/traces/ai-translate-parallel.json",
+  },
+  {
+    name: "Translate + QA (parallel)",
+    description: "Two parallel stages: AI translate then QA check",
+    path: "/data/traces/translate-qa-parallel.json",
+  },
+];
+
+export function FlowBuilderRunner({
+  withRecordedTraces,
+  ...props
+}: FlowBuilderRunnerProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => {
         // useBaseUrl (inside useKapiPlaygroundConfig) must run in a component.
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
+          const tracesBase = useBaseUrl("/data/traces/");
+          const recordedTraces = withRecordedTraces
+            ? RECORDED_TRACES.map((t) => ({
+                name: t.name,
+                description: t.description,
+                url: tracesBase + t.path.split("/").pop(),
+              }))
+            : undefined;
           return (
             <Suspense fallback={<Loading />}>
-              <LazyFlowBuilderRunner assets={assets} {...props} />
+              <LazyFlowBuilderRunner assets={assets} recordedTraces={recordedTraces} {...props} />
             </Suspense>
           );
         }

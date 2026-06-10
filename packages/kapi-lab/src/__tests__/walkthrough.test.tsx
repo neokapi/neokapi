@@ -140,3 +140,26 @@ describe("WalkthroughCard", () => {
     expect(buttons().some((b) => b.textContent?.includes("Next"))).toBe(false);
   });
 });
+
+describe("specFromTrace", () => {
+  it("reconstructs the flow from a recorded trace's tool nodes, in order", async () => {
+    const { specFromTrace } = await import("../traceImport");
+    const trace = {
+      nodes: [
+        { id: "reader", type: "reader", name: "json", label: "JSON Reader" },
+        { id: "pseudo", type: "tool", name: "pseudo-translate", label: "Pseudo-Translate" },
+        { id: "qa", type: "bridge-tool", name: "qa-check" },
+        { id: "writer", type: "writer", name: "json", label: "JSON Writer" },
+      ],
+      events: [],
+      parts: {},
+      durationUs: 0,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const spec = specFromTrace(trace as any);
+    expect(spec.steps).toEqual([
+      { tool: "pseudo-translate", label: "Pseudo-Translate" },
+      { tool: "qa-check" },
+    ]);
+  });
+});
