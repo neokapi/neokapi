@@ -900,7 +900,16 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i
 	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
 	@echo "bin/kapi only shows the new translations after a rebuild."
 
-l10n: l10n-builtins l10n-desktop l10n-cli ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n-landing: l10n-seed ## Landing page UI strings → web/landing/public/translations/<lang>.json (TM-driven)
+	cd web/landing && vp run extract
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage web/landing/i18n \
+			--target-lang $$lang \
+			-o web/landing/i18n-$$lang || exit 1; \
+		(cd web/landing && vp run compile:$$lang) || exit 1; \
+	done
+
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install

@@ -1,15 +1,16 @@
 import { ArrowRight } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const MAPPINGS = [
-  { okapi: "Filter", neokapi: "DataFormat", desc: "Reader/Writer" },
-  { okapi: "Event", neokapi: "Part", desc: "Processing unit" },
-  { okapi: "Step", neokapi: "Tool", desc: "Task unit" },
-  { okapi: "Pipeline", neokapi: "Flow", desc: "Tool orchestration" },
-  { okapi: "TextUnit", neokapi: "Block", desc: "Translatable content" },
-  { okapi: "TextFragment", neokapi: "[]Run", desc: "Run sequence" },
-  { okapi: "Code", neokapi: "Run", desc: "Inline markup (Ph/Pc)" },
-  { okapi: "Tikal", neokapi: "kapi", desc: "CLI tool" },
-  { okapi: "Rainbow", neokapi: "Kapi (app)", desc: "Desktop app" },
+  { okapi: "Filter", neokapi: "DataFormat", desc: t("Reader/Writer") },
+  { okapi: "Event", neokapi: "Part", desc: t("Processing unit") },
+  { okapi: "Step", neokapi: "Tool", desc: t("Task unit") },
+  { okapi: "Pipeline", neokapi: "Flow", desc: t("Tool orchestration") },
+  { okapi: "TextUnit", neokapi: "Block", desc: t("Translatable content") },
+  { okapi: "TextFragment", neokapi: "[]Run", desc: t("Run sequence") },
+  { okapi: "Code", neokapi: "Run", desc: t("Inline markup (Ph/Pc)") },
+  { okapi: "Tikal", neokapi: "kapi", desc: t("CLI tool") },
+  { okapi: "Rainbow", neokapi: "Kapi (app)", desc: t("Desktop app") },
 ];
 
 export function OkapiMapping() {

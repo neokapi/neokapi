@@ -1,30 +1,34 @@
 import { WifiOff, Layers, Boxes } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const AXES = [
   {
     icon: Boxes,
-    title: "Any asset format",
-    description:
+    title: t("Any asset format"),
+    description: t(
       "Native readers and writers for localization, document, data, subtitle, and office formats, with more through the okapi-bridge. A round-trip, not string-and-key extraction.",
-    contrast: "String-centric tools stop at JSON keys and PO files.",
+    ),
+    contrast: t("String-centric tools stop at JSON keys and PO files."),
     accent: "text-forest-400",
     glow: "from-forest-500/20",
   },
   {
     icon: Layers,
-    title: "Translate, check, and transform, unified",
-    description:
+    title: t("Translate, check, and transform, unified"),
+    description: t(
       "Translation, terminology, QA, and voice scoring share one content model and one enforcement path — so what you ship stays consistent through every language.",
-    contrast: "Prompt-only skills have no engine, scoring, or l10n.",
+    ),
+    contrast: t("Prompt-only skills have no engine, scoring, or l10n."),
     accent: "text-accent-cyan",
     glow: "from-accent-cyan/20",
   },
   {
     icon: WifiOff,
-    title: "Local-first",
-    description:
+    title: t("Local-first"),
+    description: t(
       "A single binary with embedded TM and termbase. Run entirely offline with local models, or opt into a cloud LLM — your call, not a default.",
-    contrast: "Cloud-locked MCPs require their backend for every check.",
+    ),
+    contrast: t("Cloud-locked MCPs require their backend for every check."),
     accent: "text-brand-400",
     glow: "from-brand-500/20",
   },

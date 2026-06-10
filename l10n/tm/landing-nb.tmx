@@ -1,0 +1,1158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi" creationtoolversion="1.0" segtype="block" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>+25 brand compliance · one command:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>+25 merkevareetterlevelse · én kommando:</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>1 finding · on the marketing-blog voice</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>1 funn · på markedsføringsblogg-stemmen</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>3 locales</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>3 språkkoder</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>6 brand-voice findings · wordy filler, off-voice</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>6 merkevarestemmefunn · ordrikt fyll, utenfor stemmen</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>`kapi mcp` exposes the engine — extract, translate, check, term and TM lookup — to any MCP client: Claude Code, Cursor, Windsurf, and more.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>`kapi mcp` tilbyr motoren — uttrekk, oversettelse, sjekker, term- og TM-oppslag — til enhver MCP-klient: Claude Code, Cursor, Windsurf og flere.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>A brand-voice check, scored</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>En merkevarestemmesjekk, {=m1} poengsatt {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>A single binary with embedded TM and termbase. Run entirely offline with local models, or opt into a cloud LLM — your call, not a default.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Én enkelt binærfil med innebygd oversettelsesminne og termbase. Kjør helt frakoblet med lokale modeller, eller velg en sky-LLM — ditt valg, ikke en standard.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Én selvstendig binærfil med SQLite-basert oversettelsesminne og termbase. Kjør lokale modeller med Ollama. Ingenting forlater maskinen din med mindre du velger en sky-LLM.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>AI + kapi 95/100</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} {=m1} AI + kapi {/=m0} {=m2} 95{=m3}/100{/=m3} {/=m2}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>AI alone 70/100</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} {=m1} AI alene {/=m0} {=m2} 70{=m3}/100{/=m3} {/=m2}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>AI Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>AI translation with LLM and MT backends, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`, placeholders and markup preserved throughout.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-oversettelse med LLM- og MT-leverandører, terminologihåndheving og pseudooversettelse — komponerbart til flyter med `kapi run`, med plassholdere og oppmerking bevart hele veien.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>All releases on GitHub →</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Alle utgivelser på GitHub {=m1}→{/=m1} {/=m0}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>An open engine that extracts what matters from any file, lets you translate, check, and transform it, and writes it back faithfully — structure, markup, and placeholders intact. AI translation, translation memory, terminology and brand checks built in. Offline by default — your content stays yours.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>En åpen motor som trekker ut det som betyr noe fra hvilken som helst fil, lar deg oversette, sjekke og transformere det, og skriver det trofast tilbake — struktur, oppmerking og plassholdere intakt. AI-oversettelse, oversettelsesminne, terminologi- og merkevaresjekker innebygd. {=m1}Frakoblet som standard — innholdet ditt forblir ditt.{/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Any asset format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Alle ressursformater</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Any format, faithfully</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Alle formater, trofast</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Authored prose and markup, plus subtitle and caption tracks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Forfattet prosa og oppmerking, pluss undertekst- og tekstingsspor.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Bilingual handoff and translation-memory formats for the translator workflow.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tospråklige overleverings- og oversettelsesminneformater for oversetterens arbeidsflyt.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Binary</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Binærfil</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Brand check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Merkevaresjekk</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Browse the Format Reference</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Bla i formatreferansen {=m1} {/=m0}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Built on Okapi's foundations</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bygget på {=m1} Okapis fundament {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Built to process at scale</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bygget for å {=m1} prosessere i stor skala {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>built {stamp}</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>bygget {stamp}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>By contrast:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0}Til sammenligning: {/=m0} {a.contrast}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sjekk</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Checks are one part of the engine. Here is the brand-voice check up close: a generic AI draft for a marketing blog drifts off-voice, and kapi scores it against the brand profile and rewrites the violations — the same deterministic scorer the product ships.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sjekker er én del av motoren. Her er merkevarestemmesjekken på nært hold: et generisk AI-utkast til en markedsføringsblogg driver ut av stemmen, og kapi poengsetter det mot merkevareprofilen og omskriver bruddene — samme deterministiske poengsetter som produktet leveres med.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Checks that act like tests</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sjekker som oppfører seg som tester</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>CLI</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>CLI</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>CLI tool</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>CLI-verktøy</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Cloud-locked MCPs require their backend for every check.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skylåste MCP-er krever sin backend for hver sjekk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Configure and tweak format readers and writers. Adjust parameters, encoding, segmentation rules, and output options.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Konfigurer og juster formatlesere og -skrivere. Tilpass parametere, tegnkoding, segmenteringsregler og utdatavalg.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Innhold</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Copied</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kopiert</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Copy</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kopier</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Data</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Data</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Desktop app</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skrivebordsapp</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Docs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Dokumentasjon</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Drops into your AI workflow</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Glir inn i AI-arbeidsflyten din</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Every format, natively</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvert format, innebygd</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Everything the CLI does, with a visual interface. Work ad-hoc or with projects — shared across Desktop and CLI.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Alt CLI-et gjør, med et visuelt grensesnitt. Jobb ad hoc eller med prosjekter — delt mellom Desktop og CLI.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Execute individual tools like ai-translate, pseudo-translate, or word-count. Compose them into flows and run with one click.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør enkeltverktøy som ai-translate, pseudo-translate eller word-count. Sett dem sammen til flyter og kjør med ett klikk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Explore the docs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Utforsk dokumentasjonen {=m1} {/=m0}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Extract</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Extract translatable text, change it, and write the original file back — structure, markup, inline tags, and placeholders intact. `kapi extract` then `kapi merge`, unchanged except where you intended.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tekst, endre den, og skriv originalfilen tilbake — struktur, oppmerking, inline-kode og plassholdere intakt. `kapi extract`, så `kapi merge`, uendret bortsett fra der du ville endre.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Extract, translate, check, and transform — then write the original back, faithfully. Built from composable pieces.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut, oversett, sjekk og transformer — og skriv originalen tilbake, trofast. Bygget av komponerbare deler.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Extract, translate, check, and write files back in place — directly from the terminal. No project setup, no server, no configuration needed.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut, oversett, sjekk og skriv filer tilbake på plass — rett fra terminalen. Ingen prosjektoppsett, ingen server, ingen konfigurasjon.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Faithful round-trip</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trofast rundtur</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Features</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Funksjoner</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>files in parallel</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>filer parallelt</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Fix</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rett</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Formats</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Formater</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Formats &amp; Settings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Formater og innstillinger</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>From any file to shipped, faithfully, in every language</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fra hvilken som helst fil til {=m1} levert, trofast, på alle språk {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Gate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kvalitetsport</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Get Started</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kom i gang</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Get Started How it works</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Kom i gang {=m1} {/=m0} {=m2} Slik virker det {=m3} {/=m2}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>GitHub</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} GitHub {/=m0}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>GitHub Actions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} GitHub Actions</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>GitHub Documentation Releases</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} GitHub {/=m0} {=m1} Dokumentasjon {/=m1} {=m2} Utgivelser {/=m2} {=m3}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>GitHub Get Started</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} {=m1} GitHub {/=m0} {=m2} {=m3} Kom i gang {/=m2}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Homebrew</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Homebrew</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>How it works</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Slik virker det</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>How it works Features CLI Formats Get Started Docs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Slik virker det {/=m0} {=m1} Funksjoner {/=m1} {=m2} CLI {/=m2} {=m3} Formater {/=m3} {=m4} Kom i gang {/=m4} {=m5} Dokumentasjon {/=m5}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Import terminology from CSV, JSON, or TBX. Enforce preferred and forbidden terms across every translation with term-enforce.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer terminologi fra CSV, JSON eller TBX. Håndhev foretrukne og forbudte termer i hver oversettelse med term-enforce.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>in parallel</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>parallelt</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Inline markup (Ph/Pc)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inline-oppmerking (Ph/Pc)</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>install</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>installering</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>install via Homebrew</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>installering via Homebrew</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Interchange</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utveksling</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Kapi CLI</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Kapi CLI</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Kapi Desktop</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Kapi Desktop</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>kapi-action on GitHub →</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} kapi-action på GitHub {=m1}→{/=m1} {/=m0}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Keep recipes, brand profiles, and termbases as version-controlled files alongside your code, and gate quality in CI. Open source, offline, no lock-in.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hold oppskrifter, merkevareprofiler og termbaser som versjonskontrollerte filer ved siden av koden din, og sett kvalitetsport i CI. Åpen kildekode, frakoblet, ingen innlåsing.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Keep recipes, profiles, and termbases version-controlled and gate quality on every commit — the same checks locally and in your pipeline, exiting non-zero on failure.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hold oppskrifter, profiler og termbaser versjonskontrollert, og sett kvalitetsport på hver commit — samme sjekker lokalt og i pipelinen din, med exit-kode ulik null ved feil.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Leverage a TMX translation memory with fuzzy matching and import a termbase (CSV/JSON/TBX) to keep preferred and forbidden terms consistent across everything you ship.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenbruk et TMX-oversettelsesminne med fuzzy-treff, og importer en termbase (CSV/JSON/TBX) for å holde foretrukne og forbudte termer konsistente i alt du leverer.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>List the supported file formats. neokapi detects formats by extension, MIME type, or content sniffing.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List opp filformatene som støttes. neokapi gjenkjenner formater på filendelse, MIME-type eller innhold.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Local-first</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lokal først</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Manage translation memories and terminology databases. Import, export, browse entries, and configure matching thresholds.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer oversettelsesminner og termbaser. Importer, eksporter, bla i oppføringer og konfigurer terskler for treff.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>MCP</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MCP</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Merge</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flett</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Native readers and writers for localization, data, content, subtitle, and office formats, detected by extension, MIME type, or content — with more available through the okapi-bridge. A round-trip, in place, not string-and-key extraction.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Innebygde lesere og skrivere for lokaliserings-, data-, innholds-, undertekst- og kontorformater, gjenkjent på filendelse, MIME-type eller innhold — med flere tilgjengelige gjennom okapi-bridge. En rundtur, på plass, ikke streng-og-nøkkel-uttrekk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Native readers and writers for localization, document, data, subtitle, and office formats, with more through the okapi-bridge. A round-trip, not string-and-key extraction.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Innebygde lesere og skrivere for lokaliserings-, dokument-, data-, undertekst- og kontorformater, med flere gjennom okapi-bridge. En rundtur, ikke streng-og-nøkkel-uttrekk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Neokapi</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Neokapi</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Neokapi mascot</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Neokapi-maskot</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Neokapi reimagines the proven Okapi Framework in Go for native speed and near-instant local processing. Experimental AI-based rewrites of Java filters run natively, while a bridge to Java gives full access to battle-tested Okapi filters and steps.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Neokapi nytenker det velprøvde Okapi-rammeverket i Go for nativ hastighet og nær umiddelbar lokal prosessering. Eksperimentelle AI-baserte omskrivinger av Java-filtre kjører innebygd, mens en bro til Java gir full tilgang til gjennomprøvde Okapi-filtre og -steg.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Office &amp; publishing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontor og publisering</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Offline by default</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Frakoblet som standard</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Okapi (Java) Neokapi (Go) Purpose</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Okapi (Java) {/=m0} {=m1} {=m2} Neokapi (Go) {/=m2} {=m3} Formål {/=m3}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>One binary, offline by default. Use the CLI for automation and CI, the MCP server inside your AI assistant, or the Desktop app for a visual workflow. No account required.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Én binærfil, frakoblet som standard. Bruk CLI-et for automatisering og CI, MCP-serveren i AI-assistenten din, eller Desktop-appen for en visuell arbeidsflyt. Ingen konto kreves.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>One check, in detail: brand voice</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} Én sjekk, i detalj: merkevarestemme</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>One engine for every content format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Én motor for {=m1} hvert innholdsformat {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>One engine spans the whole pipeline: extract from any format, translate and check the content like you test code, then write the original back — faithfully.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Én motor dekker hele pipelinen: trekk ut fra hvilket som helst format, oversett og sjekk innholdet slik du tester kode, og skriv originalen tilbake — trofast.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Open-source engine | Offline-first · no lock-in</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>{=m0} {=m1}Motor med åpen kildekode{/=m1} {=m2}|{/=m2} {=m3}Frakoblet først · ingen innlåsing{/=m3}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Or download directly for Windows, macOS, or Linux. Same tools, same flows, same project files as the CLI.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Eller last ned direkte for Windows, macOS eller Linux. Samme verktøy, samme flyter, samme prosjektfiler som CLI-et.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Processing unit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosesseringsenhet</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Projects &amp; Ad-hoc</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosjekter og ad hoc</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Prompt-only skills have no engine, scoring, or l10n.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rene prompt-ferdigheter har ingen motor, scoring eller l10n.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Pull translatable text out of any format — DOCX, JSON, XLIFF, Markdown and more — into a clean structured view. The original structure, styles, and placeholders are remembered for a faithful write-back.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hent tekst ut av hvilket som helst format — DOCX, JSON, XLIFF, Markdown og flere — til en ren, strukturert visning. Original struktur, stiler og plassholdere huskes for en trofast tilbakeskriving.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>QA</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>QA</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>quick start</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>hurtigstart</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Read and write localization, data, content, subtitle, and office formats in place — with more through the okapi-bridge. The full list lives in the Format Reference.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Les og skriv lokaliserings-, data-, innholds-, undertekst- og kontorformater på plass — med flere gjennom okapi-bridge. Hele listen finnes i formatreferansen.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Read any file and pull its text into blocks — structure, styles, fields, and placeholders preserved for a faithful round-trip back.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Les hvilken som helst fil og hent teksten inn i blokker — struktur, stiler, felter og plassholdere bevares for en trofast rundtur tilbake.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Read, change, and ship content in any format .</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Les, endre og lever innhold i {=m1} hvilket som helst format {/=m1}.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Reader</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Leser</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Reader/Writer</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Leser/skriver</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Resolve a dropped placeholder, a translated product name, or an off-voice phrase — keeping meaning intact — then re-run the checks until they pass.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rett en mistet plassholder, et oversatt produktnavn eller en formulering utenfor stemmen — uten å endre meningen — og kjør sjekkene på nytt til de passerer.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Reuse with translation memory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenbruk med oversettelsesminne</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Run sequence</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Run-sekvens</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Run the checks like tests: do-not-translate, placeholder and tag integrity, terminology, and brand voice. Findings are specific and actionable — the exact strings and rules that broke.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør sjekkene som tester: ikke-oversett, plassholder- og kodeintegritet, terminologi og merkevarestemme. Funnene er konkrete og handlingsrettede — nøyaktig hvilke strenger og regler som røk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gi tekst poeng 0–100 for tone, stil, vokabular, klarhet og etterlevelse. --min-score setter port i CI og avslutter med kode 3 under terskelen.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Serve the engine — extract, translate, check, term and TM lookup — to your AI assistant over MCP.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilby motoren — uttrekk, oversettelse, sjekker, term- og TM-oppslag — til AI-assistenten din over MCP.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>String-centric tools stop at JSON keys and PO files.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Strengsentrerte verktøy stopper ved JSON-nøkler og PO-filer.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Structured key–value and tabular files — the catalogs apps ship strings in.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Strukturerte nøkkel–verdi- og tabellfiler — katalogene apper leverer strenger i.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Task unit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppgaveenhet</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Terminology</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terminologi</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>The formats your content lives in</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Formatene innholdet ditt lever i</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>The kapi CLI</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kommandolinjeverktøyet {=m1} kapi {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>The Kapi Desktop app</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Appen {=m1} Kapi Desktop {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>The pipeline</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Pipelinen</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Three axes, one engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tre akser, {=m1} én motor {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>TM &amp; Termbases</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TM og termbaser</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Tool orchestration</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verktøyorkestrering</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Tools &amp; Flows</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verktøy og flyter</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translatable content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettbart innhold</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate with AI or MT</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett med AI eller MT</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate with AI or MT, or let your assistant draft and edit content through MCP — placeholders, inline tags, and markup preserved as it goes.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett med AI eller MT, eller la assistenten din utarbeide og redigere innhold gjennom MCP — plassholdere, inline-kode og oppmerking bevares underveis.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate with an LLM or MT backend and run QA in one flow, placeholders and markup preserved throughout.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett med en LLM- eller MT-leverandør og kjør QA i én flyt, med plassholdere og oppmerking bevart hele veien.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate · check · transform</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett · sjekk · transformer</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translate, check, and transform, unified</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett, sjekk og transformer, samlet</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Translation, terminology, QA, and voice scoring share one content model and one enforcement path — so what you ship stays consistent through every language.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettelse, terminologi, QA og stemmescoring deler én innholdsmodell og én håndhevingsvei — så det du leverer holder seg konsistent gjennom hvert språk.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Up and running in 30 seconds</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>I gang på {=m1} 30 sekunder {/=m1}</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Verify AI output against your rules — do-not-translate, placeholder and tag integrity, terminology, and brand voice — and gate CI with `kapi verify`, which exits non-zero on failure so a regression never ships.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verifiser AI-utdata mot reglene dine — ikke-oversett, plassholder- og kodeintegritet, terminologi og merkevarestemme — og sett port i CI med `kapi verify`, som avslutter med kode ulik null ved feil, så en regresjon aldri slipper ut.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Versioned and CI-gated</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Versjonskontrollert, med port i CI</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>WinGet</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>WinGet</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Word-processing, spreadsheet, presentation, e-book, and layout documents.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tekstbehandlings-, regneark-, presentasjons-, e-bok- og layoutdokumenter.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Work with projects for organized, repeatable workflows, or go ad-hoc on individual files. Same project config works across Desktop and CLI.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Jobb med prosjekter for organiserte, repeterbare arbeidsflyter, eller ad hoc på enkeltfiler. Samme prosjektkonfigurasjon fungerer i både Desktop og CLI.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Write back</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv tilbake</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Write the changed text back into the original file, with markup, inline tags, and placeholders intact.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv den endrede teksten tilbake i originalfilen, med oppmerking, inline-kode og plassholdere intakt.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Write the result into the original native format, unchanged except where you intended — a byte-faithful round-trip, in every locale (with more formats through the okapi-bridge).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv resultatet inn i det opprinnelige formatet, uendret bortsett fra der du ville endre — en byte-trofast rundtur, for hver språkkode (med flere formater gjennom okapi-bridge).</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Writer</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriver</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Writing tools, brand-voice prompts, and localization services each tend to cover one slice. neokapi works across all three from a single content model.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriveverktøy, merkevarestemme-prompter og lokaliseringstjenester dekker gjerne hver sin del. neokapi arbeider på tvers av alle tre fra én felles innholdsmodell.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Your content moves through a pipeline of tools — read, translate, check, write — that run in parallel across files and languages, so large jobs finish fast.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Innholdet ditt beveger seg gjennom en pipeline av verktøy — les, oversett, sjekk, skriv — som kjører parallelt på tvers av filer og språk, så store jobber blir fort ferdige.</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

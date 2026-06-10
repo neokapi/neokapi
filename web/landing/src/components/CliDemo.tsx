@@ -1,48 +1,56 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const TABS = [
   {
-    label: "Extract",
+    label: t("Extract"),
     cmd: "kapi extract quarterly-report.docx \\\n  -o strings.json",
-    description:
+    description: t(
       "Read any file and pull its text into blocks — structure, styles, fields, and placeholders preserved for a faithful round-trip back.",
+    ),
   },
   {
-    label: "Merge",
+    label: t("Merge"),
     cmd: "kapi merge strings.de.json \\\n  --skeleton quarterly-report.docx \\\n  -o quarterly-report.de.docx",
-    description:
+    description: t(
       "Write the changed text back into the original file, with markup, inline tags, and placeholders intact.",
+    ),
   },
   {
-    label: "Translate",
+    label: t("Translate"),
     cmd: "kapi run ai-translate-qa \\\n  -i src/en.json -o src/fr.json \\\n  --source-lang en --target-lang fr",
-    description:
+    description: t(
       "Translate with an LLM or MT backend and run QA in one flow, placeholders and markup preserved throughout.",
+    ),
   },
   {
-    label: "Terminology",
+    label: t("Terminology"),
     cmd: "kapi termbase import glossary.csv \\\n  --format csv \\\n  -s en \\\n  -t fr",
-    description:
+    description: t(
       "Import terminology from CSV, JSON, or TBX. Enforce preferred and forbidden terms across every translation with term-enforce.",
+    ),
   },
   {
-    label: "Brand check",
+    label: t("Brand check"),
     cmd: "kapi brand check \\\n  --profile-file acme.yaml \\\n  --min-score 80 \\\n  release-notes.md",
-    description:
+    description: t(
       "Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.",
+    ),
   },
   {
-    label: "Formats",
+    label: t("Formats"),
     cmd: "kapi formats\n\n# native readers and writers for localization,\n# data, content, subtitle, and office formats,\n# detected by extension, MIME type, or content\n# — more available through the okapi-bridge",
-    description:
+    description: t(
       "List the supported file formats. neokapi detects formats by extension, MIME type, or content sniffing.",
+    ),
   },
   {
-    label: "MCP",
+    label: t("MCP"),
     cmd: "kapi mcp\n\n# exposes the engine to any MCP client:\n#   extract   translate   check\n#   term_lookup   tm_search\n# Claude Code · Cursor · Windsurf · ...",
-    description:
+    description: t(
       "Serve the engine — extract, translate, check, term and TM lookup — to your AI assistant over MCP.",
+    ),
   },
 ];
 
@@ -55,9 +63,12 @@ export function CliDemo() {
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
             The{" "}
-            <code className="rounded-lg bg-surface-800 px-2 py-1 font-mono text-brand-400">
+            <span
+              translate="no"
+              className="rounded-lg bg-surface-800 px-2 py-1 font-mono text-brand-400"
+            >
               kapi
-            </code>{" "}
+            </span>{" "}
             CLI
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
@@ -116,10 +127,12 @@ export function CliDemo() {
               <div className="h-2.5 w-2.5 rounded-full bg-accent-rose/50" />
               <div className="h-2.5 w-2.5 rounded-full bg-accent-amber/50" />
               <div className="h-2.5 w-2.5 rounded-full bg-brand-500/50" />
-              <span className="ml-3 font-mono text-xs text-neutral-600">terminal</span>
+              <span translate="no" className="ml-3 font-mono text-xs text-neutral-600">
+                terminal
+              </span>
             </div>
             <div className="p-6">
-              <pre className="font-mono text-sm leading-relaxed">
+              <pre translate="no" className="font-mono text-sm leading-relaxed">
                 <span className="select-none text-brand-400">$ </span>
                 <span className="text-neutral-200">{TABS[active].cmd}</span>
               </pre>

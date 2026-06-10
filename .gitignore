@@ -49,6 +49,8 @@ dist/
 apps/kapi-desktop/frontend/i18n/
 apps/kapi-desktop/frontend/i18n-qps/
 apps/kapi-desktop/frontend/i18n-nb/
+web/landing/i18n/
+web/landing/i18n-nb/
 
 # Dogfood project state for the root neokapi.kapi recipe — rebuilt from the
 # committed seeds via `make l10n-seed`.

@@ -1,24 +1,25 @@
 import { ChevronRight } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const FORMATS_REFERENCE_URL = "https://neokapi.github.io/web/neokapi/docs/reference/formats";
 
 const FORMAT_GROUPS = [
   {
-    category: "Data",
-    description: "Structured key–value and tabular files — the catalogs apps ship strings in.",
+    category: t("Data"),
+    description: t("Structured key–value and tabular files — the catalogs apps ship strings in."),
   },
   {
-    category: "Content",
-    description: "Authored prose and markup, plus subtitle and caption tracks.",
+    category: t("Content"),
+    description: t("Authored prose and markup, plus subtitle and caption tracks."),
   },
   {
-    category: "Office & publishing",
-    description: "Word-processing, spreadsheet, presentation, e-book, and layout documents.",
+    category: t("Office & publishing"),
+    description: t("Word-processing, spreadsheet, presentation, e-book, and layout documents."),
   },
   {
     // Bilingual interchange — the translator handoff, not the main surface.
-    category: "Interchange",
-    description: "Bilingual handoff and translation-memory formats for the translator workflow.",
+    category: t("Interchange"),
+    description: t("Bilingual handoff and translation-memory formats for the translator workflow."),
   },
 ];
 

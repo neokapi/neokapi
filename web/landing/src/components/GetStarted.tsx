@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { Check, Copy, Terminal, Monitor, Download, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const CLI_METHODS = [
   {
-    label: "Homebrew",
+    label: t("Homebrew"),
     command: "brew install neokapi/tap/kapi",
   },
   {
-    label: "WinGet",
+    label: t("WinGet"),
     command: "winget install Neokapi.Kapi",
   },
   {
-    label: "Binary",
+    label: t("Binary"),
     command:
       "curl -sSL https://github.com/neokapi/neokapi/releases/latest/download/kapi_darwin_arm64.tar.gz | tar xz",
   },
@@ -159,11 +160,11 @@ export function GetStarted() {
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
-                  {copied === "install" ? "Copied" : "Copy"}
+                  {copied === "install" ? t("Copied") : t("Copy")}
                 </button>
               </div>
               <div className="p-5">
-                <pre className="font-mono text-sm">
+                <pre translate="no" className="font-mono text-sm">
                   <span className="select-none text-brand-400">$ </span>
                   <span className="text-neutral-200">{CLI_METHODS[method].command}</span>
                 </pre>
@@ -188,11 +189,14 @@ export function GetStarted() {
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
-                  {copied === "quickstart" ? "Copied" : "Copy"}
+                  {copied === "quickstart" ? t("Copied") : t("Copy")}
                 </button>
               </div>
               <div className="p-5">
-                <pre className="font-mono text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap">
+                <pre
+                  translate="no"
+                  className="font-mono text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap"
+                >
                   {QUICK_START}
                 </pre>
               </div>
@@ -221,11 +225,11 @@ export function GetStarted() {
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
-                  {copied === "cask" ? "Copied" : "Copy"}
+                  {copied === "cask" ? t("Copied") : t("Copy")}
                 </button>
               </div>
               <div className="p-5">
-                <pre className="font-mono text-sm">
+                <pre translate="no" className="font-mono text-sm">
                   <span className="select-none text-brand-400">$ </span>
                   <span className="text-neutral-200">brew install --cask neokapi/tap/kapi</span>
                 </pre>
@@ -274,7 +278,9 @@ export function GetStarted() {
                   className="inline-flex items-center gap-2 text-sm text-brand-400 transition hover:text-brand-300"
                 >
                   All releases on GitHub
-                  <span className="text-xs">&rarr;</span>
+                  <span translate="no" className="text-xs">
+                    &rarr;
+                  </span>
                 </a>
               </div>
             </div>
@@ -289,7 +295,7 @@ export function GetStarted() {
                   <div className="h-2.5 w-2.5 rounded-full bg-accent-rose/50" />
                   <div className="h-2.5 w-2.5 rounded-full bg-accent-amber/50" />
                   <div className="h-2.5 w-2.5 rounded-full bg-brand-500/50" />
-                  <span className="ml-3 font-mono text-xs text-neutral-600">
+                  <span translate="no" className="ml-3 font-mono text-xs text-neutral-600">
                     .github/workflows/translate.yml
                   </span>
                 </div>
@@ -302,11 +308,14 @@ export function GetStarted() {
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
-                  {copied === "actions" ? "Copied" : "Copy"}
+                  {copied === "actions" ? t("Copied") : t("Copy")}
                 </button>
               </div>
               <div className="p-5">
-                <pre className="font-mono text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap">
+                <pre
+                  translate="no"
+                  className="font-mono text-sm leading-relaxed text-neutral-300 whitespace-pre-wrap"
+                >
                   {ACTIONS_YAML}
                 </pre>
               </div>
@@ -320,7 +329,9 @@ export function GetStarted() {
                 className="inline-flex items-center gap-2 text-sm text-brand-400 transition hover:text-brand-300"
               >
                 kapi-action on GitHub
-                <span className="text-xs">&rarr;</span>
+                <span translate="no" className="text-xs">
+                  &rarr;
+                </span>
               </a>
             </div>
           </div>

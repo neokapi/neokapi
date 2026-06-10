@@ -8,76 +8,85 @@ import {
   Plug,
   Workflow,
 } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const FEATURES = [
   {
     icon: FileText,
-    title: "Every format, natively",
-    description:
+    title: t("Every format, natively"),
+    description: t(
       "Read and write localization, data, content, subtitle, and office formats in place — with more through the okapi-bridge. The full list lives in the Format Reference.",
+    ),
     accent: "text-brand-400",
     bg: "bg-brand-500/8",
     border: "border-brand-500/15",
   },
   {
     icon: Repeat,
-    title: "Faithful round-trip",
-    description:
+    title: t("Faithful round-trip"),
+    description: t(
       "Extract translatable text, change it, and write the original file back — structure, markup, inline tags, and placeholders intact. `kapi extract` then `kapi merge`, unchanged except where you intended.",
+    ),
     accent: "text-accent-cyan",
     bg: "bg-accent-cyan/8",
     border: "border-accent-cyan/15",
   },
   {
     icon: Languages,
-    title: "Translate with AI or MT",
-    description:
+    title: t("Translate with AI or MT"),
+    description: t(
       "AI translation with LLM and MT backends, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`, placeholders and markup preserved throughout.",
+    ),
     accent: "text-accent-amber",
     bg: "bg-accent-amber/8",
     border: "border-accent-amber/15",
   },
   {
     icon: BookMarked,
-    title: "Reuse with translation memory",
-    description:
+    title: t("Reuse with translation memory"),
+    description: t(
       "Leverage a TMX translation memory with fuzzy matching and import a termbase (CSV/JSON/TBX) to keep preferred and forbidden terms consistent across everything you ship.",
+    ),
     accent: "text-forest-400",
     bg: "bg-forest-400/8",
     border: "border-forest-400/15",
   },
   {
     icon: ShieldCheck,
-    title: "Checks that act like tests",
-    description:
+    title: t("Checks that act like tests"),
+    description: t(
       "Verify AI output against your rules — do-not-translate, placeholder and tag integrity, terminology, and brand voice — and gate CI with `kapi verify`, which exits non-zero on failure so a regression never ships.",
+    ),
     accent: "text-accent-rose",
     bg: "bg-accent-rose/8",
     border: "border-accent-rose/15",
   },
   {
     icon: WifiOff,
-    title: "Offline by default",
-    description:
+    title: t("Offline by default"),
+    description: t(
       "A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.",
+    ),
     accent: "text-brand-400",
     bg: "bg-brand-500/8",
     border: "border-brand-500/15",
   },
   {
     icon: Plug,
-    title: "Drops into your AI workflow",
-    description:
+    title: t("Drops into your AI workflow"),
+    description: t(
       "`kapi mcp` exposes the engine — extract, translate, check, term and TM lookup — to any MCP client: Claude Code, Cursor, Windsurf, and more.",
+    ),
     accent: "text-accent-cyan",
     bg: "bg-accent-cyan/8",
     border: "border-accent-cyan/15",
   },
   {
     icon: Workflow,
-    title: "Versioned and CI-gated",
-    description:
+    title: t("Versioned and CI-gated"),
+    description: t(
       "Keep recipes, brand profiles, and termbases as version-controlled files alongside your code, and gate quality in CI. Open source, offline, no lock-in.",
+    ),
     accent: "text-forest-400",
     bg: "bg-forest-400/8",
     border: "border-forest-400/15",

@@ -34,11 +34,11 @@ export function SeeItInAction() {
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-300">
                 <XCircle className="h-4 w-4" /> AI alone
               </span>
-              <span className="font-display text-3xl font-bold text-red-400">
+              <span translate="no" className="font-display text-3xl font-bold text-red-400">
                 70<span className="text-base text-neutral-500">/100</span>
               </span>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-neutral-400">
+            <p translate="no" className="mt-4 text-sm leading-relaxed text-neutral-400">
               “<span className="rounded bg-red-500/15 px-1 text-red-300">In order to</span> ship
               reliable software,{" "}
               <span className="rounded bg-red-500/15 px-1 text-red-300">
@@ -60,11 +60,11 @@ export function SeeItInAction() {
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" /> AI + kapi
               </span>
-              <span className="font-display text-3xl font-bold text-emerald-400">
+              <span translate="no" className="font-display text-3xl font-bold text-emerald-400">
                 95<span className="text-base text-neutral-500">/100</span>
               </span>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-neutral-300">
+            <p translate="no" className="mt-4 text-sm leading-relaxed text-neutral-300">
               “<span className="rounded bg-emerald-500/15 px-1 text-emerald-300">to</span> ship
               reliable software, teams need a strategy.{" "}
               <span className="rounded bg-emerald-500/15 px-1 text-emerald-300">ultimately</span>,
@@ -76,7 +76,7 @@ export function SeeItInAction() {
         </div>
 
         <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-1.5 font-display text-sm font-semibold text-emerald-300">
-          +25 brand compliance · one command:{" "}
+          <span>+25 brand compliance · one command:</span>{" "}
           <code className="font-mono text-emerald-200">kapi brand rewrite</code>
         </div>
 

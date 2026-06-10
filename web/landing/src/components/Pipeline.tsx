@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 /*
   Visualization layout (desktop):
@@ -150,7 +151,7 @@ export function Pipeline() {
                 fontFamily="Outfit, sans-serif"
                 fontWeight="600"
               >
-                Reader
+                {t("Reader")}
               </text>
               <text
                 x="190"
@@ -159,6 +160,7 @@ export function Pipeline() {
                 fill="#4fddbf"
                 fontSize="9"
                 fontFamily="Source Code Pro, monospace"
+                translate="no"
               >
                 DataFormat
               </text>
@@ -227,7 +229,7 @@ export function Pipeline() {
                 fontFamily="Outfit, sans-serif"
                 fontWeight="600"
               >
-                Terminology
+                {t("Terminology")}
               </text>
               <text
                 x="340"
@@ -236,6 +238,7 @@ export function Pipeline() {
                 fill="#f59e0b"
                 fontSize="9"
                 fontFamily="Source Code Pro, monospace"
+                translate="no"
               >
                 Tool
               </text>
@@ -306,7 +309,7 @@ export function Pipeline() {
                 fontFamily="Source Code Pro, monospace"
                 opacity="0.6"
               >
-                in parallel
+                {t("in parallel")}
               </text>
 
               {/* ─── Worker boxes ─── */}
@@ -355,7 +358,7 @@ export function Pipeline() {
                       fontFamily="Outfit, sans-serif"
                       fontWeight="500"
                     >
-                      AI Translate
+                      {t("AI Translate")}
                     </text>
                     <text
                       x="520"
@@ -364,6 +367,7 @@ export function Pipeline() {
                       fill={isActive ? "#06b6d4" : "#1e3a32"}
                       fontSize="8"
                       fontFamily="Source Code Pro, monospace"
+                      translate="no"
                     >
                       worker {i + 1}
                     </text>
@@ -403,7 +407,7 @@ export function Pipeline() {
                 fontFamily="Outfit, sans-serif"
                 fontWeight="600"
               >
-                QA
+                {t("QA")}
               </text>
               <text
                 x="690"
@@ -412,6 +416,7 @@ export function Pipeline() {
                 fill="#33925d"
                 fontSize="9"
                 fontFamily="Source Code Pro, monospace"
+                translate="no"
               >
                 Tool
               </text>
@@ -480,7 +485,7 @@ export function Pipeline() {
                 fontFamily="Outfit, sans-serif"
                 fontWeight="600"
               >
-                Writer
+                {t("Writer")}
               </text>
               <text
                 x="810"
@@ -489,6 +494,7 @@ export function Pipeline() {
                 fill="#4fddbf"
                 fontSize="9"
                 fontFamily="Source Code Pro, monospace"
+                translate="no"
               >
                 DataFormat
               </text>
@@ -567,7 +573,7 @@ export function Pipeline() {
                 opacity="0.4"
                 transform="rotate(-90, 4, 268)"
               >
-                files in parallel
+                {t("files in parallel")}
               </text>
 
               <line
@@ -588,7 +594,7 @@ export function Pipeline() {
                 opacity="0.4"
                 transform="rotate(-90, 956, 268)"
               >
-                3 locales
+                {t("3 locales")}
               </text>
 
               {/* Dashed bracket around workers */}

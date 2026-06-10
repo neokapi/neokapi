@@ -18,6 +18,7 @@ export function Nav() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <a
           href="#"
+          translate="no"
           className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight text-white"
         >
           <img

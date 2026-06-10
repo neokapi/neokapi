@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChevronRight, WifiOff, FileText, Languages } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const COMMANDS = [
   {
@@ -36,10 +37,12 @@ const COMMANDS = [
   },
 ];
 
+// The COMMANDS terminal mockup above stays untranslated on purpose: it
+// depicts literal kapi commands and tool output.
 const AXES = [
-  { icon: FileText, label: "Any format, faithfully" },
-  { icon: Languages, label: "Translate · check · transform" },
-  { icon: WifiOff, label: "Offline by default" },
+  { icon: FileText, label: t("Any format, faithfully") },
+  { icon: Languages, label: t("Translate · check · transform") },
+  { icon: WifiOff, label: t("Offline by default") },
 ];
 
 export function Hero() {
@@ -164,11 +167,13 @@ export function Hero() {
             <div className="h-2.5 w-2.5 rounded-full bg-accent-rose/50" />
             <div className="h-2.5 w-2.5 rounded-full bg-accent-amber/50" />
             <div className="h-2.5 w-2.5 rounded-full bg-brand-500/50" />
-            <span className="ml-3 font-mono text-xs text-neutral-600">~/project</span>
+            <span translate="no" className="ml-3 font-mono text-xs text-neutral-600">
+              ~/project
+            </span>
           </div>
 
           {/* Terminal content */}
-          <div className="min-h-[280px] p-6 text-left font-mono text-sm">
+          <div translate="no" className="min-h-[280px] p-6 text-left font-mono text-sm">
             {/* Command line with typing */}
             <div className="flex items-start gap-2">
               <span className="text-brand-400 select-none">$</span>

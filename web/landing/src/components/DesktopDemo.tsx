@@ -1,34 +1,39 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Monitor, FolderOpen, Play, Wrench, BookOpen, Settings } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const TABS = [
   {
-    label: "Projects & Ad-hoc",
+    label: t("Projects & Ad-hoc"),
     icon: FolderOpen,
-    description:
+    description: t(
       "Work with projects for organized, repeatable workflows, or go ad-hoc on individual files. Same project config works across Desktop and CLI.",
+    ),
     screen: ProjectsScreen,
   },
   {
-    label: "Tools & Flows",
+    label: t("Tools & Flows"),
     icon: Play,
-    description:
+    description: t(
       "Execute individual tools like ai-translate, pseudo-translate, or word-count. Compose them into flows and run with one click.",
+    ),
     screen: ToolsScreen,
   },
   {
-    label: "Formats & Settings",
+    label: t("Formats & Settings"),
     icon: Wrench,
-    description:
+    description: t(
       "Configure and tweak format readers and writers. Adjust parameters, encoding, segmentation rules, and output options.",
+    ),
     screen: FormatsScreen,
   },
   {
-    label: "TM & Termbases",
+    label: t("TM & Termbases"),
     icon: BookOpen,
-    description:
+    description: t(
       "Manage translation memories and terminology databases. Import, export, browse entries, and configure matching thresholds.",
+    ),
     screen: TmScreen,
   },
 ];
@@ -39,8 +44,10 @@ function ProjectsScreen() {
     { name: "docs-site", langs: "en → es, pt, zh", files: 67, status: "active" },
     { name: "marketing", langs: "en → fr, de", files: 8, status: "idle" },
   ];
+  // The mock screens depict the app UI as a screenshot — left untranslated
+  // like the terminal demos.
   return (
-    <div className="space-y-2">
+    <div translate="no" className="space-y-2">
       <div className="flex items-center justify-between px-1 pb-2">
         <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
           Recent Projects
@@ -105,7 +112,7 @@ function ToolsScreen() {
     { name: "review", tools: "tm-lookup → qa-check", status: "run" },
   ];
   return (
-    <div className="space-y-3">
+    <div translate="no" className="space-y-3">
       <div>
         <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider px-1">
           Tools
@@ -161,7 +168,7 @@ function FormatsScreen() {
     { name: "DOCX", params: "runs, styles", active: false },
   ];
   return (
-    <div className="space-y-2">
+    <div translate="no" className="space-y-2">
       <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider px-1">
         Format Configuration
       </span>
@@ -216,7 +223,7 @@ function TmScreen() {
     { src: "Account settings", tgt: "Paramètres du compte", score: "92%" },
   ];
   return (
-    <div className="space-y-3">
+    <div translate="no" className="space-y-3">
       <div>
         <div className="flex items-center justify-between px-1 pb-1">
           <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
@@ -306,9 +313,9 @@ export function DesktopDemo() {
                 <div className="h-2.5 w-2.5 rounded-full bg-accent-amber/50" />
                 <div className="h-2.5 w-2.5 rounded-full bg-brand-500/50" />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div translate="no" className="flex items-center gap-1.5">
                 <Monitor className="h-3 w-3 text-neutral-600" />
-                <span className="font-display text-xs text-neutral-500 font-medium">
+                <span translate="no" className="font-display text-xs text-neutral-500 font-medium">
                   Kapi Desktop
                 </span>
               </div>
@@ -343,10 +350,17 @@ export function DesktopDemo() {
             </div>
 
             {/* Status bar */}
-            <div className="flex items-center justify-between border-t border-surface-700/30 px-4 py-1.5">
-              <span className="text-[10px] text-neutral-600">mobile-app</span>
+            <div
+              translate="no"
+              className="flex items-center justify-between border-t border-surface-700/30 px-4 py-1.5"
+            >
+              <span translate="no" className="text-[10px] text-neutral-600">
+                mobile-app
+              </span>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-neutral-600">Windows / macOS / Linux</span>
+                <span translate="no" className="text-[10px] text-neutral-600">
+                  Windows / macOS / Linux
+                </span>
               </div>
             </div>
           </div>
