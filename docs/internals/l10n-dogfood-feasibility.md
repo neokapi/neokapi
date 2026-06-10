@@ -1,6 +1,9 @@
 # Dogfood localization of neokapi's own surfaces — feasibility, effort, cost
 
-Status: investigation (2026-06-10). Scope: localize the kapi-side product
+Status: investigation (2026-06-10), **implemented** for the kapi-side text
+surfaces on the same date — see "Implementation status" at the end. Video
+production (recording/narration/rendering) remains to be run on a machine
+with the recording stack; everything else below the plan headings landed. Scope: localize the kapi-side product
 surfaces (desktop app, docs site, framework data, CLI, landing page) and their
 visual assets (videos, screenshots, light + dark) using kapi itself — brand
 voice, termbase, and TM in the loop. First locale: Norwegian Bokmål (`nb`),
@@ -164,3 +167,34 @@ TM, and termbase are already paid for.
 - **Review bottleneck is the maintainer.** The plan deliberately front-loads
   small, high-leverage surfaces (UI, terminology) so the docs run inherits a
   settled termbase and a warm TM.
+
+## Implementation status (2026-06-10)
+
+All text surfaces shipped in `nb`; the model is: reviewed translations live
+as committed TMX seeds under `l10n/tm/` (~2,080 pairs across six seeds),
+`make l10n-seed` rebuilds the gitignored `.kapi/` termbase + TM from them,
+and `make l10n` reproduces every localized artifact via `kapi tm-leverage`
+— generated catalogs only ever contain reviewed strings. Review happens in
+the TMX seeds and `l10n/termbase.csv` (~57 terminology decisions).
+
+| Surface | Mechanism | State |
+| --- | --- | --- |
+| Framework data | `l10n-builtins` → `core/i18n/catalogs/nb.mo` (embedded) | 667 pairs; `kapi --lang nb tools/formats` localized |
+| CLI help + output | `cli/i18n` generator + embedded catalogs (`l10n-cli`) | `KAPI_LANG=nb kapi --help` localized; multi-line Longs fall back pending the sievepen line-structure fix |
+| Desktop UI + shared libraries | kapi-react extraction (now spanning `packages/ui` + `flow-editor`) + `l10n-desktop` | 1,034-entry `nb.json`; picker entry "Norsk (bokmål)" |
+| Docs site | Docusaurus `nb` + bilingual `kapi extract`/`merge` loop | Theme strings + nine priority kapi pages; remaining pages fall back to English |
+| Landing page | kapi-react runtime + footer switcher (`l10n-landing`) | 100% leveraged; demo/terminal content `translate="no"` |
+| Videos | Harness `--locale` dimension + nb narration for the nine published kapi demos | Engineering + scripts done; record/narrate/render on the recording machine (`pnpm run demo published --locale=nb --only=narrate,render,publish --theme=both`) |
+
+Dogfooding paid for itself immediately — five framework bugs found and
+fixed by localizing our own content: merge staleness compared unlike run
+renderings (inline-markup blocks always stale); content-target templates
+lacked `**`/`{path}` support; `ResolveContent` used `filepath.Glob` (no
+`**`); the TMX importer decoded BOM-less UTF-8 as windows-1252; and
+sievepen's plain-text normalization drops line structure (open follow-up,
+guarded in CLI help).
+
+Known follow-ups: per-item format config plumbing into extract/merge
+(frontmatter title/description), the sievepen line-structure fix, the
+remaining ~100 docs pages (the pipeline scales by re-running the loop
+per page), bowrain surfaces, and the nb video production run.
