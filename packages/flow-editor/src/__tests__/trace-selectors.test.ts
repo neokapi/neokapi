@@ -6,6 +6,8 @@ import {
   partsThroughStep,
   snapshotDelta,
   stepToolCounts,
+  nodeSpans,
+  formatUs,
 } from "../traceSelectors";
 import type { FlowTrace, PartSnapshot } from "../traceTypes";
 
@@ -165,5 +167,27 @@ describe("snapshotDelta", () => {
     const delta = snapshotDelta(before, after);
     expect(delta.addedOverlays).toEqual([{ type: "segmentation", side: "source", spans: 2 }]);
     expect(delta.removedOverlays).toEqual([]);
+  });
+});
+
+describe("nodeSpans", () => {
+  it("reports each node's wall-clock window (first enter → last exit) at the cursor", () => {
+    const events = remapEventsToEditor(sampleTrace(), stepToolCounts(STEPS));
+    // Full window: tool-0 spans ts 1→2, tool-1 spans ts 3→5.
+    const full = nodeSpans(events, events.length);
+    expect(full.get("tool-0")).toBe(1);
+    expect(full.get("tool-1")).toBe(2);
+    // Mid-playback: tool-1 has entered but not exited — no span yet.
+    const mid = nodeSpans(events, 3);
+    expect(mid.get("tool-0")).toBe(1);
+    expect(mid.has("tool-1")).toBe(false);
+  });
+});
+
+describe("formatUs", () => {
+  it("formats µs/ms/s at readable precision", () => {
+    expect(formatUs(300)).toBe("300µs");
+    expect(formatUs(1_600)).toBe("1.6ms");
+    expect(formatUs(2_100_000)).toBe("2.1s");
   });
 });

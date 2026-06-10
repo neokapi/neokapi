@@ -70,13 +70,19 @@ import { computePlacement, type PlacementDiagnostic } from "./placement";
 import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactionWrap";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
-import { TraceTimeline } from "./TraceTimeline";
 import { TracePanel } from "./TracePanel";
 import { RunInspectorPanel } from "./RunInspectorPanel";
 import { computeNodeStats } from "./traceTypes";
-// (PartInspector remains exported from the package for hosts that render
-// trace data outside the editor; the in-editor panel is RunInspectorPanel.)
-import { remapEventsToEditor, activeEditorNodes, stepToolCounts } from "./traceSelectors";
+// (PartInspector and TraceTimeline remain exported from the package for hosts
+// that render trace data outside the editor; in-editor, the run data lives ON
+// the graph — node duration/part badges, edge traversal counts — plus the
+// RunInspectorPanel.)
+import {
+  remapEventsToEditor,
+  activeEditorNodes,
+  stepToolCounts,
+  nodeSpans,
+} from "./traceSelectors";
 import type { ToolDoc, ToolDocParam } from "./types";
 
 const nodeTypes: NodeTypes = {
@@ -684,14 +690,12 @@ export function FlowEditor({
     () => (runEvents ? activeEditorNodes(runEvents, cursor) : null),
     [runEvents, cursor],
   );
-
-  const nodeNames = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const n of initial.nodes) {
-      if (n.type === "tool") m.set(n.id, String(n.data.toolName ?? n.data.label));
-    }
-    return m;
-  }, [initial.nodes]);
+  // Per-node wall-clock span (first enter → last exit) at the cursor, shown as
+  // the node's duration badge.
+  const spans = useMemo(
+    () => (runEvents ? nodeSpans(runEvents, cursor) : null),
+    [runEvents, cursor],
+  );
 
   // Refs for per-node handlers -- break the circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
@@ -739,6 +743,8 @@ export function FlowEditor({
               ? "complete"
               : undefined;
         extra.partCount = stats.partsProcessed;
+        const span = spans?.get(n.id);
+        if (span !== undefined) extra.spanUs = span;
       } else if (activeNodes?.has(n.id)) {
         extra.execState = "active";
       }
@@ -761,7 +767,16 @@ export function FlowEditor({
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
-  }, [initial.nodes, nodeStats, activeNodes, readOnly, unmetFor, placementFor, projectPresets]);
+  }, [
+    initial.nodes,
+    nodeStats,
+    activeNodes,
+    spans,
+    readOnly,
+    unmetFor,
+    placementFor,
+    projectPresets,
+  ]);
 
   const handleSourceChange = useCallback(
     (binding: FlowBinding) => {
@@ -936,20 +951,27 @@ export function FlowEditor({
     if (changed) setHeightVersion((v) => v + 1);
   }, [nodes]);
 
-  // While a trace is present, animate dots flowing along every edge (DotEdge
-  // reads data.flowing). Each edge animates over the same duration, so a hop to
-  // a node on the next row (a long wrap edge) is covered as quickly as a short
-  // in-row hop — equal time per node-to-node step.
+  // Run metadata ON the edges: mid-playback, animate dots flowing along every
+  // edge (DotEdge reads data.flowing; equal duration per hop so a long wrap
+  // edge is covered as quickly as a short in-row one), and carry the number of
+  // parts that crossed the edge at the cursor (the source node's exits) so the
+  // edge shows its traffic instead of a separate timeline covering the canvas.
   const flowEdges = useMemo(() => {
-    const flowing = !!(
-      runEvents &&
-      runEvents.length > 0 &&
-      cursor > 0 &&
-      cursor < runEvents.length
-    );
-    if (!flowing) return edges;
-    return edges.map((e) => ({ ...e, data: { ...e.data, flowing: true } }));
-  }, [edges, runEvents, cursor]);
+    if (!runEvents || runEvents.length === 0) return edges;
+    const flowing = cursor > 0 && cursor < runEvents.length;
+    return edges.map((e) => {
+      const traversed = nodeStats?.get(e.source)?.partsProcessed ?? 0;
+      if (!flowing && traversed === 0) return e;
+      return {
+        ...e,
+        data: {
+          ...e.data,
+          ...(flowing ? { flowing: true } : {}),
+          ...(traversed > 0 ? { traversed } : {}),
+        },
+      };
+    });
+  }, [edges, runEvents, cursor, nodeStats]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -1290,27 +1312,21 @@ export function FlowEditor({
           </div>
         )}
 
-        {/* Run playback (bottom of canvas column): the designed flow IS the
-            run flow — the transport replays the trace on the same nodes. */}
+        {/* Run playback (bottom of canvas column): one slim transport row —
+            the run data itself lives ON the graph (node duration/part badges,
+            edge traversal counts), so the canvas stays visible. */}
         {runEvents && runEvents.length > 0 && (
-          <>
-            <TracePanel
-              events={runEvents}
-              cursor={cursor}
-              onCursorChange={setTraceCursor}
-              durationUs={trace?.durationUs}
-              onClose={() => {
-                setTraceDismissed(true);
-                setTraceCursor(null);
-                onTraceDismiss?.();
-              }}
-            />
-            <TraceTimeline
-              events={windowedEvents ?? runEvents}
-              nodeNames={nodeNames}
-              totalDurationUs={trace?.durationUs}
-            />
-          </>
+          <TracePanel
+            events={runEvents}
+            cursor={cursor}
+            onCursorChange={setTraceCursor}
+            durationUs={trace?.durationUs}
+            onClose={() => {
+              setTraceDismissed(true);
+              setTraceCursor(null);
+              onTraceDismiss?.();
+            }}
+          />
         )}
 
         {/* Preview panel (bottom of canvas column) */}

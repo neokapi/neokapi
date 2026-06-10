@@ -61,6 +61,34 @@ export function activeEditorNodes(events: TraceEvent[], cursor: number): Set<str
   return active;
 }
 
+/**
+ * Per-node wall-clock span at the cursor: last exit − first enter, in µs.
+ * This is the node's active window in the run — bounded by the total duration
+ * and intuitive on a node badge, unlike the per-part busy sum (pipelined parts
+ * overlap, so the sum can exceed the wall total).
+ */
+export function nodeSpans(events: TraceEvent[], cursor: number): Map<string, number> {
+  const first = new Map<string, number>();
+  const last = new Map<string, number>();
+  for (const e of events.slice(0, cursor)) {
+    if (e.type === "enter" && !first.has(e.nodeId)) first.set(e.nodeId, e.ts);
+    if (e.type === "exit") last.set(e.nodeId, e.ts);
+  }
+  const spans = new Map<string, number>();
+  for (const [nodeId, start] of first) {
+    const end = last.get(nodeId);
+    if (end !== undefined && end >= start) spans.set(nodeId, end - start);
+  }
+  return spans;
+}
+
+/** Human label for a µs duration: 300µs, 1.6ms, 2.1s. */
+export function formatUs(us: number): string {
+  if (us >= 1_000_000) return `${(us / 1_000_000).toFixed(1)}s`;
+  if (us >= 1_000) return `${(us / 1_000).toFixed(1)}ms`;
+  return `${us}µs`;
+}
+
 /** One part's before/after states at a node, for the run inspector. */
 export interface PartTransition {
   partId: string;

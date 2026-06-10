@@ -1,4 +1,4 @@
-import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 
 /**
  * A clean smooth-step edge with an arrowhead. The data type crossing the edge
@@ -12,6 +12,10 @@ import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
  * column → first column of the next row) simply moves faster than one on a short
  * in-row edge. `<animateMotion>` traverses the whole path in `dur` no matter how
  * long the path is, which gives exactly that constant-time-per-hop behaviour.
+ *
+ * When `data.traversed` is set (run review), a tiny count chip at the edge
+ * midpoint shows how many parts crossed it at the playback cursor — the trace
+ * lives on the graph instead of a separate timeline covering the canvas.
  */
 
 // Constant per-edge travel time. Equal node-to-node cadence; speed scales with
@@ -36,7 +40,7 @@ export function DotEdge({
   // the source row — so the horizontal sweep routes through that gap and clears a
   // tall parallel group, instead of cutting through it at the default Y midpoint.
   const wrapCenterY = (data as { wrapCenterY?: number } | undefined)?.wrapCenterY;
-  const [edgePath] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     targetX,
@@ -48,6 +52,7 @@ export function DotEdge({
   });
 
   const flowing = !!(data as { flowing?: boolean } | undefined)?.flowing;
+  const traversed = (data as { traversed?: number } | undefined)?.traversed;
 
   return (
     <>
@@ -65,6 +70,17 @@ export function DotEdge({
             />
           </circle>
         ))}
+      {traversed !== undefined && traversed > 0 && (
+        <EdgeLabelRenderer>
+          <div
+            className="pointer-events-none absolute z-[1] rounded-full border border-border bg-card px-1 py-px font-mono text-[8px] font-semibold text-muted-foreground"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            title={`${traversed} part(s) crossed this edge`}
+          >
+            {traversed}
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 }

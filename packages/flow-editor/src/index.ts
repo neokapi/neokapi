@@ -38,6 +38,8 @@ export {
   partsThroughStep,
   snapshotDelta,
   stepToolCounts,
+  nodeSpans,
+  formatUs,
 } from "./traceSelectors";
 export type { PartTransition, SnapshotDelta } from "./traceSelectors";
 export { computeNodeStats } from "./traceTypes";
