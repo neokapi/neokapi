@@ -209,11 +209,14 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 	case model.PartBlock:
 		block, ok := part.Resource.(*model.Block)
 		if ok {
-			srcText := block.SourceText()
+			// Display flattening: placeholders contribute their visible {equiv}
+			// (a redaction placeholder reads "[REDACTED:Org]", not nothing), so a
+			// trace inspector shows what a translator would see.
+			srcText := model.FlattenRuns(block.Source)
 			snap.SourceText = srcText
 			// Get target text from the first locale found.
 			for _, loc := range block.TargetLocales() {
-				snap.TargetText = block.TargetText(loc)
+				snap.TargetText = model.FlattenRuns(block.TargetRuns(loc))
 				break
 			}
 			// Summary: first 40 chars of source text.
