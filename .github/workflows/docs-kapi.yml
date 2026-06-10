@@ -116,9 +116,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
-            echo "docs_base=/web/prs/${PR_NUMBER}/neokapi/docs/" >> "$GITHUB_OUTPUT"
+            echo "docs_base=/web/prs/${PR_NUMBER}/neokapi/" >> "$GITHUB_OUTPUT"
           else
-            echo "docs_base=/web/neokapi/docs/" >> "$GITHUB_OUTPUT"
+            echo "docs_base=/web/neokapi/" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build kapi Docusaurus site

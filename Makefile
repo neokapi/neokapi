@@ -1147,24 +1147,22 @@ klz-wasm-smoke: web-wasm-cli ## Verify .klz workspace + .kapi project run in the
 # These are a manual escape hatch; the normal path is push-to-main → workflows.
 # Pass PAGES_PUBLISH_YES=1 to skip the confirm prompt, DRY_RUN=1 to build-only.
 
-NEOKAPI_LANDING_BASE := /web/neokapi/
 BOWRAIN_LANDING_BASE := /web/bowrain/
-NEOKAPI_DOCS_BASE    := /web/neokapi/docs/
+NEOKAPI_DOCS_BASE    := /web/neokapi/
 BOWRAIN_DOCS_BASE    := /web/bowrain/docs/
 
-landing-build: ## Build both landing pages with production base URLs → web/landing/dist, bowrain/web/landing/dist
-	cd web/landing && VITE_BASE=$(NEOKAPI_LANDING_BASE) vp run build
+landing-build: ## Build the bowrain landing page with its production base URL → bowrain/web/landing/dist
 	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build
 
-docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs site with the production base (run fetch-docs-assets first to stage videos) → web/docs/build
+docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (run fetch-docs-assets first to stage videos) → web/docs/build
 	cd web/docs && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 	cd bowrain/web/docs && corepack pnpm install --ignore-workspace
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
-publish-landing: landing-build ## Build + deploy both landing pages to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)
-	@bash scripts/publish-pages.sh neokapi-landing bowrain-landing
+publish-landing: landing-build ## Build + deploy the bowrain landing page to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)
+	@bash scripts/publish-pages.sh bowrain-landing
 
 publish-website: fetch-docs-assets docs-build-prod fetch-bowrain-docs-assets bowrain-docs-build-prod ## Build + deploy the kapi & bowrain docs sites to neokapi.github.io
 	@bash scripts/publish-pages.sh neokapi-docs bowrain-docs

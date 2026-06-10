@@ -3,8 +3,7 @@ name: Pages Deploy
 # Combines artifacts from multiple build sources into a single deployment
 # to the neokapi.github.io org pages repo, under a path-based layout:
 #
-#   /web/neokapi/            neokapi-web Vite app (production)
-#   /web/neokapi/docs/       kapi/framework Docusaurus site (production)
+#   /web/neokapi/            kapi/framework Docusaurus site (production)
 #   /web/bowrain/            bowrain-web Vite app (production)
 #   /web/bowrain/docs/       bowrain Docusaurus site (production)
 #   /storybook/kapi/         kapi storybook (production)
@@ -12,10 +11,15 @@ name: Pages Deploy
 #   /web/prs/{N}/...         PR previews
 #   /storybook/prs/{N}/...   PR previews
 #
+# The neokapi Docusaurus site is the product landing page AND the docs; it owns
+# the /web/neokapi/ root directly (a separate Vite landing app was retired and
+# folded into the docs home). bowrain still has a Vite landing at /web/bowrain/
+# with its Docusaurus docs one level deeper at /web/bowrain/docs/.
+#
 # Artifact names this workflow looks for:
 #   kapi-site, bowrain-site           — Docusaurus build outputs
 #   kapi-storybook, bowrain-storybook — Storybook build outputs
-#   neokapi-web, bowrain-web          — Vite landing app build outputs
+#   bowrain-web                       — bowrain Vite landing app build output
 
 on:
   workflow_run:
@@ -113,9 +117,8 @@ jobs:
               exit 1
             fi
             {
-              echo "kapi_app_dest=web/prs/${PR_NUMBER}/neokapi"
               echo "bowrain_app_dest=web/prs/${PR_NUMBER}/bowrain"
-              echo "kapi_docs_dest=web/prs/${PR_NUMBER}/neokapi/docs"
+              echo "kapi_docs_dest=web/prs/${PR_NUMBER}/neokapi"
               echo "bowrain_docs_dest=web/prs/${PR_NUMBER}/bowrain/docs"
               echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi"
               echo "bowrain_storybook_dest=storybook/prs/${PR_NUMBER}/bowrain"
@@ -124,9 +127,8 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             {
-              echo "kapi_app_dest=web/neokapi"
               echo "bowrain_app_dest=web/bowrain"
-              echo "kapi_docs_dest=web/neokapi/docs"
+              echo "kapi_docs_dest=web/neokapi"
               echo "bowrain_docs_dest=web/bowrain/docs"
               echo "kapi_storybook_dest=storybook/kapi"
               echo "bowrain_storybook_dest=storybook/bowrain"
@@ -150,7 +152,7 @@ jobs:
           set -euo pipefail
           names=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts" --paginate --jq '.artifacts[].name' | tr '\n' ' ')
           echo "artifacts present in run ${RUN_ID}: ${names}"
-          for slot in neokapi-web bowrain-web kapi-site bowrain-site kapi-storybook bowrain-storybook; do
+          for slot in bowrain-web kapi-site bowrain-site kapi-storybook bowrain-storybook; do
             key="has_${slot//-/_}"
             if printf ' %s ' "${names}" | grep -q " ${slot} "; then
               echo "${key}=true"
@@ -167,32 +169,6 @@ jobs:
       # `bowrain-site`) → "No changes to deploy" on a green run. A name-scoped
       # download is flat into its own path for any count; continue-on-error
       # tolerates artifacts a given triggering run didn't produce.
-      - name: Download neokapi-web artifact
-        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_neokapi_web != 'false' }}
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: neokapi-web
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: artifacts/neokapi-web
-
-      - name: Slot neokapi-web Vite app at /web/neokapi/ root
-        if: ${{ steps.target.outputs.skip != 'true' }}
-        env:
-          DEST: ${{ steps.target.outputs.kapi_app_dest }}
-        run: |
-          # Presence check in-step (not via hashFiles in `if:` — hashFiles returns
-          # empty for download-artifact outputs, which silently skipped every slot).
-          if [ ! -d artifacts/neokapi-web ] || [ -z "$(ls -A artifacts/neokapi-web 2>/dev/null)" ]; then
-            echo "no neokapi-web artifact — skipping"; exit 0
-          fi
-          # Replace only the app's own files; preserve any docs/ subdir
-          # already present from a previous Docs — kapi run.
-          mkdir -p "pages/${DEST}"
-          (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
-          cp -r artifacts/neokapi-web/* "pages/${DEST}/"
-
       - name: Download bowrain-web artifact
         if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_web != 'false' }}
         continue-on-error: true
@@ -225,7 +201,7 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts/kapi-site
 
-      - name: Slot kapi Docusaurus at /web/neokapi/docs/
+      - name: Slot kapi Docusaurus at /web/neokapi/ root
         if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_docs_dest }}
@@ -353,8 +329,7 @@ jobs:
           MARKER="<!-- pr-preview-links -->"
           BODY="${MARKER}
           📚 Preview deployed:
-          - neokapi landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/
-          - neokapi docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/docs/
+          - neokapi site: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/
           - bowrain landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/
           - bowrain docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/docs/
           - kapi storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/kapi/
