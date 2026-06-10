@@ -285,14 +285,15 @@ export const FullPipeline: Story = {
 };
 
 /**
- * Flowing dots on a wrapped, multi-row pipeline. A trace is present, so DotEdge
- * streams dots along every edge. Each edge animates over the same duration, so a
- * hop to the next row (a long wrap edge) is covered as fast as a short in-row
- * hop — the cadence node-to-node is equal, only the dot's speed differs. Shown
- * in a deliberately narrow frame so the five steps wrap across rows.
+ * Run metadata on a wrapped, multi-row pipeline: the run review is literal —
+ * node badges carry parts + wall window, each crossed edge a count chip, and a
+ * dot appears on an edge only when a part is actually mid-hop at the cursor
+ * (scrub back one event to park a part on an edge; press Play to watch the
+ * dots advance with the events; paused is a frozen frame). Shown in a
+ * deliberately narrow frame so the five steps wrap across rows.
  */
-export const FlowingDotsMultiRow: Story = {
-  name: "Flowing Dots (multi-row)",
+export const RunMetadataMultiRow: Story = {
+  name: "Run Metadata (multi-row)",
   decorators: [
     (Story) => (
       <div style={{ width: 760, height: 660 }}>
@@ -313,8 +314,7 @@ export const FlowingDotsMultiRow: Story = {
     tools,
     readOnly: true,
     onRun: undefined,
-    // Minimal completed trace — its presence turns on the flowing-dot animation
-    // (DotEdge data.flowing). One enter/exit per node keeps the overlay simple.
+    // A completed single-part run; the transport replays it on the nodes.
     traceEvents: [
       { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
       { ts: 100, type: "exit", nodeId: "tool-0", partId: "p1" },

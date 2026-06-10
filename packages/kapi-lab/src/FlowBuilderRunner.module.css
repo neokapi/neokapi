@@ -6,7 +6,9 @@
  * border resolve against the ui-primitives theme variables that the surrounding
  * `.kapi-reference` wrapper supplies. */
 .editorFrame {
-  height: 460px;
+  /* Tall enough that the graph stays fully visible with the run transport row
+     docked under the canvas during run review. */
+  height: 540px;
   border: 1px solid var(--ifm-color-emphasis-200);
   border-radius: var(--ifm-card-border-radius);
   background: var(--background, var(--ifm-card-background-color));

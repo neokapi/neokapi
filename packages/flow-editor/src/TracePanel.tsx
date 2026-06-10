@@ -3,7 +3,7 @@
 // trace's events on the same nodes the user composed (active-node highlight,
 // part counts), so there is no separate run view.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Play, Pause, SkipBack, SkipForward, RotateCcw, X } from "lucide-react";
 import { Button, cn } from "@neokapi/ui-primitives";
 import type { TraceEvent } from "./traceTypes";
@@ -14,6 +14,12 @@ export interface TracePanelProps {
   /** Cursor: how many events have been applied (0..events.length). */
   cursor: number;
   onCursorChange: (cursor: number) => void;
+  /**
+   * Play state — controlled by the editor so the canvas can render motion
+   * only while actually playing (paused = a frozen frame, no animation).
+   */
+  playing: boolean;
+  onPlayingChange: (playing: boolean) => void;
   /** Total run duration in microseconds. */
   durationUs?: number;
   /** Dismiss the trace (leave run-review mode). */
@@ -32,31 +38,32 @@ export function TracePanel({
   events,
   cursor,
   onCursorChange,
+  playing,
+  onPlayingChange,
   durationUs,
   onClose,
 }: TracePanelProps) {
-  const [playing, setPlaying] = useState(false);
   const playRef = useRef<number | null>(null);
   const total = events.length;
   const done = cursor >= total;
 
   const stop = useCallback(() => {
-    setPlaying(false);
-  }, []);
+    onPlayingChange(false);
+  }, [onPlayingChange]);
 
   // Advance the cursor at a readable pace while playing (events are bursty in
   // real time, so playback is event-paced, not wall-clock-paced).
   useEffect(() => {
     if (!playing) return;
     if (cursor >= total) {
-      setPlaying(false);
+      onPlayingChange(false);
       return;
     }
     playRef.current = window.setTimeout(() => onCursorChange(cursor + 1), 160);
     return () => {
       if (playRef.current !== null) window.clearTimeout(playRef.current);
     };
-  }, [playing, cursor, total, onCursorChange]);
+  }, [playing, cursor, total, onCursorChange, onPlayingChange]);
 
   return (
     <div className="flex items-center gap-2 border-t border-border bg-background px-3 py-1.5">
@@ -95,7 +102,7 @@ export function TracePanel({
         className="h-6 px-2"
         onClick={() => {
           if (done) onCursorChange(0);
-          setPlaying((p) => !p);
+          onPlayingChange(!playing);
         }}
         title={playing ? "Pause" : "Play"}
         aria-label={playing ? "Pause playback" : "Play"}

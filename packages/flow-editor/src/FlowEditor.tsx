@@ -82,6 +82,7 @@ import {
   activeEditorNodes,
   stepToolCounts,
   nodeSpans,
+  edgeTransits,
 } from "./traceSelectors";
 import type { ToolDoc, ToolDocParam } from "./types";
 
@@ -593,8 +594,10 @@ export function FlowEditor({
 
   // Run review: the trace from running THIS flow plays back on the canvas.
   // The cursor windows the (editor-remapped) events; a selected node shows the
-  // run inspector by default, flippable to the config panel.
+  // run inspector by default, flippable to the config panel. Play state lives
+  // here (the transport is controlled) so edges animate only while playing.
   const [traceCursor, setTraceCursor] = useState<number | null>(null);
+  const [tracePlaying, setTracePlaying] = useState(false);
   const [panelMode, setPanelMode] = useState<"inspect" | "configure">("inspect");
   const [traceDismissed, setTraceDismissed] = useState(false);
 
@@ -609,6 +612,7 @@ export function FlowEditor({
   // rewinds it. Editing the flow invalidates the review.
   useEffect(() => {
     setTraceCursor(trace ? null : null);
+    setTracePlaying(false);
     setTraceDismissed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
@@ -951,27 +955,32 @@ export function FlowEditor({
     if (changed) setHeightVersion((v) => v + 1);
   }, [nodes]);
 
-  // Run metadata ON the edges: mid-playback, animate dots flowing along every
-  // edge (DotEdge reads data.flowing; equal duration per hop so a long wrap
-  // edge is covered as quickly as a short in-row one), and carry the number of
-  // parts that crossed the edge at the cursor (the source node's exits) so the
-  // edge shows its traffic instead of a separate timeline covering the canvas.
+  // Run metadata ON the edges, literal to the trace: `traversed` is how many
+  // parts crossed the edge at the cursor, `transit` how many are mid-hop on it
+  // right now (between exiting the source and entering the target). DotEdge
+  // animates a dot per in-transit part only while PLAYING — paused is a frozen
+  // frame — so the dots match the parts actually flowing, never a decoration.
+  const transits = useMemo(
+    () => (runEvents ? edgeTransits(runEvents, cursor) : null),
+    [runEvents, cursor],
+  );
   const flowEdges = useMemo(() => {
     if (!runEvents || runEvents.length === 0) return edges;
-    const flowing = cursor > 0 && cursor < runEvents.length;
     return edges.map((e) => {
       const traversed = nodeStats?.get(e.source)?.partsProcessed ?? 0;
-      if (!flowing && traversed === 0) return e;
+      const transit = transits?.get(`${e.source}→${e.target}`) ?? 0;
+      if (traversed === 0 && transit === 0) return e;
       return {
         ...e,
         data: {
           ...e.data,
-          ...(flowing ? { flowing: true } : {}),
           ...(traversed > 0 ? { traversed } : {}),
+          ...(transit > 0 ? { transit } : {}),
+          ...(transit > 0 && tracePlaying ? { flowing: true } : {}),
         },
       };
     });
-  }, [edges, runEvents, cursor, nodeStats]);
+  }, [edges, runEvents, nodeStats, transits, tracePlaying]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -1320,9 +1329,12 @@ export function FlowEditor({
             events={runEvents}
             cursor={cursor}
             onCursorChange={setTraceCursor}
+            playing={tracePlaying}
+            onPlayingChange={setTracePlaying}
             durationUs={trace?.durationUs}
             onClose={() => {
               setTraceDismissed(true);
+              setTracePlaying(false);
               setTraceCursor(null);
               onTraceDismiss?.();
             }}

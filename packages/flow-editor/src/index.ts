@@ -39,6 +39,7 @@ export {
   snapshotDelta,
   stepToolCounts,
   nodeSpans,
+  edgeTransits,
   formatUs,
 } from "./traceSelectors";
 export type { PartTransition, SnapshotDelta } from "./traceSelectors";

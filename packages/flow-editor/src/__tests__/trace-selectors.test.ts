@@ -7,6 +7,7 @@ import {
   snapshotDelta,
   stepToolCounts,
   nodeSpans,
+  edgeTransits,
   formatUs,
 } from "../traceSelectors";
 import type { FlowTrace, PartSnapshot } from "../traceTypes";
@@ -189,5 +190,18 @@ describe("formatUs", () => {
     expect(formatUs(300)).toBe("300µs");
     expect(formatUs(1_600)).toBe("1.6ms");
     expect(formatUs(2_100_000)).toBe("2.1s");
+  });
+});
+
+describe("edgeTransits", () => {
+  it("reports a part as on the edge between its exit and next enter", () => {
+    const events = remapEventsToEditor(sampleTrace(), stepToolCounts(STEPS));
+    // cursor 2 = after exit tool-0, before enter tool-1: b1 is on tool-0→tool-1.
+    expect(edgeTransits(events, 2).get("tool-0→tool-1")).toBe(1);
+    // cursor 1/3 = inside a node: no edge transit.
+    expect(edgeTransits(events, 1).size).toBe(0);
+    expect(edgeTransits(events, 3).size).toBe(0);
+    // cursor 4 = after the final exit: b1 is on the way to the sink.
+    expect(edgeTransits(events, 4).get("tool-1→endpoint-sink")).toBe(1);
   });
 });

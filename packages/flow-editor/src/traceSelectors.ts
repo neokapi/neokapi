@@ -82,6 +82,45 @@ export function nodeSpans(events: TraceEvent[], cursor: number): Map<string, num
   return spans;
 }
 
+/**
+ * Parts in transit per edge at the cursor — a part is "on" the edge X→Y
+ * between its exit from X and its enter into Y (or on the X→sink edge after
+ * its final exit). Keys are `${sourceNodeId}→${targetNodeId}` in editor node
+ * ids. This is what makes the playback dots literal: an edge shows movement
+ * exactly when a part is mid-hop at the cursor, not as a decorative loop.
+ */
+export function edgeTransits(
+  events: TraceEvent[],
+  cursor: number,
+  sinkId = "endpoint-sink",
+): Map<string, number> {
+  // Last applied event per part at the cursor.
+  const lastApplied = new Map<string, { idx: number; type: string; nodeId: string }>();
+  const upTo = Math.min(cursor, events.length);
+  for (let i = 0; i < upTo; i++) {
+    const e = events[i];
+    if (!e.partId) continue;
+    lastApplied.set(e.partId, { idx: i, type: e.type, nodeId: e.nodeId });
+  }
+
+  const transits = new Map<string, number>();
+  for (const [partId, last] of lastApplied) {
+    if (last.type !== "exit") continue; // inside a node (or errored) — not on an edge
+    // The part left last.nodeId; its next enter names the edge it is crossing.
+    let target = sinkId;
+    for (let i = last.idx + 1; i < events.length; i++) {
+      const e = events[i];
+      if (e.partId === partId && e.type === "enter") {
+        target = e.nodeId;
+        break;
+      }
+    }
+    const key = `${last.nodeId}→${target}`;
+    transits.set(key, (transits.get(key) ?? 0) + 1);
+  }
+  return transits;
+}
+
 /** Human label for a µs duration: 300µs, 1.6ms, 2.1s. */
 export function formatUs(us: number): string {
   if (us >= 1_000_000) return `${(us / 1_000_000).toFixed(1)}s`;
