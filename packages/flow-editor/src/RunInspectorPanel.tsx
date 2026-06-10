@@ -204,7 +204,7 @@ export function RunInspectorPanel({
   return (
     <div
       className="flex flex-col overflow-hidden border-l border-border bg-background"
-      style={{ width: 300, minWidth: 300, maxWidth: 300 }}
+      style={{ width: "min(300px, calc(100vw - 2rem))" }}
     >
       <PanelHeader className="flex-col items-start gap-0.5 py-2.5">
         <div className="flex w-full items-center justify-between">

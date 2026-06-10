@@ -5,7 +5,7 @@
 // model a reader produced from the bound input, or the bytes a writer emitted.
 
 import type { ReactNode } from "react";
-import { Button, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
+import { Button, PanelHeader } from "@neokapi/ui-primitives";
 
 export interface EndpointInspectorPanelProps {
   role: "source" | "sink";
@@ -32,7 +32,7 @@ export function EndpointInspectorPanel({ role, onClose, children }: EndpointInsp
   return (
     <div
       className="flex flex-col overflow-hidden border-l border-border bg-background"
-      style={{ width: 400, minWidth: 400, maxWidth: 400 }}
+      style={{ width: "min(400px, calc(100vw - 2rem))" }}
     >
       <PanelHeader className="flex-col items-start gap-0.5 py-2.5">
         <div className="flex w-full items-center justify-between">
@@ -47,9 +47,13 @@ export function EndpointInspectorPanel({ role, onClose, children }: EndpointInsp
         <div className="text-[10px] text-muted-foreground">{meta.subtitle}</div>
       </PanelHeader>
 
-      <ScrollArea className="flex-1">
+      {/* Native scrolling (not Radix ScrollArea): its display:table viewport
+          sizes to the widest tree row, which stops prose from wrapping on
+          phones. Here text wraps at the panel width and only genuinely wide
+          content (the content tree) scrolls horizontally. */}
+      <div className="flex-1 overflow-auto">
         <div className="px-3 py-2">{children}</div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

@@ -543,9 +543,14 @@ export default function FlowBuilderRunner({
         {scenarios.length > 1 && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold text-muted-foreground">Scenario</span>
+            {/* spacing>0 keeps each chip independently bordered/rounded so the
+                row wraps cleanly on narrow screens (joined segments would lose
+                their edge borders at the wrap points). */}
             <ToggleGroup
               type="single"
               variant="outline"
+              spacing={1}
+              className="flex-wrap"
               value={scenario.id}
               onValueChange={(v) => {
                 const next = scenarios.find((s) => s.id === v);
@@ -611,7 +616,7 @@ export default function FlowBuilderRunner({
         {/* Workspace lenses: replay a recorded trace (native runs the wasm
             engine can't reproduce) and the project lens (the recipe the canvas
             serializes to). */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {imported ? (
             <span className="text-[11px] text-muted-foreground">
               Replaying <strong>{imported.label}</strong> (recorded native run, read-only) —{" "}

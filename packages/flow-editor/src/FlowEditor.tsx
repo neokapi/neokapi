@@ -282,7 +282,7 @@ export function StepConfigPanel({
   return (
     <div
       className="flex flex-col border-l border-border bg-background overflow-hidden"
-      style={{ width: 280, minWidth: 280, maxWidth: 280 }}
+      style={{ width: "min(280px, calc(100vw - 2rem))" }}
     >
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
@@ -1324,7 +1324,8 @@ export function FlowEditor({
                 </Panel>
               )}
 
-              <Panel position="top-right">
+              {/* The legend would cover most of a phone-width canvas. */}
+              <Panel position="top-right" className="hidden sm:block">
                 <FlowLegend />
               </Panel>
             </ReactFlow>
