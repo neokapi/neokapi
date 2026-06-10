@@ -21,11 +21,12 @@ type RegistryListOutput struct {
 
 func (o RegistryListOutput) FormatText(w io.Writer) error {
 	if len(o.Registries) == 0 {
-		fmt.Fprintln(w, "No registries configured.")
+		fmt.Fprintln(w, T("registries.none"))
 		return nil
 	}
 
-	fmt.Fprintf(w, "  %-20s %-50s %s\n", "NAME", "URL", "CHANNELS")
+	fmt.Fprintf(w, "  %-20s %-50s %s\n",
+		T("registries.header.name"), T("registries.header.url"), T("registries.header.channels"))
 	fmt.Fprintf(w, "  %-20s %-50s %s\n", "----", "---", "--------")
 	for _, r := range o.Registries {
 		channels := "-"
@@ -34,7 +35,7 @@ func (o RegistryListOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "  %-20s %-50s %s\n", r.Name, r.URL, channels)
 	}
-	fmt.Fprintf(w, "\nTotal: %d registry(ies)\n", o.Total)
+	fmt.Fprintf(w, "\n"+T("registries.total")+"\n", o.Total)
 	return nil
 }
 

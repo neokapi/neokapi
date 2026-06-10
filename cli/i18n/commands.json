@@ -1,0 +1,498 @@
+{
+  "cli": {
+    "commands": {
+      "kapi": {
+        "add": {
+          "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
+          "short": "Add file patterns to the project's content"
+        },
+        "ai-entity-extract": {
+          "short": "Detect named entities (people, organizations, products, locations) using an LLM"
+        },
+        "ai-qa": {
+          "example": "  kapi ai-qa app.xliff --target-lang fr\n  kapi ai-qa app.xliff --target-lang de",
+          "short": "Check translation quality using an LLM provider"
+        },
+        "ai-review": {
+          "example": "  kapi ai-review app.xliff --target-lang fr\n  kapi ai-review messages.json --target-lang de",
+          "short": "Review translations with scoring using an LLM provider"
+        },
+        "ai-terminology": {
+          "short": "Extract candidate terminology from content using an LLM provider"
+        },
+        "ai-translate": {
+          "example": "  kapi ai-translate messages.json --target-lang fr\n  kapi ai-translate app.xliff --target-lang de -o app.de.xliff",
+          "short": "Translate content using an LLM provider"
+        },
+        "brand": {
+          "check": {
+            "short": "Score text against a brand voice profile"
+          },
+          "guide": {
+            "short": "Print the brand voice guide (inject into your assistant's context)"
+          },
+          "import": {
+            "short": "Import a profile YAML into the local brand store"
+          },
+          "long": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
+          "new": {
+            "long": "Write a brand voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi brand import` it.",
+            "short": "Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)"
+          },
+          "pack": {
+            "short": "Install a built-in starter pack into the local brand store"
+          },
+          "profiles": {
+            "short": "List brand voice profiles (local store + built-in packs)"
+          },
+          "rewrite": {
+            "short": "Rewrite text to comply with a brand voice profile"
+          },
+          "short": "Keep AI-generated content on brand (voice, tone, terminology)",
+          "show": {
+            "short": "Show a brand voice profile as a guide"
+          }
+        },
+        "brand-voice-check": {
+          "example": "  kapi brand-voice-check messages.json --target-lang fr\n  kapi brand-voice-check app.xliff --target-lang de",
+          "short": "Check text against a brand voice profile using an LLM provider"
+        },
+        "case-transform": {
+          "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
+          "short": "Case Transform"
+        },
+        "cat": {
+          "short": "Print the translatable text of files (use kcat)"
+        },
+        "char-count": {
+          "example": "  kapi char-count messages.json\n  kapi char-count page.html",
+          "short": "Character Count"
+        },
+        "chars-check": {
+          "example": "  kapi chars-check app.xliff --target-lang fr\n  kapi chars-check app.xliff --target-lang zh",
+          "short": "Characters Check"
+        },
+        "chars-listing": {
+          "short": "Characters Listing"
+        },
+        "check": {
+          "long": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, source-side checks run (brand vocabulary). A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.",
+          "short": "Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)"
+        },
+        "completion": {
+          "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
+          "short": "Generate shell completion script"
+        },
+        "credentials": {
+          "add": {
+            "long": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential.",
+            "short": "Save a named AI provider credential"
+          },
+          "list": {
+            "short": "List saved credentials"
+          },
+          "remove": {
+            "short": "Remove a saved credential"
+          },
+          "short": "Manage saved AI provider credentials",
+          "test": {
+            "short": "Test that a credential's API key is accessible"
+          }
+        },
+        "deepl-translate": {
+          "short": "Translate content using DeepL"
+        },
+        "diff-leverage": {
+          "short": "Diff Leverage"
+        },
+        "encoding-detect": {
+          "short": "Encoding Detect"
+        },
+        "extract": {
+          "example": "  kapi extract -p app.kapi --no-tm\n  kapi extract -p app.kapi --target-lang fr\n  kapi extract -p app.kapi --target-lang fr,de,es\n  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace",
+          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+          "short": "Emit a bilingual file for a translator — native .klz or XLIFF/PO"
+        },
+        "flows": {
+          "example": "  kapi flows",
+          "list": {
+            "example": "  kapi flows list",
+            "short": "List available flows"
+          },
+          "short": "List available flows"
+        },
+        "formats": {
+          "example": "  kapi formats\n  kapi formats --ext .json\n  kapi formats --mime text/html",
+          "info": {
+            "example": "  kapi formats info json\n  kapi formats info okf_html",
+            "short": "Show detailed information about a format"
+          },
+          "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.",
+          "schema": {
+            "example": "  kapi formats schema json\n  kapi formats schema okf_html",
+            "short": "Output JSON Schema for a format"
+          },
+          "short": "List supported file formats"
+        },
+        "google-translate": {
+          "short": "Translate content using Google Translate"
+        },
+        "grep": {
+          "short": "Search the translatable text of files (use kgrep)"
+        },
+        "hook": {
+          "long": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand.",
+          "pre-edit": {
+            "long": "Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the\nPreToolUse-event JSON on stdin, resolves the .kapi project in the session's\nworking directory, and:\n\n  - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when\n    the file being written is a project content target (a path that\n    \"kapi merge\" generates), so Claude routes the change through\n    extract → translate → merge instead; or\n  - emits nothing (exit 0) otherwise — outside a project, on source files, on\n    files the project does not generate, or when the project cannot be loaded —\n    leaving the normal permission flow untouched.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. It fails open: anything other than a confirmed target\nmatch lets the edit proceed, so the guard never traps the assistant on an\nunrelated file.",
+            "short": "Claude Code PreToolUse hook: block direct edits to kapi-generated translation targets"
+          },
+          "short": "Integration hooks for AI coding assistants (Claude Code)",
+          "stop": {
+            "long": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits nothing (exit 0) when the project passes, when there is no .kapi\n    project, or when verify cannot run — Claude is free to finish; or\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever.",
+            "short": "Claude Code Stop hook: keep working until the project's kapi verify gates pass"
+          }
+        },
+        "inconsistency-check": {
+          "example": "  kapi inconsistency-check app.xliff --target-lang fr\n  kapi inconsistency-check app.xliff --target-lang de",
+          "short": "Inconsistency Check"
+        },
+        "info": {
+          "example": "  kapi info work.klz",
+          "short": "Show a .klz workspace's state (dirty?)"
+        },
+        "init": {
+          "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default the project id is the current directory's basename and\nsource/target locales are en / (none). Override with --name,\n--source-locale, --target-locale (repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular.",
+          "short": "Scaffold a new kapi project in the current directory"
+        },
+        "length-check": {
+          "example": "  kapi length-check app.xliff --target-lang fr\n  kapi length-check app.xliff --target-lang ja",
+          "short": "Length Check"
+        },
+        "long": "kapi helps you manage multilingual content — convert document formats,\ntranslate with AI, and run quality checks across a wide range of file types.",
+        "ls": {
+          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
+          "short": "List the files the project's content tracks"
+        },
+        "mcp": {
+          "short": "Start MCP server (stdio) exposing project tools"
+        },
+        "merge": {
+          "example": "  kapi merge                     # materialize localized files from the project store\n  kapi merge -i out/app.en-US-to-fr-FR.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-tm-update\n  kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace",
+          "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
+          "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source"
+        },
+        "microsoft-translate": {
+          "short": "Translate content using Microsoft Translator"
+        },
+        "modernmt-translate": {
+          "short": "Translate content using ModernMT"
+        },
+        "mymemory-translate": {
+          "short": "Translate content using MyMemory"
+        },
+        "pack": {
+          "example": "  kapi pack -o snapshot.klz   # a .kapi project\n  kapi pack work.klz         # eject a .klz workspace's cache",
+          "long": "Snapshot a .kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
+          "short": "Snapshot a .kapi project's working state into a .klz"
+        },
+        "pattern-check": {
+          "example": "  kapi pattern-check app.xliff --target-lang fr\n  kapi pattern-check app.xliff --target-lang de",
+          "short": "Pattern Check"
+        },
+        "plugin": {
+          "info": {
+            "short": "Show details for an installed plugin"
+          },
+          "install": {
+            "long": "Install a plugin from a registry. The plugin is downloaded,\nverified (SHA-256 + cosign signature), and unpacked into\n$XDG_DATA_HOME/kapi/plugins/\u003cname\u003e/.\n\nExamples:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta",
+            "short": "Install a plugin from the registry"
+          },
+          "list": {
+            "short": "List installed plugins"
+          },
+          "rebuild-cache": {
+            "short": "Force a rebuild of the plugin dispatch cache"
+          },
+          "remove": {
+            "short": "Remove an installed plugin"
+          },
+          "search": {
+            "short": "Search the registry for plugins"
+          },
+          "short": "Install and manage manifest-driven plugins (#438)",
+          "update": {
+            "long": "Update an installed plugin in place using the channel and constraint\nrecorded at install time. Pass --channel or --constraint to switch\ntracks during update; --index points the update at a different\nregistry index URL.\n\nExamples:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0",
+            "short": "Update an installed plugin to the latest matching version"
+          },
+          "update-index": {
+            "short": "Refresh the cached registry index"
+          },
+          "verify": {
+            "short": "Re-verify an installed plugin's manifest and binary"
+          }
+        },
+        "presets": {
+          "example": "  kapi presets list\n  kapi presets show AndroidStrings",
+          "list": {
+            "example": "  kapi presets list\n  kapi presets list --format okf_xml",
+            "short": "List available presets"
+          },
+          "short": "Manage format and framework presets",
+          "show": {
+            "example": "  kapi presets show AndroidStrings\n  kapi presets show okf_xml:AndroidStrings",
+            "long": "Show detailed configuration for a preset.\n\nAccepts a bare preset name (searched across all formats) or the\nqualified format:preset syntax (e.g. okf_xml:AndroidStrings).",
+            "short": "Show preset details"
+          }
+        },
+        "pseudo-translate": {
+          "example": "  kapi pseudo-translate messages.json -o messages.pseudo.json\n  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps",
+          "short": "Pseudo Translate"
+        },
+        "qa-check": {
+          "example": "  kapi qa-check app.xliff --target-lang fr\n  kapi qa-check app.xliff --target-lang de --json",
+          "short": "QA Check"
+        },
+        "redact": {
+          "short": "Replace sensitive spans with protected placeholders before processing"
+        },
+        "registry": {
+          "add": {
+            "short": "Add a registry to global config"
+          },
+          "list": {
+            "short": "List configured registries"
+          },
+          "remove": {
+            "short": "Remove a registry from global config"
+          },
+          "short": "Manage plugin registries"
+        },
+        "repetition-analysis": {
+          "example": "  kapi repetition-analysis messages.json\n  kapi repetition-analysis app.xliff",
+          "short": "Repetition Analysis"
+        },
+        "rm": {
+          "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files",
+          "short": "Remove file patterns from the project's content"
+        },
+        "run": {
+          "example": "  kapi run ai-translate-qa -i app.xliff --target-lang fr\n  kapi run ai-translate-qa -i messages.json --target-lang de",
+          "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi ai-translate\" instead of \"kapi run ai-translate\").\n\nBuilt-in flows:\n  ai-translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
+          "short": "Run a composed flow (multi-tool pipeline)"
+        },
+        "scoping-report": {
+          "example": "  kapi scoping-report messages.json\n  kapi scoping-report app.xliff --json",
+          "short": "Scoping Report"
+        },
+        "script": {
+          "short": "Script"
+        },
+        "search-replace": {
+          "example": "  kapi search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi search-replace page.html --find \"colour\" --replace \"color\"",
+          "short": "Search and Replace"
+        },
+        "sed": {
+          "short": "Stream-edit the translatable text of files (use ksed)"
+        },
+        "segment-count": {
+          "example": "  kapi segment-count messages.json\n  kapi segment-count app.xliff",
+          "short": "Segment Count"
+        },
+        "segmentation": {
+          "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
+          "short": "Segmentation"
+        },
+        "short": "A localization and translation toolkit",
+        "skills": {
+          "export": {
+            "short": "Export all skills to a directory (for the plugin bundle)"
+          },
+          "install": {
+            "long": "Install the bundled skills into a .claude/skills directory.\n\n  --target project  (default)  → ./.claude/skills/\u003cname\u003e/SKILL.md\n  --target user                → ~/.claude/skills/\u003cname\u003e/SKILL.md\n\nPass skill names to install a subset; omit to install all.",
+            "short": "Install skills into .claude/skills (project or user scope)"
+          },
+          "list": {
+            "short": "List the bundled Agent Skills"
+          },
+          "long": "Manage the bundled Agent Skills.\n\nThese SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how\nto use kapi to keep generated content on-brand, terminologically consistent, and\nto publish multilingually. The kapi-* skills drive the local CLI; the bowrain-*\nskills drive the governed Bowrain platform.",
+          "short": "Install Agent Skills that plug kapi into your AI coding assistant",
+          "uninstall": {
+            "short": "Remove installed skills from .claude/skills"
+          }
+        },
+        "term-check": {
+          "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
+          "short": "Terminology Check"
+        },
+        "termbase": {
+          "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
+          "export": {
+            "short": "Export termbase to CSV, JSON, or TBX"
+          },
+          "import": {
+            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx",
+            "short": "Import terms from CSV, JSON, or TBX into a termbase"
+          },
+          "list": {
+            "short": "List named termbases in KAPI_HOME"
+          },
+          "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+          "lookup": {
+            "example": "  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase lookup \"settings\" -s en -t de --fuzzy",
+            "short": "Look up a term in the termbase"
+          },
+          "search": {
+            "example": "  kapi termbase search \"encrypt\" -s en\n  kapi termbase search \"log in\" -s en -t fr",
+            "short": "Search concepts in the termbase"
+          },
+          "short": "Manage terminology",
+          "stats": {
+            "example": "  kapi termbase stats\n  kapi termbase stats --name product-terms",
+            "short": "Show termbase statistics"
+          }
+        },
+        "tm": {
+          "audit": {
+            "long": "Show every TM entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project TM.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=\u003cbatch-id\u003e, key=\u003csource-rel\u003e). Audit iterates the project TM,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi tm audit --batch \u003cbatch-id\u003e             # full listing\n  kapi tm audit --batch \u003cbatch-id\u003e --limit 50  # cap rows\n\nUse \"kapi tm stats\" for global TM metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n",
+            "short": "Trace TM entries by merge batch id"
+          },
+          "example": "  kapi tm stats\n  kapi tm lookup \"welcome back\" -s en -t fr\n  kapi tm import corpus.tmx -s en -t fr",
+          "export": {
+            "long": "Export the TM to TMX 1.4 format. Each entry is written as a single\n\u003ctu\u003e with one \u003ctuv\u003e per language variant present (or the subset requested\nvia --locales). Inline markup is preserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e.\n\nBy default all variants on every entry are emitted. Pass --locales to\nrestrict to a subset (comma-separated).",
+            "short": "Export translation memory to TMX"
+          },
+          "import": {
+            "example": "  kapi tm import corpus.tmx -s en -t fr\n  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm",
+            "long": "Import a single TMX file (plain or .gz) into the TM.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+            "short": "Import a TMX file into translation memory"
+          },
+          "import-dir": {
+            "long": "Walk a directory and import every matching TMX file into the TM.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE",
+            "short": "Import all TMX files from a directory into translation memory"
+          },
+          "list": {
+            "short": "List named TMs in KAPI_HOME"
+          },
+          "long": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named TM in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         TM in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+          "lookup": {
+            "example": "  kapi tm lookup \"welcome back\" -s en -t fr\n  kapi tm lookup \"save\" -s en -t de --min-score 0.8",
+            "short": "Look up text in translation memory"
+          },
+          "search": {
+            "example": "  kapi tm search \"dashboard\" -s en -t fr\n  kapi tm search \"settings\" --limit 5",
+            "short": "Search translation memory entries"
+          },
+          "sessions": {
+            "delete": {
+              "short": "Remove a session record (entries are retained, session_id cleared)"
+            },
+            "list": {
+              "short": "List all import sessions"
+            },
+            "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source.",
+            "short": "Manage TMX import sessions",
+            "show": {
+              "short": "Show details for a single import session"
+            }
+          },
+          "short": "Manage translation memory",
+          "stats": {
+            "example": "  kapi tm stats\n  kapi tm stats --name my-tm",
+            "short": "Show translation memory statistics"
+          }
+        },
+        "tm-leverage": {
+          "example": "  kapi tm-leverage app.xliff --target-lang fr\n  kapi tm-leverage messages.json --target-lang de",
+          "short": "TM Leverage"
+        },
+        "tools": {
+          "example": "  kapi tools\n  kapi tools list",
+          "list": {
+            "example": "  kapi tools list",
+            "short": "List available processing tools"
+          },
+          "schema": {
+            "example": "  kapi tools schema word-count\n  kapi tools schema pseudo-translate",
+            "short": "Print the JSON Schema for a tool's parameters"
+          },
+          "short": "List available processing tools"
+        },
+        "translation-comparison": {
+          "short": "Translation Comparison"
+        },
+        "unpack": {
+          "example": "  kapi unpack snapshot.klz",
+          "short": "Rehydrate a project's working state from a .klz snapshot"
+        },
+        "unredact": {
+          "short": "Restore original values into redacted content after processing"
+        },
+        "verify": {
+          "long": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nExit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means\n\"not on-spec yet\", not a crash — in an assistant fix-loop, read the findings and fix.\nPass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating.",
+          "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot"
+        },
+        "version": {
+          "example": "  kapi version",
+          "short": "Show version information"
+        },
+        "word-count": {
+          "example": "  kapi word-count messages.json\n  kapi word-count app.xliff --json",
+          "short": "Word Count"
+        }
+      }
+    },
+    "output": {
+      "flows": {
+        "available": "Available flows:",
+        "none": "No flows defined.",
+        "total": "Total: %d flow(s)"
+      },
+      "formats": {
+        "available": "Available formats:",
+        "header": {
+          "extensions": "EXTENSIONS",
+          "format": "FORMAT",
+          "mimeTypes": "MIME TYPES",
+          "name": "NAME",
+          "read": "READ",
+          "source": "SOURCE",
+          "write": "WRITE"
+        },
+        "total": "Total: %d format(s)"
+      },
+      "plugins": {
+        "header": {
+          "formats": "FORMATS",
+          "name": "NAME",
+          "status": "STATUS",
+          "type": "TYPE",
+          "version": "VERSION"
+        },
+        "installed": "Installed plugins:",
+        "none": "No plugins installed.",
+        "total": "Total: %d plugin(s)"
+      },
+      "registries": {
+        "header": {
+          "channels": "CHANNELS",
+          "name": "NAME",
+          "url": "URL"
+        },
+        "none": "No registries configured.",
+        "total": "Total: %d registry(ies)"
+      },
+      "tools": {
+        "available": "Available tools:",
+        "category": {
+          "analysis": "Analysis",
+          "other": "Other",
+          "quality": "Quality",
+          "text-processing": "Text Processing",
+          "translation": "Translation"
+        },
+        "none": "No tools available.",
+        "total": "Total: %d tool(s)"
+      }
+    }
+  }
+}

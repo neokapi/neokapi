@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
+	clii18n "github.com/neokapi/neokapi/cli/i18n"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -279,12 +280,17 @@ func (a *App) Init() error {
 	a.applyFormatPriorities(a.Config.FormatPriorities())
 
 	// Build the metadata Translator from --lang / KAPI_LANG / config /
-	// POSIX env vars. Manifest-driven plugin catalogs (when we add them)
-	// can be merged in by InitPluginHost later.
-	a.translator = i18n.Resolve(i18n.ResolveOptions{
+	// POSIX env vars, merging the CLI module's own embedded catalogs
+	// (cli/i18n: command help + output chrome) with the framework's
+	// builtin catalogs. Manifest-driven plugin catalogs (when we add
+	// them) can be merged in by InitPluginHost later.
+	a.translator = clii18n.Resolve(i18n.ResolveOptions{
 		Flag:           a.Lang,
 		ConfigLanguage: a.Config.Language(),
 	})
+	// Output chrome (table headers, list-status lines) renders through
+	// the same Translator.
+	output.SetTranslator(a.translator)
 	return nil
 }
 

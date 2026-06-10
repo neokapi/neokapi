@@ -1,0 +1,1654 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="tu1">
+      <tuv xml:lang="en">
+        <seg>A localization and translation toolkit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Et verktøysett for lokalisering og oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu2">
+      <tuv xml:lang="en">
+        <seg>Add a registry to global config</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til et register i global konfigurasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu3">
+      <tuv xml:lang="en">
+        <seg>Add file patterns to the project's content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til filmønstre i prosjektets innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu4">
+      <tuv xml:lang="en">
+        <seg>Add file patterns to this project's content so kapi knows which files to
+process. Patterns support ** for recursive matching. Format is auto-detected
+from the extension unless --format is given.
+
+  kapi add "src/**/*.html"
+  kapi add "locales/*.json" --format json
+  kapi add "src/**/*.html" "content/**/*.md"</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til filmønstre i prosjektets innhold slik at kapi vet hvilke filer som skal
+behandles. Mønstre støtter ** for rekursiv matching. Formatet gjenkjennes
+automatisk fra filendelsen med mindre --format er angitt.
+
+  kapi add "src/**/*.html"
+  kapi add "locales/*.json" --format json
+  kapi add "src/**/*.html" "content/**/*.md"</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu5">
+      <tuv xml:lang="en">
+        <seg>An import session is created every time a TMX file is imported.
+Each session records the file's SHA-256 hash, TMX header metadata, and the
+number of entries imported. Origins on TM entries point back to the session
+that added them so you can filter the TM by import source.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>En importøkt opprettes hver gang en TMX-fil importeres.
+Hver økt registrerer filens SHA-256-hasj, TMX-headerens metadata og antall
+importerte enheter. Opphav på TM-enheter peker tilbake til økten som la dem
+til, slik at du kan filtrere oversettelsesminnet på importkilde.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu6">
+      <tuv xml:lang="en">
+        <seg>Analysis</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Analyse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu7">
+      <tuv xml:lang="en">
+        <seg>Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flett en returnert tospråklig fil (.klz/XLIFF/PO) tilbake inn i prosjektkilden</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu8">
+      <tuv xml:lang="en">
+        <seg>Available flows:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilgjengelige flyter:</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu9">
+      <tuv xml:lang="en">
+        <seg>Available formats:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilgjengelige formater:</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu10">
+      <tuv xml:lang="en">
+        <seg>Available tools:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilgjengelige verktøy:</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu11">
+      <tuv xml:lang="en">
+        <seg>CHANNELS</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>KANALER</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu12">
+      <tuv xml:lang="en">
+        <seg>Check, rewrite, and govern content against a brand voice profile.
+
+Profile source (mutually exclusive):
+  --profile &lt;name&gt;       Profile in the local brand store (see 'kapi brand profiles')
+  --profile-file &lt;path&gt;  Standalone profile YAML (git-shareable, no store needed)
+  --pack &lt;name&gt;          Built-in starter pack (professional-b2b, friendly-dtc,
+                         technical-docs, marketing-blog, customer-support)
+
+Text input for check/rewrite is read from --text, or from stdin when --text is
+omitted or set to "-".</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller, omskriv og styr innhold mot en merkevarestemmeprofil.
+
+Profilkilde (gjensidig utelukkende):
+  --profile &lt;name&gt;       Profil i det lokale merkevarelageret (se 'kapi brand profiles')
+  --profile-file &lt;path&gt;  Frittstående profil-YAML (git-delbar, krever ikke lager)
+  --pack &lt;name&gt;          Innebygd startpakke (professional-b2b, friendly-dtc,
+                         technical-docs, marketing-blog, customer-support)
+
+Tekst til check/rewrite leses fra --text, eller fra stdin når --text er
+utelatt eller satt til "-".</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu13">
+      <tuv xml:lang="en">
+        <seg>Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the
+PreToolUse-event JSON on stdin, resolves the .kapi project in the session's
+working directory, and:
+
+  - emits {"hookSpecificOutput":{"permissionDecision":"deny",…}} (exit 0) when
+    the file being written is a project content target (a path that
+    "kapi merge" generates), so Claude routes the change through
+    extract → translate → merge instead; or
+  - emits nothing (exit 0) otherwise — outside a project, on source files, on
+    files the project does not generate, or when the project cannot be loaded —
+    leaving the normal permission flow untouched.
+
+Wire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of
+Edit|Write|MultiEdit. It fails open: anything other than a confirmed target
+match lets the edit proceed, so the guard never traps the assistant on an
+unrelated file.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Claude Code PreToolUse-hook for Edit/Write/MultiEdit. Leser PreToolUse-hendelsens
+JSON på stdin, finner .kapi-prosjektet i øktens arbeidskatalog, og:
+
+  - skriver {"hookSpecificOutput":{"permissionDecision":"deny",…}} (avslutningskode 0) når
+    filen som skrives er et innholdsmål i prosjektet (en sti som
+    "kapi merge" genererer), slik at Claude ruter endringen gjennom
+    trekk ut → oversett → flett i stedet; eller
+  - skriver ingenting (avslutningskode 0) ellers — utenfor et prosjekt, på kildefiler, på
+    filer prosjektet ikke genererer, eller når prosjektet ikke kan lastes —
+    og lar den vanlige tillatelsesflyten stå urørt.
+
+Koble den opp via kapi-tillegget for Claude Code (hooks/hooks.json) med matcher
+Edit|Write|MultiEdit. Den feiler åpent: alt annet enn et bekreftet måltreff
+lar redigeringen fortsette, så vakten fanger aldri assistenten på en
+urelatert fil.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu14">
+      <tuv xml:lang="en">
+        <seg>Claude Code PreToolUse hook: block direct edits to kapi-generated translation targets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Claude Code PreToolUse-hook: blokker direkte redigering av oversettelsesmål generert av kapi</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu15">
+      <tuv xml:lang="en">
+        <seg>Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the
+verify gates for the project in the session's working directory, and:
+
+  - emits nothing (exit 0) when the project passes, when there is no .kapi
+    project, or when verify cannot run — Claude is free to finish; or
+  - emits {"decision":"block","reason":"…findings…"} (exit 0) when a gate
+    fails, so Claude keeps working and fixes the findings before stopping.
+
+Wire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:
+anything other than a clean gate failure lets Claude stop, so a missing project
+or a verify error never traps the assistant. Claude Code caps consecutive
+blocks, so an unfixable finding cannot loop forever.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Claude Code Stop-hook. Leser Stop-hendelsens JSON på stdin, kjører
+verify-portene for prosjektet i øktens arbeidskatalog, og:
+
+  - skriver ingenting (avslutningskode 0) når prosjektet består, når det ikke finnes
+    noe .kapi-prosjekt, eller når verify ikke kan kjøre — Claude kan avslutte fritt; eller
+  - skriver {"decision":"block","reason":"…funn…"} (avslutningskode 0) når en port
+    feiler, slik at Claude fortsetter arbeidet og retter funnene før den stopper.
+
+Koble den opp via kapi-tillegget for Claude Code (hooks/hooks.json). Den feiler åpent:
+alt annet enn en ren portfeil lar Claude stoppe, så et manglende prosjekt
+eller en verify-feil fanger aldri assistenten. Claude Code begrenser antall
+påfølgende blokkeringer, så et funn som ikke kan rettes kan ikke gå i evig løkke.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu16">
+      <tuv xml:lang="en">
+        <seg>Claude Code Stop hook: keep working until the project's kapi verify gates pass</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Claude Code Stop-hook: fortsett arbeidet til prosjektets kapi verify-porter består</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu17">
+      <tuv xml:lang="en">
+        <seg>Create a new kapi project with a {name}.kapi recipe and an
+adjacent .kapi/ state directory.
+
+By default the project id is the current directory's basename and
+source/target locales are en / (none). Override with --name,
+--source-locale, --target-locale (repeatable).
+
+--framework &lt;name&gt; pre-fills the content mapping for a known stack's i18n
+catalogs (see 'kapi presets list --framework'): react-i18next, react-intl,
+nextjs, vue-i18n, flutter, angular.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Opprett et nytt kapi-prosjekt med en {name}.kapi-oppskrift og en
+tilhørende .kapi/-tilstandskatalog.
+
+Som standard er prosjekt-id-en navnet på gjeldende katalog, og
+kilde-/målspråk er en / (ingen). Overstyr med --name,
+--source-locale, --target-locale (kan gjentas).
+
+--framework &lt;name&gt; forhåndsutfyller innholdskartleggingen for i18n-katalogene
+til en kjent teknologistakk (se 'kapi presets list --framework'): react-i18next,
+react-intl, nextjs, vue-i18n, flutter, angular.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu18">
+      <tuv xml:lang="en">
+        <seg>EXTENSIONS</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>FILENDELSER</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu19">
+      <tuv xml:lang="en">
+        <seg>Emit a bilingual file for a translator — native .klz or XLIFF/PO</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lag en tospråklig fil for en oversetter — nativ .klz eller XLIFF/PO</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu20">
+      <tuv xml:lang="en">
+        <seg>Emit bilingual XLIFF 2.x (default) or PO files for each target locale
+declared in a .kapi project, pre-filled from the project's translation
+memory.
+
+Each invocation writes one batch of outputs under .kapi/cache/extractions/&lt;batch-id&gt;/
+plus one bilingual file per source → target pair in --out-dir (default "out/").</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv tospråklige XLIFF 2.x-filer (standard) eller PO-filer for hvert målspråk
+som er deklarert i et .kapi-prosjekt, forhåndsutfylt fra prosjektets
+oversettelsesminne.
+
+Hver kjøring skriver én bunt med utdata under .kapi/cache/extractions/&lt;batch-id&gt;/
+pluss én tospråklig fil per kilde → mål-par i --out-dir (standard "out/").</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu21">
+      <tuv xml:lang="en">
+        <seg>Export all skills to a directory (for the plugin bundle)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Eksporter alle skills til en katalog (for tilleggspakken)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu22">
+      <tuv xml:lang="en">
+        <seg>Export termbase to CSV, JSON, or TBX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Eksporter termbase til CSV, JSON eller TBX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu23">
+      <tuv xml:lang="en">
+        <seg>Export the TM to TMX 1.4 format. Each entry is written as a single
+&lt;tu&gt; with one &lt;tuv&gt; per language variant present (or the subset requested
+via --locales). Inline markup is preserved as TMX &lt;ph&gt;/&lt;bpt&gt;/&lt;ept&gt;/&lt;it&gt;/&lt;hi&gt;.
+
+By default all variants on every entry are emitted. Pass --locales to
+restrict to a subset (comma-separated).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Eksporter oversettelsesminnet til TMX 1.4-format. Hver enhet skrives som én
+&lt;tu&gt; med én &lt;tuv&gt; per språkvariant som finnes (eller utvalget som er bedt om
+med --locales). Inline-merking bevares som TMX &lt;ph&gt;/&lt;bpt&gt;/&lt;ept&gt;/&lt;it&gt;/&lt;hi&gt;.
+
+Som standard skrives alle varianter på hver enhet. Bruk --locales for å
+begrense til et utvalg (kommaseparert).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu24">
+      <tuv xml:lang="en">
+        <seg>Export translation memory to TMX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Eksporter oversettelsesminne til TMX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu25">
+      <tuv xml:lang="en">
+        <seg>FORMAT</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>FORMAT</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu26">
+      <tuv xml:lang="en">
+        <seg>FORMATS</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>FORMATER</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu27">
+      <tuv xml:lang="en">
+        <seg>Force a rebuild of the plugin dispatch cache</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bygg tilleggenes dispatch-hurtigbuffer på nytt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu28">
+      <tuv xml:lang="en">
+        <seg>Generate a shell completion script for the specified shell.
+
+To load completions:
+
+Bash:
+  $ source &lt;(kapi completion bash)
+  # Or install permanently:
+  $ kapi completion bash &gt; /etc/bash_completion.d/kapi
+
+Zsh:
+  $ source &lt;(kapi completion zsh)
+  # Or install permanently:
+  $ kapi completion zsh &gt; "${fpath[1]}/_kapi"
+
+Fish:
+  $ kapi completion fish | source
+  # Or install permanently:
+  $ kapi completion fish &gt; ~/.config/fish/completions/kapi.fish
+
+PowerShell:
+  PS&gt; kapi completion powershell | Out-String | Invoke-Expression
+</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Generer et skript for skallfullføring for det angitte skallet.
+
+Slik laster du inn fullføringene:
+
+Bash:
+  $ source &lt;(kapi completion bash)
+  # Eller installer permanent:
+  $ kapi completion bash &gt; /etc/bash_completion.d/kapi
+
+Zsh:
+  $ source &lt;(kapi completion zsh)
+  # Eller installer permanent:
+  $ kapi completion zsh &gt; "${fpath[1]}/_kapi"
+
+Fish:
+  $ kapi completion fish | source
+  # Eller installer permanent:
+  $ kapi completion fish &gt; ~/.config/fish/completions/kapi.fish
+
+PowerShell:
+  PS&gt; kapi completion powershell | Out-String | Invoke-Expression
+</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu29">
+      <tuv xml:lang="en">
+        <seg>Generate shell completion script</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Generer skript for skallfullføring</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu30">
+      <tuv xml:lang="en">
+        <seg>Glue commands for AI coding assistants. Each subcommand reads the
+assistant's hook payload on stdin and writes the assistant's expected response
+on stdout. These are wired up by the assistant's plugin, not run by hand.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Limkommandoer for AI-kodeassistenter. Hver underkommando leser assistentens
+hook-nyttelast på stdin og skriver svaret assistenten forventer på stdout.
+Disse kobles opp av assistentens tillegg og kjøres ikke for hånd.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu31">
+      <tuv xml:lang="en">
+        <seg>Import a TMX file into translation memory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer en TMX-fil til oversettelsesminnet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu32">
+      <tuv xml:lang="en">
+        <seg>Import a profile YAML into the local brand store</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer en profil-YAML til det lokale merkevarelageret</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu33">
+      <tuv xml:lang="en">
+        <seg>Import a single TMX file (plain or .gz) into the TM.
+
+By default, imports entries matching the given --source-locale and --target-locale.
+Use --all-pairs to emit entries for every (src, tgt) language pair present in
+each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where
+a single TU may contain 24+ languages). Combine with --locales to restrict the
+pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).
+
+The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
+without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
+&lt;prop type="source-document"&gt; URL is recorded as Origin.Reference.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer én TMX-fil (ren eller .gz) til oversettelsesminnet.
+
+Som standard importeres enheter som samsvarer med angitt --source-locale og --target-locale.
+Bruk --all-pairs for å skrive enheter for hvert (kilde, mål)-språkpar som finnes i
+hver TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der
+én TU kan inneholde over 24 språk). Kombiner med --locales for å begrense
+parsettet (f.eks. --all-pairs --locales en-GB,fr-FR,de-DE).
+
+Importen gjenkjenner UTF-8/UTF-16 automatisk fra BOM-en, så Euramis-eksporter
+fungerer uten forhåndskonvertering. For TMX-sett fra webcrawl (bitextor-utdata)
+registreres URL-en i &lt;prop type="source-document"&gt; per TUV som Origin.Reference.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu34">
+      <tuv xml:lang="en">
+        <seg>Import all TMX files from a directory into translation memory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer alle TMX-filer fra en katalog til oversettelsesminnet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu35">
+      <tuv xml:lang="en">
+        <seg>Import terms from CSV, JSON, or TBX into a termbase</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Importer termer fra CSV, JSON eller TBX til en termbase</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu36">
+      <tuv xml:lang="en">
+        <seg>Install Agent Skills that plug kapi into your AI coding assistant</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer Agent Skills som kobler kapi til AI-kodeassistenten din</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu37">
+      <tuv xml:lang="en">
+        <seg>Install a built-in starter pack into the local brand store</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer en innebygd startpakke i det lokale merkevarelageret</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu38">
+      <tuv xml:lang="en">
+        <seg>Install a plugin from a registry. The plugin is downloaded,
+verified (SHA-256 + cosign signature), and unpacked into
+$XDG_DATA_HOME/kapi/plugins/&lt;name&gt;/.
+
+Examples:
+  kapi plugin install bowrain
+  kapi plugin install bowrain@^1.0
+  kapi plugin install bowrain --channel beta</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer et tillegg fra et register. Tillegget lastes ned,
+verifiseres (SHA-256 + cosign-signatur) og pakkes ut i
+$XDG_DATA_HOME/kapi/plugins/&lt;name&gt;/.
+
+Eksempler:
+  kapi plugin install bowrain
+  kapi plugin install bowrain@^1.0
+  kapi plugin install bowrain --channel beta</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu39">
+      <tuv xml:lang="en">
+        <seg>Install a plugin from the registry</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer et tillegg fra registeret</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu40">
+      <tuv xml:lang="en">
+        <seg>Install and manage manifest-driven plugins (#438)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer og administrer manifestdrevne tillegg (#438)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu41">
+      <tuv xml:lang="en">
+        <seg>Install skills into .claude/skills (project or user scope)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer skills i .claude/skills (prosjekt- eller brukernivå)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu42">
+      <tuv xml:lang="en">
+        <seg>Install the bundled skills into a .claude/skills directory.
+
+  --target project  (default)  → ./.claude/skills/&lt;name&gt;/SKILL.md
+  --target user                → ~/.claude/skills/&lt;name&gt;/SKILL.md
+
+Pass skill names to install a subset; omit to install all.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installer de medfølgende skills i en .claude/skills-katalog.
+
+  --target project  (standard)  → ./.claude/skills/&lt;name&gt;/SKILL.md
+  --target user                → ~/.claude/skills/&lt;name&gt;/SKILL.md
+
+Oppgi skill-navn for å installere et utvalg; utelat for å installere alle.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu43">
+      <tuv xml:lang="en">
+        <seg>Installed plugins:</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Installerte tillegg:</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu44">
+      <tuv xml:lang="en">
+        <seg>Integration hooks for AI coding assistants (Claude Code)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Integrasjonshooks for AI-kodeassistenter (Claude Code)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu45">
+      <tuv xml:lang="en">
+        <seg>Keep AI-generated content on brand (voice, tone, terminology)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hold AI-generert innhold i tråd med merkevaren (stemme, tone, terminologi)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu46">
+      <tuv xml:lang="en">
+        <seg>List all file formats that can be read and written.
+
+Use --mime or --ext to filter by MIME type or file extension.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List alle filformater som kan leses og skrives.
+
+Bruk --mime eller --ext for å filtrere på MIME-type eller filendelse.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu47">
+      <tuv xml:lang="en">
+        <seg>List all import sessions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List alle importøkter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu48">
+      <tuv xml:lang="en">
+        <seg>List available flows</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List tilgjengelige flyter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu49">
+      <tuv xml:lang="en">
+        <seg>List available presets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List tilgjengelige forhåndsinnstillinger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu50">
+      <tuv xml:lang="en">
+        <seg>List available processing tools</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List tilgjengelige behandlingsverktøy</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu51">
+      <tuv xml:lang="en">
+        <seg>List brand voice profiles (local store + built-in packs)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List merkevarestemmeprofiler (lokalt lager + innebygde pakker)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu52">
+      <tuv xml:lang="en">
+        <seg>List configured registries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List konfigurerte registre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu53">
+      <tuv xml:lang="en">
+        <seg>List installed plugins</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List installerte tillegg</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu54">
+      <tuv xml:lang="en">
+        <seg>List named TMs in KAPI_HOME</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List navngitte oversettelsesminner i KAPI_HOME</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu55">
+      <tuv xml:lang="en">
+        <seg>List named termbases in KAPI_HOME</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List navngitte termbaser i KAPI_HOME</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu56">
+      <tuv xml:lang="en">
+        <seg>List saved credentials</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List lagret legitimasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu57">
+      <tuv xml:lang="en">
+        <seg>List supported file formats</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List filformater som støttes</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu58">
+      <tuv xml:lang="en">
+        <seg>List the bundled Agent Skills</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List de medfølgende Agent Skills</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu59">
+      <tuv xml:lang="en">
+        <seg>List the files matched by the project's content collections (honoring the
+exclude list). With --stats, also show per-file block and word counts.
+
+  kapi ls
+  kapi ls src/
+  kapi ls --stats</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List filene som matches av prosjektets innholdssamlinger (med respekt for
+ekskluderingslisten). Med --stats vises også antall blokker og ord per fil.
+
+  kapi ls
+  kapi ls src/
+  kapi ls --stats</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu60">
+      <tuv xml:lang="en">
+        <seg>List the files the project's content tracks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>List filene prosjektets innhold sporer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu61">
+      <tuv xml:lang="en">
+        <seg>Look up a term in the termbase</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Slå opp en term i termbasen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu62">
+      <tuv xml:lang="en">
+        <seg>Look up text in translation memory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Slå opp tekst i oversettelsesminnet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu63">
+      <tuv xml:lang="en">
+        <seg>MIME TYPES</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MIME-TYPER</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu64">
+      <tuv xml:lang="en">
+        <seg>Manage TMX import sessions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer TMX-importøkter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu65">
+      <tuv xml:lang="en">
+        <seg>Manage format and framework presets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer format- og rammeverksforhåndsinnstillinger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu66">
+      <tuv xml:lang="en">
+        <seg>Manage plugin registries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer tilleggsregistre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu67">
+      <tuv xml:lang="en">
+        <seg>Manage project terminology.
+
+A termbase is a glossary of approved terms stored as a SQLite database.
+Use these commands to import, export, look up, and manage terms.
+
+Resource location (mutually exclusive):
+  --name &lt;n&gt;      Named termbase in KAPI_HOME (~/.config/kapi/termbases/&lt;n&gt;.db)
+  --local         Termbase in current directory (./termbase.db)
+  --file &lt;path&gt;   Explicit file path
+
+Default (no flag): same as --local (uses ./termbase.db).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer prosjektterminologi.
+
+En termbase er en ordliste med godkjente termer lagret som en SQLite-database.
+Bruk disse kommandoene til å importere, eksportere, slå opp og administrere termer.
+
+Ressursplassering (gjensidig utelukkende):
+  --name &lt;n&gt;      Navngitt termbase i KAPI_HOME (~/.config/kapi/termbases/&lt;n&gt;.db)
+  --local         Termbase i gjeldende katalog (./termbase.db)
+  --file &lt;path&gt;   Eksplisitt filsti
+
+Standard (uten flagg): samme som --local (bruker ./termbase.db).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu68">
+      <tuv xml:lang="en">
+        <seg>Manage saved AI provider credentials</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer lagret legitimasjon for AI-leverandører</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu69">
+      <tuv xml:lang="en">
+        <seg>Manage the bundled Agent Skills.
+
+These SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how
+to use kapi to keep generated content on-brand, terminologically consistent, and
+to publish multilingually. The kapi-* skills drive the local CLI; the bowrain-*
+skills drive the governed Bowrain platform.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer de medfølgende Agent Skills.
+
+Disse SKILL.md-definisjonene lærer en AI-kodeassistent (Claude Code o.l.) hvordan
+den bruker kapi til å holde generert innhold i tråd med merkevaren, terminologisk
+konsistent, og til å publisere flerspråklig. kapi-*-skills driver den lokale
+CLI-en; bowrain-*-skills driver den styrte Bowrain-plattformen.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu70">
+      <tuv xml:lang="en">
+        <seg>Manage translation memory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer oversettelsesminne</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu71">
+      <tuv xml:lang="en">
+        <seg>Manage translation memory.
+
+A translation memory (TM) stores previously translated segments as a SQLite
+database. Use these commands to import/export TMX, look up matches, and manage
+TM entries.
+
+Resource location (mutually exclusive):
+  --name &lt;n&gt;      Named TM in KAPI_HOME (~/.config/kapi/tm/&lt;n&gt;.db)
+  --local         TM in current directory (./tm.db)
+  --file &lt;path&gt;   Explicit file path
+
+Default (no flag): same as --local (uses ./tm.db).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Administrer oversettelsesminne.
+
+Et oversettelsesminne (TM) lagrer tidligere oversatte segmenter som en
+SQLite-database. Bruk disse kommandoene til å importere/eksportere TMX, slå opp
+treff og administrere TM-enheter.
+
+Ressursplassering (gjensidig utelukkende):
+  --name &lt;n&gt;      Navngitt TM i KAPI_HOME (~/.config/kapi/tm/&lt;n&gt;.db)
+  --local         TM i gjeldende katalog (./tm.db)
+  --file &lt;path&gt;   Eksplisitt filsti
+
+Standard (uten flagg): samme som --local (bruker ./tm.db).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu72">
+      <tuv xml:lang="en">
+        <seg>Materialize localized files for a project, or apply bilingual files
+returned by a translator back onto the project's source locales.
+
+With no -i in a project, merge writes the localized files from the
+project block store: a process-only "kapi run" (in a project, no -o)
+commits its work as targets/&lt;locale&gt; overlays, and merge is the matching
+sink — it reads each source, applies the stored overlays, and writes the
+localized file via the source format's skeleton round-trip.
+
+With -i, merge applies one or more bilingual files returned by a
+translator back onto the project's source locales, using the skeleton
+captured by kapi extract. Each input carries the extraction
+batch id in a file-level &lt;note&gt;, so merge finds the right extraction
+manifest without guessing from the filename. Mixed target locales in one
+batch are fine — merge handles each input independently.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Materialiser lokaliserte filer for et prosjekt, eller flett tospråklige filer
+fra en oversetter tilbake inn i prosjektets kildespråk.
+
+Uten -i i et prosjekt skriver merge de lokaliserte filene fra prosjektets
+blokklager: en ren prosesskjøring med "kapi run" (i et prosjekt, uten -o)
+lagrer arbeidet som targets/&lt;locale&gt;-overlegg, og merge er den tilhørende
+sluttfasen — den leser hver kilde, legger på de lagrede overleggene og skriver
+den lokaliserte filen via kildeformatets skjelett-rundtur.
+
+Med -i fletter merge én eller flere tospråklige filer fra en oversetter
+tilbake inn i prosjektets kildespråk, ved hjelp av skjelettet som ble fanget av
+kapi extract. Hver inndatafil bærer uttreksbunt-id-en i en &lt;note&gt; på filnivå,
+så merge finner riktig uttrekksmanifest uten å gjette fra filnavnet. Blandede
+målspråk i én bunt går fint — merge håndterer hver inndatafil uavhengig.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu73">
+      <tuv xml:lang="en">
+        <seg>NAME</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>NAVN</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu74">
+      <tuv xml:lang="en">
+        <seg>No flows defined.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ingen flyter er definert.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu75">
+      <tuv xml:lang="en">
+        <seg>No registries configured.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ingen registre er konfigurert.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu76">
+      <tuv xml:lang="en">
+        <seg>Other</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Annet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu77">
+      <tuv xml:lang="en">
+        <seg>Output JSON Schema for a format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv ut JSON-skjema for et format</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu78">
+      <tuv xml:lang="en">
+        <seg>Print the JSON Schema for a tool's parameters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv ut JSON-skjemaet for et verktøys parametre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu79">
+      <tuv xml:lang="en">
+        <seg>Print the brand voice guide (inject into your assistant's context)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv ut merkevarestemmeguiden (legg den inn i assistentens kontekst)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu80">
+      <tuv xml:lang="en">
+        <seg>Print the translatable text of files (use kcat)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv ut den oversettbare teksten i filer (bruk kcat)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu81">
+      <tuv xml:lang="en">
+        <seg>Quality</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kvalitet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu82">
+      <tuv xml:lang="en">
+        <seg>READ</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>LES</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu83">
+      <tuv xml:lang="en">
+        <seg>Re-verify an installed plugin's manifest and binary</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verifiser manifestet og binærfilen til et installert tillegg på nytt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu84">
+      <tuv xml:lang="en">
+        <seg>Refresh the cached registry index</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdater den hurtigbufrede registerindeksen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu85">
+      <tuv xml:lang="en">
+        <seg>Rehydrate a project's working state from a .klz snapshot</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenopprett et prosjekts arbeidstilstand fra et .klz-øyeblikksbilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu86">
+      <tuv xml:lang="en">
+        <seg>Remove a registry from global config</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern et register fra global konfigurasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu87">
+      <tuv xml:lang="en">
+        <seg>Remove a saved credential</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern lagret legitimasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu88">
+      <tuv xml:lang="en">
+        <seg>Remove a session record (entries are retained, session_id cleared)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern en øktoppføring (enhetene beholdes, session_id nullstilles)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu89">
+      <tuv xml:lang="en">
+        <seg>Remove an installed plugin</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern et installert tillegg</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu90">
+      <tuv xml:lang="en">
+        <seg>Remove file patterns from the project's content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern filmønstre fra prosjektets innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu91">
+      <tuv xml:lang="en">
+        <seg>Remove installed skills from .claude/skills</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern installerte skills fra .claude/skills</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu92">
+      <tuv xml:lang="en">
+        <seg>Rewrite text to comply with a brand voice profile</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Omskriv tekst slik at den følger en merkevarestemmeprofil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu93">
+      <tuv xml:lang="en">
+        <seg>Run a composed flow (multi-tool pipeline)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør en sammensatt flyt (pipeline med flere verktøy)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu94">
+      <tuv xml:lang="en">
+        <seg>Run a composed flow that chains multiple tools together.
+
+Flows are multi-tool pipelines. For single-tool operations, use the
+tool directly (e.g. "kapi ai-translate" instead of "kapi run ai-translate").
+
+Built-in flows:
+  ai-translate-qa    Translate + quality check using AI/LLM
+
+Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.
+
+Use -p to run a flow from a .kapi project file:
+  kapi run translate -p myproject.kapi</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør en sammensatt flyt som lenker flere verktøy sammen.
+
+Flyter er pipeliner med flere verktøy. For operasjoner med ett verktøy, bruk
+verktøyet direkte (f.eks. "kapi ai-translate" i stedet for "kapi run ai-translate").
+
+Innebygde flyter:
+  ai-translate-qa    Oversett + kvalitetskontroll med AI/LLM
+
+Egendefinerte flyter kan defineres i .kapi-prosjektfiler eller .bowrain/flows/ som YAML-filer.
+
+Bruk -p for å kjøre en flyt fra en .kapi-prosjektfil:
+  kapi run translate -p myproject.kapi</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu95">
+      <tuv xml:lang="en">
+        <seg>Run a localization project's bound quality gates in a single shot and
+return a single structured pass/fail plus actionable findings.
+
+Gates (each runs only when the project binds the resource it needs):
+
+  brand        If a brand voice is bound (defaults.brand_voice), score the
+               source-language content against it. Fails when the score is
+               below the threshold (default 80, override with --min-score).
+  terminology  If a termbase is bound (defaults.termbase), check that target
+               files use the required translations from the project glossary.
+  qa           For translated target files, check placeholder/tag integrity
+               against the source and flag untranslated/empty targets.
+
+With no file arguments, verify inspects the project's content: brand on the
+source files, terminology and QA on the target files derived from each
+content item's target template and the project target languages.
+
+Pass file paths to verify just those files instead.
+
+Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means
+"not on-spec yet", not a crash — in an assistant fix-loop, read the findings and fix.
+Pass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør kvalitetsportene som er bundet til et lokaliseringsprosjekt i én operasjon,
+og få ett strukturert bestått/ikke bestått pluss funn som kan handles på.
+
+Porter (hver kjører bare når prosjektet binder ressursen den trenger):
+
+  brand        Hvis en merkevarestemme er bundet (defaults.brand_voice), vurderes
+               innholdet på kildespråket mot den. Feiler når poengsummen er
+               under terskelen (standard 80, overstyr med --min-score).
+  terminology  Hvis en termbase er bundet (defaults.termbase), kontrolleres det at
+               målfilene bruker de påkrevde oversettelsene fra prosjektets ordliste.
+  qa           For oversatte målfiler kontrolleres plassholder-/tagg-integritet
+               mot kilden, og uoversatte/tomme mål flagges.
+
+Uten filargumenter inspiserer verify prosjektets innhold: brand på
+kildefilene, terminology og qa på målfilene avledet fra hvert innholdselements
+målmal og prosjektets målspråk.
+
+Oppgi filstier for å verifisere bare de filene i stedet.
+
+Avslutningskoder: 0 bestått, 3 når en port feiler, 1 for operasjonelle feil. Kode 3 betyr
+"ikke i henhold til spesifikasjonen ennå", ikke krasj — i en fikse-løkke med en assistent,
+les funnene og rett dem. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i løkker;
+utelat flagget i CI slik at porten gjelder.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu96">
+      <tuv xml:lang="en">
+        <seg>Run a project's bound quality gates (brand, terminology, QA) in one shot</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør prosjektets bundne kvalitetsporter (merkevare, terminologi, QA) i én operasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu97">
+      <tuv xml:lang="en">
+        <seg>Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør innholdskontroller over en fil som tester over kode (do-not-translate, plassholdere, terminologi, merkevare)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu98">
+      <tuv xml:lang="en">
+        <seg>Run content checks over a file — or a source/target pair — and return
+structured findings plus a pass/fail, gating on severity.
+
+With two files, the second is the translated target and the bilingual checks run:
+do-not-translate (terms that must survive verbatim) and placeholder/tag integrity.
+With one file, source-side checks run (brand vocabulary). A bound brand profile
+(--profile/--pack/--profile-file) adds vocabulary checks in either mode.
+
+Exit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for
+operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kjør innholdskontroller over en fil — eller et kilde/mål-par — og få
+strukturerte funn pluss bestått/ikke bestått, med port på alvorlighetsgrad.
+
+Med to filer er den andre det oversatte målet, og de tospråklige kontrollene kjøres:
+do-not-translate (termer som må overleve ordrett) og plassholder-/tagg-integritet.
+Med én fil kjøres kontrollene på kildesiden (merkevarevokabular). En bundet
+merkevareprofil (--profile/--pack/--profile-file) legger til vokabularkontroller i begge modi.
+
+Avslutningskoder: 0 bestått, 3 når porten feiler (et kritisk funn som standard), 1 for
+operasjonelle feil. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i en fikse-løkke.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu99">
+      <tuv xml:lang="en">
+        <seg>SOURCE</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>KILDE</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu100">
+      <tuv xml:lang="en">
+        <seg>STATUS</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>STATUS</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu101">
+      <tuv xml:lang="en">
+        <seg>Save a named AI provider credential</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lagre navngitt legitimasjon for en AI-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu102">
+      <tuv xml:lang="en">
+        <seg>Save an AI provider credential to the OS keychain.
+
+The credential name is used to reference it in flows and tool commands:
+  kapi ai-translate --credential my-openai -i file.json --target-lang fr
+
+If only one credential is saved, tools will auto-detect it without --credential.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lagre legitimasjon for en AI-leverandør i operativsystemets nøkkelring.
+
+Navnet på legitimasjonen brukes til å referere til den i flyter og verktøykommandoer:
+  kapi ai-translate --credential my-openai -i file.json --target-lang fr
+
+Hvis bare én legitimasjon er lagret, finner verktøyene den automatisk uten --credential.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu103">
+      <tuv xml:lang="en">
+        <seg>Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lag et utkast til merkevarestemmeprofil i YAML (eventuelt basert på en startpakke)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu104">
+      <tuv xml:lang="en">
+        <seg>Scaffold a new kapi project in the current directory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Opprett et nytt kapi-prosjekt i gjeldende katalog</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu105">
+      <tuv xml:lang="en">
+        <seg>Score text against a brand voice profile</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vurder tekst mot en merkevarestemmeprofil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu106">
+      <tuv xml:lang="en">
+        <seg>Search concepts in the termbase</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Søk etter begreper i termbasen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu107">
+      <tuv xml:lang="en">
+        <seg>Search the registry for plugins</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Søk etter tillegg i registeret</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu108">
+      <tuv xml:lang="en">
+        <seg>Search the translatable text of files (use kgrep)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Søk i den oversettbare teksten i filer (bruk kgrep)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu109">
+      <tuv xml:lang="en">
+        <seg>Search translation memory entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Søk i oversettelsesminnets enheter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu110">
+      <tuv xml:lang="en">
+        <seg>Show a .klz workspace's state (dirty?)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis tilstanden til et .klz-arbeidsområde (endret?)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu111">
+      <tuv xml:lang="en">
+        <seg>Show a brand voice profile as a guide</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis en merkevarestemmeprofil som guide</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu112">
+      <tuv xml:lang="en">
+        <seg>Show detailed configuration for a preset.
+
+Accepts a bare preset name (searched across all formats) or the
+qualified format:preset syntax (e.g. okf_xml:AndroidStrings).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis detaljert konfigurasjon for en forhåndsinnstilling.
+
+Godtar et rent forhåndsinnstillingsnavn (søkes på tvers av alle formater)
+eller den kvalifiserte format:preset-syntaksen (f.eks. okf_xml:AndroidStrings).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu113">
+      <tuv xml:lang="en">
+        <seg>Show detailed information about a format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis detaljert informasjon om et format</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu114">
+      <tuv xml:lang="en">
+        <seg>Show details for a single import session</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis detaljer for én importøkt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu115">
+      <tuv xml:lang="en">
+        <seg>Show details for an installed plugin</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis detaljer for et installert tillegg</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu116">
+      <tuv xml:lang="en">
+        <seg>Show every TM entry written (or updated) by a specific kapi merge batch,
+so you can see what a particular return from a translator contributed to
+the project TM.
+
+Origin provenance is stamped by kapi merge (source="merge",
+reference=&lt;batch-id&gt;, key=&lt;source-rel&gt;). Audit iterates the project TM,
+surfaces only TUs with at least one matching Origin, and prints
+source file, block hash, timestamp, and the originating XLIFF filename.
+
+Examples:
+
+  kapi tm audit --batch &lt;batch-id&gt;             # full listing
+  kapi tm audit --batch &lt;batch-id&gt; --limit 50  # cap rows
+
+Use "kapi tm stats" for global TM metrics (entry counts, per-locale
+breakdown). Audit is narrow by design — it answers "what did this
+merge do?".
+</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis hver TM-enhet som ble skrevet (eller oppdatert) av en bestemt kapi merge-bunt,
+slik at du kan se hva en bestemt retur fra en oversetter bidro med til
+prosjektets oversettelsesminne.
+
+Opphavsproveniens stemples av kapi merge (source="merge",
+reference=&lt;batch-id&gt;, key=&lt;source-rel&gt;). Audit itererer over prosjektets TM,
+viser bare TU-er med minst ett samsvarende opphav, og skriver ut
+kildefil, blokkhasj, tidsstempel og navnet på XLIFF-filen som var opphavet.
+
+Eksempler:
+
+  kapi tm audit --batch &lt;batch-id&gt;             # full listing
+  kapi tm audit --batch &lt;batch-id&gt; --limit 50  # begrens antall rader
+
+Bruk "kapi tm stats" for globale TM-måltall (antall enheter, fordeling per
+språk). Audit er smal med hensikt — den svarer på "hva gjorde denne
+flettingen?".
+</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu117">
+      <tuv xml:lang="en">
+        <seg>Show preset details</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis detaljer for en forhåndsinnstilling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu118">
+      <tuv xml:lang="en">
+        <seg>Show termbase statistics</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis termbasestatistikk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu119">
+      <tuv xml:lang="en">
+        <seg>Show translation memory statistics</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis statistikk for oversettelsesminnet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu120">
+      <tuv xml:lang="en">
+        <seg>Show version information</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis versjonsinformasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu121">
+      <tuv xml:lang="en">
+        <seg>Snapshot a .kapi project's working state into a .klz</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt til en .klz</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu122">
+      <tuv xml:lang="en">
+        <seg>Snapshot a .kapi project's working state — the block-store overlays, the
+authoritative translation memory, and the termbase — into a portable .klz.
+Regenerable caches and secrets are excluded. Move the snapshot to another
+machine and "kapi unpack" it to resume work there.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta et øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt — blokklagerets
+overlegg, det autoritative oversettelsesminnet og termbasen — til en portabel
+.klz. Regenererbare hurtigbuffere og hemmeligheter utelates. Flytt
+øyeblikksbildet til en annen maskin og kjør "kapi unpack" der for å fortsette
+arbeidet.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu123">
+      <tuv xml:lang="en">
+        <seg>Start MCP server (stdio) exposing project tools</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Start MCP-server (stdio) som eksponerer prosjektverktøy</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu124">
+      <tuv xml:lang="en">
+        <seg>Stop tracking files matching the given patterns.
+
+If a pattern matches one added with 'kapi add', the mapping is removed.
+Otherwise the pattern is added to the exclude list so those files are skipped.
+
+  kapi rm "src/**/*.html"       # remove the mapping
+  kapi rm "src/legacy/*.html"   # exclude matching files</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Slutt å spore filer som matcher de angitte mønstrene.
+
+Hvis et mønster matcher ett som ble lagt til med 'kapi add', fjernes kartleggingen.
+Ellers legges mønsteret til i ekskluderingslisten slik at de filene hoppes over.
+
+  kapi rm "src/**/*.html"       # fjern kartleggingen
+  kapi rm "src/legacy/*.html"   # ekskluder samsvarende filer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu125">
+      <tuv xml:lang="en">
+        <seg>Stream-edit the translatable text of files (use ksed)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Strømrediger den oversettbare teksten i filer (bruk ksed)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu126">
+      <tuv xml:lang="en">
+        <seg>TYPE</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TYPE</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu127">
+      <tuv xml:lang="en">
+        <seg>Test that a credential's API key is accessible</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Test at API-nøkkelen til en legitimasjon er tilgjengelig</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu128">
+      <tuv xml:lang="en">
+        <seg>Text Processing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tekstbehandling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu129">
+      <tuv xml:lang="en">
+        <seg>Total: %d flow(s)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Totalt: %d flyt(er)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu130">
+      <tuv xml:lang="en">
+        <seg>Total: %d format(s)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Totalt: %d format(er)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu131">
+      <tuv xml:lang="en">
+        <seg>Total: %d plugin(s)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Totalt: %d tillegg</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu132">
+      <tuv xml:lang="en">
+        <seg>Total: %d registry(ies)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Totalt: %d register(re)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu133">
+      <tuv xml:lang="en">
+        <seg>Total: %d tool(s)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Totalt: %d verktøy</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu134">
+      <tuv xml:lang="en">
+        <seg>Trace TM entries by merge batch id</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Spor TM-enheter etter flettebunt-id</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu135">
+      <tuv xml:lang="en">
+        <seg>URL</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>URL</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu136">
+      <tuv xml:lang="en">
+        <seg>Update an installed plugin in place using the channel and constraint
+recorded at install time. Pass --channel or --constraint to switch
+tracks during update; --index points the update at a different
+registry index URL.
+
+Examples:
+  kapi plugin update bowrain
+  kapi plugin update bowrain --channel beta
+  kapi plugin update bowrain --constraint ^2.0</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdater et installert tillegg på stedet med kanalen og versjonskravet
+som ble registrert ved installasjon. Bruk --channel eller --constraint for å
+bytte spor under oppdateringen; --index peker oppdateringen mot en annen
+registerindeks-URL.
+
+Eksempler:
+  kapi plugin update bowrain
+  kapi plugin update bowrain --channel beta
+  kapi plugin update bowrain --constraint ^2.0</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu137">
+      <tuv xml:lang="en">
+        <seg>Update an installed plugin to the latest matching version</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdater et installert tillegg til nyeste samsvarende versjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu138">
+      <tuv xml:lang="en">
+        <seg>VERSION</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>VERSJON</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu139">
+      <tuv xml:lang="en">
+        <seg>WRITE</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>SKRIV</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu140">
+      <tuv xml:lang="en">
+        <seg>Walk a directory and import every matching TMX file into the TM.
+
+Auto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)
+becomes the Origin.Key on each imported entry so you can trace which file a
+segment came from.
+
+By default, imports entries matching --source-locale and --target-locale from
+every file. Use --pattern to filter (glob against filename) and --all-pairs to
+emit the full language cross-product from multilingual files.
+
+Examples:
+  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern "*en-nb*"
+  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gå gjennom en katalog og importer hver samsvarende TMX-fil til oversettelsesminnet.
+
+Gjenkjenner rene .tmx- og gzip-komprimerte .tmx.gz-filer automatisk. Filnavnet
+(uten sti) blir Origin.Key på hver importert enhet, slik at du kan spore hvilken
+fil et segment kom fra.
+
+Som standard importeres enheter som samsvarer med --source-locale og --target-locale
+fra hver fil. Bruk --pattern for å filtrere (glob mot filnavn) og --all-pairs for å
+skrive hele språkkryssproduktet fra flerspråklige filer.
+
+Eksempler:
+  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern "*en-nb*"
+  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu141">
+      <tuv xml:lang="en">
+        <seg>Write a brand voice profile YAML to fill in.
+
+With no flags, emits a commented template. With --pack, emits an existing
+starter pack as an editable base. An AI assistant can fill this in from what it
+already knows about the product, from sample content, or from a linked website,
+then `kapi brand import` it.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv ut en merkevarestemmeprofil i YAML som kan fylles inn.
+
+Uten flagg skrives en kommentert mal. Med --pack skrives en eksisterende
+startpakke som redigerbart utgangspunkt. En AI-assistent kan fylle den inn fra
+det den allerede vet om produktet, fra innholdseksempler eller fra et lenket
+nettsted, og deretter importere den med `kapi brand import`.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu142">
+      <tuv xml:lang="en">
+        <seg>kapi helps you manage multilingual content — convert document formats,
+translate with AI, and run quality checks across a wide range of file types.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>kapi hjelper deg å håndtere flerspråklig innhold — konverter dokumentformater,
+oversett med AI og kjør kvalitetskontroller på et bredt utvalg filtyper.</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

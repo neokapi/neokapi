@@ -889,7 +889,18 @@ l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → publ
 		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
 	done
 
-l10n: l10n-builtins l10n-desktop ## Rebuild all dogfood localization outputs from the l10n/ seeds
+kapi-cli-i18n-generate: ## Regenerate cli/i18n/commands.json from the cobra command tree
+	cd cli && go generate ./i18n/...
+
+l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i18n/catalogs/<lang>.mo (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage cli/i18n/commands.json -f json \
+			--target-lang $$lang -o cli/i18n/catalogs/$$lang.mo || exit 1; \
+	done
+	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
+	@echo "bin/kapi only shows the new translations after a rebuild."
+
+l10n: l10n-builtins l10n-desktop l10n-cli ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
