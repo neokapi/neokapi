@@ -5,12 +5,17 @@ import { tools as toolReference } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
-import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
+import FileSelectorField from "./FileSelectorField";
+import ActiveFileSwitcher from "./ActiveFileSwitcher";
+import { useFileLibrary, resolveSelection } from "./fileLibrary";
+import type { FileSelection } from "./fileLibrary";
+import { fileType } from "@neokapi/ui-primitives/preview";
 import { SourceContentPanel, SinkOutputPanel } from "./EndpointPanels";
 import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios";
 import WalkthroughCard from "./WalkthroughCard";
+import ScriptStepPanel from "./ScriptStepPanel";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
@@ -23,6 +28,7 @@ import styles from "./FlowBuilderRunner.module.css";
 // flow that cannot run here.
 const BROWSER_SAFE_TOOLS = [
   "search-replace",
+  "script",
   "redact",
   "unredact",
   "segmentation",
@@ -223,17 +229,30 @@ export default function FlowBuilderRunner({
     initialScenario.presets,
   );
 
-  const sampleFor = useCallback(
-    (sampleId?: string): FileSourceValue => {
+  // The working set: the shared file library (samples + uploads) and a
+  // selection over it (single, multi, or a glob like *.json). Every selected
+  // file runs through the flow; the active file picks which run is reviewed.
+  const library = useFileLibrary({ sampleIds });
+  const selectionFor = useCallback(
+    (sampleId?: string): FileSelection => {
       const s =
         SAMPLES.find((x) => x.id === (sampleId ?? defaultSampleId)) ??
         SAMPLES.find((x) => x.id === "support-reply") ??
         SAMPLES[0];
-      return { filename: s.filename, content: s.content, label: s.label };
+      return { mode: "multi", paths: [s.filename] };
     },
     [defaultSampleId],
   );
-  const [file, setFile] = useState<FileSourceValue>(() => sampleFor(initialScenario.sampleId));
+  const [selection, setSelection] = useState<FileSelection>(() =>
+    selectionFor(initialScenario.sampleId),
+  );
+  const [activePath, setActivePath] = useState<string | null>(null);
+
+  const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
+  const activeFile = useMemo(
+    () => selected.find((f) => f.path === activePath) ?? selected[0],
+    [selected, activePath],
+  );
 
   // The editor is controlled: `flow` is the source of truth and onChange feeds
   // the graph the learner edits (add / remove / reorder tool nodes) back in.
@@ -242,12 +261,18 @@ export default function FlowBuilderRunner({
     return graphToSteps(graph.nodes);
   });
 
-  const [trace, setTrace] = useState<FlowTrace | null>(null);
-  const [outPath, setOutPath] = useState<string | null>(null);
+  // Per-file run results from the last Run (trace + written output, keyed by
+  // library path). The ACTIVE file's run feeds the editor's run review and the
+  // sink panel; the switcher flips between files.
+  const [runs, setRuns] = useState<Record<string, { trace: FlowTrace; outPath: string }>>({});
   const [outVersion, setOutVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [nerProgress, setNerProgress] = useState<LocalNerProgress | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const activeRun = activeFile ? runs[activeFile.path] : undefined;
+  const trace = activeRun?.trace ?? null;
+  const outPath = activeRun?.outPath ?? null;
 
   // Guided walkthrough state: the active step of the scenario's lesson, plus
   // the focus request fed to the editor (one application per nonce). Stepping
@@ -285,11 +310,11 @@ export default function FlowBuilderRunner({
     (s: LabScenario) => {
       setScenario(s);
       setPresets(s.presets);
-      setFile(sampleFor(s.sampleId));
+      setSelection(selectionFor(s.sampleId));
+      setActivePath(null);
       const graph = stepsToGraph({ steps: s.steps });
       setFlow(graphToSteps(graph.nodes));
-      setTrace(null);
-      setOutPath(null);
+      setRuns({});
       setError(null);
       // Restart the lesson; scenarios without one clear any lingering focus.
       setWalkIndex(0);
@@ -299,33 +324,73 @@ export default function FlowBuilderRunner({
         setFocusRequest({ nonce: focusNonce.current, select: null });
       }
     },
-    [sampleFor, applyStepFocus],
+    [selectionFor, applyStepFocus],
   );
 
   // Editing the flow invalidates the loaded run review (the trace no longer
   // matches the designed nodes).
   const handleFlowChange = useCallback((next: FlowSpec) => {
     setFlow(next);
-    setTrace(null);
+    setRuns({});
   }, []);
 
+  // The script tool gets the full code-editor panel instead of the schema
+  // form's textarea — the step IS the script (the lab's scripting lesson).
+  const renderStepConfigPanel = useCallback(
+    (ctx: {
+      toolName: string;
+      config: Record<string, unknown>;
+      onConfigChange: (config: Record<string, unknown>) => void;
+      onClose: () => void;
+      onRemove?: () => void;
+    }) =>
+      ctx.toolName === "script" ? (
+        <ScriptStepPanel
+          config={ctx.config}
+          onConfigChange={ctx.onConfigChange}
+          onClose={ctx.onClose}
+          onRemove={ctx.onRemove}
+        />
+      ) : null,
+    [],
+  );
+
   // Endpoint inspectors: the Source pill opens the content-model tree the
-  // reader produces from the selected input (the anatomy lesson, in place);
-  // the Sink pill opens the written output with its Native bytes diffed
+  // reader produces from the ACTIVE input (the anatomy lesson, in place); the
+  // Sink pill opens that file's written output with its Native bytes diffed
   // against the input (the round-trip lesson, in place).
+  const activeAsSource = useMemo<FileSourceValue | null>(() => {
+    if (!activeFile) return null;
+    return {
+      filename: activeFile.name,
+      label: activeFile.name,
+      content: "",
+      bytes: activeFile.bytes,
+    };
+  }, [activeFile]);
+  const activeBaseline = useMemo(() => {
+    if (!activeFile || fileType(activeFile.name).binary) return null;
+    return new TextDecoder().decode(activeFile.bytes);
+  }, [activeFile]);
   const renderEndpointPanel = useCallback(
     (role: "source" | "sink") =>
       role === "source" ? (
-        <SourceContentPanel runtime={runtime} file={file} />
+        activeAsSource ? (
+          <SourceContentPanel runtime={runtime} file={activeAsSource} />
+        ) : (
+          <div className="py-4 text-center text-[11px] italic text-muted-foreground">
+            Pick an input file first.
+          </div>
+        )
       ) : (
         <SinkOutputPanel
           runtime={runtime}
           outPath={outPath}
           version={outVersion}
-          baseline={file.bytes ? null : file.content}
+          baseline={activeBaseline}
         />
       ),
-    [runtime, file, outPath, outVersion],
+    [runtime, activeAsSource, activeBaseline, outPath, outVersion],
   );
 
   const runFlow = useCallback(
@@ -334,7 +399,12 @@ export default function FlowBuilderRunner({
       const steps = spec.steps.filter((s) => s.tool);
       if (steps.length === 0) {
         setError("add at least one tool to the flow before running");
-        setTrace(null);
+        setRuns({});
+        return;
+      }
+      if (selected.length === 0) {
+        setError("pick at least one input file before running");
+        setRuns({});
         return;
       }
       setBusy(true);
@@ -368,31 +438,40 @@ export default function FlowBuilderRunner({
 
       const recipe = buildRecipe({ steps }, presets);
       runtime.writeFile("flow.kapi", recipe);
-      const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
-      const out = `/project/flow-out-${file.filename}`;
-      const res = await runtime.trace([
-        "run",
-        "lab",
-        "-p",
-        "/project/flow.kapi",
-        "-i",
-        inPath,
-        "-o",
-        out,
-        "--target-lang",
-        "fr",
-      ]);
-      if (res.ok && res.trace) {
-        setTrace(res.trace as FlowTrace);
-        setOutPath(out);
-        setOutVersion((v) => v + 1);
-      } else {
-        setError(res.error ?? "the run produced no trace");
-        setTrace(null);
+
+      // Every selected file runs through the same designed flow (sequentially —
+      // the wasm engine serializes runs anyway); the active file's run feeds
+      // the review, and the switcher flips between results.
+      const next: Record<string, { trace: FlowTrace; outPath: string }> = {};
+      for (const f of selected) {
+        const inPath = runtime.writeFile(f.name, f.bytes);
+        const out = `/project/flow-out-${f.name}`;
+        const res = await runtime.trace([
+          "run",
+          "lab",
+          "-p",
+          "/project/flow.kapi",
+          "-i",
+          inPath,
+          "-o",
+          out,
+          "--target-lang",
+          "fr",
+        ]);
+        if (res.ok && res.trace) {
+          next[f.path] = { trace: res.trace as FlowTrace, outPath: out };
+        } else {
+          setError(`${f.name}: ${res.error ?? "the run produced no trace"}`);
+          setRuns(next);
+          setBusy(false);
+          return;
+        }
       }
+      setRuns(next);
+      setOutVersion((v) => v + 1);
       setBusy(false);
     },
-    [runtime.ready, runtime.writeFile, runtime.trace, file, presets],
+    [runtime.ready, runtime.writeFile, runtime.trace, selected, presets],
   );
 
   // A walkthrough step whose action is Run auto-advances when the run lands,
@@ -452,7 +531,24 @@ export default function FlowBuilderRunner({
           <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
         )}
 
-        <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />
+        {/* The working set: one file, several, or a glob — every selected file
+            runs through the flow; the switcher picks whose run is reviewed. */}
+        <FileSelectorField
+          label="Files"
+          library={library}
+          selection={selection}
+          onSelectionChange={(sel) => {
+            setSelection(sel);
+            setRuns({});
+          }}
+          sampleIds={sampleIds}
+          multiple
+        />
+        <ActiveFileSwitcher
+          files={selected}
+          activePath={activeFile?.path}
+          onChange={setActivePath}
+        />
 
         {/* Project presets (defaults.tools in the generated recipe): the
             project scope a step inherits; select a preset-backed node to see
@@ -480,10 +576,11 @@ export default function FlowBuilderRunner({
             onRun={(spec) => void runFlow(spec)}
             runDisabled={!runtime.ready || busy}
             trace={trace ?? undefined}
-            onTraceDismiss={() => setTrace(null)}
+            onTraceDismiss={() => setRuns({})}
             projectPresets={presets}
             renderEndpointPanel={renderEndpointPanel}
             focusRequest={focusRequest}
+            renderStepConfigPanel={renderStepConfigPanel}
           />
         </div>
 
@@ -509,7 +606,7 @@ export default function FlowBuilderRunner({
             !busy &&
             !error &&
             trace &&
-            "Run complete — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written."}
+            `Run complete${Object.keys(runs).length > 1 ? ` (${Object.keys(runs).length} files)` : ""} — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written.`}
         </div>
 
         {!trace && !error && (

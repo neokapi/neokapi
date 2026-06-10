@@ -246,6 +246,44 @@ export const LAB_SCENARIOS: LabScenario[] = [
     ],
   },
   {
+    id: "scripting",
+    label: "Scripting",
+    description:
+      "When no built-in tool fits, the script step runs a small JavaScript program over each Part — modify text, filter parts, or log() what flows through. The step IS the script: its code editor (with typed completions) lives in the step's config panel.",
+    steps: [
+      {
+        tool: "script",
+        config: {
+          // Source is immutable by default (AD-006); a script that rewrites it
+          // must opt in, making the step an explicit transformer.
+          allowSourceMutation: true,
+          code: '// process(part) runs once for every Part in the document.\n/** @param {Part} part */\nfunction process(part) {\n  if (part.type === "block") {\n    part.block.source[0].content.text =\n      part.block.source[0].content.text.toUpperCase();\n  }\n  return part;\n}\n',
+        },
+      },
+      { tool: "word-count" },
+    ],
+    sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "A script step is a tool you write yourself: open its config and the panel is a real code editor — typed completions for part / emit / skip / log, plus a library of examples to start from. This one rewrites the source, so it declares allowSourceMutation — the source is read-only for scripts unless they opt into being a transformer.",
+        select: "tool-0",
+        mode: "configure",
+      },
+      {
+        prose: "Run the flow — the engine executes your exact code over every part.",
+        run: true,
+        select: null,
+      },
+      {
+        prose:
+          "What the script did: every block's text was rewritten (this one shouts). Edit the code — try a different example — and run again.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+    ],
+  },
+  {
     id: "build-your-own",
     label: "Build your own",
     description:

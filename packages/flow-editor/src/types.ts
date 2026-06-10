@@ -194,6 +194,24 @@ export interface FlowEditorProps {
    * with a highlight ring so a lesson can point at it.
    */
   focusRequest?: FlowFocusRequest;
+  /**
+   * Host-supplied replacement for a step's config panel. Called when a tool
+   * node's configuration opens; returning non-null renders that panel (in the
+   * editor's right overlay) instead of the schema-driven default — e.g. the
+   * lab mounts a code editor for the `script` tool. Return null to keep the
+   * default panel.
+   */
+  renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
+}
+
+/** Context passed to renderStepConfigPanel (see FlowEditorProps). */
+export interface StepConfigRenderContext {
+  toolName: string;
+  step: FlowStep;
+  config: Record<string, unknown>;
+  onConfigChange: (config: Record<string, unknown>) => void;
+  onClose: () => void;
+  onRemove?: () => void;
 }
 
 /** One host-driven focus application (see FlowEditorProps.focusRequest). */

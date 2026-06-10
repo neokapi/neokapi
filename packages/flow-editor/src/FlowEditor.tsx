@@ -571,6 +571,7 @@ export function FlowEditor({
   projectPresets,
   renderEndpointPanel,
   focusRequest,
+  renderStepConfigPanel,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -1387,20 +1388,33 @@ export function FlowEditor({
           </div>
         ) : (
           <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-            <StepConfigPanel
-              key={selectedNodeId}
-              step={selectedStep}
-              toolInfo={selectedToolInfo}
-              schema={selectedSchema}
-              doc={selectedDoc}
-              config={selectedStep.config || {}}
-              preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
-              unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
-              placement={selectedNode ? placementFor(selectedNode.data) : undefined}
-              onConfigChange={handleConfigChange}
-              onClose={() => setSelectedNodeId(null)}
-              onRemove={readOnly ? undefined : handleRemoveSelected}
-            />
+            {/* A host can replace the config panel for specific tools (e.g.
+                the lab mounts a code editor for `script`); null falls back to
+                the schema-driven default. */}
+            {(selectedToolName &&
+              renderStepConfigPanel?.({
+                toolName: selectedToolName,
+                step: selectedStep,
+                config: selectedStep.config || {},
+                onConfigChange: handleConfigChange,
+                onClose: () => setSelectedNodeId(null),
+                onRemove: readOnly ? undefined : handleRemoveSelected,
+              })) || (
+              <StepConfigPanel
+                key={selectedNodeId}
+                step={selectedStep}
+                toolInfo={selectedToolInfo}
+                schema={selectedSchema}
+                doc={selectedDoc}
+                config={selectedStep.config || {}}
+                preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
+                unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+                placement={selectedNode ? placementFor(selectedNode.data) : undefined}
+                onConfigChange={handleConfigChange}
+                onClose={() => setSelectedNodeId(null)}
+                onRemove={readOnly ? undefined : handleRemoveSelected}
+              />
+            )}
           </div>
         ))}
 
