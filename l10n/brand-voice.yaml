@@ -1,0 +1,104 @@
+# neokapi brand voice profile — the machine-enforceable encoding of
+# docs/internals/brand-communication.md. Bound to the dogfood project via
+# `defaults.brand_voice.profile_file` in the root neokapi.kapi recipe, so
+# ai-translate, brand check/rewrite, and project flows pick it up with no
+# flags. Keep the two documents in sync: the markdown guide is the prose
+# authority, this profile is what the tools read.
+name: neokapi documentation
+description: >-
+  Academic, precise register for neokapi user-facing text: docs site, CLI
+  help, UI copy, release notes. Explain what something is and what it does;
+  let the facts stand without selling.
+tone:
+  personality: [precise, plain, specific]
+  formality: formal
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    State capabilities plainly. Lead with the problem and the mechanism, not
+    adjectives. Every claim must be checkable against the code or a generated
+    artifact. One idea per sentence; short sentences over long ones. The
+    reader is a developer or localization engineer, not a prospect.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '\b(powerful|seamless(?:ly)?|effortless(?:ly)?|blazing|game-changing|cutting-edge|revolutionary|supercharged?|unleash)\b'
+      description: Marketing superlatives and hype words
+      severity: major
+    - regex: '\b(production-proven|everything you need|localize at scale|just point and go)\b'
+      description: Brochure framing
+      severity: major
+    - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
+      description: Emoji in documentation or committed prose
+      severity: major
+    - regex: '\b\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
+      description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
+      severity: critical
+    - regex: '\bsegmented into blocks\b'
+      description: Extraction — not segmentation — produces blocks; segmentation is an opt-in overlay within a block
+      severity: major
+vocabulary:
+  preferred_terms:
+    - term: extract
+      note: The shared mechanism is extraction — "the text is extracted into blocks"
+    - term: text
+      note: Neutral wording for the shared engine; reserve "translatable" for genuinely localization-specific contexts
+    - term: neokapi
+      note: The project and Go framework — always lowercase
+    - term: kapi
+      note: The standalone CLI — always lowercase
+    - term: kapi-desktop
+      note: The desktop GUI companion — always lowercase, hyphenated
+    - term: Bowrain
+      note: The full-stack platform — capitalized as a product name; the standalone binary is retired
+  forbidden_terms:
+    - term: translatable text
+      replacement: text
+      note: Frames the shared engine as translation-only; use neutral wording unless the context is specifically localization
+      severity: minor
+    - term: simply
+      replacement: ""
+      severity: minor
+    - term: easily
+      replacement: ""
+      severity: minor
+    - term: magic
+      replacement: ""
+      severity: major
+examples:
+  - before: "kapi delivers powerful, seamless format support for everything you need."
+    after: "kapi reads and writes localization, document, and data formats."
+    explanation: State the capability plainly; remove superlatives and brochure framing
+    category: tone
+  - before: "The translatable text is segmented into 42 blocks across 15+ formats."
+    after: "The text is extracted into blocks; see the formats reference for the supported formats."
+    explanation: Neutral mechanism wording, extraction not segmentation, no hardcoded counts
+    category: vocabulary
+  - before: "AI-Native Translation Made Easy"
+    after: "AI-native translation"
+    explanation: Sentence case for headings; drop the sales tagline
+    category: style
+locales:
+  nb:
+    formality: neutral
+    person_pov: second
+    cultural_notes: >-
+      Norwegian Bokmål. Address the reader as "du". Use established Norwegian
+      software terminology where it exists (see the project termbase) and keep
+      the academic, plain register — Norwegian technical prose tolerates
+      anglicisms, but prefer the Norwegian term when the termbase names one.
+      Never translate product names (neokapi, kapi, kapi-desktop, Bowrain),
+      CLI commands, flags, file formats, code identifiers, or file paths.
+      Headings in sentence case. Compound nouns close up in Norwegian
+      (oversettelsesminne, not "oversettelses minne") — never leave an English
+      noun pair half-translated.
+    vocabulary_overrides:
+      - term: oversettelsesminne
+        note: translation memory — not "oversettingsminne"
+      - term: termbase
+        note: termbase stays "termbase" (established loan in Norwegian localization practice)
+      - term: arbeidsflyt
+        note: Reserved for generic workflow prose; a kapi "flow" is "flyt" (see termbase)

@@ -1,0 +1,86 @@
+# Dogfood recipe: neokapi localizes its own surfaces with kapi.
+#
+# This is the repo-root project that the upward recipe walk discovers
+# (core/project.ResolveLayout). Every other in-repo kapi invocation must
+# isolate itself per the contract in CLAUDE.md ("Dogfooding kapi") —
+# KAPI_NO_PROJECT=1 et al. — so only the dogfood workflow binds here.
+#
+# Surfaces:
+#   framework-data   — generated tool/format metadata → gettext MO catalogs
+#                      embedded in the kapi binary (core/i18n)
+#   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
+#                      @neokapi/kapi-react → public/translations/<locale>.json
+#   docs             — the Docusaurus site → web/docs/i18n/<locale>/ tree
+#
+# Drive it with the l10n-* Makefile targets. Seeds (brand voice, termbase,
+# reviewed TM) live under l10n/.
+version: v1
+name: neokapi
+defaults:
+  source_language: en
+  target_languages: [nb]
+  brand_voice:
+    profile_file: l10n/brand-voice.yaml
+  termbase: .kapi/termbase.db
+  tm:
+    fuzzy_threshold: 75
+  exclude:
+    - "**/node_modules/**"
+    - "**/.git/**"
+    - "web/docs/build/**"
+    - "web/docs/i18n/**"
+    - "harness/public/**"
+    - "**/testdata/**"
+content:
+  - name: framework-data
+    items:
+      - path: core/i18n/builtins/metadata.json
+        format:
+          name: json
+          config:
+            extractAllPairs: false
+            useKeyAsName: true
+            useFullKeyPath: true
+            useLeadingSlashOnKeyPath: true
+            extractionRules: "(display_name|description|title|label)$"
+        target: core/i18n/catalogs/{lang}.mo
+  - name: kapi-desktop-ui
+    items:
+      - path: apps/kapi-desktop/frontend/i18n/**/*.klf
+        target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
+  - name: docs
+    items:
+      - path: web/docs/docs/**/*.md
+        format: markdown
+        target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+      - path: web/docs/docs/**/*.mdx
+        format: mdx
+        target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+flows:
+  # TM-driven translation: reviewed translations live in the project TM
+  # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology
+  # compliance is checked against the project termbase.
+  translate:
+    steps:
+      - tool: tm-leverage
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
+      - tool: term-check
+  # AI translation for new/changed strings: TM first, then ai-translate for
+  # the misses (brand voice + glossary are bound project-wide), then checks.
+  # Requires provider credentials (keychain or ANTHROPIC_API_KEY).
+  translate-ai:
+    steps:
+      - tool: tm-leverage
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
+      - tool: ai-translate
+        config:
+          provider: anthropic
+      - tool: term-check
+      - tool: qa-check
+  pseudo:
+    steps:
+      - tool: pseudo-translate

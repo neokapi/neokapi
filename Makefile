@@ -849,6 +849,40 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
+# ── Dogfood localization (root recipe: neokapi.kapi) ────────────────────────
+# These targets ARE the dogfood workflow, so they deliberately run WITHOUT
+# $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
+# Reviewed translations are committed as TMX under l10n/tm/; the project TM
+# and termbase are rebuilt from those seeds (l10n-seed), then each surface is
+# produced by TM leverage so output only ever contains reviewed strings.
+L10N_LANGS := nb
+
+l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ seeds
+	@mkdir -p .kapi/cache
+	@rm -f .kapi/termbase.db .kapi/tm.db
+	./bin/kapi termbase import l10n/termbase.csv -s en -t nb --header
+	@for f in l10n/tm/*.tmx; do \
+		[ -e "$$f" ] || continue; \
+		lang=$$(basename "$$f" .tmx); lang=$${lang##*-}; \
+		./bin/kapi tm import "$$f" -s en -t "$$lang"; \
+	done
+
+l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+			--target-lang $$lang -o core/i18n/catalogs/$$lang.mo || exit 1; \
+	done
+
+l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata translations
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+			--target-lang $$lang -o /tmp/l10n-builtins-$$lang.json -q && \
+		./bin/kapi term-check /tmp/l10n-builtins-$$lang.json -f json \
+			--source-lang en --target-lang $$lang || exit 1; \
+	done
+
+l10n: l10n-builtins ## Rebuild all dogfood localization outputs from the l10n/ seeds
+
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 
