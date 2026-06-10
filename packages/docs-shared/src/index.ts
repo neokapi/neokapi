@@ -32,4 +32,5 @@ export type {
   SwimlaneActor,
   SwimlaneMessage,
   RedactionDiagramProps,
+  RedactSpan,
 } from "./diagram";

@@ -17,7 +17,10 @@ local machine.
 
 <RedactionDiagram
   original="Mr Bean is the new King of England"
-  redact={["Mr Bean", "King of England"]}
+  redact={[
+    { text: "Mr Bean", label: "Person" },
+    "King of England",
+  ]}
   translated="M. Bean est le nouveau Roi d'Angleterre"
 />
 
