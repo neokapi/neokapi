@@ -71,8 +71,12 @@ import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactio
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
-import { PartInspector } from "./PartInspector";
+import { TracePanel } from "./TracePanel";
+import { RunInspectorPanel } from "./RunInspectorPanel";
 import { computeNodeStats } from "./traceTypes";
+// (PartInspector remains exported from the package for hosts that render
+// trace data outside the editor; the in-editor panel is RunInspectorPanel.)
+import { remapEventsToEditor, activeEditorNodes, stepToolCounts } from "./traceSelectors";
 import type { ToolDoc, ToolDocParam } from "./types";
 
 const nodeTypes: NodeTypes = {
@@ -213,6 +217,12 @@ interface StepConfigPanelProps {
   schema: ComponentSchema | null | undefined;
   doc: ToolDoc | null | undefined;
   config: Record<string, unknown>;
+  /**
+   * Project-level preset for this tool (the recipe's defaults.tools entry).
+   * The engine merges it under the step's own config — the step wins per key —
+   * so the panel shows the inherited values and flags the overridden ones.
+   */
+  preset?: Record<string, unknown>;
   /** Required input ports nothing upstream produces (requirement analysis). */
   unmet?: string[];
   /** Transformer placement diagnostics for this step (AD-006 placement pass). */
@@ -229,6 +239,7 @@ export function StepConfigPanel({
   schema,
   doc,
   config,
+  preset,
   unmet,
   placement,
   onConfigChange,
@@ -432,6 +443,40 @@ export function StepConfigPanel({
           </div>
         )}
 
+        {/* Project preset (defaults.tools): inherited defaults the engine
+            merges under this step's config — the step wins per key. */}
+        {preset && Object.keys(preset).length > 0 && (
+          <div
+            className="mt-2 rounded-md border px-2 py-1.5 text-[10px] leading-snug"
+            style={{
+              borderColor: "oklch(0.6 0.12 290 / 0.5)",
+              background: "oklch(0.6 0.12 290 / 0.08)",
+              color: "oklch(0.5 0.12 290)",
+            }}
+          >
+            <span className="font-semibold">Project preset: </span>
+            this tool inherits defaults from the project recipe (
+            <span className="font-mono">defaults.tools</span>). Values set here override them per
+            key.
+            <div className="mt-1 flex flex-col gap-0.5">
+              {Object.entries(preset).map(([k, v]) => {
+                const overridden = config[k] !== undefined;
+                return (
+                  <div
+                    key={k}
+                    className={cn("font-mono text-[9px]", overridden && "line-through opacity-60")}
+                  >
+                    {k}: {typeof v === "string" ? v : JSON.stringify(v)}
+                    {overridden && (
+                      <span className="ml-1 not-italic no-underline">(overridden)</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Transformer placement diagnostics (AD-006): the same errors the build
             gate rejects with, surfaced while composing. */}
         {placement?.map((d, i) => (
@@ -529,15 +574,39 @@ export function FlowEditor({
   readOnly = false,
   traceEvents,
   trace,
+  onTraceDismiss,
+  projectPresets,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
 
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
-  const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
+  // Run review: the trace from running THIS flow plays back on the canvas.
+  // The cursor windows the (editor-remapped) events; a selected node shows the
+  // run inspector by default, flippable to the config panel.
+  const [traceCursor, setTraceCursor] = useState<number | null>(null);
+  const [panelMode, setPanelMode] = useState<"inspect" | "configure">("inspect");
+  const [traceDismissed, setTraceDismissed] = useState(false);
+
+  // The editor-remapped event stream for the loaded trace (trace node ids →
+  // `tool-<stepIndex>`), or the host-supplied pre-mapped events.
+  const runEvents = useMemo(() => {
+    if (trace && !traceDismissed) return remapEventsToEditor(trace, stepToolCounts(flow.steps));
+    return traceEvents ?? null;
+  }, [trace, traceDismissed, traceEvents, flow.steps]);
+
+  // A fresh trace starts fully played (the run just happened); scrubbing
+  // rewinds it. Editing the flow invalidates the review.
+  useEffect(() => {
+    setTraceCursor(trace ? null : null);
+    setTraceDismissed(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace]);
+  const cursor = traceCursor ?? runEvents?.length ?? 0;
 
   // Measured node heights, by id, used to center-align each row (stations differ
   // in height — a parallel group is taller than a tool node — so the connecting
@@ -600,10 +669,20 @@ export function FlowEditor({
     [topologyKey, toolMap, columns],
   );
 
-  // Compute per-node trace stats for execution state overlay.
+  // Per-node trace stats for the execution overlay, windowed to the playback
+  // cursor so scrubbing replays the run on the canvas.
+  const windowedEvents = useMemo(
+    () => (runEvents ? runEvents.slice(0, cursor) : null),
+    [runEvents, cursor],
+  );
   const nodeStats = useMemo(
-    () => (traceEvents ? computeNodeStats(traceEvents) : null),
-    [traceEvents],
+    () => (windowedEvents ? computeNodeStats(windowedEvents) : null),
+    [windowedEvents],
+  );
+  // Nodes with parts in flight at the cursor (entered, not yet exited).
+  const activeNodes = useMemo(
+    () => (runEvents ? activeEditorNodes(runEvents, cursor) : null),
+    [runEvents, cursor],
   );
 
   const nodeNames = useMemo(() => {
@@ -654,16 +733,22 @@ export function FlowEditor({
       if (stats) {
         extra.execState = stats.hasError
           ? "error"
-          : stats.partsProcessed > 0
-            ? "complete"
-            : undefined;
+          : activeNodes?.has(n.id)
+            ? "active"
+            : stats.partsProcessed > 0
+              ? "complete"
+              : undefined;
         extra.partCount = stats.partsProcessed;
+      } else if (activeNodes?.has(n.id)) {
+        extra.execState = "active";
       }
       if (n.type === "tool" || n.type === "parallel") {
         const u = unmetFor(n.data);
         if (u) extra.unmet = u;
         const p = placementFor(n.data);
         if (p) extra.placement = p;
+        const toolName = n.data.toolName as string | undefined;
+        if (toolName && projectPresets?.[toolName]) extra.hasPreset = true;
       }
       if (!readOnly && n.type === "tool") {
         extra.onRemove = () => removeNodeRef.current(n.id);
@@ -676,7 +761,7 @@ export function FlowEditor({
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
-  }, [initial.nodes, nodeStats, readOnly, unmetFor, placementFor]);
+  }, [initial.nodes, nodeStats, activeNodes, readOnly, unmetFor, placementFor, projectPresets]);
 
   const handleSourceChange = useCallback(
     (binding: FlowBinding) => {
@@ -856,10 +941,15 @@ export function FlowEditor({
   // a node on the next row (a long wrap edge) is covered as quickly as a short
   // in-row hop — equal time per node-to-node step.
   const flowEdges = useMemo(() => {
-    const flowing = !!(traceEvents && traceEvents.length > 0);
+    const flowing = !!(
+      runEvents &&
+      runEvents.length > 0 &&
+      cursor > 0 &&
+      cursor < runEvents.length
+    );
     if (!flowing) return edges;
     return edges.map((e) => ({ ...e, data: { ...e.data, flowing: true } }));
-  }, [edges, traceEvents]);
+  }, [edges, runEvents, cursor]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -868,28 +958,23 @@ export function FlowEditor({
     [onNodesChange],
   );
 
-  const handleNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      // Source/Sink are bindings, not steps — they have their own dropdown UI
-      // and never open the tool config panel.
-      if (node.type !== "tool" && node.type !== "parallel") return;
-      // A parallel group selects its first branch (branch rows select their own).
-      if (node.type === "parallel") {
-        setSelectedNodeId(`${node.id}::b0`);
-        return;
-      }
-      setSelectedNodeId(node.id);
-      // If we have trace data, also open the part inspector for this node.
-      if (trace) {
-        setInspectingNodeId(node.id);
-      }
-    },
-    [trace],
-  );
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    // Source/Sink are bindings, not steps — they have their own dropdown UI
+    // and never open the tool config panel.
+    if (node.type !== "tool" && node.type !== "parallel") return;
+    // A parallel group selects its first branch (branch rows select their own).
+    if (node.type === "parallel") {
+      setSelectedNodeId(`${node.id}::b0`);
+      return;
+    }
+    setSelectedNodeId(node.id);
+    // With a run loaded, a node opens its run inspector first; the panel's
+    // Configure button flips to the config form.
+    setPanelMode("inspect");
+  }, []);
 
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
-    setInspectingNodeId(null);
   }, []);
 
   const handleSelectTemplate = useCallback(
@@ -1205,13 +1290,27 @@ export function FlowEditor({
           </div>
         )}
 
-        {/* Trace timeline (bottom of canvas column) */}
-        {traceEvents && traceEvents.length > 0 && (
-          <TraceTimeline
-            events={traceEvents}
-            nodeNames={nodeNames}
-            totalDurationUs={trace?.durationUs}
-          />
+        {/* Run playback (bottom of canvas column): the designed flow IS the
+            run flow — the transport replays the trace on the same nodes. */}
+        {runEvents && runEvents.length > 0 && (
+          <>
+            <TracePanel
+              events={runEvents}
+              cursor={cursor}
+              onCursorChange={setTraceCursor}
+              durationUs={trace?.durationUs}
+              onClose={() => {
+                setTraceDismissed(true);
+                setTraceCursor(null);
+                onTraceDismiss?.();
+              }}
+            />
+            <TraceTimeline
+              events={windowedEvents ?? runEvents}
+              nodeNames={nodeNames}
+              totalDurationUs={trace?.durationUs}
+            />
+          </>
         )}
 
         {/* Preview panel (bottom of canvas column) */}
@@ -1228,34 +1327,41 @@ export function FlowEditor({
         )}
       </div>
 
-      {/* Part Inspector (right, when inspecting a traced node) */}
-      {trace && inspectingNodeId && (
-        <PartInspector
-          nodeId={inspectingNodeId}
-          nodeName={nodeNames.get(inspectingNodeId) ?? inspectingNodeId}
-          parts={trace.parts}
-        />
-      )}
-
-      {/* Config Panel — a floating overlay pinned to the right of the canvas,
-          NOT a flex sibling, so opening it never resizes the graph. */}
-      {selectedStep && (
-        <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-          <StepConfigPanel
-            key={selectedNodeId}
-            step={selectedStep}
-            toolInfo={selectedToolInfo}
-            schema={selectedSchema}
-            doc={selectedDoc}
-            config={selectedStep.config || {}}
-            unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
-            placement={selectedNode ? placementFor(selectedNode.data) : undefined}
-            onConfigChange={handleConfigChange}
-            onClose={() => setSelectedNodeId(null)}
-            onRemove={readOnly ? undefined : handleRemoveSelected}
-          />
-        </div>
-      )}
+      {/* Right panel — a floating overlay pinned to the right of the canvas,
+          NOT a flex sibling, so opening it never resizes the graph. With a run
+          loaded, the run inspector opens first (what passed through this step,
+          and what it attached); Configure flips to the config form. */}
+      {selectedStep &&
+        (trace && !traceDismissed && panelMode === "inspect" && selectedLocation ? (
+          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+            <RunInspectorPanel
+              key={`inspect-${selectedNodeId}`}
+              trace={trace}
+              stepToolCounts={stepToolCounts(flow.steps)}
+              stepIndex={selectedLocation.index}
+              stepLabel={selectedToolName ?? `step ${selectedLocation.index + 1}`}
+              onConfigure={readOnly ? undefined : () => setPanelMode("configure")}
+              onClose={() => setSelectedNodeId(null)}
+            />
+          </div>
+        ) : (
+          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+            <StepConfigPanel
+              key={selectedNodeId}
+              step={selectedStep}
+              toolInfo={selectedToolInfo}
+              schema={selectedSchema}
+              doc={selectedDoc}
+              config={selectedStep.config || {}}
+              preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
+              unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+              placement={selectedNode ? placementFor(selectedNode.data) : undefined}
+              onConfigChange={handleConfigChange}
+              onClose={() => setSelectedNodeId(null)}
+              onRemove={readOnly ? undefined : handleRemoveSelected}
+            />
+          </div>
+        ))}
 
       {/* Browse-and-add tools — a modal so the canvas stays full-width. */}
       {!readOnly && (

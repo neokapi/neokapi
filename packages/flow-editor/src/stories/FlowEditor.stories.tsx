@@ -781,3 +781,138 @@ export const TransformersReadOnly: Story = {
     onRun: undefined,
   },
 };
+
+/**
+ * Run review: the designed flow IS the run flow. A completed trace of this
+ * exact flow is loaded, so the transport at the bottom replays the events on
+ * the same nodes (active highlight, part counts) and selecting a node opens
+ * its run inspector — the blocks that passed through, with the
+ * overlay/annotation delta the step produced (entity consumed, secret
+ * vaulted, target written).
+ */
+export const RunReview: Story = {
+  name: "Run Review (trace on the designed flow)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact", config: { detectors: ["entities"] } }, { tool: "ai-translate" }],
+    },
+    tools: transformerAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+    trace: {
+      name: "lab",
+      nodes: [
+        { id: "reader", type: "reader", name: "read" },
+        { id: "tool-1", type: "tool", name: "redact" },
+        { id: "tool-2", type: "tool", name: "ai-translate" },
+        { id: "writer", type: "writer", name: "write" },
+      ],
+      events: [
+        { ts: 120, type: "enter", nodeId: "tool-1", partId: "b1" },
+        { ts: 480, type: "exit", nodeId: "tool-1", partId: "b1" },
+        { ts: 510, type: "enter", nodeId: "tool-2", partId: "b1" },
+        { ts: 2200, type: "exit", nodeId: "tool-2", partId: "b1" },
+        { ts: 2300, type: "enter", nodeId: "tool-1", partId: "b2" },
+        { ts: 2350, type: "exit", nodeId: "tool-1", partId: "b2" },
+        { ts: 2400, type: "enter", nodeId: "tool-2", partId: "b2" },
+        { ts: 3100, type: "exit", nodeId: "tool-2", partId: "b2" },
+      ],
+      parts: {
+        b1: {
+          initial: {
+            id: "b1",
+            type: "Block",
+            summary: "Contact Jane Doe at Acme Corp",
+            sourceText: "Contact Jane Doe at Acme Corp",
+            detail: {
+              overlays: [
+                {
+                  type: "entity",
+                  side: "source",
+                  spans: [
+                    { start: 8, end: 16, text: "Jane Doe", note: "entity:person" },
+                    { start: 20, end: 29, text: "Acme Corp", note: "entity:organization" },
+                  ],
+                },
+              ],
+            },
+          },
+          afterNode: {
+            "tool-1": {
+              id: "b1",
+              type: "Block",
+              summary: "Contact Jane Doe at Acme Corp",
+              sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+              detail: {
+                annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
+              },
+            },
+            "tool-2": {
+              id: "b1",
+              type: "Block",
+              summary: "Contact Jane Doe at Acme Corp",
+              sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+              targetText: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
+              detail: {
+                annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
+              },
+            },
+          },
+        },
+        b2: {
+          initial: {
+            id: "b2",
+            type: "Block",
+            summary: "Thanks for reaching out!",
+            sourceText: "Thanks for reaching out!",
+          },
+          afterNode: {
+            "tool-1": {
+              id: "b2",
+              type: "Block",
+              summary: "Thanks for reaching out!",
+              sourceText: "Thanks for reaching out!",
+            },
+            "tool-2": {
+              id: "b2",
+              type: "Block",
+              summary: "Thanks for reaching out!",
+              sourceText: "Thanks for reaching out!",
+              targetText: "Merci de nous avoir contactés !",
+            },
+          },
+        },
+      },
+      durationUs: 3200,
+    },
+  },
+};
+
+/**
+ * Project presets: the recipe's defaults.tools supplies per-tool config the
+ * engine merges under each step (the step wins per key). Preset-backed nodes
+ * carry a "preset" chip and the config panel lists the inherited values with
+ * override indicators.
+ */
+export const ProjectPresets: Story = {
+  name: "Project Presets (defaults.tools)",
+  args: {
+    flow: {
+      steps: [
+        { tool: "redact", config: { placeholder: "[HIDDEN:{category}]" } },
+        { tool: "ai-translate" },
+      ],
+    },
+    tools: transformerAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+    projectPresets: {
+      redact: {
+        detectors: ["rules"],
+        placeholder: "[REDACTED:{category}]",
+        rules: [{ term: "Acme Corp", category: "org" }],
+      },
+      "ai-translate": { provider: "ollama" },
+    },
+  },
+};

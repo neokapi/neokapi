@@ -159,6 +159,21 @@ export interface FlowEditorProps {
   onGetDoc?: (toolName: string) => ToolDoc | null;
   /** Trace events from a running or completed flow execution. */
   traceEvents?: import("./traceTypes").TraceEvent[];
-  /** Full trace data from a completed execution (includes part snapshots). */
+  /**
+   * Full trace data from a completed execution of THIS flow (part snapshots
+   * included). When set, the editor enters run review: a playback transport
+   * replays the events on the designed nodes, and selecting a node opens its
+   * run inspector (the blocks that passed through, with the overlay/annotation
+   * delta the step produced).
+   */
   trace?: import("./traceTypes").FlowTrace;
+  /** Called when the user dismisses the loaded run (clears review mode). */
+  onTraceDismiss?: () => void;
+  /**
+   * Project-level tool presets (the recipe's defaults.tools): per-tool config
+   * defaults the engine merges under each step's own config (the step wins per
+   * key). The editor badges preset-backed nodes and the config panel shows the
+   * inherited values with override indicators.
+   */
+  projectPresets?: Record<string, Record<string, unknown>>;
 }

@@ -224,6 +224,20 @@ export function ToolNode({ data, selected }: NodeProps) {
               rewrites source
             </span>
           )}
+          {/* Project preset chip: this tool inherits defaults.tools config. */}
+          {!!data.hasPreset && (
+            <span
+              className="ml-1 rounded px-1 py-px text-[8px] font-semibold"
+              style={{
+                color: "oklch(0.55 0.12 290)",
+                border: "1px solid oklch(0.55 0.12 290 / 0.55)",
+                background: "oklch(0.55 0.12 290 / 0.08)",
+              }}
+              title="Inherits a project preset (defaults.tools); the step's own config overrides it per key."
+            >
+              preset
+            </span>
+          )}
           {isParallel && (
             <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
           )}
