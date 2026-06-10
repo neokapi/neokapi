@@ -5,7 +5,7 @@
 // the text never leaves the page, which is exactly the property the redaction
 // placement rule reasons about (no remote source egress).
 //
-// The model (~50 MB quantized) downloads from the Hugging Face CDN on first
+// The model (~175 MB quantized) downloads from the Hugging Face CDN on first
 // use and is cached by the browser; loading is explicit and lazy so the lab
 // page itself stays light.
 
@@ -46,9 +46,46 @@ declare global {
 
 let loading: Promise<void> | null = null;
 
+/** Progress for the model download / init, for hosts that render a bar. */
+export interface LocalNerProgress {
+  message: string;
+  /** Bytes received so far (model download phase only). */
+  loaded?: number;
+  /** Total bytes from Content-Length, or null when unknown. */
+  total?: number | null;
+}
+
 /** Whether the bridge is registered (the model is ready). */
 export function localNerLoaded(): boolean {
   return typeof globalThis.kapiLocalNER === "function";
+}
+
+/** Fetch a URL into bytes, reporting download progress per chunk. */
+async function fetchWithProgress(
+  url: string,
+  message: string,
+  onProgress?: (p: LocalNerProgress) => void,
+): Promise<Uint8Array> {
+  const resp = await fetch(url);
+  if (!resp.ok || !resp.body) throw new Error(`download failed (${resp.status}): ${url}`);
+  const total = Number(resp.headers.get("content-length")) || null;
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.byteLength;
+    onProgress?.({ message, loaded, total });
+  }
+  const out = new Uint8Array(loaded);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
 }
 
 /** Map a GLiNER label onto the engine's bare entity categories. */
@@ -59,26 +96,33 @@ function mapLabel(label: string | undefined): string {
 
 /**
  * Load the GLiNER model (once) and register the `kapiLocalNER` bridge.
- * Subsequent calls await the same load. onStatus receives coarse progress
- * messages for the lab's status bar.
+ * Subsequent calls await the same load. onProgress receives a message plus
+ * byte counts during the model download, so the lab can render a real bar.
  */
-export function ensureLocalNer(onStatus?: (msg: string) => void): Promise<void> {
+export function ensureLocalNer(onProgress?: (p: LocalNerProgress) => void): Promise<void> {
   if (localNerLoaded()) return Promise.resolve();
   if (loading) return loading;
   loading = (async () => {
-    onStatus?.("Downloading the on-device NER model (~50 MB, cached after the first load)…");
+    onProgress?.({ message: "Loading the on-device NER engine…" });
     const { Gliner } = (await import("gliner")) as unknown as {
       Gliner: new (opts: unknown) => GlinerLike;
     };
+    // Download the model ourselves so progress is reportable (gliner accepts
+    // raw bytes as modelPath); the browser caches the fetch.
+    const modelBytes = await fetchWithProgress(
+      MODEL_URL,
+      "Downloading the on-device NER model (cached after the first load)…",
+      onProgress,
+    );
     const gliner = new Gliner({
       tokenizerPath: TOKENIZER_REPO,
       onnxSettings: {
-        modelPath: MODEL_URL,
+        modelPath: modelBytes,
         executionProvider: "wasm",
         wasmPaths: ORT_WASM_CDN,
       },
     });
-    onStatus?.("Initializing the on-device NER model…");
+    onProgress?.({ message: "Initializing the on-device NER model…" });
     await gliner.initialize();
 
     globalThis.kapiLocalNER = async (reqJSON: string): Promise<string> => {
@@ -104,7 +148,7 @@ export function ensureLocalNer(onStatus?: (msg: string) => void): Promise<void> 
         }),
       });
     };
-    onStatus?.("On-device NER model ready.");
+    onProgress?.({ message: "On-device NER model ready." });
   })().catch((err) => {
     loading = null; // allow a retry after a failed download
     throw err;

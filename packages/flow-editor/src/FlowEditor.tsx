@@ -15,7 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flowEditor.css";
-import { Play, Plus, X, GitBranch, Zap, Eye, Loader2, Lock } from "lucide-react";
+import { Play, Plus, X, GitBranch, Zap, Loader2, Lock } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
 import type {
@@ -106,8 +106,6 @@ const edgeTypes: EdgeTypes = {
 
 interface FlowToolbarProps {
   stepCount: number;
-  showPreview: boolean;
-  onTogglePreview: () => void;
   onRun?: (flow: FlowSpec) => void;
   runDisabled?: boolean;
   flow: FlowSpec;
@@ -119,8 +117,6 @@ interface FlowToolbarProps {
 
 function FlowToolbar({
   stepCount,
-  showPreview,
-  onTogglePreview,
   onRun,
   runDisabled,
   flow,
@@ -149,17 +145,6 @@ function FlowToolbar({
               {redacted ? "Protected" : "Protect"}
             </Button>
           )}
-
-          <Button
-            variant={showPreview ? "outline" : "ghost"}
-            size="xs"
-            onClick={onTogglePreview}
-            className={cn(showPreview && "border-accent text-accent-foreground")}
-            aria-label="Toggle preview"
-          >
-            <Eye size={12} />
-            Preview
-          </Button>
 
           {onRun && (
             <Button
@@ -589,7 +574,6 @@ export function FlowEditor({
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
 
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
-  const [showPreview, setShowPreview] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
   // Run review: the trace from running THIS flow plays back on the canvas.
@@ -1230,8 +1214,6 @@ export function FlowEditor({
         {/* Toolbar */}
         <FlowToolbar
           stepCount={flow.steps.length}
-          showPreview={showPreview}
-          onTogglePreview={() => setShowPreview((p) => !p)}
           onRun={onRun}
           runDisabled={runDisabled}
           flow={flow}
@@ -1339,19 +1321,6 @@ export function FlowEditor({
               onTraceDismiss?.();
             }}
           />
-        )}
-
-        {/* Preview panel (bottom of canvas column) */}
-        {showPreview && (
-          <div className="border-t border-border bg-background px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Eye size={12} className="text-accent-foreground" />
-              <span className="text-[11px] font-semibold text-foreground">Preview</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground italic text-center py-3">
-              Connect to a running project to preview
-            </div>
-          </div>
         )}
       </div>
 

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Import from the light /runtime subpath (not the package index) so we don't
 // pull xterm / the modal into explorer bundles — explorers never show a terminal.
-import { bootKapiRuntime } from "@neokapi/kapi-playground/runtime";
+import { bootKapiRuntime, onBootProgress } from "@neokapi/kapi-playground/runtime";
 import type {
   AnnotateOptions,
+  BootProgress,
   InspectResult,
   KapiRuntime,
   KlfRequest,
@@ -41,6 +42,9 @@ export interface LabRuntime {
   status: LabStatus;
   error: string | null;
   ready: boolean;
+  /** Engine download progress while booting (bytes of the ~13 MB module); null
+   *  before the download starts and after the engine is up. */
+  bootProgress: BootProgress | null;
   /** Create a directory (and parents) under /project. */
   mkdir: (path: string) => void;
   /** Seed a file into the in-memory filesystem under /project. Accepts text or
@@ -97,6 +101,7 @@ function serialized<T>(fn: () => Promise<T>): Promise<T> {
 export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
   const [status, setStatus] = useState<LabStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
   const runtimeRef = useRef<KapiRuntime | null>(null);
 
   // Key the boot on the URL *strings*, not the `assets` object identity — a
@@ -109,6 +114,9 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     if (!wasmExecUrl || !wasmUrl) return;
     let cancelled = false;
     setStatus("booting");
+    const offProgress = onBootProgress((p) => {
+      if (!cancelled) setBootProgress(p.done ? null : p);
+    });
     bootKapiRuntime(wasmExecUrl, wasmUrl)
       .then((rt) => {
         if (cancelled) return;
@@ -122,6 +130,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       });
     return () => {
       cancelled = true;
+      offProgress();
     };
   }, [wasmExecUrl, wasmUrl]);
 
@@ -264,6 +273,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       status,
       error,
       ready: status === "ready",
+      bootProgress,
       mkdir,
       writeFile,
       inspect,
@@ -280,6 +290,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     [
       status,
       error,
+      bootProgress,
       mkdir,
       writeFile,
       inspect,

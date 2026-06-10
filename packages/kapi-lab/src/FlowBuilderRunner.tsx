@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Play } from "lucide-react";
 import { FlowEditor, graphToSteps, stepsToGraph } from "@neokapi/flow-editor";
 import type { FlowSpec, FlowTrace, ToolInfo } from "@neokapi/flow-editor";
 import { tools as toolReference } from "@neokapi/reference-data";
@@ -11,7 +10,7 @@ import type { FileSourceValue } from "./FileSource";
 import OutputView from "./OutputView";
 import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario } from "./labScenarios";
-import { ensureLocalNer, localNerLoaded } from "./localNer";
+import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
@@ -128,6 +127,43 @@ function formatScalar(value: unknown): string {
   return JSON.stringify(value);
 }
 
+/** A slim labelled progress bar for the engine / model downloads. */
+function DownloadProgress({
+  label,
+  loaded,
+  total,
+}: {
+  label: string;
+  loaded?: number;
+  total?: number | null;
+}) {
+  const mb = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
+  const pct = loaded !== undefined && total ? Math.min(100, (loaded / total) * 100) : null;
+  return (
+    <div className="flex flex-col gap-1 py-1">
+      <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+        <span>{label}</span>
+        {loaded !== undefined && (
+          <span className="font-mono text-[10px]">
+            {mb(loaded)}
+            {total ? ` / ${mb(total)}` : ""}
+          </span>
+        )}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+        {pct !== null ? (
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-200"
+            style={{ width: `${pct}%` }}
+          />
+        ) : (
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export interface FlowBuilderRunnerProps {
   assets: LabRuntimeAssets | null;
   defaultSampleId?: string;
@@ -209,7 +245,7 @@ export default function FlowBuilderRunner({
   const [outPath, setOutPath] = useState<string | null>(null);
   const [outVersion, setOutVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [nerProgress, setNerProgress] = useState<LocalNerProgress | null>(null);
   const [busy, setBusy] = useState(false);
 
   const selectScenario = useCallback(
@@ -244,7 +280,7 @@ export default function FlowBuilderRunner({
       }
       setBusy(true);
       setError(null);
-      setNotice(null);
+      setNerProgress(null);
 
       // On-device NER: a step running ai-entity-extract with engine "ner"
       // needs the GLiNER model loaded in the page (the wasm engine bridges to
@@ -261,14 +297,15 @@ export default function FlowBuilderRunner({
       );
       if (needsLocalNer && !localNerLoaded()) {
         try {
-          await ensureLocalNer(setNotice);
+          await ensureLocalNer(setNerProgress);
         } catch (err) {
           setError(`failed to load the on-device NER model: ${String(err)}`);
+          setNerProgress(null);
           setBusy(false);
           return;
         }
       }
-      setNotice(null);
+      setNerProgress(null);
 
       const recipe = buildRecipe({ steps }, presets);
       runtime.writeFile("flow.kapi", recipe);
@@ -298,8 +335,6 @@ export default function FlowBuilderRunner({
     },
     [runtime.ready, runtime.writeFile, runtime.trace, file, presets],
   );
-
-  const stepCount = flow.steps.filter((s) => s.tool).length;
 
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
@@ -367,23 +402,23 @@ export default function FlowBuilderRunner({
           />
         </div>
 
-        <div className={shared.pickerRow}>
-          <span className={shared.pickerLabel}>
-            {stepCount} tool{stepCount !== 1 ? "s" : ""} in this flow
-          </span>
-          <button
-            className={shared.runButton}
-            onClick={() => void runFlow(flow)}
-            disabled={!runtime.ready || busy}
-          >
-            <Play size={14} /> Run flow
-          </button>
-        </div>
-
+        {runtime.status === "booting" && (
+          <DownloadProgress
+            label="Downloading the kapi engine (one-time, cached)…"
+            loaded={runtime.bootProgress?.loaded}
+            total={runtime.bootProgress?.total}
+          />
+        )}
+        {busy && nerProgress && (
+          <DownloadProgress
+            label={nerProgress.message}
+            loaded={nerProgress.loaded}
+            total={nerProgress.total}
+          />
+        )}
         <div className={`${shared.statusBar} ${error ? shared.statusError : ""}`}>
-          {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
           {runtime.status === "error" && `Failed to start: ${runtime.error}`}
-          {runtime.ready && busy && (notice ?? "Running your flow…")}
+          {runtime.ready && busy && !nerProgress && "Running your flow…"}
           {runtime.ready && !busy && error && `Error: ${error}`}
           {runtime.ready &&
             !busy &&
@@ -397,8 +432,8 @@ export default function FlowBuilderRunner({
 
         {!trace && !error && (
           <div className={shared.emptyHint}>
-            Edit the flow above, then press Run flow — the run plays back on the same nodes you
-            designed.
+            Edit the flow above, then press Run in the flow's toolbar — the run plays back on the
+            same nodes you designed.
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ import React, { useRef } from "react";
 // Mock the wasm boot so the hook runs without loading a real 70MB binary.
 vi.mock("@neokapi/kapi-playground/runtime", () => ({
   bootKapiRuntime: vi.fn(async () => ({}) as never),
+  onBootProgress: vi.fn(() => () => {}),
 }));
 
 import { useLabRuntime } from "./useLabRuntime";
