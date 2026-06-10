@@ -18,10 +18,11 @@ import { PluginManager } from "./PluginManager";
 import { LocaleSettings } from "./LocaleSettings";
 
 export type ThemeMode = "system" | "light" | "dark";
-export type UILanguage = "en" | "qps";
+export type UILanguage = "en" | "nb" | "qps";
 
 const UI_LANGUAGES: { value: UILanguage; label: string; icon: typeof Languages }[] = [
   { value: "en", label: t("English", "UI Language"), icon: Languages },
+  { value: "nb", label: t("Norsk (bokmål)", "UI Language"), icon: Languages },
   { value: "qps", label: t("Pseudo English (qps)", "UI Language"), icon: FlaskConical },
 ];
 

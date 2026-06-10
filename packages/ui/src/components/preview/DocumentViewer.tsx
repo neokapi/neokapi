@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Download, FileWarning } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
@@ -80,26 +81,27 @@ export default function DocumentViewer({
   // Per-structure counts for the Stats tab.
   const stats = useMemo(() => {
     const rows: { label: string; value: number }[] = [];
-    rows.push({ label: "Blocks", value: blocks.length });
+    rows.push({ label: t("Blocks"), value: blocks.length });
     rows.push({
-      label: "Words",
+      label: t("Words"),
       value: blocks.reduce((sum, b) => {
         const src = (b.source ?? []).map((r) => r.text ?? "").join("");
         return sum + wordCount(src);
       }, 0),
     });
-    if (doc.kind === "slides") rows.push({ label: "Slides", value: doc.slides?.length ?? 0 });
+    if (doc.kind === "slides") rows.push({ label: t("Slides"), value: doc.slides?.length ?? 0 });
     if (doc.kind === "sheet") {
-      rows.push({ label: "Sheets", value: doc.sheets?.length ?? 1 });
+      rows.push({ label: t("Sheets"), value: doc.sheets?.length ?? 1 });
       const cells = (doc.sheets ?? (doc.sheet ? [doc.sheet] : [])).reduce(
         (n, sh) => n + sh.cells.length,
         0,
       );
-      rows.push({ label: "Cells", value: cells });
+      rows.push({ label: t("Cells"), value: cells });
     }
-    if (doc.kind === "pages") rows.push({ label: "Pages", value: doc.pages?.length ?? 0 });
-    if (doc.kind === "sections") rows.push({ label: "Sections", value: doc.sections?.length ?? 0 });
-    if (locales.length > 0) rows.push({ label: "Target locales", value: locales.length });
+    if (doc.kind === "pages") rows.push({ label: t("Pages"), value: doc.pages?.length ?? 0 });
+    if (doc.kind === "sections")
+      rows.push({ label: t("Sections"), value: doc.sections?.length ?? 0 });
+    if (locales.length > 0) rows.push({ label: t("Target locales"), value: locales.length });
     return rows;
   }, [blocks, doc, locales.length]);
 

@@ -68,6 +68,36 @@ describe("kapi-react extract", () => {
     }
   });
 
+  it("contains workspace sources outside the project root inside --out", async () => {
+    // An app that pulls translatable JSX from sibling workspace
+    // packages passes e.g. --src "../../packages/ui/src/**/*.tsx".
+    // The .klf for those files must not escape --out through the
+    // leading "../" segments.
+    const root = mkdtempSync(join(tmpdir(), "kapi-react-workspace-"));
+    mkdirSync(join(root, "app"));
+    mkdirSync(join(root, "packages", "ui", "src"), { recursive: true });
+    writeFileSync(
+      join(root, "packages", "ui", "src", "Button.tsx"),
+      `export function Button() { return <button>Save changes</button>; }`,
+    );
+    const cwd = process.cwd();
+    process.chdir(join(root, "app"));
+    try {
+      await runExtract(["--src", "../packages/ui/src/**/*.tsx", "--out", "i18n"]);
+      const raw = readFileSync(
+        join(root, "app", "i18n", "packages", "ui", "src", "Button.klf"),
+        "utf8",
+      );
+      const file = JSON.parse(raw) as File;
+      // The document keeps its real relative path; only the on-disk
+      // .klf location is contained.
+      expect(file.documents[0].path).toBe("../packages/ui/src/Button.tsx");
+      expect(file.documents[0].blocks.length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+
   it("emits NDJSON block records that match the KLF-written set", async () => {
     const dir = tempProject();
     const cwd = process.cwd();

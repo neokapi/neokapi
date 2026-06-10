@@ -18,6 +18,7 @@
  */
 
 import type { ReactElement } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { useMemo, useState } from "react";
 
 import type { Block, PluralForm, Run } from "@neokapi/kapi-format";
@@ -107,7 +108,7 @@ function FlatTarget({
             {candidates.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.label}
-                {c.sourcePivot ? " — source pivot" : ""}
+                {c.sourcePivot ? t(" — source pivot") : ""}
               </option>
             ))}
           </select>

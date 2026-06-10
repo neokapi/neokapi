@@ -1,4 +1,5 @@
 import type { Run } from "@neokapi/kapi-format";
+import { t } from "@neokapi/kapi-react/runtime";
 
 // --- TM Types (multilingual model) ---
 
@@ -279,16 +280,64 @@ export interface ResourceInfo {
 
 // --- Entity constants ---
 
+// Labels are lazy `get` accessors wrapping t() so the dictionary lookup
+// happens at render time (after translations load), not at module
+// evaluation.
 export const ENTITY_TYPES = [
-  { value: "entity:person", label: "Person" },
-  { value: "entity:organization", label: "Organization" },
-  { value: "entity:product", label: "Product" },
-  { value: "entity:location", label: "Location" },
-  { value: "entity:date", label: "Date" },
-  { value: "entity:time", label: "Time" },
-  { value: "entity:currency", label: "Currency" },
-  { value: "entity:measurement", label: "Measurement" },
-  { value: "entity:other", label: "Other" },
+  {
+    value: "entity:person",
+    get label() {
+      return t("Person", "entity type");
+    },
+  },
+  {
+    value: "entity:organization",
+    get label() {
+      return t("Organization", "entity type");
+    },
+  },
+  {
+    value: "entity:product",
+    get label() {
+      return t("Product", "entity type");
+    },
+  },
+  {
+    value: "entity:location",
+    get label() {
+      return t("Location", "entity type");
+    },
+  },
+  {
+    value: "entity:date",
+    get label() {
+      return t("Date", "entity type");
+    },
+  },
+  {
+    value: "entity:time",
+    get label() {
+      return t("Time", "entity type");
+    },
+  },
+  {
+    value: "entity:currency",
+    get label() {
+      return t("Currency", "entity type");
+    },
+  },
+  {
+    value: "entity:measurement",
+    get label() {
+      return t("Measurement", "entity type");
+    },
+  },
+  {
+    value: "entity:other",
+    get label() {
+      return t("Other", "entity type");
+    },
+  },
 ] as const;
 
 export type EntityTypeValue = (typeof ENTITY_TYPES)[number]["value"];

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import {
   Badge,
   Button,
@@ -89,7 +90,7 @@ function FlowList({ definitions, activeId, isLoading, canAuthor, onSelect, onNew
           onClick={onNew}
           size="sm"
           disabled={!canAuthor}
-          title={canAuthor ? undefined : "Select a project to author flows"}
+          title={canAuthor ? undefined : t("Select a project to author flows")}
         >
           + New
         </Button>
@@ -138,7 +139,7 @@ export function FlowsWorkspace({
   canAuthor = true,
   confirmDelete = false,
   showDescriptionInput = false,
-  emptyStateText = "Select a flow from the list or create a new one",
+  emptyStateText = t("Select a flow from the list or create a new one"),
   onGetSchema,
   onGetDoc,
   onRun,
@@ -352,7 +353,7 @@ export function FlowsWorkspace({
                     disabled={!dirty || saving}
                     size="sm"
                   >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? t("Saving...") : t("Save")}
                   </Button>
                   <Button
                     data-testid="delete-flow-btn"
@@ -361,7 +362,7 @@ export function FlowsWorkspace({
                     size="sm"
                     className="border-destructive text-destructive hover:bg-destructive/10"
                   >
-                    {isNew ? "Discard" : "Delete"}
+                    {isNew ? t("Discard") : t("Delete")}
                   </Button>
                 </>
               )}

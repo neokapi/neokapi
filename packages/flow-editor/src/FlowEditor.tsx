@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import {
   ReactFlow,
   Background,
@@ -143,7 +144,7 @@ function FlowToolbar({
               }
             >
               <Lock size={12} />
-              {redacted ? "Protected" : "Protect"}
+              {redacted ? t("Protected") : t("Protect")}
             </Button>
           )}
 
@@ -155,7 +156,7 @@ function FlowToolbar({
               aria-label="Run flow"
             >
               {runDisabled ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-              {runDisabled ? "Running..." : "Run"}
+              {runDisabled ? t("Running...") : t("Run")}
             </Button>
           )}
         </>
@@ -403,7 +404,7 @@ export function StepConfigPanel({
               onClick={() => setShowDocs((v) => !v)}
               className={cn("ml-auto text-[9px] h-5 px-2", showDocs && "border-ring text-ring")}
             >
-              {showDocs ? "Hide Docs" : "Docs"}
+              {showDocs ? t("Hide Docs") : t("Docs")}
             </Button>
           )}
           {doc?.wikiUrl && (
@@ -491,7 +492,7 @@ export function StepConfigPanel({
             }
           >
             <span className="font-semibold">
-              {d.severity === "error" ? "Placement error: " : "Placement: "}
+              {d.severity === "error" ? t("Placement error: ") : t("Placement: ")}
             </span>
             {d.message}
           </div>
@@ -521,7 +522,9 @@ export function StepConfigPanel({
             />
           ) : (
             <div className="text-[11px] text-muted-foreground text-center py-5 italic">
-              {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
+              {toolInfo?.has_schema
+                ? t("Loading configuration...")
+                : t("No configurable parameters")}
             </div>
           )}
         </div>

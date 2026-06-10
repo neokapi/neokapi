@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { createPortal } from "react-dom";
 import { X, Search, Check, ChevronDown } from "lucide-react";
 import { Badge } from "./badge";
@@ -88,7 +89,7 @@ export function FilterBar({
   onSearchChange,
   fields,
   presets,
-  placeholder = "Search...",
+  placeholder = t("Search..."),
 }: FilterBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(search);
@@ -168,12 +169,12 @@ export function FilterBar({
 
     if (matchedFields.length === 0) return [];
 
-    const items: ACItem[] = [{ type: "heading", label: "Available filters" }];
+    const items: ACItem[] = [{ type: "heading", label: t("Available filters") }];
     for (const f of matchedFields) {
       items.push({
         type: "field",
         display: f.key + ":",
-        hint: f.hint ?? "filter by " + f.label.toLowerCase(),
+        hint: f.hint ?? t("filter by {label}", { label: f.label.toLowerCase() }),
         action: () => {
           setInputValue(f.key + ":");
           inputRef.current?.focus();

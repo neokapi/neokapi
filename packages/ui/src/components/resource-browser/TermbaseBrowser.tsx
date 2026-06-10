@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { TermbaseAdapter } from "./adapters";
 import type { ConceptDTO, TermDTO } from "./types";
 import { BulkActionBar } from "./BulkActionBar";
@@ -302,7 +303,7 @@ export function TermbaseBrowser({
       {initialLoadDone && !loading && concepts.length === 0 && (
         <div className="py-12 text-center">
           <p className="text-sm text-muted-foreground mb-1">
-            {searchText ? "No concepts match your search." : "No concepts yet."}
+            {searchText ? t("No concepts match your search.") : t("No concepts yet.")}
           </p>
           {searchText ? (
             <button

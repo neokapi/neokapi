@@ -133,11 +133,12 @@ export const containerElements = new Set([
  *      aria-roledescription / aria-valuetext — always user-visible.
  *   3. React-component conventions: subtitle, description, label,
  *      heading, caption, helpText, helperText, errorMessage, hint,
- *      tooltip. These are the prop names UI libraries (shadcn,
- *      mui, radix wrappers, our own `<PageHeader>` / `<EmptyState>`
- *      / `<LoadingSpinner>`) use for visible text. Adding them to
- *      the default set means `<PageHeader title="Translation
- *      Memories" />` just works.
+ *      tooltip, emptyMessage, emptyStateText, filterPlaceholder.
+ *      These are the prop names UI libraries (shadcn, mui, radix
+ *      wrappers, our own `<PageHeader>` / `<EmptyState>` /
+ *      `<SelectableList>` / `<FlowsWorkspace>`) use for visible
+ *      text. Adding them to the default set means `<PageHeader
+ *      title="Translation Memories" />` just works.
  *
  * Opt out a specific site with `translate="no"` or a rule selector.
  */
@@ -160,6 +161,9 @@ export const translatableAttributes = new Set([
   "errorMessage",
   "hint",
   "tooltip",
+  "emptyMessage",
+  "emptyStateText",
+  "filterPlaceholder",
 ]);
 
 export function getTranslatability(htmlElement: string): "yes" | "no" | "container" {

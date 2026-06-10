@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { ChevronsUpDown, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import {
@@ -55,7 +56,7 @@ export function LocaleSelect({
   value,
   onChange,
   locales,
-  placeholder = "Select locale...",
+  placeholder = t("Select locale..."),
   className,
   disabled,
   compact = false,
@@ -140,7 +141,7 @@ export function MultiLocaleSelect({
   value,
   onChange,
   locales,
-  placeholder = "Add locale...",
+  placeholder = t("Add locale..."),
   className,
   disabled,
 }: MultiLocaleSelectProps) {

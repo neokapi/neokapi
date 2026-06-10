@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type {
   EntityAdaptationDTO,
   EntityAnnotationDTO,
@@ -197,7 +198,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
           disabled={loading || !text.trim()}
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? "Looking up..." : "Lookup"}
+          {loading ? t("Looking up...") : t("Lookup")}
         </button>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <label htmlFor="min-score">Min:</label>

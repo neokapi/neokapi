@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Search, ChevronDown, ChevronRight, GripVertical, Layers } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
@@ -195,7 +196,9 @@ function PaletteItem({
           ))}
           {tool.cardinality && tool.cardinality !== "monolingual" && (
             <span className="rounded-sm bg-blue-500/10 px-1 py-px text-[9px] font-medium text-blue-600 dark:text-blue-400">
-              {tool.cardinality === "bilingual" ? "Bi" : "Multi"}
+              {tool.cardinality === "bilingual"
+                ? t("Bi", "bilingual badge")
+                : t("Multi", "multilingual badge")}
             </span>
           )}
           {tool.default_locale && (

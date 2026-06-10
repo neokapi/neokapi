@@ -29,6 +29,11 @@ const preview = createPreview({
     locales: [
       { value: "en", title: "English" },
       {
+        value: "nb",
+        title: "Norsk (bokmål)",
+        url: `${import.meta.env.BASE_URL}translations/nb.json`,
+      },
+      {
         value: "qps",
         title: "Pseudo English (qps)",
         // Resolve against the Storybook base path (set per-PR by the

@@ -576,8 +576,9 @@ The plugin automatically determines what to translate using W3C HTML5 defaults:
 **Translatable attributes:** `alt`, `title`, `placeholder`, `aria-label`, `aria-description`,
 `aria-placeholder`, `aria-roledescription`, `aria-valuetext`, `subtitle`, `description`,
 `label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`,
-`tooltip`. Extracted from any element (mapped or not), so `<PageHeader
-title="Translation Memories" />` works without a componentMap entry.
+`tooltip`, `emptyMessage`, `emptyStateText`, `filterPlaceholder`. Extracted from any
+element (mapped or not), so `<PageHeader title="Translation Memories" />` works
+without a componentMap entry.
 
 ### Auto-promotion for containers
 

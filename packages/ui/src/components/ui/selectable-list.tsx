@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, type ReactNode } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "./table";
 import { Input } from "./input";
 import { cn } from "../../lib/utils";
@@ -57,10 +58,10 @@ export function SelectableList<T>({
   columns,
   actions,
   filterFn,
-  filterPlaceholder = "Filter...",
+  filterPlaceholder = t("Filter..."),
   rowClassName,
   maxHeight = 400,
-  emptyMessage = "No items match the filter.",
+  emptyMessage = t("No items match the filter."),
   className,
 }: SelectableListProps<T>) {
   const [selected, setSelected] = useState<Set<string>>(new Set());

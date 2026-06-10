@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { SpanInfo } from "../../types/span";
 import { getDefaultRegistry } from "../../vocabularies";
 import { TagChipComponent } from "./TagChipComponent";
@@ -13,13 +14,27 @@ interface InlineCodeLegendProps {
   onClose: () => void;
 }
 
+// `get` accessors defer the t() dictionary lookup to render time, so
+// translations loaded after module evaluation still apply.
 const categoryLabels: Record<string, string> = {
-  formatting: "Formatting",
-  linking: "Links",
-  media: "Media",
-  structure: "Structure",
-  code: "Code & Variables",
-  generic: "Other",
+  get formatting() {
+    return t("Formatting", "inline code category");
+  },
+  get linking() {
+    return t("Links", "inline code category");
+  },
+  get media() {
+    return t("Media", "inline code category");
+  },
+  get structure() {
+    return t("Structure", "inline code category");
+  },
+  get code() {
+    return t("Code & Variables", "inline code category");
+  },
+  get generic() {
+    return t("Other", "inline code category");
+  },
 };
 
 const categoryOrder = ["formatting", "linking", "media", "structure", "code", "generic"];

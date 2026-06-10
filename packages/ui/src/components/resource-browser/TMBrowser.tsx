@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
 import { flattenRuns } from "@neokapi/kapi-format";
 import type { TMAdapter } from "./adapters";
@@ -413,17 +414,17 @@ export function TMBrowser({
     if (facets.locales.length > 0) {
       fields.push({
         key: "language",
-        label: "Language",
+        label: t("Language"),
         values: facets.locales.map((l) => ({ value: l.locale, label: l.locale })),
       });
     }
     if (facets.projects.length > 0) {
       fields.push({
         key: "project",
-        label: "Project",
+        label: t("Project"),
         values: facets.projects.map((p) => ({
           value: p.project_id,
-          label: p.project_id || "No project",
+          label: p.project_id || t("No project"),
         })),
       });
     }
@@ -626,7 +627,7 @@ export function TMBrowser({
           {initialLoadDone && !loading && isEmpty && (
             <div className="py-12 text-center text-muted-foreground">
               <p className="text-sm mb-1">
-                {debouncedSearch ? "No entries match your search." : "No entries yet."}
+                {debouncedSearch ? t("No entries match your search.") : t("No entries yet.")}
               </p>
               {debouncedSearch && (
                 <button

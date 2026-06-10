@@ -5,6 +5,7 @@
 // model a reader produced from the bound input, or the bytes a writer emitted.
 
 import type { ReactNode } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Button, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
 
 export interface EndpointInspectorPanelProps {
@@ -13,16 +14,26 @@ export interface EndpointInspectorPanelProps {
   children: ReactNode;
 }
 
+// `get` accessors defer the t() dictionary lookup to render time, so
+// translations loaded after module evaluation still apply.
 const ROLE_META = {
   // Match the endpoint pill accents (reader green / writer amber).
   source: {
-    title: "Source",
-    subtitle: "What enters the flow",
+    get title() {
+      return t("Source", "flow endpoint");
+    },
+    get subtitle() {
+      return t("What enters the flow");
+    },
     accent: "oklch(0.7 0.17 145)",
   },
   sink: {
-    title: "Sink",
-    subtitle: "What the flow wrote",
+    get title() {
+      return t("Sink", "flow endpoint");
+    },
+    get subtitle() {
+      return t("What the flow wrote");
+    },
     accent: "oklch(0.7 0.13 85)",
   },
 } as const;

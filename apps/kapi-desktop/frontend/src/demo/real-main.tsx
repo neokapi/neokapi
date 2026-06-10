@@ -81,8 +81,25 @@ if (forcedTheme === "dark" || forcedTheme === "light") {
   document.documentElement.classList.toggle("dark", forcedTheme === "dark");
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+// UI locale for localized recordings. The native entry (main.tsx) boots the
+// locale from api.getUILanguage(); the recorder instead honors `?lang=` so the
+// walkthrough harness can record a localized UI (harness record-desktop.ts
+// appends &lang=<locale> when --locale is set). Loading before mount keeps the
+// first painted frame localized.
+async function mount() {
+  const lang = params.get("lang");
+  if (lang && lang !== "en") {
+    try {
+      const { loadTranslations } = await import("@neokapi/kapi-react/runtime");
+      await loadTranslations(lang, `/translations/${lang}.json`);
+    } catch {
+      // Translations missing — record with source text.
+    }
+  }
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
+void mount();

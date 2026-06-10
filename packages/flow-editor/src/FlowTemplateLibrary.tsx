@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { GitBranch, Layers } from "lucide-react";
 import {
   Button,
@@ -152,7 +153,9 @@ function TemplateCard({
       <CardFooter className="gap-2">
         <Layers size={11} className="text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
-          {template.stepCount} step{template.stepCount !== 1 ? "s" : ""}
+          {template.stepCount === 1
+            ? t("1 step")
+            : t("{count} steps", { count: template.stepCount })}
         </span>
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-medium"

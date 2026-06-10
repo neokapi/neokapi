@@ -881,7 +881,15 @@ l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata tran
 			--source-lang en --target-lang $$lang || exit 1; \
 	done
 
-l10n: l10n-builtins ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage $(KAPI_DESKTOP_DIR)/frontend/i18n \
+			--target-lang $$lang \
+			-o $(KAPI_DESKTOP_DIR)/frontend/i18n-$$lang || exit 1; \
+		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
+	done
+
+l10n: l10n-builtins l10n-desktop ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
