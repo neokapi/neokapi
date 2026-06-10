@@ -269,6 +269,20 @@ export const MultiStep: Story = {
   },
 };
 
+// A lesson focus (host-driven focusRequest): the requested node is selected
+// (its panel opens) and drawn with a primary-colored highlight ring — guided
+// walkthroughs use this to point at the node a step talks about.
+export const LessonFocus: Story = {
+  name: "Lesson focus (focusRequest highlight)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools,
+    focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
+  },
+};
+
 // With a host-supplied renderEndpointPanel, the Source/Sink pills grow an
 // Inspect satellite that opens the host's content in the right overlay — the
 // lab uses this to show the reader's content model (source) and the written

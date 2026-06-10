@@ -185,4 +185,23 @@ export interface FlowEditorProps {
    * chrome; the host supplies only the body.
    */
   renderEndpointPanel?: (role: "source" | "sink", close: () => void) => import("react").ReactNode;
+  /**
+   * Host-driven focus (e.g. a guided lesson step): when `nonce` changes the
+   * editor applies the request — selecting a tool node (`tool-<i>`, opening
+   * its run inspector or config panel per `mode`) or an endpoint
+   * (`endpoint-source` / `endpoint-sink`, opening the endpoint inspector), or
+   * clearing the selection (`select: null`). The focused node is also drawn
+   * with a highlight ring so a lesson can point at it.
+   */
+  focusRequest?: FlowFocusRequest;
+}
+
+/** One host-driven focus application (see FlowEditorProps.focusRequest). */
+export interface FlowFocusRequest {
+  /** Re-apply trigger: the editor applies the request once per nonce value. */
+  nonce: number;
+  /** Node id to select (`tool-<i>`, `endpoint-source`, `endpoint-sink`), or null to clear. */
+  select: string | null;
+  /** Panel to open for a tool node (default "inspect"; pre-run falls back to config). */
+  mode?: "inspect" | "configure";
 }

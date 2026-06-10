@@ -22,6 +22,8 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const onRemove = data.onRemove as (() => void) | undefined;
   const selectedBranch = data.selectedBranch as number | undefined;
   const unmet = data.unmet as string[] | undefined;
+  // A guided lesson step is pointing at this group (FlowEditor focusRequest).
+  const lessonFocus = !!data.lessonFocus;
 
   // Handles sit at the group's own center; the serpentine layout center-aligns
   // every node in a row on a shared lane, so this still lines up with the
@@ -38,9 +40,11 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
       className="relative flex w-[220px] flex-col rounded-lg bg-card overflow-visible"
       style={{
         border: selected ? `2px solid ${PARALLEL_COLOR}` : "2px solid var(--border)",
-        boxShadow: selected
-          ? `0 0 0 3px ${PARALLEL_COLOR}33, 0 4px 12px oklch(0 0 0 / 0.3)`
-          : "0 2px 8px oklch(0 0 0 / 0.2)",
+        boxShadow: lessonFocus
+          ? `0 0 0 3px var(--primary), 0 0 18px 2px color-mix(in oklch, var(--primary) 45%, transparent), 0 4px 12px oklch(0 0 0 / 0.3)`
+          : selected
+            ? `0 0 0 3px ${PARALLEL_COLOR}33, 0 4px 12px oklch(0 0 0 / 0.3)`
+            : "0 2px 8px oklch(0 0 0 / 0.2)",
       }}
     >
       <Handle type="target" position={inPosition} style={handleStyle} />

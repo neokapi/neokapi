@@ -570,6 +570,7 @@ export function FlowEditor({
   onTraceDismiss,
   projectPresets,
   renderEndpointPanel,
+  focusRequest,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -602,6 +603,15 @@ export function FlowEditor({
     setTraceDismissed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
+
+  // Host-driven focus (lesson steps): apply once per nonce — select the
+  // requested node/endpoint (opening its panel) or clear the selection.
+  useEffect(() => {
+    if (!focusRequest) return;
+    setSelectedNodeId(focusRequest.select);
+    setPanelMode(focusRequest.mode ?? "inspect");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce]);
   const cursor = traceCursor ?? runEvents?.length ?? 0;
 
   // Measured node heights, by id, used to center-align each row (stations differ
@@ -754,6 +764,12 @@ export function FlowEditor({
         extra.onSelectBranch = (branchIndex: number) =>
           setSelectedNodeId(`${n.id}::b${branchIndex}`);
       }
+      // A lesson step pointing at this node draws a highlight ring (a branch
+      // selection like `tool-2::b1` highlights its parent group node).
+      const focusTarget = focusRequest?.select;
+      if (focusTarget && (focusTarget === n.id || focusTarget.startsWith(`${n.id}::`))) {
+        extra.lessonFocus = true;
+      }
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
@@ -766,6 +782,7 @@ export function FlowEditor({
     unmetFor,
     placementFor,
     projectPresets,
+    focusRequest?.select,
   ]);
 
   const handleSourceChange = useCallback(
@@ -823,6 +840,7 @@ export function FlowEditor({
       onInspect: renderEndpointPanel
         ? () => setSelectedNodeId(role === "source" ? "endpoint-source" : "endpoint-sink")
         : undefined,
+      lessonFocus: focusRequest?.select === `endpoint-${role}` || undefined,
     });
 
     const sourceNode: Node = {
@@ -913,6 +931,7 @@ export function FlowEditor({
     handleSourceChange,
     handleSinkChange,
     renderEndpointPanel,
+    focusRequest?.select,
     heightVersion,
   ]);
 

@@ -112,8 +112,12 @@ export default function LabPage(): React.ReactElement {
               <strong>run inspector</strong> and see every block that passed
               through with what the step attached — segmentation spans, entity
               tags, vaulted redaction secrets, QA findings, the written target.
-              Pick a scenario to study one story (redaction, segmentation,
-              annotations), or build your own; the{" "}
+              Each scenario comes with a <strong>walkthrough</strong> that
+              drives the workspace step by step — highlighting the node it
+              talks about, opening its panel, running the flow — and the{" "}
+              <strong>Inspect</strong> satellites on Source and Sink open the
+              reader&apos;s content model and the written output (with a
+              round-trip diff against the input). The{" "}
               <strong>Redaction</strong> scenario also shows project scope: its
               rules are a project preset (<code>defaults.tools</code>) the bare{" "}
               <code>redact</code> step inherits — and the placement check keeps

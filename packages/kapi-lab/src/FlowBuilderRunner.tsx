@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlowEditor, graphToSteps, stepsToGraph } from "@neokapi/flow-editor";
-import type { FlowSpec, FlowTrace, ToolInfo } from "@neokapi/flow-editor";
+import type { FlowFocusRequest, FlowSpec, FlowTrace, ToolInfo } from "@neokapi/flow-editor";
 import { tools as toolReference } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
@@ -9,7 +9,8 @@ import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
 import { SourceContentPanel, SinkOutputPanel } from "./EndpointPanels";
 import { SAMPLES } from "./samples";
-import { LAB_SCENARIOS, type LabScenario } from "./labScenarios";
+import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios";
+import WalkthroughCard from "./WalkthroughCard";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
@@ -248,6 +249,38 @@ export default function FlowBuilderRunner({
   const [nerProgress, setNerProgress] = useState<LocalNerProgress | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Guided walkthrough state: the active step of the scenario's lesson, plus
+  // the focus request fed to the editor (one application per nonce). Stepping
+  // applies the step's focus — selecting the node it talks about and opening
+  // the matching panel — so the lesson points INTO the workspace.
+  const [walkIndex, setWalkIndex] = useState(0);
+  const [focusRequest, setFocusRequest] = useState<FlowFocusRequest | undefined>(undefined);
+  const focusNonce = useRef(0);
+
+  const applyStepFocus = useCallback((step: LessonStep | undefined) => {
+    if (!step || step.select === undefined) return;
+    focusNonce.current += 1;
+    setFocusRequest({ nonce: focusNonce.current, select: step.select, mode: step.mode });
+  }, []);
+
+  const goToStep = useCallback(
+    (steps: LessonStep[] | undefined, index: number) => {
+      setWalkIndex(index);
+      applyStepFocus(steps?.[index]);
+    },
+    [applyStepFocus],
+  );
+
+  // Apply the initial scenario's first lesson focus once the engine is up
+  // (panels show live engine output, so focusing before boot teaches nothing).
+  const appliedInitialFocus = useRef(false);
+  useEffect(() => {
+    if (!runtime.ready || appliedInitialFocus.current) return;
+    appliedInitialFocus.current = true;
+    applyStepFocus(scenario.walkthrough?.[walkIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime.ready]);
+
   const selectScenario = useCallback(
     (s: LabScenario) => {
       setScenario(s);
@@ -258,8 +291,15 @@ export default function FlowBuilderRunner({
       setTrace(null);
       setOutPath(null);
       setError(null);
+      // Restart the lesson; scenarios without one clear any lingering focus.
+      setWalkIndex(0);
+      if (s.walkthrough) applyStepFocus(s.walkthrough[0]);
+      else {
+        focusNonce.current += 1;
+        setFocusRequest({ nonce: focusNonce.current, select: null });
+      }
     },
-    [sampleFor],
+    [sampleFor, applyStepFocus],
   );
 
   // Editing the flow invalidates the loaded run review (the trace no longer
@@ -355,6 +395,17 @@ export default function FlowBuilderRunner({
     [runtime.ready, runtime.writeFile, runtime.trace, file, presets],
   );
 
+  // A walkthrough step whose action is Run auto-advances when the run lands,
+  // so the next step can immediately point at what the run produced.
+  useEffect(() => {
+    if (!trace) return;
+    const steps = scenario.walkthrough;
+    if (steps?.[walkIndex]?.run && walkIndex < steps.length - 1) {
+      goToStep(steps, walkIndex + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace]);
+
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
     // --border, …) the flow-editor's Tailwind classes resolve against; the docs
@@ -386,7 +437,20 @@ export default function FlowBuilderRunner({
             </ToggleGroup>
           </div>
         )}
-        <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
+        {/* The scenario's lesson: a walkthrough card that drives the workspace
+            (each step focuses the node/panel it talks about), or the static
+            description for free-play scenarios. */}
+        {scenario.walkthrough ? (
+          <WalkthroughCard
+            steps={scenario.walkthrough}
+            index={walkIndex}
+            onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+            onRun={() => void runFlow(flow)}
+            runDisabled={!runtime.ready || busy}
+          />
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
+        )}
 
         <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />
 
@@ -419,6 +483,7 @@ export default function FlowBuilderRunner({
             onTraceDismiss={() => setTrace(null)}
             projectPresets={presets}
             renderEndpointPanel={renderEndpointPanel}
+            focusRequest={focusRequest}
           />
         </div>
 

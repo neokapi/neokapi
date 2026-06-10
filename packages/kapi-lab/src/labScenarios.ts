@@ -6,6 +6,27 @@
 
 import type { FlowSpec } from "@neokapi/flow-editor";
 
+/**
+ * One step of a scenario's guided walkthrough. Advancing to a step applies its
+ * editor focus (selecting a node/endpoint opens the matching panel and draws a
+ * highlight ring) — the lesson literally points at the workspace instead of
+ * describing it from the outside.
+ */
+export interface LessonStep {
+  /** What to look at and why — shown in the walkthrough card. */
+  prose: string;
+  /**
+   * Editor focus applied when the step activates: a node id (`tool-<i>`,
+   * `endpoint-source`, `endpoint-sink`) or null to clear the selection.
+   * Omitted = leave the current selection alone.
+   */
+  select?: string | null;
+  /** Panel for a tool-node focus (default "inspect"). */
+  mode?: "inspect" | "configure";
+  /** This step's primary action is running the flow (the card offers Run). */
+  run?: boolean;
+}
+
 export interface LabScenario {
   id: string;
   label: string;
@@ -20,6 +41,11 @@ export interface LabScenario {
   presets?: Record<string, Record<string, unknown>>;
   /** Sample file to preselect (id from SAMPLES). */
   sampleId?: string;
+  /**
+   * Guided walkthrough: ordered steps that drive the workspace (focus a node,
+   * open a panel, run the flow). Scenarios without one are free play.
+   */
+  walkthrough?: LessonStep[];
 }
 
 export const LAB_SCENARIOS: LabScenario[] = [
@@ -47,6 +73,37 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
     },
     sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "The redact step is bare, yet it knows what to redact: the rules live at PROJECT level (defaults.tools in the recipe), and every flow in the project inherits them. The config panel shows the inherited preset.",
+        select: "tool-0",
+        mode: "configure",
+      },
+      {
+        prose:
+          "redact is a recoverable transformer — it rewrites the source (placeholders in, originals vaulted) and the placement check keeps it ahead of any step that sends content off-machine. Run the flow.",
+        run: true,
+        select: null,
+      },
+      {
+        prose:
+          "What redact did: each block's after-text carries placeholders, and a redaction.secret annotation records what was vaulted. The model downstream only ever sees the placeholders.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "unredact restores the vaulted originals into the translated target — the names are back, in the right places, in the translation.",
+        select: "tool-3",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "And the written file: the Sink shows the output with its Native lines diffed against the input — structure intact, block text translated, secrets restored.",
+        select: "endpoint-sink",
+      },
+    ],
   },
   {
     id: "redaction-ner",
@@ -63,6 +120,32 @@ export const LAB_SCENARIOS: LabScenario[] = [
       { tool: "unredact" },
     ],
     sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "Same protection, but entity-driven and fully on-device: ai-entity-extract runs a GLiNER model in your browser (engine: ner) — nothing leaves the page, so the placement check has no remote egress to object to.",
+        select: "tool-0",
+        mode: "configure",
+      },
+      {
+        prose:
+          "Run it. The first run downloads the model (~175 MB, cached by the browser) — watch the progress bar under the canvas.",
+        run: true,
+        select: null,
+      },
+      {
+        prose:
+          "The extractor attached an entity overlay — the people, organizations and locations it found, with confidence scores.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "redact consumed those entity spans and replaced them with placeholders; after translation, unredact restores the originals.",
+        select: "tool-1",
+        mode: "inspect",
+      },
+    ],
   },
   {
     id: "segmentation",
@@ -71,6 +154,26 @@ export const LAB_SCENARIOS: LabScenario[] = [
       "Sentence segmentation is a stand-off overlay, not a structural split: the segmentation step attaches sentence spans over the source (open the run inspector to see them), and later steps work per segment without the text ever being cut apart.",
     steps: [{ tool: "segmentation" }, { tool: "ai-translate" }, { tool: "qa-check" }],
     sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "Start at the Source: the reader hands the first tool whole blocks — one run of text each, no sentence boundaries yet.",
+        select: "endpoint-source",
+      },
+      { prose: "Run the flow.", run: true, select: null },
+      {
+        prose:
+          "Open the segmentation step: each block now carries sentence spans — a stand-off overlay anchored to the runs. The text itself was never cut apart.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "Later steps work per segment: ai-translate wrote the target sentence by sentence, guided by those spans.",
+        select: "tool-1",
+        mode: "inspect",
+      },
+    ],
   },
   {
     id: "annotations",
@@ -84,6 +187,41 @@ export const LAB_SCENARIOS: LabScenario[] = [
       { tool: "qa-check" },
     ],
     sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "Start at the Source: the reader turns the file into the content model — Layers and Groups containing Blocks whose text is a sequence of Runs. Inspect the tree; it is what the first tool receives.",
+        select: "endpoint-source",
+      },
+      {
+        prose:
+          "Run the flow, then watch one block accumulate stand-off state as it passes each step — nothing rewrites the text; tools communicate by attaching overlays and annotations.",
+        run: true,
+        select: null,
+      },
+      {
+        prose: "segmentation attached sentence spans over the source runs.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "ai-translate wrote the fr target — a first-class, locale-keyed record on the block.",
+        select: "tool-1",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "term-check and qa-check attach findings without touching text or target — open each and read the +overlay / +annotation delta chips.",
+        select: "tool-2",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "Now scrub the transport under the canvas to replay the run — the dots on the edges are the parts in flight between steps.",
+        select: null,
+      },
+    ],
   },
   {
     id: "pseudo",
@@ -92,6 +230,20 @@ export const LAB_SCENARIOS: LabScenario[] = [
       "The quickest end-to-end pipeline: pseudo-translate writes an accented, padded target for every block so layout and encoding issues surface before any real translation is bought.",
     steps: [{ tool: "pseudo-translate" }, { tool: "word-count" }],
     sampleId: "support-reply",
+    walkthrough: [
+      { prose: "The quickest end-to-end pipeline — run it.", run: true, select: null },
+      {
+        prose:
+          "pseudo-translate wrote an accented, padded target for every block, so layout and encoding issues surface before any real translation is bought.",
+        select: "tool-0",
+        mode: "inspect",
+      },
+      {
+        prose:
+          "Inspect the Sink: the Native tab diffs the written file against the input — the structure is byte-identical, only the block text changed. That is the round-trip guarantee.",
+        select: "endpoint-sink",
+      },
+    ],
   },
   {
     id: "build-your-own",

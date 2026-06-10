@@ -15,6 +15,7 @@ export function EndpointNode({ data }: NodeProps) {
   const readOnly = data.readOnly as boolean | undefined;
   const onBindingChange = data.onBindingChange as ((b: FlowBinding) => void) | undefined;
   const onInspect = data.onInspect as (() => void) | undefined;
+  const lessonFocus = !!data.lessonFocus;
   const isSource = role === "source";
   // The serpentine layout supplies the handle side that faces the flow; fall
   // back to a left→right flow (source out the right, sink in from the left).
@@ -23,6 +24,16 @@ export function EndpointNode({ data }: NodeProps) {
 
   return (
     <div className="nodrag relative">
+      {/* Lesson focus ring — a guided step is pointing at this endpoint. */}
+      {lessonFocus && (
+        <span
+          className="pointer-events-none absolute -inset-1 rounded-full"
+          style={{
+            boxShadow:
+              "0 0 0 3px var(--primary), 0 0 18px 2px color-mix(in oklch, var(--primary) 45%, transparent)",
+          }}
+        />
+      )}
       <EndpointPicker
         role={role}
         binding={binding}
