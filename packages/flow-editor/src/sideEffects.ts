@@ -76,8 +76,13 @@ const BY_EFFECT: Record<string, SystemEffect> = {
   },
 };
 
-const VAULT: SystemEffect = {
-  key: "vault",
+const VAULT_KEY = "vault";
+
+// A tool that produces a redaction.secret writes it to the vault (redact); one
+// that consumes a redaction.secret reads it back to restore originals
+// (unredact). A tool doing both collapses to a single "both"-direction entry.
+const VAULT_WRITE: SystemEffect = {
+  key: VAULT_KEY,
   label: "Vault",
   icon: Vault,
   direction: "write",
@@ -85,13 +90,27 @@ const VAULT: SystemEffect = {
   description: "Stores redaction secrets for later restore",
 };
 
+const VAULT_READ: SystemEffect = {
+  key: VAULT_KEY,
+  label: "Vault",
+  icon: Vault,
+  direction: "read",
+  color: VAULT_COLOR,
+  description: "Reads redaction secrets to restore originals",
+};
+
 /**
  * Resolve the external systems a tool touches, from its declared side effects
- * plus the redaction-secret it may produce. Effects that map to the same system
- * with both read and write (e.g. tm-read + tm-write) collapse to a single
- * "both"-direction entry.
+ * plus the redaction-secret it produces (writes to the vault) or consumes
+ * (reads from the vault). Effects that map to the same system with both read
+ * and write (e.g. tm-read + tm-write) collapse to a single "both"-direction
+ * entry.
  */
-export function getSystemEffects(sideEffects?: string[], produces?: IOPort[]): SystemEffect[] {
+export function getSystemEffects(
+  sideEffects?: string[],
+  produces?: IOPort[],
+  consumes?: IOPort[],
+): SystemEffect[] {
   const merged = new Map<string, SystemEffect>();
   for (const se of sideEffects ?? []) {
     const sys = BY_EFFECT[se];
@@ -107,8 +126,18 @@ export function getSystemEffects(sideEffects?: string[], produces?: IOPort[]): S
       merged.set(sys.key, sys);
     }
   }
-  if ((produces ?? []).some((p) => p.type === "redaction.secret")) {
-    merged.set(VAULT.key, VAULT);
+  const writesSecret = (produces ?? []).some((p) => p.type === "redaction.secret");
+  const readsSecret = (consumes ?? []).some((p) => p.type === "redaction.secret");
+  if (writesSecret && readsSecret) {
+    merged.set(VAULT_KEY, {
+      ...VAULT_WRITE,
+      direction: "both",
+      description: "Vault: reads and writes redaction secrets",
+    });
+  } else if (writesSecret) {
+    merged.set(VAULT_KEY, VAULT_WRITE);
+  } else if (readsSecret) {
+    merged.set(VAULT_KEY, VAULT_READ);
   }
   return [...merged.values()];
 }
