@@ -176,4 +176,50 @@ export interface FlowEditorProps {
    * inherited values with override indicators.
    */
   projectPresets?: Record<string, Record<string, unknown>>;
+  /**
+   * Host-rendered inspector content for the Source / Sink endpoint nodes. When
+   * provided, each endpoint pill gains an Inspect affordance that opens the
+   * editor's right overlay panel with this content — e.g. the content-model
+   * tree the reader produces from the bound input (source), or the written
+   * output with a round-trip diff (sink). The flow editor supplies the panel
+   * chrome; the host supplies only the body.
+   */
+  renderEndpointPanel?: (role: "source" | "sink", close: () => void) => import("react").ReactNode;
+  /**
+   * Host-driven focus (e.g. a guided lesson step): when `nonce` changes the
+   * editor applies the request — selecting a tool node (`tool-<i>`, opening
+   * its run inspector or config panel per `mode`) or an endpoint
+   * (`endpoint-source` / `endpoint-sink`, opening the endpoint inspector), or
+   * clearing the selection (`select: null`). The focused node is also drawn
+   * with a highlight ring so a lesson can point at it.
+   */
+  focusRequest?: FlowFocusRequest;
+  /**
+   * Host-supplied replacement for a step's config panel. Called when a tool
+   * node's configuration opens; returning non-null renders that panel (in the
+   * editor's right overlay) instead of the schema-driven default — e.g. the
+   * lab mounts a code editor for the `script` tool. Return null to keep the
+   * default panel.
+   */
+  renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
+}
+
+/** Context passed to renderStepConfigPanel (see FlowEditorProps). */
+export interface StepConfigRenderContext {
+  toolName: string;
+  step: FlowStep;
+  config: Record<string, unknown>;
+  onConfigChange: (config: Record<string, unknown>) => void;
+  onClose: () => void;
+  onRemove?: () => void;
+}
+
+/** One host-driven focus application (see FlowEditorProps.focusRequest). */
+export interface FlowFocusRequest {
+  /** Re-apply trigger: the editor applies the request once per nonce value. */
+  nonce: number;
+  /** Node id to select (`tool-<i>`, `endpoint-source`, `endpoint-sink`), or null to clear. */
+  select: string | null;
+  /** Panel to open for a tool node (default "inspect"; pre-run falls back to config). */
+  mode?: "inspect" | "configure";
 }

@@ -166,6 +166,8 @@ export function ToolNode({ data, selected }: NodeProps) {
   // Transformer (AD-006): this tool rewrites the source. Ordinary ordered step;
   // the badge is informational and the placement pass flags an unsafe slot.
   const isTransformer = !!data.isSourceTransform;
+  // A guided lesson step is pointing at this node (FlowEditor focusRequest).
+  const lessonFocus = !!data.lessonFocus;
 
   const railColor = style.color;
 
@@ -185,9 +187,11 @@ export function ToolNode({ data, selected }: NodeProps) {
                   ? `2px solid ${railColor}`
                   : "2px solid var(--border)",
         opacity: isValid ? 1 : 0.7,
-        boxShadow: selected
-          ? `0 0 0 3px ${railColor}33, 0 4px 12px oklch(0 0 0 / 0.3)`
-          : "0 2px 8px oklch(0 0 0 / 0.2)",
+        boxShadow: lessonFocus
+          ? `0 0 0 3px var(--primary), 0 0 18px 2px color-mix(in oklch, var(--primary) 45%, transparent), 0 4px 12px oklch(0 0 0 / 0.3)`
+          : selected
+            ? `0 0 0 3px ${railColor}33, 0 4px 12px oklch(0 0 0 / 0.3)`
+            : "0 2px 8px oklch(0 0 0 / 0.2)",
         animation: execState === "active" ? "nodePulse 1.5s ease-in-out infinite" : undefined,
       }}
     >

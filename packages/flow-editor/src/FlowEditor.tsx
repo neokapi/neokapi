@@ -72,6 +72,7 @@ import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TracePanel } from "./TracePanel";
 import { RunInspectorPanel } from "./RunInspectorPanel";
+import { EndpointInspectorPanel } from "./EndpointInspectorPanel";
 import { computeNodeStats } from "./traceTypes";
 // (PartInspector and TraceTimeline remain exported from the package for hosts
 // that render trace data outside the editor; in-editor, the run data lives ON
@@ -568,6 +569,9 @@ export function FlowEditor({
   trace,
   onTraceDismiss,
   projectPresets,
+  renderEndpointPanel,
+  focusRequest,
+  renderStepConfigPanel,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -600,6 +604,15 @@ export function FlowEditor({
     setTraceDismissed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
+
+  // Host-driven focus (lesson steps): apply once per nonce — select the
+  // requested node/endpoint (opening its panel) or clear the selection.
+  useEffect(() => {
+    if (!focusRequest) return;
+    setSelectedNodeId(focusRequest.select);
+    setPanelMode(focusRequest.mode ?? "inspect");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce]);
   const cursor = traceCursor ?? runEvents?.length ?? 0;
 
   // Measured node heights, by id, used to center-align each row (stations differ
@@ -752,6 +765,12 @@ export function FlowEditor({
         extra.onSelectBranch = (branchIndex: number) =>
           setSelectedNodeId(`${n.id}::b${branchIndex}`);
       }
+      // A lesson step pointing at this node draws a highlight ring (a branch
+      // selection like `tool-2::b1` highlights its parent group node).
+      const focusTarget = focusRequest?.select;
+      if (focusTarget && (focusTarget === n.id || focusTarget.startsWith(`${n.id}::`))) {
+        extra.lessonFocus = true;
+      }
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
@@ -764,6 +783,7 @@ export function FlowEditor({
     unmetFor,
     placementFor,
     projectPresets,
+    focusRequest?.select,
   ]);
 
   const handleSourceChange = useCallback(
@@ -816,6 +836,12 @@ export function FlowEditor({
       readOnly,
       handlePosition: role === "source" ? ends.source.handlePosition : ends.sink.handlePosition,
       onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
+      // With a host-supplied inspector, the pill grows an Inspect satellite
+      // that opens the endpoint panel (selection drives the right overlay).
+      onInspect: renderEndpointPanel
+        ? () => setSelectedNodeId(role === "source" ? "endpoint-source" : "endpoint-sink")
+        : undefined,
+      lessonFocus: focusRequest?.select === `endpoint-${role}` || undefined,
     });
 
     const sourceNode: Node = {
@@ -905,6 +931,8 @@ export function FlowEditor({
     flow.sink,
     handleSourceChange,
     handleSinkChange,
+    renderEndpointPanel,
+    focusRequest?.select,
     heightVersion,
   ]);
 
@@ -1324,6 +1352,23 @@ export function FlowEditor({
         )}
       </div>
 
+      {/* Endpoint inspector — same floating right overlay, but for the Source /
+          Sink terminals: the host renders the body (input content model,
+          written output) via renderEndpointPanel. */}
+      {renderEndpointPanel &&
+        (selectedNodeId === "endpoint-source" || selectedNodeId === "endpoint-sink") && (
+          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+            <EndpointInspectorPanel
+              role={selectedNodeId === "endpoint-source" ? "source" : "sink"}
+              onClose={() => setSelectedNodeId(null)}
+            >
+              {renderEndpointPanel(selectedNodeId === "endpoint-source" ? "source" : "sink", () =>
+                setSelectedNodeId(null),
+              )}
+            </EndpointInspectorPanel>
+          </div>
+        )}
+
       {/* Right panel — a floating overlay pinned to the right of the canvas,
           NOT a flex sibling, so opening it never resizes the graph. With a run
           loaded, the run inspector opens first (what passed through this step,
@@ -1343,20 +1388,33 @@ export function FlowEditor({
           </div>
         ) : (
           <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-            <StepConfigPanel
-              key={selectedNodeId}
-              step={selectedStep}
-              toolInfo={selectedToolInfo}
-              schema={selectedSchema}
-              doc={selectedDoc}
-              config={selectedStep.config || {}}
-              preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
-              unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
-              placement={selectedNode ? placementFor(selectedNode.data) : undefined}
-              onConfigChange={handleConfigChange}
-              onClose={() => setSelectedNodeId(null)}
-              onRemove={readOnly ? undefined : handleRemoveSelected}
-            />
+            {/* A host can replace the config panel for specific tools (e.g.
+                the lab mounts a code editor for `script`); null falls back to
+                the schema-driven default. */}
+            {(selectedToolName &&
+              renderStepConfigPanel?.({
+                toolName: selectedToolName,
+                step: selectedStep,
+                config: selectedStep.config || {},
+                onConfigChange: handleConfigChange,
+                onClose: () => setSelectedNodeId(null),
+                onRemove: readOnly ? undefined : handleRemoveSelected,
+              })) || (
+              <StepConfigPanel
+                key={selectedNodeId}
+                step={selectedStep}
+                toolInfo={selectedToolInfo}
+                schema={selectedSchema}
+                doc={selectedDoc}
+                config={selectedStep.config || {}}
+                preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
+                unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+                placement={selectedNode ? placementFor(selectedNode.data) : undefined}
+                onConfigChange={handleConfigChange}
+                onClose={() => setSelectedNodeId(null)}
+                onRemove={readOnly ? undefined : handleRemoveSelected}
+              />
+            )}
           </div>
         ))}
 

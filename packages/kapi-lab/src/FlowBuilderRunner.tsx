@@ -1,15 +1,24 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlowEditor, graphToSteps, stepsToGraph } from "@neokapi/flow-editor";
-import type { FlowSpec, FlowTrace, ToolInfo } from "@neokapi/flow-editor";
+import type { FlowFocusRequest, FlowSpec, FlowTrace, ToolInfo } from "@neokapi/flow-editor";
 import { tools as toolReference } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
-import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
-import OutputView from "./OutputView";
+import FileSelectorField from "./FileSelectorField";
+import ActiveFileSwitcher from "./ActiveFileSwitcher";
+import { useFileLibrary, resolveSelection } from "./fileLibrary";
+import type { FileSelection } from "./fileLibrary";
+import { fileType } from "@neokapi/ui-primitives/preview";
+import { SourceContentPanel, SinkOutputPanel } from "./EndpointPanels";
 import { SAMPLES } from "./samples";
-import { LAB_SCENARIOS, type LabScenario } from "./labScenarios";
+import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios";
+import WalkthroughCard from "./WalkthroughCard";
+import ScriptStepPanel from "./ScriptStepPanel";
+import RecipeView from "./RecipeView";
+import { TraceImportControl, specFromTrace } from "./traceImport";
+import type { RecordedTraceInfo } from "./traceImport";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
@@ -22,6 +31,7 @@ import styles from "./FlowBuilderRunner.module.css";
 // flow that cannot run here.
 const BROWSER_SAFE_TOOLS = [
   "search-replace",
+  "script",
   "redact",
   "unredact",
   "segmentation",
@@ -98,7 +108,7 @@ export function buildRecipe(
     for (const [tool, config] of Object.entries(presets)) {
       lines.push(`    ${tool}:`);
       for (const [key, value] of Object.entries(config)) {
-        lines.push(`      ${key}: ${formatScalar(value)}`);
+        lines.push(...emitEntry(key, value, 6));
       }
     }
   }
@@ -111,11 +121,26 @@ export function buildRecipe(
     if (config && Object.keys(config).length > 0) {
       lines.push("        config:");
       for (const [key, value] of Object.entries(config)) {
-        lines.push(`          ${key}: ${formatScalar(value)}`);
+        lines.push(...emitEntry(key, value, 10));
       }
     }
   }
   return lines.join("\n") + "\n";
+}
+
+// Emit one `key: value` config entry at the given indent. Multi-line strings
+// (a script step's code) become a YAML literal block (`key: |`) so the recipe
+// reads — and round-trips — as real lines rather than one escaped string.
+function emitEntry(key: string, value: unknown, indent: number): string[] {
+  const pad = " ".repeat(indent);
+  if (typeof value === "string" && value.includes("\n")) {
+    const body = value.split("\n");
+    // The literal block's default (clip) chomping restores the single
+    // trailing newline a code blob conventionally ends with.
+    if (body.at(-1) === "") body.pop();
+    return [`${pad}${key}: |`, ...body.map((l) => (l ? `${pad}  ${l}` : ""))];
+  }
+  return [`${pad}${key}: ${formatScalar(value)}`];
 }
 
 // Render a config value as a YAML scalar. Strings are quoted so values like
@@ -172,6 +197,12 @@ export interface FlowBuilderRunnerProps {
   defaultScenarioId?: string;
   /** Restrict the scenario picker (default: all). */
   scenarioIds?: string[];
+  /**
+   * Built-in recorded traces (`kapi run --trace` output) offered for replay —
+   * native runs the wasm engine can't reproduce live (parallel workers, the
+   * Java bridge's gRPC boundary). URLs must already be base-resolved.
+   */
+  recordedTraces?: RecordedTraceInfo[];
 }
 
 // FlowBuilderRunner is the lab's flow workspace: a learner picks a teaching
@@ -188,6 +219,7 @@ export default function FlowBuilderRunner({
   sampleIds,
   defaultScenarioId,
   scenarioIds,
+  recordedTraces,
 }: FlowBuilderRunnerProps): React.ReactElement {
   const runtime = useLabRuntime(assets);
 
@@ -222,17 +254,30 @@ export default function FlowBuilderRunner({
     initialScenario.presets,
   );
 
-  const sampleFor = useCallback(
-    (sampleId?: string): FileSourceValue => {
+  // The working set: the shared file library (samples + uploads) and a
+  // selection over it (single, multi, or a glob like *.json). Every selected
+  // file runs through the flow; the active file picks which run is reviewed.
+  const library = useFileLibrary({ sampleIds });
+  const selectionFor = useCallback(
+    (sampleId?: string): FileSelection => {
       const s =
         SAMPLES.find((x) => x.id === (sampleId ?? defaultSampleId)) ??
         SAMPLES.find((x) => x.id === "support-reply") ??
         SAMPLES[0];
-      return { filename: s.filename, content: s.content, label: s.label };
+      return { mode: "multi", paths: [s.filename] };
     },
     [defaultSampleId],
   );
-  const [file, setFile] = useState<FileSourceValue>(() => sampleFor(initialScenario.sampleId));
+  const [selection, setSelection] = useState<FileSelection>(() =>
+    selectionFor(initialScenario.sampleId),
+  );
+  const [activePath, setActivePath] = useState<string | null>(null);
+
+  const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
+  const activeFile = useMemo(
+    () => selected.find((f) => f.path === activePath) ?? selected[0],
+    [selected, activePath],
+  );
 
   // The editor is controlled: `flow` is the source of truth and onChange feeds
   // the graph the learner edits (add / remove / reorder tool nodes) back in.
@@ -241,33 +286,156 @@ export default function FlowBuilderRunner({
     return graphToSteps(graph.nodes);
   });
 
-  const [trace, setTrace] = useState<FlowTrace | null>(null);
-  const [outPath, setOutPath] = useState<string | null>(null);
+  // Per-file run results from the last Run (trace + written output, keyed by
+  // library path). The ACTIVE file's run feeds the editor's run review and the
+  // sink panel; the switcher flips between files.
+  const [runs, setRuns] = useState<Record<string, { trace: FlowTrace; outPath: string }>>({});
   const [outVersion, setOutVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [nerProgress, setNerProgress] = useState<LocalNerProgress | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const activeRun = activeFile ? runs[activeFile.path] : undefined;
+  const trace = activeRun?.trace ?? null;
+  const outPath = activeRun?.outPath ?? null;
+
+  // Imported recorded trace (replay mode): the trace's tool nodes reconstruct
+  // a read-only flow on the same canvas, and the transport plays the recorded
+  // events back — showing what live wasm runs can't (parallel workers, the
+  // Java bridge boundary). Dismissing the run returns to the editable flow.
+  const [imported, setImported] = useState<{
+    trace: FlowTrace;
+    spec: FlowSpec;
+    label: string;
+  } | null>(null);
+  const handleTraceImport = useCallback((t: FlowTrace, label: string) => {
+    setImported({ trace: t, spec: specFromTrace(t), label });
+    setError(null);
+  }, []);
+
+  // Guided walkthrough state: the active step of the scenario's lesson, plus
+  // the focus request fed to the editor (one application per nonce). Stepping
+  // applies the step's focus — selecting the node it talks about and opening
+  // the matching panel — so the lesson points INTO the workspace.
+  const [walkIndex, setWalkIndex] = useState(0);
+  const [focusRequest, setFocusRequest] = useState<FlowFocusRequest | undefined>(undefined);
+  const focusNonce = useRef(0);
+
+  // The project lens: the live recipe the canvas serializes to, shown below it.
+  const [recipeOpen, setRecipeOpen] = useState(false);
+
+  const applyStepFocus = useCallback((step: LessonStep | undefined) => {
+    if (!step) return;
+    if (step.recipe !== undefined) setRecipeOpen(step.recipe);
+    if (step.select === undefined) return;
+    focusNonce.current += 1;
+    setFocusRequest({ nonce: focusNonce.current, select: step.select, mode: step.mode });
+  }, []);
+
+  const goToStep = useCallback(
+    (steps: LessonStep[] | undefined, index: number) => {
+      setWalkIndex(index);
+      applyStepFocus(steps?.[index]);
+    },
+    [applyStepFocus],
+  );
+
+  // Apply the initial scenario's first lesson focus once the engine is up
+  // (panels show live engine output, so focusing before boot teaches nothing).
+  const appliedInitialFocus = useRef(false);
+  useEffect(() => {
+    if (!runtime.ready || appliedInitialFocus.current) return;
+    appliedInitialFocus.current = true;
+    applyStepFocus(scenario.walkthrough?.[walkIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime.ready]);
+
   const selectScenario = useCallback(
     (s: LabScenario) => {
       setScenario(s);
       setPresets(s.presets);
-      setFile(sampleFor(s.sampleId));
+      setSelection(selectionFor(s.sampleId));
+      setActivePath(null);
       const graph = stepsToGraph({ steps: s.steps });
       setFlow(graphToSteps(graph.nodes));
-      setTrace(null);
-      setOutPath(null);
+      setRuns({});
       setError(null);
+      // Restart the lesson; scenarios without one clear any lingering focus.
+      setWalkIndex(0);
+      if (s.walkthrough) applyStepFocus(s.walkthrough[0]);
+      else {
+        focusNonce.current += 1;
+        setFocusRequest({ nonce: focusNonce.current, select: null });
+      }
     },
-    [sampleFor],
+    [selectionFor, applyStepFocus],
   );
 
   // Editing the flow invalidates the loaded run review (the trace no longer
   // matches the designed nodes).
   const handleFlowChange = useCallback((next: FlowSpec) => {
     setFlow(next);
-    setTrace(null);
+    setRuns({});
   }, []);
+
+  // The script tool gets the full code-editor panel instead of the schema
+  // form's textarea — the step IS the script (the lab's scripting lesson).
+  const renderStepConfigPanel = useCallback(
+    (ctx: {
+      toolName: string;
+      config: Record<string, unknown>;
+      onConfigChange: (config: Record<string, unknown>) => void;
+      onClose: () => void;
+      onRemove?: () => void;
+    }) =>
+      ctx.toolName === "script" ? (
+        <ScriptStepPanel
+          config={ctx.config}
+          onConfigChange={ctx.onConfigChange}
+          onClose={ctx.onClose}
+          onRemove={ctx.onRemove}
+        />
+      ) : null,
+    [],
+  );
+
+  // Endpoint inspectors: the Source pill opens the content-model tree the
+  // reader produces from the ACTIVE input (the anatomy lesson, in place); the
+  // Sink pill opens that file's written output with its Native bytes diffed
+  // against the input (the round-trip lesson, in place).
+  const activeAsSource = useMemo<FileSourceValue | null>(() => {
+    if (!activeFile) return null;
+    return {
+      filename: activeFile.name,
+      label: activeFile.name,
+      content: "",
+      bytes: activeFile.bytes,
+    };
+  }, [activeFile]);
+  const activeBaseline = useMemo(() => {
+    if (!activeFile || fileType(activeFile.name).binary) return null;
+    return new TextDecoder().decode(activeFile.bytes);
+  }, [activeFile]);
+  const renderEndpointPanel = useCallback(
+    (role: "source" | "sink") =>
+      role === "source" ? (
+        activeAsSource ? (
+          <SourceContentPanel runtime={runtime} file={activeAsSource} />
+        ) : (
+          <div className="py-4 text-center text-[11px] italic text-muted-foreground">
+            Pick an input file first.
+          </div>
+        )
+      ) : (
+        <SinkOutputPanel
+          runtime={runtime}
+          outPath={outPath}
+          version={outVersion}
+          baseline={activeBaseline}
+        />
+      ),
+    [runtime, activeAsSource, activeBaseline, outPath, outVersion],
+  );
 
   const runFlow = useCallback(
     async (spec: FlowSpec) => {
@@ -275,7 +443,12 @@ export default function FlowBuilderRunner({
       const steps = spec.steps.filter((s) => s.tool);
       if (steps.length === 0) {
         setError("add at least one tool to the flow before running");
-        setTrace(null);
+        setRuns({});
+        return;
+      }
+      if (selected.length === 0) {
+        setError("pick at least one input file before running");
+        setRuns({});
         return;
       }
       setBusy(true);
@@ -309,32 +482,52 @@ export default function FlowBuilderRunner({
 
       const recipe = buildRecipe({ steps }, presets);
       runtime.writeFile("flow.kapi", recipe);
-      const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
-      const out = `/project/flow-out-${file.filename}`;
-      const res = await runtime.trace([
-        "run",
-        "lab",
-        "-p",
-        "/project/flow.kapi",
-        "-i",
-        inPath,
-        "-o",
-        out,
-        "--target-lang",
-        "fr",
-      ]);
-      if (res.ok && res.trace) {
-        setTrace(res.trace as FlowTrace);
-        setOutPath(out);
-        setOutVersion((v) => v + 1);
-      } else {
-        setError(res.error ?? "the run produced no trace");
-        setTrace(null);
+
+      // Every selected file runs through the same designed flow (sequentially —
+      // the wasm engine serializes runs anyway); the active file's run feeds
+      // the review, and the switcher flips between results.
+      const next: Record<string, { trace: FlowTrace; outPath: string }> = {};
+      for (const f of selected) {
+        const inPath = runtime.writeFile(f.name, f.bytes);
+        const out = `/project/flow-out-${f.name}`;
+        const res = await runtime.trace([
+          "run",
+          "lab",
+          "-p",
+          "/project/flow.kapi",
+          "-i",
+          inPath,
+          "-o",
+          out,
+          "--target-lang",
+          "fr",
+        ]);
+        if (res.ok && res.trace) {
+          next[f.path] = { trace: res.trace as FlowTrace, outPath: out };
+        } else {
+          setError(`${f.name}: ${res.error ?? "the run produced no trace"}`);
+          setRuns(next);
+          setBusy(false);
+          return;
+        }
       }
+      setRuns(next);
+      setOutVersion((v) => v + 1);
       setBusy(false);
     },
-    [runtime.ready, runtime.writeFile, runtime.trace, file, presets],
+    [runtime.ready, runtime.writeFile, runtime.trace, selected, presets],
   );
+
+  // A walkthrough step whose action is Run auto-advances when the run lands,
+  // so the next step can immediately point at what the run produced.
+  useEffect(() => {
+    if (!trace) return;
+    const steps = scenario.walkthrough;
+    if (steps?.[walkIndex]?.run && walkIndex < steps.length - 1) {
+      goToStep(steps, walkIndex + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trace]);
 
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
@@ -367,9 +560,39 @@ export default function FlowBuilderRunner({
             </ToggleGroup>
           </div>
         )}
-        <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
+        {/* The scenario's lesson: a walkthrough card that drives the workspace
+            (each step focuses the node/panel it talks about), or the static
+            description for free-play scenarios. */}
+        {scenario.walkthrough && !imported ? (
+          <WalkthroughCard
+            steps={scenario.walkthrough}
+            index={walkIndex}
+            onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+            onRun={() => void runFlow(flow)}
+            runDisabled={!runtime.ready || busy}
+          />
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
+        )}
 
-        <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />
+        {/* The working set: one file, several, or a glob — every selected file
+            runs through the flow; the switcher picks whose run is reviewed. */}
+        <FileSelectorField
+          label="Files"
+          library={library}
+          selection={selection}
+          onSelectionChange={(sel) => {
+            setSelection(sel);
+            setRuns({});
+          }}
+          sampleIds={sampleIds}
+          multiple
+        />
+        <ActiveFileSwitcher
+          files={selected}
+          activePath={activeFile?.path}
+          onChange={setActivePath}
+        />
 
         {/* Project presets (defaults.tools in the generated recipe): the
             project scope a step inherits; select a preset-backed node to see
@@ -385,22 +608,67 @@ export default function FlowBuilderRunner({
           </p>
         )}
 
+        {/* Workspace lenses: replay a recorded trace (native runs the wasm
+            engine can't reproduce) and the project lens (the recipe the canvas
+            serializes to). */}
+        <div className="flex items-center justify-between gap-2">
+          {imported ? (
+            <span className="text-[11px] text-muted-foreground">
+              Replaying <strong>{imported.label}</strong> (recorded native run, read-only) —{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2 hover:text-foreground"
+                onClick={() => setImported(null)}
+              >
+                back to your flow
+              </button>
+            </span>
+          ) : (
+            <TraceImportControl
+              traces={recordedTraces}
+              onLoad={handleTraceImport}
+              onError={setError}
+            />
+          )}
+          <button
+            type="button"
+            className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            onClick={() => setRecipeOpen((v) => !v)}
+          >
+            {recipeOpen ? "Hide recipe" : "View recipe"}
+          </button>
+        </div>
+
         {/* Sized container — FlowEditor lays out as `h-full`, so the host must
           give it explicit dimensions or it collapses to zero height. */}
         <div className={styles.editorFrame}>
           <FlowEditor
-            flow={flow}
+            flow={imported?.spec ?? flow}
             tools={toolInfos}
             onChange={handleFlowChange}
             onGetSchema={handleGetSchema}
             onGetDoc={handleGetDoc}
             onRun={(spec) => void runFlow(spec)}
-            runDisabled={!runtime.ready || busy}
-            trace={trace ?? undefined}
-            onTraceDismiss={() => setTrace(null)}
-            projectPresets={presets}
+            runDisabled={!runtime.ready || busy || !!imported}
+            readOnly={!!imported}
+            trace={imported?.trace ?? trace ?? undefined}
+            onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}
+            projectPresets={imported ? undefined : presets}
+            renderEndpointPanel={imported ? undefined : renderEndpointPanel}
+            focusRequest={imported ? undefined : focusRequest}
+            renderStepConfigPanel={renderStepConfigPanel}
           />
         </div>
+
+        {/* The project lens: the live recipe the canvas serializes to. */}
+        {recipeOpen && (
+          <RecipeView
+            recipe={buildRecipe(
+              { steps: (imported?.spec ?? flow).steps.filter((s) => s.tool) },
+              imported ? undefined : presets,
+            )}
+          />
+        )}
 
         {runtime.status === "booting" && (
           <DownloadProgress
@@ -424,11 +692,8 @@ export default function FlowBuilderRunner({
             !busy &&
             !error &&
             trace &&
-            "Run complete — scrub the transport under the canvas and click a node to inspect what it did."}
+            `Run complete${Object.keys(runs).length > 1 ? ` (${Object.keys(runs).length} files)` : ""} — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written.`}
         </div>
-
-        {/* The sink side: what the flow wrote, in the shared output viewer. */}
-        {outPath && trace && <OutputView runtime={runtime} path={outPath} version={outVersion} />}
 
         {!trace && !error && (
           <div className={shared.emptyHint}>

@@ -15,6 +15,13 @@ export interface OutputViewProps {
   version?: number;
   /** Tab shown first (default "preview"). */
   defaultTab?: "preview" | "blocks" | "raw" | "stats" | "download";
+  /**
+   * Round-trip baseline: when set, the Native tab's changed-line highlights
+   * compare the output against THIS text (typically the flow's input file)
+   * instead of against the previous run's output — showing that only block
+   * text changed while the structure round-tripped.
+   */
+  baseline?: string | null;
   className?: string;
 }
 
@@ -72,6 +79,7 @@ export default function OutputView({
   path,
   version = 0,
   defaultTab = "preview",
+  baseline,
   className,
 }: OutputViewProps): React.ReactElement {
   const name = basename(path);
@@ -104,7 +112,10 @@ export default function OutputView({
       const nextBlocks = flattenBlocks(nextTree);
 
       const idDiff = diffChangedIds(prevBlocksRef.current, nextBlocks);
-      const lineDiff = diffChangedLines(prevTextRef.current, decoded);
+      const lineDiff =
+        baseline != null && !ft.binary
+          ? diffChangedLines(baseline, decoded)
+          : diffChangedLines(prevTextRef.current, decoded);
       const didChange = prevTextRef.current !== null && prevTextRef.current !== decoded;
 
       setTree(nextTree);
@@ -126,7 +137,7 @@ export default function OutputView({
       cancelled = true;
     };
     // re-read when the path or the run version changes.
-  }, [runtime.ready, runtime.inspect, runtime.readBytes, path, version, name, ft.binary]);
+  }, [runtime.ready, runtime.inspect, runtime.readBytes, path, version, name, ft.binary, baseline]);
 
   const pulseClass = useMemo(() => (pulse ? styles.writePulse : undefined), [pulse]);
 

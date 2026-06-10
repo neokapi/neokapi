@@ -269,6 +269,41 @@ export const MultiStep: Story = {
   },
 };
 
+// A lesson focus (host-driven focusRequest): the requested node is selected
+// (its panel opens) and drawn with a primary-colored highlight ring — guided
+// walkthroughs use this to point at the node a step talks about.
+export const LessonFocus: Story = {
+  name: "Lesson focus (focusRequest highlight)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools,
+    focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
+  },
+};
+
+// With a host-supplied renderEndpointPanel, the Source/Sink pills grow an
+// Inspect satellite that opens the host's content in the right overlay — the
+// lab uses this to show the reader's content model (source) and the written
+// output with a round-trip diff (sink).
+export const EndpointInspectors: Story = {
+  name: "Endpoint inspectors (Inspect satellites)",
+  args: {
+    flow: {
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools,
+    renderEndpointPanel: (role: "source" | "sink") => (
+      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+        {role === "source"
+          ? "Host-rendered source inspector — e.g. the content-model tree the reader produced."
+          : "Host-rendered sink inspector — e.g. the written output with a round-trip diff."}
+      </div>
+    ),
+  },
+};
+
 export const FullPipeline: Story = {
   args: {
     flow: {

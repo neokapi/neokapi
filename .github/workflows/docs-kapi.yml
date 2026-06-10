@@ -76,6 +76,15 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
+      # The lab package has no other CI home (ci.yml's filters cover the
+      # bowrain frontends and packages/ui|flow-editor via the desktop job);
+      # its unit tests run here, where every kapi-lab change already lands.
+      - name: Lab package checks and tests
+        working-directory: packages/kapi-lab
+        run: |
+          vp check --no-fmt
+          vp test -- --run
+
       # All docs videos are produced by the harness on the desktop (make
       # harness-videos / harness-videos-staged) and published to the docs-assets
       # release (make publish-docs-assets). CI never records; it stages them here.
