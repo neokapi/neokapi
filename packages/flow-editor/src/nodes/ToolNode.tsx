@@ -138,7 +138,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const cardinality = data.cardinality as string | undefined;
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
-  const systems = getSystemEffects(sideEffects, produces);
+  const systems = getSystemEffects(sideEffects, produces, consumes);
   const isValid = data.valid !== false;
   const toolName = (data.toolName as string) || "";
   const label = (data.label as string) || toolName || "";
