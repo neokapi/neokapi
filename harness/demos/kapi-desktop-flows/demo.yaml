@@ -70,3 +70,46 @@ narration:
     kind: outro
     text: >-
       Project flows — composed visually, saved with the project, run anywhere.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology
+# (flow → flyt; "pipeline" stays English in nb).
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Flytene i et prosjekt er pipelinene det kjører over innholdet sitt.
+      - id: intro
+        text: >-
+          Vi åpner KapiMart-eksemplet for å se flytene det bærer med seg.
+      - id: open-project
+        text: >-
+          KapiMart åpnes fra startskjermen, med sitt eget innhold, egne
+          innstillinger og egne flyter.
+        caption: KapiMart — åpnet fra startskjermen.
+      - id: library
+        text: >-
+          Flyt-visningen lister pipelinene som er definert i prosjektet, lagret
+          sammen med det og delt gjennom versjonskontroll.
+        caption: Flyter definert i prosjektet.
+      - id: library-zoom
+        text: >-
+          Hver av dem er en navngitt sekvens av steg — en ren oversettelse, en
+          oversettelse med kvalitetskontroller, og en pseudooversettelse for
+          testing.
+        caption: Hver flyt er en navngitt sekvens av steg.
+      - id: open-flow
+        text: >-
+          Åpner du translate-and-qa, ser du pipelinen dens.
+        caption: En åpnet flyt viser pipelinen sin.
+      - id: pipeline
+        text: >-
+          Kilden flyter gjennom KI-oversettelse og deretter en
+          kvalitetskontroll før den skrives tilbake — steg du kan stokke om,
+          legge til, eller bygge dine egne av.
+        caption: Kilden går gjennom KI-oversettelse, så en kvalitetskontroll.
+      - id: outro
+        text: >-
+          Prosjektflyter — satt sammen visuelt, lagret med prosjektet, kjørt
+          hvor som helst.

@@ -86,6 +86,44 @@ export interface DemoManifest {
   artifacts: ArtifactSpec[];
   /** Ordered narration scenes that drive the video timeline. */
   narration: NarrationSpec[];
+  /**
+   * Per-locale narration overlays, keyed by BCP-47 locale (e.g. "nb").
+   *
+   * The default `narration` array is the English (en) master and stays the
+   * single source of scene structure: ids, kinds, beats, artifacts, holds and
+   * timing all come from it. A locale overlay only re-voices scenes — each
+   * entry references a scene `id` and supplies the locale's spoken `text`
+   * (and optionally a `caption`); everything else is inherited from the
+   * master scene.
+   *
+   * Scenes without an override fall back to the English text, EXCEPT for
+   * published demos (`publishAs` set): there the narrate stage requires full
+   * coverage of every spoken scene, so a published video is never shipped
+   * with mixed-language narration.
+   *
+   * Outputs are suffixed per locale (the default locale "en" keeps today's
+   * unsuffixed names): narration-<locale>.json + audio-<locale>/, then
+   * out/<id>-<locale>[-light].mp4 and <publishAs>-<locale>-{light,dark}.webm.
+   * Select a locale with `--locale=<bcp47>` (or HARNESS_LOCALE) on the
+   * narrate/render/publish stages.
+   */
+  locales?: Record<string, DemoLocaleOverlay>;
+}
+
+/** One locale's overlay over the authored demo (see DemoManifest.locales). */
+export interface DemoLocaleOverlay {
+  /** Scene-by-scene narration overrides, matched to NarrationSpec by `id`. */
+  narration: NarrationOverrideSpec[];
+}
+
+/** A localized narration scene: the locale's text for an existing scene id. */
+export interface NarrationOverrideSpec {
+  /** The id of the master narration scene this overrides. */
+  id: string;
+  /** The spoken narration in this locale. */
+  text: string;
+  /** Optional localized on-screen caption (defaults to a trim of `text`). */
+  caption?: string;
 }
 
 /** One step of a scripted shell demo: either a visible "# comment" beat or a command. */
@@ -246,6 +284,8 @@ export interface NarrationManifest {
   id: string;
   backend: string;
   voice: string;
+  /** BCP-47 locale of this narration (absent = "en", the default). */
+  locale?: string;
   scenes: NarrationScene[];
   /**
    * One-shot narration: a single continuous track for the whole video (staticFile

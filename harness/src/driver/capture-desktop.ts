@@ -15,6 +15,12 @@ import { recordDesktop } from "./record-desktop.ts";
 
 export interface CaptureDesktopOptions {
   force?: boolean;
+  /** UI language for the recorded app (default "en"). Passed through to
+   *  record-desktop so a localized recording pass can run the desktop UI in
+   *  that language. NOTE: the screencast outputs are NOT locale-suffixed —
+   *  a localized pass overwrites public/<id>/screencast.* (record per locale,
+   *  then render/publish that locale before re-recording another). */
+  uiLocale?: string;
 }
 
 export async function captureDesktopDemo(m: DemoManifest, opts: CaptureDesktopOptions = {}): Promise<void> {
@@ -25,6 +31,7 @@ export async function captureDesktopDemo(m: DemoManifest, opts: CaptureDesktopOp
     force: opts.force,
     web: m.target === "web",
     bowrainDesktop: m.target === "bowrain-desktop",
+    uiLocale: opts.uiLocale,
   });
 
   // 2. Minimal capture.json so the rest of the pipeline is unchanged.

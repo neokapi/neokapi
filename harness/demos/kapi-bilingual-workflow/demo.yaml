@@ -79,3 +79,37 @@ narration:
     text: >
       Extract, translate, merge: a clean bilingual round-trip through any CAT tool,
       with the translation memory in the loop on both sides.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >
+          Det meste av seriøs lokalisering går via tospråklige utvekslingsfiler
+          — XLIFF — som en oversetter åpner i CAT-verktøyet sitt, fyller ut og
+          sender tilbake. kapi er det tekniske limet på hver side av den
+          overleveringen.
+      - id: extract
+        text: >
+          Her er de engelske strengene i en React-app. Vi mater prosjektets
+          oversettelsesminne fra en TMX fra konsernet, og kjører så extract —
+          og kapi skriver én tospråklig XLIFF per målspråk, ferdig utfylt med
+          hvert segment minnet allerede kjenner.
+        caption: "extract lager én XLIFF per språk, forhåndsutfylt fra oversettelsesminnet"
+      - id: merge
+        text: >
+          Oversetteren fyller ut resten og sender filene tilbake. Merge fletter
+          dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og tm
+          audit sporer nøyaktig hvilken retur hver oppføring kom fra.
+        caption: "merge fletter returen inn og tar den opp i minnet, med full sporbarhet"
+      - id: fr
+        text: >
+          Den franske kilden er lokalisert — hver nøkkel bevart, hver verdi
+          oversatt — og minnet er varmere til neste uttrekk.
+      - id: outro
+        text: >
+          Trekk ut, oversett, flett: en ren tospråklig rundtur gjennom hvilket
+          som helst CAT-verktøy, med oversettelsesminnet i løkka på begge
+          sider.

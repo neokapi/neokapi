@@ -81,3 +81,38 @@ narration:
     text: >
       kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
       more than fifty file formats neokapi reads.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >
+          Hva om du kunne kjøre klassiske kommandolinjeverktøy — som cat og
+          grep, eller til og med sed — på både tekst og innholdet i binære
+          formater, som Word- og Excel-dokumenter? Nå kan du det.
+      - id: cat
+        text: >
+          Her er salgsmateriellet til et team: en pitch i Markdown, et forslag
+          i Word og en prisliste i Excel. kcat leser teksten rett ut av
+          Word-dokumentet og regnearket, som rene linjer.
+        caption: "kcat leser teksten inni .docx- og .xlsx-filene"
+      - id: grep
+        text: >
+          kgrep søker i den teksten på tvers av alle tre filene samtidig, og
+          finner hver forekomst av produktnavnet.
+        caption: "kgrep finner produktnavnet på tvers av alle formatene"
+      - id: sed
+        text: >
+          Og én ksed gir produktet nytt navn overalt, direkte i filene — hver
+          fil lagres tilbake i sitt eget format.
+        caption: "én ksed endrer navnet i alle tre, direkte i filene"
+      - id: after
+        text: >
+          Forslaget er fortsatt et gyldig Word-dokument — overskrift og
+          struktur er intakt. Bare ordene er endret.
+      - id: outro
+        text: >
+          kcat, kgrep og ksed: grep, sed og cat, for ordene inni alle de over
+          femti filformatene neokapi leser.

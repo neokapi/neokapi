@@ -88,3 +88,54 @@ narration:
     kind: outro
     text: >-
       Install a plugin, and its formats become part of Kapi.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology
+# (plugin → tillegg; product names untranslated).
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Tillegg utvider Kapi — her: Okapi-broen og filtrene dens.
+      - id: intro
+        text: >-
+          Tillegg håndteres i Innstillinger, under Tillegg.
+      - id: open-plugins
+        text: >-
+          Tilgjengelig-fanen lister registeret — tillegg du kan legge til i
+          Kapi uten å forlate appen.
+        caption: Tilgjengelig-fanen lister tilleggsregisteret.
+      - id: registry
+        text: >-
+          Okapi-broen bringer filtrene fra Okapi-rammeverket til Kapi, og
+          legger til dusinvis av dokumentformater utover det innebygde.
+        caption: Okapi-broen bringer filtrene fra Okapi-rammeverket.
+      - id: install
+        text: >-
+          Ett klikk laster ned og installerer det — binærfilen, filtrene og en
+          medfølgende kjøretid, alt i Kapis egen tilleggskatalog.
+        caption: Ett klikk installerer det fra registeret.
+      - id: installed
+        text: >-
+          Når det er installert, vises det her med formatene det bidrar med,
+          hvert av dem et Okapi-filter med prefikset okf.
+        caption: Installert, med filterformatene listet.
+      - id: open-okapimart
+        text: >-
+          OkapiMart-eksemplet er bygget på de filtrene. Med tillegget på plass
+          åpner det seg og løses inn.
+        caption: OkapiMart — et prosjekt bygget på disse filtrene.
+      - id: content
+        text: >-
+          Innholdsvisningen leser de samme butikkfilene som før, denne gangen
+          gjennom Okapi-filtrene.
+        caption: Innholdet behandles gjennom Okapi-filtrene.
+      - id: okf-formats
+        text: >-
+          Hver fil håndteres nå av et okf-filter — broen gjør parsingen, Kapi
+          orkestrerer arbeidet.
+        caption: Hver fil håndteres av et okf-filter.
+      - id: outro
+        text: >-
+          Installer et tillegg, og formatene dets blir en del av Kapi.

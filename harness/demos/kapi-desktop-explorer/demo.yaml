@@ -105,3 +105,62 @@ narration:
     text: >-
       That's the terminology and translation memory at the heart of kapi,
       browsable in one place.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Kapi Desktop — den visuelle følgesvennen til kapi-kommandolinjen.
+      - id: intro
+        text: >-
+          Den åpner til en rolig startskjerm. Alt en oversetter støtter seg på
+          — ordlistene og de lagrede oversettelsene — ligger ett klikk unna i
+          sidefeltet.
+      - id: termbases
+        text: >-
+          Termbase-seksjonen lister hver ordliste lagret på disk, med
+          størrelsen og når den sist ble endret.
+        caption: Termbase-seksjonen lister hver ordliste på disk.
+      - id: glossary
+        text: >-
+          Åpner du produktordlisten, får du opp hvert begrep den inneholder —
+          åtte her — med et aktivitetsdiagram over de siste endringene øverst.
+        caption: En åpnet ordliste viser hvert begrep den inneholder.
+      - id: concept
+        text: >-
+          Hvert begrep bærer en definisjon og de godkjente termene sine på
+          tvers av språk. Et statusmerke markerer den foretrukne ordlyden, og
+          flagger termene som er utgått.
+        caption: Hvert begrep har en definisjon og godkjente termer.
+      - id: search-term
+        text: >-
+          Fulltekstsøk finner en term på et øyeblikk. Her: faktura-begrepet,
+          med de godkjente oversettelsene sine.
+        caption: Fulltekstsøk finner en term raskt.
+      - id: open-tm
+        text: >-
+          Oversettelsesminnet fungerer på samme måte. Vi går over og åpner
+          minnet for Acme-appen.
+        caption: Oversettelsesminnet fungerer på samme måte.
+      - id: inspect-tm
+        text: >-
+          Hver oppføring parer en kildestreng med oversettelsene sine.
+          Formatering i teksten, som fet skrift og lenker, bevares som tagger i
+          stedet for rå markup.
+        caption: Hver oppføring parer en kildestreng med oversettelsene.
+      - id: entity
+        text: >-
+          Navn og andre entiteter holdes som plassholdere, slik at en lagret
+          oversettelse kan gjenbrukes senere med en annen verdi.
+        caption: Navn holdes som plassholdere, klare til gjenbruk.
+      - id: search-tm
+        text: >-
+          Og minnet er søkbart, det også — hver streng som nevner ordet invite.
+        caption: Minnet er også søkbart.
+      - id: outro
+        text: >-
+          Det er terminologien og oversettelsesminnet i hjertet av kapi — å bla
+          i på ett sted.

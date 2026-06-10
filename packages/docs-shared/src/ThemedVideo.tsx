@@ -1,4 +1,6 @@
+import { useState } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import "./ThemedVideo.css";
 
 interface ThemedVideoProps {
@@ -7,6 +9,15 @@ interface ThemedVideoProps {
     dark: string;
   };
   maxWidth?: string;
+}
+
+// Localized asset name for a docs locale: the harness publishes locale variants
+// with the locale inserted before the theme suffix (`foo-dark.webm` →
+// `foo-nb-dark.webm`, poster alike); theme-agnostic files get a plain suffix
+// (`foo.webm` → `foo-nb.webm`).
+function localizeAsset(p: string, locale: string): string {
+  if (/-(light|dark)\.webm$/.test(p)) return p.replace(/-(light|dark)\.webm$/, `-${locale}-$1.webm`);
+  return p.replace(/\.webm$/, `-${locale}.webm`);
 }
 
 // A theme-aware <video>. Both variants are emitted into the DOM and toggled
@@ -29,16 +40,27 @@ interface ThemedVideoProps {
 // shows a content frame instead of a flat, blank first frame — which is
 // invisible once the video is theme-matched to the page background. A missing
 // poster simply falls back to the first frame.
+//
+// Localized docs (Docusaurus i18n locale ≠ en) prefer the `-<locale>` asset
+// variant; when that file hasn't been published yet, the <source> error
+// handler swaps back to the English asset (the `key` forces the <video> to
+// re-evaluate its source). The English locale takes the original path
+// untouched — exactly the previous behavior.
 export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideoProps) {
-  const light = useBaseUrl(sources.light);
-  const dark = useBaseUrl(sources.dark);
-  const posterLight = useBaseUrl(sources.light.replace(/\.webm$/, ".jpg"));
-  const posterDark = useBaseUrl(sources.dark.replace(/\.webm$/, ".jpg"));
+  const { i18n } = useDocusaurusContext();
+  const locale = i18n?.currentLocale ?? "en";
+  const [useLocalized, setUseLocalized] = useState(locale !== "en");
+  const pick = (p: string) => (useLocalized ? localizeAsset(p, locale) : p);
+  const light = useBaseUrl(pick(sources.light));
+  const dark = useBaseUrl(pick(sources.dark));
+  const posterLight = light.replace(/\.webm$/, ".jpg");
+  const posterDark = dark.replace(/\.webm$/, ".jpg");
+  const onSourceError = useLocalized ? () => setUseLocalized(false) : undefined;
 
   if (light === dark) {
     return (
-      <video controls width="100%" style={{ maxWidth }} poster={posterLight} preload="metadata">
-        <source src={light} type="video/webm" />
+      <video key={light} controls width="100%" style={{ maxWidth }} poster={posterLight} preload="metadata">
+        <source src={light} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.
       </video>
     );
@@ -47,6 +69,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
   return (
     <>
       <video
+        key={light}
         className="themed-video themed-video--light"
         controls
         width="100%"
@@ -54,10 +77,11 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         poster={posterLight}
         preload="metadata"
       >
-        <source src={light} type="video/webm" />
+        <source src={light} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.
       </video>
       <video
+        key={dark}
         className="themed-video themed-video--dark"
         controls
         width="100%"
@@ -65,7 +89,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         poster={posterDark}
         preload="metadata"
       >
-        <source src={dark} type="video/webm" />
+        <source src={dark} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.
       </video>
     </>

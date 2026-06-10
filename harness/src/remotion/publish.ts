@@ -3,6 +3,7 @@ import path from "node:path";
 import { docsVideoDirFor, ensureDir } from "../lib/paths.ts";
 import { sh } from "../lib/exec.ts";
 import type { DemoManifest } from "../types.ts";
+import { isDefaultLocale, localeSuffix, resolveLocale } from "../lib/locale.ts";
 import { outputPathFor, type ThemeMode } from "./render.ts";
 
 const THEMES: ThemeMode[] = ["dark", "light"];
@@ -42,29 +43,35 @@ async function toPoster(mp4: string, jpg: string): Promise<void> {
 export interface PublishOptions {
   /** Override the docs video directory (default: routed by brand/target via docsVideoDirFor). */
   docsDir?: string;
+  /** Narration locale (default "en"). Non-default locales publish
+   *  `<publishAs>-<locale>-{light,dark}.webm` (+ poster) next to the English assets. */
+  locale?: string;
 }
 
 /**
- * Convert a published demo's rendered mp4s → `<publishAs>-<theme>.webm` in the docs
- * video dir. Demos without `publishAs` are previews only and are skipped.
+ * Convert a published demo's rendered mp4s → `<publishAs>[-<locale>]-<theme>.webm`
+ * in the docs video dir. Demos without `publishAs` are previews only and are skipped.
  */
 export async function publishDemo(m: DemoManifest, opts: PublishOptions = {}): Promise<string[]> {
   if (!m.publishAs) {
     console.log(`  · ${m.id}: no publishAs (preview only) — skipping`);
     return [];
   }
+  const locale = resolveLocale(opts.locale);
+  const loc = localeSuffix(locale);
   const docsDir = opts.docsDir ?? docsVideoDirFor(m);
   ensureDir(docsDir);
   const written: string[] = [];
   for (const themeMode of THEMES) {
-    const mp4 = outputPathFor(m.id, themeMode);
+    const mp4 = outputPathFor(m.id, themeMode, locale);
     if (!fs.existsSync(mp4)) {
-      console.warn(`  ! ${m.id} (${themeMode}): missing ${path.basename(mp4)} — render it first (--theme=both)`);
+      const hint = isDefaultLocale(locale) ? "--theme=both" : `--theme=both --locale=${locale}`;
+      console.warn(`  ! ${m.id} (${themeMode}${loc}): missing ${path.basename(mp4)} — render it first (${hint})`);
       continue;
     }
-    const webm = path.join(docsDir, `${m.publishAs}-${themeMode}.webm`);
-    const poster = path.join(docsDir, `${m.publishAs}-${themeMode}.jpg`);
-    console.log(`  · ${m.id} (${themeMode}) → ${webm}`);
+    const webm = path.join(docsDir, `${m.publishAs}${loc}-${themeMode}.webm`);
+    const poster = path.join(docsDir, `${m.publishAs}${loc}-${themeMode}.jpg`);
+    console.log(`  · ${m.id} (${themeMode}${loc}) → ${webm}`);
     await toWebm(mp4, webm);
     await toPoster(mp4, poster);
     written.push(webm, poster);

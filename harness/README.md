@@ -92,6 +92,62 @@ not env vars.
 
 Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate --force`.
 
+## Localized videos (`--locale`)
+
+Demos carry their narration in English in `narration:` (the master — scene
+structure, beats, holds and timing all come from it). A demo can add per-locale
+overlays under `locales:`, each entry re-voicing an existing scene by `id`:
+
+```yaml
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Kapi Desktop — den visuelle følgesvennen til kapi-kommandolinjen.
+        caption: optional localized on-screen caption
+```
+
+Scenes without an override fall back to English — except for published demos
+(`publishAs`), where the narrate stage requires full coverage so a shipped
+video never mixes languages. Translations follow `l10n/brand-voice.yaml` (nb
+override) and `l10n/termbase.csv`.
+
+Select the locale with `--locale=<bcp47>` (or `HARNESS_LOCALE`) on the
+narrate/render/publish stages. The default (`en`) keeps today's unsuffixed
+filenames; any other locale suffixes every derived asset:
+
+```bash
+# Norwegian Bokmål pass for one published demo (after the English capture exists):
+pnpm run demo kapi-desktop-explorer -- --locale=nb --only=narrate,render,publish --theme=both
+#   narrate → public/<id>/narration-nb.json + audio-nb/
+#   render  → out/<id>-nb.mp4 + out/<id>-nb-light.mp4
+#   publish → web/docs/static/video/kapi/<publishAs>-nb-{light,dark}.webm (+ .jpg posters)
+```
+
+The docs `ThemedVideo` component automatically prefers the `-<locale>` asset
+variant when the Docusaurus page locale isn't `en`, and falls back to the
+English asset when the localized one hasn't been published.
+
+Narration TTS is locale-aware: the Gemini style prompt and Live narrator
+instruction ask for a native narrator in the locale's language (the kapi /
+Bowrain pronunciation hints are kept in every language), and the voice can be
+pinned per locale with `GEMINI_TTS_VOICE_NB` (likewise
+`ELEVENLABS_VOICE_ID_NB`, `OPENAI_TTS_VOICE_NB`, `SAY_VOICE_NB` — the macOS
+`say` backend *requires* a per-locale voice since its voices are
+single-language).
+
+Desktop walkthroughs: `--locale` is passed through to the recorder
+(`record-desktop.ts` `uiLocale`), which persists the language on the recording
+backend (wbridge `SetUILanguage`) and appends `&lang=` to the recording URL.
+Note the screencast files are NOT locale-suffixed — a localized recording pass
+overwrites `public/<id>/screencast.*`, so record → render → publish one locale
+at a time. Recording an actually-localized UI additionally needs (in
+`apps/kapi-desktop`) the recorder entry `real-main.tsx` to honor `?lang=` via
+`loadTranslations()` and a compiled catalog at
+`frontend/public/translations/<locale>.json`; until then a localized pass
+records the English UI with fully localized narration/captions.
+
 ## Usage
 
 ```bash

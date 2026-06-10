@@ -39,7 +39,15 @@ const calcMeta: CalculateMetadataFunction<DemoProps> = async ({ props }) => {
     // Nothing captured yet — render a 1s placeholder so Studio doesn't crash.
     return { durationInFrames: FPS, fps: FPS, width: WIDTH, height: HEIGHT, props };
   }
-  const narration = (await fetchJson<NarrationManifest>(`${id}/narration.json`)) ?? fallbackNarration(capture);
+  // Locale-suffixed narration (narration-nb.json) when the render passes a
+  // non-default locale; the English narration.json otherwise. No silent
+  // cross-locale fallback here — render.ts refuses to render a locale whose
+  // narration is missing, so a missing file only means a Studio preview.
+  const locale = typeof props.locale === "string" && props.locale !== "en" ? props.locale : "";
+  const narration =
+    (locale ? await fetchJson<NarrationManifest>(`${id}/narration-${locale}.json`) : null) ??
+    (await fetchJson<NarrationManifest>(`${id}/narration.json`)) ??
+    fallbackNarration(capture);
   const artifacts = (await fetchJson<CapturedArtifact[]>(`${id}/artifacts.json`)) ?? [];
   const screencast = await fetchJson<Screencast>(`${id}/screencast.json`);
   const timing = computeTiming(narration.scenes, FPS);

@@ -14,5 +14,10 @@ declare module "@docusaurus/useDocusaurusContext" {
     customFields?: Record<string, unknown>;
     [key: string]: unknown;
   }
-  export default function useDocusaurusContext(): { siteConfig: SiteConfig };
+  interface I18nContext {
+    currentLocale: string;
+    defaultLocale: string;
+    [key: string]: unknown;
+  }
+  export default function useDocusaurusContext(): { siteConfig: SiteConfig; i18n: I18nContext };
 }

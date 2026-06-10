@@ -49,5 +49,21 @@ export function loadManifest(id: string): DemoManifest {
       throw new Error(`demo ${id}: narration scene "${n.id}" is kind=desktop but has no beat id`);
     }
   }
+  // Locale overlays (see DemoManifest.locales): each override must point at an
+  // existing scene id and carry text. Full-coverage enforcement for published
+  // demos happens at narrate time (localizeManifest), where the locale is known.
+  for (const [loc, overlay] of Object.entries(m.locales ?? {})) {
+    if (!Array.isArray(overlay?.narration)) {
+      throw new Error(`demo ${id}: locales.${loc} must have a "narration" array`);
+    }
+    for (const o of overlay.narration) {
+      if (!o.id || !m.narration.find((s) => s.id === o.id)) {
+        throw new Error(`demo ${id}: locales.${loc} overrides unknown scene "${o.id}"`);
+      }
+      if (!o.text?.trim()) {
+        throw new Error(`demo ${id}: locales.${loc} scene "${o.id}" has empty text`);
+      }
+    }
+  }
   return m;
 }

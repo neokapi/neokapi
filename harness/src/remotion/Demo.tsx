@@ -20,6 +20,9 @@ export interface DemoProps {
   screencast?: Screencast | null;
   /** Which palette to render with (matches the docs page's light/dark mode). */
   themeMode?: ThemeMode;
+  /** Narration locale (default "en"). Read by Root's calculateMetadata to load
+   *  narration-<locale>.json; the narration prop already carries its audio paths. */
+  locale?: string;
   /** Provenance stamp burned into a corner of every frame (version · sha · UTC). */
   stamp?: string;
   // Remotion's Composition requires props to be assignable to Record<string, unknown>.
