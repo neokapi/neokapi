@@ -1,0 +1,5342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="tu1">
+      <tuv xml:lang="en">
+        <seg>.NET RESX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>.NET RESX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu2">
+      <tuv xml:lang="en">
+        <seg>1-based row number containing column names. 0 means auto-detect.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Radnummer (1-basert) som inneholder kolonnenavn. 0 betyr automatisk gjenkjenning.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu3">
+      <tuv xml:lang="en">
+        <seg>1-based row number where data values begin. 0 means auto-detect.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Radnummer (1-basert) der dataverdiene begynner. 0 betyr automatisk gjenkjenning.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu4">
+      <tuv xml:lang="en">
+        <seg>AI Brand Voice Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-kontroll av merkevarestemme</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu5">
+      <tuv xml:lang="en">
+        <seg>AI Entity Extract</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-entitetsuttrekk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu6">
+      <tuv xml:lang="en">
+        <seg>AI Provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu7">
+      <tuv xml:lang="en">
+        <seg>AI QA Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI QA-kontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu8">
+      <tuv xml:lang="en">
+        <seg>AI Review</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-gjennomgang</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu9">
+      <tuv xml:lang="en">
+        <seg>AI Terminology Extraction</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-terminologiuttrekk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu10">
+      <tuv xml:lang="en">
+        <seg>AI Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu11">
+      <tuv xml:lang="en">
+        <seg>AI model name</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Navn på AI-modell</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu12">
+      <tuv xml:lang="en">
+        <seg>AI provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu13">
+      <tuv xml:lang="en">
+        <seg>AI provider id for the llm engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>AI-leverandør-ID for llm-motoren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu14">
+      <tuv xml:lang="en">
+        <seg>API Key</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>API-nøkkel</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu15">
+      <tuv xml:lang="en">
+        <seg>API key for the AI provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>API-nøkkel for AI-leverandøren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu16">
+      <tuv xml:lang="en">
+        <seg>API key for the MT provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>API-nøkkel for MT-leverandøren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu17">
+      <tuv xml:lang="en">
+        <seg>Absolute Maximum Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Absolutt maksimalt antall tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu18">
+      <tuv xml:lang="en">
+        <seg>Absolute maximum character count for target text (0 = disabled)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Absolutt maksimalt antall tegn for målteksten (0 = deaktivert)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu19">
+      <tuv xml:lang="en">
+        <seg>Accept revisions automatically</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Godta revisjoner automatisk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu20">
+      <tuv xml:lang="en">
+        <seg>Account email for higher rate limits (mymemory)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontoens e-postadresse for høyere rategrenser (mymemory)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu21">
+      <tuv xml:lang="en">
+        <seg>Add alt-trans elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til alt-trans-elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu22">
+      <tuv xml:lang="en">
+        <seg>Add line separator as character</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til linjeskilletegn som tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu23">
+      <tuv xml:lang="en">
+        <seg>Add tab as character</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til tabulator som tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu24">
+      <tuv xml:lang="en">
+        <seg>Add target elements for monolingual XLIFF files that have no target in the source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til target-elementer for enspråklige XLIFF-filer som mangler target i kilden</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu25">
+      <tuv xml:lang="en">
+        <seg>Add target-language attribute</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til target-language-attributt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu26">
+      <tuv xml:lang="en">
+        <seg>Add targets for monolingual XLIFF</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til mål for enspråklig XLIFF</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu27">
+      <tuv xml:lang="en">
+        <seg>Add the target-language attribute to file elements if not already present</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg til target-language-attributtet på file-elementer hvis det ikke allerede finnes</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu28">
+      <tuv xml:lang="en">
+        <seg>Additional Comment Markers</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flere kommentarmarkører</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu29">
+      <tuv xml:lang="en">
+        <seg>Adobe FrameMaker MIF</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Adobe FrameMaker MIF</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu30">
+      <tuv xml:lang="en">
+        <seg>Adobe InDesign Markup Language</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Adobe InDesign Markup Language</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu31">
+      <tuv xml:lang="en">
+        <seg>Advanced attribute-specific processing rules with element scope constraints</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Avanserte attributtspesifikke behandlingsregler med begrensninger på elementomfang</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu32">
+      <tuv xml:lang="en">
+        <seg>Advanced element-specific processing rules with conditions, inline marking, and translatable attribute mappings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Avanserte elementspesifikke behandlingsregler med betingelser, inline-merking og tilordning av oversettbare attributter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu33">
+      <tuv xml:lang="en">
+        <seg>Aggressive code cleanup</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aggressiv kodeopprydding</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu34">
+      <tuv xml:lang="en">
+        <seg>Allow Empty Target Output</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat tomme mål i utdata</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu35">
+      <tuv xml:lang="en">
+        <seg>Allow Source Mutation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat endring av kilden</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu36">
+      <tuv xml:lang="en">
+        <seg>Allow addition of new alt-trans elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat at nye alt-trans-elementer legges til</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu37">
+      <tuv xml:lang="en">
+        <seg>Allow editing of existing alt-trans elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat redigering av eksisterende alt-trans-elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu38">
+      <tuv xml:lang="en">
+        <seg>Allow empty target in output when no translation is available</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat tomt mål i utdata når ingen oversettelse er tilgjengelig</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu39">
+      <tuv xml:lang="en">
+        <seg>Allow empty targets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat tomme mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu40">
+      <tuv xml:lang="en">
+        <seg>Allow target elements with empty content to be written</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat at target-elementer med tomt innhold skrives</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu41">
+      <tuv xml:lang="en">
+        <seg>Android String Resources</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Android-strengressurser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu42">
+      <tuv xml:lang="en">
+        <seg>Anthropic</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Anthropic</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu43">
+      <tuv xml:lang="en">
+        <seg>Apple String Catalog</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Apple String Catalog</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu44">
+      <tuv xml:lang="en">
+        <seg>Apple Strings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Apple Strings</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu45">
+      <tuv xml:lang="en">
+        <seg>Apply to Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk på kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu46">
+      <tuv xml:lang="en">
+        <seg>Apply to Target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk på mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu47">
+      <tuv xml:lang="en">
+        <seg>Apply to source text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk på kildeteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu48">
+      <tuv xml:lang="en">
+        <seg>Apply to target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk på målteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu49">
+      <tuv xml:lang="en">
+        <seg>Array of {pattern, format} mappings for embedded content in specific keys.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Array av {pattern, format}-tilordninger for innebygd innhold i bestemte nøkler.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu50">
+      <tuv xml:lang="en">
+        <seg>Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Array av {pattern, format}-tilordninger for innebygd innhold. Mønstrene bruker punktumseparerte elementstier med glob-støtte.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu51">
+      <tuv xml:lang="en">
+        <seg>Attribute Rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Attributtregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu52">
+      <tuv xml:lang="en">
+        <seg>Attribute names that are translatable across all elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Attributtnavn som er oversettbare i alle elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu53">
+      <tuv xml:lang="en">
+        <seg>Attribute names used to extract block IDs from elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Attributtnavn som brukes til å hente blokk-ID-er fra elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu54">
+      <tuv xml:lang="en">
+        <seg>Attribute rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Attributtregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu55">
+      <tuv xml:lang="en">
+        <seg>Auto (preserve input, default 2.2)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Auto (bevar inndata, standard 2.2)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu56">
+      <tuv xml:lang="en">
+        <seg>Automatically accept tracked changes before extraction. When true (default, matching Okapi), inserted runs are kept and deleted runs are dropped; rows marked with &lt;w:trPr&gt;&lt;w:del/&gt; (ECMA-376 §17.13.5.13) are removed entirely; rows marked with &lt;w:trPr&gt;&lt;w:ins/&gt; (§17.13.5.16) are kept.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Godta sporede endringer automatisk før uttrekk. Når true (standard, som i Okapi), beholdes innsatte runs og slettede runs forkastes; rader merket med &lt;w:trPr&gt;&lt;w:del/&gt; (ECMA-376 §17.13.5.13) fjernes helt; rader merket med &lt;w:trPr&gt;&lt;w:ins/&gt; (§17.13.5.16) beholdes.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu57">
+      <tuv xml:lang="en">
+        <seg>Azure OpenAI</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Azure OpenAI</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu58">
+      <tuv xml:lang="en">
+        <seg>Azure region (microsoft)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Azure-region (microsoft)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu59">
+      <tuv xml:lang="en">
+        <seg>Azure subscription key (microsoft)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Azure-abonnementsnøkkel (microsoft)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu60">
+      <tuv xml:lang="en">
+        <seg>Batch Concurrency</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Batchsamtidighet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu61">
+      <tuv xml:lang="en">
+        <seg>Batch Size</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Batchstørrelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu62">
+      <tuv xml:lang="en">
+        <seg>Bilingual Mode</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tospråklig modus</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu63">
+      <tuv xml:lang="en">
+        <seg>Block type map</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Blokktypetilordning</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu64">
+      <tuv xml:lang="en">
+        <seg>Boundary Threshold</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Grenseterskel</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu65">
+      <tuv xml:lang="en">
+        <seg>Boundary probability threshold for the sat engine (0 = model default)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sannsynlighetsterskel for grenser i sat-motoren (0 = modellens standard)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu66">
+      <tuv xml:lang="en">
+        <seg>Brand voice profile to resolve from the store</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Merkevarestemmeprofil som skal hentes fra lageret</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu67">
+      <tuv xml:lang="en">
+        <seg>Build TextUnit IDs from nested key stack.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bygg TextUnit-ID-er fra den nestede nøkkelstakken.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu68">
+      <tuv xml:lang="en">
+        <seg>CSV</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>CSV</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu69">
+      <tuv xml:lang="en">
+        <seg>Case Sensitive</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Versalfølsom</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu70">
+      <tuv xml:lang="en">
+        <seg>Case Transform</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Endre store/små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu71">
+      <tuv xml:lang="en">
+        <seg>Case transformation mode</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Modus for store/små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu72">
+      <tuv xml:lang="en">
+        <seg>Character</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu73">
+      <tuv xml:lang="en">
+        <seg>Character Count</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegntelling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu74">
+      <tuv xml:lang="en">
+        <seg>Character Set Encoding</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegnsettkoding</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu75">
+      <tuv xml:lang="en">
+        <seg>Character count above which text is considered long for the maximum length check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Antall tegn som teksten må overstige for å regnes som lang i kontrollen av maksimal lengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu76">
+      <tuv xml:lang="en">
+        <seg>Character count above which text is considered long for the minimum length check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Antall tegn som teksten må overstige for å regnes som lang i kontrollen av minimal lengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu77">
+      <tuv xml:lang="en">
+        <seg>Character count threshold between short and long text for max check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel i antall tegn mellom kort og lang tekst for makskontrollen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu78">
+      <tuv xml:lang="en">
+        <seg>Character count threshold between short and long text for min check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel i antall tegn mellom kort og lang tekst for minkontrollen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu79">
+      <tuv xml:lang="en">
+        <seg>Character used to quote field values containing delimiters or newlines</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn som brukes til å omslutte feltverdier som inneholder skilletegn eller linjeskift</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu80">
+      <tuv xml:lang="en">
+        <seg>Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu81">
+      <tuv xml:lang="en">
+        <seg>Characters Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegnkontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu82">
+      <tuv xml:lang="en">
+        <seg>Characters Listing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegnliste</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu83">
+      <tuv xml:lang="en">
+        <seg>Characters appended after each translated block</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn som legges til etter hver oversatt blokk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu84">
+      <tuv xml:lang="en">
+        <seg>Characters prepended before each translated block</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn som settes inn foran hver oversatt blokk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu85">
+      <tuv xml:lang="en">
+        <seg>Characters that must appear in target if present in source (e.g. punctuation)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn som må forekomme i målet hvis de finnes i kilden (f.eks. tegnsetting)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu86">
+      <tuv xml:lang="en">
+        <seg>Characters that should not appear in target text (e.g. {}[])</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegn som ikke skal forekomme i målteksten (f.eks. {}[])</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu87">
+      <tuv xml:lang="en">
+        <seg>Check Absolute Maximum Length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller absolutt maksimal lengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu88">
+      <tuv xml:lang="en">
+        <seg>Check Against Charset Encoding</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller mot tegnsettkoding</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu89">
+      <tuv xml:lang="en">
+        <seg>Check Code Differences</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller kodeforskjeller</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu90">
+      <tuv xml:lang="en">
+        <seg>Check Corrupted Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller ødelagte tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu91">
+      <tuv xml:lang="en">
+        <seg>Check Double Spaces</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller doble mellomrom</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu92">
+      <tuv xml:lang="en">
+        <seg>Check Leading Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller innledende blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu93">
+      <tuv xml:lang="en">
+        <seg>Check Maximum Length Ratio</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller maksimalt lengdeforhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu94">
+      <tuv xml:lang="en">
+        <seg>Check Minimum Length Ratio</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller minimalt lengdeforhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu95">
+      <tuv xml:lang="en">
+        <seg>Check Patterns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller mønstre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu96">
+      <tuv xml:lang="en">
+        <seg>Check Source Inconsistency</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller kildeinkonsistens</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu97">
+      <tuv xml:lang="en">
+        <seg>Check Span Constraints</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller span-begrensninger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu98">
+      <tuv xml:lang="en">
+        <seg>Check Target Inconsistency</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller målinkonsistens</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu99">
+      <tuv xml:lang="en">
+        <seg>Check Trailing Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller avsluttende blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu100">
+      <tuv xml:lang="en">
+        <seg>Check for common corruption patterns such as mojibake</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Se etter vanlige korrupsjonsmønstre som mojibake</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu101">
+      <tuv xml:lang="en">
+        <seg>Check for consecutive repeated words in target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Se etter påfølgende gjentatte ord i målteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu102">
+      <tuv xml:lang="en">
+        <seg>Check for double spaces in target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Se etter doble mellomrom i målteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu103">
+      <tuv xml:lang="en">
+        <seg>Check for empty target when source has content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller for tomt mål når kilden har innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu104">
+      <tuv xml:lang="en">
+        <seg>Check for leading whitespace mismatches between source and target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller for avvik i innledende blanktegn mellom kilde og mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu105">
+      <tuv xml:lang="en">
+        <seg>Check for non-empty target when source is empty</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller for ikke-tomt mål når kilden er tom</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu106">
+      <tuv xml:lang="en">
+        <seg>Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Se etter mønstre som tyder på ødelagt tegnkoding (f.eks. UTF-8 åpnet som ISO-8859-1)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu107">
+      <tuv xml:lang="en">
+        <seg>Check for trailing whitespace mismatches between source and target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller for avvik i avsluttende blanktegn mellom kilde og mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu108">
+      <tuv xml:lang="en">
+        <seg>Check non-deletable and non-cloneable span constraint violations</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller brudd på begrensninger for spans som ikke kan slettes eller klones</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu109">
+      <tuv xml:lang="en">
+        <seg>Check text against a brand voice profile using an LLM provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller tekst mot en merkevarestemmeprofil med en LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu110">
+      <tuv xml:lang="en">
+        <seg>Check translation quality using an LLM provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller oversettelseskvalitet med en LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu111">
+      <tuv xml:lang="en">
+        <seg>Check when target text is identical to source text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroller når målteksten er identisk med kildeteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu112">
+      <tuv xml:lang="en">
+        <seg>Chunking Instruction</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Instruksjon for oppdeling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu113">
+      <tuv xml:lang="en">
+        <seg>Code Finder Rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kodefinnerregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu114">
+      <tuv xml:lang="en">
+        <seg>Code finder rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kodefinnerregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu115">
+      <tuv xml:lang="en">
+        <seg>Column Names Row</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rad med kolonnenavn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu116">
+      <tuv xml:lang="en">
+        <seg>Column indices (0-based) that contain comments or notes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kolonneindekser (0-basert) som inneholder kommentarer eller merknader</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu117">
+      <tuv xml:lang="en">
+        <seg>Column indices (0-based) that provide the block ID (source ID / record ID)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kolonneindekser (0-basert) som gir blokk-ID-en (kilde-ID / post-ID)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu118">
+      <tuv xml:lang="en">
+        <seg>Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kolonneindekser (0-basert) som trekkes ut som oversettbart innhold. Hvis tom er alle kolonner oversettbare.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu119">
+      <tuv xml:lang="en">
+        <seg>Column letters to exclude (e.g., "A", "C", "AA").</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kolonnebokstaver som skal ekskluderes (f.eks. "A", "C", "AA").</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu120">
+      <tuv xml:lang="en">
+        <seg>Comment Columns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kommentarkolonner</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu121">
+      <tuv xml:lang="en">
+        <seg>Comments as Notes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kommentarer som merknader</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu122">
+      <tuv xml:lang="en">
+        <seg>Complex field definitions to extract</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Komplekse feltdefinisjoner som skal trekkes ut</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu123">
+      <tuv xml:lang="en">
+        <seg>Controls how inline codes are represented: original codes or generic markers or plain text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Styrer hvordan inline-koder vises: originale koder, generiske markører eller ren tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu124">
+      <tuv xml:lang="en">
+        <seg>Copy the best translation candidate into the target content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kopier den beste oversettelseskandidaten inn i målinnholdet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu125">
+      <tuv xml:lang="en">
+        <seg>Count Inline Codes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell inline-koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu126">
+      <tuv xml:lang="en">
+        <seg>Count Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu127">
+      <tuv xml:lang="en">
+        <seg>Count Target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu128">
+      <tuv xml:lang="en">
+        <seg>Count characters in source text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell tegn i kildeteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu129">
+      <tuv xml:lang="en">
+        <seg>Count characters in target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell tegn i målteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu130">
+      <tuv xml:lang="en">
+        <seg>Count words in source text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell ord i kildeteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu131">
+      <tuv xml:lang="en">
+        <seg>Count words in target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tell ord i målteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu132">
+      <tuv xml:lang="en">
+        <seg>Create a TMX file with all leveraged matches</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Opprett en TMX-fil med alle gjenbrukte treff</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu133">
+      <tuv xml:lang="en">
+        <seg>Credential</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legitimasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu134">
+      <tuv xml:lang="en">
+        <seg>DTD</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>DTD</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu135">
+      <tuv xml:lang="en">
+        <seg>DeepL Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>DeepL-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu136">
+      <tuv xml:lang="en">
+        <seg>Demo (illustrative)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Demo (illustrerende)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu137">
+      <tuv xml:lang="en">
+        <seg>Design Tokens (DTCG)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Design Tokens (DTCG)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu138">
+      <tuv xml:lang="en">
+        <seg>Detect i18next interpolation ({{var}}, {{var, format}}) and nesting ($t(key)) and protect them as inline codes so they are never translated.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdag i18next-interpolasjon ({{var}}, {{var, format}}) og nesting ($t(key)) og beskytt dem som inline-koder slik at de aldri oversettes.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu139">
+      <tuv xml:lang="en">
+        <seg>Detect named entities (people, organizations, products, locations) using an LLM</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdag navngitte entiteter (personer, organisasjoner, produkter, steder) med en LLM</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu140">
+      <tuv xml:lang="en">
+        <seg>Detection backends to run: rules and/or entities</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Deteksjonsmotorer som skal kjøres: rules og/eller entities</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu141">
+      <tuv xml:lang="en">
+        <seg>Detectors</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Detektorer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu142">
+      <tuv xml:lang="en">
+        <seg>Diff Leverage</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Diff-gjenbruk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu143">
+      <tuv xml:lang="en">
+        <seg>Discard invalid targets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Forkast ugyldige mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu144">
+      <tuv xml:lang="en">
+        <seg>Discard targets that fail validation rather than rejecting the entire file</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Forkast mål som ikke består validering, i stedet for å avvise hele filen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu145">
+      <tuv xml:lang="en">
+        <seg>Document 1 Label</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Etikett for dokument 1</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu146">
+      <tuv xml:lang="en">
+        <seg>Document 2 Label</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Etikett for dokument 2</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu147">
+      <tuv xml:lang="en">
+        <seg>DokuWiki</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>DokuWiki</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu148">
+      <tuv xml:lang="en">
+        <seg>Domain</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Domene</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu149">
+      <tuv xml:lang="en">
+        <seg>Dot Also Matches Line-Feed</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Punktum matcher også linjeskift</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu150">
+      <tuv xml:lang="en">
+        <seg>Doubled Word Exceptions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Unntak for gjentatte ord</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu151">
+      <tuv xml:lang="en">
+        <seg>Downgrade Identical Exact Matches</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Nedgrader identiske eksakttreff</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu152">
+      <tuv xml:lang="en">
+        <seg>Doxygen Comments</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Doxygen-kommentarer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu153">
+      <tuv xml:lang="en">
+        <seg>EPUB E-Book</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>EPUB-e-bok</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu154">
+      <tuv xml:lang="en">
+        <seg>Edit alt-trans elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rediger alt-trans-elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu155">
+      <tuv xml:lang="en">
+        <seg>Element Rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu156">
+      <tuv xml:lang="en">
+        <seg>Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Uttrekksregler for elementer -- tilordner elementnavn til regelkonfigurasjonen deres (ruleTypes, conditions, idAttributes, translatableAttributes)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu157">
+      <tuv xml:lang="en">
+        <seg>Element names that preserve whitespace regardless of the global setting</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementnavn som bevarer blanktegn uavhengig av den globale innstillingen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu158">
+      <tuv xml:lang="en">
+        <seg>Element names that produce group/layer boundaries in the output</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementnavn som gir gruppe-/laggrenser i utdataene</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu159">
+      <tuv xml:lang="en">
+        <seg>Element names treated as inline (spans within text) rather than block-level</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementnavn som behandles som inline (spenn i teksten) i stedet for som blokknivå</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu160">
+      <tuv xml:lang="en">
+        <seg>Element names whose content is excluded from extraction</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementnavn med innhold som ekskluderes fra uttrekket</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu161">
+      <tuv xml:lang="en">
+        <seg>Element names whose text content is translatable. If empty, all text content is translatable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementnavn med oversettbart tekstinnhold. Hvis tom er alt tekstinnhold oversettbart.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu162">
+      <tuv xml:lang="en">
+        <seg>Element rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu163">
+      <tuv xml:lang="en">
+        <seg>Email</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>E-post</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu164">
+      <tuv xml:lang="en">
+        <seg>Emit entries whose extractionState is "stale" (the source string no longer appears in the code base) as translatable blocks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Send ut oppføringer med extractionState "stale" (kildestrengen finnes ikke lenger i kodebasen) som oversettbare blokker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu165">
+      <tuv xml:lang="en">
+        <seg>Emit font metadata as annotations on blocks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Legg ved skriftmetadata som annotasjoner på blokker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu166">
+      <tuv xml:lang="en">
+        <seg>Enable Inline Code Detection</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver deteksjon av inline-koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu167">
+      <tuv xml:lang="en">
+        <seg>Enable Key Condition</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver nøkkelbetingelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu168">
+      <tuv xml:lang="en">
+        <seg>Enable fuzzy matching for similar texts</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver fuzzy-matching for lignende tekster</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu169">
+      <tuv xml:lang="en">
+        <seg>Enable inline code detection</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver deteksjon av inline-koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu170">
+      <tuv xml:lang="en">
+        <seg>Enable pattern-based detection of inline codes (placeholders, tags, etc.).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver mønsterbasert deteksjon av inline-koder (plassholdere, tagger osv.).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu171">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder (plassholdere, variabler, tagger) i oversettbar tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu172">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based detection of inline codes within translatable text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu173">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection in translatable text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu174">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within PO message text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i PO-meldingstekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu175">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within cell values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i celleverdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu176">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within property values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i property-verdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu177">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within string values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i strengverdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu178">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within translatable text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu179">
+      <tuv xml:lang="en">
+        <seg>Enable regex-based inline code detection within translatable text.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu180">
+      <tuv xml:lang="en">
+        <seg>Enable regular expression mode for all search patterns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver modus for regulære uttrykk for alle søkemønstre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu181">
+      <tuv xml:lang="en">
+        <seg>Enable terminology checks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Aktiver terminologikontroller</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu182">
+      <tuv xml:lang="en">
+        <seg>Encoding Detect</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegnkodingsdeteksjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu183">
+      <tuv xml:lang="en">
+        <seg>Enforce Strict Code Order</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Håndhev streng koderekkefølge</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu184">
+      <tuv xml:lang="en">
+        <seg>Enforce unique trans-unit IDs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Håndhev unike trans-unit-ID-er</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu185">
+      <tuv xml:lang="en">
+        <seg>Ensure inline tag IDs are unique within each unit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sørg for at inline-tagg-ID-er er unike i hver enhet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu186">
+      <tuv xml:lang="en">
+        <seg>Ensure unique tag IDs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sikre unike tagg-ID-er</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu187">
+      <tuv xml:lang="en">
+        <seg>Entity Categories</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Entitetskategorier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu188">
+      <tuv xml:lang="en">
+        <seg>Entity categories to redact: person</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Entitetskategorier som skal sladdes: person</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu189">
+      <tuv xml:lang="en">
+        <seg>Escape &gt; as &amp;gt; in output XML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape &gt; som &amp;gt; i XML-utdata</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu190">
+      <tuv xml:lang="en">
+        <seg>Escape Extended Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape utvidede tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu191">
+      <tuv xml:lang="en">
+        <seg>Escape extended Unicode characters (non-ASCII) in output using \uXXXX notation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape utvidede Unicode-tegn (ikke-ASCII) i utdata med \uXXXX-notasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu192">
+      <tuv xml:lang="en">
+        <seg>Escape forward slashes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape skråstreker</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu193">
+      <tuv xml:lang="en">
+        <seg>Escape forward slashes in output JSON (\/).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape skråstreker i JSON-utdata (\/).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu194">
+      <tuv xml:lang="en">
+        <seg>Escape greater-than characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape større enn-tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu195">
+      <tuv xml:lang="en">
+        <seg>Escape line breaks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Escape linjeskift</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu196">
+      <tuv xml:lang="en">
+        <seg>Exclude &lt;string&gt; values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder &lt;string&gt;-verdier som bare er en ressursreferanse (f.eks. @string/foo, ?attr/bar). En referanse er et alias, ikke oversettbar UI-tekst.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu197">
+      <tuv xml:lang="en">
+        <seg>Exclude &lt;string&gt;/&lt;string-array&gt;/&lt;plurals&gt; entries marked translatable="false" from extraction. Such resources are developer-owned and round-trip verbatim.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder &lt;string&gt;-/&lt;string-array&gt;-/&lt;plurals&gt;-oppføringer merket med translatable="false" fra uttrekket. Slike ressurser eies av utvikleren og bevares uendret ved rundtur.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu198">
+      <tuv xml:lang="en">
+        <seg>Exclude all elements unless explicitly included by an element rule with INCLUDE</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder alle elementer med mindre de eksplisitt inkluderes av en elementregel med INCLUDE</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu199">
+      <tuv xml:lang="en">
+        <seg>Exclude by default</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder som standard</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu200">
+      <tuv xml:lang="en">
+        <seg>Exclude designer name-reference entries (those whose name starts with "&gt;", e.g. "&gt;&gt;control.Name") from extraction. These carry WinForms field names, not UI strings.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder designer-navnereferanser (oppføringer med navn som begynner med "&gt;", f.eks. "&gt;&gt;control.Name") fra uttrekket. Disse inneholder WinForms-feltnavn, ikke UI-strenger.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu201">
+      <tuv xml:lang="en">
+        <seg>Exclude highlight colors</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder uthevingsfarger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu202">
+      <tuv xml:lang="en">
+        <seg>Exclude leading whitespace from each segment span</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utelat innledende blanktegn fra hvert segmentspenn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu203">
+      <tuv xml:lang="en">
+        <seg>Exclude specific font colors</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder bestemte skriftfarger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu204">
+      <tuv xml:lang="en">
+        <seg>Exclude styles</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluder stiler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu205">
+      <tuv xml:lang="en">
+        <seg>Exclude trailing whitespace from each segment span</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utelat avsluttende blanktegn fra hvert segmentspenn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu206">
+      <tuv xml:lang="en">
+        <seg>Excluded columns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluderte kolonner</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu207">
+      <tuv xml:lang="en">
+        <seg>Excluded elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluderte elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu208">
+      <tuv xml:lang="en">
+        <seg>Excluded sheets</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekskluderte ark</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu209">
+      <tuv xml:lang="en">
+        <seg>Exec (subprocess extractor)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Exec (uttrekk i underprosess)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu210">
+      <tuv xml:lang="en">
+        <seg>Exit on invalid TUs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Avbryt ved ugyldige TU-er</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu211">
+      <tuv xml:lang="en">
+        <seg>Expansion Percent</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekspansjonsprosent</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu212">
+      <tuv xml:lang="en">
+        <seg>Extra padding percentage added to simulate translation expansion (0 = no padding)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ekstra utfyllingsprosent som legges til for å simulere ekspansjon ved oversettelse (0 = ingen utfylling)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu213">
+      <tuv xml:lang="en">
+        <seg>Extract $description documentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut $description-dokumentasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu214">
+      <tuv xml:lang="en">
+        <seg>Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut $description-verdier (lesbar dokumentasjon for tokener og grupper) som oversettbare blokker. Dette er det eneste naturspråklige feltet i DTCG; $value er alltid en typet designverdi (farge, dimensjon, skriftnavn, …) og trekkes aldri ut. Deaktiver for å lese filen som fullstendig ikke-oversettbar struktur.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu215">
+      <tuv xml:lang="en">
+        <seg>Extract Non-String Values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut ikke-strengverdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu216">
+      <tuv xml:lang="en">
+        <seg>Extract Only Matching Keys</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk bare ut matchende nøkler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu217">
+      <tuv xml:lang="en">
+        <seg>Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut alle nøkkel/verdi-par for oversettelse. Når false, bruk extractionRules til å angi hvilke stier som skal trekkes ut.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu218">
+      <tuv xml:lang="en">
+        <seg>Extract all key/string pairs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut alle nøkkel/streng-par</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu219">
+      <tuv xml:lang="en">
+        <seg>Extract candidate terminology from content using an LLM provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut terminologikandidater fra innhold med en LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu220">
+      <tuv xml:lang="en">
+        <seg>Extract comment text from Word documents.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut kommentartekst fra Word-dokumenter.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu221">
+      <tuv xml:lang="en">
+        <seg>Extract comments as notes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut kommentarer som merknader</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu222">
+      <tuv xml:lang="en">
+        <seg>Extract content from hidden slides in PowerPoint.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut innhold fra skjulte lysbilder i PowerPoint.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu223">
+      <tuv xml:lang="en">
+        <seg>Extract external hyperlinks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut eksterne hyperkoblinger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu224">
+      <tuv xml:lang="en">
+        <seg>Extract footnotes and endnotes from Word documents.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut fotnoter og sluttnoter fra Word-dokumenter.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu225">
+      <tuv xml:lang="en">
+        <seg>Extract hyperlink text for translation.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut hyperkoblingstekst for oversettelse.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu226">
+      <tuv xml:lang="en">
+        <seg>Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut skalarverdier som ikke er strenger (boolske verdier, tall, null), som oversettbare blokker</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu227">
+      <tuv xml:lang="en">
+        <seg>Extract outside the scope of the directives</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut utenfor direktivenes virkeområde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu228">
+      <tuv xml:lang="en">
+        <seg>Extract run fonts info</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut skriftinformasjon for runs</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu229">
+      <tuv xml:lang="en">
+        <seg>Extract shared strings from Excel workbooks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut delte strenger fra Excel-arbeidsbøker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu230">
+      <tuv xml:lang="en">
+        <seg>Extract sheet names in Excel workbooks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut arknavn i Excel-arbeidsbøker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu231">
+      <tuv xml:lang="en">
+        <seg>Extract speaker notes in PowerPoint presentations.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut foredragsholdernotater i PowerPoint-presentasjoner.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu232">
+      <tuv xml:lang="en">
+        <seg>Extract stale entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut foreldede oppføringer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu233">
+      <tuv xml:lang="en">
+        <seg>Extract string values in arrays (without keys) as translatable blocks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut strengverdier i arrays (uten nøkler) som oversettbare blokker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu234">
+      <tuv xml:lang="en">
+        <seg>Extract strings from embedded charts.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut strenger fra innebygde diagrammer.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu235">
+      <tuv xml:lang="en">
+        <seg>Extract strings without associated key</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut strenger uten tilknyttet nøkkel</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu236">
+      <tuv xml:lang="en">
+        <seg>Extract text from SmartArt diagrams.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tekst fra SmartArt-grafikk.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu237">
+      <tuv xml:lang="en">
+        <seg>Extract text from headers and footers in Word documents.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tekst fra topptekster og bunntekster i Word-dokumenter.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu238">
+      <tuv xml:lang="en">
+        <seg>Extract text from slide masters in PowerPoint.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tekst fra lysbildemaler i PowerPoint.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu239">
+      <tuv xml:lang="en">
+        <seg>Extract text with the vanish (hidden) property in Word documents.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tekst med vanish-egenskapen (skjult) i Word-dokumenter.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu240">
+      <tuv xml:lang="en">
+        <seg>Extract title, subject, keywords from document properties.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut tittel, emne og nøkkelord fra dokumentegenskapene.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu241">
+      <tuv xml:lang="en">
+        <seg>Extract translatable strings found outside directive-controlled regions.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trekk ut oversettbare strenger som finnes utenfor direktivstyrte områder.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu242">
+      <tuv xml:lang="en">
+        <seg>Extraction Engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Uttrekksmotor</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu243">
+      <tuv xml:lang="en">
+        <seg>Extraction rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Uttrekksregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu244">
+      <tuv xml:lang="en">
+        <seg>Field Delimiter</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Feltskilletegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu245">
+      <tuv xml:lang="en">
+        <seg>Field delimiter character (comma for CSV, tab for TSV)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skilletegn for felt (komma for CSV, tabulator for TSV)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu246">
+      <tuv xml:lang="en">
+        <seg>Field instruction prefixes to extract (e.g., "HYPERLINK", "REF").</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Feltinstruksjonsprefikser som skal trekkes ut (f.eks. "HYPERLINK", "REF").</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu247">
+      <tuv xml:lang="en">
+        <seg>File path for the generated TMX document</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Filsti for det genererte TMX-dokumentet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu248">
+      <tuv xml:lang="en">
+        <seg>Fill Target Threshold</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel for målfylling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu249">
+      <tuv xml:lang="en">
+        <seg>Fill Target with Translation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fyll mål med oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu250">
+      <tuv xml:lang="en">
+        <seg>Fill the target only when it has no existing content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fyll målet bare når det ikke har innhold fra før</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu251">
+      <tuv xml:lang="en">
+        <seg>Filter entries for extraction based on a regex condition applied to their keys</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Filtrer oppføringer for uttrekk basert på en regex-betingelse på nøklene</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu252">
+      <tuv xml:lang="en">
+        <seg>Fixed-Width</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fast bredde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu253">
+      <tuv xml:lang="en">
+        <seg>Flag differences when codes appear in a different order between source and target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg forskjeller når koder står i ulik rekkefølge i kilde og mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu254">
+      <tuv xml:lang="en">
+        <seg>Flag target segments that exceed an absolute character count limit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg målsegmenter som overskrider en absolutt tegngrense</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu255">
+      <tuv xml:lang="en">
+        <seg>Flag targets longer than a percentage of source character length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg mål som er lengre enn en prosentandel av kildens tegnlengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu256">
+      <tuv xml:lang="en">
+        <seg>Flag targets shorter than a percentage of source character length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg mål som er kortere enn en prosentandel av kildens tegnlengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu257">
+      <tuv xml:lang="en">
+        <seg>Flag when different sources share the same translation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg når ulike kilder deler samme oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu258">
+      <tuv xml:lang="en">
+        <seg>Flag when the same source has different translations</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flagg når samme kilde har ulike oversettelser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu259">
+      <tuv xml:lang="en">
+        <seg>Flutter ARB</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flutter ARB</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu260">
+      <tuv xml:lang="en">
+        <seg>Font colors to exclude (hex RGB, e.g., "FF0000" for red).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriftfarger som skal ekskluderes (heksadesimal RGB, f.eks. "FF0000" for rød).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu261">
+      <tuv xml:lang="en">
+        <seg>Font mappings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skrifttilordninger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu262">
+      <tuv xml:lang="en">
+        <seg>Font name to script group mapping (e.g., "MS Gothic": "ja").</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilordning fra skriftnavn til skriptgruppe (f.eks. "MS Gothic": "ja").</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu263">
+      <tuv xml:lang="en">
+        <seg>Forbidden Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Forbudte tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu264">
+      <tuv xml:lang="en">
+        <seg>Fuzzy Match</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fuzzy-treff</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu265">
+      <tuv xml:lang="en">
+        <seg>Fuzzy Match Threshold</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel for fuzzy-treff</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu266">
+      <tuv xml:lang="en">
+        <seg>Gemini</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gemini</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu267">
+      <tuv xml:lang="en">
+        <seg>General</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Generelt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu268">
+      <tuv xml:lang="en">
+        <seg>Generate TMX Document</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Generer TMX-dokument</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu269">
+      <tuv xml:lang="en">
+        <seg>Generic metadata rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Generiske metadataregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu270">
+      <tuv xml:lang="en">
+        <seg>Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Globale uttrekksregler for attributter -- tilordner attributtnavn til regelkonfigurasjonen deres (ruleTypes, allElementsExcept, onlyTheseElements, conditions)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu271">
+      <tuv xml:lang="en">
+        <seg>Global subfilter format name (e.g., 'html') applied to all or matching extracted strings.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Globalt underfilterformatnavn (f.eks. 'html') som brukes på alle eller matchende uttrukne strenger.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu272">
+      <tuv xml:lang="en">
+        <seg>Google Cloud project ID (google)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Google Cloud-prosjekt-ID (google)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu273">
+      <tuv xml:lang="en">
+        <seg>Google Translate Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Google Translate-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu274">
+      <tuv xml:lang="en">
+        <seg>Group elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gruppeelementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu275">
+      <tuv xml:lang="en">
+        <seg>HTML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>HTML</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu276">
+      <tuv xml:lang="en">
+        <seg>HTML Subfilter</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>HTML-underfilter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu277">
+      <tuv xml:lang="en">
+        <seg>Hand values whose key ends in "_html" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Send verdier med nøkler som slutter på "_html" (i18next-konvensjonen for oppmerking), til HTML-underfilteret slik at tagger beskyttes og teksten forblir oversettbar. Av som standard: HTML-underfilteret er ikke byte-tro for rene oppmerkingsfragmenter.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu278">
+      <tuv xml:lang="en">
+        <seg>Has Header Row</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Har overskriftsrad</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu279">
+      <tuv xml:lang="en">
+        <seg>Highlight colors to exclude (e.g., "yellow", "red").</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Uthevingsfarger som skal ekskluderes (f.eks. "yellow", "red").</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu280">
+      <tuv xml:lang="en">
+        <seg>Honor //okapi: skip/text directives in PHP source to control extraction scope.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Følg //okapi: skip/text-direktiver i PHP-kildekode for å styre uttrekksomfanget.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu281">
+      <tuv xml:lang="en">
+        <seg>ICML (Adobe InCopy)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ICML (Adobe InCopy)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu282">
+      <tuv xml:lang="en">
+        <seg>ICU MessageFormat</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ICU MessageFormat</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu283">
+      <tuv xml:lang="en">
+        <seg>ID attributes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ID-attributter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu284">
+      <tuv xml:lang="en">
+        <seg>ID rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ID-regler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu285">
+      <tuv xml:lang="en">
+        <seg>If non-empty, only extract text with these highlight colors.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis ikke tom, trekkes bare tekst med disse uthevingsfargene ut.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu286">
+      <tuv xml:lang="en">
+        <seg>If non-empty, only extract text with these styles.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis ikke tom, trekkes bare tekst med disse stilene ut.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu287">
+      <tuv xml:lang="en">
+        <seg>If non-empty, only extract these slide numbers (1-based).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis ikke tom, trekkes bare disse lysbildenumrene ut (1-basert).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu288">
+      <tuv xml:lang="en">
+        <seg>If true, YAML front matter values are translatable. If false, emitted as non-translatable data.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, er verdier i YAML-frontmatter oversettbare. Hvis false, sendes de ut som ikke-oversettbare data.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu289">
+      <tuv xml:lang="en">
+        <seg>If true, blockquote content is translatable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, er innhold i sitatblokker oversettbart.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu290">
+      <tuv xml:lang="en">
+        <seg>If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, blir hver linje en egen blokk. Hvis false, er avsnitt (atskilt med tomme linjer) blokker.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu291">
+      <tuv xml:lang="en">
+        <seg>If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, sendes oppføringer med tom msgstr ut som blokker. Hvis false, hoppes de over.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu292">
+      <tuv xml:lang="en">
+        <seg>If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, er avgrensede (fenced) og innrykkede kodeblokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu293">
+      <tuv xml:lang="en">
+        <seg>If true, image alt text is included in translatable content.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, inkluderes alt-tekst for bilder i oversettbart innhold.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu294">
+      <tuv xml:lang="en">
+        <seg>If true, leading and trailing whitespace is removed from cell values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, fjernes innledende og avsluttende blanktegn fra celleverdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu295">
+      <tuv xml:lang="en">
+        <seg>If true, link and image URLs are translatable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, er lenke- og bilde-URL-er oversettbare.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu296">
+      <tuv xml:lang="en">
+        <seg>If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, er rå HTML-blokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu297">
+      <tuv xml:lang="en">
+        <seg>If true, the first row is treated as headers (non-translatable)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hvis true, behandles den første raden som overskrifter (ikke oversettbare)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu298">
+      <tuv xml:lang="en">
+        <seg>Ignore Case Differences</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer forskjeller i store/små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu299">
+      <tuv xml:lang="en">
+        <seg>Ignore case when matching search patterns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer store/små bokstaver ved matching av søkemønstre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu300">
+      <tuv xml:lang="en">
+        <seg>Ignore input segmentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer inndatasegmentering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu301">
+      <tuv xml:lang="en">
+        <seg>Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer seg-source/mrk-segmentering fra inndata-XLIFF og behandle hele kilden som ett segment</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu302">
+      <tuv xml:lang="en">
+        <seg>Ignore soft hyphen tags</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer tagger for myk bindestrek</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu303">
+      <tuv xml:lang="en">
+        <seg>Ignore soft hyphen tags in the document.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer tagger for myk bindestrek i dokumentet.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu304">
+      <tuv xml:lang="en">
+        <seg>Ignore tag type mismatch</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer taggtypeavvik</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu305">
+      <tuv xml:lang="en">
+        <seg>Ignore tag type mismatch between source and target segments</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ignorer taggtypeavvik mellom kilde- og målsegmenter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu306">
+      <tuv xml:lang="en">
+        <seg>In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>I tospråklig modus (standard) er msgid kildeteksten og msgstr målet. I enspråklig modus behandles msgid som en ID.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu307">
+      <tuv xml:lang="en">
+        <seg>Include Codes in Comparison</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med koder i sammenligningen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu308">
+      <tuv xml:lang="en">
+        <seg>Include ITS (Internationalization Tag Set) markup in extracted content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med ITS-oppmerking (Internationalization Tag Set) i uttrukket innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu309">
+      <tuv xml:lang="en">
+        <seg>Include ITS markup</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med ITS-oppmerking</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu310">
+      <tuv xml:lang="en">
+        <seg>Include Number-Only Segments</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med segmenter med bare tall</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu311">
+      <tuv xml:lang="en">
+        <seg>Include Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu312">
+      <tuv xml:lang="en">
+        <seg>Include Target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu313">
+      <tuv xml:lang="en">
+        <seg>Include XLIFF extension elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med XLIFF-utvidelseselementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu314">
+      <tuv xml:lang="en">
+        <seg>Include highlight colors</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inkluder uthevingsfarger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu315">
+      <tuv xml:lang="en">
+        <seg>Include inline code content in character counts</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med innhold i inline-koder i tegntellinger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu316">
+      <tuv xml:lang="en">
+        <seg>Include inline code content in word counts</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med innhold i inline-koder i ordtellinger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu317">
+      <tuv xml:lang="en">
+        <seg>Include inline codes when comparing source and target for identity</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med inline-koder når kilde og mål sammenlignes for likhet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu318">
+      <tuv xml:lang="en">
+        <seg>Include leading "/" on key path</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med innledende "/" i nøkkelstien</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu319">
+      <tuv xml:lang="en">
+        <seg>Include leading slash in key path names.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med innledende skråstrek i nøkkelstinavn.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu320">
+      <tuv xml:lang="en">
+        <seg>Include non-standard namespace extension elements in extracted content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med utvidelseselementer fra ikke-standard navnerom i uttrukket innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu321">
+      <tuv xml:lang="en">
+        <seg>Include number-only segments in same-as-source comparison</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med segmenter med bare tall i sammenligningen av mål som er lik kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu322">
+      <tuv xml:lang="en">
+        <seg>Include original data in output</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med originaldata i utdata</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu323">
+      <tuv xml:lang="en">
+        <seg>Include source text in character listing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med kildetekst i tegnlisten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu324">
+      <tuv xml:lang="en">
+        <seg>Include styles</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inkluder stiler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu325">
+      <tuv xml:lang="en">
+        <seg>Include target text in character listing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta med måltekst i tegnlisten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu326">
+      <tuv xml:lang="en">
+        <seg>Included slide numbers</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inkluderte lysbildenumre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu327">
+      <tuv xml:lang="en">
+        <seg>Inconsistency Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inkonsistenskontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu328">
+      <tuv xml:lang="en">
+        <seg>Inline Code</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inline-kode</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu329">
+      <tuv xml:lang="en">
+        <seg>Inline Code Display</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Visning av inline-koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu330">
+      <tuv xml:lang="en">
+        <seg>Inline ES5 JavaScript code</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inline ES5 JavaScript-kode</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu331">
+      <tuv xml:lang="en">
+        <seg>Inline elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inline-elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu332">
+      <tuv xml:lang="en">
+        <seg>InlineCodes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Inline-koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu333">
+      <tuv xml:lang="en">
+        <seg>JSON</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>JSON</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu334">
+      <tuv xml:lang="en">
+        <seg>Java Properties</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Java Properties</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu335">
+      <tuv xml:lang="en">
+        <seg>Kapi Localization Format (KLF)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kapi Localization Format (KLF)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu336">
+      <tuv xml:lang="en">
+        <seg>Keep Java property escape sequences (\: \= \# \!) in extracted text instead of resolving them</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behold Java-property-escapesekvenser (\: \= \# \!) i uttrukket tekst i stedet for å løse dem opp</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu337">
+      <tuv xml:lang="en">
+        <seg>Key Columns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Nøkkelkolonner</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu338">
+      <tuv xml:lang="en">
+        <seg>Key Condition Pattern</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Mønster for nøkkelbetingelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu339">
+      <tuv xml:lang="en">
+        <seg>Key Path Patterns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Mønstre for nøkkelstier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu340">
+      <tuv xml:lang="en">
+        <seg>Key exception pattern</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Unntaksmønster for nøkler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu341">
+      <tuv xml:lang="en">
+        <seg>Key-value separator character (typically '=' or ':')</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skilletegn mellom nøkkel og verdi (vanligvis '=' eller ':')</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu342">
+      <tuv xml:lang="en">
+        <seg>LLM Provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu343">
+      <tuv xml:lang="en">
+        <seg>Label for the first translation in reports</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Etikett for den første oversettelsen i rapporter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu344">
+      <tuv xml:lang="en">
+        <seg>Label for the second translation in reports</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Etikett for den andre oversettelsen i rapporter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu345">
+      <tuv xml:lang="en">
+        <seg>Length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu346">
+      <tuv xml:lang="en">
+        <seg>Length Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Lengdekontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu347">
+      <tuv xml:lang="en">
+        <seg>Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Løft printf-spesifikatorer (%@, %lld, %1$@) og .stringsdict-tokener (%#@var@) til inline-koder slik at de aldri oversettes.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu348">
+      <tuv xml:lang="en">
+        <seg>Line separator replacement string</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatningsstreng for linjeskilletegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu349">
+      <tuv xml:lang="en">
+        <seg>Locale of the source content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Språkkode for kildeinnholdet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu350">
+      <tuv xml:lang="en">
+        <seg>MDX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MDX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu351">
+      <tuv xml:lang="en">
+        <seg>MO (Gettext, binary)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MO (Gettext, binær)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu352">
+      <tuv xml:lang="en">
+        <seg>Make ^ and $ match at the beginning and end of each line</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>La ^ og $ matche ved begynnelsen og slutten av hver linje</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu353">
+      <tuv xml:lang="en">
+        <seg>Make the period character match every character including line-feed</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>La punktumtegnet matche alle tegn, inkludert linjeskift</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu354">
+      <tuv xml:lang="en">
+        <seg>Map of element names to block type strings for semantic type annotation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tilordning fra elementnavn til blokktypestrenger for semantisk typeannotasjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu355">
+      <tuv xml:lang="en">
+        <seg>Markdown</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Markdown</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu356">
+      <tuv xml:lang="en">
+        <seg>Max characters per line</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maks tegn per linje</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu357">
+      <tuv xml:lang="en">
+        <seg>Max characters per line for CJK</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maks tegn per linje for CJK</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu358">
+      <tuv xml:lang="en">
+        <seg>Max lines per caption</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maks linjer per undertekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu359">
+      <tuv xml:lang="en">
+        <seg>Max percentage of source length allowed for long text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimal prosentandel av kildelengden tillatt for lang tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu360">
+      <tuv xml:lang="en">
+        <seg>Max percentage of source length allowed for short text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimal prosentandel av kildelengden tillatt for kort tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu361">
+      <tuv xml:lang="en">
+        <seg>Maximum Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu362">
+      <tuv xml:lang="en">
+        <seg>Maximum Length Percentage</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimal lengdeprosent</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu363">
+      <tuv xml:lang="en">
+        <seg>Maximum Words</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall ord</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu364">
+      <tuv xml:lang="en">
+        <seg>Maximum allowed percentage of source length for long text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimal tillatt prosentandel av kildelengden for lang tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu365">
+      <tuv xml:lang="en">
+        <seg>Maximum allowed percentage of source length for short text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimal tillatt prosentandel av kildelengden for kort tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu366">
+      <tuv xml:lang="en">
+        <seg>Maximum number of characters allowed in any target segment</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall tegn tillatt i et målsegment</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu367">
+      <tuv xml:lang="en">
+        <seg>Maximum number of characters per line for CJK languages. Set to 0 to disable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall tegn per linje for CJK-språk. Sett til 0 for å deaktivere.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu368">
+      <tuv xml:lang="en">
+        <seg>Maximum number of characters per line in output. Set to 0 to disable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall tegn per linje i utdata. Sett til 0 for å deaktivere.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu369">
+      <tuv xml:lang="en">
+        <seg>Maximum number of lines per caption in output. Set to 0 to disable.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall linjer per undertekst i utdata. Sett til 0 for å deaktivere.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu370">
+      <tuv xml:lang="en">
+        <seg>Maximum target/source length ratio as percentage (0 = disabled)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt lengdeforhold mellom mål og kilde i prosent (0 = deaktivert)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu371">
+      <tuv xml:lang="en">
+        <seg>Maximum word count for target text (0 = disabled)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksimalt antall ord for målteksten (0 = deaktivert)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu372">
+      <tuv xml:lang="en">
+        <seg>Maxwidth rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Maksbredderegler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu373">
+      <tuv xml:lang="en">
+        <seg>Maxwidth size unit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Størrelsesenhet for maksbredde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu374">
+      <tuv xml:lang="en">
+        <seg>MediaWiki</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MediaWiki</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu375">
+      <tuv xml:lang="en">
+        <seg>Merge adjacent &lt;p&gt; elements ending with trailing punctuation into one block.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flett sammen tilstøtende &lt;p&gt;-elementer som slutter med tegnsetting, til én blokk.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu376">
+      <tuv xml:lang="en">
+        <seg>Merge adjacent captions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flett sammen tilstøtende undertekster</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu377">
+      <tuv xml:lang="en">
+        <seg>Microsoft Translator Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Microsoft Translator-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu378">
+      <tuv xml:lang="en">
+        <seg>Min percentage of source length allowed for long text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste prosentandel av kildelengden tillatt for lang tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu379">
+      <tuv xml:lang="en">
+        <seg>Min percentage of source length allowed for short text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste prosentandel av kildelengden tillatt for kort tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu380">
+      <tuv xml:lang="en">
+        <seg>Minimum Length Percentage</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minimal lengdeprosent</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu381">
+      <tuv xml:lang="en">
+        <seg>Minimum match score required to fill the target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste treffpoengsum som kreves for å fylle målet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu382">
+      <tuv xml:lang="en">
+        <seg>Minimum required percentage of source length for long text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste påkrevde prosentandel av kildelengden for lang tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu383">
+      <tuv xml:lang="en">
+        <seg>Minimum required percentage of source length for short text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste påkrevde prosentandel av kildelengden for kort tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu384">
+      <tuv xml:lang="en">
+        <seg>Minimum score for fuzzy matches (0-100)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minste poengsum for fuzzy-treff (0-100)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu385">
+      <tuv xml:lang="en">
+        <seg>Minimum target/source length ratio as percentage (0 = disabled)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Minimalt lengdeforhold mellom mål og kilde i prosent (0 = deaktivert)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu386">
+      <tuv xml:lang="en">
+        <seg>Model</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Modell</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu387">
+      <tuv xml:lang="en">
+        <seg>Model name for the llm or sat engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Modellnavn for llm- eller sat-motoren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu388">
+      <tuv xml:lang="en">
+        <seg>ModernMT Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ModernMT-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu389">
+      <tuv xml:lang="en">
+        <seg>Moses Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Moses-tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu390">
+      <tuv xml:lang="en">
+        <seg>Multiline Mode</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Flerlinjemodus</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu391">
+      <tuv xml:lang="en">
+        <seg>MyMemory Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>MyMemory-oversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu392">
+      <tuv xml:lang="en">
+        <seg>Name of the character set encoding to check against (e.g. ISO-8859-1)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Navn på tegnsettkodingen det skal kontrolleres mot (f.eks. ISO-8859-1)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu393">
+      <tuv xml:lang="en">
+        <seg>No-Query Threshold</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel for å hoppe over spørring</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu394">
+      <tuv xml:lang="en">
+        <seg>Note rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Merknadsregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu395">
+      <tuv xml:lang="en">
+        <seg>Number of blocks per LLM call</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Antall blokker per LLM-kall</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu396">
+      <tuv xml:lang="en">
+        <seg>Number of blocks per LLM call (0 or 1 = one block per call)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Antall blokker per LLM-kall (0 eller 1 = én blokk per kall)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu397">
+      <tuv xml:lang="en">
+        <seg>Number of concurrent batch calls (0 or 1 = sequential)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Antall samtidige batchkall (0 eller 1 = sekvensielt)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu398">
+      <tuv xml:lang="en">
+        <seg>Office Open XML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Office Open XML</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu399">
+      <tuv xml:lang="en">
+        <seg>Ollama</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ollama</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu400">
+      <tuv xml:lang="en">
+        <seg>Only If Target Is Empty</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bare hvis mål er tomt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu401">
+      <tuv xml:lang="en">
+        <seg>Open Document Format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Open Document Format</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu402">
+      <tuv xml:lang="en">
+        <seg>OpenAI</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>OpenAI</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu403">
+      <tuv xml:lang="en">
+        <seg>Optional guidance for the llm engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Valgfri veiledning for llm-motoren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu404">
+      <tuv xml:lang="en">
+        <seg>Output includes original data when available</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utdata inkluderer originaldata når de er tilgjengelige</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu405">
+      <tuv xml:lang="en">
+        <seg>Overlay Layer</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Overleggslag</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu406">
+      <tuv xml:lang="en">
+        <seg>Override target language</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Overstyr målspråk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu407">
+      <tuv xml:lang="en">
+        <seg>Override the target-language attribute in the output document with the pipeline target locale</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Overstyr target-language-attributtet i utdatadokumentet med pipelinens målspråkkode</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu408">
+      <tuv xml:lang="en">
+        <seg>Overwrite Existing Segmentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Overskriv eksisterende segmentering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu409">
+      <tuv xml:lang="en">
+        <seg>PDF Text Extraction</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>PDF-tekstuttrekk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu410">
+      <tuv xml:lang="en">
+        <seg>PHP Content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>PHP-innhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu411">
+      <tuv xml:lang="en">
+        <seg>PO (Gettext)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>PO (Gettext)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu412">
+      <tuv xml:lang="en">
+        <seg>Paragraph Plain Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Avsnittsbasert ren tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu413">
+      <tuv xml:lang="en">
+        <seg>Paragraph/character style names to exclude.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Navn på avsnitts-/tegnstiler som skal ekskluderes.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu414">
+      <tuv xml:lang="en">
+        <seg>Parse backslash-escaped punctuation in source documents</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tolk tegnsetting som er escapet med omvendt skråstrek, i kildedokumenter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu415">
+      <tuv xml:lang="en">
+        <seg>Parser behavior</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Parseratferd</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu416">
+      <tuv xml:lang="en">
+        <seg>Path to a .js file</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til en .js-fil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu417">
+      <tuv xml:lang="en">
+        <seg>Path to a redaction rules YAML file</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til en YAML-fil med sladderegler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu418">
+      <tuv xml:lang="en">
+        <seg>Path to an SRX 2.0 rules file for source text (srx engine)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til en SRX 2.0-regelfil for kildeteksten (srx-motoren)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu419">
+      <tuv xml:lang="en">
+        <seg>Path to an SRX 2.0 rules file for target text (srx engine)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til en SRX 2.0-regelfil for målteksten (srx-motoren)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu420">
+      <tuv xml:lang="en">
+        <seg>Pattern Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Mønsterkontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu421">
+      <tuv xml:lang="en">
+        <seg>Patterns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Mønstre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu422">
+      <tuv xml:lang="en">
+        <seg>Per-File Checking</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kontroll per fil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu423">
+      <tuv xml:lang="en">
+        <seg>Percentage for Long Text (Max)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosent for lang tekst (maks)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu424">
+      <tuv xml:lang="en">
+        <seg>Percentage for Long Text (Min)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosent for lang tekst (min)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu425">
+      <tuv xml:lang="en">
+        <seg>Percentage for Short Text (Max)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosent for kort tekst (maks)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu426">
+      <tuv xml:lang="en">
+        <seg>Percentage for Short Text (Min)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosent for kort tekst (min)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu427">
+      <tuv xml:lang="en">
+        <seg>Perform search and replace on source content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utfør søk og erstatt på kildeinnholdet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu428">
+      <tuv xml:lang="en">
+        <seg>Perform search and replace on target content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Utfør søk og erstatt på målinnholdet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu429">
+      <tuv xml:lang="en">
+        <seg>Permit the script to modify the source text (off by default; source is read-only)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tillat at skriptet endrer kildeteksten (av som standard; kilden er skrivebeskyttet)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu430">
+      <tuv xml:lang="en">
+        <seg>Pixel</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Piksel</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu431">
+      <tuv xml:lang="en">
+        <seg>Placeholder Template</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Plassholdermal</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu432">
+      <tuv xml:lang="en">
+        <seg>Plain Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ren tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu433">
+      <tuv xml:lang="en">
+        <seg>Prefix</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prefiks</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu434">
+      <tuv xml:lang="en">
+        <seg>Preserve Untranslated Entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar uoversatte oppføringer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu435">
+      <tuv xml:lang="en">
+        <seg>Preserve Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu436">
+      <tuv xml:lang="en">
+        <seg>Preserve original whitespace in extracted comment text instead of normalizing it</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar opprinnelige blanktegn i uttrukket kommentartekst i stedet for å normalisere dem</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu437">
+      <tuv xml:lang="en">
+        <seg>Preserve original whitespace in text content instead of collapsing it</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar opprinnelige blanktegn i tekstinnhold i stedet for å slå dem sammen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu438">
+      <tuv xml:lang="en">
+        <seg>Preserve original whitespace in wiki markup instead of normalizing it.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar opprinnelige blanktegn i wikioppmerkingen i stedet for å normalisere dem.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu439">
+      <tuv xml:lang="en">
+        <seg>Preserve whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu440">
+      <tuv xml:lang="en">
+        <seg>Preserve whitespace by default</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bevar blanktegn som standard</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu441">
+      <tuv xml:lang="en">
+        <seg>Preserve whitespace elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Elementer som bevarer blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu442">
+      <tuv xml:lang="en">
+        <seg>Process each input file individually instead of comparing segments across all documents</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle hver inndatafil for seg i stedet for å sammenligne segmenter på tvers av alle dokumenter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu443">
+      <tuv xml:lang="en">
+        <seg>Profile ID</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Profil-ID</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu444">
+      <tuv xml:lang="en">
+        <seg>Project ID</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Prosjekt-ID</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu445">
+      <tuv xml:lang="en">
+        <seg>Protect format placeholders</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Beskytt formatplassholdere</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu446">
+      <tuv xml:lang="en">
+        <seg>Protect interpolation and nesting</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Beskytt interpolasjon og nesting</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu447">
+      <tuv xml:lang="en">
+        <seg>Provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu448">
+      <tuv xml:lang="en">
+        <seg>Pseudo Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Pseudooversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu449">
+      <tuv xml:lang="en">
+        <seg>Punctuation Sensitive</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tegnsettingsfølsom</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu450">
+      <tuv xml:lang="en">
+        <seg>QA Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>QA-kontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu451">
+      <tuv xml:lang="en">
+        <seg>Qt TS</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Qt TS</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu452">
+      <tuv xml:lang="en">
+        <seg>Quality Checks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kvalitetskontroller</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu453">
+      <tuv xml:lang="en">
+        <seg>Quality checks to perform (e.g. terminology fluency accuracy consistency)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Kvalitetskontroller som skal utføres (f.eks. terminology fluency accuracy consistency)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu454">
+      <tuv xml:lang="en">
+        <seg>Re-segment already-segmented blocks replacing previous segmentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenter allerede segmenterte blokker på nytt og erstatt tidligere segmentering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu455">
+      <tuv xml:lang="en">
+        <seg>Read all target entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Les alle måloppføringer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu456">
+      <tuv xml:lang="en">
+        <seg>Read all target language TUVs from each TU. When false, only the first target is read.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Les alle målspråk-TUV-er fra hver TU. Når false, leses bare det første målet.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu457">
+      <tuv xml:lang="en">
+        <seg>Recognise legacy plural forms</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenkjenn eldre flertallsformer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu458">
+      <tuv xml:lang="en">
+        <seg>Recognise the legacy v1–v3 plural sibling keys (key_plural and the numeric key_0 / key_1 / key_2 … forms) in addition to the v4 CLDR suffixes (_zero / _one / _two / _few / _many / _other).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenkjenn de eldre v1–v3-flertallsnøklene (key_plural og de numeriske formene key_0 / key_1 / key_2 …) i tillegg til v4 CLDR-suffiksene (_zero / _one / _two / _few / _many / _other).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu459">
+      <tuv xml:lang="en">
+        <seg>Recognize semicolon and double-slash comment styles in addition to standard # and ! markers</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenkjenn kommentarstiler med semikolon og dobbel skråstrek i tillegg til standardmarkørene # og !</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu460">
+      <tuv xml:lang="en">
+        <seg>Redact</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sladding</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu461">
+      <tuv xml:lang="en">
+        <seg>Reduce score by 1%% when multiple identical exact matches are returned</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Reduser poengsummen med 1%% når flere identiske eksakttreff returneres</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu462">
+      <tuv xml:lang="en">
+        <seg>Regex Extraction</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex-uttrekk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu463">
+      <tuv xml:lang="en">
+        <seg>Regex for keys whose values become Block IDs (overrides useKeyAsName).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex for nøkler hvis verdier blir blokk-ID-er (overstyrer useKeyAsName).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu464">
+      <tuv xml:lang="en">
+        <seg>Regex for keys whose values become generic metadata.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex for nøkler hvis verdier blir generiske metadata.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu465">
+      <tuv xml:lang="en">
+        <seg>Regex for keys whose values become translator notes.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex for nøkler hvis verdier blir oversettermerknader.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu466">
+      <tuv xml:lang="en">
+        <seg>Regex for keys whose values set max width constraints.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex for nøkler hvis verdier setter maksbreddebegrensninger.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu467">
+      <tuv xml:lang="en">
+        <seg>Regex matching keys for which values should be processed with the sub-filter.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex som matcher nøkler hvis verdier skal behandles med underfilteret.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu468">
+      <tuv xml:lang="en">
+        <seg>Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex-mønster for JSON-stier som skal trekkes ut. Overstyrer extractAllPairs når angitt.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu469">
+      <tuv xml:lang="en">
+        <seg>Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex-mønster for nøkkelnavn. Når extractAllPairs er true, ekskluderes matchende nøkler. Når false, inkluderes de.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu470">
+      <tuv xml:lang="en">
+        <seg>Regex patterns that match inline codes within translatable text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex-mønstre som matcher inline-koder i oversettbar tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu471">
+      <tuv xml:lang="en">
+        <seg>Regex patterns that match inline codes within translatable text.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regex-mønstre som matcher inline-koder i oversettbar tekst.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu472">
+      <tuv xml:lang="en">
+        <seg>Region</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Region</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu473">
+      <tuv xml:lang="en">
+        <seg>Regular expression pattern to test against property keys for extraction filtering</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regulært uttrykk som testes mot property-nøkler for uttrekksfiltrering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu474">
+      <tuv xml:lang="en">
+        <seg>Renumber Code IDs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Renummerer kode-ID-er</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu475">
+      <tuv xml:lang="en">
+        <seg>Renumber inline code IDs when materializing segments to a bilingual format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Renummerer inline-kode-ID-er når segmenter materialiseres til et tospråklig format</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu476">
+      <tuv xml:lang="en">
+        <seg>Repetition Analysis</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Repetisjonsanalyse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu477">
+      <tuv xml:lang="en">
+        <seg>Replace All Instances</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt alle forekomster</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu478">
+      <tuv xml:lang="en">
+        <seg>Replace Unicode line separator (U+2028) in output.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt Unicode-linjeskilletegnet (U+2028) i utdata.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu479">
+      <tuv xml:lang="en">
+        <seg>Replace all matches instead of only the first</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt alle treff i stedet for bare det første</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu480">
+      <tuv xml:lang="en">
+        <seg>Replace in Source Content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt i kildeinnhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu481">
+      <tuv xml:lang="en">
+        <seg>Replace in Target Content</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt i målinnhold</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu482">
+      <tuv xml:lang="en">
+        <seg>Replace no-break hyphen tags</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt tagger for hard bindestrek</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu483">
+      <tuv xml:lang="en">
+        <seg>Replace no-break hyphen tags with the non-breaking hyphen character.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt tagger for hard bindestrek med tegnet for hard bindestrek.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu484">
+      <tuv xml:lang="en">
+        <seg>Replace sensitive spans with protected placeholders before processing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatt sensitive spenn med beskyttede plassholdere før behandling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu485">
+      <tuv xml:lang="en">
+        <seg>Replacement string for line separator characters.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Erstatningsstreng for linjeskilletegn.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu486">
+      <tuv xml:lang="en">
+        <seg>Required Characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Påkrevde tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu487">
+      <tuv xml:lang="en">
+        <seg>Restore original values into redacted content after processing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjenopprett originalverdier i sladdet innhold etter behandling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu488">
+      <tuv xml:lang="en">
+        <seg>Retain Java Escapes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behold Java-escapesekvenser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu489">
+      <tuv xml:lang="en">
+        <seg>Review translations with scoring using an LLM provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Gjennomgå oversettelser med poengsetting ved hjelp av en LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu490">
+      <tuv xml:lang="en">
+        <seg>Rewrite trans-unit IDs to enforce uniqueness across the file</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriv om trans-unit-ID-er for å sikre unikhet i hele filen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu491">
+      <tuv xml:lang="en">
+        <seg>Rich Text Format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Rich Text Format</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu492">
+      <tuv xml:lang="en">
+        <seg>Rules File</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Regelfil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu493">
+      <tuv xml:lang="en">
+        <seg>SRT Subtitles</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>SRT-undertekster</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu494">
+      <tuv xml:lang="en">
+        <seg>SaT Model</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>SaT-modell</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu495">
+      <tuv xml:lang="en">
+        <seg>SaT model for the sat engine (e.g. sat-3l-sm</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>SaT-modell for sat-motoren (f.eks. sat-3l-sm</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu496">
+      <tuv xml:lang="en">
+        <seg>Scoping Report</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Omfangsrapport</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu497">
+      <tuv xml:lang="en">
+        <seg>Script</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skript</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu498">
+      <tuv xml:lang="en">
+        <seg>Script File</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriptfil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu499">
+      <tuv xml:lang="en">
+        <seg>Script Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriptkilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu500">
+      <tuv xml:lang="en">
+        <seg>Script source mode</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skriptkildemodus</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu501">
+      <tuv xml:lang="en">
+        <seg>Search and Replace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Søk og erstatt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu502">
+      <tuv xml:lang="en">
+        <seg>Segment Count</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenttelling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu503">
+      <tuv xml:lang="en">
+        <seg>Segment Source Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenter kildetekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu504">
+      <tuv xml:lang="en">
+        <seg>Segment Target Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenter måltekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu505">
+      <tuv xml:lang="en">
+        <seg>Segment existing target text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenter eksisterende måltekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu506">
+      <tuv xml:lang="en">
+        <seg>Segment the source text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenter kildeteksten</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu507">
+      <tuv xml:lang="en">
+        <seg>Segmentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmentering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu508">
+      <tuv xml:lang="en">
+        <seg>Segmentation Engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenteringsmotor</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu509">
+      <tuv xml:lang="en">
+        <seg>Segmentation overlay layer name; empty uses the engine's natural layer</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Navn på segmenteringsoverleggslaget; tomt bruker motorens naturlige lag</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu510">
+      <tuv xml:lang="en">
+        <seg>Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Segmenteringsmotor: srx (regelbasert; standard)/ uax29 (Unicode-grunnlinje)/ llm (semantiske biter)/ sat (ML-modell)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu511">
+      <tuv xml:lang="en">
+        <seg>Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Semikolonseparert liste over ord som kan gjentas (f.eks. sie;vous;nous)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu512">
+      <tuv xml:lang="en">
+        <seg>Separator</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skilletegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu513">
+      <tuv xml:lang="en">
+        <seg>Settings that control how the HTML parser reads input</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Innstillinger som styrer hvordan HTML-parseren leser inndata</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu514">
+      <tuv xml:lang="en">
+        <seg>Sheet names to exclude from extraction.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Arknavn som skal ekskluderes fra uttrekket.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu515">
+      <tuv xml:lang="en">
+        <seg>Short/Long Threshold (Max)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel for kort/lang (maks)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu516">
+      <tuv xml:lang="en">
+        <seg>Short/Long Threshold (Min)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terskel for kort/lang (min)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu517">
+      <tuv xml:lang="en">
+        <seg>Size unit for maxwidth.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Størrelsesenhet for maksbredde.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu518">
+      <tuv xml:lang="en">
+        <seg>Skip Matched</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over oversatte</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu519">
+      <tuv xml:lang="en">
+        <seg>Skip TM query if existing candidate scores at or above this value (101 = always query)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over TM-spørring hvis en eksisterende kandidat har poengsum på eller over denne verdien (101 = spør alltid)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu520">
+      <tuv xml:lang="en">
+        <seg>Skip blocks that already have a target translation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over blokker som allerede har en måloversettelse</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu521">
+      <tuv xml:lang="en">
+        <seg>Skip name-reference entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over navnereferanser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu522">
+      <tuv xml:lang="en">
+        <seg>Skip resource references</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over ressursreferanser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu523">
+      <tuv xml:lang="en">
+        <seg>Skip translatable="false" entries</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Hopp over oppføringer med translatable="false"</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu524">
+      <tuv xml:lang="en">
+        <seg>Source SRX Rules Path</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til SRX-regler for kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu525">
+      <tuv xml:lang="en">
+        <seg>Spliced Lines</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Skjøtte linjer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu526">
+      <tuv xml:lang="en">
+        <seg>Split words at character limit</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Del ord ved tegngrensen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu527">
+      <tuv xml:lang="en">
+        <seg>Split words so that they don't go over the character limit per line.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Del ord slik at de ikke overskrider tegngrensen per linje.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu528">
+      <tuv xml:lang="en">
+        <seg>State for new translations</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>State for nye oversettelser</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu529">
+      <tuv xml:lang="en">
+        <seg>State value to set on target elements when useTranslationTargetState is enabled</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>State-verdi som settes på target-elementer når useTranslationTargetState er aktivert</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu530">
+      <tuv xml:lang="en">
+        <seg>Stop processing when encountering invalid TUs. When false, invalid TUs are skipped.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Stopp behandlingen ved ugyldige TU-er. Når false, hoppes ugyldige TU-er over.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu531">
+      <tuv xml:lang="en">
+        <seg>Stored credential name for the llm engine</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Navn på lagret legitimasjon for llm-motoren</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu532">
+      <tuv xml:lang="en">
+        <seg>Strip revision IDs, proofing errors, and other noise before merging runs.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern revisjons-ID-er, korrekturfeil og annen støy før runs flettes.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu533">
+      <tuv xml:lang="en">
+        <seg>Sub-filter rules</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilterregler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu534">
+      <tuv xml:lang="en">
+        <seg>Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilter som brukes på skalarverdier (f.eks. 'html' for å behandle HTML i YAML-verdier)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu535">
+      <tuv xml:lang="en">
+        <seg>Subfilter Format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilterformat</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu536">
+      <tuv xml:lang="en">
+        <seg>Subfilter HTML values (_html keys)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilter for HTML-verdier (_html-nøkler)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu537">
+      <tuv xml:lang="en">
+        <seg>Subfilter format</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilterformat</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu538">
+      <tuv xml:lang="en">
+        <seg>Subfilter format to apply to HTML content within Markdown (e.g., 'html')</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfilterformat som brukes på HTML-innhold i Markdown (f.eks. 'html')</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu539">
+      <tuv xml:lang="en">
+        <seg>Subfilter mappings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfiltertilordninger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu540">
+      <tuv xml:lang="en">
+        <seg>Subfilters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Underfiltre</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu541">
+      <tuv xml:lang="en">
+        <seg>Subject domain for terminology extraction (e.g. medical legal technology)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fagdomene for terminologiuttrekk (f.eks. medical legal technology)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu542">
+      <tuv xml:lang="en">
+        <seg>Subscription Key</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Abonnementsnøkkel</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu543">
+      <tuv xml:lang="en">
+        <seg>Suffix</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Suffiks</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu544">
+      <tuv xml:lang="en">
+        <seg>Support Backslash Escaping</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Støtt escaping med omvendt skråstrek</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu545">
+      <tuv xml:lang="en">
+        <seg>Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis en /* ... */- eller // ...-kommentar foran en .strings-oppføring som oversettermerknad på den utsendte blokken.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu546">
+      <tuv xml:lang="en">
+        <seg>Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis en XML-kommentar rett foran en oppføring som oversettermerknad på den utsendte blokken. Kommentarer bevares alltid uendret ved rundtur uavhengig av denne innstillingen.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu547">
+      <tuv xml:lang="en">
+        <seg>Surface descriptions as notes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis beskrivelser som merknader</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu548">
+      <tuv xml:lang="en">
+        <seg>Surface each string &lt;data&gt; entry's sibling &lt;comment&gt; element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis &lt;comment&gt;-elementet som hører til hver &lt;data&gt;-strengoppføring, som oversettermerknad på den utsendte blokken. Kommentarer bevares alltid uendret ved rundtur uavhengig av denne innstillingen.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu549">
+      <tuv xml:lang="en">
+        <seg>Surface the "description" field of a resource's sibling "@&lt;id&gt;" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vis "description"-feltet i ressursens tilhørende "@&lt;id&gt;"-attributtobjekt som oversettermerknad. Attributtobjektet bevares alltid byte-tro ved rundtur uavhengig av denne innstillingen.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu550">
+      <tuv xml:lang="en">
+        <seg>TM Leverage</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TM-gjenbruk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu551">
+      <tuv xml:lang="en">
+        <seg>TMX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TMX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu552">
+      <tuv xml:lang="en">
+        <seg>TMX Output Path</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TMX-utdatasti</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu553">
+      <tuv xml:lang="en">
+        <seg>TSV</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TSV</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu554">
+      <tuv xml:lang="en">
+        <seg>TTML Subtitles</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TTML-undertekster</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu555">
+      <tuv xml:lang="en">
+        <seg>Take case differences into account when comparing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta hensyn til forskjeller i store/små bokstaver ved sammenligning</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu556">
+      <tuv xml:lang="en">
+        <seg>Take punctuation differences into account when comparing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta hensyn til tegnsettingsforskjeller ved sammenligning</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu557">
+      <tuv xml:lang="en">
+        <seg>Take whitespace differences into account when comparing</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ta hensyn til blanktegnforskjeller ved sammenligning</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu558">
+      <tuv xml:lang="en">
+        <seg>Target SRX Rules Path</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Sti til SRX-regler for mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu559">
+      <tuv xml:lang="en">
+        <seg>Target XLIFF 2.x version to emit. Empty means: preserve the input document version on roundtrip, otherwise default to 2.2.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 2.x-versjon som skal skrives ut. Tom betyr: bevar inndatadokumentets versjon ved rundtur, ellers brukes 2.2 som standard.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu560">
+      <tuv xml:lang="en">
+        <seg>Target state value</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>State-verdi for mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu561">
+      <tuv xml:lang="en">
+        <seg>TeX/LaTeX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>TeX/LaTeX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu562">
+      <tuv xml:lang="en">
+        <seg>Terminology Check</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Terminologikontroll</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu563">
+      <tuv xml:lang="en">
+        <seg>Terms to exclude from extraction (already in termbase)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Termer som skal ekskluderes fra uttrekket (allerede i termbase)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu564">
+      <tuv xml:lang="en">
+        <seg>Text Qualifier</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Tekstkvalifikator</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu565">
+      <tuv xml:lang="en">
+        <seg>The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>stringUnit-state-verdien som skrives for en lokalisering som fylles ut for første gang. Eksisterende state-verdier bevares uendret ved rundtur.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu566">
+      <tuv xml:lang="en">
+        <seg>Trados TagEditor TTX</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trados TagEditor TTX</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu567">
+      <tuv xml:lang="en">
+        <seg>Trados XML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trados XML</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu568">
+      <tuv xml:lang="en">
+        <seg>Transformation Mode</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Transformasjonsmodus</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu569">
+      <tuv xml:lang="en">
+        <seg>Translatable Columns</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettbare kolonner</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu570">
+      <tuv xml:lang="en">
+        <seg>Translatable attributes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettbare attributter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu571">
+      <tuv xml:lang="en">
+        <seg>Translatable elements</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettbare elementer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu572">
+      <tuv xml:lang="en">
+        <seg>Translate Block Quotes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett sitatblokker</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu573">
+      <tuv xml:lang="en">
+        <seg>Translate Code Blocks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett kodeblokker</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu574">
+      <tuv xml:lang="en">
+        <seg>Translate HTML Blocks</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett HTML-blokker</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu575">
+      <tuv xml:lang="en">
+        <seg>Translate Hyperlink URLs</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett hyperkoblings-URL-er</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu576">
+      <tuv xml:lang="en">
+        <seg>Translate Image Alt Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett alt-tekst for bilder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu577">
+      <tuv xml:lang="en">
+        <seg>Translate YAML Front Matter</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett YAML-frontmatter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu578">
+      <tuv xml:lang="en">
+        <seg>Translate chart text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett diagramtekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu579">
+      <tuv xml:lang="en">
+        <seg>Translate comments</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett kommentarer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu580">
+      <tuv xml:lang="en">
+        <seg>Translate content using DeepL</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med DeepL</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu581">
+      <tuv xml:lang="en">
+        <seg>Translate content using Google Translate</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med Google Translate</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu582">
+      <tuv xml:lang="en">
+        <seg>Translate content using Microsoft Translator</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med Microsoft Translator</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu583">
+      <tuv xml:lang="en">
+        <seg>Translate content using ModernMT</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med ModernMT</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu584">
+      <tuv xml:lang="en">
+        <seg>Translate content using MyMemory</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med MyMemory</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu585">
+      <tuv xml:lang="en">
+        <seg>Translate content using an LLM provider</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett innhold med en LLM-leverandør</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu586">
+      <tuv xml:lang="en">
+        <seg>Translate diagram data</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett diagramdata</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu587">
+      <tuv xml:lang="en">
+        <seg>Translate document properties</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett dokumentegenskaper</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu588">
+      <tuv xml:lang="en">
+        <seg>Translate footnotes and endnotes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett fotnoter og sluttnoter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu589">
+      <tuv xml:lang="en">
+        <seg>Translate headers and footers</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett topptekst og bunntekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu590">
+      <tuv xml:lang="en">
+        <seg>Translate hidden slides</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett skjulte lysbilder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu591">
+      <tuv xml:lang="en">
+        <seg>Translate hidden text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett skjult tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu592">
+      <tuv xml:lang="en">
+        <seg>Translate master slides</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett lysbildemaler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu593">
+      <tuv xml:lang="en">
+        <seg>Translate shared strings</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett delte strenger</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu594">
+      <tuv xml:lang="en">
+        <seg>Translate sheet names</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett arknavn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu595">
+      <tuv xml:lang="en">
+        <seg>Translate slide notes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversett lysbildenotater</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu596">
+      <tuv xml:lang="en">
+        <seg>Translation Comparison</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettelsessammenligning</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu597">
+      <tuv xml:lang="en">
+        <seg>Translation Table</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oversettelsestabell</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu598">
+      <tuv xml:lang="en">
+        <seg>Treat Isolated Codes as Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle isolerte koder som blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu599">
+      <tuv xml:lang="en">
+        <seg>Treat all content as xml:space="preserve" unless explicitly overridden</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle alt innhold som xml:space="preserve" med mindre det overstyres eksplisitt</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu600">
+      <tuv xml:lang="en">
+        <seg>Treat comments as translator notes attached to the following entry</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle kommentarer som oversettermerknader knyttet til den påfølgende oppføringen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu601">
+      <tuv xml:lang="en">
+        <seg>Treat isolated inline codes as whitespace during segmentation</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle isolerte inline-koder som blanktegn under segmentering</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu602">
+      <tuv xml:lang="en">
+        <seg>Treat tab elements as tab characters instead of placeholder spans.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Behandle tabulatorelementer som tabulatortegn i stedet for plassholder-spenn.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu603">
+      <tuv xml:lang="en">
+        <seg>Trim Leading Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern innledende blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu604">
+      <tuv xml:lang="en">
+        <seg>Trim Trailing Whitespace</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Fjern avsluttende blanktegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu605">
+      <tuv xml:lang="en">
+        <seg>Trim Values</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Trim verdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu606">
+      <tuv xml:lang="en">
+        <seg>Unredact</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Avsladding</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu607">
+      <tuv xml:lang="en">
+        <seg>Update target state attribute</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdater state-attributtet på mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu608">
+      <tuv xml:lang="en">
+        <seg>Update the state attribute on target elements when writing translated XLIFF</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Oppdater state-attributtet på target-elementer når oversatt XLIFF skrives</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu609">
+      <tuv xml:lang="en">
+        <seg>Use Generic Codes</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk generiske koder</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu610">
+      <tuv xml:lang="en">
+        <seg>Use JSON key as the Block (TextUnit) name for reference.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk JSON-nøkkelen som navn på blokken (TextUnit) for referanse.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu611">
+      <tuv xml:lang="en">
+        <seg>Use Regular Expressions</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk regulære uttrykk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu612">
+      <tuv xml:lang="en">
+        <seg>Use full path (/key1/key2) instead of immediate key as name.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk full sti (/key1/key2) i stedet for nærmeste nøkkel som navn.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu613">
+      <tuv xml:lang="en">
+        <seg>Use generic numbered tags (e.g. &lt;1&gt;...&lt;/1&gt;) instead of original inline codes in reports</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk generiske nummererte tagger (f.eks. &lt;1&gt;...&lt;/1&gt;) i stedet for originale inline-koder i rapporter</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu614">
+      <tuv xml:lang="en">
+        <seg>Use localization directives</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk lokaliseringsdirektiver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu615">
+      <tuv xml:lang="en">
+        <seg>Use the full key path</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk hele nøkkelstien</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu616">
+      <tuv xml:lang="en">
+        <seg>Use the full path of IDs for resname</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk hele ID-stien for resname</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu617">
+      <tuv xml:lang="en">
+        <seg>Use the key as the resname</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk nøkkelen som resname</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu618">
+      <tuv xml:lang="en">
+        <seg>Use the trans-unit id attribute as the block name when no resname attribute is present</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk id-attributtet på trans-unit som blokknavn når resname-attributtet mangler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu619">
+      <tuv xml:lang="en">
+        <seg>Use trans-unit ID as name if no resname</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bruk trans-unit-ID som navn hvis resname mangler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu620">
+      <tuv xml:lang="en">
+        <seg>Values Start Row</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Startrad for verdier</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu621">
+      <tuv xml:lang="en">
+        <seg>Verify Terminology</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verifiser terminologi</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu622">
+      <tuv xml:lang="en">
+        <seg>Verify that source patterns have expected corresponding content in the target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verifiser at kildemønstre har forventet tilsvarende innhold i målet</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu623">
+      <tuv xml:lang="en">
+        <seg>Verify that target segments have the same inline codes as source segments</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Verifiser at målsegmenter har de samme inline-kodene som kildesegmentene</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu624">
+      <tuv xml:lang="en">
+        <seg>Versified Text</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Versinndelt tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu625">
+      <tuv xml:lang="en">
+        <seg>Vignette CMS Export</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Vignette CMS-eksport</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu626">
+      <tuv xml:lang="en">
+        <seg>Visible stand-in template; supports {category} and {n}</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Synlig plassholdermal; støtter {category} og {n}</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu627">
+      <tuv xml:lang="en">
+        <seg>Warn if a character is not included in the specified character set encoding</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle hvis et tegn ikke finnes i den angitte tegnsettkodingen</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu628">
+      <tuv xml:lang="en">
+        <seg>Warn if target exceeds a percentage of source character length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle hvis målet overskrider en prosentandel av kildens tegnlengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu629">
+      <tuv xml:lang="en">
+        <seg>Warn if target is shorter than a percentage of source character length</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle hvis målet er kortere enn en prosentandel av kildens tegnlengde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu630">
+      <tuv xml:lang="en">
+        <seg>Warn on Doubled Words</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle om gjentatte ord</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu631">
+      <tuv xml:lang="en">
+        <seg>Warn on Empty Target</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle om tomt mål</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu632">
+      <tuv xml:lang="en">
+        <seg>Warn on Non-Empty Target with Empty Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle om ikke-tomt mål med tom kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu633">
+      <tuv xml:lang="en">
+        <seg>Warn on Target Same as Source</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Varsle når mål er lik kilde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu634">
+      <tuv xml:lang="en">
+        <seg>WebVTT</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>WebVTT</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu635">
+      <tuv xml:lang="en">
+        <seg>When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Når aktivert, trekkes bare oppføringer med nøkler som matcher betingelsen ut; ellers ekskluderes matchende nøkler</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu636">
+      <tuv xml:lang="en">
+        <seg>When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth).</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Når ikke tom, trekkes bare nøkler som matcher ett av disse glob-mønstrene ut. Støtter * (én nøkkel) og ** (vilkårlig dybde).</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu637">
+      <tuv xml:lang="en">
+        <seg>When true, &lt;br/&gt; elements are removed and text is joined with spaces; when false, &lt;br/&gt; is preserved as literal text.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Når true, fjernes &lt;br/&gt;-elementer og teksten settes sammen med mellomrom; når false, bevares &lt;br/&gt; som bokstavelig tekst.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu638">
+      <tuv xml:lang="en">
+        <seg>Whether comparison is case-sensitive</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Om sammenligningen skiller mellom store og små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu639">
+      <tuv xml:lang="en">
+        <seg>Whether term matching is case-sensitive</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Om termmatching skiller mellom store og små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu640">
+      <tuv xml:lang="en">
+        <seg>Whitespace Sensitive</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Blanktegnfølsom</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu641">
+      <tuv xml:lang="en">
+        <seg>Wiki</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Wiki</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu642">
+      <tuv xml:lang="en">
+        <seg>Wiki markup variant: mediawiki or dokuwiki. Default is dokuwiki to match the okf_wiki bridge contract.</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Wikioppmerkingsvariant: mediawiki eller dokuwiki. Standard er dokuwiki for å samsvare med okf_wiki-brokontrakten.</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu643">
+      <tuv xml:lang="en">
+        <seg>Wiki variant</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Wiki-variant</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu644">
+      <tuv xml:lang="en">
+        <seg>Word Count</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Ordtelling</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu645">
+      <tuv xml:lang="en">
+        <seg>Wrap Long Content Lines</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bryt lange innholdslinjer</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu646">
+      <tuv xml:lang="en">
+        <seg>Wrap long content lines in output at approximately 80 characters</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>Bryt lange innholdslinjer i utdata ved omtrent 80 tegn</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu647">
+      <tuv xml:lang="en">
+        <seg>XLIFF 1.2</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 1.2</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu648">
+      <tuv xml:lang="en">
+        <seg>XLIFF 2.0</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 2.0</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu649">
+      <tuv xml:lang="en">
+        <seg>XLIFF 2.1</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 2.1</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu650">
+      <tuv xml:lang="en">
+        <seg>XLIFF 2.2</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 2.2</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu651">
+      <tuv xml:lang="en">
+        <seg>XLIFF 2.x</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF 2.x</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu652">
+      <tuv xml:lang="en">
+        <seg>XLIFF version</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XLIFF-versjon</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu653">
+      <tuv xml:lang="en">
+        <seg>XML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>XML</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu654">
+      <tuv xml:lang="en">
+        <seg>YAML</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>YAML</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu655">
+      <tuv xml:lang="en">
+        <seg>file</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>fil</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu656">
+      <tuv xml:lang="en">
+        <seg>generic</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>generisk</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu657">
+      <tuv xml:lang="en">
+        <seg>hybrid</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>hybrid</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu658">
+      <tuv xml:lang="en">
+        <seg>i18next JSON</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>i18next JSON</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu659">
+      <tuv xml:lang="en">
+        <seg>inline</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>inline</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu660">
+      <tuv xml:lang="en">
+        <seg>llm</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>llm</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu661">
+      <tuv xml:lang="en">
+        <seg>llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>llm (AI-leverandør; standard) / ner (lokal modell på enheten — ingenting forlater maskinen) / hybrid (begge)</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu662">
+      <tuv xml:lang="en">
+        <seg>lower</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>små bokstaver</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu663">
+      <tuv xml:lang="en">
+        <seg>ner</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ner</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu664">
+      <tuv xml:lang="en">
+        <seg>original</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>original</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu665">
+      <tuv xml:lang="en">
+        <seg>plain</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>ren tekst</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu666">
+      <tuv xml:lang="en">
+        <seg>title</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>stor forbokstav</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu667">
+      <tuv xml:lang="en">
+        <seg>upper</seg>
+      </tuv>
+      <tuv xml:lang="nb">
+        <seg>store bokstaver</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

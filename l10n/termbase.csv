@@ -37,3 +37,22 @@ credentials,legitimasjon,ui,API keys and tokens in the OS keychain.,preferred
 settings,innstillinger,ui,,preferred
 locale,språkkode,localization,"BCP-47 identifier such as nb or pt-BR.",preferred
 pipeline,pipeline,localization,"The streaming channel-based execution model. Keep the English term in nb.",preferred
+leverage,gjenbruk,localization,"Reusing TM matches; TM Leverage → TM-gjenbruk.",preferred
+fuzzy match,fuzzy-treff,localization,,preferred
+exact match,eksakt treff,localization,,preferred
+threshold,terskel,localization,,preferred
+placeholder,plassholder,localization,,preferred
+provider,leverandør,localization,"AI/MT backend (Anthropic, DeepL, ...).",preferred
+inline code,inline-kode,localization,Inline markup runs within a block.,preferred
+whitespace,blanktegn,localization,,preferred
+subfilter,underfilter,localization,,preferred
+redact,sladde,localization,"Verb; the tools are Sladding (redact) and Avsladding (unredact).",preferred
+redaction,sladding,localization,,preferred
+caption,undertekst,ui,,preferred
+check,kontroll,localization,"Noun; verb: kontrollere. A content check run over a file.",preferred
+case-sensitive,versalfølsom,localization,,preferred
+engine,motor,product,,preferred
+roundtrip,rundtur,localization,Read → write → compare validation.,preferred
+hyperlink,hyperkobling,ui,Microsoft terminology.,preferred
+slide master,lysbildemal,ui,Microsoft terminology.,preferred
+speaker notes,foredragsholdernotater,ui,Microsoft terminology.,preferred

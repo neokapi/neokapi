@@ -1,5 +1,76 @@
 {
   "tools": {
+    "ai-entity-extract": {
+      "displayName": "AI Entity Extract",
+      "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "batchConcurrency": {
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        "batchSize": {
+          "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
+        },
+        "engine": {
+          "title": "Extraction Engine",
+          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+          "options": {
+            "hybrid": {
+              "label": "hybrid"
+            },
+            "llm": {
+              "label": "llm"
+            },
+            "ner": {
+              "label": "ner"
+            }
+          }
+        },
+        "knownTerms": {
+          "description": "Terms to exclude from extraction (already in termbase)"
+        },
+        "locale": {
+          "description": "Locale of the source content"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "ai-qa": {
       "displayName": "AI QA Check",
       "description": "Check translation quality using an LLM provider",
@@ -26,6 +97,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
             },
             "gemini": {
               "label": "Gemini"
@@ -67,6 +141,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
             },
             "gemini": {
               "label": "Gemini"
@@ -112,6 +189,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
             },
             "gemini": {
               "label": "Gemini"
@@ -162,6 +242,9 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
             "gemini": {
               "label": "Gemini"
             },
@@ -210,6 +293,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
             },
             "gemini": {
               "label": "Gemini"
@@ -316,6 +402,38 @@
         }
       }
     },
+    "deepl-translate": {
+      "displayName": "DeepL Translate",
+      "description": "Translate content using DeepL",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the MT provider"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "diff-leverage": {
       "displayName": "Diff Leverage",
       "category": "translation",
@@ -333,6 +451,38 @@
     "encoding-detect": {
       "displayName": "Encoding Detect",
       "category": "analysis"
+    },
+    "google-translate": {
+      "displayName": "Google Translate Translate",
+      "description": "Translate content using Google Translate",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the MT provider"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
     },
     "inconsistency-check": {
       "displayName": "Inconsistency Check",
@@ -425,6 +575,102 @@
         }
       }
     },
+    "microsoft-translate": {
+      "displayName": "Microsoft Translator Translate",
+      "description": "Translate content using Microsoft Translator",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the MT provider"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "modernmt-translate": {
+      "displayName": "ModernMT Translate",
+      "description": "Translate content using ModernMT",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the MT provider"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "mymemory-translate": {
+      "displayName": "MyMemory Translate",
+      "description": "Translate content using MyMemory",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the MT provider"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "pattern-check": {
       "displayName": "Pattern Check",
       "category": "quality"
@@ -439,11 +685,11 @@
         },
         "prefix": {
           "title": "Prefix",
-          "description": "Characters prepended before each translated segment"
+          "description": "Characters prepended before each translated block"
         },
         "suffix": {
           "title": "Suffix",
-          "description": "Characters appended after each translated segment"
+          "description": "Characters appended after each translated block"
         }
       }
     },
@@ -574,6 +820,29 @@
         }
       }
     },
+    "redact": {
+      "displayName": "Redact",
+      "description": "Replace sensitive spans with protected placeholders before processing",
+      "category": "text-processing",
+      "properties": {
+        "detectors": {
+          "title": "Detectors",
+          "description": "Detection backends to run: rules and/or entities"
+        },
+        "entityTypes": {
+          "title": "Entity Categories",
+          "description": "Entity categories to redact: person"
+        },
+        "placeholder": {
+          "title": "Placeholder Template",
+          "description": "Visible stand-in template; supports {category} and {n}"
+        },
+        "rulesPath": {
+          "title": "Rules File",
+          "description": "Path to a redaction rules YAML file"
+        }
+      }
+    },
     "repetition-analysis": {
       "displayName": "Repetition Analysis",
       "category": "analysis",
@@ -592,6 +861,10 @@
       "displayName": "Script",
       "category": "text-processing",
       "properties": {
+        "allowSourceMutation": {
+          "title": "Allow Source Mutation",
+          "description": "Permit the script to modify the source text (off by default; source is read-only)"
+        },
         "code": {
           "title": "Inline Code",
           "description": "Inline ES5 JavaScript code"
@@ -656,33 +929,73 @@
       "displayName": "Segmentation",
       "category": "text-processing",
       "properties": {
+        "credential": {
+          "title": "Credential",
+          "description": "Stored credential name for the llm engine"
+        },
+        "engine": {
+          "title": "Segmentation Engine",
+          "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)"
+        },
+        "instruction": {
+          "title": "Chunking Instruction",
+          "description": "Optional guidance for the llm engine"
+        },
+        "layer": {
+          "title": "Overlay Layer",
+          "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
+        },
+        "model": {
+          "title": "Model",
+          "description": "Model name for the llm or sat engine"
+        },
         "overwriteSegmentation": {
           "title": "Overwrite Existing Segmentation",
-          "description": "Re-segment already-segmented text units replacing previous segmentation"
+          "description": "Re-segment already-segmented blocks replacing previous segmentation"
+        },
+        "provider": {
+          "title": "LLM Provider",
+          "description": "AI provider id for the llm engine"
         },
         "renumberCodes": {
           "title": "Renumber Code IDs",
-          "description": "Renumber inline code IDs in each segment to start at 1"
+          "description": "Renumber inline code IDs when materializing segments to a bilingual format"
+        },
+        "satModel": {
+          "title": "SaT Model",
+          "description": "SaT model for the sat engine (e.g. sat-3l-sm"
         },
         "segmentSource": {
           "title": "Segment Source Text",
-          "description": "Segment the source text using SRX rules"
+          "description": "Segment the source text"
         },
         "segmentTarget": {
           "title": "Segment Target Text",
-          "description": "Segment existing target text using SRX rules"
+          "description": "Segment existing target text"
         },
         "sourceSrxPath": {
           "title": "Source SRX Rules Path",
-          "description": "Path to SRX segmentation rules file for source text"
+          "description": "Path to an SRX 2.0 rules file for source text (srx engine)"
         },
         "targetSrxPath": {
           "title": "Target SRX Rules Path",
-          "description": "Path to SRX segmentation rules file for target text"
+          "description": "Path to an SRX 2.0 rules file for target text (srx engine)"
+        },
+        "threshold": {
+          "title": "Boundary Threshold",
+          "description": "Boundary probability threshold for the sat engine (0 = model default)"
         },
         "treatIsolatedCodesAsWhitespace": {
           "title": "Treat Isolated Codes as Whitespace",
           "description": "Treat isolated inline codes as whitespace during segmentation"
+        },
+        "trimLeadingWhitespace": {
+          "title": "Trim Leading Whitespace",
+          "description": "Exclude leading whitespace from each segment span"
+        },
+        "trimTrailingWhitespace": {
+          "title": "Trim Trailing Whitespace",
+          "description": "Exclude trailing whitespace from each segment span"
         }
       }
     },
@@ -764,6 +1077,11 @@
         }
       }
     },
+    "unredact": {
+      "displayName": "Unredact",
+      "description": "Restore original values into redacted content after processing",
+      "category": "text-processing"
+    },
     "word-count": {
       "displayName": "Word Count",
       "category": "analysis",
@@ -784,6 +1102,52 @@
     }
   },
   "formats": {
+    "androidxml": {
+      "displayName": "Android String Resources",
+      "properties": {
+        "extractComments": {
+          "title": "Extract comments as notes",
+          "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting."
+        },
+        "skipNonTranslatable": {
+          "title": "Skip translatable=\"false\" entries",
+          "description": "Exclude \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim."
+        },
+        "skipResourceReferences": {
+          "title": "Skip resource references",
+          "description": "Exclude \u003cstring\u003e values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text."
+        }
+      }
+    },
+    "applestrings": {
+      "displayName": "Apple Strings",
+      "extensions": [
+        ".strings",
+        ".stringsdict"
+      ],
+      "properties": {
+        "extractComments": {
+          "title": "Extract comments as notes",
+          "description": "Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block."
+        },
+        "protectPlaceholders": {
+          "title": "Protect format placeholders",
+          "description": "Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated."
+        }
+      }
+    },
+    "arb": {
+      "displayName": "Flutter ARB",
+      "extensions": [
+        ".arb"
+      ],
+      "properties": {
+        "descriptionNotes": {
+          "title": "Surface descriptions as notes",
+          "description": "Surface the \"description\" field of a resource's sibling \"@\u003cid\u003e\" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
+        }
+      }
+    },
     "csv": {
       "displayName": "CSV",
       "extensions": [
@@ -836,6 +1200,18 @@
         "valuesStartRow": {
           "title": "Values Start Row",
           "description": "1-based row number where data values begin. 0 means auto-detect."
+        }
+      }
+    },
+    "designtokens": {
+      "displayName": "Design Tokens (DTCG)",
+      "extensions": [
+        ".tokens"
+      ],
+      "properties": {
+        "extractDescriptions": {
+          "title": "Extract $description documentation",
+          "description": "Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure."
         }
       }
     },
@@ -926,6 +1302,23 @@
         "useCodeFinder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text"
+        }
+      }
+    },
+    "i18next": {
+      "displayName": "i18next JSON",
+      "properties": {
+        "legacyPluralForms": {
+          "title": "Recognise legacy plural forms",
+          "description": "Recognise the legacy v1–v3 plural sibling keys (key_plural and the numeric key_0 / key_1 / key_2 … forms) in addition to the v4 CLDR suffixes (_zero / _one / _two / _few / _many / _other)."
+        },
+        "protectInterpolation": {
+          "title": "Protect interpolation and nesting",
+          "description": "Detect i18next interpolation ({{var}}, {{var, format}}) and nesting ($t(key)) and protect them as inline codes so they are never translated."
+        },
+        "subfilterHtmlValues": {
+          "title": "Subfilter HTML values (_html keys)",
+          "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments."
         }
       }
     },
@@ -1043,7 +1436,7 @@
         }
       }
     },
-    "jsx": {
+    "klf": {
       "displayName": "Kapi Localization Format (KLF)",
       "extensions": [
         ".klf"
@@ -1102,6 +1495,49 @@
         "useCodeFinder": {
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within translatable text"
+        }
+      }
+    },
+    "mdx": {
+      "displayName": "MDX",
+      "extensions": [
+        ".mdx"
+      ],
+      "mimeTypes": [
+        "text/mdx"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text."
+        },
+        "translateBlockQuotes": {
+          "title": "Translate Block Quotes",
+          "description": "If true, blockquote content is translatable."
+        },
+        "translateCodeBlocks": {
+          "title": "Translate Code Blocks",
+          "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data."
+        },
+        "translateFrontMatter": {
+          "title": "Translate YAML Front Matter",
+          "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data."
+        },
+        "translateHTMLBlocks": {
+          "title": "Translate HTML Blocks",
+          "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data."
+        },
+        "translateImageAlt": {
+          "title": "Translate Image Alt Text",
+          "description": "If true, image alt text is included in translatable content."
+        },
+        "translateURLs": {
+          "title": "Translate Hyperlink URLs",
+          "description": "If true, link and image URLs are translatable."
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within translatable text."
         }
       }
     },
@@ -1448,7 +1884,6 @@
     "regex": {
       "displayName": "Regex Extraction",
       "extensions": [
-        ".strings",
         ".ini",
         ".info",
         ".rls"
@@ -1456,6 +1891,26 @@
       "mimeTypes": [
         "text/x-regex"
       ]
+    },
+    "resx": {
+      "displayName": ".NET RESX",
+      "extensions": [
+        ".resx",
+        ".resw"
+      ],
+      "mimeTypes": [
+        "text/microsoft-resx"
+      ],
+      "properties": {
+        "extractComments": {
+          "title": "Extract comments as notes",
+          "description": "Surface each string \u003cdata\u003e entry's sibling \u003ccomment\u003e element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting."
+        },
+        "skipNameDataReferences": {
+          "title": "Skip name-reference entries",
+          "description": "Exclude designer name-reference entries (those whose name starts with \"\u003e\", e.g. \"\u003e\u003econtrol.Name\") from extraction. These carry WinForms field names, not UI strings."
+        }
+      }
     },
     "rtf": {
       "displayName": "Rich Text Format",
@@ -1663,6 +2118,25 @@
               "label": "MediaWiki"
             }
           }
+        }
+      }
+    },
+    "xcstrings": {
+      "displayName": "Apple String Catalog",
+      "extensions": [
+        ".xcstrings"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "properties": {
+        "extractStale": {
+          "title": "Extract stale entries",
+          "description": "Emit entries whose extractionState is \"stale\" (the source string no longer appears in the code base) as translatable blocks."
+        },
+        "markTranslatedState": {
+          "title": "State for new translations",
+          "description": "The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip."
         }
       }
     },
