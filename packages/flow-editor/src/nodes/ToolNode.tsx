@@ -467,7 +467,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]"
           title={`${partCount} part(s) processed${spanUs !== undefined ? ` · active for ${formatUs(spanUs)} (first enter → last exit)` : ""}`}
         >
-          {partCount} pts
+          {partCount} parts
           {spanUs !== undefined && (
             <span className="ml-1 font-mono font-medium">{formatUs(spanUs)}</span>
           )}
