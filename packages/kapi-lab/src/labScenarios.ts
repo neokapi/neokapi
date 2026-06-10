@@ -25,6 +25,8 @@ export interface LessonStep {
   mode?: "inspect" | "configure";
   /** This step's primary action is running the flow (the card offers Run). */
   run?: boolean;
+  /** Open (true) or close (false) the recipe view when the step activates. */
+  recipe?: boolean;
 }
 
 export interface LabScenario {
@@ -242,6 +244,50 @@ export const LAB_SCENARIOS: LabScenario[] = [
         prose:
           "Inspect the Sink: the Native tab diffs the written file against the input — the structure is byte-identical, only the block text changed. That is the round-trip guarantee.",
         select: "endpoint-sink",
+      },
+    ],
+  },
+  {
+    id: "project",
+    label: "Project & recipe",
+    description:
+      "The canvas is a view over a .kapi recipe — the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
+    steps: [{ tool: "segmentation" }, { tool: "redact" }, { tool: "ai-translate" }],
+    presets: {
+      redact: {
+        detectors: ["rules"],
+        rules: [{ term: "Acme Corp", category: "org" }],
+      },
+    },
+    sampleId: "support-reply",
+    walkthrough: [
+      {
+        prose:
+          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe — the same committed YAML kapi uses on disk. Open the recipe below the canvas: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
+        recipe: true,
+        select: null,
+      },
+      {
+        prose:
+          "Project scope in action: the redact step is bare on the canvas, but defaults.tools.redact pins its rules for every flow in the project — the step's config panel shows the inherited preset, and any key the step sets itself would win.",
+        select: "tool-1",
+        mode: "configure",
+      },
+      {
+        prose:
+          "Source and Sink are BINDINGS, not steps — the flow itself owns no I/O. In a real project, extract reads the recipe's content globs into the project store, an in-project run is process-only over that store, and merge writes localized files back out. Here the bindings are file in → file out, so you can watch the whole loop.",
+        select: "endpoint-source",
+      },
+      {
+        prose: "Run the flow — exactly what `kapi run` does with this recipe.",
+        run: true,
+        select: null,
+      },
+      {
+        prose:
+          "The run wrote through the sink binding: the output file, structure intact. Edit the flow — add a tool, change a config — and reopen the recipe: the YAML follows the canvas.",
+        select: "endpoint-sink",
+        recipe: true,
       },
     ],
   },

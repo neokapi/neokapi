@@ -16,6 +16,7 @@ import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios";
 import WalkthroughCard from "./WalkthroughCard";
 import ScriptStepPanel from "./ScriptStepPanel";
+import RecipeView from "./RecipeView";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
 import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import shared from "./styles.module.css";
@@ -282,8 +283,13 @@ export default function FlowBuilderRunner({
   const [focusRequest, setFocusRequest] = useState<FlowFocusRequest | undefined>(undefined);
   const focusNonce = useRef(0);
 
+  // The project lens: the live recipe the canvas serializes to, shown below it.
+  const [recipeOpen, setRecipeOpen] = useState(false);
+
   const applyStepFocus = useCallback((step: LessonStep | undefined) => {
-    if (!step || step.select === undefined) return;
+    if (!step) return;
+    if (step.recipe !== undefined) setRecipeOpen(step.recipe);
+    if (step.select === undefined) return;
     focusNonce.current += 1;
     setFocusRequest({ nonce: focusNonce.current, select: step.select, mode: step.mode });
   }, []);
@@ -564,6 +570,17 @@ export default function FlowBuilderRunner({
           </p>
         )}
 
+        {/* The project lens toggle: the canvas IS a .kapi recipe — show it. */}
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            onClick={() => setRecipeOpen((v) => !v)}
+          >
+            {recipeOpen ? "Hide recipe" : "View recipe"}
+          </button>
+        </div>
+
         {/* Sized container — FlowEditor lays out as `h-full`, so the host must
           give it explicit dimensions or it collapses to zero height. */}
         <div className={styles.editorFrame}>
@@ -583,6 +600,11 @@ export default function FlowBuilderRunner({
             renderStepConfigPanel={renderStepConfigPanel}
           />
         </div>
+
+        {/* The project lens: the live recipe the canvas serializes to. */}
+        {recipeOpen && (
+          <RecipeView recipe={buildRecipe({ steps: flow.steps.filter((s) => s.tool) }, presets)} />
+        )}
 
         {runtime.status === "booting" && (
           <DownloadProgress
