@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildRecipe, buildToolInfos, STARTER_STEPS } from "./FlowBuilderRunner";
+import { buildRecipe, buildToolInfos } from "./FlowBuilderRunner";
+import { LAB_SCENARIOS } from "./labScenarios";
 import type { FlowSpec } from "@neokapi/flow-editor";
 
 // ── buildRecipe ──────────────────────────────────────────────────────────────
@@ -67,8 +68,9 @@ describe("buildRecipe", () => {
     expect(recipe).toContain("detectors:");
   });
 
-  it("uses the starter steps and produces a well-formed recipe", () => {
-    const recipe = buildRecipe({ steps: STARTER_STEPS });
+  it("produces a well-formed recipe for the build-your-own scenario", () => {
+    const scenario = LAB_SCENARIOS.find((s) => s.id === "build-your-own")!;
+    const recipe = buildRecipe({ steps: scenario.steps });
     // Structural checks.
     expect(recipe).toContain("version: v1");
     expect(recipe).toContain("flows:");
@@ -81,6 +83,56 @@ describe("buildRecipe", () => {
     );
     expect(order.every((idx) => idx > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("emits project tool presets under defaults.tools", () => {
+    const scenario = LAB_SCENARIOS.find((s) => s.id === "redaction")!;
+    const recipe = buildRecipe({ steps: scenario.steps }, scenario.presets);
+    expect(recipe).toContain("defaults:");
+    expect(recipe).toContain("  tools:");
+    expect(recipe).toContain("    redact:");
+    // Preset values serialize as YAML scalars / JSON flow values.
+    expect(recipe).toContain("Acme Corp");
+    expect(recipe).toContain("detectors:");
+    // The redact STEP stays bare — the preset is project scope, not step config.
+    expect(recipe).toContain("      - tool: redact\n      - tool: ai-translate");
+  });
+
+  it("omits defaults.tools when no presets are given", () => {
+    const recipe = buildRecipe({ steps: [{ tool: "word-count" }] });
+    expect(recipe).not.toContain("  tools:");
+  });
+});
+
+// ── scenarios ────────────────────────────────────────────────────────────────
+
+describe("LAB_SCENARIOS", () => {
+  it("only uses browser-safe tools the palette offers", () => {
+    const palette = new Set(buildToolInfos().map((t) => t.name));
+    for (const scenario of LAB_SCENARIOS) {
+      for (const step of scenario.steps) {
+        if (step.tool) expect(palette, `${scenario.id}: ${step.tool}`).toContain(step.tool);
+        for (const branch of step.parallel ?? []) {
+          expect(palette, `${scenario.id}: ${branch.tool}`).toContain(branch.tool);
+        }
+      }
+    }
+  });
+
+  it("covers the redaction, segmentation and annotations teaching stories", () => {
+    const ids = LAB_SCENARIOS.map((s) => s.id);
+    expect(ids).toContain("redaction");
+    expect(ids).toContain("segmentation");
+    expect(ids).toContain("annotations");
+  });
+
+  it("the redaction scenario carries its rules as a project preset", () => {
+    const s = LAB_SCENARIOS.find((x) => x.id === "redaction")!;
+    expect(s.presets?.redact).toBeDefined();
+    const redactStep = s.steps.find((st) => st.tool === "redact")!;
+    expect(redactStep.config).toBeUndefined();
+    // unredact closes the wrap so the originals come back after translation.
+    expect(s.steps.some((st) => st.tool === "unredact")).toBe(true);
   });
 });
 

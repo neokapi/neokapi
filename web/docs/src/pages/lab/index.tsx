@@ -4,7 +4,6 @@ import Link from "@docusaurus/Link";
 import {
   AnatomyExplorer,
   BatchExplorer,
-  PipelineExplorer,
   SegmentationPreview,
 } from "@site/src/components/Lab";
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
@@ -101,21 +100,28 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="02 · Pipeline"
-          title="Pipeline — watch Parts stream through tools"
+          step="02 · Pipeline & flows"
+          title="Design a flow, run it, step through the run"
           intro={
             <>
-              A flow runs as a concurrent pipeline: a reader, a chain of tools,
-              and a writer, connected by channels of Parts. Run a file and drive
-              it with <strong>Next</strong> — each step is one observable
-              transition.
+              A flow is an ordered composition of tools, and it runs as a
+              concurrent pipeline: a reader, the tool chain, a writer, connected
+              by channels of Parts. The graph you design here is exactly what
+              runs — press <strong>Run</strong> and the trace plays back on the
+              same nodes: scrub the transport, then click a node to open its{" "}
+              <strong>run inspector</strong> and see every block that passed
+              through with what the step attached — segmentation spans, entity
+              tags, vaulted redaction secrets, QA findings, the written target.
+              Pick a scenario to study one story (redaction, segmentation,
+              annotations), or build your own; the{" "}
+              <strong>Redaction</strong> scenario also shows project scope: its
+              rules are a project preset (<code>defaults.tools</code>) the bare{" "}
+              <code>redact</code> step inherits — and the placement check keeps
+              the redactor ahead of any remote-egress step.
             </>
           }
         >
-          <PipelineExplorer
-            defaultSampleId="messages-json"
-            defaultPipelineId="pseudo-translate"
-          />
+          <FlowBuilderRunner defaultScenarioId="annotations" />
         </Section>
 
         <Section
@@ -148,24 +154,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="05 · Flows"
-          title="Build a flow, then run it"
-          intro={
-            <>
-              A flow is an ordered composition of tools. Build one in the visual
-              editor, then run it live and step through the result — the graph
-              you build and the flow the CLI runs are the same thing. This one
-              opens with a <strong>source-transform stage</strong> (normalize,
-              then redact) that settles the source before{" "}
-              <code>ai-translate</code> and <code>qa-check</code> see it.
-            </>
-          }
-        >
-          <FlowBuilderRunner defaultSampleId="support-reply" />
-        </Section>
-
-        <Section
-          step="06 · Projects"
+          step="05 · Projects"
           title="Project — capture config once, run flows, merge files"
           intro={
             <>
@@ -185,7 +174,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="07 · Concurrency"
+          step="06 · Concurrency"
           title="Concurrency — replay a pipeline trace"
           intro={
             <>
@@ -202,7 +191,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="08 · Scripting"
+          step="07 · Scripting"
           title="Script — write your own transform"
           intro={
             <>
@@ -218,7 +207,7 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="09 · Files & output"
+          step="08 · Files & output"
           title="Run a tool across a selection, inspect what it wrote"
           intro={
             <>
