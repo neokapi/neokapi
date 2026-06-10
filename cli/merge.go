@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -659,8 +661,13 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 		// Per-block staleness: compare the block's source text between
 		// extract-time (preserved in the XLIFF's <source>) and current source.
-		xliffSourceText := tb.SourceText()
-		currentSourceText := srcBlock.SourceText()
+		// Both sides render through RenderRunsWithData: the XLIFF carries
+		// inline codes flattened to their original data (the markdown/HTML
+		// markers), while the freshly read source block keeps them as code
+		// runs that plain SourceText() would drop — comparing unlike
+		// renderings marked every block with inline markup stale.
+		xliffSourceText := model.RenderRunsWithData(tb.Source)
+		currentSourceText := model.RenderRunsWithData(srcBlock.Source)
 		if xliffSourceText != currentSourceText {
 			stats.Stale++
 			continue
@@ -945,22 +952,20 @@ func readSourceBlocks(ctx context.Context, reg *registry.FormatRegistry, formatN
 // the recipe does not declare a target template.
 func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiProject, root string, locale model.LocaleID) string {
 	// Search the recipe for the ContentItem whose Path matches entry.Source.
+	// Patterns use doublestar (matching ExpandGlob's `**` semantics), and the
+	// target template supports {lang}, {path}, {filename}, {basename}, and the
+	// legacy bare `*` — see project.ResolveTargetPath.
 	if proj != nil {
 		for _, coll := range proj.Content {
 			for _, item := range coll.EffectiveItems() {
-				ok, _ := filepath.Match(item.Path, entry.Source)
+				ok, _ := doublestar.Match(item.Path, entry.Source)
 				if !ok {
 					continue
 				}
 				if item.Target == "" {
 					break
 				}
-				tmpl := item.Target
-				tmpl = strings.ReplaceAll(tmpl, "{lang}", string(locale))
-				// Replace "*" with the source basename (no ext) if the
-				// template has one.
-				base := strings.TrimSuffix(filepath.Base(entry.Source), filepath.Ext(entry.Source))
-				tmpl = strings.ReplaceAll(tmpl, "*", base)
+				tmpl := project.ResolveTargetPath(item.Path, item.Target, entry.Source, string(locale))
 				if !filepath.IsAbs(tmpl) {
 					tmpl = filepath.Join(root, tmpl)
 				}

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi-l10n" creationtoolversion="1.0" segtype="block" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu>
+      <tuv xml:lang="en"><seg>Kapi</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kapi</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Kapi** reads, translates, and ships content in **any format** — faithfully —
+and verifies it with **checks** (terminology, QA, brand voice) that act like
+**tests for AI output**. It is built on the open-source
+[neokapi framework](/framework/architecture) and comes in two forms that share
+the same engine, tools, flows, and [`.kapi` projects](/reference/project-file):</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Kapi** leser, oversetter og leverer innhold i **alle formater** — formattro —
+og verifiserer det med **sjekker** (terminologi, kvalitetskontroll,
+merkevarestemme) som fungerer som **tester for AI-produsert innhold**. Det er
+bygget på det åpne [neokapi-rammeverket](/framework/architecture) og finnes i to
+former som deler samme motor, verktøy, flyter og
+[`.kapi`-prosjekter](/reference/project-file):</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.
+  Best for automation, scripting, CI gates, and offline work; no project or
+  server required. It also serves brand and terminology tools to your AI
+  assistant over [MCP](/reference/mcp).</seg></tuv>
+      <tuv xml:lang="nb"><seg>**[Kapi CLI](/kapi/cli)** — én binærfil som arbeider direkte på filer.
+  Best for automatisering, skripting, CI-porter og frakoblet arbeid; krever
+  verken prosjekt eller server. Den tilbyr også merkevare- og
+  terminologiverktøy til AI-assistenten din over [MCP](/reference/mcp).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**[Kapi Desktop](/kapi/desktop/overview)** — a visual companion app for
+  building flows, running tools, managing plugins, and storing AI credentials —
+  without writing YAML or remembering flags.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**[Kapi Desktop](/kapi/desktop/overview)** — en visuell følgeapp for å
+  bygge flyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon —
+  uten å skrive YAML eller huske flagg.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Because both front-ends run the same engine, a workflow built in one works in
+the other: the flows and the project file are identical.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Siden begge grensesnittene kjører samme motor, fungerer en arbeidsflyt bygget
+i det ene også i det andre: flytene og prosjektfilen er identiske.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Extract content from a file, translate it, run checks, and write it back in the
+same format — a full bilingual round-trip from the terminal:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Trekk ut innhold fra en fil, oversett det, kjør sjekker og skriv det tilbake
+i samme format — en fullstendig tospråklig rundtur fra terminalen:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Command-line interface</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kommandolinjegrensesnitt</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Run tools and flows straight from the terminal — `kapi pseudo-translate`,
+`kapi ai-translate`, `kapi brand check`, `kapi run &lt;flow&gt;`. See the
+[Kapi CLI overview](/kapi/cli) for the command surface and the task-by-task
+recipes you can run in the browser.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Kjør verktøy og flyter rett fra terminalen — `kapi pseudo-translate`,
+`kapi ai-translate`, `kapi brand check`, `kapi run &lt;flow&gt;`. Se
+[Kapi CLI-oversikten](/kapi/cli) for kommandoflaten og de oppgavebaserte
+oppskriftene du kan kjøre i nettleseren.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Desktop app</seg></tuv>
+      <tuv xml:lang="nb"><seg>Skrivebordsapp</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
+tools and flows in a native app with a flow editor, live runner, plugin manager,
+and credential vault. The [Kapi Desktop overview](/kapi/desktop/overview) walks
+through your first project.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Foretrekker du et visuelt grensesnitt? [Kapi Desktop](/kapi/desktop/overview)
+pakker de samme verktøyene og flytene inn i en app med flytredigering,
+kjøringsvisning, tilleggshåndtering og legitimasjonshvelv.
+[Kapi Desktop-oversikten](/kapi/desktop/overview) tar deg gjennom ditt første
+prosjekt.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Projects and ad-hoc</seg></tuv>
+      <tuv xml:lang="nb"><seg>Prosjekter og ad hoc</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>There are two ways to drive Kapi:</seg></tuv>
+      <tuv xml:lang="nb"><seg>Det er to måter å bruke Kapi på:</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Project** — the recommended day-to-day model. Capture the workflow once in a
+  portable `.kapi` recipe (languages, content patterns, flows, plugin
+  requirements, defaults) and replay it with `kapi run &lt;flow&gt;`. The project store
+  accumulates translation memory as you work, and the recipe is shareable via
+  git. Best for any repository or content set you localize repeatedly —
+  [create your first project](/kapi/get-started/first-project).</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Prosjekt** — den anbefalte modellen for daglig bruk. Fang arbeidsflyten én
+  gang i en portabel `.kapi`-oppskrift (språk, innholdsmønstre, flyter,
+  tilleggskrav, standardvalg) og spill den av igjen med `kapi run &lt;flow&gt;`.
+  Prosjektlageret bygger opp oversettelsesminne mens du arbeider, og oppskriften
+  kan deles via git. Best for ethvert kodelager eller innholdssett du
+  lokaliserer gjentatte ganger —
+  [opprett ditt første prosjekt](/kapi/get-started/first-project).</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Ad-hoc** — run a tool or flow directly on files, configured by flags (or, in
+  the desktop app, clicks): `kapi ai-translate -i file.json --target-lang fr`.
+  Nothing is saved — the quick path for one-off jobs, scripting, and CI.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Ad hoc** — kjør et verktøy eller en flyt direkte på filer, konfigurert med
+  flagg (eller, i skrivebordsappen, med klikk):
+  `kapi ai-translate -i file.json --target-lang fr`. Ingenting lagres — den
+  raske veien for engangsjobber, skripting og CI.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>**Kapi finds your project automatically.** Like git, it walks up the directory
+tree from wherever you run it; if it finds a `.kapi` recipe, it runs in
+**project mode** with that project's languages, defaults, and flows. Otherwise
+it runs ad-hoc.</seg></tuv>
+      <tuv xml:lang="nb"><seg>**Kapi finner prosjektet ditt automatisk.** Som git går den oppover i
+katalogtreet fra der du kjører den; finner den en `.kapi`-oppskrift, kjører den
+i **prosjektmodus** med prosjektets språk, standardvalg og flyter. Ellers kjører
+den ad hoc.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Both are the same commands over a different **binding** (where content enters and
+leaves): ad-hoc writes files, while in a project a run commits to the store and
+`kapi merge` materializes the localized files. See **[Modes &amp;
+bindings](/kapi/modes)** for the full model — the source/sink binding diagram, the
+two project loops, the portable `.klz` parcel, and when it makes sense to mix.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Begge er de samme kommandoene over en ulik **binding** (hvor innholdet kommer
+inn og går ut): ad hoc skriver filer, mens i et prosjekt skriver en kjøring til
+lageret og `kapi merge` materialiserer de lokaliserte filene. Se **[Moduser og
+bindinger](/kapi/modes)** for hele modellen — diagrammet over
+kilde-/sluk-bindinger, de to prosjektsløyfene, den portable `.klz`-pakken, og
+når det gir mening å kombinere.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>See the [project file reference](/reference/project-file) for the full `.kapi`
+format.</seg></tuv>
+      <tuv xml:lang="nb"><seg>Se [referansen for prosjektfiler](/reference/project-file) for det
+fullstendige `.kapi`-formatet.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>Install</seg></tuv>
+      <tuv xml:lang="nb"><seg>Installering</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en"><seg>See [Installation](/kapi/get-started/installation) for the CLI (Homebrew or download)
+and Kapi Desktop (macOS cask).</seg></tuv>
+      <tuv xml:lang="nb"><seg>Se [Installering](/kapi/get-started/installation) for CLI-en (Homebrew eller
+nedlasting) og Kapi Desktop (macOS-cask).</seg></tuv>
+    </tu>
+  </body>
+</tmx>

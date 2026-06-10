@@ -25,7 +25,7 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "doc", id: "kapi/overview", label: "Overview" },
+        { type: "doc", id: "kapi/overview", label: "Overview", key: "kapi-overview" },
         { type: "doc", id: "kapi/modes", label: "Modes & bindings" },
         "kapi/get-started/installation",
         "kapi/get-started/first-project",
@@ -39,7 +39,7 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "doc", id: "kapi/recipes/index", label: "Overview" },
+        { type: "doc", id: "kapi/recipes/index", label: "Overview", key: "kapi-recipes-overview" },
         "kapi/recipes/overview",
         "kapi/recipes/estimate-cost",
         "kapi/recipes/pseudo-translate",
@@ -56,7 +56,7 @@ const sidebars: SidebarsConfig = {
       label: "Kapi Desktop",
       collapsible: false,
       className: "sidebar-section-heading",
-      items: [{ type: "doc", id: "kapi/desktop/overview", label: "Overview" }],
+      items: [{ type: "doc", id: "kapi/desktop/overview", label: "Overview", key: "kapi-desktop-overview" }],
     },
   ],
 
