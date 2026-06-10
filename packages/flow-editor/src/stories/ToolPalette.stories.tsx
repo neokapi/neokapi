@@ -49,19 +49,21 @@ export const FewTools: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Source-transform badge stories
+// Transformer badge stories — isSourceTransform marks a transformer (a tool
+// that rewrites the source); it is an ordinary ordered step whose position the
+// placement pass validates.
 // ---------------------------------------------------------------------------
 
-const sourceTransformTools: ToolInfo[] = [
+const transformerTools: ToolInfo[] = [
   {
     name: "redact",
     display_name: "Redact",
     description: "Replace sensitive spans with placeholders before translation",
     category: "transform",
     has_schema: true,
-    inputs: ["block"],
     tags: ["privacy", "pre-processing"],
     isSourceTransform: true,
+    recoverable: true,
   },
   {
     name: "source-normalise",
@@ -69,7 +71,6 @@ const sourceTransformTools: ToolInfo[] = [
     description: "Normalise quotes, punctuation, and whitespace in source text",
     category: "transform",
     has_schema: true,
-    inputs: ["block"],
     tags: ["text-processing"],
     isSourceTransform: true,
   },
@@ -79,18 +80,16 @@ const sourceTransformTools: ToolInfo[] = [
     description: "Simplify complex source sentences to aid machine translation",
     category: "transform",
     has_schema: false,
-    inputs: ["block"],
     tags: ["ai-powered"],
     isSourceTransform: true,
   },
-  // Ordinary tools without source-transform capability
+  // Ordinary (non-transformer) tools
   {
     name: "ai-translate",
     display_name: "AI Translate",
     description: "Translate content using AI/LLM",
     category: "translate",
     has_schema: false,
-    inputs: ["block"],
     tags: ["ai-powered", "translation"],
   },
   {
@@ -99,18 +98,17 @@ const sourceTransformTools: ToolInfo[] = [
     description: "Run rule-based quality checks",
     category: "validate",
     has_schema: true,
-    inputs: ["block"],
     tags: ["quality"],
   },
 ];
 
 /**
- * Palette with source-transform-capable tools showing the blue "pre" badge
- * next to the tool name. Non-capable tools show no badge.
+ * Palette with transformer tools showing their badge next to the tool name.
+ * Non-transformer tools show no badge.
  */
-export const WithSourceTransformBadges: Story = {
-  name: "Source-Transform Badges",
+export const WithTransformerBadges: Story = {
+  name: "Transformer Badges",
   args: {
-    tools: sourceTransformTools,
+    tools: transformerTools,
   },
 };

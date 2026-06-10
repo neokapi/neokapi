@@ -66,6 +66,7 @@ import {
 } from "./stepResolve";
 import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
 import { computeUnmet } from "./ioGraph";
+import { computePlacement, type PlacementDiagnostic } from "./placement";
 import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactionWrap";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
@@ -214,6 +215,8 @@ interface StepConfigPanelProps {
   config: Record<string, unknown>;
   /** Required input ports nothing upstream produces (requirement analysis). */
   unmet?: string[];
+  /** Transformer placement diagnostics for this step (AD-006 placement pass). */
+  placement?: PlacementDiagnostic[];
   onConfigChange: (config: Record<string, unknown>) => void;
   onClose: () => void;
   onRemove?: () => void;
@@ -227,6 +230,7 @@ export function StepConfigPanel({
   doc,
   config,
   unmet,
+  placement,
   onConfigChange,
   onClose,
   onRemove,
@@ -427,6 +431,33 @@ export function StepConfigPanel({
             produces {unmet.length > 1 ? "these" : "it"} before this step.
           </div>
         )}
+
+        {/* Transformer placement diagnostics (AD-006): the same errors the build
+            gate rejects with, surfaced while composing. */}
+        {placement?.map((d, i) => (
+          <div
+            key={`${d.rule}-${i}`}
+            className="mt-2 rounded-md border px-2 py-1.5 text-[10px] leading-snug"
+            style={
+              d.severity === "error"
+                ? {
+                    borderColor: "oklch(0.55 0.2 25 / 0.5)",
+                    background: "oklch(0.55 0.2 25 / 0.08)",
+                    color: "oklch(0.45 0.18 25)",
+                  }
+                : {
+                    borderColor: "oklch(0.62 0.17 45 / 0.5)",
+                    background: "oklch(0.62 0.17 45 / 0.08)",
+                    color: "oklch(0.5 0.15 45)",
+                  }
+            }
+          >
+            <span className="font-semibold">
+              {d.severity === "error" ? "Placement error: " : "Placement: "}
+            </span>
+            {d.message}
+          </div>
+        ))}
       </div>
 
       {/* Docs panel (collapsible) */}
@@ -503,11 +534,7 @@ export function FlowEditor({
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
 
-  const showTemplates =
-    !readOnly &&
-    !dismissedTemplates &&
-    flow.steps.length === 0 &&
-    (flow.sourceTransforms?.length ?? 0) === 0;
+  const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -564,10 +591,8 @@ export function FlowEditor({
         })
         .join("→");
     };
-    const stPart = (flow.sourceTransforms ?? []).map((s) => `ST:${s.tool}`).join("→");
-    const mainPart = extractTools(flow.steps);
-    return stPart ? `${stPart}|${mainPart}` : mainPart;
-  }, [flow.steps, flow.sourceTransforms]);
+    return extractTools(flow.steps);
+  }, [flow.steps]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on topology, not flow
   const initial = useMemo(
@@ -591,7 +616,6 @@ export function FlowEditor({
 
   // Refs for per-node handlers -- break the circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
-  const stageToggleRef = useRef<(nodeId: string) => void>(() => {});
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
@@ -602,14 +626,24 @@ export function FlowEditor({
   const unmetFor = useCallback(
     (data: Record<string, unknown>): string[] | undefined => {
       let u: string[] | undefined;
-      if (data.stage === "source-transform" && typeof data.stIndex === "number") {
-        u = unmet.sourceTransforms[data.stIndex];
-      } else if (typeof data.stepIndex === "number") {
+      if (typeof data.stepIndex === "number") {
         u = unmet.steps[data.stepIndex];
       }
       return u && u.length > 0 ? u : undefined;
     },
     [unmet],
+  );
+
+  // Transformer placement diagnostics (AD-006): the client-side mirror of the
+  // build gate's placement pass, rendered inline on the offending node.
+  const placement = useMemo(() => computePlacement(flow, toolMap), [flow, toolMap]);
+  const placementFor = useCallback(
+    (data: Record<string, unknown>): PlacementDiagnostic[] | undefined => {
+      if (typeof data.stepIndex !== "number") return undefined;
+      const diags = placement.filter((d) => d.stepIndex === data.stepIndex);
+      return diags.length > 0 ? diags : undefined;
+    },
+    [placement],
   );
 
   // Enrich nodes with execution state and remove handler.
@@ -628,14 +662,11 @@ export function FlowEditor({
       if (n.type === "tool" || n.type === "parallel") {
         const u = unmetFor(n.data);
         if (u) extra.unmet = u;
+        const p = placementFor(n.data);
+        if (p) extra.placement = p;
       }
       if (!readOnly && n.type === "tool") {
         extra.onRemove = () => removeNodeRef.current(n.id);
-        // Transform-capable tools can move into/out of the source-transform
-        // stage via the on-node "pre" badge (parallel branches can't).
-        if (n.data.isSourceTransform && n.data.branchIndex === undefined) {
-          extra.onStageToggle = () => stageToggleRef.current(n.id);
-        }
       }
       if (!readOnly && n.type === "parallel") {
         extra.onRemove = () => removeNodeRef.current(n.id);
@@ -645,7 +676,7 @@ export function FlowEditor({
       if (Object.keys(extra).length === 0) return n;
       return { ...n, data: { ...n.data, ...extra } };
     });
-  }, [initial.nodes, nodeStats, readOnly, unmetFor]);
+  }, [initial.nodes, nodeStats, readOnly, unmetFor, placementFor]);
 
   const handleSourceChange = useCallback(
     (binding: FlowBinding) => {
@@ -873,10 +904,7 @@ export function FlowEditor({
   const handleAddTool = useCallback(
     (toolName: string) => {
       if (readOnly) return;
-      // Node IDs are assigned globally across sourceTransforms + steps, so the
-      // new main-stage node gets index = stCount + steps.length.
-      const stCount = flow.sourceTransforms?.length ?? 0;
-      const newNodeIndex = stCount + flow.steps.length;
+      const newNodeIndex = flow.steps.length;
       const updated: FlowSpec = {
         ...flow,
         steps: [...flow.steps, { tool: toolName }],
@@ -1046,7 +1074,7 @@ export function FlowEditor({
     () => resolveStepLocation(resolveData),
     // resolveData is rebuilt each render; key on its resolvable fields.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [resolveData?.stage, resolveData?.stIndex, resolveData?.stepIndex, resolveData?.branchIndex],
+    [resolveData?.stepIndex, resolveData?.branchIndex],
   );
 
   const selectedStep = useMemo(
@@ -1065,41 +1093,6 @@ export function FlowEditor({
     },
     [selectedLocation, flow, onChange, readOnly],
   );
-
-  // Toggle a tool between the source-transform stage and the main stage,
-  // resolving the exact step by identity (not tool name). Driven by the on-node
-  // "pre" badge.
-  const handleNodeStageToggle = useCallback(
-    (nodeId: string) => {
-      if (readOnly) return;
-      const node = nodes.find((n) => n.id === nodeId);
-      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
-      // Parallel branches can't move stages.
-      if (!loc || loc.branchIndex !== undefined) return;
-      const step = stepAtLocation(flow, loc);
-      if (!step) return;
-
-      if (!loc.isSourceTransform) {
-        // Move from steps → sourceTransforms
-        onChange({
-          ...flow,
-          sourceTransforms: [...(flow.sourceTransforms ?? []), { ...step }],
-          steps: flow.steps.filter((_, i) => i !== loc.index),
-        });
-      } else {
-        // Move from sourceTransforms → steps
-        const newST = (flow.sourceTransforms ?? []).filter((_, i) => i !== loc.index);
-        onChange({
-          ...flow,
-          sourceTransforms: newST.length > 0 ? newST : undefined,
-          steps: [{ ...step }, ...flow.steps],
-        });
-      }
-      setSelectedNodeId(null);
-    },
-    [readOnly, nodes, flow, onChange],
-  );
-  stageToggleRef.current = handleNodeStageToggle;
 
   // Template library covers the full editor when shown.
   if (showTemplates) {
@@ -1120,7 +1113,7 @@ export function FlowEditor({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
         <FlowToolbar
-          stepCount={(flow.sourceTransforms?.length ?? 0) + flow.steps.length}
+          stepCount={flow.steps.length}
           showPreview={showPreview}
           onTogglePreview={() => setShowPreview((p) => !p)}
           onRun={onRun}
@@ -1256,6 +1249,7 @@ export function FlowEditor({
             doc={selectedDoc}
             config={selectedStep.config || {}}
             unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+            placement={selectedNode ? placementFor(selectedNode.data) : undefined}
             onConfigChange={handleConfigChange}
             onClose={() => setSelectedNodeId(null)}
             onRemove={readOnly ? undefined : handleRemoveSelected}

@@ -66,6 +66,7 @@ const tools: ToolInfo[] = [
     description: "Redact sensitive content",
     category: "transform",
     isSourceTransform: true,
+    recoverable: true,
   },
   { name: "unredact", description: "Restore originals", category: "transform" },
   { name: "term-check", description: "Term check", category: "validate" },
@@ -95,11 +96,10 @@ describe("defToSpec", () => {
     const spec = defToSpec(def);
     expect(spec.steps).toHaveLength(1);
     expect(spec.steps[0].tool).toBe("ai-translate");
-    expect(spec.sourceTransforms).toBeUndefined();
     expect(spec.description).toBe("Translate content");
   });
 
-  it("collects source-transform nodes into spec.sourceTransforms", () => {
+  it("orders transformer nodes into spec.steps like any other node", () => {
     const def: FlowDefinitionInfo = {
       id: "secure-translate",
       name: "Secure Translate",
@@ -110,7 +110,6 @@ describe("defToSpec", () => {
           type: "tool",
           name: "redact",
           label: "Redact",
-          stage: "source-transform",
           position: { x: 250, y: 100 },
         },
         {
@@ -118,17 +117,14 @@ describe("defToSpec", () => {
           type: "tool",
           name: "ai-translate",
           label: "AI Translate",
-          position: { x: 500, y: 100 },
+          position: { x: 250, y: 360 },
         },
       ],
       edges: [],
     };
 
     const spec = defToSpec(def);
-    expect(spec.sourceTransforms).toHaveLength(1);
-    expect(spec.sourceTransforms![0].tool).toBe("redact");
-    expect(spec.steps).toHaveLength(1);
-    expect(spec.steps[0].tool).toBe("ai-translate");
+    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
   });
 
   it("carries config through to steps", () => {
@@ -186,16 +182,12 @@ describe("specToDef", () => {
     expect(def.edges).toHaveLength(0);
   });
 
-  it("marks source-transform tool nodes with stage", () => {
-    const def = specToDef(
-      { sourceTransforms: [{ tool: "redact" }], steps: [{ tool: "ai-translate" }] },
-      base,
-      tools,
-    );
-    const redact = def.nodes.find((n) => n.name === "redact")!;
-    expect(redact.stage).toBe("source-transform");
-    const aiTranslate = def.nodes.find((n) => n.name === "ai-translate")!;
-    expect(aiTranslate.stage).toBeUndefined();
+  it("emits transformer steps as ordinary ordered tool nodes", () => {
+    const def = specToDef({ steps: [{ tool: "redact" }, { tool: "ai-translate" }] }, base, tools);
+    expect(def.nodes.map((n) => n.name)).toEqual(["redact", "ai-translate"]);
+    expect(def.nodes.every((n) => n.type === "tool")).toBe(true);
+    // The persisted chain axis is y: redact precedes ai-translate.
+    expect(def.nodes[0].position.y).toBeLessThan(def.nodes[1].position.y);
   });
 
   it("carries spec.source / spec.sink (string locators) onto def.binding", () => {
@@ -221,7 +213,7 @@ describe("specToDef", () => {
 });
 
 describe("round-trip def → spec → def", () => {
-  it("preserves tools, stage and parallel structure", () => {
+  it("preserves tool order and parallel structure", () => {
     const original: FlowDefinitionInfo = {
       id: "secure",
       name: "Secure Translate",
@@ -233,7 +225,6 @@ describe("round-trip def → spec → def", () => {
           type: "tool",
           name: "redact",
           label: "Redact",
-          stage: "source-transform",
           position: { x: 200, y: 0 },
         },
         {
@@ -260,13 +251,9 @@ describe("round-trip def → spec → def", () => {
     const toolNames = back.nodes.filter((n) => n.type === "tool").map((n) => n.name);
     expect(toolNames).toEqual(["redact", "ai-translate", "unredact"]);
 
-    const redact = back.nodes.find((n) => n.name === "redact")!;
-    expect(redact.stage).toBe("source-transform");
-
     // The spec round-trips identically through a second pass.
     const spec2 = defToSpec(back);
-    expect(spec2.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
-    expect(spec2.steps.map((s) => s.tool)).toEqual(["ai-translate", "unredact"]);
+    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate", "unredact"]);
   });
 
   it("preserves a parallel group through spec → def → spec", () => {

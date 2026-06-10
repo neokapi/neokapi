@@ -39,18 +39,14 @@ describe("stepsToGraph carries step identity on node data", () => {
     expect(dataFor(nodes, "tool-2").stepIndex).toBe(2);
   });
 
-  it("threads stIndex onto source-transform nodes", () => {
+  it("threads stepIndex onto leading transformer steps like any other step", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [{ tool: "redact" }, { tool: "redact" }],
-      steps: [{ tool: "ai-translate" }],
+      steps: [{ tool: "redact" }, { tool: "redact" }, { tool: "ai-translate" }],
     };
     const { nodes } = stepsToGraph(spec);
-    expect(dataFor(nodes, "tool-0").stage).toBe("source-transform");
-    expect(dataFor(nodes, "tool-0").stIndex).toBe(0);
-    expect(dataFor(nodes, "tool-1").stIndex).toBe(1);
-    // The main step keeps a stepIndex relative to spec.steps, not the global id.
-    expect(dataFor(nodes, "tool-2").stepIndex).toBe(0);
-    expect(dataFor(nodes, "tool-2").stage).toBeUndefined();
+    expect(dataFor(nodes, "tool-0").stepIndex).toBe(0);
+    expect(dataFor(nodes, "tool-1").stepIndex).toBe(1);
+    expect(dataFor(nodes, "tool-2").stepIndex).toBe(2);
   });
 
   it("emits one parallel group node carrying its branches; a branch location is its stepIndex + branchIndex", () => {
@@ -70,7 +66,7 @@ describe("stepsToGraph carries step identity on node data", () => {
     for (let b = 0; b < 3; b++) {
       expect(
         resolveStepLocation({ stepIndex: group.data.stepIndex as number, branchIndex: b }),
-      ).toEqual({ isSourceTransform: false, index: 1, branchIndex: b });
+      ).toEqual({ index: 1, branchIndex: b });
     }
   });
 });
@@ -88,23 +84,12 @@ describe("resolveStepLocation", () => {
     expect(resolveStepLocation({ toolName: "x" })).toBeNull();
   });
 
-  it("resolves a source-transform node by stIndex", () => {
-    expect(resolveStepLocation({ stage: "source-transform", stIndex: 2 })).toEqual({
-      isSourceTransform: true,
-      index: 2,
-    });
-  });
-
-  it("resolves a sequential main node by stepIndex", () => {
-    expect(resolveStepLocation({ stepIndex: 3 })).toEqual({
-      isSourceTransform: false,
-      index: 3,
-    });
+  it("resolves a sequential node by stepIndex", () => {
+    expect(resolveStepLocation({ stepIndex: 3 })).toEqual({ index: 3 });
   });
 
   it("resolves a parallel branch by stepIndex + branchIndex", () => {
     expect(resolveStepLocation({ stepIndex: 1, branchIndex: 2 })).toEqual({
-      isSourceTransform: false,
       index: 1,
       branchIndex: 2,
     });
@@ -160,7 +145,7 @@ describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () =
     const { nodes } = stepsToGraph(parSpec);
     // Remove the 2nd branch (branchIndex 1) of the parallel group.
     const branch = branchLocation(nodes, 1);
-    expect(branch).toEqual({ isSourceTransform: false, index: 1, branchIndex: 1 });
+    expect(branch).toEqual({ index: 1, branchIndex: 1 });
     const updated = removeStepAtLocation(parSpec, branch);
     // The parallel group keeps its other two branches; the sequential step survives.
     expect(updated.steps).toHaveLength(2);
@@ -220,32 +205,30 @@ describe("config edits to a parallel branch persist to the branch (#11)", () => 
   });
 });
 
-describe("source-transform stage resolution", () => {
-  it("edits the correct source-transform among duplicates", () => {
+describe("transformer steps resolve like any other ordered step", () => {
+  it("edits the correct transformer among duplicates", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [
+      steps: [
         { tool: "redact", config: { mode: "a" } },
         { tool: "redact", config: { mode: "b" } },
+        { tool: "ai-translate" },
       ],
-      steps: [{ tool: "ai-translate" }],
     };
     const { nodes } = stepsToGraph(spec);
     const second = resolveStepLocation(dataFor(nodes, "tool-1"))!;
-    expect(second).toEqual({ isSourceTransform: true, index: 1 });
+    expect(second).toEqual({ index: 1 });
     const updated = updateStepAtLocation(spec, second, (s) => ({ ...s, config: { mode: "c" } }));
-    expect(updated.sourceTransforms![0].config).toEqual({ mode: "a" });
-    expect(updated.sourceTransforms![1].config).toEqual({ mode: "c" });
+    expect(updated.steps[0].config).toEqual({ mode: "a" });
+    expect(updated.steps[1].config).toEqual({ mode: "c" });
   });
 
-  it("removing the only source-transform drops the array", () => {
+  it("removing a leading transformer removes just that step", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [{ tool: "redact" }],
-      steps: [{ tool: "ai-translate" }],
+      steps: [{ tool: "redact" }, { tool: "ai-translate" }],
     };
     const { nodes } = stepsToGraph(spec);
     const loc = resolveStepLocation(dataFor(nodes, "tool-0"))!;
     const updated = removeStepAtLocation(spec, loc);
-    expect(updated.sourceTransforms).toBeUndefined();
-    expect(updated.steps).toHaveLength(1);
+    expect(updated.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
   });
 });

@@ -1,35 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildRecipe, buildToolInfos, STARTER_SOURCE_TRANSFORMS } from "./FlowBuilderRunner";
+import { buildRecipe, buildToolInfos, STARTER_STEPS } from "./FlowBuilderRunner";
 import type { FlowSpec } from "@neokapi/flow-editor";
 
 // ── buildRecipe ──────────────────────────────────────────────────────────────
 
 describe("buildRecipe", () => {
-  it("emits source_transforms: before steps: when sourceTransforms are present", () => {
+  it("emits transformers as plain ordered steps (no source_transforms block)", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [{ tool: "search-replace" }],
-      steps: [{ tool: "ai-translate" }],
-    };
-    const recipe = buildRecipe(spec);
-    const stIdx = recipe.indexOf("source_transforms:");
-    const stepsIdx = recipe.indexOf("steps:");
-    expect(stIdx).toBeGreaterThan(-1);
-    expect(stepsIdx).toBeGreaterThan(stIdx);
-  });
-
-  it("does NOT emit source_transforms: when the list is empty", () => {
-    const spec: FlowSpec = {
-      sourceTransforms: [],
-      steps: [{ tool: "word-count" }],
+      steps: [{ tool: "search-replace" }, { tool: "ai-translate" }],
     };
     const recipe = buildRecipe(spec);
     expect(recipe).not.toContain("source_transforms:");
     expect(recipe).toContain("steps:");
+    // Order is preserved: the transformer precedes the translation.
+    expect(recipe.indexOf("- tool: search-replace")).toBeLessThan(
+      recipe.indexOf("- tool: ai-translate"),
+    );
   });
 
-  it("serializes search-replace pairs config into the source_transforms block", () => {
+  it("serializes search-replace pairs config into its step", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [
+      steps: [
         {
           tool: "search-replace",
           config: {
@@ -38,8 +29,8 @@ describe("buildRecipe", () => {
             target: false,
           },
         },
+        { tool: "word-count" },
       ],
-      steps: [{ tool: "word-count" }],
     };
     const recipe = buildRecipe(spec);
     // The pairs array must appear as JSON inside the YAML config block.
@@ -51,9 +42,9 @@ describe("buildRecipe", () => {
     expect(recipe).toContain("target: false");
   });
 
-  it("serializes redact rules inline into the source_transforms block", () => {
+  it("serializes redact rules inline into its step", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [
+      steps: [
         {
           tool: "redact",
           config: {
@@ -64,8 +55,8 @@ describe("buildRecipe", () => {
             ],
           },
         },
+        { tool: "ai-translate" },
       ],
-      steps: [{ tool: "ai-translate" }],
     };
     const recipe = buildRecipe(spec);
     expect(recipe).toContain("- tool: redact");
@@ -76,54 +67,54 @@ describe("buildRecipe", () => {
     expect(recipe).toContain("detectors:");
   });
 
-  it("uses the starter source transforms and produces a well-formed recipe", () => {
-    const spec: FlowSpec = {
-      sourceTransforms: STARTER_SOURCE_TRANSFORMS,
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
-    };
-    const recipe = buildRecipe(spec);
+  it("uses the starter steps and produces a well-formed recipe", () => {
+    const recipe = buildRecipe({ steps: STARTER_STEPS });
     // Structural checks.
     expect(recipe).toContain("version: v1");
     expect(recipe).toContain("flows:");
     expect(recipe).toContain("  lab:");
-    // Source-transform stage.
-    expect(recipe).toContain("    source_transforms:");
-    expect(recipe).toContain("      - tool: search-replace");
-    expect(recipe).toContain("      - tool: redact");
-    // source_transforms: appears before steps:.
-    expect(recipe.indexOf("source_transforms:")).toBeLessThan(recipe.indexOf("steps:"));
-    // Main steps.
+    expect(recipe).not.toContain("source_transforms:");
+    // All four steps, in order: the transformers run first.
     expect(recipe).toContain("    steps:");
-    expect(recipe).toContain("      - tool: ai-translate");
-    expect(recipe).toContain("      - tool: qa-check");
+    const order = ["search-replace", "redact", "ai-translate", "qa-check"].map((t) =>
+      recipe.indexOf(`- tool: ${t}`),
+    );
+    expect(order.every((idx) => idx > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });
 
 // ── buildToolInfos ───────────────────────────────────────────────────────────
 
 describe("buildToolInfos", () => {
-  it("flags search-replace as isSourceTransform", () => {
+  it("flags search-replace as a transformer (isSourceTransform)", () => {
     const infos = buildToolInfos();
     const sr = infos.find((t) => t.name === "search-replace");
     expect(sr).toBeDefined();
     expect(sr?.isSourceTransform).toBe(true);
   });
 
-  it("flags redact as isSourceTransform", () => {
+  it("flags redact as a transformer (isSourceTransform)", () => {
     const infos = buildToolInfos();
     const redact = infos.find((t) => t.name === "redact");
     expect(redact).toBeDefined();
     expect(redact?.isSourceTransform).toBe(true);
   });
 
-  it("does NOT flag ai-translate as isSourceTransform", () => {
+  it("carries redact's recoverable flag from the reference dataset", () => {
+    const infos = buildToolInfos();
+    const redact = infos.find((t) => t.name === "redact");
+    expect(redact?.recoverable).toBe(true);
+  });
+
+  it("does NOT flag ai-translate as a transformer", () => {
     const infos = buildToolInfos();
     const ait = infos.find((t) => t.name === "ai-translate");
     expect(ait).toBeDefined();
     expect(ait?.isSourceTransform).toBeFalsy();
   });
 
-  it("does NOT flag word-count as isSourceTransform", () => {
+  it("does NOT flag word-count as a transformer", () => {
     const infos = buildToolInfos();
     const wc = infos.find((t) => t.name === "word-count");
     expect(wc).toBeDefined();

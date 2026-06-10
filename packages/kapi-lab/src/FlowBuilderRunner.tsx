@@ -29,10 +29,10 @@ const BROWSER_SAFE_TOOLS = [
   "qa-check",
 ];
 
-// Tools that may run in the source-transform stage (they rewrite the source
-// or model before the main steps run). The flow editor surfaces the stage
-// toggle only for these tools.
-const SOURCE_TRANSFORM_TOOLS = new Set(["search-replace", "redact"]);
+// Transformer tools — they rewrite the source (AD-006). Transformers are
+// ordinary ordered steps; the flow editor badges them and its placement pass
+// validates their position.
+const TRANSFORMER_TOOLS = new Set(["search-replace", "redact"]);
 
 // The reference dataset encodes IO ports as "type@side" tokens (a consumed port
 // carries a trailing "?" when optional); the flow editor's ToolInfo wants typed
@@ -75,18 +75,19 @@ export function buildToolInfos(): ToolInfo[] {
       tags: entry.tags,
       requires: entry.requires,
       cardinality: entry.cardinality as ToolInfo["cardinality"],
-      isSourceTransform: SOURCE_TRANSFORM_TOOLS.has(entry.id),
+      isSourceTransform: TRANSFORMER_TOOLS.has(entry.id),
+      recoverable: entry.recoverable,
     });
   }
   // Preserve the curated order rather than the dataset's order.
   return BROWSER_SAFE_TOOLS.map((id) => byId.get(id)).filter((t): t is ToolInfo => !!t);
 }
 
-// The starter flow a learner opens with. The source-transform stage runs first:
-// search-replace normalises US→British spelling; redact hides the brand name and
-// person name. The main steps then translate and quality-check the settled source.
-// Exported for unit tests.
-export const STARTER_SOURCE_TRANSFORMS: FlowSpec["sourceTransforms"] = [
+// The starter flow a learner opens with. The transformers run first as plain
+// ordered steps: search-replace normalises US→British spelling; redact hides
+// the brand name and person name. Translation and QA then work the settled
+// source. Exported for unit tests.
+export const STARTER_STEPS: FlowSpec["steps"] = [
   {
     tool: "search-replace",
     config: { pairs: [{ search: "color", replace: "colour" }], source: true, target: false },
@@ -101,13 +102,14 @@ export const STARTER_SOURCE_TRANSFORMS: FlowSpec["sourceTransforms"] = [
       ],
     },
   },
+  { tool: "ai-translate" },
+  { tool: "qa-check" },
 ];
-const STARTER_STEPS: FlowSpec["steps"] = [{ tool: "ai-translate" }, { tool: "qa-check" }];
 
 // Serialize a FlowSpec into a minimal `.kapi` recipe with a single `lab` flow.
 // `config:` is emitted only when a step actually carries config, so a
-// freshly-added tool stays as a bare `- tool: <id>` line. The
-// `source_transforms:` block (if any) is emitted before `steps:`.
+// freshly-added tool stays as a bare `- tool: <id>` line. Transformers are
+// ordinary ordered steps — there is no separate block for them.
 // Exported for unit tests.
 export function buildRecipe(spec: FlowSpec): string {
   const lines: string[] = [
@@ -118,22 +120,6 @@ export function buildRecipe(spec: FlowSpec): string {
     "flows:",
     "  lab:",
   ];
-
-  // Emit source_transforms block when the spec has any.
-  const sourceTransforms = (spec.sourceTransforms ?? []).filter((s) => s.tool);
-  if (sourceTransforms.length > 0) {
-    lines.push("    source_transforms:");
-    for (const step of sourceTransforms) {
-      lines.push(`      - tool: ${step.tool}`);
-      const config = step.config;
-      if (config && Object.keys(config).length > 0) {
-        lines.push("        config:");
-        for (const [key, value] of Object.entries(config)) {
-          lines.push(`          ${key}: ${formatScalar(value)}`);
-        }
-      }
-    }
-  }
 
   lines.push("    steps:");
   for (const step of spec.steps) {
@@ -208,10 +194,7 @@ export default function FlowBuilderRunner({
   // The editor is controlled: `flow` is the source of truth and onChange feeds
   // the graph the learner edits (add / remove / reorder tool nodes) back in.
   const [flow, setFlow] = useState<FlowSpec>(() => {
-    const graph = stepsToGraph({
-      sourceTransforms: STARTER_SOURCE_TRANSFORMS,
-      steps: STARTER_STEPS,
-    });
+    const graph = stepsToGraph({ steps: STARTER_STEPS });
     return graphToSteps(graph.nodes);
   });
 
@@ -222,16 +205,15 @@ export default function FlowBuilderRunner({
   const runFlow = useCallback(
     async (spec: FlowSpec) => {
       if (!runtime.ready) return;
-      const sourceTransforms = (spec.sourceTransforms ?? []).filter((s) => s.tool);
       const steps = spec.steps.filter((s) => s.tool);
-      if (sourceTransforms.length === 0 && steps.length === 0) {
+      if (steps.length === 0) {
         setError("add at least one tool to the flow before running");
         setTrace(null);
         return;
       }
       setBusy(true);
       setError(null);
-      const recipe = buildRecipe({ sourceTransforms, steps });
+      const recipe = buildRecipe({ steps });
       runtime.writeFile("flow.kapi", recipe);
       const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
       const res = await runtime.trace([
@@ -257,9 +239,7 @@ export default function FlowBuilderRunner({
     [runtime.ready, runtime.writeFile, runtime.trace, file],
   );
 
-  const stepCount =
-    (flow.sourceTransforms ?? []).filter((s) => s.tool).length +
-    flow.steps.filter((s) => s.tool).length;
+  const stepCount = flow.steps.filter((s) => s.tool).length;
 
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,

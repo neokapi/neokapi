@@ -36,8 +36,10 @@ export interface ToolInfo {
   consumes?: IOPort[];
   /** Ports the tool writes. */
   produces?: IOPort[];
-  /** True when the tool may be placed in the source-transform stage of a flow. */
+  /** True when the tool is a transformer — it may rewrite the source (AD-006). */
   is_source_transform?: boolean;
+  /** A recoverable transformer (redaction) vaults originals and restores them later. */
+  recoverable?: boolean;
 }
 
 /** Tool parameter schema (matches Go schema.ComponentSchema) */
@@ -94,8 +96,6 @@ export interface FlowNodeInfo {
   type: "tool";
   name: string;
   label?: string;
-  /** Pipeline stage: "" or undefined = main chain; "source-transform" = leading rewrite stage. */
-  stage?: "" | "source-transform";
   config?: Record<string, unknown>;
   position: FlowNodePosition;
 }

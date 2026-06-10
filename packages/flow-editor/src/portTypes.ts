@@ -114,7 +114,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
     label: "Source",
     family: "content",
     icon: AlignLeft,
-    description: "The source text (rewritten by source-transform tools).",
+    description: "The source text (rewritten by transformer tools).",
   },
   target: {
     label: "Target",

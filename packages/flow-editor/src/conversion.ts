@@ -123,9 +123,8 @@ function makeToolNodeData(
  * Sequential steps produce a chain: tool1 → tool2 → tool3
  * Parallel steps produce fan-out/merge: prev → [branchA, branchB] → next
  *
- * Source-transform steps are emitted first (before the main steps) and carry
- * `stage: "source-transform"` on their node data so the UI can render them with
- * a distinct visual treatment.
+ * Transformers are ordinary ordered steps (AD-006); placement diagnostics
+ * (placement.ts) annotate a step that sits in an unsafe slot.
  */
 export function stepsToGraph(
   spec: FlowSpec,
@@ -146,30 +145,6 @@ export function stepsToGraph(
   // so the leading tools get no incoming edge.
   let prevIds: string[] = [];
 
-  // --- Source-transform stage (leading, before main steps) ---
-  (spec.sourceTransforms ?? []).forEach((step, stIndex) => {
-    // Source-transforms are always sequential (no parallel fan-out in this stage).
-    const id = `tool-${toolCounter++}`;
-
-    nodes.push({
-      id,
-      type: "tool",
-      position: pos(primary, CENTER),
-      // `stIndex` records the position of this step in `spec.sourceTransforms`
-      // so selection/edit/delete can resolve it by identity, not by tool name.
-      data: makeToolNodeData(step, toolMap, { stage: "source-transform", stIndex }),
-    });
-
-    for (const prev of prevIds) {
-      const prevNode = nodes.find((n) => n.id === prev);
-      edges.push(makeEdge(prev, id, portTypes(prevNode?.data.produces as IOPort[] | undefined)));
-    }
-
-    prevIds = [id];
-    primary += NODE_SIZE + NODE_GAP;
-  });
-
-  // --- Main stage ---
   spec.steps.forEach((step, stepIndex) => {
     if (step.parallel && step.parallel.length > 0) {
       // A parallel group is ONE composite node listing its branches inside, with
@@ -266,17 +241,8 @@ export function serpentineGraph(
   const toolNodes = base.nodes.filter(isFlowNode);
   if (toolNodes.length === 0) return base;
 
-  // Order columns: source-transform steps first (by stIndex), then main steps
-  // (by stepIndex). Parallel branches share a column.
-  const stIndices = new Set<number>();
-  for (const n of toolNodes) {
-    if (n.data.stage === "source-transform") stIndices.add(n.data.stIndex as number);
-  }
-  const numST = stIndices.size;
-  const colOrderOf = (n: Node) =>
-    n.data.stage === "source-transform"
-      ? (n.data.stIndex as number)
-      : numST + (n.data.stepIndex as number);
+  // Order columns by step index. Parallel branches share a column.
+  const colOrderOf = (n: Node) => n.data.stepIndex as number;
 
   const colMap = new Map<number, Node[]>();
   for (const n of toolNodes) {
@@ -416,9 +382,6 @@ export function centerAlignRows<T extends Node>(
  * Groups nodes at the same primary-axis position — if multiple tool nodes
  * share that position they form a parallel step; otherwise they're sequential.
  *
- * Nodes whose `data.stage` is "source-transform" are collected into
- * `spec.sourceTransforms` (in primary-axis order); the rest become `spec.steps`.
- *
  * The graph holds tool nodes only; the `source` / `sink` bindings are not nodes,
  * so the caller passes them via `bindings` to carry them through unchanged.
  */
@@ -458,11 +421,5 @@ export function graphToSteps(
     };
   };
 
-  // Source-transform stage (single tools only) vs the main stage.
-  const sourceTransforms = flowNodes.filter((n) => n.data.stage === "source-transform").map(toStep);
-  const steps = flowNodes.filter((n) => n.data.stage !== "source-transform").map(toStep);
-
-  const result: FlowSpec = { steps };
-  if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
-  return withBindings(result);
+  return withBindings({ steps: flowNodes.map(toStep) });
 }

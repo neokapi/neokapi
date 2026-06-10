@@ -10,11 +10,12 @@ import type { FlowDefinitionInfo, ToolInfo } from "../types/api";
 // FlowStore round-trips), plus the snake_case → camelCase ToolInfo mapping the
 // component performs before handing tools to the editor.
 //
+// Transformers (redact) are ordinary ordered steps — there is no stage field
+// on nodes; the editor's placement pass validates a transformer's position.
+//
 // The full component depends on live Wails bindings, so it is covered by the
 // Playwright e2e suite (e2e/flow-builder.spec.ts) rather than rendered here.
 // ---------------------------------------------------------------------------
-
-const STAGE_SOURCE_TRANSFORM = "source-transform";
 
 const tools: EditorToolInfo[] = [
   {
@@ -22,6 +23,7 @@ const tools: EditorToolInfo[] = [
     description: "Redact sensitive content",
     category: "transform",
     isSourceTransform: true,
+    recoverable: true,
   },
   {
     name: "ai-translate",
@@ -32,7 +34,7 @@ const tools: EditorToolInfo[] = [
   { name: "ai-qa", description: "QA check", category: "validate" },
 ];
 
-describe("FlowBuilder adapter — stage serialization round-trip", () => {
+describe("FlowBuilder adapter — ordered-steps round-trip", () => {
   const secureDef: FlowDefinitionInfo = {
     id: "secure-translate",
     name: "Secure Translate",
@@ -44,49 +46,37 @@ describe("FlowBuilder adapter — stage serialization round-trip", () => {
         type: "tool",
         name: "redact",
         label: "Redact",
-        stage: STAGE_SOURCE_TRANSFORM,
-        position: { x: 0, y: 100 },
+        position: { x: 250, y: 0 },
       },
       {
         id: "ai-translate",
         type: "tool",
         name: "ai-translate",
         label: "AI Translate",
-        position: { x: 250, y: 100 },
+        position: { x: 250, y: 260 },
       },
     ],
     edges: [{ id: "e2", source: "redact", target: "ai-translate" }],
   };
 
-  it("defToSpec collects the redact node into sourceTransforms", () => {
+  it("defToSpec orders the redact node into steps like any other node", () => {
     const spec = defToSpec(secureDef);
-    expect(spec.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
-    expect(spec.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
+    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
   });
 
-  it("specToDef preserves source-transform stage in the serialized def", () => {
-    const spec = defToSpec(secureDef);
-    const serialized = specToDef(
-      spec,
-      { id: "secure-translate", name: "Secure Translate", source: "user" },
-      tools,
-    );
-    const redactNode = serialized.nodes.find((n) => n.name === "redact")!;
-    expect(redactNode.stage).toBe(STAGE_SOURCE_TRANSFORM);
-  });
-
-  it("specToDef omits stage for main-chain nodes", () => {
+  it("specToDef keeps the transformer's leading position in the serialized def", () => {
     const spec = defToSpec(secureDef);
     const serialized = specToDef(
       spec,
       { id: "secure-translate", name: "Secure Translate", source: "user" },
       tools,
     );
-    const translateNode = serialized.nodes.find((n) => n.name === "ai-translate")!;
-    expect(translateNode.stage == null).toBe(true);
+    expect(serialized.nodes.map((n) => n.name)).toEqual(["redact", "ai-translate"]);
+    // The persisted chain axis is y: redact precedes ai-translate.
+    expect(serialized.nodes[0].position.y).toBeLessThan(serialized.nodes[1].position.y);
   });
 
-  it("round-trips the stage value end-to-end (def → spec → def → spec)", () => {
+  it("round-trips the step order end-to-end (def → spec → def → spec)", () => {
     const spec = defToSpec(secureDef);
     const serialized = specToDef(
       spec,
@@ -94,8 +84,7 @@ describe("FlowBuilder adapter — stage serialization round-trip", () => {
       tools,
     );
     const spec2 = defToSpec(serialized);
-    expect(spec2.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
-    expect(spec2.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
+    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
   });
 
   it("serializes a tool-only graph — no reader/writer nodes (AD-026)", () => {
@@ -118,6 +107,7 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
       description: t.description,
       category: t.category,
       isSourceTransform: t.is_source_transform,
+      recoverable: t.recoverable,
     };
   }
 
@@ -127,6 +117,7 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
       description: "Redact sensitive content",
       category: "transform",
       is_source_transform: true,
+      recoverable: true,
     },
     {
       name: "ai-translate",
@@ -151,6 +142,12 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
     const mapped = backendTools.map(toEditorTool);
     expect(mapped.find((t) => t.name === "pseudo-translate")!.isSourceTransform).toBeUndefined();
   });
+
+  it("maps recoverable through for recoverable transformers", () => {
+    const mapped = backendTools.map(toEditorTool);
+    expect(mapped.find((t) => t.name === "redact")!.recoverable).toBe(true);
+    expect(mapped.find((t) => t.name === "ai-translate")!.recoverable).toBeUndefined();
+  });
 });
 
 describe("FlowBuilder — empty / new flow", () => {
@@ -164,6 +161,5 @@ describe("FlowBuilder — empty / new flow", () => {
     };
     const spec = defToSpec(def);
     expect(spec.steps).toEqual([]);
-    expect(spec.sourceTransforms).toBeUndefined();
   });
 });

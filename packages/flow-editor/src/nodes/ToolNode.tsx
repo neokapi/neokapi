@@ -12,12 +12,12 @@ import {
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
+import type { PlacementDiagnostic } from "../placement";
 import { PortChip } from "./PortChip";
 import { getSystemEffects } from "../sideEffects";
 
-/** Accent color for the source-transform stage. */
-const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
-const SOURCE_TRANSFORM_BG = "oklch(0.68 0.16 250 / 0.10)";
+/** Accent color for transformer (rewrites-source) affordances. */
+const TRANSFORMER_COLOR = "oklch(0.68 0.16 250)";
 
 /** Status badge shown at top-right of a node (complete/error/active). */
 function NodeStatusBadge({ execState }: { execState: string }) {
@@ -143,6 +143,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   // Port types this tool requires that nothing upstream produces (set by the
   // requirement analysis in Phase 2; absent until then).
   const unmet = data.unmet as string[] | undefined;
+  // Transformer placement diagnostics for this step (AD-006 placement pass).
+  const placement = data.placement as PlacementDiagnostic[] | undefined;
+  const placementError = placement?.find((d) => d.severity === "error");
+  const placementWarning = placement?.find((d) => d.severity === "warning");
   // Handle sides come from the serpentine layout (it flips them per wrapped row);
   // fall back to a left→right flow.
   const inPosition = (data.inPosition as Position) ?? Position.Left;
@@ -157,14 +161,11 @@ export function ToolNode({ data, selected }: NodeProps) {
       : Position.Bottom;
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
-  const isSourceTransformStage = data.stage === "source-transform";
-  // Transform-capable tools can be moved into/out of the source-transform stage
-  // via the "pre" badge (wired by the editor; absent in read-only / for branches).
-  const onStageToggle = data.onStageToggle as (() => void) | undefined;
-  const canSourceTransform = !!data.isSourceTransform;
+  // Transformer (AD-006): this tool rewrites the source. Ordinary ordered step;
+  // the badge is informational and the placement pass flags an unsafe slot.
+  const isTransformer = !!data.isSourceTransform;
 
-  // Rail color: source-transform stage overrides the category color.
-  const railColor = isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.color;
+  const railColor = style.color;
 
   return (
     <div
@@ -172,24 +173,23 @@ export function ToolNode({ data, selected }: NodeProps) {
       style={{
         border: !isValid
           ? "2px solid oklch(0.7 0.15 85)"
-          : execState === "error"
+          : placementError
             ? "2px solid var(--destructive)"
-            : execState === "complete"
-              ? "2px solid oklch(0.65 0.15 145)"
-              : selected
-                ? `2px solid ${railColor}`
-                : isSourceTransformStage
-                  ? `2px solid ${SOURCE_TRANSFORM_COLOR}`
+            : execState === "error"
+              ? "2px solid var(--destructive)"
+              : execState === "complete"
+                ? "2px solid oklch(0.65 0.15 145)"
+                : selected
+                  ? `2px solid ${railColor}`
                   : "2px solid var(--border)",
         opacity: isValid ? 1 : 0.7,
-        background: isSourceTransformStage ? SOURCE_TRANSFORM_BG : undefined,
         boxShadow: selected
           ? `0 0 0 3px ${railColor}33, 0 4px 12px oklch(0 0 0 / 0.3)`
           : "0 2px 8px oklch(0 0 0 / 0.2)",
         animation: execState === "active" ? "nodePulse 1.5s ease-in-out infinite" : undefined,
       }}
     >
-      {/* Category / stage rail */}
+      {/* Category rail */}
       <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: railColor }} />
 
       <div className="flex-1 px-3 relative flex flex-col justify-center">
@@ -203,58 +203,32 @@ export function ToolNode({ data, selected }: NodeProps) {
 
         {/* Header row */}
         <div className="flex items-center gap-1 mb-0.5">
-          <Icon
-            size={11}
-            style={{ color: isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.text }}
-          />
+          <Icon size={11} style={{ color: style.text }} />
           <span
             className="text-[9px] font-bold tracking-wider uppercase"
-            style={{ color: isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.text }}
+            style={{ color: style.text }}
           >
             {style.label}
           </span>
-          {/* "pre" stage badge — active when in the source-transform stage; a
-              click target on transform-capable tools to move into/out of it. */}
-          {(isSourceTransformStage || (canSourceTransform && onStageToggle)) && (
-            <button
-              type="button"
-              disabled={!onStageToggle}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStageToggle?.();
-              }}
-              className={cn(
-                "nodrag ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold transition-opacity",
-                onStageToggle && "cursor-pointer",
-                !isSourceTransformStage && "opacity-50 hover:opacity-90",
-              )}
+          {/* Transformer badge: this tool rewrites the source (AD-006). */}
+          {isTransformer && (
+            <span
+              className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold"
               style={{
-                background: isSourceTransformStage ? SOURCE_TRANSFORM_BG : "transparent",
-                color: SOURCE_TRANSFORM_COLOR,
-                border: `1px ${isSourceTransformStage ? "solid" : "dashed"} ${SOURCE_TRANSFORM_COLOR}`,
+                color: TRANSFORMER_COLOR,
+                border: `1px solid ${TRANSFORMER_COLOR}`,
               }}
-              title={
-                isSourceTransformStage
-                  ? "Runs in the source-transform stage (settles the source before main tools). Click to move back to the main stage."
-                  : "Click to run this tool in the source-transform stage, before the main tools."
-              }
+              title="Transformer: rewrites the source. The framework applier rebases overlays across its rewrite; the placement pass validates its position."
             >
               <Layers size={7} />
-              pre
-            </button>
+              rewrites source
+            </span>
           )}
-          {isParallel && !isSourceTransformStage && (
+          {isParallel && (
             <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
           )}
-          {hasConfig && !isParallel && !isSourceTransformStage && (
+          {hasConfig && !isParallel && (
             <Settings2 size={10} className="text-muted-foreground ml-auto" />
-          )}
-          {hasConfig && isSourceTransformStage && (
-            <Settings2
-              size={10}
-              className="ml-auto"
-              style={{ color: SOURCE_TRANSFORM_COLOR, opacity: 0.7 }}
-            />
           )}
         </div>
 
@@ -329,6 +303,22 @@ export function ToolNode({ data, selected }: NodeProps) {
           >
             <AlertCircle size={9} />
             <span>needs {unmet.join(", ")}</span>
+          </div>
+        )}
+
+        {/* Placement diagnostic (AD-006): the transformer sits in an unsafe or
+            wasteful slot. Same overlay treatment as the unmet warning so the
+            node keeps its fixed height. Errors win over warnings. */}
+        {!unmet && (placementError || placementWarning) && (
+          <div
+            className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
+            style={{
+              color: placementError ? "var(--destructive)" : "oklch(0.62 0.17 45)",
+            }}
+            title={(placementError ?? placementWarning)!.message}
+          >
+            <AlertCircle size={9} />
+            <span>{placementError ? "unsafe placement" : "late placement"}</span>
           </div>
         )}
 

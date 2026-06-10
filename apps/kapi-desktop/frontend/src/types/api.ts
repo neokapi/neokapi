@@ -78,8 +78,6 @@ export interface FormatSpec {
 
 export interface FlowSpec {
   description?: string;
-  /** Leading source-transform stage: tools that settle the source before the main steps. */
-  sourceTransforms?: FlowStep[];
   steps: FlowStep[];
 }
 
@@ -122,8 +120,10 @@ export interface ToolInfo {
   /** Ports the tool writes. */
   produces?: IOPort[];
   side_effects?: string[];
-  /** Whether the tool may run in the source-transform stage (rewrite source). */
+  /** Whether the tool is a transformer — it may rewrite the source (AD-006). */
   is_source_transform?: boolean;
+  /** A recoverable transformer (redaction) vaults originals and restores them later. */
+  recoverable?: boolean;
 }
 
 export interface FormatInfo {

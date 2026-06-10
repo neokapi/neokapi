@@ -1,20 +1,17 @@
 // Node-identity-based resolution of the selected flow step.
 //
 // React Flow nodes built by `stepsToGraph` carry the step's *position* in the
-// FlowSpec on `node.data` — `stIndex` for a source-transform, or `stepIndex`
-// (+ optional `branchIndex` for a parallel branch) for a main step. Resolving
-// selection/edit/delete by these indices instead of by tool name is what makes
-// duplicate-tool nodes addressable: selecting the 2nd `ai-translate` node edits
-// the 2nd step, and deleting it removes only that step (or branch), never every
-// step that happens to use the same tool.
+// FlowSpec on `node.data` — `stepIndex` (+ optional `branchIndex` for a
+// parallel branch). Resolving selection/edit/delete by these indices instead
+// of by tool name is what makes duplicate-tool nodes addressable: selecting
+// the 2nd `ai-translate` node edits the 2nd step, and deleting it removes only
+// that step (or branch), never every step that happens to use the same tool.
 
 import type { FlowSpec, FlowStep } from "./types";
 
 /** Resolves where a selected node lives in a FlowSpec, by identity. */
 export interface StepLocation {
-  /** True when the node belongs to the source-transform stage. */
-  isSourceTransform: boolean;
-  /** Index into `spec.sourceTransforms` (when isSourceTransform) or `spec.steps`. */
+  /** Index into `spec.steps`. */
   index: number;
   /** Index into the parent step's `parallel` array, when the node is a branch. */
   branchIndex?: number;
@@ -23,8 +20,6 @@ export interface StepLocation {
 /** The relevant fields a tool node carries on `node.data` for resolution. */
 export interface NodeStepData {
   toolName?: unknown;
-  stage?: unknown;
-  stIndex?: unknown;
   stepIndex?: unknown;
   branchIndex?: unknown;
 }
@@ -43,25 +38,14 @@ function asIndex(value: unknown): number | undefined {
 export function resolveStepLocation(data: NodeStepData | null | undefined): StepLocation | null {
   if (!data) return null;
 
-  if (data.stage === "source-transform") {
-    const index = asIndex(data.stIndex);
-    if (index === undefined) return null;
-    return { isSourceTransform: true, index };
-  }
-
   const index = asIndex(data.stepIndex);
   if (index === undefined) return null;
   const branchIndex = asIndex(data.branchIndex);
-  return branchIndex === undefined
-    ? { isSourceTransform: false, index }
-    : { isSourceTransform: false, index, branchIndex };
+  return branchIndex === undefined ? { index } : { index, branchIndex };
 }
 
 /** Resolve the actual FlowStep at a location (the branch itself for parallel). */
 export function stepAtLocation(spec: FlowSpec, loc: StepLocation): FlowStep | null {
-  if (loc.isSourceTransform) {
-    return spec.sourceTransforms?.[loc.index] ?? null;
-  }
   const step = spec.steps[loc.index];
   if (!step) return null;
   if (loc.branchIndex !== undefined) {
@@ -81,14 +65,6 @@ export function updateStepAtLocation(
   loc: StepLocation,
   mutate: (step: FlowStep) => FlowStep,
 ): FlowSpec {
-  if (loc.isSourceTransform) {
-    return {
-      ...spec,
-      sourceTransforms: (spec.sourceTransforms ?? []).map((s, i) =>
-        i === loc.index ? mutate(s) : s,
-      ),
-    };
-  }
   return {
     ...spec,
     steps: spec.steps.map((s, i) => {
@@ -110,17 +86,9 @@ export function updateStepAtLocation(
  * Removing one branch of a parallel group drops only that branch (collapsing
  * the group to a plain step when a single branch remains, or removing the
  * group entirely when none do); it never drops sibling branches. Removing a
- * plain step or source-transform removes just that entry.
+ * plain step removes just that entry.
  */
 export function removeStepAtLocation(spec: FlowSpec, loc: StepLocation): FlowSpec {
-  if (loc.isSourceTransform) {
-    const sourceTransforms = (spec.sourceTransforms ?? []).filter((_, i) => i !== loc.index);
-    const next: FlowSpec = { ...spec };
-    if (sourceTransforms.length > 0) next.sourceTransforms = sourceTransforms;
-    else delete next.sourceTransforms;
-    return next;
-  }
-
   if (loc.branchIndex !== undefined) {
     const steps = spec.steps.flatMap((s, i) => {
       if (i !== loc.index || !s.parallel) return [s];

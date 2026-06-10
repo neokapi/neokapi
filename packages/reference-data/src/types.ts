@@ -76,8 +76,10 @@ export interface ReferenceEntry {
   produces?: string[];
   /** External systems the tool reads/writes (e.g. "tm-read", "api-call"). */
   sideEffects?: string[];
-  /** Whether the tool may run in a flow's source-transform stage (CapTransform). */
+  /** Whether the tool is a transformer — it may rewrite the source (CapTransform). */
   isSourceTransform?: boolean;
+  /** A recoverable transformer (redaction) vaults originals and restores them later. */
+  recoverable?: boolean;
   aliases?: string[];
 
   /** The schema consumed verbatim by the shared SchemaForm renderer. */

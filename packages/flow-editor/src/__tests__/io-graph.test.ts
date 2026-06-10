@@ -79,13 +79,15 @@ describe("computeUnmet", () => {
     expect(steps[0]).toEqual(["target@target"]);
   });
 
-  it("source-transform produces are available to the main steps", () => {
+  it("a parallel group's produces are available to the steps after it", () => {
     const spec: FlowSpec = {
-      sourceTransforms: [{ tool: "ai-translate" }],
-      steps: [{ tool: "qa-check" }],
+      steps: [
+        { tool: "", parallel: [{ tool: "ai-translate" }, { tool: "segmentation" }] },
+        { tool: "qa-check" },
+      ],
     };
-    const { sourceTransforms, steps } = computeUnmet(spec, tools);
-    expect(sourceTransforms[0]).toEqual([]);
-    expect(steps[0]).toEqual([]); // target produced by the source-transform stage
+    const { steps } = computeUnmet(spec, tools);
+    expect(steps[0]).toEqual([]);
+    expect(steps[1]).toEqual([]); // target produced inside the group upstream
   });
 });

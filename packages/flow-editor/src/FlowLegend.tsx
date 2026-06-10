@@ -1,5 +1,5 @@
 // FlowLegend — a collapsible canvas overlay explaining the port-type family
-// colors and the stage model, so the typed chips on nodes and edges are
+// colors and the transformer badge, so the typed chips on nodes and edges are
 // self-documenting.
 
 import { useState } from "react";
@@ -7,7 +7,7 @@ import { cn } from "@neokapi/ui-primitives";
 import { Info, X, Layers } from "lucide-react";
 import { PORT_FAMILIES, type PortFamily } from "./portTypes";
 
-const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
+const TRANSFORMER_COLOR = "oklch(0.68 0.16 250)";
 
 const FAMILY_ORDER: PortFamily[] = [
   "content",
@@ -74,14 +74,14 @@ export function FlowLegend() {
       <div className="border-t border-border px-2.5 py-2">
         <div
           className="flex items-center gap-1 text-[10px] font-medium"
-          style={{ color: SOURCE_TRANSFORM_COLOR }}
+          style={{ color: TRANSFORMER_COLOR }}
         >
           <Layers size={10} />
-          Source-transform stage
+          Transformers
         </div>
         <p className="mt-0.5 text-[9px] text-muted-foreground leading-tight">
-          Leading tools (e.g. redact) that rewrite the source before the main tools annotate,
-          translate, and validate it.
+          Tools (e.g. redact) that rewrite the source. They run as ordinary ordered steps; the
+          placement pass flags an unsafe position.
         </p>
       </div>
     </div>

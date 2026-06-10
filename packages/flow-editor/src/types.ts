@@ -74,8 +74,6 @@ export interface FlowNodeInfo {
   label?: string;
   config?: Record<string, unknown>;
   position: { x: number; y: number };
-  /** Which pipeline stage this node belongs to. "" or omitted = main stage. */
-  stage?: "" | "source-transform";
 }
 
 export interface FlowEdgeInfo {
@@ -102,8 +100,18 @@ export interface ToolInfo {
   /** Ports the tool writes. */
   produces?: IOPort[];
   side_effects?: string[];
-  /** Whether this tool may run in the source-transform stage (rewrite source/model). */
+  /**
+   * Whether this tool is a transformer — it may rewrite the source (AD-006).
+   * Transformers are ordinary ordered steps; the placement pass validates
+   * their position (see placement.ts).
+   */
   isSourceTransform?: boolean;
+  /**
+   * A recoverable transformer vaults the originals it removes and restores
+   * them later (redaction); the placement pass holds it to the remote-egress
+   * rule.
+   */
+  recoverable?: boolean;
 }
 
 export interface FlowStep {
@@ -116,8 +124,6 @@ export interface FlowStep {
 
 export interface FlowSpec {
   description?: string;
-  /** Leading tools that rewrite the source/model before the main steps run. */
-  sourceTransforms?: FlowStep[];
   steps: FlowStep[];
   /**
    * Where content enters the flow, as a wire-format string locator (AD-026). A

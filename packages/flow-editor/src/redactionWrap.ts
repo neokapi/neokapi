@@ -1,50 +1,36 @@
-// Guided redaction: redact and unredact are a pair. `redact` runs in the
-// source-transform stage (replacing sensitive spans with placeholders before
-// the main tools see them) and `unredact` runs last (restoring the originals
-// after processing). These helpers add/remove that wrap as one action and detect
-// an incomplete wrap (redact without a matching unredact — secrets never
-// restored).
+// Guided redaction: redact and unredact are a pair. `redact` runs first
+// (replacing sensitive spans with placeholders before later steps — and any
+// remote provider — see them) and `unredact` runs last (restoring the
+// originals after processing). These helpers add/remove that wrap as one
+// action and detect an incomplete wrap (redact without a matching unredact —
+// secrets never restored).
 
 import type { FlowSpec } from "./types";
 
 const REDACT = "redact";
 const UNREDACT = "unredact";
 
-const inStage = (spec: FlowSpec, tool: string) =>
-  (spec.sourceTransforms ?? []).some((s) => s.tool === tool) ||
-  spec.steps.some((s) => s.tool === tool);
+const hasTool = (spec: FlowSpec, tool: string) => spec.steps.some((s) => s.tool === tool);
 
-/** True when the flow has both a `redact` source-transform and a trailing `unredact`. */
+/** True when the flow has both a leading `redact` and a trailing `unredact`. */
 export function hasRedactionWrap(spec: FlowSpec): boolean {
-  return (
-    (spec.sourceTransforms ?? []).some((s) => s.tool === REDACT) &&
-    spec.steps.some((s) => s.tool === UNREDACT)
-  );
+  return hasTool(spec, REDACT) && hasTool(spec, UNREDACT);
 }
 
 /** redact is present but nothing restores it — the secrets are never put back. */
 export function redactionIncomplete(spec: FlowSpec): boolean {
-  return inStage(spec, REDACT) && !inStage(spec, UNREDACT);
+  return hasTool(spec, REDACT) && !hasTool(spec, UNREDACT);
 }
 
-/** Add the redaction wrap: `redact` first (source-transform), `unredact` last. */
+/** Add the redaction wrap: `redact` as the first step, `unredact` as the last. */
 export function wrapWithRedaction(spec: FlowSpec): FlowSpec {
-  const st = spec.sourceTransforms ?? [];
-  const sourceTransforms = st.some((s) => s.tool === REDACT) ? st : [{ tool: REDACT }, ...st];
-  const steps = spec.steps.some((s) => s.tool === UNREDACT)
-    ? spec.steps
-    : [...spec.steps, { tool: UNREDACT }];
-  return { ...spec, sourceTransforms, steps };
+  let steps = spec.steps;
+  if (!hasTool(spec, REDACT)) steps = [{ tool: REDACT }, ...steps];
+  if (!steps.some((s) => s.tool === UNREDACT)) steps = [...steps, { tool: UNREDACT }];
+  return { ...spec, steps };
 }
 
 /** Remove the redaction wrap (both redact and unredact, wherever they sit). */
 export function unwrapRedaction(spec: FlowSpec): FlowSpec {
-  const sourceTransforms = (spec.sourceTransforms ?? []).filter(
-    (s) => s.tool !== REDACT && s.tool !== UNREDACT,
-  );
-  const steps = spec.steps.filter((s) => s.tool !== REDACT && s.tool !== UNREDACT);
-  const next: FlowSpec = { ...spec, steps };
-  if (sourceTransforms.length > 0) next.sourceTransforms = sourceTransforms;
-  else delete next.sourceTransforms;
-  return next;
+  return { ...spec, steps: spec.steps.filter((s) => s.tool !== REDACT && s.tool !== UNREDACT) };
 }

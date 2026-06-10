@@ -8,9 +8,9 @@ import { FlowEditor, type FlowSpec, type ToolInfo } from "@neokapi/flow-editor";
  * <FlowEditor> — the same canonical component kapi-desktop uses — bridged from
  * the backend's node/edge flow definitions via the defToSpec/specToDef adapter.
  * These stories exercise that component directly with Bowrain-flavored data;
- * the source-transform stage treatment (palette badge, amber node styling, and
- * the "Settles the model before main tools run" toggle copy) all come from the
- * shared editor, so there is a single source of truth for the visual surface.
+ * the transformer treatment (palette badge, node badge, and the placement
+ * diagnostics for an unsafe position) all come from the shared editor, so
+ * there is a single source of truth for the visual surface.
  *
  * The full FlowBuilder additionally needs live Wails bindings (the flow list +
  * save/delete chrome), which are covered by the Playwright e2e suite.
@@ -23,6 +23,7 @@ const tools: ToolInfo[] = [
     description: "Replace sensitive spans with placeholders before translation.",
     category: "transform",
     isSourceTransform: true,
+    recoverable: true,
   },
   {
     name: "unredact",
@@ -74,8 +75,7 @@ type Story = StoryObj<typeof FlowEditor>;
 
 const secureTranslate: FlowSpec = {
   description: "Redact, AI-translate, then restore originals locally.",
-  sourceTransforms: [{ tool: "redact" }],
-  steps: [{ tool: "ai-translate" }, { tool: "unredact" }],
+  steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "unredact" }],
 };
 
 const aiTranslateQa: FlowSpec = {
@@ -84,7 +84,7 @@ const aiTranslateQa: FlowSpec = {
 };
 
 export const SecureTranslate: Story = {
-  name: "Secure Translate (source-transform stage)",
+  name: "Secure Translate (redact → translate → unredact)",
   args: { flow: secureTranslate },
 };
 

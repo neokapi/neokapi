@@ -33,8 +33,8 @@ export function FlowBuilder({ projectId }: { projectId?: string }) {
   const { saveFlowDefinition, deleteFlowDefinition } = useFlowDefinitionApi(projectId ?? "");
   const { tools } = useTools();
 
-  // Map bowrain's ToolInfo (snake_case is_source_transform) onto the editor's
-  // ToolInfo (camelCase isSourceTransform), threading the full IO metadata.
+  // Map bowrain's ToolInfo (snake_case is_source_transform / recoverable) onto
+  // the editor's ToolInfo (camelCase), threading the full IO metadata.
   const editorTools = useMemo<EditorToolInfo[]>(
     () =>
       tools.map((t) => ({
@@ -49,6 +49,7 @@ export function FlowBuilder({ projectId }: { projectId?: string }) {
         consumes: t.consumes,
         produces: t.produces,
         isSourceTransform: t.is_source_transform,
+        recoverable: t.recoverable,
       })),
     [tools],
   );

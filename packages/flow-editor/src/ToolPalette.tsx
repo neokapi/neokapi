@@ -175,10 +175,10 @@ function PaletteItem({
           {tool.isSourceTransform && (
             <span
               className="inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/40 bg-sky-500/10 px-1 py-px text-[8px] font-semibold text-sky-600 dark:text-sky-400"
-              title="Can run as a source transform — settles the model before main tools"
+              title="Transformer: rewrites the source. Place it before translation and remote-egress steps — the placement check flags an unsafe slot."
             >
               <Layers size={7} />
-              pre
+              rewrites source
             </span>
           )}
         </div>

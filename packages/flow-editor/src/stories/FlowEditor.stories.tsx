@@ -590,12 +590,14 @@ export const WithTraceData: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Source-transform stage stories
+// Transformer stories — transformers (isSourceTransform) are ordinary ordered
+// steps; the placement pass (placement.ts) flags an unsafe position inline.
 // ---------------------------------------------------------------------------
 
-// Tools that declare isSourceTransform: true — in production these come from
-// the backend as is_source_transform, mapped to camelCase in the API layer.
-const sourceTransformAwareTools: ToolInfo[] = [
+// Tools that declare isSourceTransform: true (transformer — rewrites the
+// source) — in production these come from the backend as is_source_transform /
+// recoverable, mapped to camelCase in the API layer.
+const transformerAwareTools: ToolInfo[] = [
   {
     name: "redact",
     display_name: "Redact",
@@ -610,6 +612,23 @@ const sourceTransformAwareTools: ToolInfo[] = [
     ],
     tags: ["privacy", "pre-processing"],
     isSourceTransform: true,
+    recoverable: true,
+  },
+  {
+    name: "unredact",
+    display_name: "Unredact",
+    description: "Restore the original spans after processing",
+    category: "text-processing",
+    cardinality: "monolingual",
+    consumes: [{ type: "redaction.secret", side: "source" }],
+    // unredact rewrites both sides coherently, so it produces the target port
+    // and is exempt from the transformer-after-target placement rule.
+    produces: [
+      { type: "source", side: "source" },
+      { type: "target", side: "target" },
+    ],
+    tags: ["privacy"],
+    isSourceTransform: true,
   },
   {
     name: "source-normalise",
@@ -623,82 +642,141 @@ const sourceTransformAwareTools: ToolInfo[] = [
     isSourceTransform: true,
   },
   {
-    name: "source-simplifier",
-    display_name: "Source Simplifier",
-    description: "Simplify complex source sentences to aid machine translation",
+    name: "case-transform",
+    display_name: "Case Transform",
+    description: "Rewrite source casing (upper, lower, title)",
     category: "text-processing",
-    has_schema: false,
     cardinality: "monolingual",
     produces: [{ type: "source", side: "source" }],
-    tags: ["ai-powered", "pre-processing"],
+    tags: ["text-processing"],
     isSourceTransform: true,
   },
-  // Ordinary tools that cannot be source transforms
-  ...(toolsData as ToolInfo[]).filter((t) =>
-    ["ai-translate", "qa-check", "word-count", "pseudo-translate", "tm-leverage"].includes(t.name),
-  ),
+  {
+    name: "ai-entity-extract",
+    display_name: "AI Entity Extract",
+    description: "Recognize named entities with a cloud NER model",
+    category: "analysis",
+    cardinality: "monolingual",
+    produces: [{ type: "entity", side: "source" }],
+    side_effects: ["remote-source-egress"],
+    tags: ["ai-powered"],
+  },
+  // Ordinary tools from the shared fixture, with the remote-egress effect on
+  // ai-translate so the placement stories exercise the egress rule.
+  ...(toolsData as ToolInfo[])
+    .filter((t) =>
+      ["ai-translate", "qa-check", "word-count", "pseudo-translate", "tm-leverage"].includes(
+        t.name,
+      ),
+    )
+    .map((t) => (t.name === "ai-translate" ? { ...t, side_effects: ["remote-source-egress"] } : t)),
 ];
 
 /**
- * A flow with a leading source-transform stage: redact → ai-translate → qa-check.
- * The redact node renders with the blue "pre" badge and tinted border/rail.
+ * Secure translate as ordered steps: redact → ai-translate → unredact. redact
+ * runs before the remote provider sees the source; unredact restores the
+ * originals last. No placement diagnostics fire — this is the safe ordering.
  */
-export const WithSourceTransformStage: Story = {
-  name: "Source-Transform Stage (redact → translate → qa)",
+export const SecureTranslate: Story = {
+  name: "Transformers (redact → translate → unredact)",
   args: {
     flow: {
-      sourceTransforms: [{ tool: "redact", config: { mode: "placeholder" } }],
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [
+        { tool: "redact", config: { mode: "placeholder" } },
+        { tool: "ai-translate" },
+        { tool: "unredact" },
+      ],
     },
-    tools: sourceTransformAwareTools,
+    tools: transformerAwareTools,
     onGetSchema: getSchema,
     onGetDoc: getDoc,
   },
 };
 
 /**
- * Two source-transform tools in the leading stage.
+ * Two leading transformers as plain ordered steps: normalise, then redact,
+ * before translation and QA.
  */
-export const MultipleSourceTransforms: Story = {
-  name: "Source-Transform Stage (normalise + redact → translate)",
+export const LeadingTransformers: Story = {
+  name: "Transformers (normalise → redact → translate)",
   args: {
     flow: {
-      sourceTransforms: [{ tool: "source-normalise" }, { tool: "redact" }],
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
+      steps: [
+        { tool: "source-normalise" },
+        { tool: "redact" },
+        { tool: "ai-translate" },
+        { tool: "qa-check" },
+        { tool: "word-count" },
+      ],
     },
-    tools: sourceTransformAwareTools,
+    tools: transformerAwareTools,
   },
 };
 
 /**
- * Palette showing source-transform-capable tools with their "pre" badge.
- * Click any tool to open the config panel — the "Source transform" toggle
- * is enabled for redact/normalise/simplifier and disabled for translate/qa.
+ * Deliberately misplaced transformers, so the inline placement diagnostics
+ * (AD-006) render:
+ *
+ *  - redact sits AFTER the remote NER without entity-driven config →
+ *    "unsafe placement" (transformer-after-remote-egress): the source leaks
+ *    to the cloud before redaction applies.
+ *  - case-transform sits AFTER ai-translate, which produces targets →
+ *    "unsafe placement" (transformer-after-target): rewriting the source
+ *    orphans the targets anchored to it.
+ *
+ * Click a flagged node to see the placement boxes in the config panel.
  */
-export const SourceTransformPaletteBadges: Story = {
-  name: "Source-Transform Palette Badges",
+export const PlacementDiagnostics: Story = {
+  name: "Placement Diagnostics (misplaced transformers)",
   args: {
     flow: {
-      sourceTransforms: [{ tool: "redact" }],
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [
+        { tool: "ai-entity-extract" },
+        { tool: "redact" },
+        { tool: "ai-translate" },
+        { tool: "case-transform" },
+      ],
     },
-    tools: sourceTransformAwareTools,
+    tools: transformerAwareTools,
     onGetSchema: getSchema,
     onGetDoc: getDoc,
   },
 };
 
 /**
- * Read-only view of a flow with source transforms — no palette, no config panel.
+ * The same NER → redact ordering, made safe by configuration: redact's
+ * detectors include "entities", so the upstream NER produces a port the
+ * transformer's contract requires (the AD-020 detection trade-off) — no
+ * placement error.
  */
-export const SourceTransformReadOnly: Story = {
-  name: "Source-Transform Stage (read-only)",
+export const EntityDrivenRedaction: Story = {
+  name: "Placement Exemption (entity-driven redaction)",
   args: {
     flow: {
-      sourceTransforms: [{ tool: "redact" }],
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [
+        { tool: "ai-entity-extract" },
+        { tool: "redact", config: { detectors: ["entities"] } },
+        { tool: "ai-translate" },
+        { tool: "unredact" },
+      ],
     },
-    tools: sourceTransformAwareTools,
+    tools: transformerAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+  },
+};
+
+/**
+ * Read-only view of a flow with leading transformers — no palette, no config
+ * panel.
+ */
+export const TransformersReadOnly: Story = {
+  name: "Transformers (read-only)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools: transformerAwareTools,
     readOnly: true,
     onRun: undefined,
   },

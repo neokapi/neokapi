@@ -6,7 +6,7 @@
 // contains tool nodes only — reader/writer are no longer nodes. Where content
 // enters and leaves is a binding (`def.binding.source` / `def.binding.sink`),
 // carried alongside the graph, not as nodes. FlowEditor works in FlowSpec
-// (steps + sourceTransforms + source/sink). These two functions bridge the gap
+// (steps + source/sink). These two functions bridge the gap
 // by reusing the canonical graph<->steps conversion (stepsToGraph /
 // graphToSteps), so the editor sees exactly the same model that kapi-desktop
 // renders — there is only one conversion implementation.
@@ -86,11 +86,11 @@ export function formatBinding(binding: FlowBinding | undefined | null): string |
 /**
  * Convert a node/edge FlowDefinitionInfo into a steps-based FlowSpec.
  *
- * The persisted graph is tool nodes only (a flow owns no I/O). Source-transform
- * nodes (by `stage`) become `spec.sourceTransforms`; the rest become `steps`,
- * with sibling nodes sharing a primary-axis position reconstructed into a
- * `parallel` step. The definition's I/O binding is carried onto `source`/`sink`.
- * The persisted graph's chain axis is y.
+ * The persisted graph is tool nodes only (a flow owns no I/O); transformers
+ * are ordinary ordered steps (AD-006). Sibling nodes sharing a primary-axis
+ * position are reconstructed into a `parallel` step. The definition's I/O
+ * binding is carried onto `source`/`sink`. The persisted graph's chain axis
+ * is y.
  */
 export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
   const primary = (n: FlowNodeInfo) => n.position?.y ?? 0;
@@ -102,20 +102,15 @@ export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
   });
 
   const all = [...(def.nodes ?? [])].sort((a, b) => primary(a) - primary(b));
-  const sourceTransforms = all.filter((n) => n.stage === "source-transform").map(toStep);
-  const main = all.filter((n) => n.stage !== "source-transform");
 
-  // Group main nodes sharing a primary-axis position into a parallel step.
+  // Group nodes sharing a primary-axis position into a parallel step.
   const steps: FlowStep[] = [];
   let i = 0;
-  while (i < main.length) {
-    const group = [main[i]];
+  while (i < all.length) {
+    const group = [all[i]];
     let j = i + 1;
-    while (
-      j < main.length &&
-      Math.abs(primary(main[j]) - primary(main[i])) < PERSIST_NODE_SIZE / 2
-    ) {
-      group.push(main[j]);
+    while (j < all.length && Math.abs(primary(all[j]) - primary(all[i])) < PERSIST_NODE_SIZE / 2) {
+      group.push(all[j]);
       j++;
     }
     steps.push(group.length === 1 ? toStep(group[0]) : { tool: "", parallel: group.map(toStep) });
@@ -123,7 +118,6 @@ export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
   }
 
   const spec: FlowSpec = { steps };
-  if (sourceTransforms.length > 0) spec.sourceTransforms = sourceTransforms;
   if (def.binding?.source) spec.source = def.binding.source;
   if (def.binding?.sink) spec.sink = def.binding.sink;
   if (def.description) spec.description = def.description;
@@ -134,11 +128,11 @@ export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
  * Convert a steps-based FlowSpec back into a node/edge FlowDefinitionInfo,
  * carrying over identity fields (id, name, source) from `base`.
  *
- * Emits the legacy tool-node persistence graph: source-transforms first (by
- * `stage`), then main steps along the primary axis, with a parallel step
- * expanded into sibling nodes sharing a primary-axis position plus fan-out /
- * merge edges. This is independent of the composite parallel node the editor
- * *renders* — the editor re-lays-out from the spec, never from these positions.
+ * Emits the legacy tool-node persistence graph: steps along the primary axis,
+ * with a parallel step expanded into sibling nodes sharing a primary-axis
+ * position plus fan-out / merge edges. This is independent of the composite
+ * parallel node the editor *renders* — the editor re-lays-out from the spec,
+ * never from these positions.
  */
 export function specToDef(
   spec: FlowSpec,
@@ -153,14 +147,13 @@ export function specToDef(
   let primary = 0;
   let prevIds: string[] = [];
 
-  const emit = (step: FlowStep, stage: "source-transform" | undefined, cross: number): string => {
+  const emit = (step: FlowStep, cross: number): string => {
     const id = `tool-${counter++}`;
     nodeInfos.push({
       id,
       type: "tool",
       name: step.tool,
       ...(step.label ? { label: step.label } : {}),
-      ...(stage ? { stage } : {}),
       ...(step.config && Object.keys(step.config).length > 0 ? { config: step.config } : {}),
       position: pos(primary, cross),
     });
@@ -168,22 +161,17 @@ export function specToDef(
     return id;
   };
 
-  for (const st of spec.sourceTransforms ?? []) {
-    prevIds = [emit(st, "source-transform", PERSIST_CROSS)];
-    primary += PERSIST_NODE_SIZE + PERSIST_NODE_GAP;
-  }
-
   for (const step of spec.steps) {
     if (step.parallel && step.parallel.length > 0) {
       const n = step.parallel.length;
       const total = (n - 1) * (PERSIST_NODE_SIZE + PERSIST_BRANCH_GAP);
       const start = PERSIST_CROSS - total / 2;
       const ids = step.parallel.map((b, k) =>
-        emit(b, undefined, start + k * (PERSIST_NODE_SIZE + PERSIST_BRANCH_GAP)),
+        emit(b, start + k * (PERSIST_NODE_SIZE + PERSIST_BRANCH_GAP)),
       );
       prevIds = ids;
     } else {
-      prevIds = [emit(step, undefined, PERSIST_CROSS)];
+      prevIds = [emit(step, PERSIST_CROSS)];
     }
     primary += PERSIST_NODE_SIZE + PERSIST_NODE_GAP;
   }
