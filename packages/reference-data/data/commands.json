@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T02:45:23Z",
+  "generatedAt": "2026-06-10T06:43:36Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -44,6 +44,12 @@
           "shorthand": "e",
           "usage": "input file encoding",
           "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both) (llm, ner, hybrid)",
+          "default": "llm",
           "type": "string"
         },
         {

@@ -144,7 +144,24 @@ defaults:
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
+  tools:
+    redact:
+      detectors: [rules]
+      rules:
+        - term: Acme Corp
+          category: org
 ```
+
+`defaults.tools` holds project-level **tool presets**: per-tool config defaults
+applied wherever that tool runs in a project flow. A flow step's own config
+overrides the preset per key (the step wins), so a project pins, say, its
+redaction rules or a pseudo-translation prefix once while an individual flow
+refines them. Resolution happens at tool construction, and the data-flow and
+placement gates ([AD-006](006-tool-system.md)) validate against the same
+merged config the runtime uses — a preset that enables redact's entity
+detection makes the upstream `entity` port required exactly as an inline
+config would. The flow editor badges preset-backed steps and shows the
+inherited values with override indicators in the step's config panel.
 
 Required fields: `version: v1` (must equal the current schema version) and, for
 each content item, a non-empty `path`. Every flow contains at least one step

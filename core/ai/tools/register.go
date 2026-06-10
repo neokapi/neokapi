@@ -53,10 +53,42 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// local provider (Ollama, the offline demo) keeps content on the machine.
 	for _, name := range []registry.ToolID{
 		"ai-translate", "ai-qa", "ai-review", "brand-voice-check",
-		"ai-terminology", "ai-entity-extract",
+		"ai-terminology",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)
 	}
+	// ai-entity-extract additionally supports `engine: ner` — extraction on a
+	// local on-device model with no LLM at all.
+	reg.SetContractResolver("ai-entity-extract", ResolveEntityExtractContract)
+}
+
+// ResolveEntityExtractContract refines ai-entity-extract's contract from its
+// config: with `engine: ner` the tool calls no provider at all — extraction
+// runs on the local on-device NER model — so it carries no API call, no
+// remote source egress, and needs no credentials. Any other engine resolves
+// like the rest of the AI tools (local providers drop the egress effect).
+func ResolveEntityExtractContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
+	engine, _ := config["engine"].(string)
+	if engine != EngineNER {
+		return ResolveAIEgressContract(config, base)
+	}
+	effects := make([]schema.SideEffect, 0, len(base.SideEffects))
+	for _, e := range base.SideEffects {
+		if e == schema.SideEffectRemoteSourceEgress || e == schema.SideEffectAPICall {
+			continue
+		}
+		effects = append(effects, e)
+	}
+	base.SideEffects = effects
+	requires := make([]string, 0, len(base.Requires))
+	for _, r := range base.Requires {
+		if r == schema.RequiresCredentials {
+			continue
+		}
+		requires = append(requires, r)
+	}
+	base.Requires = requires
+	return base
 }
 
 // ResolveAIEgressContract refines an AI tool's side effects from its node

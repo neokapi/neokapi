@@ -113,6 +113,16 @@ type Defaults struct {
 	// directory). Empty means no bound termbase.
 	Termbase string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
 
+	// Tools holds project-level tool presets: per-tool config defaults applied
+	// wherever the tool runs in a project flow. A flow step's own config
+	// overrides the preset per key (step wins), so a project can pin, say,
+	// redaction rules or a pseudo-translate prefix once while an individual
+	// flow refines them. Resolution happens at tool construction and feeds the
+	// same merged config to data-flow and placement validation, so a preset
+	// that enables redact's entity detection makes the entity port required
+	// exactly as an inline config would.
+	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
+
 	// Extras captures unknown keys under `defaults:`. Platform layers decode
 	// their own defaults from this map.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`

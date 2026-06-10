@@ -23,6 +23,10 @@ const LazyFlowBuilderRunner = React.lazy(async () => {
 export interface FlowBuilderRunnerProps {
   defaultSampleId?: string;
   sampleIds?: string[];
+  /** Scenario preselected in the workspace picker. */
+  defaultScenarioId?: string;
+  /** Restrict the scenario picker (default: all). */
+  scenarioIds?: string[];
 }
 
 export function FlowBuilderRunner(props: FlowBuilderRunnerProps): React.ReactElement {

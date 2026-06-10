@@ -285,14 +285,15 @@ export const FullPipeline: Story = {
 };
 
 /**
- * Flowing dots on a wrapped, multi-row pipeline. A trace is present, so DotEdge
- * streams dots along every edge. Each edge animates over the same duration, so a
- * hop to the next row (a long wrap edge) is covered as fast as a short in-row
- * hop — the cadence node-to-node is equal, only the dot's speed differs. Shown
- * in a deliberately narrow frame so the five steps wrap across rows.
+ * Run metadata on a wrapped, multi-row pipeline: the run review is literal —
+ * node badges carry parts + wall window, each crossed edge a count chip, and a
+ * dot appears on an edge only when a part is actually mid-hop at the cursor
+ * (scrub back one event to park a part on an edge; press Play to watch the
+ * dots advance with the events; paused is a frozen frame). Shown in a
+ * deliberately narrow frame so the five steps wrap across rows.
  */
-export const FlowingDotsMultiRow: Story = {
-  name: "Flowing Dots (multi-row)",
+export const RunMetadataMultiRow: Story = {
+  name: "Run Metadata (multi-row)",
   decorators: [
     (Story) => (
       <div style={{ width: 760, height: 660 }}>
@@ -313,8 +314,7 @@ export const FlowingDotsMultiRow: Story = {
     tools,
     readOnly: true,
     onRun: undefined,
-    // Minimal completed trace — its presence turns on the flowing-dot animation
-    // (DotEdge data.flowing). One enter/exit per node keeps the overlay simple.
+    // A completed single-part run; the transport replays it on the nodes.
     traceEvents: [
       { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
       { ts: 100, type: "exit", nodeId: "tool-0", partId: "p1" },
@@ -779,5 +779,140 @@ export const TransformersReadOnly: Story = {
     tools: transformerAwareTools,
     readOnly: true,
     onRun: undefined,
+  },
+};
+
+/**
+ * Run review: the designed flow IS the run flow. A completed trace of this
+ * exact flow is loaded, so the transport at the bottom replays the events on
+ * the same nodes (active highlight, part counts) and selecting a node opens
+ * its run inspector — the blocks that passed through, with the
+ * overlay/annotation delta the step produced (entity consumed, secret
+ * vaulted, target written).
+ */
+export const RunReview: Story = {
+  name: "Run Review (trace on the designed flow)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact", config: { detectors: ["entities"] } }, { tool: "ai-translate" }],
+    },
+    tools: transformerAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+    trace: {
+      name: "lab",
+      nodes: [
+        { id: "reader", type: "reader", name: "read" },
+        { id: "tool-1", type: "tool", name: "redact" },
+        { id: "tool-2", type: "tool", name: "ai-translate" },
+        { id: "writer", type: "writer", name: "write" },
+      ],
+      events: [
+        { ts: 120, type: "enter", nodeId: "tool-1", partId: "b1" },
+        { ts: 480, type: "exit", nodeId: "tool-1", partId: "b1" },
+        { ts: 510, type: "enter", nodeId: "tool-2", partId: "b1" },
+        { ts: 2200, type: "exit", nodeId: "tool-2", partId: "b1" },
+        { ts: 2300, type: "enter", nodeId: "tool-1", partId: "b2" },
+        { ts: 2350, type: "exit", nodeId: "tool-1", partId: "b2" },
+        { ts: 2400, type: "enter", nodeId: "tool-2", partId: "b2" },
+        { ts: 3100, type: "exit", nodeId: "tool-2", partId: "b2" },
+      ],
+      parts: {
+        b1: {
+          initial: {
+            id: "b1",
+            type: "Block",
+            summary: "Contact Jane Doe at Acme Corp",
+            sourceText: "Contact Jane Doe at Acme Corp",
+            detail: {
+              overlays: [
+                {
+                  type: "entity",
+                  side: "source",
+                  spans: [
+                    { start: 8, end: 16, text: "Jane Doe", note: "entity:person" },
+                    { start: 20, end: 29, text: "Acme Corp", note: "entity:organization" },
+                  ],
+                },
+              ],
+            },
+          },
+          afterNode: {
+            "tool-1": {
+              id: "b1",
+              type: "Block",
+              summary: "Contact Jane Doe at Acme Corp",
+              sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+              detail: {
+                annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
+              },
+            },
+            "tool-2": {
+              id: "b1",
+              type: "Block",
+              summary: "Contact Jane Doe at Acme Corp",
+              sourceText: "Contact [REDACTED:Person] at [REDACTED:Org]",
+              targetText: "Contactez [REDACTED:Person] chez [REDACTED:Org]",
+              detail: {
+                annotations: [{ key: "redaction.secret", summary: "2 vaulted originals" }],
+              },
+            },
+          },
+        },
+        b2: {
+          initial: {
+            id: "b2",
+            type: "Block",
+            summary: "Thanks for reaching out!",
+            sourceText: "Thanks for reaching out!",
+          },
+          afterNode: {
+            "tool-1": {
+              id: "b2",
+              type: "Block",
+              summary: "Thanks for reaching out!",
+              sourceText: "Thanks for reaching out!",
+            },
+            "tool-2": {
+              id: "b2",
+              type: "Block",
+              summary: "Thanks for reaching out!",
+              sourceText: "Thanks for reaching out!",
+              targetText: "Merci de nous avoir contactés !",
+            },
+          },
+        },
+      },
+      durationUs: 3200,
+    },
+  },
+};
+
+/**
+ * Project presets: the recipe's defaults.tools supplies per-tool config the
+ * engine merges under each step (the step wins per key). Preset-backed nodes
+ * carry a "preset" chip and the config panel lists the inherited values with
+ * override indicators.
+ */
+export const ProjectPresets: Story = {
+  name: "Project Presets (defaults.tools)",
+  args: {
+    flow: {
+      steps: [
+        { tool: "redact", config: { placeholder: "[HIDDEN:{category}]" } },
+        { tool: "ai-translate" },
+      ],
+    },
+    tools: transformerAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+    projectPresets: {
+      redact: {
+        detectors: ["rules"],
+        placeholder: "[REDACTED:{category}]",
+        rules: [{ term: "Acme Corp", category: "org" }],
+      },
+      "ai-translate": { provider: "ollama" },
+    },
   },
 };

@@ -8,6 +8,8 @@ import (
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -377,4 +379,58 @@ func TestAIEntityExtractTool_BatchMode(t *testing.T) {
 	// Block 2: term candidate.
 	b2 := parts[1].Resource.(*model.Block)
 	assert.NotNil(t, b2.OverlaySpan(model.OverlayTermCandidate, "term-candidate:0"))
+}
+
+// TestAIEntityExtract_NEREngine exercises `engine: ner`: extraction runs on
+// the registered local NER provider only — no LLM is constructed or called —
+// and the contract drops credentials, the API call, and remote egress.
+func TestAIEntityExtract_NEREngine(t *testing.T) {
+	t.Run("uses the local provider with no LLM", func(t *testing.T) {
+		ner.SetLocalProvider(&mockNERProvider{
+			entities: map[string][]ner.DetectedEntity{
+				"Meet": {{
+					Text: "Jane Doe", Type: model.EntityType(model.EntityPrefix + "person"),
+					Confidence: 0.9, Offset: 5, Length: 8,
+				}},
+			},
+		})
+		defer ner.SetLocalProvider(nil)
+
+		tl, err := tools.NewAIEntityExtractFromConfig(map[string]any{"engine": "ner"}, "")
+		require.NoError(t, err)
+
+		block := model.NewBlock("b1", "Meet Jane Doe")
+		block.Translatable = true
+		part := &model.Part{Type: model.PartBlock, Resource: block}
+		_, err = tl.(*tools.AIEntityExtractTool).Apply(part)
+		require.NoError(t, err)
+
+		spans := block.OverlayOf(model.OverlayEntity)
+		require.NotNil(t, spans, "entity overlay attached from the local model")
+		require.Len(t, spans.Spans, 1)
+		ea, ok := spans.Spans[0].Value.(*model.EntityAnnotation)
+		require.True(t, ok)
+		assert.Equal(t, "Jane Doe", ea.Text)
+	})
+
+	t.Run("errors actionably without a local provider", func(t *testing.T) {
+		ner.SetLocalProvider(nil)
+		_, err := tools.NewAIEntityExtractFromConfig(map[string]any{"engine": "ner"}, "")
+		require.ErrorContains(t, err, "local NER model")
+	})
+
+	t.Run("contract drops credentials, api-call and remote egress", func(t *testing.T) {
+		base := registry.ToolInfo{
+			Name:        "ai-entity-extract",
+			Requires:    []string{schema.RequiresCredentials},
+			SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
+		}
+		resolved := tools.ResolveEntityExtractContract(map[string]any{"engine": "ner"}, base)
+		assert.Empty(t, resolved.Requires)
+		assert.Empty(t, resolved.SideEffects)
+		// Other engines keep the static contract (cloud default).
+		llm := tools.ResolveEntityExtractContract(map[string]any{}, base)
+		assert.Equal(t, base.Requires, llm.Requires)
+		assert.Equal(t, base.SideEffects, llm.SideEffects)
+	})
 }

@@ -1139,6 +1139,11 @@ type projectBindings struct {
 	// glossary is the source→target glossary built from the project termbase
 	// (defaults.termbase), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
+	// toolPresets holds the project-level tool presets (defaults.tools):
+	// per-tool config defaults merged under each step's own config wherever
+	// that tool runs in a project flow (the step wins per key). nil when the
+	// recipe declares none.
+	toolPresets map[string]map[string]any
 }
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
@@ -1175,10 +1180,10 @@ func (a *App) resolveProjectBindings(cmd *cobra.Command, proj *project.KapiProje
 		return nil, err
 	}
 
-	if profile == nil && len(glossary) == 0 {
+	if profile == nil && len(glossary) == 0 && len(proj.Defaults.Tools) == 0 {
 		return nil, nil
 	}
-	return &projectBindings{profile: profile, glossary: glossary}, nil
+	return &projectBindings{profile: profile, glossary: glossary, toolPresets: proj.Defaults.Tools}, nil
 }
 
 // toolRequires reports whether the tool schema declares the named requirement.
@@ -1347,8 +1352,15 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 		return fmt.Errorf("flow %q uses the removed source_transforms stage (AD-006): list transformers as ordered steps", flowName)
 	}
 	// Transformer placement gate (AD-006) over the compiled steps graph —
-	// unconditional at load, like the built-in flow path.
+	// unconditional at load, like the built-in flow path. The gate sees each
+	// node's preset-merged config (defaults.tools), so a preset that enables
+	// entity detection drives the same contract resolution the runtime uses.
 	if nodes, edges, err := flow.StepsToGraph(spec); err == nil {
+		if b := a.projectBindings; b != nil && len(b.toolPresets) > 0 {
+			for i := range nodes {
+				nodes[i].Config = mergeToolPreset(b.toolPresets[nodes[i].Name], nodes[i].Config)
+			}
+		}
 		def := &flow.FlowDefinition{ID: flowName, Name: flowName, Nodes: nodes, Edges: edges}
 		if err := a.checkFlowPlacement(def); err != nil {
 			return err
@@ -1412,15 +1424,19 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 	return t, nil
 }
 
-// applyProjectBindings injects the project's standing brand-voice and
-// glossary context into a step's config when the tool can honor them and the
-// step did not set them explicitly. Returns the (possibly cloned) config so
-// the recipe's in-memory step config is never mutated.
+// applyProjectBindings injects the project's standing context into a step's
+// config: the tool's project preset (defaults.tools, applied under the step's
+// own keys — the step wins), then the brand-voice and glossary bindings when
+// the tool can honor them and the step did not set them explicitly. Returns
+// the (possibly cloned) config so the recipe's in-memory step config is never
+// mutated.
 func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
 	b := a.projectBindings
 	if b == nil {
 		return config
 	}
+
+	config = mergeToolPreset(b.toolPresets[toolName], config)
 
 	clone := func() {
 		next := make(map[string]any, len(config)+1)
@@ -1447,6 +1463,24 @@ func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, c
 	}
 
 	return config
+}
+
+// mergeToolPreset overlays a step's config onto its project-level tool preset
+// (defaults.tools): the preset supplies defaults, the step's own keys win.
+// Returns config unchanged when there is no preset, and never mutates either
+// input map.
+func mergeToolPreset(preset, config map[string]any) map[string]any {
+	if len(preset) == 0 {
+		return config
+	}
+	merged := make(map[string]any, len(preset)+len(config))
+	for k, v := range preset {
+		merged[k] = v
+	}
+	for k, v := range config {
+		merged[k] = v
+	}
+	return merged
 }
 
 // isTranslateTool reports whether a step's tool is the AI translate tool,

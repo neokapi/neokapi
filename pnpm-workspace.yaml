@@ -58,7 +58,9 @@ allowBuilds:
   core-js: true
   esbuild: true
   msw: true
+  onnxruntime-node: false
   protobufjs: true
+  sharp: false
 
 patchedDependencies:
   icu@2.2.1: patches/icu@2.2.1.patch

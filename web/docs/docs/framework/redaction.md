@@ -56,6 +56,14 @@ Redaction finds sensitive spans with one or both detectors:
   [translation-memory](/framework/translation-memory) reuse, so entities
   annotated once serve both.
 
+  The `ai-entity-extract` step selects the detector with `engine`: `llm` (the
+  configured AI provider; the default), `ner` (an on-device model — no provider
+  call, no credentials, nothing leaves the machine), or `hybrid` (both, merged).
+  With `engine: ner` the step carries no remote-egress side effect, so the
+  placement pass accepts it ahead of `redact` without qualification. The
+  browser [Lab](/lab) runs this end to end with a GLiNER ONNX model loaded
+  in the page.
+
 Each match is assigned a category. The recommended categories are `person`,
 `role`, `product`, `org`, `location`, and `custom`, but categories are
 free-form — use whatever the placeholder template should display.

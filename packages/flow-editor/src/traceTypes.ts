@@ -8,12 +8,47 @@ export interface TraceEvent {
   meta?: Record<string, unknown>;
 }
 
+/** One overlay span projected to rune offsets in the side's flattened text. */
+export interface SpanSnapshot {
+  start: number;
+  end: number;
+  /** The covered text (clipped). */
+  text?: string;
+  /** Compact payload summary — entity type, term concept, QA message, … */
+  note?: string;
+}
+
+/** One stand-off overlay (AD-002) summarized at snapshot time. */
+export interface OverlaySnapshot {
+  type: string; // "segmentation", "term", "entity", "qa", …
+  side: string; // "source" or a target variant key
+  layer?: string;
+  spans?: SpanSnapshot[];
+}
+
+/** One block-scoped annotation (key + compact summary). */
+export interface AnnotationSnapshot {
+  key: string;
+  summary?: string;
+}
+
+/** Full block detail at a point in time (run-native; overlays + annotations). */
+export interface PartDetail {
+  name?: string;
+  translatable?: boolean;
+  properties?: Record<string, string>;
+  hasSkeleton?: boolean;
+  overlays?: OverlaySnapshot[];
+  annotations?: AnnotationSnapshot[];
+}
+
 export interface PartSnapshot {
   id: string;
   type: string; // "Block", "Data", "Media", etc.
   summary: string;
   sourceText?: string;
   targetText?: string;
+  detail?: PartDetail;
 }
 
 export interface PartSnapshotSet {

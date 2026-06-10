@@ -265,10 +265,17 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
 
-	// Run preprocessor if set (e.g. credential resolution).
+	// Run preprocessor if set (e.g. credential resolution). The requirements
+	// are config-resolved: a tool whose contract drops a requirement under a
+	// given config (ai-entity-extract with engine "ner" needs no credentials)
+	// must not have the preprocessor demand it anyway.
 	if r.preprocessor != nil && reg.ConfigFactory != nil {
+		requires := reg.Info.Requires
+		if reg.ContractResolver != nil {
+			requires = reg.ContractResolver(config, reg.Info).Requires
+		}
 		var err error
-		config, err = r.preprocessor(string(name), reg.Info.Requires, config)
+		config, err = r.preprocessor(string(name), requires, config)
 		if err != nil {
 			return nil, fmt.Errorf("tool %s config: %w", name, err)
 		}

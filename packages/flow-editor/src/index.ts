@@ -29,12 +29,30 @@ export { TraceTimeline } from "./TraceTimeline";
 export { PreviewPanel } from "./PreviewPanel";
 export type { PreviewResult } from "./PreviewPanel";
 export { PartInspector } from "./PartInspector";
+export { TracePanel } from "./TracePanel";
+export { RunInspectorPanel } from "./RunInspectorPanel";
+export {
+  remapEventsToEditor,
+  traceNodeToEditorNode,
+  activeEditorNodes,
+  partsThroughStep,
+  snapshotDelta,
+  stepToolCounts,
+  nodeSpans,
+  edgeTransits,
+  formatUs,
+} from "./traceSelectors";
+export type { PartTransition, SnapshotDelta } from "./traceSelectors";
 export { computeNodeStats } from "./traceTypes";
 export type {
   TraceEvent,
   FlowTrace,
   PartSnapshot,
   PartSnapshotSet,
+  PartDetail,
+  OverlaySnapshot,
+  SpanSnapshot,
+  AnnotationSnapshot,
   NodeTraceStats,
   TraceNode,
 } from "./traceTypes";

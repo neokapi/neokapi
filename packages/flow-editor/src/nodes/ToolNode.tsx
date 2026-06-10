@@ -13,6 +13,7 @@ import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
 import type { PlacementDiagnostic } from "../placement";
+import { formatUs } from "../traceSelectors";
 import { PortChip } from "./PortChip";
 import { getSystemEffects } from "../sideEffects";
 
@@ -131,6 +132,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const isParallel = !!data.parallel;
   const execState = data.execState as string | undefined;
   const partCount = data.partCount as number | undefined;
+  const spanUs = data.spanUs as number | undefined;
   const consumes = data.consumes as IOPort[] | undefined;
   const produces = data.produces as IOPort[] | undefined;
   const cardinality = data.cardinality as string | undefined;
@@ -222,6 +224,20 @@ export function ToolNode({ data, selected }: NodeProps) {
             >
               <Layers size={7} />
               rewrites source
+            </span>
+          )}
+          {/* Project preset chip: this tool inherits defaults.tools config. */}
+          {!!data.hasPreset && (
+            <span
+              className="ml-1 rounded px-1 py-px text-[8px] font-semibold"
+              style={{
+                color: "oklch(0.55 0.12 290)",
+                border: "1px solid oklch(0.55 0.12 290 / 0.55)",
+                background: "oklch(0.55 0.12 290 / 0.08)",
+              }}
+              title="Inherits a project preset (defaults.tools); the step's own config overrides it per key."
+            >
+              preset
             </span>
           )}
           {isParallel && (
@@ -443,10 +459,18 @@ export function ToolNode({ data, selected }: NodeProps) {
       {/* Status badge */}
       {execState && <NodeStatusBadge execState={execState} />}
 
-      {/* Part count badge (right corner, clear of the bottom output ports) */}
+      {/* Run badge (right corner, clear of the bottom output ports): parts
+          processed and this node's wall-clock span — the trace data lives on
+          the node, not in a separate timeline. */}
       {partCount !== undefined && partCount > 0 && (
-        <div className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]">
-          {partCount} pts
+        <div
+          className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]"
+          title={`${partCount} part(s) processed${spanUs !== undefined ? ` · active for ${formatUs(spanUs)} (first enter → last exit)` : ""}`}
+        >
+          {partCount} parts
+          {spanUs !== undefined && (
+            <span className="ml-1 font-mono font-medium">{formatUs(spanUs)}</span>
+          )}
         </div>
       )}
 

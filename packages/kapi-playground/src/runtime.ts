@@ -155,26 +155,81 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Boot progress
+// ---------------------------------------------------------------------------
+
+/** Download progress for the engine boot, for hosts that render a bar. */
+export interface BootProgress {
+  /** Bytes received so far. */
+  loaded: number;
+  /** Total bytes (from Content-Length), or null when the server omits it. */
+  total: number | null;
+  /** True once the engine is up (terminal event). */
+  done?: boolean;
+}
+
+const bootProgressListeners = new Set<(p: BootProgress) => void>();
+let lastBootProgress: BootProgress | null = null;
+
+function emitBootProgress(p: BootProgress) {
+  lastBootProgress = p;
+  for (const fn of bootProgressListeners) fn(p);
+}
+
+/**
+ * Subscribe to engine-boot download progress. The last event is replayed on
+ * subscribe (so a late subscriber catches up); returns an unsubscribe.
+ */
+export function onBootProgress(fn: (p: BootProgress) => void): () => void {
+  bootProgressListeners.add(fn);
+  if (lastBootProgress) fn(lastBootProgress);
+  return () => bootProgressListeners.delete(fn);
+}
+
+/** Wrap a response body with a byte-counting stage that reports progress. */
+function countingStream(resp: Response): ReadableStream<Uint8Array> {
+  const total = Number(resp.headers.get("content-length")) || null;
+  let loaded = 0;
+  emitBootProgress({ loaded: 0, total });
+  const counter = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      loaded += chunk.byteLength;
+      emitBootProgress({ loaded, total });
+      controller.enqueue(chunk);
+    },
+  });
+  return resp.body!.pipeThrough(counter);
+}
+
 // Fetch the wasm bytes. Prefer the precompressed `.wasm.gz` (the binary is
 // ~64 MB raw, ~13 MB gzipped) and inflate it in the browser via
 // DecompressionStream — this is portable and does not depend on the host
 // setting Content-Encoding (GitHub Pages / Docusaurus static serving do not).
 // Falls back to the raw `.wasm` if the compressed asset or the API is missing.
+// Both paths report download progress through onBootProgress.
 async function fetchWasmBytes(wasmUrl: string): Promise<ArrayBuffer | Response> {
   const canInflate = typeof (globalThis as any).DecompressionStream !== "undefined";
   if (canInflate) {
     try {
       const gzResp = await fetch(`${wasmUrl}.gz`);
       if (gzResp.ok && gzResp.body) {
-        const stream = gzResp.body.pipeThrough(new (globalThis as any).DecompressionStream("gzip"));
+        const stream = countingStream(gzResp).pipeThrough(
+          new (globalThis as any).DecompressionStream("gzip"),
+        );
         return await new Response(stream).arrayBuffer();
       }
     } catch {
       /* fall through to the raw asset */
     }
   }
-  // Return the Response so the caller can use instantiateStreaming when possible.
-  return fetch(wasmUrl);
+  // Buffer the raw asset through the same counter so progress still reports;
+  // instantiate() accepts the ArrayBuffer.
+  const resp = await fetch(wasmUrl);
+  if (resp.ok && resp.body) {
+    return await new Response(countingStream(resp)).arrayBuffer();
+  }
+  return resp;
 }
 
 async function instantiate(
@@ -233,6 +288,11 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
     const instance = await instantiate(source, go.importObject);
     void go.run(instance); // blocks forever (select{}); not awaited
     await ready;
+    emitBootProgress({
+      loaded: lastBootProgress?.loaded ?? 0,
+      total: lastBootProgress?.total ?? null,
+      done: true,
+    });
 
     return {
       vol: mem.vol,

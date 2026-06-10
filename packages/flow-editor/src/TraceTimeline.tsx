@@ -66,7 +66,7 @@ function TimelineBar({
         {formatDuration(s.durationUs)}
       </span>
       <span className="w-[40px] shrink-0 text-right text-[10px] text-muted-foreground">
-        {s.partsProcessed} pts
+        {s.partsProcessed} parts
       </span>
     </div>
   );
