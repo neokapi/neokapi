@@ -15,6 +15,7 @@ const preview = createPreview({
   defaultTheme: "system",
   sortOrder: [
     "Foundations",
+    "Diagrams",
     "Resource Browser",
     "Schema Form",
     "Flow Editor",

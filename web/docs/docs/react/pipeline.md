@@ -285,41 +285,34 @@ Apps that ship a single bundle don't need this phase at all — keep using `load
 
 ## Round-trip in one diagram
 
-```
-src/App.tsx        <h1>Welcome</h1>
-                          │
-                          │ extract (source only)
-                          ▼
-i18n/      Block { hash: "aB3", source: [{text: "Welcome"}] }
-                          │
-                          │ kapi ai-translate --target-lang fr
-                          ▼
-i18n/      Block { hash: "aB3", source: […], targets: { fr: […] } }
-                          │
-                          │ kapi ai-translate --target-lang de (additive)
-                          ▼
-i18n/      Block { hash: "aB3", source: […], targets: { fr, de } }
-                          │
-                          │ compile
-                          ▼
-public/translations/
-  fr.json          { "aB3": "Bienvenue" }
-  de.json          { "aB3": "Willkommen" }
-                          │
-                          ├─── loadTranslations("fr", "/translations/fr.json")
-                          │     (single bundle — one fetch, all strings)
-                          │
-                          │  kapi-react split  (optional)
-                          ▼
-dist/translations/fr/
-  index.json       { "aB3": "Bienvenue" }        ← main chunk
-  Settings.json    { …subset used by Settings }  ← lazy chunk
-                          │
-                          │  loadTranslationChunk("fr", "/translations/fr/Settings.json")
-                          │  (fires when React.lazy() resolves the Settings route)
-                          ▼
-Your app           <h1>Welcome</h1>  renders as  "Bienvenue"
-```
+<PhaseFlow
+  nodes={[
+    { label: "src/App.tsx", sub: "<h1>Welcome</h1>" },
+    {
+      label: "i18n/ Block",
+      sub: 'hash "aB3" · source + targets',
+      edge: "kapi-react extract (source only)",
+      role: "io",
+      loop: ["kapi ai-translate --target-lang fr", "then de … (additive, in place)"],
+    },
+    {
+      label: "public/translations/{locale}.json",
+      sub: '{ "aB3": "Bienvenue" }',
+      edge: "compile",
+      role: "translate",
+    },
+    {
+      label: "dist/translations/{locale}/",
+      sub: "index.json + lazy chunks",
+      edge: "kapi-react split (optional)",
+    },
+    {
+      label: 'Your app renders "Bienvenue"',
+      edge: "loadTranslations / loadTranslationChunk",
+      role: "io",
+    },
+  ]}
+/>
 
 ## CI: re-extract every build, fail on drift
 

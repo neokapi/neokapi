@@ -5,6 +5,8 @@ description: Redaction replaces sensitive spans — people, product names, inter
 keywords: [redaction, sensitive content, privacy, placeholders, translation, data protection]
 ---
 
+import { RedactionDiagram } from "@neokapi/docs-shared";
+
 # Redaction
 
 Redaction replaces sensitive content — people, unreleased product names,
@@ -13,15 +15,11 @@ sent for AI translation or handed to an external translator, then restores the
 originals once the translation comes back. The sensitive value never leaves the
 local machine.
 
-```
-Mr Bean is the new King of England
-        │  redact
-        ▼
-[REDACTED:Person] is the new [REDACTED:Role]      ← what the translator/model sees
-        │  translate, then unredact
-        ▼
-M. Bean est le nouveau Roi d'Angleterre           ← originals restored locally
-```
+<RedactionDiagram
+  original="Mr Bean is the new King of England"
+  redact={["Mr Bean", "King of England"]}
+  translated="M. Bean est le nouveau Roi d'Angleterre"
+/>
 
 For the architecture and design decisions behind this, see
 [AD-020: Content Redaction](/contribute/architecture/020-redaction).

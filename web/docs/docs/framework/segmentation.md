@@ -5,6 +5,8 @@ description: Segmentation is the means that makes translation-memory reuse work 
 keywords: [segmentation, SRX, UAX-29, sentence boundary, SaT, wtpsplit, overlay, translation memory, localization]
 ---
 
+import { StreamDiagram } from "@neokapi/docs-shared";
+
 # Segmentation
 
 Segmentation is a **means, not an end**: authors don't set out "to segment," they
@@ -24,14 +26,15 @@ existing runs, and the source runs themselves are never rewritten
 can carry several segmentation layers at once, and removing the overlay restores
 the unsegmented block exactly.
 
-```
-Block source runs:  "Dr. Smith arrived. He was late."
-        │  segment (overlay only — runs unchanged)
-        ▼
-segmentation overlay
-├── segment [0 … 18]   "Dr. Smith arrived."
-└── segment [19 … 31]  "He was late."
-```
+<StreamDiagram
+  title="segment (overlay only — source runs unchanged)"
+  items={[
+    { kind: "Block source", detail: '"Dr. Smith arrived. He was late."', role: "block" },
+    { kind: "segmentation overlay", role: "meta", note: "anchored to run-index ranges" },
+    { kind: "segment", detail: '[0 … 18] · "Dr. Smith arrived."', depth: 1, role: "layer" },
+    { kind: "segment", detail: '[19 … 31] · "He was late."', depth: 1, role: "layer" },
+  ]}
+/>
 
 Because segmentation is an overlay rather than an edit, it is a [check-like
 annotation](/framework/content-model): it is produced after any

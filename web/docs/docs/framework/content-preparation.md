@@ -5,6 +5,8 @@ description: Before content is translated, neokapi prepares it in one annotation
 keywords: [pre-processing, authoring, content preparation, segmentation, terminology, entities, checks, source transform, localization pipeline]
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Content preparation
 
 Most of the value in a localization pipeline is decided *before* the first word is
@@ -17,11 +19,17 @@ that annotate the source without destroying it. Every stage adds a run-anchored
 [stand-off overlay](/framework/content-model) to the same canonical block — the
 source runs are written once, settled, and then read by everything downstream.
 
-```
-source ──▶ settle ──▶ segment ──▶ recognize ──▶ check ──▶ translate
-            (trans-     (sentence    (terms,       (QA,        (TM, AI, MT
-            formers)     overlay)     entities)     findings)   read one model)
-```
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "source", role: "io" },
+    { label: "settle", sub: "transformers" },
+    { label: "segment", sub: "sentence overlay", role: "annotate" },
+    { label: "recognize", sub: "terms · entities", role: "annotate" },
+    { label: "check", sub: "QA findings", role: "qa" },
+    { label: "translate", sub: "TM · AI · MT", role: "translate" },
+  ]}
+/>
 
 This page is the map; each stage links to its own concept page.
 
