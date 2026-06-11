@@ -6,11 +6,6 @@ import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
 import { Sparkles } from "lucide-react";
 import TryNeokapi from "../components/TryNeokapi";
-import Differentiators from "../components/home/Differentiators";
-import Pipeline from "../components/home/Pipeline";
-import Formats from "../components/home/Formats";
-import OkapiMapping from "../components/home/OkapiMapping";
-import GetStarted from "../components/home/GetStarted";
 import StructuredData from "../components/home/StructuredData";
 
 import styles from "./index.module.css";
@@ -220,11 +215,6 @@ export default function Home() {
       <HomepageHeader />
       <main>
         <HomepageFeatures />
-        <Pipeline />
-        <Differentiators />
-        <Formats />
-        <OkapiMapping />
-        <GetStarted />
       </main>
     </Layout>
   );
