@@ -14,6 +14,13 @@ const (
 	natsStreamName = "JOBS"
 	natsSubject    = "JOBS.translate"
 	natsConsumer   = "worker"
+
+	// Extraction jobs get their own WorkQueue stream so the translation and
+	// extraction consumers never contend for each other's messages.
+	natsExtractionStreamName = "EXTRACTION_JOBS"
+	natsExtractionSubject    = "EXTRACTION_JOBS.extract"
+	natsExtractionConsumer   = "extraction-worker"
+
 	natsMaxDeliver = 3
 	natsAckWait    = 5 * time.Minute
 	natsFetchWait  = 5 * time.Second
@@ -24,12 +31,25 @@ type NATSQueue struct {
 	conn     *nats.Conn
 	js       jetstream.JetStream
 	consumer jetstream.Consumer
+	subject  string
 }
 
-// NewNATSQueue connects to a NATS server and ensures the JetStream stream
-// and consumer exist. The stream uses WorkQueuePolicy so messages are removed
-// after acknowledgement, matching Azure Service Bus semantics.
+// NewNATSQueue connects to a NATS server and ensures the translation-jobs
+// JetStream stream and consumer exist. The stream uses WorkQueuePolicy so
+// messages are removed after acknowledgement, matching Azure Service Bus
+// semantics.
 func NewNATSQueue(url string) (*NATSQueue, error) {
+	return newNATSQueue(url, natsStreamName, natsSubject, natsConsumer)
+}
+
+// NewNATSExtractionQueue is NewNATSQueue for the extraction-jobs stream
+// (Bowrain AD-013/AD-015: the auto-extract automation enqueues here and the
+// extraction worker consumes).
+func NewNATSExtractionQueue(url string) (*NATSQueue, error) {
+	return newNATSQueue(url, natsExtractionStreamName, natsExtractionSubject, natsExtractionConsumer)
+}
+
+func newNATSQueue(url, stream, subject, durable string) (*NATSQueue, error) {
 	nc, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("connect to NATS at %s: %w", url, err)
@@ -45,35 +65,36 @@ func NewNATSQueue(url string) (*NATSQueue, error) {
 
 	// CreateOrUpdate is idempotent — safe to call on every startup.
 	_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:      natsStreamName,
-		Subjects:  []string{natsSubject},
+		Name:      stream,
+		Subjects:  []string{subject},
 		Retention: jetstream.WorkQueuePolicy,
 	})
 	if err != nil {
 		nc.Close()
-		return nil, fmt.Errorf("create/update stream %q: %w", natsStreamName, err)
+		return nil, fmt.Errorf("create/update stream %q: %w", stream, err)
 	}
 
-	consumer, err := js.CreateOrUpdateConsumer(ctx, natsStreamName, jetstream.ConsumerConfig{
-		Durable:    natsConsumer,
+	consumer, err := js.CreateOrUpdateConsumer(ctx, stream, jetstream.ConsumerConfig{
+		Durable:    durable,
 		AckPolicy:  jetstream.AckExplicitPolicy,
 		MaxDeliver: natsMaxDeliver,
 		AckWait:    natsAckWait,
 	})
 	if err != nil {
 		nc.Close()
-		return nil, fmt.Errorf("create/update consumer %q: %w", natsConsumer, err)
+		return nil, fmt.Errorf("create/update consumer %q: %w", durable, err)
 	}
 
 	return &NATSQueue{
 		conn:     nc,
 		js:       js,
 		consumer: consumer,
+		subject:  subject,
 	}, nil
 }
 
 func (q *NATSQueue) Enqueue(ctx context.Context, jobID string) error {
-	if _, err := q.js.Publish(ctx, natsSubject, []byte(jobID)); err != nil {
+	if _, err := q.js.Publish(ctx, q.subject, []byte(jobID)); err != nil {
 		return fmt.Errorf("enqueue job %s: %w", jobID, err)
 	}
 	return nil
