@@ -40,3 +40,19 @@ Workflow for a new or changed surface string:
 Review happens in the seeds — they are the human-owned artifact. For a
 reviewer-friendly view, `make l10n-review-export` writes TMX/CSV renderings
 under `l10n/review/`; corrections still land in the `.klftm`/`.klftb`.
+
+## Why not PO files? (decided, not overlooked)
+
+The Go-surface catalogs (builtins, CLI help) are standard gettext at
+runtime — embedded MO, msgid = English source, msgctxt = scope — but the
+repository does not carry per-locale `.po` files. PO's value is its
+translator-facing ecosystem (Poedit, Weblate, community PRs); today's
+translator population is the maintainer plus kapi-driven agents, so
+committed PO would be a second translation workflow with no audience.
+
+If external locale contributions become a goal, PO enters **through the
+project, not beside it**: `kapi extract --format po` emits the bilingual
+files for a translator and `kapi merge -i` applies them back (updating the
+TM, which updates the seeds). There is exactly one translation loop —
+seeds → TM → extract/merge — and PO is an interchange format of that loop,
+never a parallel gettext workflow (no committed `po/` tree, no msgmerge).
