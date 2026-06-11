@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { createPortal } from "react-dom";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $getSelection, $isRangeSelection, $createTextNode } from "lexical";
@@ -142,7 +143,14 @@ function ToolbarPairButton({
         )}
         onClick={() => !blocked && onWrap(opening.span, closing.span)}
         disabled={blocked}
-        title={blocked ? "Tag already used" : `Wrap with ${opening.label}...${closing.label}`}
+        title={
+          blocked
+            ? t("Tag already used")
+            : t("Wrap with {opening}...{closing}", {
+                opening: opening.label,
+                closing: closing.label,
+              })
+        }
       >
         <TagChipComponent spanInfo={opening.span} />
         <span className="text-[10px] text-muted-foreground mx-px">...</span>
@@ -161,7 +169,11 @@ function ToolbarPairButton({
         )}
         onClick={() => !placeholder.blocked && onReplace(placeholder.span)}
         disabled={placeholder.blocked}
-        title={placeholder.blocked ? "Tag already used" : `Replace with ${placeholder.label}`}
+        title={
+          placeholder.blocked
+            ? t("Tag already used")
+            : t("Replace with {label}", { label: placeholder.label })
+        }
       >
         <TagChipComponent spanInfo={placeholder.span} />
       </button>

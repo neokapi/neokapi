@@ -1,3 +1,4 @@
+import { t } from "@neokapi/kapi-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
 import type { TMEntryDTO } from "./types";
 import { Pagination } from "./Pagination";
@@ -62,7 +63,7 @@ export function TMEntryList({
       {initialLoadDone && !loading && isEmpty && (
         <div className="py-12 text-center text-muted-foreground">
           <p className="text-sm mb-1">
-            {searchQuery ? "No entries match your search." : "No entries yet."}
+            {searchQuery ? t("No entries match your search.") : t("No entries yet.")}
           </p>
           {searchQuery && (
             <button onClick={onClearSearch} className="text-xs text-primary hover:text-primary/80">

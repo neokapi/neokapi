@@ -48,6 +48,13 @@ dist/
 # per-file .klf extract output is ephemeral and gitignored.
 apps/kapi-desktop/frontend/i18n/
 apps/kapi-desktop/frontend/i18n-qps/
+apps/kapi-desktop/frontend/i18n-nb/
+
+# Dogfood project state for the root neokapi.kapi recipe — rebuilt from the
+# committed seeds via `make l10n-seed`.
+/.kapi/
+# Disposable TMX/CSV review views of the native l10n seeds (l10n-review-export).
+/l10n/review/
 
 # Wails
 **/build/bin/
@@ -95,12 +102,10 @@ web/docs/scenes/**/*.jpg
 docker/traefik/certs/
 
 # Docusaurus
-web/landing/dist/
 
 # In-browser playground wasm artifacts (built by `make web-wasm-demo` / CI)
 web/docs/static/wasm/
 bowrain/web/landing/dist/
-
 web/docs/build/
 web/docs/.docusaurus/
 

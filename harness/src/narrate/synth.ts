@@ -4,33 +4,65 @@ import { Buffer } from "node:buffer";
 import type { DemoManifest, NarrationManifest, NarrationScene, NarrationSpec } from "../types.ts";
 import { ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { run } from "../lib/exec.ts";
+import { DEFAULT_LOCALE, isDefaultLocale, languageNameFor, localeSuffix, localizeManifest, resolveLocale } from "../lib/locale.ts";
 
-/** Style directive prepended to every Gemini TTS request to get a clear English narrator. */
-const GEMINI_STYLE =
-  "Read this aloud in a clear, warm, professional British-English documentary-narrator voice, " +
-  "at a measured, unhurried, and consistent pace — keep the exact same tone, energy, and tempo " +
-  "from the first word to the last. Leave a clear pause between paragraphs. Always pronounce the " +
+// ── Locale-aware narrator style ─────────────────────────────────────────────
+// The product-name pronunciation hints are kept in EVERY locale's prompt: the
+// names are never translated, and the Gemini TTS model applies the respelling
+// regardless of the narration language.
+
+const PRONUNCIATION_HINTS =
+  "Always pronounce the " +
   "product name \"kapi\" as KAH-pee — two syllables, stress on the first, the 'a' as in 'father' " +
   "— never ka-PEE or kap-ee. Always pronounce the product name \"Bowrain\" as BOH-rain — the " +
   "first syllable \"bow\" rhymes with \"rainbow\" and \"go\" (NOT \"cow\" or bowing down), " +
-  "followed by \"rain\"; it is a blend of \"rainbow\" and \"rain\": ";
+  "followed by \"rain\"; it is a blend of \"rainbow\" and \"rain\"";
+
+/** Style directive prepended to every Gemini TTS request: a clear documentary
+ *  narrator in the narration locale's language (British English by default). */
+function geminiStyle(locale: string): string {
+  const lang = languageNameFor(locale);
+  const voiceLine = isDefaultLocale(locale)
+    ? "Read this aloud in a clear, warm, professional British-English documentary-narrator voice, "
+    : `Read this aloud in ${lang}, as a clear, warm, professional ${lang} documentary narrator ` +
+      "— natural native pronunciation, never an English accent. Keep product names, CLI commands " +
+      "and code identifiers exactly as written. Speak ";
+  return (
+    voiceLine +
+    "at a measured, unhurried, and consistent pace — keep the exact same tone, energy, and tempo " +
+    "from the first word to the last. Leave a clear pause between paragraphs. " +
+    PRONUNCIATION_HINTS + ": "
+  );
+}
 
 type Backend = "gemini" | "elevenlabs" | "openai" | "say";
 
-function pickBackend(): { backend: Backend; voice: string } {
+/** A voice env var with per-locale override: GEMINI_TTS_VOICE_NB beats GEMINI_TTS_VOICE for nb. */
+function voiceEnv(base: string, locale: string): string | undefined {
+  if (!isDefaultLocale(locale)) {
+    const v = process.env[`${base}_${locale.toUpperCase().replace(/-/g, "_")}`];
+    if (v) return v;
+  }
+  return process.env[base];
+}
+
+function pickBackend(locale: string = DEFAULT_LOCALE): { backend: Backend; voice: string } {
   const forced = (process.env.NARRATION_BACKEND || "").toLowerCase() as Backend;
   if (forced === "elevenlabs" || (!forced && process.env.ELEVENLABS_API_KEY)) {
     if (process.env.ELEVENLABS_API_KEY) {
-      return { backend: "elevenlabs", voice: process.env.ELEVENLABS_VOICE_ID || "Rachel" };
+      return { backend: "elevenlabs", voice: voiceEnv("ELEVENLABS_VOICE_ID", locale) || "Rachel" };
     }
   }
   if (forced === "openai" || (!forced && process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY)) {
     if (process.env.OPENAI_API_KEY) {
-      return { backend: "openai", voice: process.env.OPENAI_TTS_VOICE || "onyx" };
+      return { backend: "openai", voice: voiceEnv("OPENAI_TTS_VOICE", locale) || "onyx" };
     }
   }
   if ((forced === "gemini" || !forced) && process.env.GEMINI_API_KEY) {
-    return { backend: "gemini", voice: process.env.GEMINI_TTS_VOICE || "Charon" };
+    // Gemini's prebuilt voices are language-agnostic (the language follows the
+    // text + style prompt), so the default voice works for every locale; pin a
+    // different one per locale with GEMINI_TTS_VOICE_<LOCALE> (e.g. _NB).
+    return { backend: "gemini", voice: voiceEnv("GEMINI_TTS_VOICE", locale) || "Charon" };
   }
   if (forced === "gemini" && !process.env.GEMINI_API_KEY) {
     // Explicit gemini request with no key: fail loudly rather than silently
@@ -39,7 +71,9 @@ function pickBackend(): { backend: Backend; voice: string } {
       "NARRATION_BACKEND=gemini but GEMINI_API_KEY is unset — add it to harness/.env (no `say` fallback when gemini is explicitly requested)",
     );
   }
-  return { backend: "say", voice: process.env.SAY_VOICE || "Daniel" };
+  // macOS `say`: the bundled voices are single-language, so a per-locale voice
+  // is REQUIRED for non-English narration (e.g. SAY_VOICE_NB="Nora").
+  return { backend: "say", voice: voiceEnv("SAY_VOICE", locale) || "Daniel" };
 }
 
 // ── WAV helpers ─────────────────────────────────────────────────────────────
@@ -149,12 +183,12 @@ function median(nums: number[]): number {
 
 // ── Backends ────────────────────────────────────────────────────────────────
 
-async function geminiTts(text: string, voice: string, outWav: string): Promise<void> {
+async function geminiTts(text: string, voice: string, outWav: string, locale: string): Promise<void> {
   const key = process.env.GEMINI_API_KEY!;
   const model = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const body = {
-    contents: [{ parts: [{ text: GEMINI_STYLE + text }] }],
+    contents: [{ parts: [{ text: geminiStyle(locale) + text }] }],
     generationConfig: {
       responseModalities: ["AUDIO"],
       // Lower temperature = steadier delivery between scenes. Each scene is a separate
@@ -229,12 +263,12 @@ async function sayTts(text: string, voice: string, outWav: string): Promise<void
   fs.rmSync(tmp, { force: true });
 }
 
-async function synthOne(backend: Backend, voice: string, text: string, outWav: string): Promise<void> {
-  // Pronunciation of "kapi" is handled by the style prompt (GEMINI_STYLE), not by
+async function synthOne(backend: Backend, voice: string, text: string, outWav: string, locale: string): Promise<void> {
+  // Pronunciation of "kapi" is handled by the style prompt (geminiStyle), not by
   // respelling the word — respelling it ("kah-pee") made the voice say "ka-PEE".
   switch (backend) {
     case "gemini":
-      return geminiTts(text, voice, outWav);
+      return geminiTts(text, voice, outWav, locale);
     case "elevenlabs":
       return elevenLabsTts(text, voice, outWav);
     case "openai":
@@ -248,17 +282,27 @@ async function synthOne(backend: Backend, voice: string, text: string, outWav: s
 
 /**
  * System instruction that turns a conversational Live model into a strict verbatim
- * narrator. Validated against the output transcript: the model reads each turn
- * word-for-word rather than replying to it.
+ * narrator, in the narration locale's language. Validated against the output
+ * transcript: the model reads each turn word-for-word rather than replying to it.
  */
-const LIVE_NARRATOR_INSTRUCTION =
-  "You are a documentary narrator. Read the user's text aloud VERBATIM, word for word, " +
-  "in a clear, warm, measured British-English voice at a steady, unhurried pace. Do not " +
-  "reply, greet, comment, summarise, translate, or add or drop any words — narrate exactly " +
-  'what is given. Pronounce the product name "kapi" as KAH-pee (two syllables, stress on ' +
-  "the first, 'a' as in 'father'), never ka-PEE or kap-ee. Pronounce the product name " +
-  '"Bowrain" as BOH-rain — the first syllable "bow" rhymes with "rainbow" and "go" (NOT ' +
-  '"cow" or bowing down), then "rain"; it is a blend of "rainbow" and "rain".';
+function liveNarratorInstruction(locale: string): string {
+  const lang = languageNameFor(locale);
+  const voiceLine = isDefaultLocale(locale)
+    ? "in a clear, warm, measured British-English voice at a steady, unhurried pace. "
+    : `in a clear, warm, measured ${lang} voice at a steady, unhurried pace — natural native ` +
+      `${lang} pronunciation, never an English accent; product names, CLI commands and code ` +
+      "identifiers stay exactly as written. ";
+  return (
+    "You are a documentary narrator. Read the user's text aloud VERBATIM, word for word, " +
+    voiceLine +
+    "Do not " +
+    "reply, greet, comment, summarise, translate, or add or drop any words — narrate exactly " +
+    'what is given. Pronounce the product name "kapi" as KAH-pee (two syllables, stress on ' +
+    "the first, 'a' as in 'father'), never ka-PEE or kap-ee. Pronounce the product name " +
+    '"Bowrain" as BOH-rain — the first syllable "bow" rhymes with "rainbow" and "go" (NOT ' +
+    '"cow" or bowing down), then "rain"; it is a blend of "rainbow" and "rain".'
+  );
+}
 
 /**
  * Narrate every scene in ONE Gemini Live (bidi) session. The model holds a single
@@ -272,6 +316,7 @@ function geminiLiveNarrate(
   voice: string,
   scenes: Array<{ text: string; outWav: string }>,
   model: string,
+  locale: string,
 ): Promise<number[]> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return Promise.reject(new Error("live: GEMINI_API_KEY unset"));
@@ -313,7 +358,7 @@ function geminiLiveNarrate(
           setup: {
             model: `models/${model}`,
             generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
-            systemInstruction: { parts: [{ text: LIVE_NARRATOR_INSTRUCTION }] },
+            systemInstruction: { parts: [{ text: liveNarratorInstruction(locale) }] },
           },
         }),
       );
@@ -371,21 +416,32 @@ function geminiLiveNarrate(
 
 export interface NarrateOptions {
   force?: boolean;
+  /** BCP-47 narration locale (default "en"). Non-default locales synthesize
+   *  from the demo's `locales.<locale>` overlay into suffixed outputs
+   *  (narration-<locale>.json + audio-<locale>/). */
+  locale?: string;
 }
 
-/** Synthesize narration for every scene → public/<id>/audio/*.wav + narration.json. */
-export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): Promise<NarrationManifest> {
+/** Synthesize narration for every scene → public/<id>/audio[-<locale>]/*.wav + narration[-<locale>].json. */
+export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions = {}): Promise<NarrationManifest> {
+  const locale = resolveLocale(opts.locale);
+  const suffix = localeSuffix(locale);
+  // Apply the locale's narration overlay (throws for published demos without
+  // full coverage). The default locale passes the manifest through untouched.
+  const m = localizeManifest(manifest, locale);
+  const audioRel = `audio${suffix}`;
   const pub = publicDemoDir(m.id);
-  const audioDir = ensureDir(path.join(pub, "audio"));
-  const narrationPath = path.join(pub, "narration.json");
+  const audioDir = ensureDir(path.join(pub, audioRel));
+  const narrationPath = path.join(pub, `narration${suffix}.json`);
 
   if (!opts.force && fs.existsSync(narrationPath)) {
-    console.log(`  · narration exists for ${m.id} (use --force to re-run)`);
+    console.log(`  · narration exists for ${m.id}${suffix} (use --force to re-run)`);
     return JSON.parse(fs.readFileSync(narrationPath, "utf8"));
   }
 
-  const { backend, voice } = pickBackend();
-  console.log(`  · narrating ${m.id} with ${backend} (${voice}), ${m.narration.length} scenes`);
+  const { backend, voice } = pickBackend(locale);
+  const localeNote = isDefaultLocale(locale) ? "" : ` [${locale}]`;
+  console.log(`  · narrating ${m.id}${localeNote} with ${backend} (${voice}), ${m.narration.length} scenes`);
 
   // One-shot: narrate the WHOLE video in a single continuous read, so the voice's
   // tempo and tone can't drift scene-to-scene (no per-scene clips, no per-scene
@@ -396,7 +452,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   // NARRATION_ONESHOT=0 (then it falls through to the Live/per-scene paths).
   const oneshotEnabled = m.oneshot ?? ((process.env.NARRATION_ONESHOT ?? "1") !== "0");
   if (backend === "gemini" && oneshotEnabled) {
-    const oneShot = await narrateOneShot(m, voice, audioDir, narrationPath, backend);
+    const oneShot = await narrateOneShot(m, voice, audioDir, narrationPath, backend, locale, audioRel);
     if (oneShot) return oneShot;
     console.warn("  ! one-shot narration failed; falling back to per-scene");
   }
@@ -411,7 +467,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
     try {
       const liveModel = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
       const inputs = spoken.map((s) => ({ text: s.text.trim(), outWav: path.join(audioDir, `${s.id}.wav`) }));
-      const rawDurs = await geminiLiveNarrate(voice, inputs, liveModel);
+      const rawDurs = await geminiLiveNarrate(voice, inputs, liveModel, locale);
 
       // The session already gives a consistent voice; normalize *speed* so every
       // scene reads at the SAME words-per-second (the median × NARRATION_LIVE_SPEED).
@@ -444,16 +500,17 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
           caption: spec.caption?.trim() || captionFromText(spec.text),
           artifact: spec.artifact,
           beat: spec.beat,
-          audio: text ? `audio/${spec.id}.wav` : undefined,
+          audio: text ? `${audioRel}/${spec.id}.wav` : undefined,
           durationSec: text ? (finalDur.get(spec.id) ?? 0) : 0,
           holdSec: spec.holdSec ?? defaultHold(spec.kind),
         };
       });
-      const manifest: NarrationManifest = { id: m.id, backend, voice, scenes };
-      fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
+      const result: NarrationManifest = { id: m.id, backend, voice, scenes };
+      if (!isDefaultLocale(locale)) result.locale = locale;
+      fs.writeFileSync(narrationPath, JSON.stringify(result, null, 2));
       const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
-      console.log(`  ✓ narrated ${m.id} (live session): ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
-      return manifest;
+      console.log(`  ✓ narrated ${m.id}${localeNote} (live session): ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
+      return result;
     } catch (e) {
       console.warn(`  ! live-session narration failed (${(e as Error).message.slice(0, 120)}); falling back to per-scene`);
     }
@@ -488,7 +545,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
       const maxRetries = Math.max(1, Number(process.env.NARRATION_TTS_RETRIES) || 10);
       while (true) {
         try {
-          await synthOne(backend, voice, text, outWav);
+          await synthOne(backend, voice, text, outWav, locale);
           naturalDur = wavDurationSec(outWav);
           // Reject pathological clips (the looped-audio failure mode): a real narrator
           // lands ~1.5–4 w/s, so anything outside a generous 0.7–12 w/s band for a
@@ -534,7 +591,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
       const factor = wps > 0 && targetWps > 0 ? Math.min(maxF, Math.max(minF, targetWps / wps)) : speed;
       await applyTempo(s.outWav, factor);
       durationSec = wavDurationSec(s.outWav);
-      audio = `audio/${s.wavName}`;
+      audio = `${audioRel}/${s.wavName}`;
     }
     scenes.push({
       id: s.spec.id,
@@ -549,11 +606,12 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
     });
   }
 
-  const manifest: NarrationManifest = { id: m.id, backend, voice, scenes };
-  fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
+  const result: NarrationManifest = { id: m.id, backend, voice, scenes };
+  if (!isDefaultLocale(locale)) result.locale = locale;
+  fs.writeFileSync(narrationPath, JSON.stringify(result, null, 2));
   const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
-  console.log(`  ✓ narrated ${m.id}: ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
-  return manifest;
+  console.log(`  ✓ narrated ${m.id}${localeNote}: ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
+  return result;
 }
 
 /**
@@ -568,6 +626,8 @@ async function narrateOneShot(
   audioDir: string,
   narrationPath: string,
   backend: string,
+  locale: string,
+  audioRel: string,
 ): Promise<NarrationManifest | null> {
   const spoken = m.narration.filter((s) => s.text?.trim());
   if (spoken.length === 0) return null;
@@ -577,7 +637,7 @@ async function narrateOneShot(
   const fullText = spoken.map((s) => s.text.trim()).join("\n\n");
   let durs: number[];
   try {
-    durs = await geminiLiveNarrate(voice, [{ text: fullText, outWav: fullWav }], liveModel);
+    durs = await geminiLiveNarrate(voice, [{ text: fullText, outWav: fullWav }], liveModel, locale);
   } catch (e) {
     console.warn(`    one-shot live read failed: ${(e as Error).message.slice(0, 120)}`);
     return null;
@@ -603,9 +663,10 @@ async function narrateOneShot(
       holdSec: text ? 0 : defaultHold(spec.kind), // no gaps — the one read already pauses
     };
   });
-  const manifest: NarrationManifest = { id: m.id, backend, voice, scenes, fullAudio: "audio/_narration.wav" };
+  const manifest: NarrationManifest = { id: m.id, backend, voice, scenes, fullAudio: `${audioRel}/_narration.wav` };
+  if (!isDefaultLocale(locale)) manifest.locale = locale;
   fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
-  console.log(`  ✓ narrated ${m.id} (one-shot): ${D.toFixed(1)}s single track across ${scenes.length} scenes`);
+  console.log(`  ✓ narrated ${m.id}${isDefaultLocale(locale) ? "" : ` [${locale}]`} (one-shot): ${D.toFixed(1)}s single track across ${scenes.length} scenes`);
   return manifest;
 }
 

@@ -46,7 +46,11 @@ const config: Config = {
 
   i18n: {
     defaultLocale: "en",
-    locales: ["en"],
+    locales: ["en", "nb"],
+    localeConfigs: {
+      en: { label: "English" },
+      nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
+    },
   },
 
   markdown: {
@@ -248,6 +252,10 @@ const config: Config = {
               label: "Kapi React",
             },
           ],
+        },
+        {
+          type: "localeDropdown",
+          position: "right",
         },
         {
           href: "https://github.com/neokapi/neokapi",

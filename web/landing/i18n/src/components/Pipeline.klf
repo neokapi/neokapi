@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "@neokapi/kapi-react",
+    "version": "0.1.1"
+  },
+  "project": {
+    "id": "app",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/Pipeline.tsx",
+      "documentType": "jsx",
+      "path": "src/components/Pipeline.tsx",
+      "blocks": [
+        {
+          "id": "src/components/Pipeline.tsx:31:0",
+          "hash": "1H3q6",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Built to"
+            },
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:var",
+                "data": "{value}",
+                "equiv": "value"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "t-4 max-w-2xl text-lg text-neutral-400\">\n            Your content moves through a pipeline of t",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " process at scale "
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "       ",
+                "equiv": "=m1"
+              }
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "value",
+              "kind": "variable",
+              "sourceExpr": "ssN"
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "t-4 max-w-2xl text-lg text-neutral-400\">\n            Your content moves through a pipeline of tools — read, translate, check, write — that\n       "
+            }
+          ],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 31,
+            "component": "Pipeline",
+            "jsxPath": "section > div > div > h2",
+            "element": "h2"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:37:1",
+          "hash": "3GXWBX",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Your content moves through a pipeline of tools — read, translate, check, write — that run in parallel across files and languages, so large jobs finish fast."
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 37,
+            "component": "Pipeline",
+            "jsxPath": "section > div > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:162:t",
+          "hash": "1mLPoo",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Reader"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 162,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:241:t",
+          "hash": "41xai8",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Terminology"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 241,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:321:t",
+          "hash": "224Q8Y",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "in parallel"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 321,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:369:t",
+          "hash": "1ZSBXo",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "AI Translate"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 369,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:422:t",
+          "hash": "3ddpmm",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "QA"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 422,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:502:t",
+          "hash": "2fjEpM",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Writer"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 502,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:592:t",
+          "hash": "XppfU",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "files in parallel"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 592,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Pipeline.tsx:611:t",
+          "hash": "RGOAt",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "3 locales"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/Pipeline.tsx",
+            "line": 611,
+            "component": "Pipeline",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        }
+      ]
+    }
+  ]
+}

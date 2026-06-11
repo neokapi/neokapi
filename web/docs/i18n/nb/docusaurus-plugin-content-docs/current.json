@@ -1,0 +1,114 @@
+{
+  "version.label": {
+    "message": "Neste",
+    "description": "The label for version current"
+  },
+  "sidebar.kapiSidebar.category.Get Started": {
+    "message": "Kom i gang",
+    "description": "The label for category 'Get Started' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Kapi CLI": {
+    "message": "Kapi CLI",
+    "description": "The label for category 'Kapi CLI' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Kapi Desktop": {
+    "message": "Kapi Desktop",
+    "description": "The label for category 'Kapi Desktop' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.doc.kapi-overview": {
+    "message": "Oversikt",
+    "description": "The label for the doc item 'Overview' in sidebar 'kapiSidebar', linking to the doc kapi/overview"
+  },
+  "sidebar.kapiSidebar.doc.Modes & bindings": {
+    "message": "Moduser og bindinger",
+    "description": "The label for the doc item 'Modes & bindings' in sidebar 'kapiSidebar', linking to the doc kapi/modes"
+  },
+  "sidebar.kapiSidebar.doc.kapi-recipes-overview": {
+    "message": "Oversikt",
+    "description": "The label for the doc item 'Overview' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/index"
+  },
+  "sidebar.kapiSidebar.doc.kapi-desktop-overview": {
+    "message": "Oversikt",
+    "description": "The label for the doc item 'Overview' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/overview"
+  },
+  "sidebar.frameworkSidebar.category.Concepts": {
+    "message": "Konsepter",
+    "description": "The label for category 'Concepts' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Checks": {
+    "message": "Sjekker",
+    "description": "The label for category 'Checks' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Extending the Framework": {
+    "message": "Utvid rammeverket",
+    "description": "The label for category 'Extending the Framework' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Architecture Decisions": {
+    "message": "Arkitekturbeslutninger",
+    "description": "The label for category 'Architecture Decisions' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Implementation Notes": {
+    "message": "Implementasjonsnotater",
+    "description": "The label for category 'Implementation Notes' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Interactive references": {
+    "message": "Interaktive referanser",
+    "description": "The label for category 'Interactive references' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Configuration & integration": {
+    "message": "Konfigurasjon og integrasjon",
+    "description": "The label for category 'Configuration & integration' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.KLF Format": {
+    "message": "KLF-format",
+    "description": "The label for category 'KLF Format' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Project status": {
+    "message": "Prosjektstatus",
+    "description": "The label for category 'Project status' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.link.Kapi CLI commands": {
+    "message": "Kapi CLI-kommandoer",
+    "description": "The label for link 'Kapi CLI commands' in sidebar 'referenceSidebar', linking to '/commands'"
+  },
+  "sidebar.referenceSidebar.link.Format reference": {
+    "message": "Formatreferanse",
+    "description": "The label for link 'Format reference' in sidebar 'referenceSidebar', linking to '/formats'"
+  },
+  "sidebar.referenceSidebar.link.Tool reference": {
+    "message": "Verktøyreferanse",
+    "description": "The label for link 'Tool reference' in sidebar 'referenceSidebar', linking to '/tools'"
+  },
+  "sidebar.referenceSidebar.link.KLF Lab": {
+    "message": "KLF-lab",
+    "description": "The label for link 'KLF Lab' in sidebar 'referenceSidebar', linking to '/klf-lab'"
+  },
+  "sidebar.referenceSidebar.link.KLF Tests": {
+    "message": "KLF-tester",
+    "description": "The label for link 'KLF Tests' in sidebar 'referenceSidebar', linking to '/klf-tests'"
+  },
+  "sidebar.referenceSidebar.link.Parity": {
+    "message": "Paritet",
+    "description": "The label for link 'Parity' in sidebar 'referenceSidebar', linking to '/parity'"
+  },
+  "sidebar.referenceSidebar.link.Format maturity": {
+    "message": "Formatmodenhet",
+    "description": "The label for link 'Format maturity' in sidebar 'referenceSidebar', linking to '/format-maturity'"
+  },
+  "sidebar.referenceSidebar.link.Benchmarks": {
+    "message": "Ytelsesmålinger",
+    "description": "The label for link 'Benchmarks' in sidebar 'referenceSidebar', linking to '/pseudobench'"
+  },
+  "sidebar.referenceSidebar.link.ML benchmark": {
+    "message": "ML-ytelsesmåling",
+    "description": "The label for link 'ML benchmark' in sidebar 'referenceSidebar', linking to '/ml-benchmark'"
+  },
+  "sidebar.referenceSidebar.link.Check eval": {
+    "message": "Sjekkevaluering",
+    "description": "The label for link 'Check eval' in sidebar 'referenceSidebar', linking to '/check-eval'"
+  },
+  "sidebar.referenceSidebar.link.Test results": {
+    "message": "Testresultater",
+    "description": "The label for link 'Test results' in sidebar 'referenceSidebar', linking to '/test-comparison'"
+  }
+}

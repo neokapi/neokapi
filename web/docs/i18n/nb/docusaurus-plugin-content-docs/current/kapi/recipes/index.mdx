@@ -1,0 +1,118 @@
+---
+id: index
+slug: /kapi/cli
+title: Kapi CLI-oppskrifter
+sidebar_label: Oversikt
+sidebar_position: 0
+description: "Oppgavebaserte oppskrifter for kapi CLI — estimer en jobb, fang opp UI-avkorting, håndhev terminologi, forhåndsoversett med oversettelsesminne — alle kjørbare i nettleseren, med ad hoc- eller prosjektmodus angitt øverst."
+keywords: [kapi, CLI, recipes, ad-hoc, project, format-aware localization, checks]
+hide_table_of_contents: true
+---
+
+import Link from "@docusaurus/Link";
+
+# Kapi CLI-oppskrifter
+
+Hver oppskrift tar én enkelt oppgave — anslå en jobb, fange opp avkutting i
+grensesnittet, håndheve en ordliste — angir målet, går gjennom stegene og lar deg
+kjøre kommandoene selv. De interaktive innbyggingene kjører den ekte
+`kapi`-binærfilen i nettleseren din: ingen installasjon, ingen server, ingen
+API-nøkkel. Hver kommando som vises er kommandoen som kjører.
+
+For hva kapi er og hvordan CLI-en og Kapi Desktop henger sammen, se
+[Kapi-oversikten](/kapi/overview). For hver kommando og hvert flagg, se
+[kommandoreferansen](/commands).
+
+## Ad hoc eller prosjekt?
+
+Et **`.kapi`-prosjekt er den anbefalte arbeidsmodellen** for ethvert kodelager
+eller innholdssett du lokaliserer gjentatte ganger. Det fanger språkene,
+innholdsmønstrene og flytene i en innsjekket oppskrift én gang, legger til
+git-aktig oppdagelse av oppskriften oppover fra enhver underkatalog, og holder et
+prosjektlokalt oversettelsesminne og en termbase som hver kjøring gjenbruker —
+slik at du slutter å gjenta flagg og begynner å bygge opp arbeid.
+[Opprett ditt første prosjekt](/kapi/get-started/first-project) går gjennom
+oppsettet; [referansen for prosjektfiler](/reference/project-file) dekker
+oppskriftsformatet og oppdagelsesreglene.
+
+kapi kjører også **ad hoc**: en kommando arbeider direkte på filene du navngir,
+konfigurert med flagg, uten at noe lagres —
+`kapi ai-translate -i messages.json --target-lang fr`. Det er den raske veien for
+engangsjobber, skripting og CI, og en fin innkjøring. Mange oppskrifter her vises
+ad hoc fordi de er genuine engangstilfeller; hver av dem nevner
+prosjektmodus-ekvivalenten der det hjelper.
+
+Hver oppskrift er merket øverst med modusen sin — **Kjører hvor som helst**
+(ad hoc) eller **Krever et `.kapi`-prosjekt**.
+
+## Oppskrifter
+
+<div className="row">
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/overview">
+      <h3>Get oriented in kapi</h3>
+      <p>The top-level commands, format readers, and processing tools — a 30-second tour to find your way around.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/estimate-cost">
+      <h3>Estimate a translation job</h3>
+      <p>Count blocks and source words in any supported format to size up a quote before you commission it.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/pseudo-translate">
+      <h3>Catch UI truncation early</h3>
+      <p>Pseudo-translate your strings to surface clipping and missing-string bugs before real text arrives.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/tm-termbase-storage">
+      <h3>Where TM and termbases live</h3>
+      <p>The three storage models — loose file, named store, or project store — and the flags that select each.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/terminology-qa">
+      <h3>Enforce terminology</h3>
+      <p>Import a glossary and flag terminology drift in translated files before they ship.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/prepare-content">
+      <h3>Prepare content for translation</h3>
+      <p>Protect sensitive content, reuse past translations, and keep terminology and quality consistent — one repeatable pass before anything ships.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/pre-translate-with-tm">
+      <h3>Pre-translate with TM + termbase</h3>
+      <p>Leverage existing TM, fill the gaps, and pre-flag terminology — deterministic, no API key, before any vendor sees content.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/bilingual-workflow">
+      <h3>Run a bilingual round-trip</h3>
+      <p>Extract to XLIFF, hand it to a translator, merge the targets back — with full TM provenance. Project-based.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/recipes/resumable-workspace">
+      <h3>Work in a <code>.klz</code> workspace</h3>
+      <p>A single-file, serverless workspace: extract sources in, run tools in place, merge the finished files out — config travels with the file.</p>
+    </Link>
+  </div>
+  <div className="col col--6 margin-bottom--lg">
+    <Link className="card padding--lg" to="/kapi/modes">
+      <h3>Modes &amp; bindings</h3>
+      <p>How ad-hoc and project runs differ, the source/sink binding model, and when it makes sense to mix them.</p>
+    </Link>
+  </div>
+</div>
+
+## Neste steg
+
+- [Installering](/kapi/get-started/installation) — Homebrew, WinGet og binærnedlastinger
+- [Kommandoreferanse](/commands) — hver kommando og hvert flagg
+- [Kapi Desktop](/kapi/desktop/overview) — den visuelle følgesvennen for å bygge flyter og kjøre verktøy
+- [Bruke kapi med AI-assistenter](/reference/mcp) — koble kapi til Claude Code, Cursor og mer

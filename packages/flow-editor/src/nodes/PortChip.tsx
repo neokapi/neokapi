@@ -3,6 +3,7 @@
 // (see ../portTypes), so the same chip reads consistently on nodes, edges, the
 // palette, the config panel, and the legend.
 
+import { t } from "@neokapi/kapi-react/runtime";
 import { cn } from "@neokapi/ui-primitives";
 import type { IOPort, Side } from "../types";
 import { getPortType } from "../portTypes";
@@ -32,8 +33,8 @@ export function PortChip({
   const pt = getPortType(type);
   const Icon = pt.icon;
   const sideText = side ? ` · ${SIDE_LABEL[side]}` : "";
-  const verbText = verb === "consumes" ? "Consumes" : "Produces";
-  const optText = optional ? " (optional)" : "";
+  const verbText = verb === "consumes" ? t("Consumes") : t("Produces");
+  const optText = optional ? t(" (optional)") : "";
   return (
     <span
       title={`${verbText}: ${pt.label}${sideText}${optText} — ${pt.description}`}

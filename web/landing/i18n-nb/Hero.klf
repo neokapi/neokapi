@@ -1,0 +1,514 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "neokapi",
+    "version": "1.0"
+  },
+  "project": {
+    "id": "neokapi-output",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/Hero.tsx",
+      "documentType": "jsx",
+      "path": "src/components/Hero.tsx",
+      "blocks": [
+        {
+          "id": "src/components/Hero.tsx:102:0",
+          "hash": "18q3mt",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "className=\"h-1.5 w-1.5 rounded-full bg-brand-400 animate-pulse-glow\" />\n     ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "className=\"text-brand-300\">Open-s",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": "Open-source engine"
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": ">\n     ",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "className=\"text-neutral-500\">|</spa",
+                "equiv": "=m2"
+              }
+            },
+            {
+              "text": "|"
+            },
+            {
+              "pcClose": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": ">\n     ",
+                "equiv": "=m2"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "className=\"text-neutral-400\">Offlin",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": "Offline-first · no lock-in"
+            },
+            {
+              "pcClose": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "\n      ",
+                "equiv": "=m3"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} {=m1}Motor med åpen kildekode{/=m1} {=m2}|{/=m2} {=m3}Frakoblet først · ingen innlåsing{/=m3}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "className=\"h-1.5 w-1.5 rounded-full bg-brand-400 animate-pulse-glow\" />\n     "
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "className=\"text-brand-300\">Open-source engine</span>\n     "
+            },
+            {
+              "name": "=m2",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "className=\"text-neutral-500\">|</span>\n     "
+            },
+            {
+              "name": "=m3",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "className=\"text-neutral-400\">Offline-first · no lock-in</span>\n      "
+            }
+          ],
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 102,
+            "component": "Hero",
+            "jsxPath": "section > div > div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:112:alt",
+          "hash": "EcC4o",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "Neokapi mascot"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Neokapi-maskot"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 112,
+            "component": "Hero",
+            "jsxPath": "section > div > div > img[alt]",
+            "element": "img"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:116:2",
+          "hash": "49auKR",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Read, change, and ship content in"
+            },
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:var",
+                "data": "{value}",
+                "equiv": "value"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "lassName=\"bg-gradient-to-r from-brand-400 via-brand-300 to-forest-400 bg-clip-text text-transparent text-glow\">\n      ",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " any format "
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "\n      ",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " ."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Les, endre og lever innhold i {=m1} hvilket som helst format {/=m1}."
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "value",
+              "kind": "variable",
+              "sourceExpr": "   "
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "lassName=\"bg-gradient-to-r from-brand-400 via-brand-300 to-forest-400 bg-clip-text text-transparent text-glow\">\n              any format\n            </span>\n      "
+            }
+          ],
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 116,
+            "component": "Hero",
+            "jsxPath": "section > div > div > h1",
+            "element": "h1"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:125:3",
+          "hash": "26BuEv",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "An open engine that extracts what matters from any file, lets you translate, check, and transform it, and writes it back faithfully — structure, markup, and placeholders intact. AI translation, translation memory, terminology and brand checks built in."
+            },
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:var",
+                "data": "{value}",
+                "equiv": "value"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "ssName=\"text-neutral-300\">Offline b",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": "Offline by default — your content stays yours."
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "     </",
+                "equiv": "=m1"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "En åpen motor som trekker ut det som betyr noe fra hvilken som helst fil, lar deg oversette, sjekke og transformere det, og skriver det trofast tilbake — struktur, oppmerking og plassholdere intakt. AI-oversettelse, oversettelsesminne, terminologi- og merkevaresjekker innebygd. {=m1}Frakoblet som standard — innholdet ditt forblir ditt.{/=m1}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "value",
+              "kind": "variable",
+              "sourceExpr": "   "
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "ssName=\"text-neutral-300\">Offline by default — your content stays yours.</span>\n        </"
+            }
+          ],
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 125,
+            "component": "Hero",
+            "jsxPath": "section > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:146:4",
+          "hash": "31pyKM",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "pcOpen": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "    href=\"#get-started\"\n            className=\"group flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-7 py-3.5 font-display text-base font-semibold text-surface-950 transition hover:bg-brand-400 hover:shadow-[0_0_30px_rgba(37,194,160,0.2)] sm:w-auto\"\n          >\n          ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " Get Started "
+            },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "ChevronRight",
+                "data": "ht className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          ",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcClose": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "    ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "    href=\"#brand-loop\"\n            className=\"group flex w-full items-center justify-center gap-2 rounded-xl border border-surface-600 bg-surface-900/50 px-7 py-3.5 font-display text-base font-medium text-neutral-200 transition hover:border-brand-500/30 hover:text-white sm:w-auto\"\n          >\n          ",
+                "equiv": "=m2"
+              }
+            },
+            {
+              "text": " How it works "
+            },
+            {
+              "ph": {
+                "id": "4",
+                "type": "jsx:element",
+                "subType": "ChevronRight",
+                "data": "ht className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          ",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcClose": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "  </",
+                "equiv": "=m2"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} Kom i gang {=m1} {/=m0} {=m2} Slik virker det {=m3} {/=m2}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "ht className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          "
+            },
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "    href=\"#get-started\"\n            className=\"group flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-7 py-3.5 font-display text-base font-semibold text-surface-950 transition hover:bg-brand-400 hover:shadow-[0_0_30px_rgba(37,194,160,0.2)] sm:w-auto\"\n          >\n            Get Started\n            <ChevronRight className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          </a>\n          "
+            },
+            {
+              "name": "=m3",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "ht className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          "
+            },
+            {
+              "name": "=m2",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "    href=\"#brand-loop\"\n            className=\"group flex w-full items-center justify-center gap-2 rounded-xl border border-surface-600 bg-surface-900/50 px-7 py-3.5 font-display text-base font-medium text-neutral-200 transition hover:border-brand-500/30 hover:text-white sm:w-auto\"\n          >\n            How it works\n            <ChevronRight className=\"h-4 w-4 transition-transform group-hover:translate-x-0.5\" />\n          </a>\n        </"
+            }
+          ],
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 146,
+            "component": "Hero",
+            "jsxPath": "section > div > div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:43:t",
+          "hash": "1ObpLG",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Any format, faithfully"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Alle formater, trofast"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 43,
+            "component": "Hero",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:44:t",
+          "hash": "29uyaq",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Translate · check · transform"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Oversett · sjekk · transformer"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 44,
+            "component": "Hero",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/Hero.tsx:45:t",
+          "hash": "297rKu",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Offline by default"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Frakoblet som standard"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/Hero.tsx",
+            "line": 45,
+            "component": "Hero",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        }
+      ]
+    }
+  ]
+}

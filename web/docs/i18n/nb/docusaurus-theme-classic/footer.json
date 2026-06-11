@@ -1,0 +1,50 @@
+{
+  "link.title.Documentation": {
+    "message": "Dokumentasjon",
+    "description": "The title of the footer links column with title=Documentation in the footer"
+  },
+  "link.title.More": {
+    "message": "Mer",
+    "description": "The title of the footer links column with title=More in the footer"
+  },
+  "link.item.label.Get started": {
+    "message": "Kom i gang",
+    "description": "The label of footer link with label=Get started linking to /kapi/get-started/quickstart"
+  },
+  "link.item.label.Kapi": {
+    "message": "Kapi",
+    "description": "The label of footer link with label=Kapi linking to /kapi/overview"
+  },
+  "link.item.label.Framework": {
+    "message": "Rammeverk",
+    "description": "The label of footer link with label=Framework linking to /framework/architecture"
+  },
+  "link.item.label.Kapi CLI": {
+    "message": "Kapi CLI",
+    "description": "The label of footer link with label=Kapi CLI linking to /kapi/cli"
+  },
+  "link.item.label.CLI tools": {
+    "message": "CLI-verktøy",
+    "description": "The label of footer link with label=CLI tools linking to /toolbox/overview"
+  },
+  "link.item.label.Kapi React": {
+    "message": "Kapi React",
+    "description": "The label of footer link with label=Kapi React linking to /react/introduction"
+  },
+  "link.item.label.Reference": {
+    "message": "Referanse",
+    "description": "The label of footer link with label=Reference linking to /reference"
+  },
+  "link.item.label.Format Reference": {
+    "message": "Formatreferanse",
+    "description": "The label of footer link with label=Format Reference linking to /formats"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/neokapi/neokapi"
+  },
+  "link.item.label.Homebrew Tap": {
+    "message": "Homebrew-tap",
+    "description": "The label of footer link with label=Homebrew Tap linking to https://github.com/neokapi/homebrew-tap"
+  }
+}

@@ -1,10 +1,8 @@
 package sievepen
 
 import (
-	"cmp"
 	"context"
 	"maps"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -271,9 +269,16 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 				if mode.mt == MatchGeneralizedExact {
 					adaptations = ComputeEntityAdaptations(se.entry, sourceLocale, targetLocale, entityAnnotations)
 				}
+				// Plain-text equality with differing inline-code structure
+				// is a near match, not a full one (tag-mismatch penalty) —
+				// mirrors the SQLite backend.
+				score := 1.0
+				if mode.modeFlag == MatchModePlain && k.structural != structKey {
+					score = ScoreNearExact
+				}
 				matches = append(matches, TMMatch{
 					Entry:             se.entry,
-					Score:             1.0,
+					Score:             score,
 					MatchType:         mode.mt,
 					ProjectID:         se.entry.ProjectID,
 					EntityAdaptations: adaptations,
@@ -282,8 +287,17 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		}
 	}
 
+	// Ambiguity rule — see demoteAmbiguousExacts.
+	demoteAmbiguousExacts(matches, targetLocale)
+
 	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		return LimitResults(matches, opts.MaxResults)
+		kept := matches[:0]
+		for _, m := range matches {
+			if m.Score >= opts.MinScore {
+				kept = append(kept, m)
+			}
+		}
+		return LimitResults(sortMatches(kept), opts.MaxResults)
 	}
 
 	// Tier 4-6: fuzzy.
@@ -342,15 +356,7 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		})
 	}
 
-	slices.SortFunc(matches, func(a, b TMMatch) int {
-		pa := MatchTypePriority(a.MatchType)
-		pb := MatchTypePriority(b.MatchType)
-		if c := cmp.Compare(pa, pb); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Score, a.Score)
-	})
-	return LimitResults(matches, opts.MaxResults)
+	return LimitResults(sortMatches(matches), opts.MaxResults)
 }
 
 func projectAllowed(entryProject string, opts LookupOptions) bool {

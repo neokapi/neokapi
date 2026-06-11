@@ -6,6 +6,7 @@
 // for a whole category again. Hues are intentionally distinct per category but
 // warm-shifted to complement the Sandstone theme's earthy palette.
 
+import { t } from "@neokapi/kapi-react/runtime";
 import type { ToolCategory } from "./types";
 import {
   Languages,
@@ -35,42 +36,54 @@ const CATEGORIES: Record<ToolCategory, CategoryStyle> = {
     color: "oklch(0.7 0.13 85)",
     bg: "oklch(0.7 0.13 85 / 0.12)",
     text: "oklch(0.8 0.1 85)",
-    label: "Translation",
+    get label() {
+      return t("Translation", "tool category");
+    },
     icon: Languages,
   },
   quality: {
     color: "oklch(0.7 0.17 145)",
     bg: "oklch(0.7 0.17 145 / 0.12)",
     text: "oklch(0.8 0.13 145)",
-    label: "Quality",
+    get label() {
+      return t("Quality", "tool category");
+    },
     icon: ShieldCheck,
   },
   analysis: {
     color: "oklch(0.75 0.1 55)",
     bg: "oklch(0.75 0.1 55 / 0.12)",
     text: "oklch(0.82 0.08 55)",
-    label: "Analysis",
+    get label() {
+      return t("Analysis", "tool category");
+    },
     icon: BarChart3,
   },
   "text-processing": {
     color: "oklch(0.65 0.14 300)",
     bg: "oklch(0.65 0.14 300 / 0.12)",
     text: "oklch(0.78 0.1 300)",
-    label: "Text Processing",
+    get label() {
+      return t("Text Processing", "tool category");
+    },
     icon: Type,
   },
   convert: {
     color: "oklch(0.7 0.12 180)",
     bg: "oklch(0.7 0.12 180 / 0.12)",
     text: "oklch(0.8 0.08 180)",
-    label: "Convert",
+    get label() {
+      return t("Convert", "tool category");
+    },
     icon: RefreshCw,
   },
   pipeline: {
     color: "oklch(0.6 0.02 106)",
     bg: "oklch(0.6 0.02 106 / 0.12)",
     text: "oklch(0.7 0.01 106)",
-    label: "Pipeline",
+    get label() {
+      return t("Pipeline", "tool category");
+    },
     icon: Workflow,
   },
 };
@@ -95,6 +108,19 @@ export function getCategoryColor(category: string): string {
   return getCategoryStyle(category).color;
 }
 
+// Note: `label` delegates back to the CATEGORIES getter instead of being
+// spread, so the t() lookup happens at access time (render), not at
+// module evaluation — a plain spread would freeze the source-language
+// label before translations load.
 export const ALL_CATEGORIES = (Object.entries(CATEGORIES) as [ToolCategory, CategoryStyle][]).map(
-  ([id, style]) => ({ id, ...style }),
+  ([id, style]) => ({
+    id,
+    color: style.color,
+    bg: style.bg,
+    text: style.text,
+    icon: style.icon,
+    get label() {
+      return style.label;
+    },
+  }),
 );

@@ -1,0 +1,89 @@
+---
+sidebar_position: 0
+title: Kapi
+description: Kapi leser, oversetter og leverer innhold i alle formater — formattro — og verifiserer det med sjekker for terminologi, kvalitetskontroll og merkevarestemme som fungerer som tester for AI-produsert innhold. Den kjører neokapi-motoren på to måter — kommandolinjeverktøyet kapi og appen Kapi Desktop — med samme verktøy, flyter og .kapi-prosjekter.
+keywords: [Kapi, kapi CLI, Kapi Desktop, format-aware localization, content engine, checks, overview]
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Kapi
+
+**Kapi** leser, oversetter og leverer innhold i **alle formater** — formattro —
+og verifiserer det med **sjekker** (terminologi, kvalitetskontroll,
+merkevarestemme) som fungerer som **tester for AI-produsert innhold**. Det er
+bygget på det åpne [neokapi-rammeverket](/framework/architecture) og finnes i to
+former som deler samme motor, verktøy, flyter og
+[`.kapi`-prosjekter](/reference/project-file):
+
+- **[Kapi CLI](/kapi/cli)** — én binærfil som arbeider direkte på filer.
+  Best for automatisering, skripting, CI-porter og frakoblet arbeid; krever
+  verken prosjekt eller server. Den tilbyr også merkevare- og
+  terminologiverktøy til AI-assistenten din over [MCP](/reference/mcp).
+- **[Kapi Desktop](/kapi/desktop/overview)** — en visuell følgeapp for å
+  bygge flyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon —
+  uten å skrive YAML eller huske flagg.
+
+Siden begge grensesnittene kjører samme motor, fungerer en arbeidsflyt bygget
+i det ene også i det andre: flytene og prosjektfilen er identiske.
+
+Trekk ut innhold fra en fil, oversett det, kjør sjekker og skriv det tilbake
+i samme format — en fullstendig tospråklig rundtur fra terminalen:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/bilingual-workflow-light.webm",
+    dark: "/video/kapi/bilingual-workflow-dark.webm",
+  }}
+/>
+
+## Kommandolinjegrensesnitt
+
+Kjør verktøy og flyter rett fra terminalen — `kapi pseudo-translate`,
+`kapi ai-translate`, `kapi brand check`, `kapi run <flow>`. Se
+[Kapi CLI-oversikten](/kapi/cli) for kommandoflaten og de oppgavebaserte
+oppskriftene du kan kjøre i nettleseren.
+
+## Skrivebordsapp
+
+Foretrekker du et visuelt grensesnitt? [Kapi Desktop](/kapi/desktop/overview)
+pakker de samme verktøyene og flytene inn i en app med flytredigering,
+kjøringsvisning, tilleggshåndtering og legitimasjonshvelv.
+[Kapi Desktop-oversikten](/kapi/desktop/overview) tar deg gjennom ditt første
+prosjekt.
+
+## Prosjekter og ad hoc
+
+Det er to måter å bruke Kapi på:
+
+- **Prosjekt** — den anbefalte modellen for daglig bruk. Fang arbeidsflyten én
+  gang i en portabel `.kapi`-oppskrift (språk, innholdsmønstre, flyter,
+  tilleggskrav, standardvalg) og spill den av igjen med `kapi run <flow>`.
+  Prosjektlageret bygger opp oversettelsesminne mens du arbeider, og oppskriften
+  kan deles via git. Best for ethvert kodelager eller innholdssett du
+  lokaliserer gjentatte ganger —
+  [opprett ditt første prosjekt](/kapi/get-started/first-project).
+- **Ad hoc** — kjør et verktøy eller en flyt direkte på filer, konfigurert med
+  flagg (eller, i skrivebordsappen, med klikk):
+  `kapi ai-translate -i file.json --target-lang fr`. Ingenting lagres — den
+  raske veien for engangsjobber, skripting og CI.
+
+**Kapi finner prosjektet ditt automatisk.** Som git går den oppover i
+katalogtreet fra der du kjører den; finner den en `.kapi`-oppskrift, kjører den
+i **prosjektmodus** med prosjektets språk, standardvalg og flyter. Ellers kjører
+den ad hoc.
+
+Begge er de samme kommandoene over en ulik **binding** (hvor innholdet kommer
+inn og går ut): ad hoc skriver filer, mens i et prosjekt skriver en kjøring til
+lageret og `kapi merge` materialiserer de lokaliserte filene. Se **[Moduser og
+bindinger](/kapi/modes)** for hele modellen — diagrammet over
+kilde-/sluk-bindinger, de to prosjektsløyfene, den portable `.klz`-pakken, og
+når det gir mening å kombinere.
+
+Se [referansen for prosjektfiler](/reference/project-file) for det
+fullstendige `.kapi`-formatet.
+
+## Installering
+
+Se [Installering](/kapi/get-started/installation) for CLI-en (Homebrew eller
+nedlasting) og Kapi Desktop (macOS-cask).

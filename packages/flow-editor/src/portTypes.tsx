@@ -11,6 +11,7 @@
 // disambiguate within a family. Hues are chosen to sit clear of the category
 // rail hues in ./category.ts.
 
+import { t } from "@neokapi/kapi-react/runtime";
 import type { PortType } from "./types";
 import {
   AlignLeft,
@@ -60,44 +61,72 @@ export const PORT_FAMILIES: Record<PortFamily, FamilyStyle> = {
   content: {
     color: "oklch(0.62 0.13 250)",
     bg: "oklch(0.62 0.13 250 / 0.12)",
-    label: "Content",
-    description: "The block's source text and committed target translation.",
+    get label() {
+      return t("Content", "port type");
+    },
+    get description() {
+      return t("The block's source text and committed target translation.");
+    },
   },
   linguistic: {
     color: "oklch(0.7 0.11 195)",
     bg: "oklch(0.7 0.11 195 / 0.12)",
-    label: "Linguistic",
-    description: "Run-anchored interpretations: segments, terms, entities, alignment.",
+    get label() {
+      return t("Linguistic", "port type");
+    },
+    get description() {
+      return t("Run-anchored interpretations: segments, terms, entities, alignment.");
+    },
   },
   quality: {
     color: "oklch(0.68 0.18 30)",
     bg: "oklch(0.68 0.18 30 / 0.12)",
-    label: "Quality findings",
-    description: "Issues a downstream step or reviewer should act on.",
+    get label() {
+      return t("Quality findings", "port type");
+    },
+    get description() {
+      return t("Issues a downstream step or reviewer should act on.");
+    },
   },
   suggestion: {
     color: "oklch(0.66 0.16 320)",
     bg: "oklch(0.66 0.16 320 / 0.12)",
-    label: "Matches & suggestions",
-    description: "Candidate translations, TM matches, brand/term proposals.",
+    get label() {
+      return t("Matches & suggestions", "port type");
+    },
+    get description() {
+      return t("Candidate translations, TM matches, brand/term proposals.");
+    },
   },
   metric: {
     color: "oklch(0.6 0.04 265)",
     bg: "oklch(0.6 0.04 265 / 0.12)",
-    label: "Metrics & reports",
-    description: "Read-only counts and analysis reports.",
+    get label() {
+      return t("Metrics & reports", "port type");
+    },
+    get description() {
+      return t("Read-only counts and analysis reports.");
+    },
   },
   note: {
     color: "oklch(0.72 0.12 95)",
     bg: "oklch(0.72 0.12 95 / 0.12)",
-    label: "Notes",
-    description: "Free-text notes attached to a block.",
+    get label() {
+      return t("Notes", "port type");
+    },
+    get description() {
+      return t("Free-text notes attached to a block.");
+    },
   },
   security: {
     color: "oklch(0.6 0.2 15)",
     bg: "oklch(0.6 0.2 15 / 0.12)",
-    label: "Security",
-    description: "Redaction secrets restored after processing.",
+    get label() {
+      return t("Security", "port type");
+    },
+    get description() {
+      return t("Redaction secrets restored after processing.");
+    },
   },
 };
 
@@ -111,136 +140,220 @@ export interface PortTypeDef {
 const PORT_TYPES: Record<PortType, PortTypeDef> = {
   // Content (pseudo-ports)
   source: {
-    label: "Source",
+    get label() {
+      return t("Source", "port type");
+    },
     family: "content",
     icon: AlignLeft,
-    description: "The source text (rewritten by transformer tools).",
+    get description() {
+      return t("The source text (rewritten by transformer tools).");
+    },
   },
   target: {
-    label: "Target",
+    get label() {
+      return t("Target", "port type");
+    },
     family: "content",
     icon: Languages,
-    description: "The committed target translation.",
+    get description() {
+      return t("The committed target translation.");
+    },
   },
   // Linguistic overlays
   segmentation: {
-    label: "Segments",
+    get label() {
+      return t("Segments", "port type");
+    },
     family: "linguistic",
     icon: Scissors,
-    description: "Sentence/chunk boundaries as a stand-off overlay.",
+    get description() {
+      return t("Sentence/chunk boundaries as a stand-off overlay.");
+    },
   },
   term: {
-    label: "Terms",
+    get label() {
+      return t("Terms", "port type");
+    },
     family: "linguistic",
     icon: BookMarked,
-    description: "Matched terminology spans.",
+    get description() {
+      return t("Matched terminology spans.");
+    },
   },
   entity: {
-    label: "Entities",
+    get label() {
+      return t("Entities", "port type");
+    },
     family: "linguistic",
     icon: AtSign,
-    description: "Recognized named-entity spans.",
+    get description() {
+      return t("Recognized named-entity spans.");
+    },
   },
   alignment: {
-    label: "Alignment",
+    get label() {
+      return t("Alignment", "port type");
+    },
     family: "linguistic",
     icon: GitCompare,
-    description: "Source↔target span alignment.",
+    get description() {
+      return t("Source↔target span alignment.");
+    },
   },
   "term-candidate": {
-    label: "Term candidates",
+    get label() {
+      return t("Term candidates", "port type");
+    },
     family: "linguistic",
     icon: Tag,
-    description: "Proposed terminology not yet in the termbase.",
+    get description() {
+      return t("Proposed terminology not yet in the termbase.");
+    },
   },
   // Quality
   qa: {
-    label: "QA findings",
+    get label() {
+      return t("QA findings", "port type");
+    },
     family: "quality",
     icon: ShieldAlert,
-    description: "Quality-check findings anchored to spans.",
+    get description() {
+      return t("Quality-check findings anchored to spans.");
+    },
   },
   // Matches & suggestions
   "tm-match": {
-    label: "TM matches",
+    get label() {
+      return t("TM matches", "port type");
+    },
     family: "suggestion",
     icon: Database,
-    description: "Translation-memory matches.",
+    get description() {
+      return t("Translation-memory matches.");
+    },
   },
   "alt-translation": {
-    label: "Alt translations",
+    get label() {
+      return t("Alt translations", "port type");
+    },
     family: "suggestion",
     icon: Sparkles,
-    description: "Candidate translations from TM/MT/AI.",
+    get description() {
+      return t("Candidate translations from TM/MT/AI.");
+    },
   },
   "brand-voice": {
-    label: "Brand voice",
+    get label() {
+      return t("Brand voice", "port type");
+    },
     family: "suggestion",
     icon: Megaphone,
-    description: "Brand-voice findings and rewrites.",
+    get description() {
+      return t("Brand-voice findings and rewrites.");
+    },
   },
   comparison: {
-    label: "Comparison",
+    get label() {
+      return t("Comparison", "port type");
+    },
     family: "suggestion",
     icon: Diff,
-    description: "Comparison of two candidate translations.",
+    get description() {
+      return t("Comparison of two candidate translations.");
+    },
   },
   "term-enforcement": {
-    label: "Term enforcement",
+    get label() {
+      return t("Term enforcement", "port type");
+    },
     family: "suggestion",
     icon: ShieldCheck,
-    description: "Enforced terminology corrections.",
+    get description() {
+      return t("Enforced terminology corrections.");
+    },
   },
   // Metrics & reports
   "word-count": {
-    label: "Word count",
+    get label() {
+      return t("Word count", "port type");
+    },
     family: "metric",
     icon: Hash,
-    description: "Per-block word counts.",
+    get description() {
+      return t("Per-block word counts.");
+    },
   },
   "char-count": {
-    label: "Char count",
+    get label() {
+      return t("Char count", "port type");
+    },
     family: "metric",
     icon: Hash,
-    description: "Per-block character counts.",
+    get description() {
+      return t("Per-block character counts.");
+    },
   },
   "seg-count": {
-    label: "Segment count",
+    get label() {
+      return t("Segment count", "port type");
+    },
     family: "metric",
     icon: ListOrdered,
-    description: "Per-block segment counts.",
+    get description() {
+      return t("Per-block segment counts.");
+    },
   },
   repetition: {
-    label: "Repetition",
+    get label() {
+      return t("Repetition", "port type");
+    },
     family: "metric",
     icon: Repeat,
-    description: "Repetition analysis across blocks.",
+    get description() {
+      return t("Repetition analysis across blocks.");
+    },
   },
   "scoping-report": {
-    label: "Scoping",
+    get label() {
+      return t("Scoping", "port type");
+    },
     family: "metric",
     icon: ClipboardList,
-    description: "Project scoping report.",
+    get description() {
+      return t("Project scoping report.");
+    },
   },
   "entity-mapping": {
-    label: "Entity mapping",
+    get label() {
+      return t("Entity mapping", "port type");
+    },
     family: "metric",
     icon: AtSign,
-    description: "Entity-to-translation mapping.",
+    get description() {
+      return t("Entity-to-translation mapping.");
+    },
   },
   // Notes
   note: {
-    label: "Notes",
+    get label() {
+      return t("Notes", "port type");
+    },
     family: "note",
     icon: StickyNote,
-    description: "Free-text notes on a block.",
+    get description() {
+      return t("Free-text notes on a block.");
+    },
   },
   // Security
   "redaction.secret": {
-    label: "Redaction secret",
+    get label() {
+      return t("Redaction secret", "port type");
+    },
     family: "security",
     icon: Lock,
-    description: "In-process map restoring redacted originals.",
+    get description() {
+      return t("In-process map restoring redacted originals.");
+    },
   },
 };
 

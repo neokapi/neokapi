@@ -1,0 +1,155 @@
+---
+sidebar_position: 5
+title: Bruke kapi med Claude
+description: Koble kapi inn i Claude Code som en agentferdighet, slik at AI-assistenten din kan trekke ut, oversette og kvalitetskontrollere lokaliseringsfiler på forespørsel — og holde hvert språk merkevaretro og strukturelt formattro.
+keywords: [kapi, claude, ai assistant, claude code, mcp, localization agent, brand voice, agent skill]
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Bruke kapi med Claude
+
+Du fortsetter å bygge med Claude Code som vanlig. kapi gir Claude en
+**strukturert, repeterbar** måte å håndtere lokalisering og merkevare på — slik
+at det å gjøre produktet ditt flerspråklig og holde teksten på stemmen er en
+ingeniørpipeline, ikke en engangsoversettelse. kapi trekker teksten ut av
+**koden** og **dokumentene** dine, fører den tilbake **formattro** (struktur,
+formatering og plassholdere intakt), gjenbruker **oversettelsesminne**, og
+håndhever **ordlisten** og **merkevarestemmen** din — på samme måte hver gang,
+og kan brukes som port i CI.
+
+Du installerer det én gang. Etter det spør du Claude i naturlig språk; den
+avgjør når den skal kalle `kapi`.
+
+:::note
+kapi snakker også [MCP](/reference/mcp), for assistenter som foretrekker
+strukturerte verktøy fremfor en CLI. Denne siden følger ferdighetssporet (CLI) —
+de to virker sammen.
+:::
+
+## 1. Koble kapi til Claude
+
+Installer ferdigheten i et prosjekt, eller i brukerkontoen din for alle
+prosjekter:
+
+```bash
+kapi skills install                 # ./.claude/skills/kapi/   (this project)
+kapi skills install --target user   # ~/.claude/skills/kapi/   (every project)
+```
+
+Claude Code oppdager ferdigheten og kaller den når en oppgave passer
+beskrivelsen dens — du kaller den aldri ved navn. Det er én ruter som laster den
+relevante seksjonen ved behov (progressiv avsløring), så den dekker hele
+arbeidsflyten uten å fylle opp kontekstvinduet.
+
+Den eneste forutsetningen er `kapi`-CLI-en på `PATH` (`kapi version` — se
+[installering](/kapi/get-started/installation)). De regelbaserte sjekkene trenger
+ingen legitimasjon; for leverandørstøttet oversettelse, legg til en med
+`kapi credentials add` (eller la assistenten oversette innenfor kapis rekkverk —
+mer under).
+
+## 2. Lever appen din på et annet språk
+
+Du tar en React- eller Next.js-app til et nytt marked. Den engelske teksten i
+JSX-en din blir som den er — ingen meldings-ID-er, ingen `t("...")`-innpakninger.
+Du bare spør:
+
+> Vi lanserer i Japan. Sett opp i18n med kapi-react og legg til en japansk oversettelse.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-app-i18n-light.webm",
+    dark: "/video/kapi/claude-app-i18n-dark.webm",
+  }}
+  maxWidth="900px"
+/>
+
+Claude tar i bruk null-innpaknings-stabelen [kapi-react](/react/introduction) og
+kjører en strukturert pipeline — de samme stegene hver gang grensesnittet endres:
+
+```bash
+npm run extract                                # kapi-react collects the UI strings from the JSX → i18n/
+kapi pseudo-translate i18n/  # readiness check: surfaces anything not localizable yet
+kapi ai-translate i18n/ --target-lang ja       # translate; interpolation placeholders preserved
+npm run compile                                # → public/translations/ja.json (loaded at runtime)
+```
+
+Strengene blir i komponentene dine som ren JSX; kapi håndterer uttrekket ved
+byggetid og rundturen inn i en kjøretidsordbok, og bærer plassholdere som
+`{userName}` urørt gjennom. Notat-*dataene* i komponentene dine får være i fred —
+bare grensesnittsteksten oversettes. Legg til neste språk ved å kjøre samme
+pipeline på nytt.
+
+## 3. Oversett dokumenter med strukturen intakt
+
+Deretter, en énsider for lanseringen — et Word-dokument. Claude driver kapi for
+en strukturert, formattro rundtur: kapi parser `.docx`-en, oversetter teksten og
+skriver den tilbake med overskrifter, lister, fete tekstløp og innebygde felter
+bevart — og anvender ordlisten og oversettelsesminnet ditt underveis.
+
+> Oversett announcement.docx til japansk.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-translate-document-light.webm",
+    dark: "/video/kapi/claude-translate-document-dark.webm",
+  }}
+  maxWidth="900px"
+/>
+
+```bash
+kapi ai-translate announcement.docx --target-lang ja -o announcement.ja.docx
+```
+
+Only the text changes; the document's structure comes through intact.
+The same one command works across the office formats, mobile catalogs (Apple
+`.xcstrings`, Android `strings.xml`, Flutter `.arb`), Markdown, and more — native,
+offline readers, no plugin. For vendor or human translation, swap `ai-translate` for
+a bilingual `kapi extract` → `kapi merge` round-trip; see
+[Bilingual Workflow](/kapi/bilingual-workflow).
+
+## 4. Keep terminology and brand consistent — automatically
+
+Bind the things that shouldn't drift between requests once, in your `.kapi`
+project:
+
+```yaml
+# myapp.kapi
+defaults:
+  source_language: en
+  target_languages: [ja, fr, de]
+  brand_voice:
+    profile_file: brand.yaml    # the voice to write in
+```
+
+Now every translation uses the glossary's terms and on-brand checks know your
+voice — with no flags in the prompt.
+
+The **checks** aren't something you watch Claude type. They run on their own:
+
+- **In the loop** — the Claude Code plugin registers a `Stop` hook (`kapi hook
+  stop`) that runs the project's gates when Claude tries to finish. If terminology,
+  placeholders, or brand voice are off, it hands the findings back and keeps Claude
+  working until they pass.
+- **In CI** — the same gate guards your pull requests:
+
+  ```bash
+  kapi verify --json                              # terminology + placeholder QA + brand voice, in one gate
+  kapi brand check RELEASE.md --min-score 90 --json
+  ```
+
+  The exit code distinguishes a failed gate from a crash, so a CI step can tell
+  them apart.
+
+This is the half the videos don't show — by design. Producing the translation is
+the conversation; verifying it should just happen.
+
+## Where to go next
+
+- [MCP server](/reference/mcp) — the same capabilities as structured tools for any
+  MCP client.
+- [Using kapi with React](/react/introduction) — the zero-wrapper i18n stack
+  from step 2.
+- [Bilingual Workflow](/kapi/bilingual-workflow) — XLIFF/PO round-trips for
+  vendor and human translation.
+- [Brand voice](/framework/checks/brand-voice) — the profile model the checks use.

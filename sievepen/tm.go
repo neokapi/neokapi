@@ -203,6 +203,43 @@ type TMMatch struct {
 	MatchType         MatchType
 	ProjectID         string // provenance: project ID of the matched entry
 	EntityAdaptations []EntityAdaptation
+
+	// Ambiguous marks an exact text match that full-score policies must
+	// not trust blindly: several entries matched the query exactly but
+	// disagree on the target text. Such matches are demoted to
+	// ScoreNearExact and flagged so unattended fills (extract pre-fill,
+	// fillTargetThreshold=100 leverage) can leave them for review instead
+	// of silently picking one by storage order.
+	Ambiguous bool
+}
+
+// ScoreNearExact is the score for exact-text matches that fall short of a
+// fully trustworthy 100%: a plain-text match whose inline-code structure
+// differs from the query's (industry "tag mismatch" penalty), or an exact
+// match that is ambiguous (multiple distinct targets at full score).
+const ScoreNearExact = 0.99
+
+// demoteAmbiguousExacts applies the ambiguity rule over the exact-tier
+// matches: when more than one match sits at score 1.0 with DIFFERING
+// target texts, none of them can claim to be THE exact translation, so
+// all are demoted to ScoreNearExact and flagged. Identical targets at
+// 1.0 are fine (the pick doesn't matter) and keep their score.
+func demoteAmbiguousExacts(matches []TMMatch, targetLocale model.LocaleID) {
+	targets := map[string]bool{}
+	for i := range matches {
+		if matches[i].Score >= 1.0 {
+			targets[matches[i].Entry.VariantText(targetLocale)] = true
+		}
+	}
+	if len(targets) <= 1 {
+		return
+	}
+	for i := range matches {
+		if matches[i].Score >= 1.0 {
+			matches[i].Score = ScoreNearExact
+			matches[i].Ambiguous = true
+		}
+	}
 }
 
 // ProjectScope controls project filtering in TM lookups.

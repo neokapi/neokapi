@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useCallback } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -21,7 +22,7 @@ export interface TagInputProps {
 export function TagInput({
   value,
   onChange,
-  placeholder = "Add tag...",
+  placeholder = t("Add tag..."),
   disabled,
   className,
 }: TagInputProps) {

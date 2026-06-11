@@ -849,6 +849,75 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
+# ── Dogfood localization (root recipe: neokapi.kapi) ────────────────────────
+# These targets ARE the dogfood workflow, so they deliberately run WITHOUT
+# $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
+# Reviewed translations are committed as TMX under l10n/tm/; the project TM
+# and termbase are rebuilt from those seeds (l10n-seed), then each surface is
+# produced by TM leverage so output only ever contains reviewed strings.
+L10N_LANGS := nb
+
+# Seeds are committed in the native KLF-family forms (.klftm / .klftb):
+# deterministic, lossless, and identity-preserving, so wipe-and-reseed
+# reproduces the TM/termbase state exactly. TMX/CSV are the lossy
+# interchange tier — emit them on demand with l10n-review-export.
+l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ seeds
+	@mkdir -p .kapi/cache
+	@rm -f .kapi/termbase.db .kapi/tm.db
+	./bin/kapi termbase import l10n/termbase.klftb
+	@for f in l10n/tm/*.klftm; do \
+		[ -e "$$f" ] || continue; \
+		./bin/kapi tm import "$$f"; \
+	done
+
+l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the native seeds → l10n/review/
+	@mkdir -p l10n/review
+	./bin/kapi tm export --format tmx -o l10n/review/tm-all.tmx
+	./bin/kapi termbase export --format csv -s en -t nb -o l10n/review/termbase-en-nb.csv
+	@echo "Review views written to l10n/review/ (gitignored; the .klftm/.klftb seeds are the source of truth)"
+
+l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+			--target-lang $$lang -o core/i18n/catalogs/$$lang.mo || exit 1; \
+	done
+
+l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata translations
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+			--target-lang $$lang -o /tmp/l10n-builtins-$$lang.json -q && \
+		./bin/kapi term-check /tmp/l10n-builtins-$$lang.json -f json \
+			--source-lang en --target-lang $$lang || exit 1; \
+	done
+
+l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage $(KAPI_DESKTOP_DIR)/frontend/i18n \
+			--target-lang $$lang \
+			-o $(KAPI_DESKTOP_DIR)/frontend/i18n-$$lang || exit 1; \
+		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
+	done
+
+kapi-cli-i18n-generate: ## Regenerate cli/i18n/commands.json from the cobra command tree
+	cd cli && go generate ./i18n/...
+
+l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i18n/catalogs/<lang>.mo (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi tm-leverage cli/i18n/commands.json -f json \
+			--target-lang $$lang -o cli/i18n/catalogs/$$lang.mo || exit 1; \
+	done
+	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
+	@echo "bin/kapi only shows the new translations after a rebuild."
+
+# (The former l10n-landing target is gone with web/landing: the landing page
+# was folded into the Docusaurus home, so its strings localize through the
+# docs-site path. l10n/tm/landing-nb.klftm stays — the TM leverages that copy
+# wherever it resurfaces.)
+l10n: l10n-builtins l10n-desktop l10n-cli ## Rebuild all dogfood localization outputs from the l10n/ seeds
+
+l10n-verify: l10n-builtins l10n-cli ## CI gate: Go-side l10n artifacts regenerate byte-identically from the seeds
+	git diff --exit-code core/i18n/builtins core/i18n/catalogs cli/i18n/commands.json cli/i18n/catalogs
+
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 

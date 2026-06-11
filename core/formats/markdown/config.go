@@ -15,6 +15,13 @@ type Config struct {
 	// translatable. Default false = emitted as Data.
 	TranslateFrontMatter bool
 
+	// FrontMatterKeys restricts which front matter keys are extracted when
+	// TranslateFrontMatter is on. Empty means every scalar value (the
+	// historical behavior); set it to the prose-bearing keys (e.g.
+	// ["title", "description"]) so numbers, slugs, and tag lists stay
+	// skeleton.
+	FrontMatterKeys []string
+
 	// TranslateImageAlt controls whether image alt text is translatable
 	// (included in the block's inline content). Default true (nonSkipImageAlt=false).
 	nonSkipImageAlt bool
@@ -89,6 +96,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if v, ok := val.(bool); ok {
 				c.TranslateFrontMatter = v
 			}
+		case "frontMatterKeys":
+			keys, err := toStringSlice(val)
+			if err != nil {
+				return fmt.Errorf("frontMatterKeys: %w", err)
+			}
+			c.FrontMatterKeys = keys
 		case "translateImageAlt", "translateImageAltText":
 			if v, ok := val.(bool); ok {
 				c.nonSkipImageAlt = !v
@@ -189,4 +202,23 @@ func parseCodeFinderRules(val any) ([]string, error) {
 		return rules, nil
 	}
 	return nil, fmt.Errorf("expected []string or map, got %T", val)
+}
+
+// toStringSlice coerces a YAML/JSON-decoded list into []string.
+func toStringSlice(val any) ([]string, error) {
+	if s, ok := val.([]string); ok {
+		return s, nil
+	}
+	if arr, ok := val.([]any); ok {
+		out := make([]string, 0, len(arr))
+		for _, item := range arr {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, got %T", item)
+			}
+			out = append(out, s)
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("expected list of strings, got %T", val)
 }

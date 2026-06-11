@@ -7,12 +7,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/sievepen/klftm"
 	"github.com/spf13/cobra"
 )
 
@@ -112,8 +115,15 @@ func (a *App) resolveProjectTMPath(cmd *cobra.Command) (string, error) {
 func (a *App) newTMImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [file]",
-		Short: "Import a TMX file into translation memory",
-		Long: `Import a single TMX file (plain or .gz) into the TM.
+		Short: "Import a TMX or .klftm file into translation memory",
+		Long: `Import a single TMX file (plain or .gz) or a native .klftm file into the TM.
+
+klftm is the KLF-family native TM form: a deterministic, lossless JSON
+serialization that round-trips every TMEntry field (entity mappings,
+provenance origins, properties, notes) that TMX drops. Importing a .klftm
+preserves entry identity verbatim, so re-seeding a TM from committed .klftm
+files is fully reproducible. The format is selected by file extension;
+--format overrides.
 
 By default, imports entries matching the given --source-locale and --target-locale.
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
@@ -125,13 +135,15 @@ The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
 without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 <prop type="source-document"> URL is recorded as Origin.Reference.`,
 		Example: `  kapi tm import corpus.tmx -s en -t fr
-  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm`,
+  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm
+  kapi tm import seeds/builtins-nb.klftm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			allPairs, _ := cmd.Flags().GetBool("all-pairs")
 			localesRaw, _ := cmd.Flags().GetString("locales")
+			format, _ := cmd.Flags().GetString("format")
 
 			tm, dbPath, err := a.openTMSQLite(cmd)
 			if err != nil {
@@ -139,7 +151,15 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			}
 			defer tm.Close()
 
-			count, err := importTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, parseLocaleList(localesRaw))
+			var count int
+			switch resolveTMFileFormat(format, args[0]) {
+			case "klftm":
+				count, err = importKLFTMFile(cmd.Context(), tm, args[0])
+			case "tmx":
+				count, err = importTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, parseLocaleList(localesRaw))
+			default:
+				return fmt.Errorf("unsupported format: %s (use tmx or klftm)", format)
+			}
 			if err != nil {
 				return err
 			}
@@ -153,6 +173,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if a.Quiet {
 				return nil
 			}
+			warnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
 			tmTotal, err := tm.Count(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("count TM entries: %w", err)
@@ -169,8 +190,64 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
+	cmd.Flags().String("format", "auto", "input format (auto, tmx, klftm); auto selects by file extension")
 
 	return cmd
+}
+
+// resolveTMFileFormat maps the --format flag (or, for "auto", the file
+// extension) to a TM file format name. Anything that is not .klftm is
+// treated as TMX, matching the historical default.
+func resolveTMFileFormat(flag, path string) string {
+	switch strings.ToLower(flag) {
+	case "", "auto":
+		if strings.HasSuffix(strings.ToLower(path), ".klftm") {
+			return "klftm"
+		}
+		return "tmx"
+	default:
+		return strings.ToLower(flag)
+	}
+}
+
+// importKLFTMFile imports a native .klftm document. Entries keep their
+// serialized identity (BulkAddWithStream upserts by entry ID), and any
+// import sessions recorded in the file are recreated when absent, so a
+// wipe-and-reseed produces a byte-identical TM state.
+func importKLFTMFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("open %s: %w", path, err)
+	}
+	defer f.Close()
+
+	file, err := klftm.Decode(f)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	entries := file.ModelEntries()
+	if len(entries) > 0 {
+		if bulk, ok := tm.(sievepen.BulkAdder); ok {
+			if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
+				return 0, fmt.Errorf("add entries from %s: %w", path, err)
+			}
+		} else {
+			for _, e := range entries {
+				if err := tm.AddWithStream(ctx, e, ""); err != nil {
+					return 0, fmt.Errorf("add entry %s from %s: %w", e.ID, path, err)
+				}
+			}
+		}
+	}
+	for _, s := range file.ModelImportSessions() {
+		if _, exists, err := tm.GetImportSession(ctx, s.ID); err == nil && !exists {
+			if err := tm.CreateImportSession(ctx, s); err != nil {
+				return 0, fmt.Errorf("recreate import session %s: %w", s.ID, err)
+			}
+		}
+	}
+	return len(entries), nil
 }
 
 func (a *App) newTMImportDirCmd() *cobra.Command {
@@ -254,6 +331,7 @@ Examples:
 			if a.Quiet {
 				return nil
 			}
+			warnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
 			tmTotal, err := tm.Count(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("count TM entries: %w", err)
@@ -394,16 +472,22 @@ func listTMXFiles(dir, pattern string, recursive bool) ([]string, error) {
 func (a *App) newTMExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export translation memory to TMX",
-		Long: `Export the TM to TMX 1.4 format. Each entry is written as a single
-<tu> with one <tuv> per language variant present (or the subset requested
-via --locales). Inline markup is preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>.
+		Short: "Export translation memory to TMX or .klftm",
+		Long: `Export the TM to TMX 1.4 (default) or the native .klftm form.
 
-By default all variants on every entry are emitted. Pass --locales to
-restrict to a subset (comma-separated).`,
+TMX: each entry is written as a single <tu> with one <tuv> per language
+variant present (or the subset requested via --locales). Inline markup is
+preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>. TMX is the lossy interchange
+tier — entity mappings, provenance origins, properties, and notes are
+dropped.
+
+klftm (--format klftm, or a -o path ending in .klftm): the deterministic,
+lossless native serialization — the right form for committing a TM to git
+and for seeding a fresh TM exactly. --locales does not apply.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputPath, _ := cmd.Flags().GetString("output")
 			localesRaw, _ := cmd.Flags().GetString("locales")
+			format, _ := cmd.Flags().GetString("format")
 
 			tm, _, err := a.openTMSQLite(cmd)
 			if err != nil {
@@ -420,9 +504,30 @@ restrict to a subset (comma-separated).`,
 				defer w.Close()
 			}
 
-			locales := parseLocaleList(localesRaw)
-			if err := sievepen.ExportTMX(cmd.Context(), tm, w, locales); err != nil {
-				return fmt.Errorf("export TMX: %w", err)
+			switch resolveTMFileFormat(format, outputPath) {
+			case "klftm":
+				entries, err := tm.Entries(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("list TM entries: %w", err)
+				}
+				sessions, err := tm.ListImportSessions(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("list import sessions: %w", err)
+				}
+				data, err := klftm.Marshal(klftm.FromModel(entries, sessions))
+				if err != nil {
+					return fmt.Errorf("marshal klftm: %w", err)
+				}
+				if _, err := w.Write(data); err != nil {
+					return fmt.Errorf("write klftm: %w", err)
+				}
+			case "tmx":
+				locales := parseLocaleList(localesRaw)
+				if err := sievepen.ExportTMX(cmd.Context(), tm, w, locales); err != nil {
+					return fmt.Errorf("export TMX: %w", err)
+				}
+			default:
+				return fmt.Errorf("unsupported format: %s (use tmx or klftm)", format)
 			}
 
 			if !a.Quiet && outputPath != "" {
@@ -441,6 +546,7 @@ restrict to a subset (comma-separated).`,
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset (default: all variants present)")
+	cmd.Flags().String("format", "auto", "output format (auto, tmx, klftm); auto selects by the -o extension")
 
 	return cmd
 }
@@ -749,4 +855,58 @@ func truncateID(id string, max int) string {
 		return id
 	}
 	return id[:max]
+}
+
+// markupTokenRe matches KLF runtime-projection markup tokens ({=m0},
+// {/=m0}) serialized as literal text.
+var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
+
+// warnSuspectTokenEntries scans the TM for entries whose variants disagree
+// on their markup-token sets — e.g. a plain-text source paired with a
+// target carrying {=m0} tokens. Such entries bake one format's runtime
+// projection into format-neutral text: matched from another surface, the
+// tokens leak verbatim into the output (the class behind the docs
+// "{=m0} Installer" leak). The durable fix is run-structured entries;
+// until then, importing one earns a warning.
+func warnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Writer) {
+	entries, err := tm.Entries(ctx)
+	if err != nil {
+		return
+	}
+	tokenSet := func(text string) string {
+		toks := markupTokenRe.FindAllString(text, -1)
+		slices.Sort(toks)
+		return strings.Join(toks, " ")
+	}
+	var suspects []string
+	for i := range entries {
+		e := &entries[i]
+		var first string
+		firstSet := false
+		mismatch := false
+		for locale := range e.Variants {
+			set := tokenSet(e.VariantText(locale))
+			if !firstSet {
+				first, firstSet = set, true
+				continue
+			}
+			if set != first {
+				mismatch = true
+				break
+			}
+		}
+		if mismatch {
+			suspects = append(suspects, e.ID)
+		}
+	}
+	if len(suspects) == 0 {
+		return
+	}
+	slices.Sort(suspects)
+	show := suspects
+	if len(show) > 5 {
+		show = show[:5]
+	}
+	fmt.Fprintf(out, "Warning: %d TM entr%s with markup tokens ({=mN}) in some variants but not others — format-specific projections in format-neutral text leak into other surfaces (e.g. %s). Store these entries run-structured instead.\n",
+		len(suspects), map[bool]string{true: "y", false: "ies"}[len(suspects) == 1], strings.Join(show, ", "))
 }

@@ -375,6 +375,12 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	if err != nil {
 		return project.ExtractionFile{}, fmt.Errorf("open source format %q: %w", task.source.Format, err)
 	}
+	// Apply the project's per-item format config (defaults.formats overlaid
+	// by the item's format.config) so recipe options like
+	// translateFrontMatter actually reach the reader.
+	if err := applyFormatConfig(reader, mergedFormatConfig(task.ctx.Project, task.source.Format, task.source.Item)); err != nil {
+		return project.ExtractionFile{}, fmt.Errorf("apply format config for %s: %w", task.source.Relative, err)
+	}
 
 	// Persist the source skeleton for merge — only when the source reader
 	// supports skeleton emission (most text formats do, including the keyed
@@ -597,7 +603,11 @@ func applyTMPrefill(ctx context.Context, tm sievepen.TranslationMemory, block *m
 			spanID = srcSeg.Spans[i].ID
 		}
 		start := len(targetRuns)
-		if matches, err := tm.LookupSegment(ctx, block, i, source, target, opts); err == nil && len(matches) > 0 {
+		// Ambiguous matches (several full-score exacts with differing
+		// targets) are never pre-filled: an unattended merge would turn an
+		// arbitrary pick into published content. Left empty, they surface
+		// as untranslated for a human (or higher-context tool) to decide.
+		if matches, err := tm.LookupSegment(ctx, block, i, source, target, opts); err == nil && len(matches) > 0 && !matches[0].Ambiguous {
 			if text := matches[0].Entry.VariantText(target); text != "" {
 				targetRuns = append(targetRuns, model.Run{Text: &model.TextRun{Text: text}})
 				matched++
@@ -904,7 +914,8 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 	formatID := registry.FormatID(task.source.Format)
 	sourceHash := project.HashBytes(data)
 
-	blocks, _, err := readSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale)
+	blocks, _, err := readSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale,
+		mergedFormatConfig(task.ctx.Project, string(formatID), task.source.Item))
 	if err != nil {
 		return fmt.Errorf("read blocks: %w", err)
 	}
@@ -932,7 +943,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 			continue
 		}
 		if task.tm != nil {
-			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 {
+			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
 					payload, _ := json.Marshal(map[string]string{"text": text})
 					overlays = append(overlays, klz.OverlayDoc{

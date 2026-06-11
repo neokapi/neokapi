@@ -44,10 +44,12 @@ type FormatsListOutput struct {
 }
 
 func (f FormatsListOutput) FormatText(w io.Writer) error {
-	fmt.Fprintln(w, "Available formats:")
+	fmt.Fprintln(w, T("formats.available"))
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
-		"FORMAT", "NAME", "READ", "WRITE", "SOURCE", "EXTENSIONS", "MIME TYPES")
+		T("formats.header.format"), T("formats.header.name"), T("formats.header.read"),
+		T("formats.header.write"), T("formats.header.source"),
+		T("formats.header.extensions"), T("formats.header.mimeTypes"))
 	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
 		"------", "----", "----", "-----", "------", "----------", "----------")
 
@@ -75,7 +77,7 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
 			info.Name, displayName, read, write, info.Source, exts, mimes)
 	}
-	fmt.Fprintf(w, "\nTotal: %d format(s)\n", f.Total)
+	fmt.Fprintf(w, "\n"+T("formats.total")+"\n", f.Total)
 	return nil
 }
 
@@ -98,11 +100,11 @@ type PluginsListOutput struct {
 
 func (p PluginsListOutput) FormatText(w io.Writer) error {
 	if len(p.Plugins) == 0 {
-		fmt.Fprintln(w, "No plugins installed.")
+		fmt.Fprintln(w, T("plugins.none"))
 		return nil
 	}
 
-	fmt.Fprintln(w, "Installed plugins:")
+	fmt.Fprintln(w, T("plugins.installed"))
 	fmt.Fprintln(w)
 
 	// Compute dynamic column width for version.
@@ -120,7 +122,8 @@ func (p PluginsListOutput) FormatText(w io.Writer) error {
 
 	hdrFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%s\n", versionWidth)
 	rowFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%d\n", versionWidth)
-	fmt.Fprintf(w, hdrFmt, "NAME", "VERSION", "TYPE", "STATUS", "FORMATS")
+	fmt.Fprintf(w, hdrFmt, T("plugins.header.name"), T("plugins.header.version"),
+		T("plugins.header.type"), T("plugins.header.status"), T("plugins.header.formats"))
 	fmt.Fprintf(w, hdrFmt, "----", "-------", "----", "------", "-------")
 
 	for _, plugin := range p.Plugins {
@@ -134,7 +137,7 @@ func (p PluginsListOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, rowFmt, plugin.Name, version, pluginType, plugin.Status, plugin.Formats)
 	}
-	fmt.Fprintf(w, "\nTotal: %d plugin(s)\n", p.Total)
+	fmt.Fprintf(w, "\n"+T("plugins.total")+"\n", p.Total)
 	return nil
 }
 
@@ -166,7 +169,7 @@ var categoryTitles = map[string]string{
 
 func (t ToolsListOutput) FormatText(w io.Writer) error {
 	if len(t.Tools) == 0 {
-		fmt.Fprintln(w, "No tools available.")
+		fmt.Fprintln(w, T("tools.none"))
 		return nil
 	}
 
@@ -180,14 +183,14 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		grouped[cat] = append(grouped[cat], tool)
 	}
 
-	fmt.Fprintln(w, "Available tools:")
+	fmt.Fprintln(w, T("tools.available"))
 
 	for _, cat := range categoryOrder {
 		tools := grouped[cat]
 		if len(tools) == 0 {
 			continue
 		}
-		title := categoryTitles[cat]
+		title := T("tools.category." + cat)
 		fmt.Fprintf(w, "\n%s:\n", title)
 		for _, tool := range tools {
 			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
@@ -199,13 +202,13 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		if categoryTitles[cat] != "" {
 			continue
 		}
-		fmt.Fprintf(w, "\nOther:\n")
+		fmt.Fprintf(w, "\n%s:\n", T("tools.category.other"))
 		for _, tool := range tools {
 			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
 		}
 	}
 
-	fmt.Fprintf(w, "\nTotal: %d tool(s)\n", t.Total)
+	fmt.Fprintf(w, "\n"+T("tools.total")+"\n", t.Total)
 	return nil
 }
 
@@ -225,11 +228,11 @@ type FlowsListOutput struct {
 
 func (f FlowsListOutput) FormatText(w io.Writer) error {
 	if len(f.Flows) == 0 {
-		fmt.Fprintln(w, "No flows defined.")
+		fmt.Fprintln(w, T("flows.none"))
 		return nil
 	}
 
-	fmt.Fprintln(w, "Available flows:")
+	fmt.Fprintln(w, T("flows.available"))
 	fmt.Fprintln(w)
 	for _, flow := range f.Flows {
 		fmt.Fprintf(w, "  %s", flow.Name)
@@ -241,7 +244,7 @@ func (f FlowsListOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintln(w)
 	}
-	fmt.Fprintf(w, "\nTotal: %d flow(s)\n", f.Total)
+	fmt.Fprintf(w, "\n"+T("flows.total")+"\n", f.Total)
 	return nil
 }
 

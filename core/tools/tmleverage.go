@@ -39,6 +39,42 @@ type TMProvider interface {
 	LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
 }
 
+// TMBlockMatch is the result of a structure-aware (block-level) TM lookup.
+// Unlike the text-based TMProvider results, the translation is carried as
+// the matched entry's target Run sequence, so inline codes (icons, paired
+// markup) survive the fill instead of being flattened into — and leaking
+// as — literal token text.
+type TMBlockMatch struct {
+	// TargetRuns is the matched entry's target-variant runs.
+	TargetRuns []model.Run
+	// Score is the match score (0-100). 100 means a structurally exact
+	// match (same inline-code structure); a plain-text exact whose code
+	// structure differs from the block's is capped below 100 by the TM.
+	Score int
+	// Exact reports whether the match came from an exact tier (any of
+	// generalized / structural / plain), as opposed to fuzzy.
+	Exact bool
+	// Ambiguous marks an exact match that the TM could not disambiguate:
+	// several entries matched at full score with differing targets. An
+	// ambiguous match must never be filled unattended — it is recorded as
+	// an alt-translation candidate only.
+	Ambiguous bool
+}
+
+// BlockTMProvider is an optional TMProvider capability for structure-aware
+// lookup. When the configured Provider implements it, the tm-leverage tool
+// queries the TM with the block's full source Run sequence (inline codes
+// included) instead of its flattened text, and fills the target with the
+// matched entry's runs. Providers backed by sievepen implement this via
+// TranslationMemory.Lookup; the plain-text TMProvider methods remain the
+// fallback path.
+type BlockTMProvider interface {
+	// LookupBlock looks up the best match for the block's source content.
+	// threshold is the minimum acceptable score (0-100) for fuzzy matches.
+	// Returns false when no match at or above threshold exists.
+	LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (TMBlockMatch, bool)
+}
+
 // NullTMProvider is a TMProvider that returns no matches.
 // Useful for testing and as a default when no TM is available.
 type NullTMProvider struct{}
@@ -186,6 +222,17 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
+		// Structure-aware path: when the provider can match on the block's
+		// full Run sequence (inline codes included), prefer it — a block
+		// whose source carries icon/markup runs only scores 100 against an
+		// entry with the same code structure, and the fill preserves the
+		// entry's runs (tokens stay model objects, never literal text).
+		if bp, ok := conf.Provider.(BlockTMProvider); ok {
+			if leverageBlockRuns(conf, v, bp) {
+				return nil
+			}
+		}
+
 		// Try exact match first.
 		if translation, found := conf.Provider.LookupExact(sourceText, conf.SourceLocale, conf.TargetLocale); found {
 			score := 100
@@ -233,6 +280,192 @@ func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translatio
 		})
 	}
 	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: score, Type: propType})
+}
+
+// leverageBlockRuns performs the structure-aware whole-block leverage. It
+// returns true when it has handled the block — the match was filled, or
+// it was Ambiguous (recorded but deliberately not filled) — so the caller
+// must not run the text-based path on top of it. It returns false when
+// the provider has no block-level match, when the matched target's inline
+// codes cannot be mapped onto the block's source codes, or when the match
+// scored below the fill policy: the flattened text path keys differently
+// (inline codes and placeholders drop out of its query), so it can still
+// recover legacy entries whose source text was authored without them. A
+// sub-threshold block match is recorded as an alt-translation candidate
+// before falling through.
+//
+// Fill semantics differ from the text path in two ways:
+//   - the target is written as the matched entry's Run sequence, so paired
+//     codes and placeholders survive as model objects;
+//   - an Ambiguous match (several full-score exacts with differing
+//     targets) is recorded as an alt-translation candidate but never
+//     filled, regardless of fillTargetThreshold — unattended leverage must
+//     not turn an arbitrary pick into published content. The text path is
+//     skipped too: it would resolve the same tie by arbitrary pick.
+func leverageBlockRuns(conf *TMLeverageConfig, v tool.TargetView, bp BlockTMProvider) bool {
+	block := &model.Block{
+		ID:           v.ID(),
+		Translatable: true,
+		SourceLocale: v.SourceLocale(),
+		Source:       v.SourceRuns(),
+	}
+	for key, payload := range v.Annotations() {
+		block.SetAnno(key, payload)
+	}
+
+	m, found := bp.LookupBlock(block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold)
+	if !found || len(m.TargetRuns) == 0 {
+		return false
+	}
+	if !targetCodesCompatible(v.SourceRuns(), m.TargetRuns) {
+		// The entry's target carries inline codes the block's source does
+		// not have — filling its runs would inject foreign markup. Leave
+		// the block to the text path (which flattens codes away).
+		return false
+	}
+
+	matchType, propType := model.MatchFuzzy, "fuzzy"
+	if m.Exact {
+		matchType, propType = model.MatchExact, "exact"
+	}
+	targetRuns := cloneRuns(m.TargetRuns)
+	v.AddAltTranslation(&model.AltTranslation{
+		Source:    v.SourceRuns(),
+		Target:    targetRuns,
+		Locale:    conf.TargetLocale,
+		Origin:    "tm",
+		Score:     float64(m.Score) / 100,
+		MatchType: matchType,
+		ToolID:    "tm-leverage",
+	})
+	if m.Ambiguous {
+		// Recorded as a candidate only. Handled: the text path would
+		// resolve the same tie by arbitrary pick.
+		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		return true
+	}
+	if !shouldFillTarget(conf, v, m.Score) {
+		// Below the fill policy: keep the candidate recorded, but let the
+		// text path try its differently-keyed lookup (it may overwrite the
+		// tm-match annotation with a better match).
+		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		return false
+	}
+	v.SetTarget(conf.TargetLocale, &model.Target{
+		Runs:   targetRuns,
+		Status: model.TargetStatusDraft,
+		Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+		Score:  float64(m.Score) / 100,
+	})
+	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+	return true
+}
+
+// targetCodesCompatible reports whether every inline code in the candidate
+// target runs has a counterpart in the source runs, so splicing the target
+// into the block cannot introduce markup the source does not carry. Paired
+// codes match by ID, placeholders by Equiv (falling back to ID), subblock
+// references by ID. Text / plural / select runs are not constrained.
+func targetCodesCompatible(source, target []model.Run) bool {
+	avail := map[string]int{}
+	for _, r := range source {
+		if sig, ok := runCodeSignature(r); ok {
+			avail[sig]++
+		}
+	}
+	for _, r := range target {
+		sig, ok := runCodeSignature(r)
+		if !ok {
+			continue
+		}
+		if avail[sig] == 0 {
+			return false
+		}
+		avail[sig]--
+	}
+	return true
+}
+
+// runCodeSignature returns a comparable identity for an inline-code run,
+// or ok=false for non-code runs (text, plural, select).
+func runCodeSignature(r model.Run) (string, bool) {
+	switch {
+	case r.PcOpen != nil:
+		return "pc-open:" + r.PcOpen.ID, true
+	case r.PcClose != nil:
+		return "pc-close:" + r.PcClose.ID, true
+	case r.Ph != nil:
+		if r.Ph.Equiv != "" {
+			return "ph:" + r.Ph.Equiv, true
+		}
+		return "ph:" + r.Ph.ID, true
+	case r.Sub != nil:
+		return "sub:" + r.Sub.ID, true
+	}
+	return "", false
+}
+
+// cloneRuns deep-copies a Run sequence so a TM entry's stored runs are
+// never aliased into block targets (an in-memory TM hands out its own
+// slices; a later edit to one filled block must not rewrite the entry or
+// another block).
+func cloneRuns(runs []model.Run) []model.Run {
+	if runs == nil {
+		return nil
+	}
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		out[i] = cloneRun(r)
+	}
+	return out
+}
+
+func cloneRun(r model.Run) model.Run {
+	var c model.Run
+	switch {
+	case r.Text != nil:
+		t := *r.Text
+		c.Text = &t
+	case r.Ph != nil:
+		p := *r.Ph
+		if p.Constraints != nil {
+			cc := *p.Constraints
+			p.Constraints = &cc
+		}
+		c.Ph = &p
+	case r.PcOpen != nil:
+		p := *r.PcOpen
+		if p.Constraints != nil {
+			cc := *p.Constraints
+			p.Constraints = &cc
+		}
+		c.PcOpen = &p
+	case r.PcClose != nil:
+		p := *r.PcClose
+		c.PcClose = &p
+	case r.Sub != nil:
+		s := *r.Sub
+		c.Sub = &s
+	case r.Plural != nil:
+		p := model.PluralRun{Pivot: r.Plural.Pivot}
+		if r.Plural.Forms != nil {
+			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, form := range r.Plural.Forms {
+				p.Forms[k] = cloneRuns(form)
+			}
+		}
+		c.Plural = &p
+	case r.Select != nil:
+		s := model.SelectRun{Pivot: r.Select.Pivot}
+		if r.Select.Cases != nil {
+			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
+			for k, cs := range r.Select.Cases {
+				s.Cases[k] = cloneRuns(cs)
+			}
+		}
+		c.Select = &s
+	}
+	return c
 }
 
 // leverageSegments attempts sentence-level TM leverage over a multi-segment

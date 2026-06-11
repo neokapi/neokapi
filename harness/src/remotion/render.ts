@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import { HARNESS_ROOT, OUT_DIR, PUBLIC_DIR, ensureDir, publicDemoDir } from "../lib/paths.ts";
+import { isDefaultLocale, localeSuffix, resolveLocale } from "../lib/locale.ts";
 
 let cachedServeUrl: string | null = null;
 
@@ -48,32 +49,46 @@ export interface RenderOptions {
   quality?: "draft" | "final";
   /** Palette to render with. "dark" → out/<id>.mp4; "light" → out/<id>-light.mp4. */
   themeMode?: ThemeMode;
+  /** Narration locale (default "en"). Non-default locales render from
+   *  narration-<locale>.json into out/<id>-<locale>[-light].mp4. */
+  locale?: string;
 }
 
-/** Output path for a demo in a given theme (dark is the unsuffixed default). */
-export function outputPathFor(id: string, themeMode: ThemeMode): string {
-  return path.join(OUT_DIR, themeMode === "light" ? `${id}-light.mp4` : `${id}.mp4`);
+/** Output path for a demo in a given theme + locale (dark/en are the unsuffixed defaults). */
+export function outputPathFor(id: string, themeMode: ThemeMode, locale?: string): string {
+  const loc = localeSuffix(resolveLocale(locale));
+  return path.join(OUT_DIR, themeMode === "light" ? `${id}${loc}-light.mp4` : `${id}${loc}.mp4`);
 }
 
-/** Render a single demo composition → out/<id>.mp4 (dark) or out/<id>-light.mp4. */
+/** Render a single demo composition → out/<id>[-<locale>][-light].mp4. */
 export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<string | null> {
   const themeMode: ThemeMode = opts.themeMode ?? "dark";
+  const locale = resolveLocale(opts.locale);
   const capJson = path.join(publicDemoDir(id), "capture.json");
   if (!fs.existsSync(capJson)) {
     console.warn(`  ! no capture for ${id} — skipping render`);
     return null;
   }
+  // A non-default locale needs its narration synthesized first — without this
+  // check the composition would silently fall back to the English track.
+  if (!isDefaultLocale(locale) && !fs.existsSync(path.join(publicDemoDir(id), `narration${localeSuffix(locale)}.json`))) {
+    console.warn(`  ! no ${locale} narration for ${id} — run the narrate stage with --locale=${locale} first; skipping render`);
+    return null;
+  }
   ensureDir(OUT_DIR);
-  const output = outputPathFor(id, themeMode);
+  const output = outputPathFor(id, themeMode, locale);
+  const variant = isDefaultLocale(locale) ? themeMode : `${themeMode}, ${locale}`;
   if (!opts.force && fs.existsSync(output)) {
-    console.log(`  · video exists for ${id} (${themeMode}) (use --force to re-render)`);
+    console.log(`  · video exists for ${id} (${variant}) (use --force to re-render)`);
     return output;
   }
 
-  const inputProps = { id, themeMode, stamp: buildStamp() };
+  // `locale` rides inputProps so Root.tsx's calculateMetadata loads
+  // narration-<locale>.json (falling back to the English narration.json).
+  const inputProps = { id, themeMode, locale, stamp: buildStamp() };
   const serveUrl = await getServeUrl();
   const composition = await selectComposition({ serveUrl, id, inputProps });
-  console.log(`  · rendering ${id} (${themeMode}): ${composition.durationInFrames} frames (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);
+  console.log(`  · rendering ${id} (${variant}): ${composition.durationInFrames} frames (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);
 
   // The headless render browser occasionally crashes mid-render ("Target closed")
   // or a frame's OffthreadVideo seek stalls — both transient. Retry the whole
@@ -105,7 +120,7 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
           const pct = Math.floor(progress * 100);
           if (pct >= lastPct + 10) {
             lastPct = pct;
-            process.stdout.write(`\r    render ${id} (${themeMode}): ${pct}%   `);
+            process.stdout.write(`\r    render ${id} (${variant}): ${pct}%   `);
           }
         },
       });
@@ -115,7 +130,7 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
     } catch (e) {
       process.stdout.write("\n");
       if (attempt === attempts) throw e;
-      console.warn(`  ! render ${id} (${themeMode}) attempt ${attempt} failed (${(e as Error)?.message?.slice(0, 80)}); retrying …`);
+      console.warn(`  ! render ${id} (${variant}) attempt ${attempt} failed (${(e as Error)?.message?.slice(0, 80)}); retrying …`);
     }
   }
   return output;

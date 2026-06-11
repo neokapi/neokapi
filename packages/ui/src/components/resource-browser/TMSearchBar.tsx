@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
@@ -74,7 +75,7 @@ export function TMSearchBar({
   onEntitiesChange,
   sourceLocale,
   targetLocale,
-  placeholder = "Search translation memory...",
+  placeholder = t("Search translation memory..."),
 }: TMSearchBarProps) {
   const [draft, setDraft] = useState(value);
   const [entities, setEntities] = useState<MarkedEntity[]>([]);

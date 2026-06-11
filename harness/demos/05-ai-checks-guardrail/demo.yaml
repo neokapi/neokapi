@@ -61,3 +61,36 @@ narration:
     text: >
       Checks that keep AI output in line, the way tests keep code in line:
       deterministic, multilingual, and run on every change.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb: du-form, plain register, product names and
+# CLI commands untranslated) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >
+          En KI har oversatt denne appen til tysk. Det meste er bra — men to
+          ting ville sviktet i produksjon: en plassholder er borte, og
+          produktnavnet er oversatt.
+      - id: check
+        text: >
+          kapi check leser den tyske oversettelsen mot den engelske kilden og
+          kjører reglene som tester — ikke-oversettbare navn,
+          plassholderintegritet, terminologi. Den rapporterer nøyaktig hva som
+          røk: antall-plassholderen mangler, og Acme Cloud er oversatt.
+        caption: "kapi check rapporterer funnene for ikke-oversettbart og plassholdere"
+      - id: fix
+        text: >
+          Vi retter de to feilene — gjenoppretter plassholderen og lar
+          produktnavnet stå urørt — og kjører nøyaktig samme kontroll på nytt.
+        caption: "rett feilene, kjør kontrollen på nytt"
+      - id: pass
+        text: >
+          Nå passerer den. Med porten på er det dette som stopper en dårlig
+          oversettelse fra å gå ut — i kontinuerlig integrasjon, eller i en
+          assistents rettesløyfe.
+      - id: outro
+        text: >
+          Kontroller som holder KI-resultater i sjakk, slik tester holder koden
+          i sjakk: deterministiske, flerspråklige, og kjørt ved hver endring.

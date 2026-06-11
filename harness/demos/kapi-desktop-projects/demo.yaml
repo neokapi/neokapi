@@ -71,3 +71,44 @@ narration:
     kind: outro
     text: >-
       That's a project — created, structured, and ready to translate.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Kapi Desktop — la oss opprette og sette opp et lokaliseringsprosjekt.
+      - id: intro
+        text: >-
+          Den åpner til en startskjerm. Et nytt prosjekt starter rett her.
+      - id: new-project
+        text: >-
+          Nytt prosjekt spør bare om et navn — her: Acme Help Center. Kapi
+          utleder mappen og resten fra det.
+        caption: Nytt prosjekt spør bare om et navn.
+      - id: templates
+        text: >-
+          Den tilbyr en struktur å starte fra: kildefiler inn, oversettelser ut
+          — eller et blankt prosjekt du former selv.
+        caption: Start fra en struktur, eller et blankt prosjekt.
+      - id: project-home
+        text: >-
+          Prosjektet åpner til en oversikt — innholdet, flytene, verktøyene og
+          innstillingene, med kilde- og målspråkene øverst.
+        caption: Prosjektet åpner til en oversikt.
+      - id: project-settings
+        text: >-
+          Prosjektinnstillinger er der du velger kildespråket og språkene du
+          oversetter til, ved siden av tillegg og prosesseringsvalg.
+        caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
+      - id: content
+        text: >-
+          Og Innhold definerer hvilke filer som hører til prosjektet —
+          glob-mønstre motoren leser fra og skriver tilbake til.
+        caption: Innhold definerer hvilke filer som hører til prosjektet.
+      - id: outro
+        text: >-
+          Det er et prosjekt — opprettet, strukturert og klart til
+          oversettelse.

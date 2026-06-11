@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -324,7 +326,7 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 // `targets/<locale>` overlays, and writes accepted source+target pairs into
 // the project TM with kapi-merge provenance. Returns (new, updated) counts.
 func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *sievepen.SQLiteTM, sourceRel string) (int, int, error) {
-	blocks, _, err := readSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target)
+	blocks, _, err := readSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -452,7 +454,8 @@ func (a *App) mergeOneKlz(cmd *cobra.Command, klzInput string) error {
 		}
 		fileStale := si.ContentHash != "" && currentHash != si.ContentHash
 
-		currentBlocks, _, rerr := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale)
+		currentBlocks, _, rerr := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale,
+			formatConfigForSource(pctx.Project, srcFormat, srcRel))
 		if rerr != nil {
 			return fmt.Errorf("re-read source %s: %w", sourceAbs, rerr)
 		}
@@ -631,7 +634,8 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	if srcFormat == "" {
 		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
 	}
-	currentSourceBlocks, currentSourceLayer, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale)
+	currentSourceBlocks, currentSourceLayer, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
+		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
 	if err != nil {
 		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
 	}
@@ -659,8 +663,13 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 		// Per-block staleness: compare the block's source text between
 		// extract-time (preserved in the XLIFF's <source>) and current source.
-		xliffSourceText := tb.SourceText()
-		currentSourceText := srcBlock.SourceText()
+		// Both sides render through RenderRunsWithData: the XLIFF carries
+		// inline codes flattened to their original data (the markdown/HTML
+		// markers), while the freshly read source block keeps them as code
+		// runs that plain SourceText() would drop — comparing unlike
+		// renderings marked every block with inline markup stale.
+		xliffSourceText := model.RenderRunsWithData(tb.Source)
+		currentSourceText := model.RenderRunsWithData(srcBlock.Source)
 		if xliffSourceText != currentSourceText {
 			stats.Stale++
 			continue
@@ -758,7 +767,8 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 	if srcFormat == "" {
 		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
 	}
-	currentSourceBlocks, _, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale)
+	currentSourceBlocks, _, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
+		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
 	if err != nil {
 		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
 	}
@@ -888,8 +898,10 @@ func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContex
 				if item.Format == nil || item.Format.Name == "" {
 					continue
 				}
-				// Crude match: if the relative path matches the item's glob.
-				if ok, _ := filepath.Match(item.Path, rel); ok {
+				// Patterns use doublestar, matching content resolution —
+				// filepath.Match has no `**` support, so deep paths fell
+				// back to extension detection (mdx read as markdown).
+				if ok, _ := doublestar.Match(item.Path, rel); ok {
 					return item.Format.Name
 				}
 			}
@@ -898,10 +910,16 @@ func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContex
 	return ctx.DetectFormat(reg, abs)
 }
 
-func readSourceBlocks(ctx context.Context, reg *registry.FormatRegistry, formatName, path string, src, tgt model.LocaleID) ([]*model.Block, *model.Layer, error) {
+func readSourceBlocks(ctx context.Context, reg *registry.FormatRegistry, formatName, path string, src, tgt model.LocaleID, cfg map[string]any) ([]*model.Block, *model.Layer, error) {
 	reader, err := reg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, nil, err
+	}
+	// Per-item format config (e.g. translateFrontMatter on a docs item)
+	// must apply on the merge-time re-read exactly as it did at extract
+	// time — block numbering depends on it.
+	if err := applyFormatConfig(reader, cfg); err != nil {
+		return nil, nil, fmt.Errorf("apply format config: %w", err)
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -945,22 +963,20 @@ func readSourceBlocks(ctx context.Context, reg *registry.FormatRegistry, formatN
 // the recipe does not declare a target template.
 func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiProject, root string, locale model.LocaleID) string {
 	// Search the recipe for the ContentItem whose Path matches entry.Source.
+	// Patterns use doublestar (matching ExpandGlob's `**` semantics), and the
+	// target template supports {lang}, {path}, {filename}, {basename}, and the
+	// legacy bare `*` — see project.ResolveTargetPath.
 	if proj != nil {
 		for _, coll := range proj.Content {
 			for _, item := range coll.EffectiveItems() {
-				ok, _ := filepath.Match(item.Path, entry.Source)
+				ok, _ := doublestar.Match(item.Path, entry.Source)
 				if !ok {
 					continue
 				}
 				if item.Target == "" {
 					break
 				}
-				tmpl := item.Target
-				tmpl = strings.ReplaceAll(tmpl, "{lang}", string(locale))
-				// Replace "*" with the source basename (no ext) if the
-				// template has one.
-				base := strings.TrimSuffix(filepath.Base(entry.Source), filepath.Ext(entry.Source))
-				tmpl = strings.ReplaceAll(tmpl, "*", base)
+				tmpl := project.ResolveTargetPath(item.Path, item.Target, entry.Source, string(locale))
 				if !filepath.IsAbs(tmpl) {
 					tmpl = filepath.Join(root, tmpl)
 				}

@@ -64,3 +64,40 @@ narration:
     kind: outro
     text: >-
       Appearance, providers, plugins — configured once, used everywhere.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          Kapi Desktop samler all konfigurasjon på ett sted.
+      - id: intro
+        text: >-
+          Fra startskjermen åpner tannhjulet nederst Innstillinger.
+      - id: open-settings
+        text: >-
+          Innstillinger samler utseende, KI-legitimasjon, tillegg og språk
+          under ett tak.
+        caption: Innstillinger — utseende, legitimasjon, tillegg, språk.
+      - id: general
+        text: >-
+          Utseendet følger systemet ditt, eller du kan låse det til lyst eller
+          mørkt. Selve grensesnittet kan til og med kjøre i pseudoengelsk for
+          lokaliseringstesting.
+        caption: Utseendet følger systemet, eller låses til lyst eller mørkt.
+      - id: credentials
+        text: >-
+          KI-legitimasjon holder leverandørene Kapi oversetter med — Anthropic,
+          OpenAI, Gemini. Nøklene ligger i operativsystemets nøkkelring, aldri
+          på disk.
+        caption: KI-legitimasjon — nøklene ligger i nøkkelringen til operativsystemet.
+      - id: plugins
+        text: >-
+          Og tillegg utvider Kapi — med formater, koblinger og verktøy utover
+          det innebygde.
+        caption: Tillegg utvider formatene og verktøyene som er tilgjengelige.
+      - id: outro
+        text: >-
+          Utseende, leverandører, tillegg — konfigurert én gang, brukt overalt.

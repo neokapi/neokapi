@@ -1161,6 +1161,7 @@ async function recordTheme(
   demoId: string,
   web?: { slug: string },
   ready?: string,
+  uiLocale?: string,
 ): Promise<{ webm: string; beats: Beat[] }> {
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
@@ -1217,7 +1218,10 @@ async function recordTheme(
     // "domcontentloaded", not "networkidle": real-main.tsx opens a long-lived SSE
     // connection (/wevents) for streamed backend events, so the network never goes
     // idle. The h1 wait below confirms the app actually rendered.
-    await page.goto(`${url}?theme=${theme}`, { waitUntil: "domcontentloaded" });
+    // `&lang=` carries the UI locale of a localized recording pass (see the
+    // uiLocale note in recordDesktop for what the app entry must do with it).
+    const langQ = uiLocale ? `&lang=${encodeURIComponent(uiLocale)}` : "";
+    await page.goto(`${url}?theme=${theme}${langQ}`, { waitUntil: "domcontentloaded" });
     // Default kapi-desktop renders an h1 immediately; bowrain-desktop renders its
     // dashboard only after the backend auto-connects to the server (a few
     // seconds), so callers pass a connected-state selector + we allow longer.
@@ -1302,6 +1306,34 @@ export interface RecordOptions {
   /** Record the real Bowrain Desktop app via its own wbridge, auto-connected to
    *  a running bowrain-server (BOWRAIN_BACKEND_URL + BOWRAIN_SESSION_TOKEN). */
   bowrainDesktop?: boolean;
+  /**
+   * UI language for the recorded kapi-desktop app (default "en"; ignored for
+   * the web/bowrain-desktop targets for now). How the app picks its locale
+   * (@neokapi/kapi-react runtime):
+   *
+   *   - the production entry (src/main.tsx) reads the persisted backend
+   *     setting via api.getUILanguage() (wbridge: GetUILanguage, stored as
+   *     `ui_language` in KAPI_DESKTOP_CONFIG_DIR/settings) and boots with
+   *     loadTranslations(lang, `/translations/<lang>.json`);
+   *   - the compiled dictionaries live in frontend/public/translations/
+   *     (currently only qps.json), produced by `vpx kapi-react compile`.
+   *
+   * What this option does today (the recorder-side plumbing):
+   *   1. persists the language on the recording backend via the wbridge
+   *      (SetUILanguage), so the genuine app setting matches the pass, and
+   *   2. appends `&lang=<locale>` to the recording URL next to `?theme=`.
+   *
+   * What a localized recording still NEEDS (owned by apps/kapi-desktop):
+   *   - the recorder entry (src/demo/real-main.tsx) mounts App directly and
+   *     skips main.tsx's translation bootstrap — it must honor `?lang=`
+   *     (mirroring `?theme=`) by calling
+   *     loadTranslations(lang, `/translations/<lang>.json`), and
+   *   - a compiled catalog for the locale must exist, e.g.
+   *     frontend/public/translations/nb.json (kapi-react extract + compile).
+   * Until both land, a localized pass records the English UI (the narration,
+   * captions and published filenames are still fully localized).
+   */
+  uiLocale?: string;
 }
 
 /** Record the desktop walkthrough for demo <id> → public/<id>/screencast.json + webms. */
@@ -1311,6 +1343,11 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   if (!opts.force && fs.existsSync(jsonPath) && fs.existsSync(path.join(outDir, "screencast-light.webm"))) {
     console.log(`  · screencast exists for ${id} (use --force to re-record)`);
     return JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+  }
+  // UI language pass-through (kapi-desktop target only — see RecordOptions.uiLocale).
+  const uiLocale = opts.uiLocale && opts.uiLocale !== "en" ? opts.uiLocale : undefined;
+  if (uiLocale && (opts.web || opts.bowrainDesktop)) {
+    console.warn(`  ! uiLocale=${uiLocale} is not wired for the ${opts.web ? "web" : "bowrain-desktop"} target — recording the default UI language`);
   }
 
   // Web target: record the real bowrain web app at BOWRAIN_BACKEND_URL with the
@@ -1379,6 +1416,23 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     teardown = stack.teardown;
   }
 
+  // Persist the UI language on the recording backend so the genuine setting
+  // (Settings → General → UI language) matches the localized pass. Best-effort:
+  // the visible effect also needs the app entry to honor `?lang=` — see
+  // RecordOptions.uiLocale.
+  if (uiLocale && !externalUrl) {
+    try {
+      await fetch("http://127.0.0.1:5175/wbridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: "SetUILanguage", args: [uiLocale] }),
+      });
+      console.log(`  · set backend UI language to ${uiLocale}`);
+    } catch {
+      console.warn(`  ! could not set UI language ${uiLocale} on the wbridge — recording default UI language`);
+    }
+  }
+
   // Reset created projects (isolated home) before each theme so state-mutating
   // walkthroughs (e.g. project creation) start clean on both passes. The seeded
   // termbases/TMs/providers under ISO_DIR are left intact.
@@ -1409,14 +1463,14 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
 
   const browser = await chromium.launch();
   try {
-    console.log("  · recording light theme");
+    console.log(`  · recording light theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     resetHome();
     await resetPlugins();
-    const light = await recordTheme(browser, url, "light", outDir, id);
-    console.log("  · recording dark theme");
+    const light = await recordTheme(browser, url, "light", outDir, id, undefined, undefined, uiLocale);
+    console.log(`  · recording dark theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     resetHome();
     await resetPlugins();
-    const dark = await recordTheme(browser, url, "dark", outDir, id);
+    const dark = await recordTheme(browser, url, "dark", outDir, id, undefined, undefined, uiLocale);
 
     const screencast: Screencast = {
       width: WIDTH,

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1002,6 +1003,36 @@ func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale mo
 		return "", false
 	}
 	return matches[0].Entry.VariantText(targetLocale), true
+}
+
+// LookupBlock implements coretools.BlockTMProvider: a structure-aware
+// lookup over the block's full source Run sequence via sievepen's tiered
+// matching (generalized → structural → plain → fuzzy). A structurally
+// identical entry scores 100; a plain-text exact with differing inline
+// codes is capped below 100 by the TM; ambiguous exacts (several
+// full-score entries with differing targets) carry the Ambiguous flag so
+// the tool records them without filling.
+func (p *cliTMProvider) LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.TMBlockMatch, bool) {
+	opts := sqltm.LookupOptions{
+		MinScore:   float64(threshold) / 100.0,
+		MaxResults: 1,
+	}
+	// TODO: thread a real context once tools.TMProvider carries one.
+	matches, err := p.tm.Lookup(context.Background(), block, sourceLocale, targetLocale, opts)
+	if err != nil || len(matches) == 0 {
+		return coretools.TMBlockMatch{}, false
+	}
+	m := matches[0]
+	runs := m.Entry.Variant(targetLocale)
+	if len(runs) == 0 {
+		return coretools.TMBlockMatch{}, false
+	}
+	return coretools.TMBlockMatch{
+		TargetRuns: runs,
+		Score:      int(math.Round(m.Score * 100)),
+		Exact:      m.MatchType.IsExact(),
+		Ambiguous:  m.Ambiguous,
+	}, true
 }
 
 func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {

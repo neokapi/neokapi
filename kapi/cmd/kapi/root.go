@@ -15,12 +15,11 @@ var app = &cli.App{}
 
 var rootCmd = &cobra.Command{
 	Use:           "kapi",
-	Short:         "A localization and translation toolkit",
+	Short:         cli.KapiRootShort,
 	Version:       version.Version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Long: `kapi helps you manage multilingual content — convert document formats,
-translate with AI, and run quality checks across a wide range of file types.`,
+	Long:          cli.KapiRootLong,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		app.Config = config.NewAppConfig()
 		if err := app.Init(); err != nil {
@@ -50,58 +49,13 @@ func init() {
 	app.AddPersistentFlags(rootCmd)
 	app.AddCommandGroups(rootCmd)
 
-	// Primary commands.
-	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
-	runCmd.GroupID = "processing"
-	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
-	rootCmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
-
-	// .klz project snapshot hand-off (AD-025 §5): pack the working state
-	// into a portable .klz and rehydrate it elsewhere. Resume across runs is
-	// the persistent block-store cache, not a stepping verb family.
-	rootCmd.AddCommand(app.NewPackCmd())
-	rootCmd.AddCommand(app.NewUnpackCmd())
-	rootCmd.AddCommand(app.NewInfoCmd())
-
-	// Toolbox: format-aware cat / grep / sed. Registered as hidden, flag-detached
-	// proxies that delegate to the same standalone commands the multi-call
-	// binaries kcat / kgrep / ksed run (see main.go busybox dispatch). Hidden so
-	// `kapi --help` steers users to the dedicated k-commands.
-	for _, c := range app.NewToolboxProxies() {
-		rootCmd.AddCommand(c)
-	}
-	rootCmd.AddCommand(app.NewVerifyCmd())
-	rootCmd.AddCommand(app.NewCheckCmd())
-	rootCmd.AddCommand(app.NewHookCmd())
-	rootCmd.AddCommand(app.NewInitCmd())
-	rootCmd.AddCommand(app.NewAddCmd())
-	rootCmd.AddCommand(app.NewRmCmd())
-	rootCmd.AddCommand(app.NewLsCmd())
-
-	// Management commands.
-	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
-	rootCmd.AddCommand(app.NewToolsCmd())
-	rootCmd.AddCommand(app.NewFormatsCmd())
-	rootCmd.AddCommand(app.NewPluginCmd())
-	rootCmd.AddCommand(app.NewRegistryCmd())
-	rootCmd.AddCommand(app.NewPresetsCmd())
-	rootCmd.AddCommand(app.NewTermbaseCmd())
-	rootCmd.AddCommand(app.NewTMCmd())
-	rootCmd.AddCommand(app.NewBrandCmd())
-	rootCmd.AddCommand(app.NewSkillsCmd())
-	rootCmd.AddCommand(app.NewCredentialsCmd())
-	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
-	rootCmd.AddCommand(app.NewCompletionCmd())
-
-	// Top-level tool commands (declarative opt-in via BuiltinToolCommands).
-	for _, cmd := range app.NewToolCommands() {
+	// Built-in command set, shared with the cli/i18n help-string generator
+	// (cli.KapiCommandSet is the single source of truth for what `kapi`
+	// exposes, so the localization inventory can never drift from the
+	// binary).
+	for _, cmd := range app.KapiCommandSet() {
 		rootCmd.AddCommand(cmd)
 	}
-
-	mcpCmd := app.NewMCPCmd("kapi")
-	mcpCmd.GroupID = "processing"
-	rootCmd.AddCommand(mcpCmd)
 
 	// Plugins (e.g. bowrain via blank import in main.go) register their
 	// commands at init() time; wire them in after the built-in command
@@ -134,4 +88,10 @@ func init() {
 			fmt.Fprintln(os.Stderr, "Warning: "+msg)
 		}
 	})
+
+	// Localize command help in place. This must happen at construction
+	// time: cobra renders --help before any PreRun hook, so the --lang
+	// flag cannot apply — help honors KAPI_LANG / config / POSIX env (see
+	// cli.HelpTranslator). Misses keep the English source.
+	cli.LocalizeCommandHelp(rootCmd, cli.HelpTranslator())
 }

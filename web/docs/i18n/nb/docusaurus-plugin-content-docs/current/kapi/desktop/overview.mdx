@@ -1,0 +1,145 @@
+---
+sidebar_position: 1
+title: Oversikt over Kapi Desktop
+description: Kapi Desktop er den visuelle følgesvennen til kapi CLI — en app for å bygge lokaliseringsflyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon uten å skrive YAML eller huske flagg.
+keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Kapi Desktop
+
+Kapi Desktop er den visuelle følgesvennen til [kapi-CLI-en](/kapi/cli). Den gir et eget skrivebordsgrensesnitt for å bygge lokaliseringsflyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon — alt uten å skrive YAML eller huske CLI-flagg.
+
+Som CLI-en er skrivebordsappen **prosjekt-først**: den åpner til prosjektene dine og gjenåpner dem du hadde sist, slik at et `.kapi`-prosjekt — dets språk, innhold, flyter, oversettelsesminne og termbase — er hjemmet du arbeider fra. Engangskjøringer på enkeltfiler ligger fortsatt ett klikk unna som **hurtigverktøy** (ad hoc-modusen), for når du bare vil sende én fil gjennom et verktøy uten å sette opp et prosjekt.
+
+## En rask omvisning
+
+### Opprett og håndter et prosjekt
+
+Et prosjekt parer et kildespråk med språkene du oversetter til, filene i omfang og flytene som behandler dem. Å navngi det er det eneste obligatoriske steget — alt annet konfigureres visuelt. Prosjekthjemmet viser oversettelsesstatusen for hver innholdssamling — hvor mange blokker som er dekket per språk — og lar deg trekke innhold ut i prosjektlageret for å friske den opp.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-projects-light.webm",
+    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
+  }}
+/>
+
+### Håndter innhold i et prosjekt
+
+Et prosjekts innhold er settet av filer det oversetter. Globmønstre grupperes i navngitte samlinger — dokumentasjon, butikkgrensesnitt, kontrakter, maler — som hver kartlegger kildefiler til sine oversatte motstykker. Innholdsvisningen viser mønstrene side om side med de virkelige filene de treffer og formatet Kapi oppdaget for hver av dem.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-content-light.webm",
+    dark: "/video/kapi/kapi-desktop-content-dark.webm",
+  }}
+/>
+
+### Sett sammen flyter
+
+Et prosjekts flyter er pipelinene det kjører over innholdet sitt — en ren AI-oversettelse, en oversettelse fulgt av kvalitetskontroller, en pseudooversettelse for testing. Hver flyt er en navngitt sekvens av steg, lagret sammen med prosjektet og delt gjennom versjonskontroll. Åpne en for å se og redigere pipelinen dens.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-flows-light.webm",
+    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
+  }}
+/>
+
+### Konfigurer utseende, leverandører og tillegg
+
+Innstillinger samler alt på ett sted: lyst eller mørkt utseende, AI-leverandørene Kapi oversetter med (nøklene blir i operativsystemets nøkkelring), og tilleggene som utvider formatene og verktøyene.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-config-light.webm",
+    dark: "/video/kapi/kapi-desktop-config-dark.webm",
+  }}
+/>
+
+### Bla i terminologi og oversettelsesminne
+
+Kapi holder en ordliste med termer på flere språk og et minne over tidligere oversettelser. Begge er søkbare, med inline-formatering og entitetsplassholdere bevart.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-explorer-light.webm",
+    dark: "/video/kapi/kapi-desktop-explorer-dark.webm",
+  }}
+/>
+
+### Bruke Okapi-tillegget
+
+Tillegg utvider Kapi med nye formater og verktøy. Okapi-broen legger til filtrene fra [Okapi Framework](https://okapiframework.org/) — dusinvis av dokumentformater utover det innebygde settet. Installer det fra registeret med ett klikk, og prosjekter bygget på de filtrene, som OkapiMart-eksempelet, åpner og behandler filene sine gjennom dem.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-okapi-light.webm",
+    dark: "/video/kapi/kapi-desktop-okapi-dark.webm",
+  }}
+/>
+
+## Funksjoner
+
+- **Prosjektoversikt** — Åpne til prosjektene dine og fortsett der du slapp. Hvert prosjekthjem viser språkene, innholdssamlingene og oversettelsesstatusen per språk, med flytene ett klikk fra å kjøre.
+- **Flytredigering** — Bygg pipeliner med flere verktøy visuelt. Lenk AI-oversettelse, kvalitetskontroller, pseudooversettelse og mer sammen i gjenbrukbare flyter lagret i prosjektet.
+- **Flytkjøring** — Utfør et prosjekts flyter med direkte fremdriftsvisning: status per fil, nodeutheving og tidsbruk. Kjøringer bruker oppskriftens språk og innhold, så det er ingen flagg å gjenta.
+- **Hurtigverktøy (ad hoc)** — For engangstilfeller, kjør et enkeltverktøy eller en flyt på en løs fil med dynamiske konfigurasjonsskjemaer generert fra verktøyskjemaene — ikke noe prosjekt kreves.
+- **Tilleggshåndtering** — Bla i tilleggsregisteret, installer, oppdater og håndter tillegg fra et grensesnitt.
+- **Legitimasjonshvelv** — Lagre API-nøkler for AI-leverandører trygt i operativsystemets nøkkelring.
+- **Prosjektfiler** — `.kapi`-oppskriften er en portabel fil du kan dele via git eller åpne med et dobbeltklikk.
+
+## Installering
+
+På macOS installerer casken appen og inkluderer `kapi`-CLI-en:
+
+```bash
+brew install --cask neokapi/tap/kapi
+```
+
+For Windows-installasjonsprogrammet og macOS-DMG-/Linux-tarball-byggene, se
+[Installering](/kapi/get-started/installation#installer-kapi-desktop).
+
+## Ditt første prosjekt
+
+Omvisningen over viser hver flate i bevegelse; her er veien gjennom dem når du
+starter fra ingenting. Alt konfigureres visuelt — det er ingen YAML å skrive for
+hånd.
+
+1. **Opprett prosjektet.** Start Kapi Desktop og klikk **New Project**. Gi det
+   et navn, sett **kildespråket** (f.eks. `en-US`), og legg til **målspråkene**
+   du oversetter til (f.eks. `fr-FR`, `de-DE`). Å navngi det er det eneste
+   obligatoriske steget.
+2. **Legg til innhold.** I **Content**-visningen, legg til et mønster som peker på
+   kildefilene dine — for eksempel `src/locales/en/*.json`. Kapi lister filene
+   det treffer og formatet den oppdaget for hver av dem, gruppert i en navngitt
+   samling.
+3. **Legg til en leverandørnøkkel.** I **Settings → Providers** (eller
+   **Credentials**), legg til en AI-leverandør og lim inn API-nøkkelen din.
+   Nøkler lagres i operativsystemets nøkkelring, aldri i prosjektfilen.
+4. **Sett sammen en flyt.** I **Flows**, opprett en flyt og legg til stegene du
+   trenger — en AI-oversettelse, eventuelt fulgt av en kvalitets- eller
+   terminologikontroll. Hver flyt er en navngitt pipeline lagret sammen med
+   prosjektet.
+5. **Kjør den.** Velg flyten, velg inndatafiler og et målspråk, og klikk
+   **Run**. Du ser fremdrift per fil, nodeutheving, tidsbruk og plasseringen av
+   utdatafilene.
+6. **Installer tillegg (valgfritt).** I **Plugins**, bla i registeret og
+   installer **Okapi Bridge** for å legge til dokumentformatene og filtrene
+   dens; nye formater dukker opp automatisk.
+
+Alt du konfigurerer skrives til en portabel `<name>.kapi`-oppskriftsfil. Sjekk
+den inn i git for å dele med laget ditt, gjenåpne den i Kapi Desktop, eller kjør
+den fra kommandolinjen:
+
+```bash
+kapi run translate -p myproject.kapi
+```
+
+## Neste steg
+
+- [Kapi-prosjektfiler](/reference/project-file) — full formatreferanse
+- [Kapi CLI](/kapi/cli) — kommandolinjereferanse
+- [Installering](/kapi/get-started/installation) — alle plattformer og alternativer

@@ -2,6 +2,7 @@
  * Harness orchestrator.
  *
  *   pnpm run demo <id|all> [--only=capture,artifacts,narrate,render] [--force] [--quality=draft|final]
+ *   pnpm run demo <id|all> --locale=nb --only=narrate,render,publish   # localized variant
  *   pnpm run demo --list
  *
  * Stages run in order and each is idempotent (skips if its output exists unless --force).
@@ -10,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadEnv } from "../lib/env.ts";
 import { listDemoIds, loadManifest } from "../lib/manifest.ts";
+import { isDefaultLocale, resolveLocale } from "../lib/locale.ts";
 import { ASSETS_DIR, PUBLIC_DIR, ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { captureDemo, renormalizeDemo } from "../driver/capture.ts";
 import { captureScript } from "../driver/capture-script.ts";
@@ -48,9 +50,15 @@ function parseArgs(argv: string[]) {
   // Docs ship theme-matched videos (light + dark), so render both by default.
   let themes: ThemeMode[] = ["dark", "light"];
   let docsDir: string | undefined;
+  // Narration/render/publish locale. Default "en" = exactly today's behavior
+  // (unsuffixed outputs); a non-default locale (e.g. nb) narrates from the
+  // demo's `locales.<locale>` overlay and suffixes every derived asset. Also
+  // settable via HARNESS_LOCALE (the flag wins).
+  let locale: string | undefined;
   for (const a of argv) {
     if (a === "--list") list = true;
     else if (a === "--force") force = true;
+    else if (a.startsWith("--locale=")) locale = a.slice(9);
     else if (a.startsWith("--only=")) only = a.slice(7).split(",").map((s) => s.trim()) as Stage[];
     else if (a.startsWith("--phase=")) {
       const p = a.slice(8) as Phase;
@@ -66,7 +74,7 @@ function parseArgs(argv: string[]) {
     else if (!a.startsWith("--")) ids.push(a);
   }
   if (themes.length === 0) themes = ["dark"];
-  return { ids, only, force, list, quality, themes, docsDir };
+  return { ids, only, force, list, quality, themes, docsDir, locale: resolveLocale(locale) };
 }
 
 /** Copy shared static assets (e.g. the mascot) into public/ so Remotion staticFile() finds them. */
@@ -97,7 +105,7 @@ export const DEMOS: RegistryEntry[] = ${JSON.stringify(entries, null, 2)};
 
 async function main() {
   loadEnv();
-  const { ids, only, force, list, quality, themes, docsDir } = parseArgs(process.argv.slice(2));
+  const { ids, only, force, list, quality, themes, docsDir, locale } = parseArgs(process.argv.slice(2));
   const available = listDemoIds();
 
   if (list || ids.length === 0) {
@@ -131,7 +139,9 @@ async function main() {
       console.log(`\n━━ capture · ${m.id} ━━`);
       // Desktop demos record a Kapi Desktop UI screencast; scripted shell demos
       // record real command output (no Claude); Claude demos run a live session.
-      if (m.terminal === "desktop") await captureDesktopDemo(m, { force });
+      // A non-default --locale is passed through so the recorded app UI can run
+      // in that language (see record-desktop.ts uiLocale).
+      if (m.terminal === "desktop") await captureDesktopDemo(m, { force, uiLocale: locale });
       else if (m.terminal === "shell" || (m.script?.length ?? 0) > 0) await captureScript(m, { force });
       else await captureDemo(m, { force });
     }
@@ -150,24 +160,32 @@ async function main() {
   }
   for (const m of manifests) {
     if (only.includes("narrate")) {
-      console.log(`\n━━ narrate · ${m.id} ━━`);
-      await narrateDemo(m, { force });
+      // A non-default locale narrates only demos that carry that overlay, so a
+      // broad selection (`published`) doesn't abort on the un-translated ones.
+      // Translated published demos still hard-fail on partial coverage inside
+      // narrateDemo (localizeManifest).
+      if (!isDefaultLocale(locale) && !m.locales?.[locale]) {
+        console.log(`\n━━ narrate · ${m.id} [${locale}] ━━\n  · no locales.${locale} overlay — skipping`);
+        continue;
+      }
+      console.log(`\n━━ narrate · ${m.id}${isDefaultLocale(locale) ? "" : ` [${locale}]`} ━━`);
+      await narrateDemo(m, { force, locale });
     }
   }
   writeRegistry();
   if (only.includes("render")) stageAssets();
   for (const m of manifests) {
     if (only.includes("render")) {
-      console.log(`\n━━ render · ${m.id} (${themes.join(", ")}) ━━`);
+      console.log(`\n━━ render · ${m.id} (${themes.join(", ")}${isDefaultLocale(locale) ? "" : `; ${locale}`}) ━━`);
       for (const themeMode of themes) {
-        await renderDemo(m.id, { force, quality, themeMode });
+        await renderDemo(m.id, { force, quality, themeMode, locale });
       }
     }
   }
   for (const m of manifests) {
     if (only.includes("publish") && m.publishAs) {
-      console.log(`\n━━ publish · ${m.id} → ${m.publishAs} ━━`);
-      await publishDemo(m, { docsDir });
+      console.log(`\n━━ publish · ${m.id} → ${m.publishAs}${isDefaultLocale(locale) ? "" : ` [${locale}]`} ━━`);
+      await publishDemo(m, { docsDir, locale });
     }
   }
   console.log("\nDone.");

@@ -1,0 +1,180 @@
+---
+sidebar_position: 1
+title: Moduser og bindinger
+description: Hvordan Kapi kjører de samme kommandoene på to måter — ad hoc på løse filer, eller i et .kapi-prosjekt — pluss kilde-/sluk-bindingsmodellen som forener dem, .klz-pakken som flytter arbeid mellom dem, og når det gir mening å kombinere.
+keywords: [kapi, ad-hoc, project mode, binding, source, sink, process-only, .klz, extract, merge, pack, workflows]
+---
+
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
+# Slik kjører Kapi: moduser og bindinger
+
+Kapi har ikke separate «ad hoc-kommandoer» og «prosjektkommandoer». Den har **ett
+sett med kommandoer**, og det som endres er **bindingen** — hvor innholdet kommer
+fra og hvor resultatene går. Forstår du den ene ideen, faller hver arbeidsflyt nedenfor på plass.
+
+## To måter å kjøre på
+
+Kapi kjører de **samme kommandoene** på to måter — den eneste forskjellen er om tilstand beholdes:
+
+| | **Ad-hoc** | **Project (`.kapi`)** |
+| --- | --- | --- |
+| **State** | loose files · nothing saved | a `.kapi` recipe + `.kapi/` store |
+| **Typical commands** | `kapi ai-translate app.json`<br />`kapi run flow -i a.json -o b.json`<br />`kapi extract src/*.json -o work.klz` | `kapi init · add · ls`<br />`kapi extract / run / merge` |
+| **What persists** | nothing | the store accumulates TM + overlays |
+| **Discovery** | you name the files | found automatically, walking up the tree like git |
+| **Best for** | one-offs, scripting, CI | a repo you localize repeatedly |
+
+- **Ad hoc** — kjør et verktøy eller en flyt direkte på filer; ingenting lagres.
+- **Prosjekt** — fang arbeidsflyten én gang i en portabel `.kapi`-oppskrift (språk,
+  innholdsmønstre, flyter, standardvalg) pluss en `.kapi/`-tilstandskatalog som
+  bygger opp oversettelsesminne og arbeid per blokk.
+
+En **`.klz`-pakke** flytter arbeid mellom de to: `pack` et prosjekt til én enkelt
+fil (eller `extract` løse filer til én), og deretter `merge`/`unpack` på den andre siden.
+
+## Bindingsmodellen: kilde → flyt → sluk
+
+En **flyt** er bare en ordnet rekke verktøy — den eier verken inndata eller utdata.
+Hvor innholdet kommer inn (**kilden**) og hvor resultatene går (**sluket**) er
+*bindinger* som løses når du kjører den:
+
+<PipelineDiagram
+  stages={[
+    { label: "source", sub: "binding", role: "io" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "qa-check", role: "qa" },
+    { label: "sink", sub: "binding", role: "io" },
+  ]}
+/>
+
+| Binding | As source | As sink |
+| --- | --- | --- |
+| `file` (default) | read + parse a file | write a localized file |
+| `store` | the project store (blocks + overlays) | commit overlays — **no file** |
+| interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
+| `none` | — | discard (checks/analysis only) |
+
+Modusen du er i, er bare hvilken binding som blir løst:
+
+- **Ad hoc** = `file`-bindingen — du angir `-i`/`-o`.
+- **I et prosjekt** blir standard-*sluket* **lageret** (en kjøring med *ren prosessering*);
+  send `-o` for å tvinge en fil i stedet.
+
+Kjør `kapi run <flow> --explain` når som helst for å skrive ut den løste
+`source → sink`-bindingen uten å kjøre:
+
+```bash
+kapi run ai-translate-qa -i app.json -o app.fr.json --explain
+#   → flow ai-translate-qa: file(app.json) → file(app.fr.json)
+kapi run ai-translate-qa -i app.json --explain          # inside a project
+#   → flow ai-translate-qa: file(app.json) → store
+```
+
+## Ad hoc: løse filer
+
+```bash
+# One tool on one file
+kapi pseudo-translate app.json --target-lang qps         # → app_qps.json
+kapi ai-translate -i app.xliff --target-lang fr -o fr.xliff
+kapi qa-check app.xliff -o none --report qa.json         # checks only, no output
+
+# A composed flow
+kapi run ai-translate-qa -i app.json -o app.fr.json --target-lang fr
+```
+
+## Prosjekt: to sløyfer som begge ender i `merge`
+
+Sett opp og håndter det sporede innholdet (dette er kjernekommandoer — ingen tillegg kreves):
+
+```bash
+kapi init
+kapi add "src/**/*.json"   # format auto-detected from the extension
+kapi ls --stats            # list tracked files + block/word counts
+```
+
+**1 — Utvekslingssløyfe** (lever tospråklige filer til en oversetter eller et CAT-verktøy):
+
+<PipelineDiagram
+  stages={[
+    { label: "kapi extract", sub: "TM pre-fill", role: "annotate" },
+    { label: "bilingual file", sub: ".klz / XLIFF / PO", role: "io" },
+    { label: "translate elsewhere", role: "translate" },
+    { label: "kapi merge", sub: "+ TM absorb", role: "qa" },
+    { label: "localized files", role: "io" },
+  ]}
+/>
+
+```bash
+kapi extract --target-lang fr,de            # → out/*.xliff (or --format klz)
+#   …translate the bilingual files…
+kapi merge -i out/                          # apply back onto sources, absorb into TM
+```
+
+**2 — Ren prosesseringssløyfe** (arbeidet lander i lageret; materialiser når du er klar):
+
+<PipelineDiagram
+  stages={[
+    { label: "kapi run -i file", sub: "no -o", role: "translate" },
+    { label: "project store", sub: "targets/<locale> overlays", role: "io" },
+    { label: "kapi merge", role: "qa" },
+    { label: "localized files", role: "io" },
+  ]}
+/>
+
+```bash
+kapi run ai-translate -i src/app.json --target-lang fr   # file → store (no file written)
+kapi merge                                               # store → localized files
+```
+
+## `.klz`-pakken: flytt arbeid uten server
+
+En `.klz` er en portabel bærer i én fil — måten du leverer arbeid mellom maskiner
+eller personer på uten en server. Den finnes i to profiler:
+
+```bash
+# Whole-project snapshot — a runnable "project in a file"
+kapi pack -o snapshot.klz        # carries the recipe + content + TM/termbase
+kapi unpack snapshot.klz         # rehydrate elsewhere
+
+# Bilingual interchange — neokapi's native format for a kapi-equipped reviewer
+kapi extract --format klz --target-lang fr   # → one bilingual .klz per pair
+kapi merge bundle.fr.klz                      # ingest the returned work
+```
+
+Kilden reiser som identitet + et rundtur-skjelett som standard; legg til `--with-source`
+for å bygge inn de rå originalene (for frakoblet re-uttrekk).
+
+## Kan ad hoc og prosjektmodus kombineres?
+
+Ja — fordi de er de samme kommandoene over ulike bindinger, ikke rivaliserende
+verktøysett. Rettesnoren:
+
+| You want… | Use |
+| --- | --- |
+| A throwaway job on one file | **ad-hoc** (`kapi <tool>` or `run -i -o`) |
+| A repo you localize repeatedly (accumulating TM) | **project** (`add` / `extract` / `run`→store / `merge`) |
+| To move work between machines/people | **`.klz` parcel** (`pack` or `extract --format klz`) → `merge`/`unpack` |
+
+**Kombinasjoner som henger sammen:** et verktøy kjørt *inne i* et prosjekt (`kapi ai-translate src/app.json`)
+plukker fortsatt opp prosjektets standardvalg og oversettelsesminne mens det
+arbeider på én enkelt fil; den samme flyten kjører ad hoc eller med ren
+prosessering uten endring; en `.klz` laget i et prosjekt brukes ad hoc av en
+korrekturleser og flettes tilbake med `merge`.
+
+**Det ene du bør unngå:** å kjøre **to tilstandsfulle lagre over samme innhold** —
+et ad hoc `.klz`-arbeidsområde *og* et `.kapi`-prosjekt for de samme filene. Bruk
+`.klz`-arbeidsområdet når det ikke finnes noe prosjekt; bruk prosjektlageret når
+det gjør det.
+
+**Verdt å vite:** inne i et prosjekt skriver en eksplisitt `-o` en fil og hopper
+over lageret (ren prosessering) — det er tilsiktet, og `--explain` viser deg
+hvilken du fikk.
+
+## Se også
+
+- [Tospråklig arbeidsflyt](/kapi/bilingual-workflow) — utvekslingssløyfen `extract` / `merge` i dybden.
+- [Arbeid i et `.klz`-arbeidsområde](/kapi/recipes/resumable-workspace) — den serverløse enfilsveien.
+- [Flyter](/framework/flows) — å lage sammensatte flyter og kilde-/sluk-endene.
+- [`.kapi`-prosjektfil](/reference/project-file) — oppskriftsformatet.

@@ -1,0 +1,160 @@
+---
+sidebar_position: 5
+title: Opprett ditt første prosjekt
+description: Sett opp et .kapi-prosjekt med kapi init — fang språk, innholdsmønstre og flyter én gang, og kjør deretter flyter og flett filer uten å gjenta flagg. Den anbefalte arbeidsmodellen for daglig bruk.
+keywords: [kapi, project, kapi init, recipe, .kapi, flows, merge, day-to-day workflow]
+---
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
+
+# Opprett ditt første prosjekt
+
+[Hurtigstarten](/kapi/get-started/quickstart) kjører kapi ad hoc — én kommando,
+én fil, flagg for alt. Det er riktig form for et engangstilfelle. For innhold du
+lokaliserer **mer enn én gang** — et kodelager, et produkts strenger, et
+dokumentasjonssett — er et **`.kapi`-prosjekt** arbeidsmodellen verdt å ta i
+bruk: du fanger språkene, innholdsmønstrene og flytene i en innsjekket oppskrift
+én gang, og driver deretter alt gjennom korte kommandoer uten gjentatte flagg.
+
+Denne siden går gjennom den minste ende-til-ende-sløyfen: `init` → les
+oppskriften → kjør en flyt → `merge` filene ut.
+
+<KapiGuidedEmbed id="kapi-project-workflow" />
+
+## 1. Initialiser prosjektet
+
+Kjør `kapi init` i katalogen du vil lokalisere. Den setter opp en
+`<dir-name>.kapi`-oppskrift og en tilstøtende `.kapi/`-tilstandskatalog:
+
+```bash
+kapi init --source-locale en --target-locale fr,de
+```
+
+```text
+Initialized kapi project "my-app"
+  recipe: my-app.kapi
+  state:  .kapi
+```
+
+Oppskriften sjekkes inn; `.kapi/`-tilstandskatalogen kan regenereres og hører
+hjemme i `.gitignore`. En fersk `init` oppgir språkene dine, men **ennå ikke noe
+innhold** — det er neste steg.
+
+## 2. Oppgi innholdet som skal lokaliseres
+
+Fortell prosjektet hvilke filer som skal oversettes med `kapi add` — et
+globmønster, pluss formatet (auto-oppdaget hvis du utelater det):
+
+```bash
+kapi add "src/locales/en/*.json"
+```
+
+Hver `kapi add` legger til en innholdsoppføring i oppskriften; `kapi rm` fjerner
+én og `kapi ls` lister filene prosjektet for øyeblikket sporer (legg til
+`--stats` for blokk- og ordtellinger per fil):
+
+```bash
+kapi ls
+```
+
+Hvis strengene dine ligger i i18n-katalogene til en kjent teknologistabel, hopp
+over den manuelle `add`-en og la `kapi init --framework <stack>` (for eksempel
+`react-i18next`, `nextjs`, `flutter`) forhåndsutfylle innholdskartleggingen for
+deg — se `kapi presets list --framework`.
+
+## 3. Les oppskriften
+
+`<dir-name>.kapi`-oppskriften er et portabelt YAML-dokument. En minimal en
+oppgir språkene sine, innholdsglobene som skal lokaliseres, og flytene som skal
+kjøres:
+
+```yaml title="my-app.kapi"
+version: v1
+name: my-app
+defaults:
+  source_language: en
+  target_languages: [fr, de]
+content:
+  - path: "src/locales/en/*.json"
+    format: json
+    target: "src/locales/{lang}/*.json"
+flows:
+  translate:
+    steps:
+      - tool: tm-leverage
+      - tool: ai-translate
+```
+
+`kapi add` skrev innholdsoppføringens kilde-`path` og `format`. Den valgfrie
+`target`-globen — med `{lang}`-plassholderen — forteller `merge` hvor hvert
+språks filer går; sett den for en tilpasset struktur (eller la `--framework`
+fylle den), ellers bruker kapi som standard en språkkode-suffiksert sti ved siden
+av kilden. `defaults` bærer kilde- og målspråkene hver kommando arver, og `flows`
+navngir gjenbrukbare verktøykjeder. Se
+[referansen for prosjektfiler](/reference/project-file) for det fulle skjemaet.
+
+## 4. Kjør en flyt
+
+Fra hvor som helst i prosjekttreet, kjør en flyt ved navn:
+
+```bash
+kapi run translate
+```
+
+kapi oppdager nærmeste oppskrift ved å gå oppover i katalogtreet (som git),
+løser prosjektets språk og innhold, og kjører flyten. I et prosjekt er en kjøring
+**ren prosessering** — den skriver resultatene til prosjektlageret
+(`.kapi/cache/blocks.db`) i stedet for å skrive filer direkte. Det holder
+gjentatte kjøringer billige og lar lageret bygge opp oversettelsesminne og
+overlegg mens du arbeider.
+
+## 5. Flett filene ut
+
+Når du er klar til å materialisere de lokaliserte filene, skriver `merge` dem
+til målene oppgitt i oppskriften:
+
+```bash
+kapi merge
+```
+
+Dette spiller de lagrede oversettelsene tilbake på hver kilde og skriver
+`src/locales/fr/*.json`, `src/locales/de/*.json` og så videre — ingen flagg,
+fordi oppskriften allerede sier hvor hvert språk går.
+
+## Inspiser et prosjekt
+
+Laben under er et prosjekt, interaktivt. Velg et eksempel, gå gjennom en
+deklarert flyt steg for steg, og se oppskriften, tilstanden per språk og
+utdatafilene oppdatere seg:
+
+<ProjectExplorer defaultSampleId="json" />
+
+## Hvorfor prosjektmodus
+
+Prosjektmodus bytter en engangs `init` mot mindre gjentakelse og mer minne:
+
+- **Standardvalg fanget én gang.** Kilde- og målspråk, innholdsglobber og
+  flytdefinisjoner bor i oppskriften. Du slutter å sende `--source-lang`,
+  `--target-lang` og `-i/-o` på hver kommando.
+- **Oversettelsesminnet bygger seg opp.** Prosjektlageret holder et
+  oversettelsesminne og en termbase som hver kjøring leser og skriver, så hver
+  omgang gjenbruker den forriges arbeid.
+- **Git-aktig oppdagelse.** Kjør `kapi` fra en hvilken som helst underkatalog, og
+  den finner prosjektet automatisk — ingen `-p`-flagg, ingen cwd-dans.
+- **Portabel og delbar.** Oppskriften er en innsjekket YAML-fil; en lagkamerat
+  som kloner kodelageret kjører de samme flytene med samme konfigurasjon.
+
+Ad hoc-kjøringer er fortsatt tilgjengelige for engangstilfeller, skripting og CI
+— de to er de samme kommandoene over en ulik **binding** (hvor innholdet kommer
+inn og går ut). Se **[Moduser og bindinger](/kapi/modes)** for hele modellen.
+
+## Neste
+
+- [Moduser og bindinger](/kapi/modes) — kilde-/sluk-bindingsmodellen og når du bør
+  kombinere ad hoc- og prosjektkjøringer.
+- [Utveksling — XLIFF, PO og TMS-et ditt](/kapi/bilingual-workflow) — trekk ut et
+  prosjekt til tospråklige filer for leverandør- eller menneskeoversettelse, og
+  flett tilbake.
+- [Referanse for prosjektfiler](/reference/project-file) — det fulle
+  `.kapi`-oppskriftsskjemaet og oppdagelsesreglene.

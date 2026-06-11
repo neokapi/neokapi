@@ -1,0 +1,2634 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "cli-nb:04986f846d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export all skills to a directory (for the plugin bundle)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter alle skills til en katalog (for tilleggspakken)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:049dbab43c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage the bundled Agent Skills.\n\nThese SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how\nto use kapi to keep generated content on-brand, terminologically consistent, and\nto publish multilingually. The kapi-* skills drive the local CLI; the bowrain-*\nskills drive the governed Bowrain platform."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer de medfølgende Agent Skills.\n\nDisse SKILL.md-definisjonene lærer en AI-kodeassistent (Claude Code o.l.) hvordan\nden bruker kapi til å holde generert innhold i tråd med merkevaren, terminologisk\nkonsistent, og til å publisere flerspråklig. kapi-*-skills driver den lokale\nCLI-en; bowrain-*-skills driver den styrte Bowrain-plattformen."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:04bcf98d8b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "A localization and translation toolkit"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Et verktøysett for lokalisering og oversettelse"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:05f189c20f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Stream-edit the translatable text of files (use ksed)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Strømrediger den oversettbare teksten i filer (bruk ksed)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:0698d65f46",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export translation memory to TMX or .klftm"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter oversettelsesminnet til TMX eller .klftm"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
+    },
+    {
+      "id": "cli-nb:07f35ed03b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Update an installed plugin to the latest matching version"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdater et installert tillegg til nyeste samsvarende versjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:085d4f54ff",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Add file patterns to the project's content"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Legg til filmønstre i prosjektets innhold"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:09721e0201",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List saved credentials"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List lagret legitimasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:0d63f9117c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Rehydrate a project's working state from a .klz snapshot"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Gjenopprett et prosjekts arbeidstilstand fra et .klz-øyeblikksbilde"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:0dc93e8ad7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run a composed flow (multi-tool pipeline)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør en sammensatt flyt (pipeline med flere verktøy)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:12e5f77b26",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Slutt å spore filer som matcher de angitte mønstrene.\n\nHvis et mønster matcher ett som ble lagt til med 'kapi add', fjernes kartleggingen.\nEllers legges mønsteret til i ekskluderingslisten slik at de filene hoppes over.\n\n  kapi rm \"src/**/*.html\"       # fjern kartleggingen\n  kapi rm \"src/legacy/*.html\"   # ekskluder samsvarende filer"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:17ba917a94",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Score text against a brand voice profile"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vurder tekst mot en merkevarestemmeprofil"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:19a39ad997",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "CHANNELS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "KANALER"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:1b2c08a873",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Quality"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kvalitet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:1cb5afe7e2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Keep AI-generated content on brand (voice, tone, terminology)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hold AI-generert innhold i tråd med merkevaren (stemme, tone, terminologi)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:1f41e80383",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kapi helps you manage multilingual content — convert document formats,\ntranslate with AI, and run quality checks across a wide range of file types."
+          }
+        ],
+        "nb": [
+          {
+            "text": "kapi hjelper deg å håndtere flerspråklig innhold — konverter dokumentformater,\noversett med AI og kjør kvalitetskontroller på et bredt utvalg filtyper."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:1f4c25bb8d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name <n>      Named TM in KAPI_HOME (~/.config/kapi/tm/<n>.db)\n  --local         TM in current directory (./tm.db)\n  --file <path>   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db)."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer oversettelsesminne.\n\nEt oversettelsesminne (TM) lagrer tidligere oversatte segmenter som en\nSQLite-database. Bruk disse kommandoene til å importere/eksportere TMX, slå opp\ntreff og administrere TM-enheter.\n\nRessursplassering (gjensidig utelukkende):\n  --name <n>      Navngitt TM i KAPI_HOME (~/.config/kapi/tm/<n>.db)\n  --local         TM i gjeldende katalog (./tm.db)\n  --file <path>   Eksplisitt filsti\n\nStandard (uten flagg): samme som --local (bruker ./tm.db)."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:204fdceaa2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install a plugin from a registry. The plugin is downloaded,\nverified (SHA-256 + cosign signature), and unpacked into\n$XDG_DATA_HOME/kapi/plugins/<name>/.\n\nExamples:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer et tillegg fra et register. Tillegget lastes ned,\nverifiseres (SHA-256 + cosign-signatur) og pakkes ut i\n$XDG_DATA_HOME/kapi/plugins/<name>/.\n\nEksempler:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:2093a70702",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Update an installed plugin in place using the channel and constraint\nrecorded at install time. Pass --channel or --constraint to switch\ntracks during update; --index points the update at a different\nregistry index URL.\n\nExamples:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdater et installert tillegg på stedet med kanalen og versjonskravet\nsom ble registrert ved installasjon. Bruk --channel eller --constraint for å\nbytte spor under oppdateringen; --index peker oppdateringen mot en annen\nregisterindeks-URL.\n\nEksempler:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:24b3ed409a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Add a registry to global config"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Legg til et register i global konfigurasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:25345393e9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage TMX import sessions"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer TMX-importøkter"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:28aa81ce38",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List available presets"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List tilgjengelige forhåndsinnstillinger"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:2cd298b815",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Limkommandoer for AI-kodeassistenter. Hver underkommando leser assistentens\nhook-nyttelast på stdin og skriver svaret assistenten forventer på stdout.\nDisse kobles opp av assistentens tillegg og kjøres ikke for hånd."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:3591fcab96",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export the TM to TMX 1.4 format. Each entry is written as a single\n<tu> with one <tuv> per language variant present (or the subset requested\nvia --locales). Inline markup is preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>.\n\nBy default all variants on every entry are emitted. Pass --locales to\nrestrict to a subset (comma-separated)."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter oversettelsesminnet til TMX 1.4-format. Hver enhet skrives som én\n<tu> med én <tuv> per språkvariant som finnes (eller utvalget som er bedt om\nmed --locales). Inline-merking bevares som TMX <ph>/<bpt>/<ept>/<it>/<hi>.\n\nSom standard skrives alle varianter på hver enhet. Bruk --locales for å\nbegrense til et utvalg (kommaseparert)."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:360567a464",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source <(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash > /etc/bash_completion.d/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh > \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish > ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Generer et skript for skallfullføring for det angitte skallet.\n\nSlik laster du inn fullføringene:\n\nBash:\n  $ source <(kapi completion bash)\n  # Eller installer permanent:\n  $ kapi completion bash > /etc/bash_completion.d/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Eller installer permanent:\n  $ kapi completion zsh > \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Eller installer permanent:\n  $ kapi completion fish > ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:370ba73c6a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install skills into .claude/skills (project or user scope)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer skills i .claude/skills (prosjekt- eller brukernivå)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:39d8775e3a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Start MCP server (stdio) exposing project tools"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Start MCP-server (stdio) som eksponerer prosjektverktøy"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:3a359461d9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List configured registries"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List konfigurerte registre"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:3a35cea8e2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List supported file formats"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List filformater som støttes"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:3bf8f5e89a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install and manage manifest-driven plugins (#438)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer og administrer manifestdrevne tillegg (#438)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:3f56374108",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "READ"
+          }
+        ],
+        "nb": [
+          {
+            "text": "LES"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:40ece5189f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Claude Code PreToolUse hook: block direct edits to kapi-generated translation targets"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Claude Code PreToolUse-hook: blokker direkte redigering av oversettelsesmål generert av kapi"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:44b3118726",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Force a rebuild of the plugin dispatch cache"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bygg tilleggenes dispatch-hurtigbuffer på nytt"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:458f4a4f9f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Available flows:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tilgjengelige flyter:"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:4a363d4515",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: %d format(s)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: %d format(er)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:4bffa22a35",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: %d plugin(s)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: %d tillegg"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:538231a87f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the\nPreToolUse-event JSON on stdin, resolves the .kapi project in the session's\nworking directory, and:\n\n  - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when\n    the file being written is a project content target (a path that\n    \"kapi merge\" generates), so Claude routes the change through\n    extract → translate → merge instead; or\n  - emits nothing (exit 0) otherwise — outside a project, on source files, on\n    files the project does not generate, or when the project cannot be loaded —\n    leaving the normal permission flow untouched.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. It fails open: anything other than a confirmed target\nmatch lets the edit proceed, so the guard never traps the assistant on an\nunrelated file."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Claude Code PreToolUse-hook for Edit/Write/MultiEdit. Leser PreToolUse-hendelsens\nJSON på stdin, finner .kapi-prosjektet i øktens arbeidskatalog, og:\n\n  - skriver {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (avslutningskode 0) når\n    filen som skrives er et innholdsmål i prosjektet (en sti som\n    \"kapi merge\" genererer), slik at Claude ruter endringen gjennom\n    trekk ut → oversett → flett i stedet; eller\n  - skriver ingenting (avslutningskode 0) ellers — utenfor et prosjekt, på kildefiler, på\n    filer prosjektet ikke genererer, eller når prosjektet ikke kan lastes —\n    og lar den vanlige tillatelsesflyten stå urørt.\n\nKoble den opp via kapi-tillegget for Claude Code (hooks/hooks.json) med matcher\nEdit|Write|MultiEdit. Den feiler åpent: alt annet enn et bekreftet måltreff\nlar redigeringen fortsette, så vakten fanger aldri assistenten på en\nurelatert fil."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:5427909713",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Output JSON Schema for a format"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv ut JSON-skjema for et format"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:54b211a151",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Search translation memory entries"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Søk i oversettelsesminnets enheter"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:560ea54fac",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove a saved credential"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern lagret legitimasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:56ccd012fa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "SOURCE"
+          }
+        ],
+        "nb": [
+          {
+            "text": "KILDE"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:5a244783dd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage format and framework presets"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer format- og rammeverksforhåndsinnstillinger"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:5ac117c19e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install a plugin from the registry"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer et tillegg fra registeret"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:5daabb4186",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Re-verify an installed plugin's manifest and binary"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Verifiser manifestet og binærfilen til et installert tillegg på nytt"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:5e037e381a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Installed plugins:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installerte tillegg:"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:60daf226e0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits nothing (exit 0) when the project passes, when there is no .kapi\n    project, or when verify cannot run — Claude is free to finish; or\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Claude Code Stop-hook. Leser Stop-hendelsens JSON på stdin, kjører\nverify-portene for prosjektet i øktens arbeidskatalog, og:\n\n  - skriver ingenting (avslutningskode 0) når prosjektet består, når det ikke finnes\n    noe .kapi-prosjekt, eller når verify ikke kan kjøre — Claude kan avslutte fritt; eller\n  - skriver {\"decision\":\"block\",\"reason\":\"…funn…\"} (avslutningskode 0) når en port\n    feiler, slik at Claude fortsetter arbeidet og retter funnene før den stopper.\n\nKoble den opp via kapi-tillegget for Claude Code (hooks/hooks.json). Den feiler åpent:\nalt annet enn en ren portfeil lar Claude stoppe, så et manglende prosjekt\neller en verify-feil fanger aldri assistenten. Claude Code begrenser antall\npåfølgende blokkeringer, så et funn som ikke kan rettes kan ikke gå i evig løkke."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:63df7aa61e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List named TMs in KAPI_HOME"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List navngitte oversettelsesminner i KAPI_HOME"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:64e30751bc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List the bundled Agent Skills"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List de medfølgende Agent Skills"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:69a848adb0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Walk a directory and import every matching TMX file into the TM.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Gå gjennom en katalog og importer hver samsvarende TMX-fil til oversettelsesminnet.\n\nGjenkjenner rene .tmx- og gzip-komprimerte .tmx.gz-filer automatisk. Filnavnet\n(uten sti) blir Origin.Key på hver importert enhet, slik at du kan spore hvilken\nfil et segment kom fra.\n\nSom standard importeres enheter som samsvarer med --source-locale og --target-locale\nfra hver fil. Bruk --pattern for å filtrere (glob mot filnavn) og --all-pairs for å\nskrive hele språkkryssproduktet fra flerspråklige filer.\n\nEksempler:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6a65f013a2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Search the translatable text of files (use kgrep)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Søk i den oversettbare teksten i filer (bruk kgrep)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6aeda75c65",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Search the registry for plugins"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Søk etter tillegg i registeret"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6b03da5f14",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show details for an installed plugin"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis detaljer for et installert tillegg"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6b3c29ed74",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, source-side checks run (brand vocabulary). A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør innholdskontroller over en fil — eller et kilde/mål-par — og få\nstrukturerte funn pluss bestått/ikke bestått, med port på alvorlighetsgrad.\n\nMed to filer er den andre det oversatte målet, og de tospråklige kontrollene kjøres:\ndo-not-translate (termer som må overleve ordrett) og plassholder-/tagg-integritet.\nMed én fil kjøres kontrollene på kildesiden (merkevarevokabular). En bundet\nmerkevareprofil (--profile/--pack/--profile-file) legger til vokabularkontroller i begge modi.\n\nAvslutningskoder: 0 bestått, 3 når porten feiler (et kritisk funn som standard), 1 for\noperasjonelle feil. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i en fikse-løkke."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6b402b1a92",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "No registries configured."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Ingen registre er konfigurert."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6e62f7e42d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Scaffold a new kapi project in the current directory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprett et nytt kapi-prosjekt i gjeldende katalog"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6e651469ae",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Search concepts in the termbase"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Søk etter begreper i termbasen"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6ec90abb93",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List all import sessions"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List alle importøkter"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6ef1af748b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Claude Code Stop hook: keep working until the project's kapi verify gates pass"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Claude Code Stop-hook: fortsett arbeidet til prosjektets kapi verify-porter består"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:6ffbf08e36",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install Agent Skills that plug kapi into your AI coding assistant"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer Agent Skills som kobler kapi til AI-kodeassistenten din"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:70414f3e6d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Save a named AI provider credential"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lagre navngitt legitimasjon for en AI-leverandør"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7198150cd6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove a registry from global config"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern et register fra global konfigurasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:74ddc2683c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: %d registry(ies)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: %d register(re)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:76d0f31b0c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "MIME TYPES"
+          }
+        ],
+        "nb": [
+          {
+            "text": "MIME-TYPER"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:77a3bac734",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List the files the project's content tracks"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List filene prosjektets innhold sporer"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:795349a1ba",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "FORMAT"
+          }
+        ],
+        "nb": [
+          {
+            "text": "FORMAT"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7984995897",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Refresh the cached registry index"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdater den hurtigbufrede registerindeksen"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7aa8aee1c4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Rewrite text to comply with a brand voice profile"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Omskriv tekst slik at den følger en merkevarestemmeprofil"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7b60b8e351",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "VERSION"
+          }
+        ],
+        "nb": [
+          {
+            "text": "VERSJON"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7c74ab2380",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Print the JSON Schema for a tool's parameters"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv ut JSON-skjemaet for et verktøys parametre"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:7f82e5aa1a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage translation memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer oversettelsesminne"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:82b5a6afcd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export termbase to CSV, JSON, TBX, or native .klftb"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter termbasen til CSV, JSON, TBX eller internformatet .klftb"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
+    },
+    {
+      "id": "cli-nb:84c47ac257",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import a TMX or .klftm file into translation memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer en TMX- eller .klftm-fil til oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
+    },
+    {
+      "id": "cli-nb:8528f706c3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import a TMX file into translation memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer en TMX-fil til oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:85399a0002",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Snapshot a .kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Ta et øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt — blokklagerets\noverlegg, det autoritative oversettelsesminnet og termbasen — til en portabel\n.klz. Regenererbare hurtigbuffere og hemmeligheter utelates. Flytt\nøyeblikksbildet til en annen maskin og kjør \"kapi unpack\" der for å fortsette\narbeidet."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8808978467",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List brand voice profiles (local store + built-in packs)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List merkevarestemmeprofiler (lokalt lager + innebygde pakker)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:88e76c2945",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Test that a credential's API key is accessible"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Test at API-nøkkelen til en legitimasjon er tilgjengelig"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8a0850e6f8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove a session record (entries are retained, session_id cleared)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern en øktoppføring (enhetene beholdes, session_id nullstilles)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8a519b7cee",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show detailed configuration for a preset.\n\nAccepts a bare preset name (searched across all formats) or the\nqualified format:preset syntax (e.g. okf_xml:AndroidStrings)."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis detaljert konfigurasjon for en forhåndsinnstilling.\n\nGodtar et rent forhåndsinnstillingsnavn (søkes på tvers av alle formater)\neller den kvalifiserte format:preset-syntaksen (f.eks. okf_xml:AndroidStrings)."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8a6ff858e8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Integration hooks for AI coding assistants (Claude Code)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Integrasjonshooks for AI-kodeassistenter (Claude Code)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8a7ddbf333",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export termbase to CSV, JSON, or TBX"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter termbase til CSV, JSON eller TBX"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8b886711a4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show preset details"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis detaljer for en forhåndsinnstilling"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8c2e4a035f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "STATUS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "STATUS"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:8f0678c289",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Look up text in translation memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Slå opp tekst i oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:908472901c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile <name>       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file <path>  Standalone profile YAML (git-shareable, no store needed)\n  --pack <name>          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\"."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kontroller, omskriv og styr innhold mot en merkevarestemmeprofil.\n\nProfilkilde (gjensidig utelukkende):\n  --profile <name>       Profil i det lokale merkevarelageret (se 'kapi brand profiles')\n  --profile-file <path>  Frittstående profil-YAML (git-delbar, krever ikke lager)\n  --pack <name>          Innebygd startpakke (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nTekst til check/rewrite leses fra --text, eller fra stdin når --text er\nutelatt eller satt til \"-\"."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:931de18db4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\""
+          }
+        ],
+        "nb": [
+          {
+            "text": "Legg til filmønstre i prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Formatet gjenkjennes\nautomatisk fra filendelsen med mindre --format er angitt.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\""
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:953349a26c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default the project id is the current directory's basename and\nsource/target locales are en / (none). Override with --name,\n--source-locale, --target-locale (repeatable).\n\n--framework <name> pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprett et nytt kapi-prosjekt med en {name}.kapi-oppskrift og en\ntilhørende .kapi/-tilstandskatalog.\n\nSom standard er prosjekt-id-en navnet på gjeldende katalog, og\nkilde-/målspråk er en / (ingen). Overstyr med --name,\n--source-locale, --target-locale (kan gjentas).\n\n--framework <name> forhåndsutfyller innholdskartleggingen for i18n-katalogene\ntil en kjent teknologistakk (se 'kapi presets list --framework'): react-i18next,\nreact-intl, nextjs, vue-i18n, flutter, angular."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:96d31a4c64",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show a brand voice profile as a guide"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis en merkevarestemmeprofil som guide"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:9753649023",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Available formats:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tilgjengelige formater:"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:97ee7cc3da",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import a profile YAML into the local brand store"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer en profil-YAML til det lokale merkevarelageret"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:9a3c599804",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove an installed plugin"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern et installert tillegg"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:9c2c39e308",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Export translation memory to TMX"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksporter oversettelsesminne til TMX"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a0040c49ba",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show a .klz workspace's state (dirty?)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis tilstanden til et .klz-arbeidsområde (endret?)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a014b184c4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: %d tool(s)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: %d verktøy"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a0db88de80",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør innholdskontroller over en fil som tester over kode (do-not-translate, plassholdere, terminologi, merkevare)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a167ac0d6c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show details for a single import session"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis detaljer for én importøkt"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a19d1af34f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "No flows defined."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Ingen flyter er definert."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a1a5ad6f8b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run a project's bound quality gates (brand, terminology, QA) in one shot"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør prosjektets bundne kvalitetsporter (merkevare, terminologi, QA) i én operasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a5ba9041b2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List installed plugins"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List installerte tillegg"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a79d4490de",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install a built-in starter pack into the local brand store"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer en innebygd startpakke i det lokale merkevarelageret"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a90bab6ff8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "TYPE"
+          }
+        ],
+        "nb": [
+          {
+            "text": "TYPE"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a94510ea10",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage plugin registries"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer tilleggsregistre"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a970ec592d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "WRITE"
+          }
+        ],
+        "nb": [
+          {
+            "text": "SKRIV"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:a97dfc892b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Emit a bilingual file for a translator — native .klz or XLIFF/PO"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lag en tospråklig fil for en oversetter — nativ .klz eller XLIFF/PO"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:ac32d792a8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name <n>      Named termbase in KAPI_HOME (~/.config/kapi/termbases/<n>.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file <path>   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db)."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer prosjektterminologi.\n\nEn termbase er en ordliste med godkjente termer lagret som en SQLite-database.\nBruk disse kommandoene til å importere, eksportere, slå opp og administrere termer.\n\nRessursplassering (gjensidig utelukkende):\n  --name <n>      Navngitt termbase i KAPI_HOME (~/.config/kapi/termbases/<n>.db)\n  --local         Termbase i gjeldende katalog (./termbase.db)\n  --file <path>   Eksplisitt filsti\n\nStandard (uten flagg): samme som --local (bruker ./termbase.db)."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:afbe04022b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List available processing tools"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List tilgjengelige behandlingsverktøy"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:b2c371bf84",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source."
+          }
+        ],
+        "nb": [
+          {
+            "text": "En importøkt opprettes hver gang en TMX-fil importeres.\nHver økt registrerer filens SHA-256-hasj, TMX-headerens metadata og antall\nimporterte enheter. Opphav på TM-enheter peker tilbake til økten som la dem\ntil, slik at du kan filtrere oversettelsesminnet på importkilde."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:b612264c3d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Flett en returnert tospråklig fil (.klz/XLIFF/PO) tilbake inn i prosjektkilden"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:b7dce813d8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lag et utkast til merkevarestemmeprofil i YAML (eventuelt basert på en startpakke)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:b8e7b32cfe",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "EXTENSIONS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "FILENDELSER"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:c08e634afa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install the bundled skills into a .claude/skills directory.\n\n  --target project  (default)  → ./.claude/skills/<name>/SKILL.md\n  --target user                → ~/.claude/skills/<name>/SKILL.md\n\nPass skill names to install a subset; omit to install all."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer de medfølgende skills i en .claude/skills-katalog.\n\n  --target project  (standard)  → ./.claude/skills/<name>/SKILL.md\n  --target user                → ~/.claude/skills/<name>/SKILL.md\n\nOppgi skill-navn for å installere et utvalg; utelat for å installere alle."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:c1a6587700",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show detailed information about a format"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis detaljert informasjon om et format"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:c34754c027",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi ai-translate\" instead of \"kapi run ai-translate\").\n\nBuilt-in flows:\n  ai-translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør en sammensatt flyt som lenker flere verktøy sammen.\n\nFlyter er pipeliner med flere verktøy. For operasjoner med ett verktøy, bruk\nverktøyet direkte (f.eks. \"kapi ai-translate\" i stedet for \"kapi run ai-translate\").\n\nInnebygde flyter:\n  ai-translate-qa    Oversett + kvalitetskontroll med AI/LLM\n\nEgendefinerte flyter kan defineres i .kapi-prosjektfiler eller .bowrain/flows/ som YAML-filer.\n\nBruk -p for å kjøre en flyt fra en .kapi-prosjektfil:\n  kapi run translate -p myproject.kapi"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:c4e406ecda",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Write a brand voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi brand import` it."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv ut en merkevarestemmeprofil i YAML som kan fylles inn.\n\nUten flagg skrives en kommentert mal. Med --pack skrives en eksisterende\nstartpakke som redigerbart utgangspunkt. En AI-assistent kan fylle den inn fra\ndet den allerede vet om produktet, fra innholdseksempler eller fra et lenket\nnettsted, og deretter importere den med `kapi brand import`."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:c9fd857663",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove file patterns from the project's content"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern filmønstre fra prosjektets innhold"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:cb9ab7f81f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\")."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv tospråklige XLIFF 2.x-filer (standard) eller PO-filer for hvert målspråk\nsom er deklarert i et .kapi-prosjekt, forhåndsutfylt fra prosjektets\noversettelsesminne.\n\nHver kjøring skriver én bunt med utdata under .kapi/cache/extractions/<batch-id>/\npluss én tospråklig fil per kilde → mål-par i --out-dir (standard \"out/\")."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:ccbf1abc14",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show termbase statistics"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis termbasestatistikk"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:cd0b18b35e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/<locale> overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level <note>, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Materialiser lokaliserte filer for et prosjekt, eller flett tospråklige filer\nfra en oversetter tilbake inn i prosjektets kildespråk.\n\nUten -i i et prosjekt skriver merge de lokaliserte filene fra prosjektets\nblokklager: en ren prosesskjøring med \"kapi run\" (i et prosjekt, uten -o)\nlagrer arbeidet som targets/<locale>-overlegg, og merge er den tilhørende\nsluttfasen — den leser hver kilde, legger på de lagrede overleggene og skriver\nden lokaliserte filen via kildeformatets skjelett-rundtur.\n\nMed -i fletter merge én eller flere tospråklige filer fra en oversetter\ntilbake inn i prosjektets kildespråk, ved hjelp av skjelettet som ble fanget av\nkapi extract. Hver inndatafil bærer uttreksbunt-id-en i en <note> på filnivå,\nså merge finner riktig uttrekksmanifest uten å gjette fra filnavnet. Blandede\nmålspråk i én bunt går fint — merge håndterer hver inndatafil uavhengig."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:ce15eb0b62",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nExit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means\n\"not on-spec yet\", not a crash — in an assistant fix-loop, read the findings and fix.\nPass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjør kvalitetsportene som er bundet til et lokaliseringsprosjekt i én operasjon,\nog få ett strukturert bestått/ikke bestått pluss funn som kan handles på.\n\nPorter (hver kjører bare når prosjektet binder ressursen den trenger):\n\n  brand        Hvis en merkevarestemme er bundet (defaults.brand_voice), vurderes\n               innholdet på kildespråket mot den. Feiler når poengsummen er\n               under terskelen (standard 80, overstyr med --min-score).\n  terminology  Hvis en termbase er bundet (defaults.termbase), kontrolleres det at\n               målfilene bruker de påkrevde oversettelsene fra prosjektets ordliste.\n  qa           For oversatte målfiler kontrolleres plassholder-/tagg-integritet\n               mot kilden, og uoversatte/tomme mål flagges.\n\nUten filargumenter inspiserer verify prosjektets innhold: brand på\nkildefilene, terminology og qa på målfilene avledet fra hvert innholdselements\nmålmal og prosjektets målspråk.\n\nOppgi filstier for å verifisere bare de filene i stedet.\n\nAvslutningskoder: 0 bestått, 3 når en port feiler, 1 for operasjonelle feil. Kode 3 betyr\n\"ikke i henhold til spesifikasjonen ennå\", ikke krasj — i en fikse-løkke med en assistent,\nles funnene og rett dem. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i løkker;\nutelat flagget i CI slik at porten gjelder."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:ce532312e4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Text Processing"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tekstbehandling"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:ce5edf1000",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show version information"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis versjonsinformasjon"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:cee5e64698",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show translation memory statistics"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis statistikk for oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:cf5171e2cf",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Manage saved AI provider credentials"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Administrer lagret legitimasjon for AI-leverandører"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d14082c367",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List named termbases in KAPI_HOME"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List navngitte termbaser i KAPI_HOME"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d1a1974e16",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Look up a term in the termbase"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Slå opp en term i termbasen"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d4c2a3716e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Show every TM entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project TM.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Audit iterates the project TM,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi tm audit --batch <batch-id>             # full listing\n  kapi tm audit --batch <batch-id> --limit 50  # cap rows\n\nUse \"kapi tm stats\" for global TM metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis hver TM-enhet som ble skrevet (eller oppdatert) av en bestemt kapi merge-bunt,\nslik at du kan se hva en bestemt retur fra en oversetter bidro med til\nprosjektets oversettelsesminne.\n\nOpphavsproveniens stemples av kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Audit itererer over prosjektets TM,\nviser bare TU-er med minst ett samsvarende opphav, og skriver ut\nkildefil, blokkhasj, tidsstempel og navnet på XLIFF-filen som var opphavet.\n\nEksempler:\n\n  kapi tm audit --batch <batch-id>             # full listing\n  kapi tm audit --batch <batch-id> --limit 50  # begrens antall rader\n\nBruk \"kapi tm stats\" for globale TM-måltall (antall enheter, fordeling per\nspråk). Audit er smal med hensikt — den svarer på \"hva gjorde denne\nflettingen?\".\n"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d561ff04a8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Print the translatable text of files (use kcat)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv ut den oversettbare teksten i filer (bruk kcat)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d7962666e7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Trace TM entries by merge batch id"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Spor TM-enheter etter flettebunt-id"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:d8bdf73c0f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import a single TMX file (plain or .gz) into the TM.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n<prop type=\"source-document\"> URL is recorded as Origin.Reference."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer én TMX-fil (ren eller .gz) til oversettelsesminnet.\n\nSom standard importeres enheter som samsvarer med angitt --source-locale og --target-locale.\nBruk --all-pairs for å skrive enheter for hvert (kilde, mål)-språkpar som finnes i\nhver TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der\nén TU kan inneholde over 24 språk). Kombiner med --locales for å begrense\nparsettet (f.eks. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nImporten gjenkjenner UTF-8/UTF-16 automatisk fra BOM-en, så Euramis-eksporter\nfungerer uten forhåndskonvertering. For TMX-sett fra webcrawl (bitextor-utdata)\nregistreres URL-en i <prop type=\"source-document\"> per TUV som Origin.Reference."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:db6e056c3f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import all TMX files from a directory into translation memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer alle TMX-filer fra en katalog til oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:dcb05cf7ce",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List available flows"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List tilgjengelige flyter"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:dd54cc227f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Available tools:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tilgjengelige verktøy:"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:de3bf21ff0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension."
+          }
+        ],
+        "nb": [
+          {
+            "text": "List alle filformater som kan leses og skrives.\n\nBruk --mime eller --ext for å filtrere på MIME-type eller filendelse."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:df6cbc6255",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Remove installed skills from .claude/skills"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fjern installerte skills fra .claude/skills"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e280595409",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "FORMATS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "FORMATER"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e373d73720",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import terms from CSV, JSON, TBX, or native .klftb into a termbase"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer termer fra CSV, JSON, TBX eller internformatet .klftb til en termbase"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
+    },
+    {
+      "id": "cli-nb:e413bf960d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Snapshot a .kapi project's working state into a .klz"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Ta øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt til en .klz"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e703e9db58",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Print the brand voice guide (inject into your assistant's context)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Skriv ut merkevarestemmeguiden (legg den inn i assistentens kontekst)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e70d8eb905",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Analysis"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Analyse"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e7a241deba",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "URL"
+          }
+        ],
+        "nb": [
+          {
+            "text": "URL"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e7f719f4a3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats"
+          }
+        ],
+        "nb": [
+          {
+            "text": "List filene som matches av prosjektets innholdssamlinger (med respekt for\nekskluderingslisten). Med --stats vises også antall blokker og ord per fil.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:e9e2362825",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lagre legitimasjon for en AI-leverandør i operativsystemets nøkkelring.\n\nNavnet på legitimasjonen brukes til å referere til den i flyter og verktøykommandoer:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nHvis bare én legitimasjon er lagret, finner verktøyene den automatisk uten --credential."
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:eaa5893227",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "NAME"
+          }
+        ],
+        "nb": [
+          {
+            "text": "NAVN"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:f604997f34",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Import terms from CSV, JSON, or TBX into a termbase"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Importer termer fra CSV, JSON eller TBX til en termbase"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:f67bf85b68",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Generate shell completion script"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Generer skript for skallfullføring"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:f97e9da0e3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Other"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Annet"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "cli-nb:feac097b2c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: %d flow(s)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: %d flyt(er)"
+          }
+        ]
+      },
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    }
+  ]
+}

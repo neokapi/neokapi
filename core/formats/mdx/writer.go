@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -161,11 +161,9 @@ func (w *Writer) blockText(block *model.Block) string {
 	if runs == nil {
 		return ""
 	}
-	rendered := model.RenderRunsWithData(runs)
-	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
-		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
-	}
-	return rendered
+	// Shared with the markdown writer and the reader's faithfulness
+	// check: original-data rendering, front matter quoting, line-prefix.
+	return markdown.RenderBlockContent(block, runs)
 }
 
 // blockRuns returns the target Run sequence for the configured locale, or

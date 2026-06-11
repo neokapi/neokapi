@@ -287,7 +287,13 @@ function buildKLF(doc: Document, opts: ExtractArgs) {
 function klfFilename(doc: Document): string {
   // Keep the source file's path shape inside --out so translators
   // scanning the directory see a 1:1 reflection of the source tree.
-  return doc.path.replace(/\.(tsx|jsx|ts|js)$/, "") + ".klf";
+  // Workspace sources outside the project root (e.g. --src
+  // "../../packages/ui/src/**/*.tsx") carry leading "../" segments
+  // that would escape --out and scatter .klf files into the library
+  // tree; strip them so every output lands inside the --out
+  // directory. doc.path itself keeps the original relative path.
+  const contained = doc.path.replace(/^(\.\.\/)+/, "");
+  return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + ".klf";
 }
 
 function readPackageVersion(): string {

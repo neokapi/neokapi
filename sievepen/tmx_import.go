@@ -1,6 +1,7 @@
 package sievepen
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -304,15 +305,34 @@ func scopedTUID(originKey, tuid string, index int, sessionID string) string {
 
 // newTMXDecoder builds an XML decoder that handles non-UTF-8 encodings
 // (notably UTF-16, commonly used by Euramis/EUR-Lex TMX exports).
+//
+// Files starting with a BOM are converted via charset sniffing (the only
+// way to read UTF-16 before the XML declaration is parseable). BOM-less
+// files follow the XML rules instead: UTF-8 unless the `<?xml ... encoding=`
+// declaration says otherwise — html/charset sniffing alone would fall back
+// to windows-1252 and mangle plain UTF-8 TMX.
 func newTMXDecoder(reader io.Reader) (*xml.Decoder, error) {
-	utf8Reader, err := charset.NewReader(reader, "")
-	if err != nil {
+	br := bufio.NewReader(reader)
+	head, err := br.Peek(3)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("detect TMX charset: %w", err)
 	}
-	dec := xml.NewDecoder(utf8Reader)
-	dec.CharsetReader = func(_ string, input io.Reader) (io.Reader, error) {
-		return input, nil
+	hasBOM := (len(head) >= 3 && head[0] == 0xEF && head[1] == 0xBB && head[2] == 0xBF) || // UTF-8
+		(len(head) >= 2 && head[0] == 0xFE && head[1] == 0xFF) || // UTF-16 BE
+		(len(head) >= 2 && head[0] == 0xFF && head[1] == 0xFE) // UTF-16 LE
+	if hasBOM {
+		utf8Reader, err := charset.NewReader(br, "")
+		if err != nil {
+			return nil, fmt.Errorf("detect TMX charset: %w", err)
+		}
+		dec := xml.NewDecoder(utf8Reader)
+		dec.CharsetReader = func(_ string, input io.Reader) (io.Reader, error) {
+			return input, nil
+		}
+		return dec, nil
 	}
+	dec := xml.NewDecoder(br)
+	dec.CharsetReader = charset.NewReaderLabel
 	return dec, nil
 }
 

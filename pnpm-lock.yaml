@@ -674,6 +674,9 @@ importers:
       '@neokapi/contract-types':
         specifier: '*'
         version: link:../contract-types
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../kapi-react
       '@neokapi/ui-primitives':
         specifier: '*'
         version: link:../ui
@@ -967,6 +970,9 @@ importers:
       '@neokapi/kapi-format':
         specifier: '*'
         version: link:../kapi-format
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../kapi-react
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@19.2.15)(react@19.2.6)

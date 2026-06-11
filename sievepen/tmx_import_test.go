@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/text/encoding/unicode"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +43,57 @@ func TestImportTMX_PlainBilingual(t *testing.T) {
 	assert.Equal(t, "Bonjour", entries[0].VariantText("fr"))
 	require.Len(t, entries[0].Origins, 1)
 	assert.Equal(t, sid, entries[0].Origins[0].SessionID)
+}
+
+func TestImportTMX_BOMlessUTF8(t *testing.T) {
+	// A plain UTF-8 file without a BOM must not be sniffed as
+	// windows-1252 — non-ASCII segments would be mangled (#mojibake).
+	tm := sievepen.NewInMemoryTM()
+	body := `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="test" creationtoolversion="1.0" segtype="block" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="t1">
+      <tuv xml:lang="en"><seg>Target language…</seg></tuv>
+      <tuv xml:lang="nb"><seg>Målspråk…</seg></tuv>
+    </tu>
+  </body>
+</tmx>`
+	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{OriginKey: "f.tmx"})
+	assert.Equal(t, 1, n)
+
+	entries := mustEntries(t, tm)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "Target language…", entries[0].VariantText("en"))
+	assert.Equal(t, "Målspråk…", entries[0].VariantText("nb"))
+}
+
+func TestImportTMX_UTF16WithBOM(t *testing.T) {
+	// UTF-16 LE with BOM (the Euramis/EUR-Lex export shape) must keep
+	// working through the BOM-sniffing path.
+	tm := sievepen.NewInMemoryTM()
+	body := `<?xml version="1.0" encoding="UTF-16"?>
+<tmx version="1.4">
+  <header creationtool="test" creationtoolversion="1.0" segtype="sentence" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="t1">
+      <tuv xml:lang="en"><seg>Hello</seg></tuv>
+      <tuv xml:lang="nb"><seg>Hallå</seg></tuv>
+    </tu>
+  </body>
+</tmx>`
+	enc := unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewEncoder()
+	utf16Body, err := enc.Bytes([]byte(body))
+	require.NoError(t, err)
+
+	_, n, err := sievepen.ImportTMXSession(context.Background(), tm, bytes.NewReader(utf16Body), sievepen.ImportTMXOptions{OriginKey: "f16.tmx"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+
+	entries := mustEntries(t, tm)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "Hello", entries[0].VariantText("en"))
+	assert.Equal(t, "Hallå", entries[0].VariantText("nb"))
 }
 
 func TestImportTMX_Multilingual(t *testing.T) {

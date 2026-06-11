@@ -25,6 +25,7 @@
     "@codemirror/view": "^6.41.0",
     "@neokapi/contract-types": "*",
     "@neokapi/kapi-format": "*",
+    "@neokapi/kapi-react": "*",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.2.2",
     "class-variance-authority": "^0.7.1",

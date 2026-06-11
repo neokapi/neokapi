@@ -3,6 +3,7 @@
 // hanging off the node — the external things it reads from or writes to (TM,
 // termbase, an API/provider, analytics, a redaction vault).
 
+import { t } from "@neokapi/kapi-react/runtime";
 import { Database, BookMarked, Cloud, BarChart3, Vault, type LucideIcon } from "lucide-react";
 import type { IOPort } from "./types";
 
@@ -28,51 +29,75 @@ const VAULT_COLOR = "oklch(0.6 0.2 15)";
 const BY_EFFECT: Record<string, SystemEffect> = {
   "tm-read": {
     key: "tm",
-    label: "TM",
+    get label() {
+      return t("TM", "external system");
+    },
     icon: Database,
     direction: "read",
     color: TM_COLOR,
-    description: "Reads from translation memory",
+    get description() {
+      return t("Reads from translation memory");
+    },
   },
   "tm-write": {
     key: "tm",
-    label: "TM",
+    get label() {
+      return t("TM", "external system");
+    },
     icon: Database,
     direction: "write",
     color: TM_COLOR,
-    description: "Writes to translation memory",
+    get description() {
+      return t("Writes to translation memory");
+    },
   },
   "termbase-read": {
     key: "termbase",
-    label: "Termbase",
+    get label() {
+      return t("Termbase", "external system");
+    },
     icon: BookMarked,
     direction: "read",
     color: TB_COLOR,
-    description: "Reads from the termbase",
+    get description() {
+      return t("Reads from the termbase");
+    },
   },
   "termbase-write": {
     key: "termbase",
-    label: "Termbase",
+    get label() {
+      return t("Termbase", "external system");
+    },
     icon: BookMarked,
     direction: "write",
     color: TB_COLOR,
-    description: "Writes to the termbase",
+    get description() {
+      return t("Writes to the termbase");
+    },
   },
   "api-call": {
     key: "api",
-    label: "API",
+    get label() {
+      return t("API", "external system");
+    },
     icon: Cloud,
     direction: "both",
     color: API_COLOR,
-    description: "Calls an external API / provider",
+    get description() {
+      return t("Calls an external API / provider");
+    },
   },
   analytics: {
     key: "analytics",
-    label: "Analytics",
+    get label() {
+      return t("Analytics", "external system");
+    },
     icon: BarChart3,
     direction: "write",
     color: ANALYTICS_COLOR,
-    description: "Emits analytics events",
+    get description() {
+      return t("Emits analytics events");
+    },
   },
 };
 
@@ -83,20 +108,28 @@ const VAULT_KEY = "vault";
 // (unredact). A tool doing both collapses to a single "both"-direction entry.
 const VAULT_WRITE: SystemEffect = {
   key: VAULT_KEY,
-  label: "Vault",
+  get label() {
+    return t("Vault", "external system");
+  },
   icon: Vault,
   direction: "write",
   color: VAULT_COLOR,
-  description: "Stores redaction secrets for later restore",
+  get description() {
+    return t("Stores redaction secrets for later restore");
+  },
 };
 
 const VAULT_READ: SystemEffect = {
   key: VAULT_KEY,
-  label: "Vault",
+  get label() {
+    return t("Vault", "external system");
+  },
   icon: Vault,
   direction: "read",
   color: VAULT_COLOR,
-  description: "Reads redaction secrets to restore originals",
+  get description() {
+    return t("Reads redaction secrets to restore originals");
+  },
 };
 
 /**
@@ -120,7 +153,7 @@ export function getSystemEffects(
       merged.set(sys.key, {
         ...existing,
         direction: "both",
-        description: `${existing.label}: reads and writes`,
+        description: t("{label}: reads and writes", { label: existing.label }),
       });
     } else if (!existing) {
       merged.set(sys.key, sys);
@@ -132,7 +165,7 @@ export function getSystemEffects(
     merged.set(VAULT_KEY, {
       ...VAULT_WRITE,
       direction: "both",
-      description: "Vault: reads and writes redaction secrets",
+      description: t("Vault: reads and writes redaction secrets"),
     });
   } else if (writesSecret) {
     merged.set(VAULT_KEY, VAULT_WRITE);

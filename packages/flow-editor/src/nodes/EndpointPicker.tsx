@@ -27,6 +27,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { FlowBinding, FlowBindingKind } from "../types";
 
 type Role = "source" | "sink";
@@ -40,49 +41,108 @@ interface BindingKindMeta {
 
 /** Binding kinds offered by the source picker. */
 const SOURCE_KINDS: BindingKindMeta[] = [
-  { kind: "file", label: "Files", icon: FileInput, description: "Read the project's source files" },
+  {
+    kind: "file",
+    get label() {
+      return t("Files", "flow binding kind");
+    },
+    icon: FileInput,
+    get description() {
+      return t("Read the project's source files");
+    },
+  },
   {
     kind: "store",
-    label: "Content store",
+    get label() {
+      return t("Content store", "flow binding kind");
+    },
     icon: Database,
-    description: "Read from the content store",
+    get description() {
+      return t("Read from the content store");
+    },
   },
   {
     kind: "interchange",
-    label: "Interchange",
+    get label() {
+      return t("Interchange", "flow binding kind");
+    },
     icon: ArrowLeftRight,
-    description: "Read a bilingual interchange file (XLIFF, PO, …)",
+    get description() {
+      return t("Read a bilingual interchange file (XLIFF, PO, …)");
+    },
   },
-  { kind: "none", label: "None", icon: CircleSlash, description: "No input binding" },
+  {
+    kind: "none",
+    get label() {
+      return t("None", "flow binding kind");
+    },
+    icon: CircleSlash,
+    get description() {
+      return t("No input binding");
+    },
+  },
 ];
 
 /** Binding kinds offered by the sink picker. */
 const SINK_KINDS: BindingKindMeta[] = [
   {
     kind: "file",
-    label: "Files",
+    get label() {
+      return t("Files", "flow binding kind");
+    },
     icon: FileOutput,
-    description: "Write back to the project's files",
+    get description() {
+      return t("Write back to the project's files");
+    },
   },
   {
     kind: "store",
-    label: "Content store",
+    get label() {
+      return t("Content store", "flow binding kind");
+    },
     icon: Database,
-    description: "Write to the content store",
+    get description() {
+      return t("Write to the content store");
+    },
   },
   {
     kind: "interchange",
-    label: "Interchange",
+    get label() {
+      return t("Interchange", "flow binding kind");
+    },
     icon: ArrowLeftRight,
-    description: "Write a bilingual interchange file (XLIFF, PO, …)",
+    get description() {
+      return t("Write a bilingual interchange file (XLIFF, PO, …)");
+    },
   },
-  { kind: "none", label: "None", icon: CircleSlash, description: "No output binding" },
+  {
+    kind: "none",
+    get label() {
+      return t("None", "flow binding kind");
+    },
+    icon: CircleSlash,
+    get description() {
+      return t("No output binding");
+    },
+  },
 ];
 
 const ROLE_META: Record<Role, { typeLabel: string; defaultIcon: LucideIcon; accent: string }> = {
   // Reader green / writer amber, matching the legacy terminal nodes.
-  source: { typeLabel: "Source", defaultIcon: FileInput, accent: "oklch(0.7 0.17 145)" },
-  sink: { typeLabel: "Sink", defaultIcon: FileOutput, accent: "oklch(0.7 0.13 85)" },
+  source: {
+    get typeLabel() {
+      return t("Source", "flow endpoint");
+    },
+    defaultIcon: FileInput,
+    accent: "oklch(0.7 0.17 145)",
+  },
+  sink: {
+    get typeLabel() {
+      return t("Sink", "flow endpoint");
+    },
+    defaultIcon: FileOutput,
+    accent: "oklch(0.7 0.13 85)",
+  },
 };
 
 /** The effective binding when one is omitted: `file` is the default (AD-026). */
@@ -187,7 +247,7 @@ export function EndpointPicker({ role, binding, onChange, readOnly }: EndpointPi
         className="w-60"
       >
         <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-          {role === "source" ? "Where content enters" : "Where content leaves"}
+          {role === "source" ? t("Where content enters") : t("Where content leaves")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={effective.kind} onValueChange={handleSelect}>

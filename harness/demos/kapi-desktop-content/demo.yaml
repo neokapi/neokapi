@@ -72,3 +72,46 @@ narration:
     kind: outro
     text: >-
       That's a project's content — grouped, matched, and ready to translate.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >-
+          I Kapi er innholdet i et prosjekt settet av filer det oversetter.
+      - id: intro
+        text: >-
+          Vi åpner et eksempelprosjekt for å se hvordan innholdet er
+          organisert.
+      - id: open-project
+        text: >-
+          KapiMart er et ferdig eksempel — en liten butikk med dokumentasjon,
+          en nettbutikk, kontrakter og maler.
+        caption: KapiMart — et ferdig eksempelprosjekt.
+      - id: overview
+        text: >-
+          Kildespråket og språkene det oversettes til ligger øverst i
+          prosjektet.
+        caption: Kildespråk og målspråk ligger øverst.
+      - id: content
+        text: >-
+          Innholdsvisningen har to halvdeler: mønstrene som definerer hva som
+          hører til prosjektet til venstre, og filene de treffer til høyre.
+        caption: Innholdsvisningen — mønstre til venstre, filer til høyre.
+      - id: patterns
+        text: >-
+          Mønstrene er gruppert i samlinger — nettstedet, nettbutikken,
+          kontraktene og malene — hvert et glob-mønster som motoren leser fra
+          og skriver tilbake til.
+        caption: Mønstrene er gruppert i navngitte samlinger.
+      - id: files
+        text: >-
+          Til høyre står hver fil som treffes, med formatet Kapi har gjenkjent
+          for den — Markdown, JSON, properties, Office-dokumenter og mer.
+        caption: Hver treff-fil viser formatet Kapi har gjenkjent.
+      - id: outro
+        text: >-
+          Det er innholdet i et prosjekt — gruppert, truffet og klart til
+          oversettelse.

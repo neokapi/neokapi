@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { t } from "@neokapi/kapi-react/runtime";
 import {
   Settings2,
   GitBranch,
@@ -297,7 +298,9 @@ export function ToolNode({ data, selected }: NodeProps) {
                 cardinality === "bilingual" ? "Operates on two locales" : "Operates on all locales"
               }
             >
-              {cardinality === "bilingual" ? "BI" : "ML"}
+              {cardinality === "bilingual"
+                ? t("BI", "bilingual badge")
+                : t("ML", "multilingual badge")}
             </span>
           )}
           {defaultLocale && (
