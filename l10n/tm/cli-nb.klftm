@@ -21,13 +21,13 @@
         {
           "source": "import",
           "key": "cli-delta.tmx",
-          "addedAt": "2026-06-11T06:48:44Z",
+          "addedAt": "2026-06-11T08:03:00Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-2b45a1525313fb56-1781160524500001512"
+          "sessionId": "tmx-2b45a1525313fb56-1781164980263158720"
         }
       ],
-      "created": "2026-06-11T06:48:44Z",
-      "updated": "2026-06-11T06:48:44Z"
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
     },
     {
       "id": "cli-delta.tmx:tu-2@tmx-2b45a152",
@@ -48,13 +48,13 @@
         {
           "source": "import",
           "key": "cli-delta.tmx",
-          "addedAt": "2026-06-11T06:48:44Z",
+          "addedAt": "2026-06-11T08:03:00Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-2b45a1525313fb56-1781160524500001512"
+          "sessionId": "tmx-2b45a1525313fb56-1781164980263158720"
         }
       ],
-      "created": "2026-06-11T06:48:44Z",
-      "updated": "2026-06-11T06:48:44Z"
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
     },
     {
       "id": "cli-delta.tmx:tu-3@tmx-2b45a152",
@@ -75,13 +75,13 @@
         {
           "source": "import",
           "key": "cli-delta.tmx",
-          "addedAt": "2026-06-11T06:48:44Z",
+          "addedAt": "2026-06-11T08:03:00Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-2b45a1525313fb56-1781160524500001512"
+          "sessionId": "tmx-2b45a1525313fb56-1781164980263158720"
         }
       ],
-      "created": "2026-06-11T06:48:44Z",
-      "updated": "2026-06-11T06:48:44Z"
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
     },
     {
       "id": "cli-delta.tmx:tu-4@tmx-2b45a152",
@@ -102,13 +102,13 @@
         {
           "source": "import",
           "key": "cli-delta.tmx",
-          "addedAt": "2026-06-11T06:48:44Z",
+          "addedAt": "2026-06-11T08:03:00Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-2b45a1525313fb56-1781160524500001512"
+          "sessionId": "tmx-2b45a1525313fb56-1781164980263158720"
         }
       ],
-      "created": "2026-06-11T06:48:44Z",
-      "updated": "2026-06-11T06:48:44Z"
+      "created": "2026-06-11T08:03:00Z",
+      "updated": "2026-06-11T08:03:00Z"
     },
     {
       "id": "cli-nb.tmx:tu100@tmx-cdd21575",
@@ -129,13 +129,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu101@tmx-cdd21575",
@@ -156,13 +156,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu102@tmx-cdd21575",
@@ -170,12 +170,12 @@
       "variants": {
         "en": [
           {
-            "text": "Save an AI provider credential to the OS keychain. The credential name is used to reference it in flows and tool commands: kapi ai-translate --credential my-openai -i file.json --target-lang fr If only one credential is saved, tools will auto-detect it without --credential."
+            "text": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential."
           }
         ],
         "nb": [
           {
-            "text": "Lagre legitimasjon for en AI-leverandør i operativsystemets nøkkelring. Navnet på legitimasjonen brukes til å referere til den i flyter og verktøykommandoer: kapi ai-translate --credential my-openai -i file.json --target-lang fr Hvis bare én legitimasjon er lagret, finner verktøyene den automatisk uten --credential."
+            "text": "Lagre legitimasjon for en AI-leverandør i operativsystemets nøkkelring.\n\nNavnet på legitimasjonen brukes til å referere til den i flyter og verktøykommandoer:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nHvis bare én legitimasjon er lagret, finner verktøyene den automatisk uten --credential."
           }
         ]
       },
@@ -183,13 +183,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu103@tmx-cdd21575",
@@ -210,13 +210,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu104@tmx-cdd21575",
@@ -237,13 +237,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu105@tmx-cdd21575",
@@ -264,13 +264,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu106@tmx-cdd21575",
@@ -291,13 +291,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu107@tmx-cdd21575",
@@ -318,13 +318,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu108@tmx-cdd21575",
@@ -345,13 +345,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu109@tmx-cdd21575",
@@ -372,13 +372,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu10@tmx-cdd21575",
@@ -399,13 +399,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu110@tmx-cdd21575",
@@ -426,13 +426,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu111@tmx-cdd21575",
@@ -453,13 +453,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu112@tmx-cdd21575",
@@ -467,12 +467,12 @@
       "variants": {
         "en": [
           {
-            "text": "Show detailed configuration for a preset. Accepts a bare preset name (searched across all formats) or the qualified format:preset syntax (e.g. okf_xml:AndroidStrings)."
+            "text": "Show detailed configuration for a preset.\n\nAccepts a bare preset name (searched across all formats) or the\nqualified format:preset syntax (e.g. okf_xml:AndroidStrings)."
           }
         ],
         "nb": [
           {
-            "text": "Vis detaljert konfigurasjon for en forhåndsinnstilling. Godtar et rent forhåndsinnstillingsnavn (søkes på tvers av alle formater) eller den kvalifiserte format:preset-syntaksen (f.eks. okf_xml:AndroidStrings)."
+            "text": "Vis detaljert konfigurasjon for en forhåndsinnstilling.\n\nGodtar et rent forhåndsinnstillingsnavn (søkes på tvers av alle formater)\neller den kvalifiserte format:preset-syntaksen (f.eks. okf_xml:AndroidStrings)."
           }
         ]
       },
@@ -480,13 +480,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu113@tmx-cdd21575",
@@ -507,13 +507,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu114@tmx-cdd21575",
@@ -534,13 +534,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu115@tmx-cdd21575",
@@ -561,13 +561,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu116@tmx-cdd21575",
@@ -575,12 +575,12 @@
       "variants": {
         "en": [
           {
-            "text": "Show every TM entry written (or updated) by a specific kapi merge batch, so you can see what a particular return from a translator contributed to the project TM. Origin provenance is stamped by kapi merge (source=\"merge\", reference=<batch-id>, key=<source-rel>). Audit iterates the project TM, surfaces only TUs with at least one matching Origin, and prints source file, block hash, timestamp, and the originating XLIFF filename. Examples: kapi tm audit --batch <batch-id> # full listing kapi tm audit --batch <batch-id> --limit 50 # cap rows Use \"kapi tm stats\" for global TM metrics (entry counts, per-locale breakdown). Audit is narrow by design — it answers \"what did this merge do?\"."
+            "text": "Show every TM entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project TM.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Audit iterates the project TM,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi tm audit --batch <batch-id>             # full listing\n  kapi tm audit --batch <batch-id> --limit 50  # cap rows\n\nUse \"kapi tm stats\" for global TM metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n"
           }
         ],
         "nb": [
           {
-            "text": "Vis hver TM-enhet som ble skrevet (eller oppdatert) av en bestemt kapi merge-bunt, slik at du kan se hva en bestemt retur fra en oversetter bidro med til prosjektets oversettelsesminne. Opphavsproveniens stemples av kapi merge (source=\"merge\", reference=<batch-id>, key=<source-rel>). Audit itererer over prosjektets TM, viser bare TU-er med minst ett samsvarende opphav, og skriver ut kildefil, blokkhasj, tidsstempel og navnet på XLIFF-filen som var opphavet. Eksempler: kapi tm audit --batch <batch-id> # full listing kapi tm audit --batch <batch-id> --limit 50 # begrens antall rader Bruk \"kapi tm stats\" for globale TM-måltall (antall enheter, fordeling per språk). Audit er smal med hensikt — den svarer på \"hva gjorde denne flettingen?\"."
+            "text": "Vis hver TM-enhet som ble skrevet (eller oppdatert) av en bestemt kapi merge-bunt,\nslik at du kan se hva en bestemt retur fra en oversetter bidro med til\nprosjektets oversettelsesminne.\n\nOpphavsproveniens stemples av kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Audit itererer over prosjektets TM,\nviser bare TU-er med minst ett samsvarende opphav, og skriver ut\nkildefil, blokkhasj, tidsstempel og navnet på XLIFF-filen som var opphavet.\n\nEksempler:\n\n  kapi tm audit --batch <batch-id>             # full listing\n  kapi tm audit --batch <batch-id> --limit 50  # begrens antall rader\n\nBruk \"kapi tm stats\" for globale TM-måltall (antall enheter, fordeling per\nspråk). Audit er smal med hensikt — den svarer på \"hva gjorde denne\nflettingen?\".\n"
           }
         ]
       },
@@ -588,13 +588,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu117@tmx-cdd21575",
@@ -615,13 +615,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu118@tmx-cdd21575",
@@ -642,13 +642,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu119@tmx-cdd21575",
@@ -669,13 +669,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu11@tmx-cdd21575",
@@ -696,13 +696,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu120@tmx-cdd21575",
@@ -723,13 +723,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu121@tmx-cdd21575",
@@ -750,13 +750,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu122@tmx-cdd21575",
@@ -764,12 +764,12 @@
       "variants": {
         "en": [
           {
-            "text": "Snapshot a .kapi project's working state — the block-store overlays, the authoritative translation memory, and the termbase — into a portable .klz. Regenerable caches and secrets are excluded. Move the snapshot to another machine and \"kapi unpack\" it to resume work there."
+            "text": "Snapshot a .kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there."
           }
         ],
         "nb": [
           {
-            "text": "Ta et øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt — blokklagerets overlegg, det autoritative oversettelsesminnet og termbasen — til en portabel .klz. Regenererbare hurtigbuffere og hemmeligheter utelates. Flytt øyeblikksbildet til en annen maskin og kjør \"kapi unpack\" der for å fortsette arbeidet."
+            "text": "Ta et øyeblikksbilde av arbeidstilstanden i et .kapi-prosjekt — blokklagerets\noverlegg, det autoritative oversettelsesminnet og termbasen — til en portabel\n.klz. Regenererbare hurtigbuffere og hemmeligheter utelates. Flytt\nøyeblikksbildet til en annen maskin og kjør \"kapi unpack\" der for å fortsette\narbeidet."
           }
         ]
       },
@@ -777,13 +777,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu123@tmx-cdd21575",
@@ -804,13 +804,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu124@tmx-cdd21575",
@@ -818,12 +818,12 @@
       "variants": {
         "en": [
           {
-            "text": "Stop tracking files matching the given patterns. If a pattern matches one added with 'kapi add', the mapping is removed. Otherwise the pattern is added to the exclude list so those files are skipped. kapi rm \"src/**/*.html\" # remove the mapping kapi rm \"src/legacy/*.html\" # exclude matching files"
+            "text": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files"
           }
         ],
         "nb": [
           {
-            "text": "Slutt å spore filer som matcher de angitte mønstrene. Hvis et mønster matcher ett som ble lagt til med 'kapi add', fjernes kartleggingen. Ellers legges mønsteret til i ekskluderingslisten slik at de filene hoppes over. kapi rm \"src/**/*.html\" # fjern kartleggingen kapi rm \"src/legacy/*.html\" # ekskluder samsvarende filer"
+            "text": "Slutt å spore filer som matcher de angitte mønstrene.\n\nHvis et mønster matcher ett som ble lagt til med 'kapi add', fjernes kartleggingen.\nEllers legges mønsteret til i ekskluderingslisten slik at de filene hoppes over.\n\n  kapi rm \"src/**/*.html\"       # fjern kartleggingen\n  kapi rm \"src/legacy/*.html\"   # ekskluder samsvarende filer"
           }
         ]
       },
@@ -831,13 +831,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu125@tmx-cdd21575",
@@ -858,13 +858,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu126@tmx-cdd21575",
@@ -885,13 +885,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu127@tmx-cdd21575",
@@ -912,13 +912,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu128@tmx-cdd21575",
@@ -939,13 +939,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu129@tmx-cdd21575",
@@ -966,13 +966,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu12@tmx-cdd21575",
@@ -980,12 +980,12 @@
       "variants": {
         "en": [
           {
-            "text": "Check, rewrite, and govern content against a brand voice profile. Profile source (mutually exclusive): --profile <name> Profile in the local brand store (see 'kapi brand profiles') --profile-file <path> Standalone profile YAML (git-shareable, no store needed) --pack <name> Built-in starter pack (professional-b2b, friendly-dtc, technical-docs, marketing-blog, customer-support) Text input for check/rewrite is read from --text, or from stdin when --text is omitted or set to \"-\"."
+            "text": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile <name>       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file <path>  Standalone profile YAML (git-shareable, no store needed)\n  --pack <name>          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\"."
           }
         ],
         "nb": [
           {
-            "text": "Kontroller, omskriv og styr innhold mot en merkevarestemmeprofil. Profilkilde (gjensidig utelukkende): --profile <name> Profil i det lokale merkevarelageret (se 'kapi brand profiles') --profile-file <path> Frittstående profil-YAML (git-delbar, krever ikke lager) --pack <name> Innebygd startpakke (professional-b2b, friendly-dtc, technical-docs, marketing-blog, customer-support) Tekst til check/rewrite leses fra --text, eller fra stdin når --text er utelatt eller satt til \"-\"."
+            "text": "Kontroller, omskriv og styr innhold mot en merkevarestemmeprofil.\n\nProfilkilde (gjensidig utelukkende):\n  --profile <name>       Profil i det lokale merkevarelageret (se 'kapi brand profiles')\n  --profile-file <path>  Frittstående profil-YAML (git-delbar, krever ikke lager)\n  --pack <name>          Innebygd startpakke (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nTekst til check/rewrite leses fra --text, eller fra stdin når --text er\nutelatt eller satt til \"-\"."
           }
         ]
       },
@@ -993,13 +993,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu130@tmx-cdd21575",
@@ -1020,13 +1020,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu131@tmx-cdd21575",
@@ -1047,13 +1047,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu132@tmx-cdd21575",
@@ -1074,13 +1074,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu133@tmx-cdd21575",
@@ -1101,13 +1101,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu134@tmx-cdd21575",
@@ -1128,13 +1128,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu135@tmx-cdd21575",
@@ -1155,13 +1155,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu136@tmx-cdd21575",
@@ -1169,12 +1169,12 @@
       "variants": {
         "en": [
           {
-            "text": "Update an installed plugin in place using the channel and constraint recorded at install time. Pass --channel or --constraint to switch tracks during update; --index points the update at a different registry index URL. Examples: kapi plugin update bowrain kapi plugin update bowrain --channel beta kapi plugin update bowrain --constraint ^2.0"
+            "text": "Update an installed plugin in place using the channel and constraint\nrecorded at install time. Pass --channel or --constraint to switch\ntracks during update; --index points the update at a different\nregistry index URL.\n\nExamples:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0"
           }
         ],
         "nb": [
           {
-            "text": "Oppdater et installert tillegg på stedet med kanalen og versjonskravet som ble registrert ved installasjon. Bruk --channel eller --constraint for å bytte spor under oppdateringen; --index peker oppdateringen mot en annen registerindeks-URL. Eksempler: kapi plugin update bowrain kapi plugin update bowrain --channel beta kapi plugin update bowrain --constraint ^2.0"
+            "text": "Oppdater et installert tillegg på stedet med kanalen og versjonskravet\nsom ble registrert ved installasjon. Bruk --channel eller --constraint for å\nbytte spor under oppdateringen; --index peker oppdateringen mot en annen\nregisterindeks-URL.\n\nEksempler:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0"
           }
         ]
       },
@@ -1182,13 +1182,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu137@tmx-cdd21575",
@@ -1209,13 +1209,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu138@tmx-cdd21575",
@@ -1236,13 +1236,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu139@tmx-cdd21575",
@@ -1263,13 +1263,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu13@tmx-cdd21575",
@@ -1277,12 +1277,12 @@
       "variants": {
         "en": [
           {
-            "text": "Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the PreToolUse-event JSON on stdin, resolves the .kapi project in the session's working directory, and: - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when the file being written is a project content target (a path that \"kapi merge\" generates), so Claude routes the change through extract → translate → merge instead; or - emits nothing (exit 0) otherwise — outside a project, on source files, on files the project does not generate, or when the project cannot be loaded — leaving the normal permission flow untouched. Wire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of Edit|Write|MultiEdit. It fails open: anything other than a confirmed target match lets the edit proceed, so the guard never traps the assistant on an unrelated file."
+            "text": "Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the\nPreToolUse-event JSON on stdin, resolves the .kapi project in the session's\nworking directory, and:\n\n  - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when\n    the file being written is a project content target (a path that\n    \"kapi merge\" generates), so Claude routes the change through\n    extract → translate → merge instead; or\n  - emits nothing (exit 0) otherwise — outside a project, on source files, on\n    files the project does not generate, or when the project cannot be loaded —\n    leaving the normal permission flow untouched.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. It fails open: anything other than a confirmed target\nmatch lets the edit proceed, so the guard never traps the assistant on an\nunrelated file."
           }
         ],
         "nb": [
           {
-            "text": "Claude Code PreToolUse-hook for Edit/Write/MultiEdit. Leser PreToolUse-hendelsens JSON på stdin, finner .kapi-prosjektet i øktens arbeidskatalog, og: - skriver {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (avslutningskode 0) når filen som skrives er et innholdsmål i prosjektet (en sti som \"kapi merge\" genererer), slik at Claude ruter endringen gjennom trekk ut → oversett → flett i stedet; eller - skriver ingenting (avslutningskode 0) ellers — utenfor et prosjekt, på kildefiler, på filer prosjektet ikke genererer, eller når prosjektet ikke kan lastes — og lar den vanlige tillatelsesflyten stå urørt. Koble den opp via kapi-tillegget for Claude Code (hooks/hooks.json) med matcher Edit|Write|MultiEdit. Den feiler åpent: alt annet enn et bekreftet måltreff lar redigeringen fortsette, så vakten fanger aldri assistenten på en urelatert fil."
+            "text": "Claude Code PreToolUse-hook for Edit/Write/MultiEdit. Leser PreToolUse-hendelsens\nJSON på stdin, finner .kapi-prosjektet i øktens arbeidskatalog, og:\n\n  - skriver {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (avslutningskode 0) når\n    filen som skrives er et innholdsmål i prosjektet (en sti som\n    \"kapi merge\" genererer), slik at Claude ruter endringen gjennom\n    trekk ut → oversett → flett i stedet; eller\n  - skriver ingenting (avslutningskode 0) ellers — utenfor et prosjekt, på kildefiler, på\n    filer prosjektet ikke genererer, eller når prosjektet ikke kan lastes —\n    og lar den vanlige tillatelsesflyten stå urørt.\n\nKoble den opp via kapi-tillegget for Claude Code (hooks/hooks.json) med matcher\nEdit|Write|MultiEdit. Den feiler åpent: alt annet enn et bekreftet måltreff\nlar redigeringen fortsette, så vakten fanger aldri assistenten på en\nurelatert fil."
           }
         ]
       },
@@ -1290,13 +1290,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu140@tmx-cdd21575",
@@ -1304,12 +1304,12 @@
       "variants": {
         "en": [
           {
-            "text": "Walk a directory and import every matching TMX file into the TM. Auto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path) becomes the Origin.Key on each imported entry so you can trace which file a segment came from. By default, imports entries matching --source-locale and --target-locale from every file. Use --pattern to filter (glob against filename) and --all-pairs to emit the full language cross-product from multilingual files. Examples: kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\" kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
+            "text": "Walk a directory and import every matching TMX file into the TM.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
           }
         ],
         "nb": [
           {
-            "text": "Gå gjennom en katalog og importer hver samsvarende TMX-fil til oversettelsesminnet. Gjenkjenner rene .tmx- og gzip-komprimerte .tmx.gz-filer automatisk. Filnavnet (uten sti) blir Origin.Key på hver importert enhet, slik at du kan spore hvilken fil et segment kom fra. Som standard importeres enheter som samsvarer med --source-locale og --target-locale fra hver fil. Bruk --pattern for å filtrere (glob mot filnavn) og --all-pairs for å skrive hele språkkryssproduktet fra flerspråklige filer. Eksempler: kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\" kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
+            "text": "Gå gjennom en katalog og importer hver samsvarende TMX-fil til oversettelsesminnet.\n\nGjenkjenner rene .tmx- og gzip-komprimerte .tmx.gz-filer automatisk. Filnavnet\n(uten sti) blir Origin.Key på hver importert enhet, slik at du kan spore hvilken\nfil et segment kom fra.\n\nSom standard importeres enheter som samsvarer med --source-locale og --target-locale\nfra hver fil. Bruk --pattern for å filtrere (glob mot filnavn) og --all-pairs for å\nskrive hele språkkryssproduktet fra flerspråklige filer.\n\nEksempler:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE"
           }
         ]
       },
@@ -1317,13 +1317,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu141@tmx-cdd21575",
@@ -1331,12 +1331,12 @@
       "variants": {
         "en": [
           {
-            "text": "Write a brand voice profile YAML to fill in. With no flags, emits a commented template. With --pack, emits an existing starter pack as an editable base. An AI assistant can fill this in from what it already knows about the product, from sample content, or from a linked website, then `kapi brand import` it."
+            "text": "Write a brand voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi brand import` it."
           }
         ],
         "nb": [
           {
-            "text": "Skriv ut en merkevarestemmeprofil i YAML som kan fylles inn. Uten flagg skrives en kommentert mal. Med --pack skrives en eksisterende startpakke som redigerbart utgangspunkt. En AI-assistent kan fylle den inn fra det den allerede vet om produktet, fra innholdseksempler eller fra et lenket nettsted, og deretter importere den med `kapi brand import`."
+            "text": "Skriv ut en merkevarestemmeprofil i YAML som kan fylles inn.\n\nUten flagg skrives en kommentert mal. Med --pack skrives en eksisterende\nstartpakke som redigerbart utgangspunkt. En AI-assistent kan fylle den inn fra\ndet den allerede vet om produktet, fra innholdseksempler eller fra et lenket\nnettsted, og deretter importere den med `kapi brand import`."
           }
         ]
       },
@@ -1344,13 +1344,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu142@tmx-cdd21575",
@@ -1358,12 +1358,12 @@
       "variants": {
         "en": [
           {
-            "text": "kapi helps you manage multilingual content — convert document formats, translate with AI, and run quality checks across a wide range of file types."
+            "text": "kapi helps you manage multilingual content — convert document formats,\ntranslate with AI, and run quality checks across a wide range of file types."
           }
         ],
         "nb": [
           {
-            "text": "kapi hjelper deg å håndtere flerspråklig innhold — konverter dokumentformater, oversett med AI og kjør kvalitetskontroller på et bredt utvalg filtyper."
+            "text": "kapi hjelper deg å håndtere flerspråklig innhold — konverter dokumentformater,\noversett med AI og kjør kvalitetskontroller på et bredt utvalg filtyper."
           }
         ]
       },
@@ -1371,13 +1371,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu14@tmx-cdd21575",
@@ -1398,13 +1398,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu15@tmx-cdd21575",
@@ -1412,12 +1412,12 @@
       "variants": {
         "en": [
           {
-            "text": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the verify gates for the project in the session's working directory, and: - emits nothing (exit 0) when the project passes, when there is no .kapi project, or when verify cannot run — Claude is free to finish; or - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate fails, so Claude keeps working and fixes the findings before stopping. Wire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open: anything other than a clean gate failure lets Claude stop, so a missing project or a verify error never traps the assistant. Claude Code caps consecutive blocks, so an unfixable finding cannot loop forever."
+            "text": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits nothing (exit 0) when the project passes, when there is no .kapi\n    project, or when verify cannot run — Claude is free to finish; or\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever."
           }
         ],
         "nb": [
           {
-            "text": "Claude Code Stop-hook. Leser Stop-hendelsens JSON på stdin, kjører verify-portene for prosjektet i øktens arbeidskatalog, og: - skriver ingenting (avslutningskode 0) når prosjektet består, når det ikke finnes noe .kapi-prosjekt, eller når verify ikke kan kjøre — Claude kan avslutte fritt; eller - skriver {\"decision\":\"block\",\"reason\":\"…funn…\"} (avslutningskode 0) når en port feiler, slik at Claude fortsetter arbeidet og retter funnene før den stopper. Koble den opp via kapi-tillegget for Claude Code (hooks/hooks.json). Den feiler åpent: alt annet enn en ren portfeil lar Claude stoppe, så et manglende prosjekt eller en verify-feil fanger aldri assistenten. Claude Code begrenser antall påfølgende blokkeringer, så et funn som ikke kan rettes kan ikke gå i evig løkke."
+            "text": "Claude Code Stop-hook. Leser Stop-hendelsens JSON på stdin, kjører\nverify-portene for prosjektet i øktens arbeidskatalog, og:\n\n  - skriver ingenting (avslutningskode 0) når prosjektet består, når det ikke finnes\n    noe .kapi-prosjekt, eller når verify ikke kan kjøre — Claude kan avslutte fritt; eller\n  - skriver {\"decision\":\"block\",\"reason\":\"…funn…\"} (avslutningskode 0) når en port\n    feiler, slik at Claude fortsetter arbeidet og retter funnene før den stopper.\n\nKoble den opp via kapi-tillegget for Claude Code (hooks/hooks.json). Den feiler åpent:\nalt annet enn en ren portfeil lar Claude stoppe, så et manglende prosjekt\neller en verify-feil fanger aldri assistenten. Claude Code begrenser antall\npåfølgende blokkeringer, så et funn som ikke kan rettes kan ikke gå i evig løkke."
           }
         ]
       },
@@ -1425,13 +1425,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu16@tmx-cdd21575",
@@ -1452,13 +1452,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu17@tmx-cdd21575",
@@ -1466,12 +1466,12 @@
       "variants": {
         "en": [
           {
-            "text": "Create a new kapi project with a {name}.kapi recipe and an adjacent .kapi/ state directory. By default the project id is the current directory's basename and source/target locales are en / (none). Override with --name, --source-locale, --target-locale (repeatable). --framework <name> pre-fills the content mapping for a known stack's i18n catalogs (see 'kapi presets list --framework'): react-i18next, react-intl, nextjs, vue-i18n, flutter, angular."
+            "text": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default the project id is the current directory's basename and\nsource/target locales are en / (none). Override with --name,\n--source-locale, --target-locale (repeatable).\n\n--framework <name> pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular."
           }
         ],
         "nb": [
           {
-            "text": "Opprett et nytt kapi-prosjekt med en {name}.kapi-oppskrift og en tilhørende .kapi/-tilstandskatalog. Som standard er prosjekt-id-en navnet på gjeldende katalog, og kilde-/målspråk er en / (ingen). Overstyr med --name, --source-locale, --target-locale (kan gjentas). --framework <name> forhåndsutfyller innholdskartleggingen for i18n-katalogene til en kjent teknologistakk (se 'kapi presets list --framework'): react-i18next, react-intl, nextjs, vue-i18n, flutter, angular."
+            "text": "Opprett et nytt kapi-prosjekt med en {name}.kapi-oppskrift og en\ntilhørende .kapi/-tilstandskatalog.\n\nSom standard er prosjekt-id-en navnet på gjeldende katalog, og\nkilde-/målspråk er en / (ingen). Overstyr med --name,\n--source-locale, --target-locale (kan gjentas).\n\n--framework <name> forhåndsutfyller innholdskartleggingen for i18n-katalogene\ntil en kjent teknologistakk (se 'kapi presets list --framework'): react-i18next,\nreact-intl, nextjs, vue-i18n, flutter, angular."
           }
         ]
       },
@@ -1479,13 +1479,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu18@tmx-cdd21575",
@@ -1506,13 +1506,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu19@tmx-cdd21575",
@@ -1533,13 +1533,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu1@tmx-cdd21575",
@@ -1560,13 +1560,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu20@tmx-cdd21575",
@@ -1574,12 +1574,12 @@
       "variants": {
         "en": [
           {
-            "text": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale declared in a .kapi project, pre-filled from the project's translation memory. Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/ plus one bilingual file per source → target pair in --out-dir (default \"out/\")."
+            "text": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\")."
           }
         ],
         "nb": [
           {
-            "text": "Skriv tospråklige XLIFF 2.x-filer (standard) eller PO-filer for hvert målspråk som er deklarert i et .kapi-prosjekt, forhåndsutfylt fra prosjektets oversettelsesminne. Hver kjøring skriver én bunt med utdata under .kapi/cache/extractions/<batch-id>/ pluss én tospråklig fil per kilde → mål-par i --out-dir (standard \"out/\")."
+            "text": "Skriv tospråklige XLIFF 2.x-filer (standard) eller PO-filer for hvert målspråk\nsom er deklarert i et .kapi-prosjekt, forhåndsutfylt fra prosjektets\noversettelsesminne.\n\nHver kjøring skriver én bunt med utdata under .kapi/cache/extractions/<batch-id>/\npluss én tospråklig fil per kilde → mål-par i --out-dir (standard \"out/\")."
           }
         ]
       },
@@ -1587,13 +1587,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu21@tmx-cdd21575",
@@ -1614,13 +1614,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu22@tmx-cdd21575",
@@ -1641,13 +1641,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu23@tmx-cdd21575",
@@ -1655,12 +1655,12 @@
       "variants": {
         "en": [
           {
-            "text": "Export the TM to TMX 1.4 format. Each entry is written as a single <tu> with one <tuv> per language variant present (or the subset requested via --locales). Inline markup is preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>. By default all variants on every entry are emitted. Pass --locales to restrict to a subset (comma-separated)."
+            "text": "Export the TM to TMX 1.4 format. Each entry is written as a single\n<tu> with one <tuv> per language variant present (or the subset requested\nvia --locales). Inline markup is preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>.\n\nBy default all variants on every entry are emitted. Pass --locales to\nrestrict to a subset (comma-separated)."
           }
         ],
         "nb": [
           {
-            "text": "Eksporter oversettelsesminnet til TMX 1.4-format. Hver enhet skrives som én <tu> med én <tuv> per språkvariant som finnes (eller utvalget som er bedt om med --locales). Inline-merking bevares som TMX <ph>/<bpt>/<ept>/<it>/<hi>. Som standard skrives alle varianter på hver enhet. Bruk --locales for å begrense til et utvalg (kommaseparert)."
+            "text": "Eksporter oversettelsesminnet til TMX 1.4-format. Hver enhet skrives som én\n<tu> med én <tuv> per språkvariant som finnes (eller utvalget som er bedt om\nmed --locales). Inline-merking bevares som TMX <ph>/<bpt>/<ept>/<it>/<hi>.\n\nSom standard skrives alle varianter på hver enhet. Bruk --locales for å\nbegrense til et utvalg (kommaseparert)."
           }
         ]
       },
@@ -1668,13 +1668,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu24@tmx-cdd21575",
@@ -1695,13 +1695,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu25@tmx-cdd21575",
@@ -1722,13 +1722,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu26@tmx-cdd21575",
@@ -1749,13 +1749,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu27@tmx-cdd21575",
@@ -1776,13 +1776,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu28@tmx-cdd21575",
@@ -1790,12 +1790,12 @@
       "variants": {
         "en": [
           {
-            "text": "Generate a shell completion script for the specified shell. To load completions: Bash: $ source <(kapi completion bash) # Or install permanently: $ kapi completion bash > /etc/bash_completion.d/kapi Zsh: $ source <(kapi completion zsh) # Or install permanently: $ kapi completion zsh > \"${fpath[1]}/_kapi\" Fish: $ kapi completion fish | source # Or install permanently: $ kapi completion fish > ~/.config/fish/completions/kapi.fish PowerShell: PS> kapi completion powershell | Out-String | Invoke-Expression"
+            "text": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source <(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash > /etc/bash_completion.d/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh > \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish > ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n"
           }
         ],
         "nb": [
           {
-            "text": "Generer et skript for skallfullføring for det angitte skallet. Slik laster du inn fullføringene: Bash: $ source <(kapi completion bash) # Eller installer permanent: $ kapi completion bash > /etc/bash_completion.d/kapi Zsh: $ source <(kapi completion zsh) # Eller installer permanent: $ kapi completion zsh > \"${fpath[1]}/_kapi\" Fish: $ kapi completion fish | source # Eller installer permanent: $ kapi completion fish > ~/.config/fish/completions/kapi.fish PowerShell: PS> kapi completion powershell | Out-String | Invoke-Expression"
+            "text": "Generer et skript for skallfullføring for det angitte skallet.\n\nSlik laster du inn fullføringene:\n\nBash:\n  $ source <(kapi completion bash)\n  # Eller installer permanent:\n  $ kapi completion bash > /etc/bash_completion.d/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Eller installer permanent:\n  $ kapi completion zsh > \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Eller installer permanent:\n  $ kapi completion fish > ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n"
           }
         ]
       },
@@ -1803,13 +1803,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu29@tmx-cdd21575",
@@ -1830,13 +1830,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu2@tmx-cdd21575",
@@ -1857,13 +1857,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu30@tmx-cdd21575",
@@ -1871,12 +1871,12 @@
       "variants": {
         "en": [
           {
-            "text": "Glue commands for AI coding assistants. Each subcommand reads the assistant's hook payload on stdin and writes the assistant's expected response on stdout. These are wired up by the assistant's plugin, not run by hand."
+            "text": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand."
           }
         ],
         "nb": [
           {
-            "text": "Limkommandoer for AI-kodeassistenter. Hver underkommando leser assistentens hook-nyttelast på stdin og skriver svaret assistenten forventer på stdout. Disse kobles opp av assistentens tillegg og kjøres ikke for hånd."
+            "text": "Limkommandoer for AI-kodeassistenter. Hver underkommando leser assistentens\nhook-nyttelast på stdin og skriver svaret assistenten forventer på stdout.\nDisse kobles opp av assistentens tillegg og kjøres ikke for hånd."
           }
         ]
       },
@@ -1884,13 +1884,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu31@tmx-cdd21575",
@@ -1911,13 +1911,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu32@tmx-cdd21575",
@@ -1938,13 +1938,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu33@tmx-cdd21575",
@@ -1952,12 +1952,12 @@
       "variants": {
         "en": [
           {
-            "text": "Import a single TMX file (plain or .gz) into the TM. By default, imports entries matching the given --source-locale and --target-locale. Use --all-pairs to emit entries for every (src, tgt) language pair present in each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where a single TU may contain 24+ languages). Combine with --locales to restrict the pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE). The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV <prop type=\"source-document\"> URL is recorded as Origin.Reference."
+            "text": "Import a single TMX file (plain or .gz) into the TM.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n<prop type=\"source-document\"> URL is recorded as Origin.Reference."
           }
         ],
         "nb": [
           {
-            "text": "Importer én TMX-fil (ren eller .gz) til oversettelsesminnet. Som standard importeres enheter som samsvarer med angitt --source-locale og --target-locale. Bruk --all-pairs for å skrive enheter for hvert (kilde, mål)-språkpar som finnes i hver TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der én TU kan inneholde over 24 språk). Kombiner med --locales for å begrense parsettet (f.eks. --all-pairs --locales en-GB,fr-FR,de-DE). Importen gjenkjenner UTF-8/UTF-16 automatisk fra BOM-en, så Euramis-eksporter fungerer uten forhåndskonvertering. For TMX-sett fra webcrawl (bitextor-utdata) registreres URL-en i <prop type=\"source-document\"> per TUV som Origin.Reference."
+            "text": "Importer én TMX-fil (ren eller .gz) til oversettelsesminnet.\n\nSom standard importeres enheter som samsvarer med angitt --source-locale og --target-locale.\nBruk --all-pairs for å skrive enheter for hvert (kilde, mål)-språkpar som finnes i\nhver TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der\nén TU kan inneholde over 24 språk). Kombiner med --locales for å begrense\nparsettet (f.eks. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nImporten gjenkjenner UTF-8/UTF-16 automatisk fra BOM-en, så Euramis-eksporter\nfungerer uten forhåndskonvertering. For TMX-sett fra webcrawl (bitextor-utdata)\nregistreres URL-en i <prop type=\"source-document\"> per TUV som Origin.Reference."
           }
         ]
       },
@@ -1965,13 +1965,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu34@tmx-cdd21575",
@@ -1992,13 +1992,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu35@tmx-cdd21575",
@@ -2019,13 +2019,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu36@tmx-cdd21575",
@@ -2046,13 +2046,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu37@tmx-cdd21575",
@@ -2073,13 +2073,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu38@tmx-cdd21575",
@@ -2087,12 +2087,12 @@
       "variants": {
         "en": [
           {
-            "text": "Install a plugin from a registry. The plugin is downloaded, verified (SHA-256 + cosign signature), and unpacked into $XDG_DATA_HOME/kapi/plugins/<name>/. Examples: kapi plugin install bowrain kapi plugin install bowrain@^1.0 kapi plugin install bowrain --channel beta"
+            "text": "Install a plugin from a registry. The plugin is downloaded,\nverified (SHA-256 + cosign signature), and unpacked into\n$XDG_DATA_HOME/kapi/plugins/<name>/.\n\nExamples:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta"
           }
         ],
         "nb": [
           {
-            "text": "Installer et tillegg fra et register. Tillegget lastes ned, verifiseres (SHA-256 + cosign-signatur) og pakkes ut i $XDG_DATA_HOME/kapi/plugins/<name>/. Eksempler: kapi plugin install bowrain kapi plugin install bowrain@^1.0 kapi plugin install bowrain --channel beta"
+            "text": "Installer et tillegg fra et register. Tillegget lastes ned,\nverifiseres (SHA-256 + cosign-signatur) og pakkes ut i\n$XDG_DATA_HOME/kapi/plugins/<name>/.\n\nEksempler:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta"
           }
         ]
       },
@@ -2100,13 +2100,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu39@tmx-cdd21575",
@@ -2127,13 +2127,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu3@tmx-cdd21575",
@@ -2154,13 +2154,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu40@tmx-cdd21575",
@@ -2181,13 +2181,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu41@tmx-cdd21575",
@@ -2208,13 +2208,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu42@tmx-cdd21575",
@@ -2222,12 +2222,12 @@
       "variants": {
         "en": [
           {
-            "text": "Install the bundled skills into a .claude/skills directory. --target project (default) → ./.claude/skills/<name>/SKILL.md --target user → ~/.claude/skills/<name>/SKILL.md Pass skill names to install a subset; omit to install all."
+            "text": "Install the bundled skills into a .claude/skills directory.\n\n  --target project  (default)  → ./.claude/skills/<name>/SKILL.md\n  --target user                → ~/.claude/skills/<name>/SKILL.md\n\nPass skill names to install a subset; omit to install all."
           }
         ],
         "nb": [
           {
-            "text": "Installer de medfølgende skills i en .claude/skills-katalog. --target project (standard) → ./.claude/skills/<name>/SKILL.md --target user → ~/.claude/skills/<name>/SKILL.md Oppgi skill-navn for å installere et utvalg; utelat for å installere alle."
+            "text": "Installer de medfølgende skills i en .claude/skills-katalog.\n\n  --target project  (standard)  → ./.claude/skills/<name>/SKILL.md\n  --target user                → ~/.claude/skills/<name>/SKILL.md\n\nOppgi skill-navn for å installere et utvalg; utelat for å installere alle."
           }
         ]
       },
@@ -2235,13 +2235,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu43@tmx-cdd21575",
@@ -2262,13 +2262,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu44@tmx-cdd21575",
@@ -2289,13 +2289,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu45@tmx-cdd21575",
@@ -2316,13 +2316,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu46@tmx-cdd21575",
@@ -2330,12 +2330,12 @@
       "variants": {
         "en": [
           {
-            "text": "List all file formats that can be read and written. Use --mime or --ext to filter by MIME type or file extension."
+            "text": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension."
           }
         ],
         "nb": [
           {
-            "text": "List alle filformater som kan leses og skrives. Bruk --mime eller --ext for å filtrere på MIME-type eller filendelse."
+            "text": "List alle filformater som kan leses og skrives.\n\nBruk --mime eller --ext for å filtrere på MIME-type eller filendelse."
           }
         ]
       },
@@ -2343,13 +2343,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu47@tmx-cdd21575",
@@ -2370,13 +2370,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu48@tmx-cdd21575",
@@ -2397,13 +2397,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu49@tmx-cdd21575",
@@ -2424,13 +2424,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu4@tmx-cdd21575",
@@ -2438,12 +2438,12 @@
       "variants": {
         "en": [
           {
-            "text": "Add file patterns to this project's content so kapi knows which files to process. Patterns support ** for recursive matching. Format is auto-detected from the extension unless --format is given. kapi add \"src/**/*.html\" kapi add \"locales/*.json\" --format json kapi add \"src/**/*.html\" \"content/**/*.md\""
+            "text": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\""
           }
         ],
         "nb": [
           {
-            "text": "Legg til filmønstre i prosjektets innhold slik at kapi vet hvilke filer som skal behandles. Mønstre støtter ** for rekursiv matching. Formatet gjenkjennes automatisk fra filendelsen med mindre --format er angitt. kapi add \"src/**/*.html\" kapi add \"locales/*.json\" --format json kapi add \"src/**/*.html\" \"content/**/*.md\""
+            "text": "Legg til filmønstre i prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Formatet gjenkjennes\nautomatisk fra filendelsen med mindre --format er angitt.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\""
           }
         ]
       },
@@ -2451,13 +2451,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu50@tmx-cdd21575",
@@ -2478,13 +2478,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu51@tmx-cdd21575",
@@ -2505,13 +2505,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu52@tmx-cdd21575",
@@ -2532,13 +2532,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu53@tmx-cdd21575",
@@ -2559,13 +2559,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu54@tmx-cdd21575",
@@ -2586,13 +2586,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu55@tmx-cdd21575",
@@ -2613,13 +2613,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu56@tmx-cdd21575",
@@ -2640,13 +2640,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu57@tmx-cdd21575",
@@ -2667,13 +2667,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu58@tmx-cdd21575",
@@ -2694,13 +2694,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu59@tmx-cdd21575",
@@ -2708,12 +2708,12 @@
       "variants": {
         "en": [
           {
-            "text": "List the files matched by the project's content collections (honoring the exclude list). With --stats, also show per-file block and word counts. kapi ls kapi ls src/ kapi ls --stats"
+            "text": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats"
           }
         ],
         "nb": [
           {
-            "text": "List filene som matches av prosjektets innholdssamlinger (med respekt for ekskluderingslisten). Med --stats vises også antall blokker og ord per fil. kapi ls kapi ls src/ kapi ls --stats"
+            "text": "List filene som matches av prosjektets innholdssamlinger (med respekt for\nekskluderingslisten). Med --stats vises også antall blokker og ord per fil.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats"
           }
         ]
       },
@@ -2721,13 +2721,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu5@tmx-cdd21575",
@@ -2735,12 +2735,12 @@
       "variants": {
         "en": [
           {
-            "text": "An import session is created every time a TMX file is imported. Each session records the file's SHA-256 hash, TMX header metadata, and the number of entries imported. Origins on TM entries point back to the session that added them so you can filter the TM by import source."
+            "text": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source."
           }
         ],
         "nb": [
           {
-            "text": "En importøkt opprettes hver gang en TMX-fil importeres. Hver økt registrerer filens SHA-256-hasj, TMX-headerens metadata og antall importerte enheter. Opphav på TM-enheter peker tilbake til økten som la dem til, slik at du kan filtrere oversettelsesminnet på importkilde."
+            "text": "En importøkt opprettes hver gang en TMX-fil importeres.\nHver økt registrerer filens SHA-256-hasj, TMX-headerens metadata og antall\nimporterte enheter. Opphav på TM-enheter peker tilbake til økten som la dem\ntil, slik at du kan filtrere oversettelsesminnet på importkilde."
           }
         ]
       },
@@ -2748,13 +2748,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu60@tmx-cdd21575",
@@ -2775,13 +2775,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu61@tmx-cdd21575",
@@ -2802,13 +2802,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu62@tmx-cdd21575",
@@ -2829,13 +2829,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu63@tmx-cdd21575",
@@ -2856,13 +2856,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu64@tmx-cdd21575",
@@ -2883,13 +2883,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu65@tmx-cdd21575",
@@ -2910,13 +2910,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu66@tmx-cdd21575",
@@ -2937,13 +2937,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu67@tmx-cdd21575",
@@ -2951,12 +2951,12 @@
       "variants": {
         "en": [
           {
-            "text": "Manage project terminology. A termbase is a glossary of approved terms stored as a SQLite database. Use these commands to import, export, look up, and manage terms. Resource location (mutually exclusive): --name <n> Named termbase in KAPI_HOME (~/.config/kapi/termbases/<n>.db) --local Termbase in current directory (./termbase.db) --file <path> Explicit file path Default (no flag): same as --local (uses ./termbase.db)."
+            "text": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name <n>      Named termbase in KAPI_HOME (~/.config/kapi/termbases/<n>.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file <path>   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db)."
           }
         ],
         "nb": [
           {
-            "text": "Administrer prosjektterminologi. En termbase er en ordliste med godkjente termer lagret som en SQLite-database. Bruk disse kommandoene til å importere, eksportere, slå opp og administrere termer. Ressursplassering (gjensidig utelukkende): --name <n> Navngitt termbase i KAPI_HOME (~/.config/kapi/termbases/<n>.db) --local Termbase i gjeldende katalog (./termbase.db) --file <path> Eksplisitt filsti Standard (uten flagg): samme som --local (bruker ./termbase.db)."
+            "text": "Administrer prosjektterminologi.\n\nEn termbase er en ordliste med godkjente termer lagret som en SQLite-database.\nBruk disse kommandoene til å importere, eksportere, slå opp og administrere termer.\n\nRessursplassering (gjensidig utelukkende):\n  --name <n>      Navngitt termbase i KAPI_HOME (~/.config/kapi/termbases/<n>.db)\n  --local         Termbase i gjeldende katalog (./termbase.db)\n  --file <path>   Eksplisitt filsti\n\nStandard (uten flagg): samme som --local (bruker ./termbase.db)."
           }
         ]
       },
@@ -2964,13 +2964,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu68@tmx-cdd21575",
@@ -2991,13 +2991,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu69@tmx-cdd21575",
@@ -3005,12 +3005,12 @@
       "variants": {
         "en": [
           {
-            "text": "Manage the bundled Agent Skills. These SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how to use kapi to keep generated content on-brand, terminologically consistent, and to publish multilingually. The kapi-* skills drive the local CLI; the bowrain-* skills drive the governed Bowrain platform."
+            "text": "Manage the bundled Agent Skills.\n\nThese SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how\nto use kapi to keep generated content on-brand, terminologically consistent, and\nto publish multilingually. The kapi-* skills drive the local CLI; the bowrain-*\nskills drive the governed Bowrain platform."
           }
         ],
         "nb": [
           {
-            "text": "Administrer de medfølgende Agent Skills. Disse SKILL.md-definisjonene lærer en AI-kodeassistent (Claude Code o.l.) hvordan den bruker kapi til å holde generert innhold i tråd med merkevaren, terminologisk konsistent, og til å publisere flerspråklig. kapi-*-skills driver den lokale CLI-en; bowrain-*-skills driver den styrte Bowrain-plattformen."
+            "text": "Administrer de medfølgende Agent Skills.\n\nDisse SKILL.md-definisjonene lærer en AI-kodeassistent (Claude Code o.l.) hvordan\nden bruker kapi til å holde generert innhold i tråd med merkevaren, terminologisk\nkonsistent, og til å publisere flerspråklig. kapi-*-skills driver den lokale\nCLI-en; bowrain-*-skills driver den styrte Bowrain-plattformen."
           }
         ]
       },
@@ -3018,13 +3018,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu6@tmx-cdd21575",
@@ -3045,13 +3045,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu70@tmx-cdd21575",
@@ -3072,13 +3072,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu71@tmx-cdd21575",
@@ -3086,12 +3086,12 @@
       "variants": {
         "en": [
           {
-            "text": "Manage translation memory. A translation memory (TM) stores previously translated segments as a SQLite database. Use these commands to import/export TMX, look up matches, and manage TM entries. Resource location (mutually exclusive): --name <n> Named TM in KAPI_HOME (~/.config/kapi/tm/<n>.db) --local TM in current directory (./tm.db) --file <path> Explicit file path Default (no flag): same as --local (uses ./tm.db)."
+            "text": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name <n>      Named TM in KAPI_HOME (~/.config/kapi/tm/<n>.db)\n  --local         TM in current directory (./tm.db)\n  --file <path>   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db)."
           }
         ],
         "nb": [
           {
-            "text": "Administrer oversettelsesminne. Et oversettelsesminne (TM) lagrer tidligere oversatte segmenter som en SQLite-database. Bruk disse kommandoene til å importere/eksportere TMX, slå opp treff og administrere TM-enheter. Ressursplassering (gjensidig utelukkende): --name <n> Navngitt TM i KAPI_HOME (~/.config/kapi/tm/<n>.db) --local TM i gjeldende katalog (./tm.db) --file <path> Eksplisitt filsti Standard (uten flagg): samme som --local (bruker ./tm.db)."
+            "text": "Administrer oversettelsesminne.\n\nEt oversettelsesminne (TM) lagrer tidligere oversatte segmenter som en\nSQLite-database. Bruk disse kommandoene til å importere/eksportere TMX, slå opp\ntreff og administrere TM-enheter.\n\nRessursplassering (gjensidig utelukkende):\n  --name <n>      Navngitt TM i KAPI_HOME (~/.config/kapi/tm/<n>.db)\n  --local         TM i gjeldende katalog (./tm.db)\n  --file <path>   Eksplisitt filsti\n\nStandard (uten flagg): samme som --local (bruker ./tm.db)."
           }
         ]
       },
@@ -3099,13 +3099,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu72@tmx-cdd21575",
@@ -3113,12 +3113,12 @@
       "variants": {
         "en": [
           {
-            "text": "Materialize localized files for a project, or apply bilingual files returned by a translator back onto the project's source locales. With no -i in a project, merge writes the localized files from the project block store: a process-only \"kapi run\" (in a project, no -o) commits its work as targets/<locale> overlays, and merge is the matching sink — it reads each source, applies the stored overlays, and writes the localized file via the source format's skeleton round-trip. With -i, merge applies one or more bilingual files returned by a translator back onto the project's source locales, using the skeleton captured by kapi extract. Each input carries the extraction batch id in a file-level <note>, so merge finds the right extraction manifest without guessing from the filename. Mixed target locales in one batch are fine — merge handles each input independently."
+            "text": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/<locale> overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level <note>, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently."
           }
         ],
         "nb": [
           {
-            "text": "Materialiser lokaliserte filer for et prosjekt, eller flett tospråklige filer fra en oversetter tilbake inn i prosjektets kildespråk. Uten -i i et prosjekt skriver merge de lokaliserte filene fra prosjektets blokklager: en ren prosesskjøring med \"kapi run\" (i et prosjekt, uten -o) lagrer arbeidet som targets/<locale>-overlegg, og merge er den tilhørende sluttfasen — den leser hver kilde, legger på de lagrede overleggene og skriver den lokaliserte filen via kildeformatets skjelett-rundtur. Med -i fletter merge én eller flere tospråklige filer fra en oversetter tilbake inn i prosjektets kildespråk, ved hjelp av skjelettet som ble fanget av kapi extract. Hver inndatafil bærer uttreksbunt-id-en i en <note> på filnivå, så merge finner riktig uttrekksmanifest uten å gjette fra filnavnet. Blandede målspråk i én bunt går fint — merge håndterer hver inndatafil uavhengig."
+            "text": "Materialiser lokaliserte filer for et prosjekt, eller flett tospråklige filer\nfra en oversetter tilbake inn i prosjektets kildespråk.\n\nUten -i i et prosjekt skriver merge de lokaliserte filene fra prosjektets\nblokklager: en ren prosesskjøring med \"kapi run\" (i et prosjekt, uten -o)\nlagrer arbeidet som targets/<locale>-overlegg, og merge er den tilhørende\nsluttfasen — den leser hver kilde, legger på de lagrede overleggene og skriver\nden lokaliserte filen via kildeformatets skjelett-rundtur.\n\nMed -i fletter merge én eller flere tospråklige filer fra en oversetter\ntilbake inn i prosjektets kildespråk, ved hjelp av skjelettet som ble fanget av\nkapi extract. Hver inndatafil bærer uttreksbunt-id-en i en <note> på filnivå,\nså merge finner riktig uttrekksmanifest uten å gjette fra filnavnet. Blandede\nmålspråk i én bunt går fint — merge håndterer hver inndatafil uavhengig."
           }
         ]
       },
@@ -3126,13 +3126,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu73@tmx-cdd21575",
@@ -3153,13 +3153,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu74@tmx-cdd21575",
@@ -3180,13 +3180,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu75@tmx-cdd21575",
@@ -3207,13 +3207,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu76@tmx-cdd21575",
@@ -3234,13 +3234,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu77@tmx-cdd21575",
@@ -3261,13 +3261,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu78@tmx-cdd21575",
@@ -3288,13 +3288,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu79@tmx-cdd21575",
@@ -3315,13 +3315,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu7@tmx-cdd21575",
@@ -3342,13 +3342,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu80@tmx-cdd21575",
@@ -3369,13 +3369,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu81@tmx-cdd21575",
@@ -3396,13 +3396,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu82@tmx-cdd21575",
@@ -3423,13 +3423,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu83@tmx-cdd21575",
@@ -3450,13 +3450,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu84@tmx-cdd21575",
@@ -3477,13 +3477,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu85@tmx-cdd21575",
@@ -3504,13 +3504,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu86@tmx-cdd21575",
@@ -3531,13 +3531,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu87@tmx-cdd21575",
@@ -3558,13 +3558,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu88@tmx-cdd21575",
@@ -3585,13 +3585,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu89@tmx-cdd21575",
@@ -3612,13 +3612,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu8@tmx-cdd21575",
@@ -3639,13 +3639,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu90@tmx-cdd21575",
@@ -3666,13 +3666,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu91@tmx-cdd21575",
@@ -3693,13 +3693,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu92@tmx-cdd21575",
@@ -3720,13 +3720,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu93@tmx-cdd21575",
@@ -3747,13 +3747,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu94@tmx-cdd21575",
@@ -3761,12 +3761,12 @@
       "variants": {
         "en": [
           {
-            "text": "Run a composed flow that chains multiple tools together. Flows are multi-tool pipelines. For single-tool operations, use the tool directly (e.g. \"kapi ai-translate\" instead of \"kapi run ai-translate\"). Built-in flows: ai-translate-qa Translate + quality check using AI/LLM Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files. Use -p to run a flow from a .kapi project file: kapi run translate -p myproject.kapi"
+            "text": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi ai-translate\" instead of \"kapi run ai-translate\").\n\nBuilt-in flows:\n  ai-translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi"
           }
         ],
         "nb": [
           {
-            "text": "Kjør en sammensatt flyt som lenker flere verktøy sammen. Flyter er pipeliner med flere verktøy. For operasjoner med ett verktøy, bruk verktøyet direkte (f.eks. \"kapi ai-translate\" i stedet for \"kapi run ai-translate\"). Innebygde flyter: ai-translate-qa Oversett + kvalitetskontroll med AI/LLM Egendefinerte flyter kan defineres i .kapi-prosjektfiler eller .bowrain/flows/ som YAML-filer. Bruk -p for å kjøre en flyt fra en .kapi-prosjektfil: kapi run translate -p myproject.kapi"
+            "text": "Kjør en sammensatt flyt som lenker flere verktøy sammen.\n\nFlyter er pipeliner med flere verktøy. For operasjoner med ett verktøy, bruk\nverktøyet direkte (f.eks. \"kapi ai-translate\" i stedet for \"kapi run ai-translate\").\n\nInnebygde flyter:\n  ai-translate-qa    Oversett + kvalitetskontroll med AI/LLM\n\nEgendefinerte flyter kan defineres i .kapi-prosjektfiler eller .bowrain/flows/ som YAML-filer.\n\nBruk -p for å kjøre en flyt fra en .kapi-prosjektfil:\n  kapi run translate -p myproject.kapi"
           }
         ]
       },
@@ -3774,13 +3774,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu95@tmx-cdd21575",
@@ -3788,12 +3788,12 @@
       "variants": {
         "en": [
           {
-            "text": "Run a localization project's bound quality gates in a single shot and return a single structured pass/fail plus actionable findings. Gates (each runs only when the project binds the resource it needs): brand If a brand voice is bound (defaults.brand_voice), score the source-language content against it. Fails when the score is below the threshold (default 80, override with --min-score). terminology If a termbase is bound (defaults.termbase), check that target files use the required translations from the project glossary. qa For translated target files, check placeholder/tag integrity against the source and flag untranslated/empty targets. With no file arguments, verify inspects the project's content: brand on the source files, terminology and QA on the target files derived from each content item's target template and the project target languages. Pass file paths to verify just those files instead. Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in an assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating."
+            "text": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nExit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means\n\"not on-spec yet\", not a crash — in an assistant fix-loop, read the findings and fix.\nPass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating."
           }
         ],
         "nb": [
           {
-            "text": "Kjør kvalitetsportene som er bundet til et lokaliseringsprosjekt i én operasjon, og få ett strukturert bestått/ikke bestått pluss funn som kan handles på. Porter (hver kjører bare når prosjektet binder ressursen den trenger): brand Hvis en merkevarestemme er bundet (defaults.brand_voice), vurderes innholdet på kildespråket mot den. Feiler når poengsummen er under terskelen (standard 80, overstyr med --min-score). terminology Hvis en termbase er bundet (defaults.termbase), kontrolleres det at målfilene bruker de påkrevde oversettelsene fra prosjektets ordliste. qa For oversatte målfiler kontrolleres plassholder-/tagg-integritet mot kilden, og uoversatte/tomme mål flagges. Uten filargumenter inspiserer verify prosjektets innhold: brand på kildefilene, terminology og qa på målfilene avledet fra hvert innholdselements målmal og prosjektets målspråk. Oppgi filstier for å verifisere bare de filene i stedet. Avslutningskoder: 0 bestått, 3 når en port feiler, 1 for operasjonelle feil. Kode 3 betyr \"ikke i henhold til spesifikasjonen ennå\", ikke krasj — i en fikse-løkke med en assistent, les funnene og rett dem. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i løkker; utelat flagget i CI slik at porten gjelder."
+            "text": "Kjør kvalitetsportene som er bundet til et lokaliseringsprosjekt i én operasjon,\nog få ett strukturert bestått/ikke bestått pluss funn som kan handles på.\n\nPorter (hver kjører bare når prosjektet binder ressursen den trenger):\n\n  brand        Hvis en merkevarestemme er bundet (defaults.brand_voice), vurderes\n               innholdet på kildespråket mot den. Feiler når poengsummen er\n               under terskelen (standard 80, overstyr med --min-score).\n  terminology  Hvis en termbase er bundet (defaults.termbase), kontrolleres det at\n               målfilene bruker de påkrevde oversettelsene fra prosjektets ordliste.\n  qa           For oversatte målfiler kontrolleres plassholder-/tagg-integritet\n               mot kilden, og uoversatte/tomme mål flagges.\n\nUten filargumenter inspiserer verify prosjektets innhold: brand på\nkildefilene, terminology og qa på målfilene avledet fra hvert innholdselements\nmålmal og prosjektets målspråk.\n\nOppgi filstier for å verifisere bare de filene i stedet.\n\nAvslutningskoder: 0 bestått, 3 når en port feiler, 1 for operasjonelle feil. Kode 3 betyr\n\"ikke i henhold til spesifikasjonen ennå\", ikke krasj — i en fikse-løkke med en assistent,\nles funnene og rett dem. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i løkker;\nutelat flagget i CI slik at porten gjelder."
           }
         ]
       },
@@ -3801,13 +3801,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu96@tmx-cdd21575",
@@ -3828,13 +3828,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu97@tmx-cdd21575",
@@ -3855,13 +3855,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu98@tmx-cdd21575",
@@ -3869,12 +3869,12 @@
       "variants": {
         "en": [
           {
-            "text": "Run content checks over a file — or a source/target pair — and return structured findings plus a pass/fail, gating on severity. With two files, the second is the translated target and the bilingual checks run: do-not-translate (terms that must survive verbatim) and placeholder/tag integrity. With one file, source-side checks run (brand vocabulary). A bound brand profile (--profile/--pack/--profile-file) adds vocabulary checks in either mode. Exit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop."
+            "text": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, source-side checks run (brand vocabulary). A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop."
           }
         ],
         "nb": [
           {
-            "text": "Kjør innholdskontroller over en fil — eller et kilde/mål-par — og få strukturerte funn pluss bestått/ikke bestått, med port på alvorlighetsgrad. Med to filer er den andre det oversatte målet, og de tospråklige kontrollene kjøres: do-not-translate (termer som må overleve ordrett) og plassholder-/tagg-integritet. Med én fil kjøres kontrollene på kildesiden (merkevarevokabular). En bundet merkevareprofil (--profile/--pack/--profile-file) legger til vokabularkontroller i begge modi. Avslutningskoder: 0 bestått, 3 når porten feiler (et kritisk funn som standard), 1 for operasjonelle feil. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i en fikse-løkke."
+            "text": "Kjør innholdskontroller over en fil — eller et kilde/mål-par — og få\nstrukturerte funn pluss bestått/ikke bestått, med port på alvorlighetsgrad.\n\nMed to filer er den andre det oversatte målet, og de tospråklige kontrollene kjøres:\ndo-not-translate (termer som må overleve ordrett) og plassholder-/tagg-integritet.\nMed én fil kjøres kontrollene på kildesiden (merkevarevokabular). En bundet\nmerkevareprofil (--profile/--pack/--profile-file) legger til vokabularkontroller i begge modi.\n\nAvslutningskoder: 0 bestått, 3 når porten feiler (et kritisk funn som standard), 1 for\noperasjonelle feil. Bruk --no-fail for alltid å avslutte med 0 (rapportmodus) i en fikse-løkke."
           }
         ]
       },
@@ -3882,13 +3882,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu99@tmx-cdd21575",
@@ -3909,13 +3909,13 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     },
     {
       "id": "cli-nb.tmx:tu9@tmx-cdd21575",
@@ -3936,22 +3936,22 @@
         {
           "source": "import",
           "key": "cli-nb.tmx",
-          "addedAt": "2026-06-11T06:47:08Z",
+          "addedAt": "2026-06-11T08:02:59Z",
           "addedBy": "kapi tm import",
-          "sessionId": "tmx-cdd215754c1e270a-1781160428863464396"
+          "sessionId": "tmx-cdd215754c1e270a-1781164979013541594"
         }
       ],
-      "created": "2026-06-11T06:47:08Z",
-      "updated": "2026-06-11T06:47:08Z"
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
     }
   ],
   "importSessions": [
     {
-      "id": "tmx-2b45a1525313fb56-1781160524500001512",
+      "id": "tmx-2b45a1525313fb56-1781164980263158720",
       "fileKey": "cli-delta.tmx",
       "fileHash": "2b45a1525313fb568e99470c357f4acb69997e896e972b93686a82d20e4a3278",
       "fileSizeBytes": 1113,
-      "importedAt": "2026-06-11T06:48:44Z",
+      "importedAt": "2026-06-11T08:03:00Z",
       "toolName": "neokapi-l10n",
       "toolVersion": "1.0",
       "segType": "block",
@@ -3962,11 +3962,11 @@
       "entryCount": 4
     },
     {
-      "id": "tmx-cdd215754c1e270a-1781160428863464396",
+      "id": "tmx-cdd215754c1e270a-1781164979013541594",
       "fileKey": "cli-nb.tmx",
       "fileHash": "cdd215754c1e270ab5db7ecfa0ddf466af92e48eb6764300f6dfd983e985b27e",
       "fileSizeBytes": 58327,
-      "importedAt": "2026-06-11T06:47:08Z",
+      "importedAt": "2026-06-11T08:02:59Z",
       "toolName": "neokapi",
       "toolVersion": "1.0",
       "segType": "sentence",

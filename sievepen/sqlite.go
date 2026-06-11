@@ -450,10 +450,16 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *TMEntry, stream string)
 		// skipping the JSON wrapper cuts both CPU time and row size
 		// meaningfully. On read the plain-text storage form is detected
 		// by the absence of a leading '[' bracket.
+		//
+		// `coded` is the authoritative content and stays VERBATIM;
+		// NormalizeText applies only to the derived matching keys.
+		// Normalizing coded here used to collapse line structure on
+		// every bulk-imported variant (multi-line targets came back as
+		// one line), which the non-bulk addInTx path never did.
 		var coded, plain, structKey, generalKey string
-		if isPlainTextRuns(runs) {
-			plain = NormalizeText(runs[0].Text.Text)
-			coded = plain
+		if isPlainTextRuns(runs) && !strings.HasPrefix(runs[0].Text.Text, "[") {
+			coded = runs[0].Text.Text
+			plain = NormalizeText(coded)
 			structKey = plain
 			generalKey = plain
 		} else {

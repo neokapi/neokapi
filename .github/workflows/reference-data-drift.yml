@@ -26,6 +26,9 @@ on:
       - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"
       - "packages/contract-types/src/contract.gen.ts"
+      - "cli/**/*.go"
+      - "cli/i18n/**"
+      - "l10n/**"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -38,6 +41,9 @@ on:
       - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"
       - "packages/contract-types/src/contract.gen.ts"
+      - "cli/**/*.go"
+      - "cli/i18n/**"
+      - "l10n/**"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -62,3 +68,21 @@ jobs:
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types
+
+  l10n-drift:
+    name: l10n catalogs are fresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install libicu (kapi fts5 build dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      # Regenerate the builtin metadata inventory, the CLI command inventory,
+      # and the embedded MO catalogs from the committed l10n/ seeds, and fail
+      # on any drift. Seeds are native .klftm/.klftb (deterministic,
+      # identity-preserving), so this is byte-stable.
+      - name: Check l10n catalogs for drift
+        run: make l10n-verify

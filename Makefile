@@ -920,6 +920,9 @@ l10n-landing: l10n-seed ## Landing page UI strings → web/landing/public/transl
 
 l10n: l10n-builtins l10n-desktop l10n-cli l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
+l10n-verify: l10n-builtins l10n-cli ## CI gate: Go-side l10n artifacts regenerate byte-identically from the seeds
+	git diff --exit-code core/i18n/builtins core/i18n/catalogs cli/i18n/commands.json cli/i18n/catalogs
+
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 
