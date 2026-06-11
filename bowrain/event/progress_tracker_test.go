@@ -110,40 +110,54 @@ func TestProgressTracker_NoDuplicate(t *testing.T) {
 
 	bus, sender, _ := newProgressTestSetup(t, cs)
 
-	// Publish the same event twice.
-	bus.Publish(platev.Event{
-		Type:      platev.EventPushCompleted,
-		ProjectID: "proj-1",
-		Actor:     "system",
-		Data:      map[string]string{"stream": "main"},
-	})
+	publish := func() {
+		bus.Publish(platev.Event{
+			Type:      platev.EventPushCompleted,
+			ProjectID: "proj-1",
+			Actor:     "system",
+			Data:      map[string]string{"stream": "main"},
+		})
+	}
 
+	// First push at 100%: the complete, KNOWN set is 4 milestone notifications
+	// (25/50/75/100) from the tracker plus the dispatcher's content-available.
+	// Waiting for that exact set — instead of a count-settling heuristic —
+	// keeps the boundary between the two events deterministic on a slow,
+	// loaded runner, where gaps between notifications can exceed any settle
+	// interval (each one is a real Postgres write under -race).
+	publish()
 	require.Eventually(t, func() bool {
-		return sender.count() >= 1
-	}, 2*time.Second, 10*time.Millisecond)
+		return countOfType(sender, bstore.NotificationProgressMilestone) == 4 &&
+			countOfType(sender, bstore.NotificationContentAvailable) == 1
+	}, 10*time.Second, 10*time.Millisecond)
 
-	// Wait for all first-event notifications to settle.
-	firstCount := settledCount(t, sender)
-
-	bus.Publish(platev.Event{
-		Type:      platev.EventPushCompleted,
-		ProjectID: "proj-1",
-		Actor:     "system",
-		Data:      map[string]string{"stream": "main"},
-	})
-
+	// Second, identical push: the dispatcher notifies again (new content), but
+	// the tracker must NOT re-notify milestones it has already seen.
+	publish()
 	require.Eventually(t, func() bool {
-		return sender.count() > firstCount
-	}, 2*time.Second, 10*time.Millisecond)
+		return countOfType(sender, bstore.NotificationContentAvailable) == 2
+	}, 10*time.Second, 10*time.Millisecond)
 
-	// Wait for all second-event notifications to settle.
-	secondCount := settledCount(t, sender)
+	// The tracker handles the event concurrently with the dispatcher, so give
+	// a would-be duplicate milestone a window to surface before asserting.
+	assert.Never(t, func() bool {
+		return countOfType(sender, bstore.NotificationProgressMilestone) > 4
+	}, time.Second, 50*time.Millisecond)
+}
 
-	// The dispatcher creates a new notification for each EventPushCompleted (content available),
-	// but the progress tracker should NOT create duplicate milestone notifications.
-	// So the difference should be exactly 1 (only the dispatcher's content-available notification).
-	diff := secondCount - firstCount
-	assert.Equal(t, 1, diff, "second event should only produce the dispatcher notification, not duplicate milestones")
+// countOfType counts the sender's notifications of one type. Type-scoped
+// counts let the progress tests tell tracker milestones apart from the
+// dispatcher's own notifications without relying on arrival timing.
+func countOfType(sender *mockSender, nt bstore.NotificationType) int {
+	sender.mu.Lock()
+	defer sender.mu.Unlock()
+	n := 0
+	for _, x := range sender.notifications {
+		if x.Type == nt {
+			n++
+		}
+	}
+	return n
 }
 
 func TestProgressTracker_IgnoresNonBatchEvents(t *testing.T) {
@@ -206,22 +220,4 @@ func TestProgressTracker_IgnoresNoProjectID(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, 0, sender.count(), "events without ProjectID should be ignored")
-}
-
-// settledCount waits until the sender's notification count is stable across
-// two consecutive poll intervals and returns it. Strictly more robust than a
-// fixed sleep: it keeps waiting while notifications are still arriving and is
-// bounded by the Eventually deadline.
-func settledCount(t *testing.T, sender *mockSender) int {
-	t.Helper()
-	last := sender.count()
-	require.Eventually(t, func() bool {
-		cur := sender.count()
-		if cur == last {
-			return true
-		}
-		last = cur
-		return false
-	}, 5*time.Second, 100*time.Millisecond)
-	return last
 }
