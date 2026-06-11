@@ -325,6 +325,10 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
+	# bowrain/packages/ui and bowrain/apps/web consume @neokapi/{ui,flow-editor},
+	# which import `@neokapi/kapi-react/runtime` (a built ./dist subpath export).
+	# Build kapi-react first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
+	cd packages/kapi-react && vp run build
 	cd bowrain/packages/ui && vp check
 	cd bowrain/packages/ui && vp test
 	cd bowrain/apps/web && vp check
@@ -346,6 +350,9 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd storybook && vpx storybook build -o storybook-static
 
 ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend half (Go backend test is a separate step)
+	# Build kapi-react first so its `/runtime` subpath export resolves for the
+	# @neokapi/{ui,flow-editor} components the desktop frontend pulls in.
+	cd packages/kapi-react && vp run build
 	cd bowrain/apps/bowrain/frontend && vp test
 
 ci-kapi-react: ## Mirror the CI `kapi-react` job: typecheck/validate/test/build kapi-format + kapi-react
