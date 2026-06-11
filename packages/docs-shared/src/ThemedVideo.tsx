@@ -19,7 +19,7 @@ interface ThemedVideoProps {
 // SSG, and avoids a flash on theme switch.
 //
 // Source paths run through useBaseUrl so they respect the site's baseUrl
-// (e.g. /web/neokapi/docs/) instead of resolving against the domain root, which
+// (e.g. /web/neokapi/) instead of resolving against the domain root, which
 // is why the recorded scenes 404'd despite being deployed.
 //
 // When both variants are the same file (theme-agnostic terminal recordings) a
