@@ -76,6 +76,14 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
+      # @neokapi/{ui,flow-editor} (consumed by kapi-lab and the docs site)
+      # import `@neokapi/kapi-react/runtime`, a built ./dist subpath export.
+      # Build kapi-react so it resolves for both the lab tests and the docs
+      # build below (mirrors ci-kapi-desktop-frontend / ci-frontend).
+      - name: Build @neokapi/kapi-react
+        run: vp run build
+        working-directory: packages/kapi-react
+
       # The lab package has no other CI home (ci.yml's filters cover the
       # bowrain frontends and packages/ui|flow-editor via the desktop job);
       # its unit tests run here, where every kapi-lab change already lands.
