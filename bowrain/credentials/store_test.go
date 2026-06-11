@@ -29,7 +29,7 @@ func TestUpsertAndGet(t *testing.T) {
 		Model:        "claude-sonnet-4-20250514",
 	}
 
-	saved := s.Upsert(cfg)
+	saved := mustUpsert(t, s, cfg)
 	assert.NotEmpty(t, saved.ID)
 	assert.Equal(t, "My Anthropic", saved.Name)
 
@@ -41,14 +41,14 @@ func TestUpsertAndGet(t *testing.T) {
 func TestUpsertUpdate(t *testing.T) {
 	s := NewStore(tempStorePath(t))
 
-	cfg := s.Upsert(ProviderConfig{
+	cfg := mustUpsert(t, s, ProviderConfig{
 		Name:         "Test",
 		ProviderType: "openai",
 		Model:        "gpt-4o",
 	})
 
 	cfg.Model = "gpt-4o-mini"
-	updated := s.Upsert(cfg)
+	updated := mustUpsert(t, s, cfg)
 	assert.Equal(t, cfg.ID, updated.ID)
 	assert.Equal(t, "gpt-4o-mini", updated.Model)
 
@@ -60,15 +60,15 @@ func TestList(t *testing.T) {
 	s := NewStore(tempStorePath(t))
 	assert.Empty(t, s.List())
 
-	s.Upsert(ProviderConfig{Name: "A", ProviderType: "anthropic"})
-	s.Upsert(ProviderConfig{Name: "B", ProviderType: "openai"})
+	mustUpsert(t, s, ProviderConfig{Name: "A", ProviderType: "anthropic"})
+	mustUpsert(t, s, ProviderConfig{Name: "B", ProviderType: "openai"})
 	assert.Len(t, s.List(), 2)
 }
 
 func TestRemove(t *testing.T) {
 	s := NewStore(tempStorePath(t))
 
-	cfg := s.Upsert(ProviderConfig{Name: "Temp", ProviderType: "ollama"})
+	cfg := mustUpsert(t, s, ProviderConfig{Name: "Temp", ProviderType: "ollama"})
 	require.Len(t, s.List(), 1)
 
 	err := s.Remove(cfg.ID)
@@ -90,7 +90,7 @@ func TestPersistence(t *testing.T) {
 	path := tempStorePath(t)
 
 	s1 := NewStore(path)
-	s1.Upsert(ProviderConfig{Name: "Persist", ProviderType: "anthropic", Model: "claude-sonnet-4-20250514"})
+	mustUpsert(t, s1, ProviderConfig{Name: "Persist", ProviderType: "anthropic", Model: "claude-sonnet-4-20250514"})
 	require.Len(t, s1.List(), 1)
 
 	// Re-open from same file
@@ -104,7 +104,7 @@ func TestPersistence(t *testing.T) {
 func TestKeyringSetGetDelete(t *testing.T) {
 	s := NewStore(tempStorePath(t))
 
-	cfg := s.Upsert(ProviderConfig{Name: "KeyTest", ProviderType: "anthropic"})
+	cfg := mustUpsert(t, s, ProviderConfig{Name: "KeyTest", ProviderType: "anthropic"})
 
 	err := s.SetAPIKey(cfg.ID, "sk-test-12345")
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestMissingFileCreatesEmptyStore(t *testing.T) {
 	assert.Empty(t, s.List())
 
 	// Upsert should create the directory and file
-	s.Upsert(ProviderConfig{Name: "New", ProviderType: "openai"})
+	mustUpsert(t, s, ProviderConfig{Name: "New", ProviderType: "openai"})
 	assert.Len(t, s.List(), 1)
 
 	// File should exist now
@@ -143,4 +143,14 @@ func TestDefaultPath(t *testing.T) {
 	configDir, _ := os.UserConfigDir()
 	assert.NotEmpty(t, p)
 	assert.Contains(t, p, configDir)
+}
+
+// mustUpsert persists cfg and fails the test on error.
+func mustUpsert(t *testing.T, s *Store, cfg ProviderConfig) ProviderConfig {
+	t.Helper()
+	saved, err := s.Upsert(cfg)
+	if err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+	return saved
 }

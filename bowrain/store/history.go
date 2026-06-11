@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -90,7 +91,7 @@ func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, b
 
 // GetBlockHistory returns history entries for a block in a specific locale.
 func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if limit <= 0 || limit > MaxHistoryEntries {
 		limit = MaxHistoryEntries
 	}

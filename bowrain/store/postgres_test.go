@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -654,7 +655,7 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, countWordsFromSourceJSON(tt.json))
+			assert.Equal(t, tt.expected, storeutil.CountWordsFromSourceJSON(tt.json))
 		})
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
 // TargetRevert describes how to restore one (block, locale) target to the value
@@ -25,7 +27,7 @@ type TargetRevert struct {
 // callers apply the reverts through the normal StoreBlocks path so the revert is
 // itself recorded in history.
 func (s *PostgresStore) ComputeBatchReverts(ctx context.Context, projectID, stream, correlationID string) ([]TargetRevert, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if correlationID == "" {
 		return nil, errors.New("correlation_id is required")
 	}
@@ -68,7 +70,7 @@ func (s *PostgresStore) ComputeBatchReverts(ctx context.Context, projectID, stre
 // Clear=true. Targets unchanged since the cutoff are not returned (already
 // correct). Read-only; callers apply via StoreBlocks so the restore is recorded.
 func (s *PostgresStore) ComputePointInTimeReverts(ctx context.Context, projectID, stream string, cutoff time.Time) ([]TargetRevert, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT b.block_id, b.locale,
 		   COALESCE((SELECT h.text FROM block_history h
@@ -102,7 +104,7 @@ func (s *PostgresStore) ComputePointInTimeReverts(ctx context.Context, projectID
 // CursorTime returns the timestamp of the latest change at or before a change_log
 // cursor — the moment the stream was in the state identified by that cursor.
 func (s *PostgresStore) CursorTime(ctx context.Context, projectID, stream string, cursor int64) (time.Time, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	var t time.Time
 	err := s.db.QueryRowContext(ctx,
 		`SELECT logged_at FROM change_log WHERE project_id=$1 AND stream=$2 AND seq <= $3 ORDER BY seq DESC LIMIT 1`,

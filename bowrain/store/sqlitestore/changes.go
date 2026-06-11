@@ -8,6 +8,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
 // MaxChangesPerRequest is the maximum number of change entries returned per query.
@@ -18,7 +19,7 @@ const MaxChangesPerRequest = 1000
 // changes for the specified locales are returned. The returned ChangeSet
 // includes a NewCursor for pagination and HasMore to indicate additional results.
 func (s *SQLiteStore) GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if limit <= 0 || limit > MaxChangesPerRequest {
 		limit = MaxChangesPerRequest
 	}
@@ -89,7 +90,7 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID, stream string, 
 
 // LatestCursor returns the most recent change log sequence number for a project stream.
 func (s *SQLiteStore) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	var cursor int64
 	err := s.db.QueryRowContext(ctx,
 		`SELECT COALESCE(MAX(seq), 0) FROM change_log WHERE project_id = ? AND stream = ?`,
@@ -104,7 +105,7 @@ func (s *SQLiteStore) LatestCursor(ctx context.Context, projectID, stream string
 // entry per (project_id, block_id, locale) combination older than retainDays.
 // Returns the number of entries deleted.
 func (s *SQLiteStore) CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	cutoff := time.Now().AddDate(0, 0, -retainDays).Format(time.RFC3339)
 
 	result, err := s.db.ExecContext(ctx, `

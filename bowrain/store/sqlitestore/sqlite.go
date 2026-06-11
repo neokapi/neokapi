@@ -12,6 +12,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -40,14 +41,6 @@ func (s *SQLiteStore) DB() *sql.DB {
 	return s.db.DB
 }
 
-// defaultStream returns "main" when stream is empty.
-func defaultStream(stream string) string {
-	if stream == "" {
-		return "main"
-	}
-	return stream
-}
-
 // Close closes the underlying database.
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
@@ -65,7 +58,7 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 	p.CreatedAt = now
 	p.UpdatedAt = now
 
-	locales := joinLocales(p.TargetLanguages)
+	locales := storeutil.JoinLocales(p.TargetLanguages)
 	propsJSON, err := json.Marshal(p.Properties)
 	if err != nil {
 		return fmt.Errorf("marshal properties: %w", err)
@@ -107,7 +100,7 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, e
 
 func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) error {
 	p.UpdatedAt = time.Now().UTC()
-	locales := joinLocales(p.TargetLanguages)
+	locales := storeutil.JoinLocales(p.TargetLanguages)
 	propsJSON, err := json.Marshal(p.Properties)
 	if err != nil {
 		return fmt.Errorf("marshal properties: %w", err)
@@ -328,7 +321,7 @@ func scanCollection(row scanner) (*platstore.Collection, error) {
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, item *platstore.Item) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	item.CreatedAt = now
 	item.UpdatedAt = now
@@ -373,7 +366,7 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 }
 
 func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
@@ -381,7 +374,7 @@ func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName s
 }
 
 func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? ORDER BY name`, projectID, stream)
@@ -392,7 +385,7 @@ func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) (
 }
 
 func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -419,7 +412,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 }
 
 func (s *SQLiteStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID)
@@ -455,7 +448,7 @@ func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, stream,
 }
 
 func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -561,7 +554,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			if existingID, found := existingSourceIDs[sourceID]; found {
 				internalID = existingID
 			} else {
-				internalID = newBlockID()
+				internalID = storeutil.NewBlockID()
 				existingSourceIDs[sourceID] = internalID
 			}
 			b.ID = internalID
@@ -651,11 +644,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	return tx.Commit()
 }
 
-// newBlockID generates a short random block ID (8 chars, base62-encoded).
-func newBlockID() string { return id.New() }
-
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, properties, stored_at, updated_at
@@ -727,14 +717,14 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	if err != nil {
 		return nil, err
 	}
-	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", query.ProjectID, defaultStream(query.Stream), result); err != nil {
+	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", query.ProjectID, storeutil.DefaultStream(query.Stream), result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
 func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 
 	// Get item names for the stream to scope the query.
 	items, err := s.ListItems(ctx, projectID, stream)
@@ -781,7 +771,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable == 1,
-			sourceWords: countWordsFromSourceJSON(sourceJSON),
+			sourceWords: storeutil.CountWordsFromSourceJSON(sourceJSON),
 		})
 		blockIDs = append(blockIDs, blockID)
 	}
@@ -805,7 +795,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 }
 
 func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -833,7 +823,7 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*platstore.Version, error) {
-	_ = defaultStream(stream) // versions snapshot all blocks in the project
+	_ = storeutil.DefaultStream(stream) // versions snapshot all blocks in the project
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -897,7 +887,7 @@ func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*platst
 }
 
 func (s *SQLiteStore) ListVersions(ctx context.Context, projectID, stream string) ([]*platstore.Version, error) {
-	_ = defaultStream(stream)
+	_ = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, label, description, block_count, created_at
 		 FROM versions WHERE project_id=? ORDER BY created_at DESC`, projectID)
@@ -983,26 +973,6 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 // Helpers
 // ---------------------------------------------------------------------------
 
-func joinLocales(locales []model.LocaleID) string {
-	parts := make([]string, len(locales))
-	for i, l := range locales {
-		parts[i] = string(l)
-	}
-	return strings.Join(parts, ",")
-}
-
-func splitLocales(s string) []model.LocaleID {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	locales := make([]model.LocaleID, len(parts))
-	for i, p := range parts {
-		locales[i] = model.LocaleID(strings.TrimSpace(p))
-	}
-	return locales
-}
-
 // scanner is an alias for storage.Scanner, the interface shared by *sql.Row
 // and *sql.Rows. Used by the scanX helper functions.
 type scanner = storage.Scanner
@@ -1018,7 +988,7 @@ func scanProject(row scanner) (*platstore.Project, error) {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}
 	p.DefaultSourceLanguage = model.LocaleID(srcLocale)
-	p.TargetLanguages = splitLocales(targetLocales)
+	p.TargetLanguages = storeutil.SplitLocales(targetLocales)
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
@@ -1070,7 +1040,7 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if asset.ID == "" {
 		asset.ID = id.New()
 	}
@@ -1136,7 +1106,7 @@ func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, 
 }
 
 func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
 			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
@@ -1145,7 +1115,7 @@ func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID s
 }
 
 func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	var rows *sql.Rows
 	var err error
 	if itemName != "" {
@@ -1166,7 +1136,7 @@ func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemNam
 }
 
 func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)

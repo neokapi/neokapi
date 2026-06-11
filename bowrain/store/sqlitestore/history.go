@@ -9,6 +9,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -17,7 +18,7 @@ const MaxHistoryEntries = 100
 
 // GetBlockHistory returns history entries for a block in a specific locale.
 func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if limit <= 0 || limit > MaxHistoryEntries {
 		limit = MaxHistoryEntries
 	}
