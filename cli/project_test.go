@@ -11,27 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func withCwd(t *testing.T, dir string) {
-	t.Helper()
-	prev, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(dir))
-	t.Cleanup(func() { _ = os.Chdir(prev) })
-}
-
-func withEnv(t *testing.T, key, value string) {
-	t.Helper()
-	prev, had := os.LookupEnv(key)
-	require.NoError(t, os.Setenv(key, value))
-	t.Cleanup(func() {
-		if had {
-			_ = os.Setenv(key, prev)
-		} else {
-			_ = os.Unsetenv(key)
-		}
-	})
-}
-
 func unsetEnv(t *testing.T, key string) {
 	t.Helper()
 	prev, had := os.LookupEnv(key)
@@ -64,7 +43,7 @@ func TestResolveProjectPath_ExplicitFlagWins(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
 	dir := t.TempDir()
 	recipe := writeProject(t, dir, "flag")
-	withCwd(t, t.TempDir()) // cwd has nothing — flag must be used
+	t.Chdir(t.TempDir()) // cwd has nothing — flag must be used
 
 	cmd := newTestCmd()
 	require.NoError(t, cmd.Flags().Set(ProjectFlagName, recipe))
@@ -78,8 +57,8 @@ func TestResolveProjectPath_EnvVarFallback(t *testing.T) {
 	unsetEnv(t, NoProjectEnvVar)
 	dir := t.TempDir()
 	recipe := writeProject(t, dir, "env")
-	withEnv(t, ProjectEnvVar, recipe)
-	withCwd(t, t.TempDir())
+	t.Setenv(ProjectEnvVar, recipe)
+	t.Chdir(t.TempDir())
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.NoError(t, err)
@@ -98,7 +77,7 @@ func TestResolveProjectPath_AutoDiscoveryFromCwd(t *testing.T) {
 	// Run from a subdirectory N levels deep.
 	sub := filepath.Join(realRoot, "src", "deep", "nested")
 	require.NoError(t, os.MkdirAll(sub, 0o755))
-	withCwd(t, sub)
+	t.Chdir(sub)
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.NoError(t, err)
@@ -111,7 +90,7 @@ func TestResolveProjectPath_NoProjectReturnsEmpty(t *testing.T) {
 	empty := t.TempDir()
 	realEmpty, err := filepath.EvalSymlinks(empty)
 	require.NoError(t, err)
-	withCwd(t, realEmpty)
+	t.Chdir(realEmpty)
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.NoError(t, err)
@@ -129,7 +108,7 @@ func TestResolveProjectPath_AmbiguousLayoutWrapsError(t *testing.T) {
 	require.NoError(t, project.Save(filepath.Join(real, "a.kapi"), &project.KapiProject{Version: "v1", Name: "A"}))
 	require.NoError(t, project.Save(filepath.Join(real, "b.kapi"), &project.KapiProject{Version: "v1", Name: "B"}))
 	require.NoError(t, os.MkdirAll(filepath.Join(real, project.StateDirName), 0o755))
-	withCwd(t, real)
+	t.Chdir(real)
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.Error(t, err)
@@ -144,7 +123,7 @@ func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 	empty := t.TempDir()
 	realEmpty, err := filepath.EvalSymlinks(empty)
 	require.NoError(t, err)
-	withCwd(t, realEmpty)
+	t.Chdir(realEmpty)
 
 	_, err = RequireProjectPath(newTestCmd())
 	require.Error(t, err)
@@ -157,12 +136,12 @@ func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 // so an in-repo invocation never binds to a checked-in (e.g. dogfood) recipe.
 func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
-	withEnv(t, NoProjectEnvVar, "1")
+	t.Setenv(NoProjectEnvVar, "1")
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 	writeProject(t, real, "dogfood")
-	withCwd(t, real)
+	t.Chdir(real)
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.NoError(t, err)
@@ -173,8 +152,8 @@ func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
 // also wins over the KAPI_PROJECT env fallback (an explicit -p flag still wins —
 // see TestResolveProjectPath_ExplicitFlagBeatsNoProject).
 func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
-	withEnv(t, ProjectEnvVar, "/some/where/proj.kapi")
-	withEnv(t, NoProjectEnvVar, "1")
+	t.Setenv(ProjectEnvVar, "/some/where/proj.kapi")
+	t.Setenv(NoProjectEnvVar, "1")
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.NoError(t, err)
@@ -185,10 +164,10 @@ func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
 // flag overrides KAPI_NO_PROJECT — opting out of discovery never blocks a
 // caller that names the recipe directly.
 func TestResolveProjectPath_ExplicitFlagBeatsNoProject(t *testing.T) {
-	withEnv(t, NoProjectEnvVar, "1")
+	t.Setenv(NoProjectEnvVar, "1")
 	dir := t.TempDir()
 	recipe := writeProject(t, dir, "explicit")
-	withCwd(t, t.TempDir())
+	t.Chdir(t.TempDir())
 
 	cmd := newTestCmd()
 	require.NoError(t, cmd.Flags().Set(ProjectFlagName, recipe))
