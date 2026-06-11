@@ -6,7 +6,6 @@
  * hover effects (e.g., reveal delete buttons).
  */
 
-import { forwardRef } from "react";
 import { Card } from "./card";
 import { cn } from "../../lib/utils";
 
@@ -18,13 +17,13 @@ export interface ItemCardProps extends React.ComponentPropsWithRef<"div"> {
 }
 
 /**
- * Standard item card with consistent styling.
+ * Standard item card with consistent styling. React 19 passes `ref` through
+ * props, so no forwardRef wrapper is needed.
  * Use `group` class for child hover effects (e.g., `group-hover:opacity-100`).
  */
-export const ItemCard = forwardRef<HTMLDivElement, ItemCardProps>(
-  ({ selected, clickable, className, children, ...props }, ref) => (
+export function ItemCard({ selected, clickable, className, children, ...props }: ItemCardProps) {
+  return (
     <Card
-      ref={ref}
       className={cn(
         "group p-4 transition-colors",
         clickable && "cursor-pointer hover:border-primary/30",
@@ -35,6 +34,5 @@ export const ItemCard = forwardRef<HTMLDivElement, ItemCardProps>(
     >
       {children}
     </Card>
-  ),
-);
-ItemCard.displayName = "ItemCard";
+  );
+}

@@ -1,34 +1,29 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Run } from "@neokapi/kapi-format";
-import { flattenRuns } from "@neokapi/kapi-format";
 import type { TMAdapter } from "./adapters";
 import type {
   TMEntryDTO,
   TMFacets,
-  TMSearchFilter,
   EntityAnnotationDTO,
   EntityPatternRequest,
-  VariantDTO,
   VariantInputDTO,
 } from "./types";
-import { LocalePill } from "./LocalePill";
 import { BulkActionBar } from "./BulkActionBar";
-import { Pagination } from "./Pagination";
-import { TMSearchBar } from "./TMSearchBar";
+import { TMSearchBar, type FilterToken } from "./TMSearchBar";
 import { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
-import { TMGroupedEntry } from "./TMGroupedEntry";
+import { TMBrowserToolbar } from "./TMBrowserToolbar";
+import { TMEntryList } from "./TMEntryList";
+import { TMAddEntryDialog } from "./TMAddEntryDialog";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
-import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
-import { ItemCard } from "../ui/item-card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Checkbox } from "../ui/checkbox";
-import { List, Languages } from "lucide-react";
-import { cn } from "../../lib/utils";
-
-type ViewMode = "bilingual" | "multilang";
+import {
+  buildSearchBarFilterFields,
+  buildSearchFilter,
+  variantForInput,
+  PAGE_SIZE,
+  type ViewMode,
+} from "./tm-browser-helpers";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
@@ -39,18 +34,6 @@ interface TMBrowserProps {
   /** Locale list for the add-entry form's locale selectors. If omitted, plain text inputs are used. */
   locales?: LocaleInfo[];
   onError?: (message: string, details?: unknown) => void;
-}
-
-const PAGE_SIZE = 50;
-
-/**
- * Builds a variant input from a Run sequence, deriving the flattened
- * plain text and attaching the runs when any inline content is present.
- */
-function variantForInput(runs: Run[]): VariantInputDTO {
-  const input: VariantInputDTO = { text: flattenRuns(runs) };
-  if (runs.length > 0) input.runs = runs;
-  return input;
 }
 
 export function TMBrowser({
@@ -97,7 +80,7 @@ export function TMBrowser({
   const [addTgtLocale, setAddTgtLocale] = useState(propTargetLocales[0] ?? "");
 
   // Filter tokens from the search bar.
-  const [filterTokens, setFilterTokens] = useState<Array<{ key: string; value: string }>>([]);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
   const tokenLocale = useMemo(
     () => filterTokens.find((t) => t.key === "language")?.value ?? "",
@@ -163,20 +146,10 @@ export function TMBrowser({
   }, []);
 
   // Build search filter from facet selection + tokens + marked entities.
-  const searchFilter = useMemo((): TMSearchFilter => {
-    const filter: TMSearchFilter = {};
-    const tokenProject = filterTokens.find((t) => t.key === "project")?.value;
-    if (tokenProject) filter.project_id = tokenProject;
-    else if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
-    if (facetSelection.entityTypes.length > 0) filter.entity_types = facetSelection.entityTypes;
-    if (facetSelection.sessionIds.length > 0) filter.session_ids = facetSelection.sessionIds;
-    if (facetSelection.codeFilter === "has_codes") filter.has_codes = true;
-    if (facetSelection.codeFilter === "no_codes") filter.has_codes = false;
-    if (markedEntities.length > 0) {
-      filter.entity_values = markedEntities.map((e) => ({ value: e.text, type: e.type }));
-    }
-    return filter;
-  }, [facetSelection, filterTokens, markedEntities]);
+  const searchFilter = useMemo(
+    () => buildSearchFilter(facetSelection, filterTokens, markedEntities),
+    [facetSelection, filterTokens, markedEntities],
+  );
 
   // Refs for stable callbacks (avoid re-creating fetchEntries on every keystroke).
   const adapterRef = useRef(adapter);
@@ -403,32 +376,7 @@ export function TMBrowser({
   const isEmpty = entries.length === 0;
 
   // Build filter fields from facet data for the search bar's filter dropdown.
-  const searchBarFilterFields = useMemo(() => {
-    if (!facets) return [];
-    const fields: Array<{
-      key: string;
-      label: string;
-      values?: Array<{ value: string; label: string }>;
-    }> = [];
-    if (facets.locales.length > 0) {
-      fields.push({
-        key: "language",
-        label: "Language",
-        values: facets.locales.map((l) => ({ value: l.locale, label: l.locale })),
-      });
-    }
-    if (facets.projects.length > 0) {
-      fields.push({
-        key: "project",
-        label: "Project",
-        values: facets.projects.map((p) => ({
-          value: p.project_id,
-          label: p.project_id || "No project",
-        })),
-      });
-    }
-    return fields;
-  }, [facets]);
+  const searchBarFilterFields = useMemo(() => buildSearchBarFilterFields(facets), [facets]);
 
   // Bilingual visible locales = exactly the two selected.
   const bilingualVisible = useMemo(() => {
@@ -444,6 +392,11 @@ export function TMBrowser({
     if (!addTgtLocale && targetLocaleForDialogDefault)
       setAddTgtLocale(targetLocaleForDialogDefault);
   }, [sourceLocaleForDialogDefault, targetLocaleForDialogDefault, addSrcLocale, addTgtLocale]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchText("");
+    setDebouncedSearch("");
+  }, []);
 
   return (
     <div data-testid="tm-browser">
@@ -498,170 +451,37 @@ export function TMBrowser({
           </div>
 
           {/* Selection + locale controls + view toggle */}
-          <div className="flex items-center gap-2 mb-2 pl-3 min-h-7">
-            {!isEmpty && (
-              <Checkbox
-                checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
-                onCheckedChange={toggleSelectAll}
-                aria-label="Select all visible entries"
-                title={allVisibleSelected ? "Deselect all" : "Select all on this page"}
-              />
-            )}
+          <TMBrowserToolbar
+            isEmpty={isEmpty}
+            allVisibleSelected={allVisibleSelected}
+            someVisibleSelected={someVisibleSelected}
+            onToggleSelectAll={toggleSelectAll}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            allLocales={allLocales}
+            bilingualSrc={bilingualSrc}
+            bilingualTgt={bilingualTgt}
+            onBilingualSrcChange={setBilingualSrc}
+            onBilingualTgtChange={setBilingualTgt}
+            displayLocales={displayLocales}
+            onToggleDisplayLocale={toggleDisplayLocale}
+            onDisplayLocalesChange={setDisplayLocales}
+          />
 
-            {viewMode === "bilingual" && allLocales.length > 1 && (
-              <>
-                <span className="inline-flex shrink-0 items-center px-1.5 py-px text-[10px] font-medium text-muted-foreground ml-3">
-                  Pair:
-                </span>
-                <select
-                  value={bilingualSrc ?? ""}
-                  onChange={(e) => setBilingualSrc(e.target.value || null)}
-                  className="text-[11px] rounded border border-input bg-background px-1.5 py-0.5"
-                  aria-label="Bilingual source locale"
-                >
-                  <option value="">— src —</option>
-                  {allLocales.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-muted-foreground text-[11px]">→</span>
-                <select
-                  value={bilingualTgt ?? ""}
-                  onChange={(e) => setBilingualTgt(e.target.value || null)}
-                  className="text-[11px] rounded border border-input bg-background px-1.5 py-0.5"
-                  aria-label="Bilingual target locale"
-                >
-                  <option value="">— tgt —</option>
-                  {allLocales.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-
-            {viewMode === "multilang" && allLocales.length > 1 && (
-              <>
-                <span className="inline-flex shrink-0 items-center px-1.5 py-px text-[10px] font-medium text-muted-foreground ml-3">
-                  Show:
-                </span>
-                {allLocales.map((locale) => {
-                  const active = displayLocales === undefined || displayLocales.includes(locale);
-                  return (
-                    <button
-                      key={locale}
-                      onClick={() => toggleDisplayLocale(locale)}
-                      className={cn(
-                        "inline-flex items-center",
-                        "transition-opacity",
-                        !active && "opacity-30",
-                      )}
-                    >
-                      <LocalePill locale={locale} />
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setDisplayLocales(undefined)}
-                  className="inline-flex shrink-0 items-center px-1.5 py-px rounded font-mono text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-                  title="Show all languages"
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setDisplayLocales([])}
-                  className="inline-flex shrink-0 items-center px-1.5 py-px rounded font-mono text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-                  title="Hide all languages"
-                >
-                  None
-                </button>
-              </>
-            )}
-
-            {/* View toggle */}
-            <div className="flex rounded-md border border-input ml-auto">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setViewMode("bilingual")}
-                className={cn(
-                  "rounded-r-none",
-                  viewMode === "bilingual" && "bg-accent text-foreground",
-                )}
-                title="Bilingual view"
-              >
-                <List className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setViewMode("multilang")}
-                className={cn(
-                  "rounded-l-none",
-                  viewMode === "multilang" && "bg-accent text-foreground",
-                )}
-                title="Multi-language view"
-              >
-                <Languages className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Loading skeleton */}
-          {loading && !initialLoadDone && (
-            <div className="flex flex-col gap-2">
-              {[0, 1, 2].map((i) => (
-                <ItemCard key={i} className="animate-pulse p-3">
-                  <div className="mb-2 h-3 w-3/4 rounded bg-muted" />
-                  <div className="h-3 w-2/3 rounded bg-muted" />
-                </ItemCard>
-              ))}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {initialLoadDone && !loading && isEmpty && (
-            <div className="py-12 text-center text-muted-foreground">
-              <p className="text-sm mb-1">
-                {debouncedSearch ? "No entries match your search." : "No entries yet."}
-              </p>
-              {debouncedSearch && (
-                <button
-                  onClick={() => {
-                    setSearchText("");
-                    setDebouncedSearch("");
-                  }}
-                  className="text-xs text-primary hover:text-primary/80"
-                >
-                  Clear search
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Entries */}
-          {!isEmpty && (
-            <div className="flex flex-col gap-1.5">
-              {entries.map((entry) => (
-                <TMGroupedEntry
-                  key={entry.id}
-                  entry={withHint(entry, viewMode === "bilingual" ? bilingualSrc : null)}
-                  selected={selected.has(entry.id)}
-                  onToggleSelect={() => toggleSelect(entry.id)}
-                  onEditVariant={(locale, runs) => void handleEditVariant(entry, locale, runs)}
-                  onDelete={() => void handleDelete(entry.id)}
-                  visibleLocales={viewMode === "bilingual" ? bilingualVisible : displayLocales}
-                />
-              ))}
-            </div>
-          )}
-
-          <Pagination
+          {/* Loading skeleton + empty state + entries + pagination */}
+          <TMEntryList
+            entries={entries}
+            loading={loading}
+            initialLoadDone={initialLoadDone}
+            searchQuery={debouncedSearch}
+            onClearSearch={handleClearSearch}
+            hintLocale={viewMode === "bilingual" ? bilingualSrc : null}
+            visibleLocales={viewMode === "bilingual" ? bilingualVisible : displayLocales}
+            selected={selected}
+            onToggleSelect={toggleSelect}
+            onEditVariant={(entry, locale, runs) => void handleEditVariant(entry, locale, runs)}
+            onDelete={(id) => void handleDelete(id)}
             page={page}
-            pageSize={PAGE_SIZE}
             totalCount={totalCount}
             onPageChange={setPage}
           />
@@ -689,94 +509,20 @@ export function TMBrowser({
       />
 
       {/* Add entry dialog */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add TM Entry</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div>
-              <Label className="text-[12px]">Source</Label>
-              <Input
-                value={addSource}
-                onChange={(e) => setAddSource(e.target.value)}
-                placeholder="Source text"
-                autoFocus
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-[12px]">Target</Label>
-              <Input
-                value={addTarget}
-                onChange={(e) => setAddTarget(e.target.value)}
-                placeholder="Target text"
-                className="mt-1"
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Label className="text-[12px]">Source locale</Label>
-                {mergedLocales.length > 0 ? (
-                  <LocaleSelect
-                    value={addSrcLocale}
-                    onChange={setAddSrcLocale}
-                    locales={mergedLocales}
-                    placeholder="Select source..."
-                  />
-                ) : (
-                  <Input
-                    value={addSrcLocale}
-                    onChange={(e) => setAddSrcLocale(e.target.value)}
-                    className="mt-1"
-                  />
-                )}
-              </div>
-              <div className="flex-1">
-                <Label className="text-[12px]">Target locale</Label>
-                {mergedLocales.length > 0 ? (
-                  <LocaleSelect
-                    value={addTgtLocale}
-                    onChange={setAddTgtLocale}
-                    locales={mergedLocales}
-                    placeholder="Select target..."
-                  />
-                ) : (
-                  <Input
-                    value={addTgtLocale}
-                    onChange={(e) => setAddTgtLocale(e.target.value)}
-                    className="mt-1"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddForm(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleAdd()}
-              disabled={!addSource.trim() || !addTarget.trim()}
-            >
-              Add
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TMAddEntryDialog
+        open={showAddForm}
+        onOpenChange={setShowAddForm}
+        source={addSource}
+        onSourceChange={setAddSource}
+        target={addTarget}
+        onTargetChange={setAddTarget}
+        srcLocale={addSrcLocale}
+        onSrcLocaleChange={setAddSrcLocale}
+        tgtLocale={addTgtLocale}
+        onTgtLocaleChange={setAddTgtLocale}
+        locales={mergedLocales}
+        onSubmit={() => void handleAdd()}
+      />
     </div>
   );
-}
-
-/**
- * Returns a TMEntryDTO where hint_src_lang is overridden for display
- * purposes when the caller (bilingual view) has picked a specific source.
- * When `override` is null or not present as a variant, the original entry
- * is returned untouched.
- */
-function withHint(entry: TMEntryDTO, override: string | null): TMEntryDTO {
-  if (!override) return entry;
-  const variant: VariantDTO | undefined = entry.variants[override];
-  if (!variant) return entry;
-  return { ...entry, hint_src_lang: override };
 }
