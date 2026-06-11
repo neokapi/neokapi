@@ -116,12 +116,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Edit Plugin Settings"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Rediger tilleggsinnstillinger"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-104@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Edit Plugin Settings"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Rediger tilleggsinnstillinger"
+            "text": "Rediger tilleggsinnstillinger"
           }
         ]
       },
@@ -224,12 +269,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Editor"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Editor"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-108@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Editor"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Editor"
+            "text": "Editor"
           }
         ]
       },
@@ -413,12 +503,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Export TMX"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Eksporter TMX"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-114@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Export TMX"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Eksporter TMX"
+            "text": "Eksporter TMX"
           }
         ]
       },
@@ -521,12 +656,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " File Patterns"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Filmønstre"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-118@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "File Patterns"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Filmønstre"
+            "text": "Filmønstre"
           }
         ]
       },
@@ -548,12 +728,87 @@
       "variants": {
         "en": [
           {
-            "text": "Files ( matched )"
+            "text": "Files "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{matches.length}",
+              "equiv": "matches.length"
+            }
+          },
+          {
+            "text": " matched "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": ") "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Filer {=m0} ({matches.length} samsvarer {value} {value_2}) {/=m0}"
+            "text": "Filer "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " ({matches.length} samsvarer {value} {value_2}) "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -791,12 +1046,95 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Format Config "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Formatkonfigurasjon "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-127@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Format Config"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} Formatkonfigurasjon {=m2}"
+            "text": "Formatkonfigurasjon"
           }
         ]
       },
@@ -818,12 +1156,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileType",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Format Defaults"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileType",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Formatstandarder"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-128@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Format Defaults"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Formatstandarder"
+            "text": "Formatstandarder"
           }
         ]
       },
@@ -926,12 +1309,68 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Formats ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{formatCaps.length}",
+              "equiv": "formatCaps.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Formater ({formatCaps.length})"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-131@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Formats ()"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Formater ({formatCaps.length})"
+            "text": "Formater ({formatCaps.length})"
           }
         ]
       },
@@ -1061,12 +1500,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Import CSV"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Importer CSV"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-136@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Import CSV"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Importer CSV"
+            "text": "Importer CSV"
           }
         ]
       },
@@ -1115,12 +1599,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Import JSON"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Importer JSON"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-138@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Import JSON"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Importer JSON"
+            "text": "Importer JSON"
           }
         ]
       },
@@ -1142,12 +1671,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Import TMX"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Importer TMX"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-139@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Import TMX"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Importer TMX"
+            "text": "Importer TMX"
           }
         ]
       },
@@ -1331,12 +1905,68 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Loader2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Inspecting "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{filename}",
+              "equiv": "filename"
+            }
+          },
+          {
+            "text": "…"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Loader2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Inspiserer {filename}…"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-145@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Inspecting …"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Inspiserer {filename}…"
+            "text": "Inspiserer {filename}…"
           }
         ]
       },
@@ -1358,12 +1988,30 @@
       "variants": {
         "en": [
           {
-            "text": "Install"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Install"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Installer"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Installer"
           }
         ]
       },
@@ -1385,12 +2033,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plug",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Install Plugins"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plug",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Installer tillegg"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-147@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Install Plugins"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Installer tillegg"
+            "text": "Installer tillegg"
           }
         ]
       },
@@ -1682,12 +2375,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Globe",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Languages"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Globe",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Språk"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-157@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Languages"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Språk"
+            "text": "Språk"
           }
         ]
       },
@@ -1763,12 +2501,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-15@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til"
+            "text": "Legg til"
           }
         ]
       },
@@ -2357,12 +3140,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add Collection"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til samling"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-17@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add Collection"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til samling"
+            "text": "Legg til samling"
           }
         ]
       },
@@ -2951,12 +3779,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add Files"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til filer"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-19@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add Files"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til filer"
+            "text": "Legg til filer"
           }
         ]
       },
@@ -3032,12 +3905,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " No project termbase found. Import terminology to create one automatically, or create one below."
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Fant ingen prosjekttermbase. Importer terminologi for å opprette en automatisk, eller opprett en nedenfor."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-201@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "No project termbase found. Import terminology to create one automatically, or create one below."
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Fant ingen prosjekttermbase. Importer terminologi for å opprette en automatisk, eller opprett en nedenfor."
+            "text": "Fant ingen prosjekttermbase. Importer terminologi for å opprette en automatisk, eller opprett en nedenfor."
           }
         ]
       },
@@ -3059,12 +3977,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Database",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " No project translation memory found. Run a translation flow to create one automatically, or create one below."
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Database",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Fant ikke noe prosjektoversettelsesminne. Kjør en oversettelsesflyt for å opprette et automatisk, eller opprett et nedenfor."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-202@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "No project translation memory found. Run a translation flow to create one automatically, or create one below."
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Fant ikke noe prosjektoversettelsesminne. Kjør en oversettelsesflyt for å opprette et automatisk, eller opprett et nedenfor."
+            "text": "Fant ikke noe prosjektoversettelsesminne. Kjør en oversettelsesflyt for å opprette et automatisk, eller opprett et nedenfor."
           }
         ]
       },
@@ -3275,12 +4238,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add Provider"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til leverandør"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-20@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add Provider"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til leverandør"
+            "text": "Legg til leverandør"
           }
         ]
       },
@@ -3572,12 +4580,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add another pattern"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til enda et mønster"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-21@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add another pattern"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til enda et mønster"
+            "text": "Legg til enda et mønster"
           }
         ]
       },
@@ -3653,12 +4706,65 @@
       "variants": {
         "en": [
           {
-            "text": "Other files ()"
+            "text": "Other files "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{unmatchedFiles.length}",
+              "equiv": "unmatchedFiles.length"
+            }
+          },
+          {
+            "text": ")"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Andre filer {=m0}({unmatchedFiles.length}){/=m0}"
+            "text": "Andre filer "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "({unmatchedFiles.length})"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -3788,12 +4894,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Parameter Reference"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Parameterreferanse"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-227@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Parameter Reference"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Parameterreferanse"
+            "text": "Parameterreferanse"
           }
         ]
       },
@@ -4031,12 +5182,97 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Plugins: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Tillegg: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-235@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Plugins:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Tillegg: {/=m0} {=m1}"
+            "text": "Tillegg:"
           }
         ]
       },
@@ -4139,12 +5375,101 @@
       "variants": {
         "en": [
           {
-            "text": "Preset:"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Preset: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{project.preset}",
+              "equiv": "project.preset"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Forhåndsinnstilling: {/=m0} {=m1}{project.preset}{/=m1}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Forhåndsinnstilling: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "{project.preset}"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -4274,12 +5599,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Cpu",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Processing"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Cpu",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Behandling"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-243@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Processing"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Behandling"
+            "text": "Behandling"
           }
         ]
       },
@@ -4328,12 +5698,65 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Play",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Produces: "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{portLabel}",
+              "equiv": "portLabel"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Play",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Produserer: {portLabel}"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-245@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Produces:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Produserer: {portLabel}"
+            "text": "Produserer: {portLabel}"
           }
         ]
       },
@@ -4787,12 +6210,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Read"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Les"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-260@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Read"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Les"
+            "text": "Les"
           }
         ]
       },
@@ -4814,12 +6282,30 @@
       "variants": {
         "en": [
           {
-            "text": "Reader"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Reader"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Leser"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Leser"
           }
         ]
       },
@@ -5084,12 +6570,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Loader2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Removing..."
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Loader2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Fjerner..."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-270@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Removing..."
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Fjerner..."
+            "text": "Fjerner..."
           }
         ]
       },
@@ -5165,12 +6696,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "RotateCcw",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Reset"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "RotateCcw",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Tilbakestill"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-273@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Reset"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Tilbakestill"
+            "text": "Tilbakestill"
           }
         ]
       },
@@ -5219,12 +6795,55 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Run"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kjør"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-275@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Run"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kjør"
+            "text": "Kjør"
           }
         ]
       },
@@ -5246,12 +6865,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Workflow",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Run Flows"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Workflow",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kjør flyter"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-276@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Run Flows"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kjør flyter"
+            "text": "Kjør flyter"
           }
         ]
       },
@@ -5300,12 +6964,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Play",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Run checks"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Play",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kjør kontroller"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-278@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Run checks"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kjør kontroller"
+            "text": "Kjør kontroller"
           }
         ]
       },
@@ -5786,12 +7495,55 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Save Changes"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Lagre endringer"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-294@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Save Changes"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Lagre endringer"
+            "text": "Lagre endringer"
           }
         ]
       },
@@ -5840,12 +7592,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Save",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Save current configuration as a preset"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Save",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Lagre gjeldende konfigurasjon som forhåndsinnstilling"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-296@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Save current configuration as a preset"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Lagre gjeldende konfigurasjon som forhåndsinnstilling"
+            "text": "Lagre gjeldende konfigurasjon som forhåndsinnstilling"
           }
         ]
       },
@@ -6272,12 +8069,55 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Apply fix"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Bruk rettelse"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-30@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Apply fix"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Bruk rettelse"
+            "text": "Bruk rettelse"
           }
         ]
       },
@@ -6839,12 +8679,107 @@
       "variants": {
         "en": [
           {
-            "text": "Targets:"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Targets: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Målspråk: {/=m0} {=m1} {value} {/=m1}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Målspråk: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " {value} "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -7109,12 +9044,68 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Wrench",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Tools ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{toolCaps.length}",
+              "equiv": "toolCaps.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Wrench",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Verktøy ({toolCaps.length})"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-338@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Tools ()"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Verktøy ({toolCaps.length})"
+            "text": "Verktøy ({toolCaps.length})"
           }
         ]
       },
@@ -7622,12 +9613,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " View"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Vis"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-355@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "View"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Vis"
+            "text": "Vis"
           }
         ]
       },
@@ -7649,12 +9685,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " View full documentation"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Vis hele dokumentasjonen"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-356@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "View full documentation"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Vis hele dokumentasjonen"
+            "text": "Vis hele dokumentasjonen"
           }
         ]
       },
@@ -7730,12 +9811,30 @@
       "variants": {
         "en": [
           {
-            "text": "Wiki"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Wiki"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Wiki"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ExternalLink",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Wiki"
           }
         ]
       },
@@ -7784,12 +9883,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileOutput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Write"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileOutput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Skriv"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-360@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Write"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Skriv"
+            "text": "Skriv"
           }
         ]
       },
@@ -7811,12 +9955,30 @@
       "variants": {
         "en": [
           {
-            "text": "Writer"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileOutput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Writer"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Skriver"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileOutput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Skriver"
           }
         ]
       },
@@ -8027,12 +10189,59 @@
       "variants": {
         "en": [
           {
-            "text": "could not be opened."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{corruptName}",
+              "equiv": "corruptName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " could not be opened."
           }
         ],
         "nb": [
           {
-            "text": "{=m0}{corruptName}{/=m0} kunne ikke åpnes."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "{corruptName}"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " kunne ikke åpnes."
           }
         ]
       },
@@ -8081,12 +10290,59 @@
       "variants": {
         "en": [
           {
-            "text": "could not be opened. The database may be corrupt."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{corruptName}",
+              "equiv": "corruptName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " could not be opened. The database may be corrupt."
           }
         ],
         "nb": [
           {
-            "text": "{=m0}{corruptName}{/=m0} kunne ikke åpnes. Databasen kan være skadet."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "{corruptName}"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " kunne ikke åpnes. Databasen kan være skadet."
           }
         ]
       },
@@ -9134,12 +11390,160 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{shortPath}",
+              "equiv": "shortPath"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "· "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{length}",
+              "equiv": "length"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileText",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "{shortPath}"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "· {length}"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-405@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "·"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}{shortPath}{/=m1} {=m3}· {length}{/=m3}"
+            "text": "{shortPath} · {length}"
           }
         ]
       },
@@ -9161,12 +11565,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Lock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Built-in (read-only)"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Lock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Innebygd (skrivebeskyttet)"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-40@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Built-in (read-only)"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Innebygd (skrivebeskyttet)"
+            "text": "Innebygd (skrivebeskyttet)"
           }
         ]
       },
@@ -9431,12 +11880,129 @@
       "variants": {
         "en": [
           {
-            "text": "/ %"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{current}",
+              "equiv": "current"
+            }
+          },
+          {
+            "text": "/"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{total}",
+              "equiv": "total"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{round}",
+              "equiv": "round"
+            }
+          },
+          {
+            "text": "% "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {current}/{total} {/=m0} {=m3} {round}% {/=m3}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {current}/{total} "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " {round}% "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ]
       },
@@ -9836,12 +12402,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Configurable"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Settings2",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Konfigurerbar"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-63@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Configurable"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Konfigurerbar"
+            "text": "Konfigurerbar"
           }
         ]
       },
@@ -9944,12 +12555,65 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Consumes: "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{portLabel}",
+              "equiv": "portLabel"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileInput",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Tar imot: {portLabel}"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-67@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Consumes:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Tar imot: {portLabel}"
+            "text": "Tar imot: {portLabel}"
           }
         ]
       },
@@ -10025,12 +12689,126 @@
       "variants": {
         "en": [
           {
-            "text": "/ files %"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{progress.current}",
+              "equiv": "progress.current"
+            }
+          },
+          {
+            "text": " / "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{progress.total}",
+              "equiv": "progress.total"
+            }
+          },
+          {
+            "text": " files "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{round}",
+              "equiv": "round"
+            }
+          },
+          {
+            "text": "%"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {progress.current} / {progress.total} filer {/=m0} {=m3}{round}%{/=m3}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {progress.current} / {progress.total} filer "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "{round}%"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ]
       },
@@ -10700,12 +13478,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ChevronDown",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Details"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ChevronDown",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Detaljer"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-92@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Details"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Detaljer"
+            "text": "Detaljer"
           }
         ]
       },
@@ -10862,12 +13685,30 @@
       "variants": {
         "en": [
           {
-            "text": "Docs"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Docs"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Dokumentasjon"
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Dokumentasjon"
           }
         ]
       },
@@ -10889,12 +13730,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Documentation"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "BookOpen",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Dokumentasjon"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "desktop-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-2f7cf94deb465c03-1781164979207745781"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb.tmx:tu-99@tmx-2f7cf94d-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Documentation"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Dokumentasjon"
+            "text": "Dokumentasjon"
           }
         ]
       },

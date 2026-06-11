@@ -429,3 +429,168 @@ func TestTMLeverageSegmentedPartialNoFill(t *testing.T) {
 	assert.Equal(t, model.MatchExact, a0.MatchType)
 	assert.Nil(t, segAlt(rb, 1), "unmatched segment has no alt-translation")
 }
+
+// --- structure-aware (BlockTMProvider) leverage ---
+
+// mockBlockTMProvider implements both TMProvider and BlockTMProvider: the
+// text maps drive the fallback path, the block match drives the
+// structure-aware path.
+type mockBlockTMProvider struct {
+	mockTMProvider
+	match tools.TMBlockMatch
+	found bool
+	calls int
+}
+
+func (m *mockBlockTMProvider) LookupBlock(_ *model.Block, _, _ model.LocaleID, _ int) (tools.TMBlockMatch, bool) {
+	m.calls++
+	return m.match, m.found
+}
+
+// iconBlock builds a block shaped like a KLF icon button: a standalone
+// placeholder run followed by text.
+func iconBlock(id string) *model.Block {
+	b := model.NewBlock(id, "")
+	b.Source = []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}},
+		{Text: &model.TextRun{Text: " Install"}},
+	}
+	return b
+}
+
+func iconTargetRuns() []model.Run {
+	return []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}},
+		{Text: &model.TextRun{Text: " Installer"}},
+	}
+}
+
+// TestTMLeverageBlockAwareRunsFill: a structural exact match fills the
+// target with the entry's RUNS — the placeholder survives as a model
+// object, not flattened text.
+func TestTMLeverageBlockAwareRunsFill(t *testing.T) {
+	t.Parallel()
+	provider := &mockBlockTMProvider{
+		match: tools.TMBlockMatch{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
+		found: true,
+	}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	rb := result.Resource.(*model.Block)
+
+	tgt := rb.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	require.Len(t, tgt.Runs, 2, "target keeps the entry's run structure")
+	require.NotNil(t, tgt.Runs[0].Ph, "placeholder run preserved")
+	assert.Equal(t, "=m0", tgt.Runs[0].Ph.Equiv)
+	assert.Equal(t, " Installer", tgt.Runs[1].Text.Text)
+	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	assert.Equal(t, "tm", tgt.Origin.Kind)
+	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
+
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 100, tm.Score)
+	assert.Equal(t, "exact", tm.Type)
+}
+
+// TestTMLeverageBlockAwareAmbiguousSkips: an ambiguous match is recorded
+// as a candidate but never filled — and the text path must not run either
+// (it would resolve the tie by arbitrary pick).
+func TestTMLeverageBlockAwareAmbiguousSkips(t *testing.T) {
+	t.Parallel()
+	provider := &mockBlockTMProvider{
+		mockTMProvider: mockTMProvider{exact: map[string]string{"Install": "Installation"}},
+		match:          tools.TMBlockMatch{TargetRuns: iconTargetRuns(), Score: 99, Exact: true, Ambiguous: true},
+		found:          true,
+	}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	rb := result.Resource.(*model.Block)
+
+	assert.False(t, rb.HasTarget(model.LocaleFrench), "ambiguous match must not fill")
+	alts := rb.AltTranslations()
+	require.Len(t, alts, 1, "the ambiguous candidate is recorded for review")
+	assert.Equal(t, " Installer", model.RunsText(alts[0].Target))
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 99, tm.Score)
+}
+
+// TestTMLeverageBlockAwareSubThresholdFallsThrough: a block match below
+// the fill threshold is recorded, then the differently-keyed text path
+// still runs and can fill from a legacy plain-text entry.
+func TestTMLeverageBlockAwareSubThresholdFallsThrough(t *testing.T) {
+	t.Parallel()
+	provider := &mockBlockTMProvider{
+		// Text path keys on the text-only source (" Install" → codes drop).
+		mockTMProvider: mockTMProvider{exact: map[string]string{" Install": "Installer"}},
+		match:          tools.TMBlockMatch{TargetRuns: iconTargetRuns(), Score: 80, Exact: false},
+		found:          true,
+	}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, FillTarget: true, FillTargetThreshold: 95, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	rb := result.Resource.(*model.Block)
+
+	assert.Equal(t, 1, provider.calls)
+	assert.Equal(t, "Installer", rb.TargetText(model.LocaleFrench), "text path filled after fall-through")
+	// Both candidates are on record: the sub-threshold block match and the
+	// text-path exact.
+	assert.Len(t, rb.AltTranslations(), 2)
+	tm, ok := model.AnnoAs[*tools.TMMatchAnnotation](rb, string(model.AnnoTMMatch))
+	require.True(t, ok)
+	assert.Equal(t, 100, tm.Score, "text-path exact overwrites the sub-threshold annotation")
+}
+
+// TestTMLeverageBlockAwareIncompatibleCodes: a matched target carrying
+// inline codes the block's source does not have is never spliced in; the
+// text path takes over.
+func TestTMLeverageBlockAwareIncompatibleCodes(t *testing.T) {
+	t.Parallel()
+	foreign := []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "9", Type: "jsx:element", Data: "{=m9}", Equiv: "=m9"}},
+		{Text: &model.TextRun{Text: "Installer"}},
+		{PcClose: &model.PcCloseRun{ID: "9", Type: "jsx:element", Data: "{/=m9}", Equiv: "=m9"}},
+	}
+	provider := &mockBlockTMProvider{
+		mockTMProvider: mockTMProvider{exact: map[string]string{" Install": "Installer"}},
+		match:          tools.TMBlockMatch{TargetRuns: foreign, Score: 100, Exact: true},
+		found:          true,
+	}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	rb := result.Resource.(*model.Block)
+
+	tgt := rb.Target(model.LocaleFrench)
+	require.NotNil(t, tgt, "text path filled instead")
+	require.Len(t, tgt.Runs, 1)
+	assert.Equal(t, "Installer", tgt.Runs[0].Text.Text)
+}
+
+// TestTMLeverageBlockAwareCloneIsolation: the filled target runs are
+// deep-copied — mutating them must not write through to the provider's
+// stored entry.
+func TestTMLeverageBlockAwareCloneIsolation(t *testing.T) {
+	t.Parallel()
+	stored := iconTargetRuns()
+	provider := &mockBlockTMProvider{
+		match: tools.TMBlockMatch{TargetRuns: stored, Score: 100, Exact: true},
+		found: true,
+	}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	rb := result.Resource.(*model.Block)
+
+	rb.Target(model.LocaleFrench).Runs[1].Text.Text = "MUTATED"
+	assert.Equal(t, " Installer", stored[1].Text.Text, "TM entry runs unaffected by target edits")
+}

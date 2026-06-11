@@ -76,6 +76,8 @@ limitations:
 processingNotes:
   - Operates on translatable blocks with a non-empty source; other parts pass through unchanged.
   - Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.
+  - With a structure-aware TM provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.
+  - Ambiguous matches (several full-score entries with differing targets) are recorded but never fill the target — the choice surfaces for review instead of being picked by storage order.
 examples:
   - title: Apply only high-confidence matches
     description: Fill the target from matches scoring 95 or above.

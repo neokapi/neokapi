@@ -117,11 +117,49 @@
         "en": [
           {
             "text": "Read, change, and ship content in any format ."
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Les, endre og lever innhold i {=m1} hvilket som helst format {/=m1}."
+            "text": "Les, endre og lever innhold i "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " hvilket som helst format "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "."
           }
         ]
       },
@@ -278,12 +316,139 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "AI alone 70/100"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} AI alene {/=m0} {=m2} 70{=m3}/100{/=m3} {/=m2}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " AI alene "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " 70"
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "/100"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ]
       },
@@ -522,11 +687,46 @@
         "en": [
           {
             "text": "The kapi CLI"
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Kommandolinjeverktøyet {=m1} kapi {/=m1}"
+            "text": "Kommandolinjeverktøyet "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " kapi "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -548,12 +748,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "The Kapi Desktop app"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Appen {=m1} Kapi Desktop {/=m1}"
+            "text": "Appen "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Kapi Desktop "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -630,11 +865,46 @@
         "en": [
           {
             "text": "Three axes, one engine"
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Tre akser, {=m1} én motor {/=m1}"
+            "text": "Tre akser, "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " én motor "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -980,12 +1250,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "Up and running in 30 seconds"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "I gang på {=m1} 30 sekunder {/=m1}"
+            "text": "I gang på "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " 30 sekunder "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -1169,12 +1474,82 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "All releases on GitHub →"
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Alle utgivelser på GitHub {=m1}→{/=m1} {/=m0}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Alle utgivelser på GitHub "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "→"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -1332,11 +1707,46 @@
         "en": [
           {
             "text": "An open engine that extracts what matters from any file, lets you translate, check, and transform it, and writes it back faithfully — structure, markup, and placeholders intact. AI translation, translation memory, terminology and brand checks built in. Offline by default — your content stays yours."
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "En åpen motor som trekker ut det som betyr noe fra hvilken som helst fil, lar deg oversette, sjekke og transformere det, og skriver det trofast tilbake — struktur, oppmerking og plassholdere intakt. AI-oversettelse, oversettelsesminne, terminologi- og merkevaresjekker innebygd. {=m1}Frakoblet som standard — innholdet ditt forblir ditt.{/=m1}"
+            "text": "En åpen motor som trekker ut det som betyr noe fra hvilken som helst fil, lar deg oversette, sjekke og transformere det, og skriver det trofast tilbake — struktur, oppmerking og plassholdere intakt. AI-oversettelse, oversettelsesminne, terminologi- og merkevaresjekker innebygd. "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Frakoblet som standard — innholdet ditt forblir ditt."
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -1547,12 +1957,63 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "Browse the Format Reference"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Bla i formatreferansen {=m1} {/=m0}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Bla i formatreferansen "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -1574,12 +2035,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "Built on Okapi's foundations"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Bygget på {=m1} Okapis fundament {/=m1}"
+            "text": "Bygget på "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Okapis fundament "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -1601,12 +2097,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "Built to process at scale"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Bygget for å {=m1} prosessere i stor skala {/=m1}"
+            "text": "Bygget for å "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " prosessere i stor skala "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -1655,12 +2186,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "By contrast:"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Til sammenligning: {/=m0} {a.contrast}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Til sammenligning: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {a.contrast}"
           }
         ]
       },
@@ -2195,12 +2761,63 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "Explore the docs"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Utforsk dokumentasjonen {=m1} {/=m0}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Utforsk dokumentasjonen "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -2519,12 +3136,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "From any file to shipped, faithfully, in every language"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Fra hvilken som helst fil til {=m1} levert, trofast, på alle språk {/=m1}"
+            "text": "Fra hvilken som helst fil til "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " levert, trofast, på alle språk "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -2600,12 +3252,120 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
             "text": "Get Started How it works"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kom i gang {=m1} {/=m0} {=m2} Slik virker det {=m3} {/=m2}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kom i gang "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " Slik virker det "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ]
       },
@@ -2627,12 +3387,44 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "GitHub"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} GitHub {/=m0}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " GitHub "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -2654,12 +3446,28 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "GitHub Actions"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} GitHub Actions"
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " GitHub Actions"
           }
         ]
       },
@@ -2708,12 +3516,139 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "GitHub Documentation Releases"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} GitHub {/=m0} {=m1} Dokumentasjon {/=m1} {=m2} Utgivelser {/=m2} {=m3}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " GitHub "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Dokumentasjon "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " Utgivelser "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
           }
         ]
       },
@@ -2735,12 +3670,120 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
             "text": "GitHub Get Started"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} GitHub {/=m0} {=m2} {=m3} Kom i gang {/=m2}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " GitHub "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " Kom i gang "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ]
       },
@@ -2816,12 +3859,234 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "How it works Features CLI Formats Get Started Docs"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "4",
+              "type": "jsx:element",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "4",
+              "type": "jsx:element",
+              "data": "{/=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "5",
+              "type": "jsx:element",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "5",
+              "type": "jsx:element",
+              "data": "{/=m5}",
+              "equiv": "=m5"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Slik virker det {/=m0} {=m1} Funksjoner {/=m1} {=m2} CLI {/=m2} {=m3} Formater {/=m3} {=m4} Kom i gang {/=m4} {=m5} Dokumentasjon {/=m5}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Slik virker det "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Funksjoner "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " CLI "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " Formater "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "4",
+              "type": "jsx:element",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " Kom i gang "
+          },
+          {
+            "pcClose": {
+              "id": "4",
+              "type": "jsx:element",
+              "data": "{/=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "5",
+              "type": "jsx:element",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " Dokumentasjon "
+          },
+          {
+            "pcClose": {
+              "id": "5",
+              "type": "jsx:element",
+              "data": "{/=m5}",
+              "equiv": "=m5"
+            }
           }
         ]
       },
@@ -2979,11 +4244,46 @@
         "en": [
           {
             "text": "A brand-voice check, scored"
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "En merkevarestemmesjekk, {=m1} poengsatt {/=m1}"
+            "text": "En merkevarestemmesjekk, "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " poengsatt "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -3032,12 +4332,28 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "Kapi CLI"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kapi CLI"
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kapi CLI"
           }
         ]
       },
@@ -3059,12 +4375,28 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "Kapi Desktop"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Kapi Desktop"
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Kapi Desktop"
           }
         ]
       },
@@ -3086,12 +4418,82 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "kapi-action on GitHub →"
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} kapi-action på GitHub {=m1}→{/=m1} {/=m0}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " kapi-action på GitHub "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "→"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -3545,12 +4947,139 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "Okapi (Java) Neokapi (Go) Purpose"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Okapi (Java) {/=m0} {=m1} {=m2} Neokapi (Go) {/=m2} {=m3} Formål {/=m3}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Okapi (Java) "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " Neokapi (Go) "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " Formål "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ]
       },
@@ -3626,12 +5155,28 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
             "text": "One check, in detail: brand voice"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Én sjekk, i detalj: merkevarestemme"
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Én sjekk, i detalj: merkevarestemme"
           }
         ]
       },
@@ -3653,12 +5198,47 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "One engine for every content format"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Én motor for {=m1} hvert innholdsformat {/=m1}"
+            "text": "Én motor for "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " hvert innholdsformat "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
           }
         ]
       },
@@ -3707,12 +5287,139 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
             "text": "Open-source engine | Offline-first · no lock-in"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Motor med åpen kildekode{/=m1} {=m2}|{/=m2} {=m3}Frakoblet først · ingen innlåsing{/=m3}"
+            "ph": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Motor med åpen kildekode"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "|"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "Frakoblet først · ingen innlåsing"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
           }
         ]
       },
@@ -3869,12 +5576,139 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
             "text": "AI + kapi 95/100"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} AI + kapi {/=m0} {=m2} 95{=m3}/100{/=m3} {/=m2}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " AI + kapi "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " 95"
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "/100"
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ]
       },

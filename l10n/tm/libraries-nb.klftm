@@ -413,12 +413,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Download"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Download",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Last ned"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-114@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Download"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Last ned"
+            "text": "Last ned"
           }
         ]
       },
@@ -467,12 +512,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Pencil",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Edit"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Pencil",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Rediger"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-116@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Edit"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Rediger"
+            "text": "Rediger"
           }
         ]
       },
@@ -926,12 +1016,109 @@
       "variants": {
         "en": [
           {
-            "text": "fields"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{label}",
+              "equiv": "label"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{keys.length}",
+              "equiv": "keys.length"
+            }
+          },
+          {
+            "text": " fields"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ],
         "nb": [
           {
-            "text": "{=m0}{label}{/=m0} {=m2}{keys.length} felter{/=m2}"
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "{label}"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "{keys.length} felter"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
           }
         ]
       },
@@ -1061,12 +1248,97 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Filters "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Filtre "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-136@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Filters"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Filtre {/=m0} {=m1}"
+            "text": "Filtre"
           }
         ]
       },
@@ -1115,12 +1387,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Shuffle",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Fixed position — order must be preserved"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Shuffle",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Fast posisjon — rekkefølgen må bevares"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-138@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Fixed position — order must be preserved"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Fast posisjon — rekkefølgen må bevares"
+            "text": "Fast posisjon — rekkefølgen må bevares"
           }
         ]
       },
@@ -1277,12 +1594,95 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ChevronDown",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{matches.length}",
+              "equiv": "matches.length"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " found "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:node",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "ChevronDown",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {matches.length} {value} funnet "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:node",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-143@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "found"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {matches.length} {value} funnet {=m3}"
+            "text": "{matches.length} {value} funnet"
           }
         ]
       },
@@ -1817,12 +2217,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Eye",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Inspect"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Eye",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Inspiser"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-161@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Inspect"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Inspiser"
+            "text": "Inspiser"
           }
         ]
       },
@@ -1925,12 +2370,99 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "IO"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "IoContract",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "IO"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "IoContract",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-165@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "IO"
           }
         ],
         "nb": [
           {
-            "text": "{=m0}IO{/=m0} {=m1}"
+            "text": "IO"
           }
         ]
       },
@@ -2006,12 +2538,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Info",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legend"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Info",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Tegnforklaring"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-168@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Legend"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Tegnforklaring"
+            "text": "Tegnforklaring"
           }
         ]
       },
@@ -2276,12 +2853,108 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Mark “"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{selectionRange.text}",
+              "equiv": "selectionRange.text"
+            }
+          },
+          {
+            "text": "” as: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Marker «{selectionRange.text}» som: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-177@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Mark “” as:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Marker «{selectionRange.text}» som: {/=m0} {=m2}"
+            "text": "Marker «{selectionRange.text}» som:"
           }
         ]
       },
@@ -2357,12 +3030,123 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "TagChipComponent",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "..."
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "TagChipComponent",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "TagChipComponent",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "..."
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "TagChipComponent",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-17@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "..."
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}...{/=m1} {=m2}"
+            "text": "..."
           }
         ]
       },
@@ -2519,12 +3303,129 @@
       "variants": {
         "en": [
           {
-            "text": "Missing input: this tool needs , but nothing earlier in the flow produces . Add a tool that produces before this step."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Missing input: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " this tool needs "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": ", but nothing earlier in the flow produces "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": ". Add a tool that produces "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": " before this step."
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Manglende inndata: {/=m0} dette verktøyet trenger {=m1}{join}{/=m1}, men ingenting tidligere i flyten produserer {value}. Legg til et verktøy som produserer {value_2} før dette steget."
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Manglende inndata: "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " dette verktøyet trenger "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "{join}"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": ", men ingenting tidligere i flyten produserer {value}. Legg til et verktøy som produserer {value_2} før dette steget."
           }
         ]
       },
@@ -2573,12 +3474,99 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "MoreHorizontalIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "More"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "MoreHorizontalIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Mer"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-187@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "More"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Mer{/=m1}"
+            "text": "Mer"
           }
         ]
       },
@@ -2708,12 +3696,107 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "AlertCircle",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "needs "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "AlertCircle",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "trenger {join}"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-191@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "needs"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}trenger {join}{/=m1}"
+            "text": "trenger {join}"
           }
         ]
       },
@@ -2924,12 +4007,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Copy",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " No duplicates — cannot be repeated"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Copy",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Ingen duplikater — kan ikke gjentas"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-199@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "No duplicates — cannot be repeated"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Ingen duplikater — kan ikke gjentas"
+            "text": "Ingen duplikater — kan ikke gjentas"
           }
         ]
       },
@@ -3437,12 +4565,166 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{o.type}",
+              "equiv": "o.type"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "on "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{o.side}",
+              "equiv": "o.side"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "OverlaySpans",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {o.type} "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "på {o.side}"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "OverlaySpans",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-215@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "on"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {o.type} {/=m0} {=m2}på {o.side}{/=m2} {=m4}"
+            "text": "{o.type} på {o.side}"
           }
         ]
       },
@@ -3464,12 +4746,99 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Open to preview"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Åpne for å forhåndsvise"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-216@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Open to preview"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Åpne for å forhåndsvise{/=m1}"
+            "text": "Åpne for å forhåndsvise"
           }
         ]
       },
@@ -3788,12 +5157,158 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "GitBranch",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Parallel "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{branches.length}",
+              "equiv": "branches.length"
+            }
+          },
+          {
+            "text": " branches "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "GitBranch",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " Parallell "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " {branches.length} grener "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-227@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Parallel branches"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} Parallell {/=m1} {=m2} {branches.length} grener {/=m2}"
+            "text": "Parallell {branches.length} grener"
           }
         ]
       },
@@ -3815,12 +5330,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "GitBranch",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Parallelize"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "GitBranch",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Parallelliser"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-228@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Parallelize"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Parallelliser"
+            "text": "Parallelliser"
           }
         ]
       },
@@ -3869,12 +5429,74 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{k}",
+              "equiv": "k"
+            }
+          },
+          {
+            "text": ": "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "{k}: {value} "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-22@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": ":"
           }
         ],
         "nb": [
           {
-            "text": "{k}: {value} {=m2}"
+            "text": "{k}: {value}"
           }
         ]
       },
@@ -4328,12 +5950,59 @@
       "variants": {
         "en": [
           {
-            "text": "Plural pivot:"
+            "text": "Plural pivot: "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{pivot}",
+              "equiv": "pivot"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Flertallspivot: {=m0}{pivot}{/=m0}"
+            "text": "Flertallspivot: "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "{pivot}"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
           }
         ]
       },
@@ -4490,12 +6159,99 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Eye",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Preview"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Eye",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Forhåndsvisning"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-250@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Preview"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Forhåndsvisning{/=m1}"
+            "text": "Forhåndsvisning"
           }
         ]
       },
@@ -4517,12 +6273,99 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Preview:"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Forhåndsvisning:"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-251@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Preview:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Forhåndsvisning:{/=m0} {=m1}"
+            "text": "Forhåndsvisning:"
           }
         ]
       },
@@ -4760,12 +6603,185 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " ["
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{startRun}",
+              "equiv": "startRun"
+            }
+          },
+          {
+            "text": ":"
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{endRun}",
+              "equiv": "endRun"
+            }
+          },
+          {
+            "text": "] "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "7",
+              "type": "jsx:node",
+              "data": "{=m6}",
+              "equiv": "=m6"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " [{startRun}:{endRun}] "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "7",
+              "type": "jsx:node",
+              "data": "{=m6}",
+              "equiv": "=m6"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-25@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "[:]"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} [{startRun}:{endRun}] {/=m1} {=m4} {=m5} {=m6}"
+            "text": "[{startRun}:{endRun}]"
           }
         ]
       },
@@ -5894,12 +7910,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Lock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Required — must be kept in the translation"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Lock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Påkrevd — må beholdes i oversettelsen"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-298@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Required — must be kept in the translation"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Påkrevd — må beholdes i oversettelsen"
+            "text": "Påkrevd — må beholdes i oversettelsen"
           }
         ]
       },
@@ -6056,12 +8117,121 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "RefreshCw",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " Retry Policy "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "RefreshCw",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " Policy for nye forsøk "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-302@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Retry Policy"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} {=m2} Policy for nye forsøk {/=m2}"
+            "text": "Policy for nye forsøk"
           }
         ]
       },
@@ -6083,12 +8253,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Layers",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " rewrites source"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Layers",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " omskriver kilden"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-303@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "rewrites source"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} omskriver kilden"
+            "text": "omskriver kilden"
           }
         ]
       },
@@ -6569,12 +8784,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add item"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til element"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-31@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add item"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til element"
+            "text": "Legg til element"
           }
         ]
       },
@@ -7163,12 +9423,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add rule"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Plus",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til regel"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-33@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add rule"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til regel"
+            "text": "Legg til regel"
           }
         ]
       },
@@ -7568,12 +9873,231 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{overlay.type}",
+              "equiv": "overlay.type"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{overlay.side}",
+              "equiv": "overlay.side"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "7",
+              "type": "jsx:var",
+              "data": "{length}",
+              "equiv": "length"
+            }
+          },
+          {
+            "text": " span"
+          },
+          {
+            "ph": {
+              "id": "8",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m5}",
+              "equiv": "=m5"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {overlay.type} "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "{overlay.side}"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " {length} span{value} "
+          },
+          {
+            "pcClose": {
+              "id": "5",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m5}",
+              "equiv": "=m5"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-353@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "span"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {overlay.type} {/=m0} {=m2}{overlay.side}{/=m2} {=m4} {=m5} {length} span{value} {/=m5}"
+            "text": "{overlay.type} {overlay.side} {length} span{value}"
           }
         ]
       },
@@ -7595,12 +10119,123 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " src "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "CodedTextDisplay",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "LocalePill",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " src "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "CodedTextDisplay",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "LocalePill",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-354@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "src"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} src {/=m0} {=m1} {=m2}"
+            "text": "src"
           }
         ]
       },
@@ -7892,12 +10527,97 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Tags:"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "Tagger:"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-364@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Tags:"
           }
         ],
         "nb": [
           {
-            "text": "{=m0}Tagger:{/=m0} {=m1}"
+            "text": "Tagger:"
           }
         ]
       },
@@ -8324,12 +11044,123 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " tgt "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "CodedTextDisplay",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "LocalePill",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " tgt "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "CodedTextDisplay",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "LocalePill",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-379@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "tgt"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} tgt {/=m0} {=m1} {=m2}"
+            "text": "tgt"
           }
         ]
       },
@@ -8567,12 +11398,99 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "PanelLeftIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Toggle Sidebar"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "PanelLeftIcon",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Vis/skjul sidepanel"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-387@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Toggle Sidebar"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Vis/skjul sidepanel{/=m1}"
+            "text": "Vis/skjul sidepanel"
           }
         ]
       },
@@ -8648,12 +11566,65 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Add your own files "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{hidden}",
+              "equiv": "hidden"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Legg til egne filer {hidden}"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-38@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add your own files"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Legg til egne filer {hidden}"
+            "text": "Legg til egne filer {hidden}"
           }
         ]
       },
@@ -8702,12 +11673,121 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Clock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Trace"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Clock",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Sporing"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:node",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-391@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Trace"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Sporing{/=m1} {=m2}"
+            "text": "Sporing"
           }
         ]
       },
@@ -8783,12 +11863,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Layers",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Transformers"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Layers",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Omformere"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-394@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Transformers"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Omformere"
+            "text": "Omformere"
           }
         ]
       },
@@ -8945,12 +12070,161 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Add your own files"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " drop here or click to browse "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{hidden}",
+              "equiv": "hidden"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Upload",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "Legg til egne filer"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " slipp her, eller klikk for å bla gjennom "
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " {hidden}"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-39@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Add your own files drop here or click to browse"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}Legg til egne filer{/=m1} {=m2} slipp her, eller klikk for å bla gjennom {/=m2} {hidden}"
+            "text": "Legg til egne filer slipp her, eller klikk for å bla gjennom {hidden}"
           }
         ]
       },
@@ -9809,12 +13083,178 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{s.start}",
+              "equiv": "s.start"
+            }
+          },
+          {
+            "text": "–"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{s.end}",
+              "equiv": "s.end"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " {s.start}–{s.end} "
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " {value} "
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-428@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "–"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {s.start}–{s.end} {/=m0} {=m3} {value} {/=m3} {=m5}"
+            "text": "{s.start}–{s.end} {value}"
           }
         ]
       },
@@ -10106,12 +13546,99 @@
       "variants": {
         "en": [
           {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "→"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "PreviewSegment",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "→"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "PreviewSegment",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-438@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "→"
           }
         ],
         "nb": [
           {
-            "text": "{=m0}→{/=m0} {=m1}"
+            "text": "→"
           }
         ]
       },
@@ -10754,12 +14281,68 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileWarning",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Binary "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{ft.label}",
+              "equiv": "ft.label"
+            }
+          },
+          {
+            "text": " — use Preview, or download to inspect the raw bytes."
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "FileWarning",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Binær {ft.label} — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-61@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Binary — use Preview, or download to inspect the raw bytes."
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Binær {ft.label} — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
+            "text": "Binær {ft.label} — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
           }
         ]
       },
@@ -10781,12 +14364,356 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "block"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{node.id}",
+              "equiv": "node.id"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "6",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m6}",
+              "equiv": "=m6"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "8",
+              "type": "jsx:node",
+              "data": "{=m7}",
+              "equiv": "=m7"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "9",
+              "type": "jsx:node",
+              "data": "{=m8}",
+              "equiv": "=m8"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "9",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m9}",
+              "equiv": "=m9"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "11",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " runs · "
+          },
+          {
+            "ph": {
+              "id": "12",
+              "type": "jsx:var",
+              "data": "{wordCount}",
+              "equiv": "wordCount"
+            }
+          },
+          {
+            "text": " words "
+          },
+          {
+            "pcClose": {
+              "id": "9",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m9}",
+              "equiv": "=m9"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "6",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m6}",
+              "equiv": "=m6"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:node",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": "blokk"
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "{node.id}"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:node",
+              "data": "{=m4}",
+              "equiv": "=m4"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:node",
+              "data": "{=m5}",
+              "equiv": "=m5"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "6",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m6}",
+              "equiv": "=m6"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "8",
+              "type": "jsx:node",
+              "data": "{=m7}",
+              "equiv": "=m7"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "9",
+              "type": "jsx:node",
+              "data": "{=m8}",
+              "equiv": "=m8"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "9",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m9}",
+              "equiv": "=m9"
+            }
+          },
+          {
+            "text": " {value} runs · {wordCount} ord "
+          },
+          {
+            "pcClose": {
+              "id": "9",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m9}",
+              "equiv": "=m9"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "6",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m6}",
+              "equiv": "=m6"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-62@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "block runs · words"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1}blokk{/=m1} {=m2}{node.id}{/=m2} {=m4} {=m5} {=m6} {=m7} {=m8} {=m9} {value} runs · {wordCount} ord {/=m9} {/=m6}"
+            "text": "blokk {node.id} {value} runs · {wordCount} ord"
           }
         ]
       },
@@ -10809,11 +14736,65 @@
         "en": [
           {
             "text": "Blocks"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
           }
         ],
         "nb": [
           {
-            "text": "Blokker{value} {=m1}"
+            "text": "Blokker{value} "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:node",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-63@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Blocks"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Blokker{value}"
           }
         ]
       },
@@ -11051,12 +15032,163 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Zap",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " can run in parallel — "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{suggestion.reason}",
+              "equiv": "suggestion.reason"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Zap",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{=m1}",
+              "equiv": "=m1"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "{join}"
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " kan kjøre parallelt — {suggestion.reason} "
+          },
+          {
+            "pcClose": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "span",
+              "data": "{/=m1}",
+              "equiv": "=m1"
+            }
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-71@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "can run in parallel —"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} {=m1} {=m2}{join}{/=m2} kan kjøre parallelt — {suggestion.reason} {/=m1}"
+            "text": "{join} kan kjøre parallelt — {suggestion.reason}"
           }
         ]
       },
@@ -11159,12 +15291,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Checkbox",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Case"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Checkbox",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Versalfølsom"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-75@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Case"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Versalfølsom"
+            "text": "Versalfølsom"
           }
         ]
       },
@@ -11672,12 +15849,57 @@
       "variants": {
         "en": [
           {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Pencil",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Configure"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:element",
+              "subType": "Pencil",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " Konfigurer"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "libraries-nb.tmx",
+          "addedAt": "2026-06-11T08:02:59Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-6ecf5a671421a23d-1781164979881994118"
+        }
+      ],
+      "created": "2026-06-11T08:02:59Z",
+      "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb.tmx:tu-92@tmx-6ecf5a67-plain",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
             "text": "Configure"
           }
         ],
         "nb": [
           {
-            "text": "{=m0} Konfigurer"
+            "text": "Konfigurer"
           }
         ]
       },

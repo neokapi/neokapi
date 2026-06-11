@@ -41,6 +41,24 @@ Review happens in the seeds — they are the human-owned artifact. For a
 reviewer-friendly view, `make l10n-review-export` writes TMX/CSV renderings
 under `l10n/review/`; corrections still land in the `.klftm`/`.klftb`.
 
+## Seed authoring rules
+
+Markup tokens must be **run-structured, never literal text**. A KLF
+runtime-projection token like `{=m0}`/`{/=m0}` is format-specific markup;
+baked into a variant's text it leaks verbatim into every other surface
+that happens to share the words (the docs "`{=m0} Installer`" class of
+bug). Store such tokens as real inline-code runs — `ph` for a standalone
+element, `pcOpen`/`pcClose` for a paired one, with the literal token text
+as `data` — in **both** the source and target variants, so the TM matches
+them structurally (same code structure scores 1.0; a bare-text lookalike
+caps below it) and `tm-leverage` fills targets with the entry's runs,
+tokens intact. Named parameters like `{count}` are not markup and stay
+literal text. `kapi tm import` warns about entries whose variants disagree
+on their token sets; a clean import (no warnings, `make l10n-seed`) is the
+gate. Where a plain-text surface legitimately shares the words with a
+token-bearing UI string, keep a separate plain entry (the `…-plain`
+companion entries) rather than reusing the structured one.
+
 ## Why not PO files? (decided, not overlooked)
 
 The Go-surface catalogs (builtins, CLI help) are standard gettext at
@@ -56,3 +74,31 @@ files for a translator and `kapi merge -i` applies them back (updating the
 TM, which updates the seeds). There is exactly one translation loop —
 seeds → TM → extract/merge — and PO is an interchange format of that loop,
 never a parallel gettext workflow (no committed `po/` tree, no msgmerge).
+
+## What is committed where (and why)
+
+Localization artifacts in git fall into three tiers; everything else is
+gitignored ephemera (`.kapi/` state, extraction batches, `i18n-*/`
+intermediates, `l10n/review/`).
+
+1. **Source — human-owned.** The seeds here (`tm/*.klftm`,
+   `termbase.klftb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
+   `web/docs/i18n/<locale>/`, and harness narration. Tooling may have
+   written the first draft, but humans own the content; nothing
+   regenerates them. Corrections land here.
+2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
+   catalogs, `commands.json`/`metadata.json` inventories, and the
+   frontend runtime catalogs (`public/translations/<locale>.json`).
+   Committed because `go:embed` needs them at build time (regenerating
+   needs a built kapi — a bootstrap cycle) and the apps ship them as
+   static assets. `make l10n-verify` (CI: the l10n-drift job) fails on
+   any byte drift from the seeds. Never hand-edit.
+3. **Materialized targets — derived but checkpointed.** The translated
+   docs pages under `web/docs/i18n/<locale>/.../current/`. Derived from
+   source + TM, but committed deliberately: re-materialization is not a
+   pure function (TM gaps and ambiguous matches intentionally fall back
+   to English rather than guess), review and publishing operate on the
+   pages themselves, and Docusaurus treats locale trees as content.
+   Hand-edits here bypass the TM — fold corrections back through
+   `kapi extract`/`merge` (or the seeds) instead. A docs-drift gate
+   (re-materialize and diff, like l10n-verify) is a planned follow-up.
