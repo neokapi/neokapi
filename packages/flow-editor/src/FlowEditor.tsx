@@ -670,9 +670,20 @@ export function FlowEditor({
       if (w > 0) setColumns(Math.max(1, Math.floor((w - CANVAS_MARGIN) / SERP_COL_W)));
     };
     measure();
-    const ro = new ResizeObserver(measure);
+    // Defer the re-measure out of the ResizeObserver callback: setting state
+    // synchronously inside it can re-layout within the same frame, which the
+    // browser reports as "ResizeObserver loop completed with undelivered
+    // notifications".
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, []);
 
   // Build tool lookup map for enriching nodes with category/description

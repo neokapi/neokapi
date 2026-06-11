@@ -132,6 +132,33 @@ const config: Config = {
         },
       };
     },
+    // Keep the dev-server's red error overlay for REAL runtime errors, but
+    // drop the benign Chrome "ResizeObserver loop completed with undelivered
+    // notifications" report — it means an observer skipped a frame (React
+    // Flow and the lab's panel resizes trigger it routinely), not that
+    // anything failed. Docusaurus merges a webpack config's `devServer` into
+    // its own dev-server options (start/webpack.js).
+    function devServerOverlayFilter() {
+      return {
+        name: "dev-server-overlay-filter",
+        configureWebpack() {
+          return {
+            devServer: {
+              client: {
+                overlay: {
+                  errors: true,
+                  warnings: false,
+                  runtimeErrors: (error: Error) =>
+                    !/ResizeObserver loop (completed with undelivered notifications|limit exceeded)/.test(
+                      error?.message ?? "",
+                    ),
+                },
+              },
+            },
+          };
+        },
+      };
+    },
   ],
 
   presets: [
