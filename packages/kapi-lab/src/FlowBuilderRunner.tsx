@@ -566,16 +566,20 @@ export default function FlowBuilderRunner({
           </div>
         )}
         {/* The scenario's lesson: a walkthrough card that drives the workspace
-            (each step focuses the node/panel it talks about), or the static
-            description for free-play scenarios. */}
+            (each step focuses the node/panel it talks about). On sm+ it lives
+            INSIDE the canvas as a callout (FlowEditor lessonPanel) so the
+            editor keeps its vertical real estate; on phones it stacks here.
+            Free-play scenarios show their static description instead. */}
         {scenario.walkthrough && !imported ? (
-          <WalkthroughCard
-            steps={scenario.walkthrough}
-            index={walkIndex}
-            onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
-            onRun={() => void runFlow(flow)}
-            runDisabled={!runtime.ready || busy}
-          />
+          <div className="sm:hidden">
+            <WalkthroughCard
+              steps={scenario.walkthrough}
+              index={walkIndex}
+              onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+              onRun={() => void runFlow(flow)}
+              runDisabled={!runtime.ready || busy}
+            />
+          </div>
         ) : (
           <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
         )}
@@ -662,6 +666,17 @@ export default function FlowBuilderRunner({
             renderEndpointPanel={imported ? undefined : renderEndpointPanel}
             focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
+            lessonPanel={
+              scenario.walkthrough && !imported ? (
+                <WalkthroughCard
+                  steps={scenario.walkthrough}
+                  index={walkIndex}
+                  onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+                  onRun={() => void runFlow(flow)}
+                  runDisabled={!runtime.ready || busy}
+                />
+              ) : undefined
+            }
           />
         </div>
 

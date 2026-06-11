@@ -31,7 +31,9 @@ export default function WalkthroughCard({
   const last = index === steps.length - 1;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-l-4 border-border border-l-primary bg-card px-3 py-2.5">
+    // bg-card/95 + blur + shadow keep the card legible when it floats as a
+    // callout over the canvas dots (FlowEditor lessonPanel); harmless inline.
+    <div className="flex flex-col gap-2 rounded-lg border border-l-4 border-border border-l-primary bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
           <GraduationCap size={12} />

@@ -202,6 +202,13 @@ export interface FlowEditorProps {
    * default panel.
    */
   renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
+  /**
+   * Host-rendered lesson callout, shown as an overlay INSIDE the canvas
+   * (bottom-left) on sm+ screens so the lesson sits next to the nodes it
+   * points at instead of consuming page height above the editor. Hidden on
+   * phones — stack the same content above the editor there instead.
+   */
+  lessonPanel?: import("react").ReactNode;
 }
 
 /** Context passed to renderStepConfigPanel (see FlowEditorProps). */
