@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -569,9 +570,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			fc = &FileCache{Blocks: map[string]string{}}
 			c.cache.Files[itemName] = fc
 		}
-		for blockID, hash := range fileHashes {
-			fc.Blocks[blockID] = hash
-		}
+		maps.Copy(fc.Blocks, fileHashes)
 	}
 	// Update cache with per-file asset hashes.
 	for itemName, assetHashes := range mediaHashMap {
@@ -583,9 +582,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		if fc.Assets == nil {
 			fc.Assets = map[string]string{}
 		}
-		for sourceID, blobKey := range assetHashes {
-			fc.Assets[sourceID] = blobKey
-		}
+		maps.Copy(fc.Assets, assetHashes)
 	}
 	c.cache.SetStreamCursor(c.stream, lastCursor)
 	c.cache.LastSync = time.Now().UTC()
@@ -1122,7 +1119,9 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 			srcPattern := coreproj.ResolvePathPattern(it.Item.Path, srcLang)
 			prefix := globFixedPrefix(srcPattern)
 			relative := strings.TrimPrefix(relPath, prefix)
-			destPrefix := coreproj.ResolvePathPattern(globFixedPrefix(it.Item.Target), locale)
+			// Expand {lang} before taking the fixed prefix — the other way
+			// around the prefix stops at '{' and the locale segment is lost.
+			destPrefix := globFixedPrefix(coreproj.ResolvePathPattern(it.Item.Target, locale))
 			result := destPrefix + relative
 			return result
 		}

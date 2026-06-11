@@ -67,7 +67,7 @@ type Spec struct {
 type Record struct {
 	Type     string    `json:"type"`
 	Document string    `json:"document,omitempty"`
-	Block    klf.Block `json:"block,omitempty"`
+	Block    klf.Block `json:"block,omitzero"`
 }
 
 // Run invokes an extractor subprocess, feeds it `paths` as NUL-

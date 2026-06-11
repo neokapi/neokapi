@@ -400,7 +400,10 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Initialize job queue if Service Bus or NATS is configured.
+	// Initialize job queues if Service Bus or NATS is configured. The
+	// extraction queue feeds the auto-extract automation (AD-013/AD-015):
+	// triggerAutoExtract enqueues here and bowrain-worker's extraction
+	// worker consumes.
 	switch {
 	case cfg.ServiceBusConnection != "":
 		q, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "translation-jobs")
@@ -409,12 +412,24 @@ func NewServer(cfg Config) *Server {
 		} else {
 			s.JobQueue = q
 		}
+		eq, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "extraction-jobs")
+		if err != nil {
+			slog.Warn("failed to connect to Service Bus extraction queue", "error", err)
+		} else {
+			s.ExtractionQueue = eq
+		}
 	case cfg.NATSURL != "":
 		q, err := jobs.NewNATSQueue(cfg.NATSURL)
 		if err != nil {
 			slog.Warn("failed to connect to NATS queue", "error", err)
 		} else {
 			s.JobQueue = q
+		}
+		eq, err := jobs.NewNATSExtractionQueue(cfg.NATSURL)
+		if err != nil {
+			slog.Warn("failed to connect to NATS extraction queue", "error", err)
+		} else {
+			s.ExtractionQueue = eq
 		}
 	}
 

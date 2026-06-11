@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -144,10 +145,7 @@ func parseNumericRef(ref string) (int, error) {
 // declaration if present in the first ~256 bytes. Returns "" when the
 // file has no declaration or no encoding attribute.
 func xmlEncodingFromProlog(raw []byte) string {
-	limit := len(raw)
-	if limit > 256 {
-		limit = 256
-	}
+	limit := min(len(raw), 256)
 	head := string(raw[:limit])
 	start := strings.Index(head, "<?xml")
 	if start < 0 {
@@ -158,11 +156,11 @@ func xmlEncodingFromProlog(raw []byte) string {
 		return ""
 	}
 	prolog := head[start : start+end]
-	idx := strings.Index(prolog, "encoding")
-	if idx < 0 {
+	_, after, ok := strings.Cut(prolog, "encoding")
+	if !ok {
 		return ""
 	}
-	rest := prolog[idx+len("encoding"):]
+	rest := after
 	rest = strings.TrimLeft(rest, " \t=")
 	if len(rest) == 0 {
 		return ""
@@ -172,11 +170,11 @@ func xmlEncodingFromProlog(raw []byte) string {
 		return ""
 	}
 	rest = rest[1:]
-	q := strings.IndexByte(rest, quote)
-	if q < 0 {
+	before, _, ok := strings.Cut(rest, string(quote))
+	if !ok {
 		return ""
 	}
-	return rest[:q]
+	return before
 }
 
 // rewriteXMLEncodingToUTF8 normalizes the encoding attribute in the
@@ -189,11 +187,11 @@ func rewriteXMLEncodingToUTF8(s string) string {
 	}
 	prolog := s[:end]
 	rest := s[end:]
-	idx := strings.Index(prolog, "encoding")
-	if idx < 0 {
+	before, after, ok := strings.Cut(prolog, "encoding")
+	if !ok {
 		return s
 	}
-	tail := prolog[idx+len("encoding"):]
+	tail := after
 	trimmed := strings.TrimLeft(tail, " \t=")
 	if len(trimmed) == 0 {
 		return s
@@ -207,7 +205,7 @@ func rewriteXMLEncodingToUTF8(s string) string {
 		return s
 	}
 	consumed := len(tail) - len(trimmed) + 1 + q + 1
-	return prolog[:idx] + `encoding="UTF-8"` + tail[consumed:] + rest
+	return before + `encoding="UTF-8"` + tail[consumed:] + rest
 }
 
 // Reader implements DataFormatReader for XLIFF 1.2 files.
@@ -471,11 +469,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				translatable := tu.translatable
 				if translatable {
 					// Check group stack for translate="no"
-					for _, gt := range groupStack {
-						if gt == "no" {
-							translatable = false
-							break
-						}
+					if slices.Contains(groupStack, "no") {
+						translatable = false
 					}
 				}
 

@@ -627,7 +627,7 @@ func trailingWhitespace(s string) string {
 func findDoubledWord(text, exceptions string) string {
 	excSet := set.New[string]()
 	if exceptions != "" {
-		for _, w := range strings.Split(exceptions, ";") {
+		for w := range strings.SplitSeq(exceptions, ";") {
 			w = strings.TrimSpace(w)
 			if w != "" {
 				excSet.Add(strings.ToLower(w))
@@ -758,10 +758,7 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []ch
 	}
 
 	if strictOrder && len(findings) == 0 {
-		minLen := len(sourceTypes)
-		if len(targetTypes) < minLen {
-			minLen = len(targetTypes)
-		}
+		minLen := min(len(targetTypes), len(sourceTypes))
 		for i := range minLen {
 			if sourceTypes[i] != targetTypes[i] {
 				findings = append(findings, check.Finding{

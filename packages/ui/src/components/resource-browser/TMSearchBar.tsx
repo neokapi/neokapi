@@ -15,6 +15,16 @@ interface MarkedEntity extends EntityAnnotationDTO {
   id: string;
 }
 
+/**
+ * Hint shown next to the entity chips: lookup progress while a lookup runs,
+ * the Enter-to-lookup affordance when lookup is available, otherwise nothing.
+ */
+function lookupHint(lookupLoading: boolean, hasLookup: boolean): string {
+  if (lookupLoading) return "Looking up...";
+  if (hasLookup) return "Enter to lookup";
+  return "";
+}
+
 /** A parsed filter token like { key: "language", value: "fr-FR" } */
 export interface FilterToken {
   key: string;
@@ -371,7 +381,7 @@ export function TMSearchBar({
             );
           })}
           <span className="text-[10px] text-muted-foreground ml-1">
-            {lookupLoading ? "Looking up..." : onLookup ? "Enter to lookup" : ""}
+            {lookupHint(lookupLoading, onLookup !== undefined)}
           </span>
         </div>
       )}

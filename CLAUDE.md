@@ -19,7 +19,7 @@ The repository is a **multi-module monorepo** with seven Go modules:
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core.
 - **SaT plugin** (`github.com/neokapi/neokapi/plugins/sat`) — the `kapi-sat` segmenter plugin: runs wtpsplit *Segment any Text* ONNX models in-process (cgo onnxruntime + XLM-RoBERTa tokenizer, gated behind `-tags onnx`) and speaks a line-delimited JSON segmentation protocol on stdin/stdout. Isolated so its native ML stack never enters the `kapi` binary; the CLI's `sat` segment engine (`cli/segment_sat.go`) discovers and drives it. The pure-Go `satproto` package + protocol/algorithm tests build with no native deps.
 
-Both **kapi** and **bowrain** binaries share a common base in `cli/`. The base provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer`, `cli.RegisterMCPToolFactory` (CLI-side), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/docs/notes-internal/plugin-model.md).
+Both **kapi** and **bowrain** binaries share a common base in `cli/`. The base provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer`, `cli.RegisterMCPToolFactory` (CLI-side), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/docs/contribute/notes-internal/plugin-model.md).
 
 A `go.work` file at the root coordinates the modules for local development. The framework (`core/`) stays platform-agnostic — bowrain attaches via the extension mechanism and the CLI plugin registries, not via direct imports from `core/` to bowrain.
 
@@ -48,7 +48,7 @@ make -C bowrain build-server   # Build bowrain server
 vp install              # Install all frontend workspace members (run at repo root)
 ```
 
-> **Note:** A single root `package.json` npm workspace coordinates all frontend
+> **Note:** A single root pnpm workspace (`pnpm-workspace.yaml`) coordinates all frontend
 > packages (`packages/ui`, `packages/flow-editor`,
 > `apps/kapi-desktop/frontend`, `bowrain/apps/bowrain/frontend`,
 > `bowrain/apps/web`, `bowrain/apps/ctrl`, `website`). Run `vp install` at the
@@ -252,8 +252,8 @@ neokapi/
 │   └── compose.override.yaml
 │
 │   ── Shared Frontend (Apache-2.0) ─────
-├── package.json           # Root npm workspace coordinating all frontend packages
-├── .npmrc                 # install-strategy=hoisted (npm 11)
+├── package.json           # Root package.json; workspace members live in pnpm-workspace.yaml
+├── .npmrc                 # pnpm registry/auth config (behavioral settings live in pnpm-workspace.yaml)
 ├── storybook/             # Kapi Storybook config (port 6007, aggregates packages/ui + flow-editor + kapi-desktop)
 ├── packages/
 │   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and bowrain apps

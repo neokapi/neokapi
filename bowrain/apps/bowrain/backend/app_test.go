@@ -17,11 +17,11 @@ func TestListFormats(t *testing.T) {
 	app := NewApp()
 	fmts := app.ListFormats()
 
-	assert.True(t, len(fmts) >= 14, "expected at least 14 formats, got %d", len(fmts))
+	assert.GreaterOrEqual(t, len(fmts), 14, "expected at least 14 formats, got %d", len(fmts))
 
 	// Verify sorted
 	for i := 1; i < len(fmts); i++ {
-		assert.True(t, fmts[i-1].Name < fmts[i].Name,
+		assert.Less(t, fmts[i-1].Name, fmts[i].Name,
 			"formats not sorted: %s >= %s", fmts[i-1].Name, fmts[i].Name)
 	}
 

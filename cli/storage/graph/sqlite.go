@@ -369,7 +369,7 @@ func (s *SQLiteGraphStore) ShortestPath(ctx context.Context, fromID, toID string
 	}
 
 	path := &coreg.Path{}
-	for _, nid := range strings.Split(pathNodesStr, ",") {
+	for nid := range strings.SplitSeq(pathNodesStr, ",") {
 		if nid == "" {
 			continue
 		}
@@ -380,7 +380,7 @@ func (s *SQLiteGraphStore) ShortestPath(ctx context.Context, fromID, toID string
 		path.Nodes = append(path.Nodes, *n)
 	}
 	if pathEdgesStr != "" {
-		for _, eid := range strings.Split(pathEdgesStr, ",") {
+		for eid := range strings.SplitSeq(pathEdgesStr, ",") {
 			if eid == "" {
 				continue
 			}

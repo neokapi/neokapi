@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -106,9 +107,7 @@ func mergeConnectorConfig(existing, incoming map[string]string) map[string]strin
 		return existing
 	}
 	merged := make(map[string]string, len(incoming))
-	for k, v := range incoming {
-		merged[k] = v
-	}
+	maps.Copy(merged, incoming)
 	for k, v := range existing {
 		if _, present := merged[k]; !present && isSecretConnectorKey(k) {
 			merged[k] = v

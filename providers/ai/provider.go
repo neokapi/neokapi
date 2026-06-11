@@ -277,10 +277,8 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 		if reg.Info.Name == name {
 			return reg.Factory(cfg), nil
 		}
-		for _, alias := range reg.Aliases {
-			if alias == name {
-				return reg.Factory(cfg), nil
-			}
+		if slices.Contains(reg.Aliases, name) {
+			return reg.Factory(cfg), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))

@@ -705,7 +705,7 @@ func resolveTargetLocales(cmd *cobra.Command, ctx *project.ProjectContext) ([]mo
 	}
 	var out []model.LocaleID
 	seen := make(map[model.LocaleID]bool)
-	for _, item := range strings.Split(raw, ",") {
+	for item := range strings.SplitSeq(raw, ",") {
 		item = strings.TrimSpace(item)
 		if item == "" {
 			continue

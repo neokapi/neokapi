@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -482,9 +483,7 @@ func (r *Reader) consumePendingState(state *readState, block *model.Block) {
 			})
 		}
 		if state.pendingMeta != nil {
-			for k, v := range state.pendingMeta {
-				block.Properties[k] = v
-			}
+			maps.Copy(block.Properties, state.pendingMeta)
 		}
 		if state.pendingMaxwidth >= 0 {
 			block.Properties["maxwidth"] = strconv.Itoa(state.pendingMaxwidth)

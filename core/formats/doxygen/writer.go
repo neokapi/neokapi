@@ -873,8 +873,8 @@ func (w *Writer) writeDocstring(text, raw string, _ []string) error {
 
 	// Multi-line: emit opening """ + text on same line if original had it
 	trimmedFirst := strings.TrimSpace(rawLines[0])
-	idx := strings.Index(trimmedFirst, `"""`)
-	afterOpen := strings.TrimSpace(trimmedFirst[idx+3:])
+	_, after, _ := strings.Cut(trimmedFirst, `"""`)
+	afterOpen := strings.TrimSpace(after)
 	if afterOpen != "" {
 		// Text follows opening """
 		if _, err := fmt.Fprintf(w.Output, `%s"""%s`, indent, text); err != nil {
@@ -889,8 +889,8 @@ func (w *Writer) writeDocstring(text, raw string, _ []string) error {
 	// Middle content lines — not used when layout drives reconstruction;
 	// this path handles the no-layout fallback.
 	if afterOpen == "" {
-		textLines := strings.Split(text, "\n")
-		for _, tl := range textLines {
+		textLines := strings.SplitSeq(text, "\n")
+		for tl := range textLines {
 			if _, err := fmt.Fprint(w.Output, nl); err != nil {
 				return err
 			}
@@ -1075,8 +1075,8 @@ func isStarBodyPrefix(body string) bool {
 // extractIndent returns the leading whitespace from the first line of raw text.
 func extractIndent(raw string) string {
 	firstLine := raw
-	if idx := strings.IndexByte(raw, '\n'); idx >= 0 {
-		firstLine = raw[:idx]
+	if before, _, ok := strings.Cut(raw, "\n"); ok {
+		firstLine = before
 	}
 	trimmed := strings.TrimLeft(firstLine, " \t")
 	return firstLine[:len(firstLine)-len(trimmed)]

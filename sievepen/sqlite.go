@@ -1074,10 +1074,7 @@ func BuildTrigramQuery(s string) string {
 	}
 
 	windowSize := 4
-	step := (len(runes) - windowSize) / 4
-	if step < 1 {
-		step = 1
-	}
+	step := max((len(runes)-windowSize)/4, 1)
 	var parts []string
 	seen := make(map[string]bool)
 	for i := 0; i < len(runes)-windowSize+1 && len(parts) < 6; i += step {
@@ -1588,9 +1585,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 	}
 
 	// Locale facets.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		var localeQ string
 		if subWhere == "1=1" {
 			localeQ = `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale ORDER BY COUNT(*) DESC`
@@ -1614,12 +1609,10 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 		}
 		rows.Close()
 		data.Locales = locales
-	}()
+	})
 
 	// Project facets.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + subWhere + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
 		rows, err := tm.db.QueryContext(ctx, projQ, subArgs...)
 		if err != nil {
@@ -1635,12 +1628,10 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 		}
 		rows.Close()
 		data.Projects = projects
-	}()
+	})
 
 	// Entity type facets.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
 			FROM tm_entry_entities ent
 			INNER JOIN tm_entries e ON e.id = ent.entry_id
@@ -1660,12 +1651,10 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 		}
 		rows.Close()
 		data.EntityTypes = types
-	}()
+	})
 
 	// Import session facets.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
 			FROM tm_import_sessions s
 			INNER JOIN tm_entry_origins o ON o.session_id = s.id
@@ -1688,12 +1677,10 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 		}
 		rows.Close()
 		data.ImportSessions = sessions
-	}()
+	})
 
 	// Inline code facets.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		codeQ := `SELECT
 			SUM(CASE WHEN e.has_codes = 1 THEN 1 ELSE 0 END),
 			SUM(CASE WHEN e.has_codes = 0 THEN 1 ELSE 0 END)
@@ -1701,7 +1688,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 		if err := tm.db.QueryRowContext(ctx, codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes); err != nil {
 			recordErr(fmt.Errorf("inline code facets: %w", err))
 		}
-	}()
+	})
 
 	wg.Wait()
 	if firstErr != nil {

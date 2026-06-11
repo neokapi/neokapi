@@ -165,8 +165,7 @@ func fieldToProperty(field reflect.StructField, val reflect.Value) *PropertySche
 // structProperties generates PropertySchema entries for a nested struct.
 func structProperties(t reflect.Type) map[string]PropertySchema {
 	props := make(map[string]PropertySchema)
-	for i := range t.NumField() {
-		f := t.Field(i)
+	for f := range t.Fields() {
 		if !f.IsExported() {
 			continue
 		}
@@ -202,7 +201,7 @@ func toCamelCase(s string) string {
 	// Find the boundary between leading uppercase and the rest.
 	// "XMLParser" -> "xmlParser", "FuzzyThreshold" -> "fuzzyThreshold"
 	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		if i == 0 {
 			runes[i] = toLower(runes[i])
 			continue
@@ -252,7 +251,7 @@ func goTypeToSchemaType(t reflect.Type) string {
 // applyTag parses a schema struct tag and applies values to the property.
 // Format: schema:"title=...,description=...,default=...,min=...,max=...,enum=a|b|c,widget=..."
 func applyTag(prop *PropertySchema, tag string) {
-	for _, part := range strings.Split(tag, ",") {
+	for part := range strings.SplitSeq(tag, ",") {
 		key, val, ok := strings.Cut(part, "=")
 		if !ok {
 			continue
@@ -269,7 +268,7 @@ func applyTag(prop *PropertySchema, tag string) {
 		case "placeholder":
 			prop.Placeholder = val
 		case "enum":
-			for _, e := range strings.Split(val, "|") {
+			for e := range strings.SplitSeq(val, "|") {
 				v := strings.TrimSpace(e)
 				prop.Options = append(prop.Options, OptionItem{Value: v, Label: v})
 			}
@@ -289,9 +288,9 @@ func applyTag(prop *PropertySchema, tag string) {
 				prop.Visible = &ConditionExpr{Field: field, Eq: eq}
 			}
 		case "showIfEmpty":
-			prop.Visible = &ConditionExpr{Field: val, Empty: boolPtr(true)}
+			prop.Visible = &ConditionExpr{Field: val, Empty: new(true)}
 		case "showIfSet":
-			prop.Visible = &ConditionExpr{Field: val, Empty: boolPtr(false)}
+			prop.Visible = &ConditionExpr{Field: val, Empty: new(false)}
 		}
 	}
 }
@@ -325,7 +324,7 @@ func parseDefault(s string, propType string) any {
 
 // tagValue extracts a specific key's value from a schema tag.
 func tagValue(tag, key string) string {
-	for _, part := range strings.Split(tag, ",") {
+	for part := range strings.SplitSeq(tag, ",") {
 		k, v, ok := strings.Cut(part, "=")
 		if ok && strings.TrimSpace(k) == key {
 			return strings.TrimSpace(v)
@@ -350,5 +349,3 @@ func toUpper(r rune) rune {
 	}
 	return r
 }
-
-func boolPtr(b bool) *bool { return &b }

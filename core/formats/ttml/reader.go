@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -321,9 +322,7 @@ func (r *Reader) emitCaptionBlocks(ctx context.Context, ch chan<- model.PartResu
 		if cap.textAlign != "" {
 			block.Properties["textAlign"] = cap.textAlign
 		}
-		for k, v := range cap.attrs {
-			block.Properties[k] = v
-		}
+		maps.Copy(block.Properties, cap.attrs)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}

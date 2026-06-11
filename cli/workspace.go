@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
@@ -65,10 +66,8 @@ func recipeAddTargetLang(r *project.KapiProject, locale string) {
 		return
 	}
 	loc := model.LocaleID(locale)
-	for _, l := range r.Defaults.TargetLanguages {
-		if l == loc {
-			return
-		}
+	if slices.Contains(r.Defaults.TargetLanguages, loc) {
+		return
 	}
 	r.Defaults.TargetLanguages = append(r.Defaults.TargetLanguages, loc)
 }

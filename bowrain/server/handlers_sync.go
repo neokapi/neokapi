@@ -317,7 +317,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 
 	var locales []string
 	if raw := c.QueryParam("locales"); raw != "" {
-		for _, l := range strings.Split(raw, ",") {
+		for l := range strings.SplitSeq(raw, ",") {
 			if t := strings.TrimSpace(l); t != "" {
 				locales = append(locales, t)
 			}

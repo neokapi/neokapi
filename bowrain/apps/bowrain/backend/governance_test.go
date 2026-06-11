@@ -62,13 +62,13 @@ func TestGovernanceNotConnected(t *testing.T) {
 	app := newTestApp(t)
 
 	_, err := app.ListMembers("acme")
-	assert.ErrorIs(t, err, errNotConnected)
+	require.ErrorIs(t, err, errNotConnected)
 
 	err = app.AddMember("acme", "u1", "member")
-	assert.ErrorIs(t, err, errNotConnected)
+	require.ErrorIs(t, err, errNotConnected)
 
 	_, err = app.GetSuggestedRules("acme", "p1", 0, false)
-	assert.ErrorIs(t, err, errNotConnected)
+	require.ErrorIs(t, err, errNotConnected)
 }
 
 func TestListMembers(t *testing.T) {

@@ -342,12 +342,10 @@ func commonRPrChildren(runs []textRun) []rPrChild {
 	// 355-388 getAttributes which iterates ContentCategory enum
 	// values in CT_Fonts attribute order).
 	if !rFontsInjected && mergedOK {
-		insertAt := seedRFontsPosition(textRuns)
-		// Bound insertAt by the size of `out` (some preceding common
-		// entries may have been intersected away).
-		if insertAt > len(out) {
-			insertAt = len(out)
-		}
+		insertAt := min(
+			// Bound insertAt by the size of `out` (some preceding common
+			// entries may have been intersected away).
+			seedRFontsPosition(textRuns), len(out))
 		out = append(out, rPrChild{}) // grow
 		copy(out[insertAt+1:], out[insertAt:])
 		out[insertAt] = rPrChild{name: "rFonts", xml: merged}
@@ -866,11 +864,11 @@ func parseRFontsAttrs(xmlStr string) ([]rfontsAttr, bool) {
 	}
 	rest := xmlStr[1+nameEnd:]
 	// Find end of start-tag.
-	tagEnd := strings.IndexByte(rest, '>')
-	if tagEnd < 0 {
+	before, _, ok := strings.Cut(rest, ">")
+	if !ok {
 		return nil, false
 	}
-	body := rest[:tagEnd]
+	body := before
 	if len(body) > 0 && body[len(body)-1] == '/' {
 		body = body[:len(body)-1]
 	}

@@ -298,10 +298,9 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 	for _, k := range r.cfg.FrontMatterKeys {
 		allow[k] = true
 	}
+	// strings.Split (not SplitSeq): the trailing empty element after the
+	// final newline must be dropped or the skeleton gains a blank line.
 	lines := strings.Split(yaml, "\n")
-	// The yaml slice ends with the newline before the closing fence, so the
-	// split yields a trailing empty element; dropping it avoids emitting a
-	// spurious blank line into the skeleton.
 	if n := len(lines); n > 0 && lines[n-1] == "" {
 		lines = lines[:n-1]
 	}

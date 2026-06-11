@@ -41,7 +41,7 @@ func filesHeading() *Block {
 			Component: "FilesHeading", JSXPath: "FilesHeading > h2", Element: "h2",
 		},
 		Preview: &BlockPreviewHints{
-			SampleValues: map[string]interface{}{"count": float64(3)},
+			SampleValues: map[string]any{"count": float64(3)},
 		},
 	}
 }
@@ -91,7 +91,7 @@ func tagChip() *Block {
 		},
 		Preview: &BlockPreviewHints{
 			StoryID: "components-tagchip--default",
-			SampleValues: map[string]interface{}{
+			SampleValues: map[string]any{
 				"label":     "react",
 				"index":     float64(3),
 				"deletable": true,
@@ -141,7 +141,7 @@ func shoppingCart() *Block {
 			Component: "ShoppingCart", JSXPath: "ShoppingCart > p > Plural", Element: "Plural",
 		},
 		Preview: &BlockPreviewHints{
-			SampleValues: map[string]interface{}{"count": float64(3)},
+			SampleValues: map[string]any{"count": float64(3)},
 		},
 	}
 }

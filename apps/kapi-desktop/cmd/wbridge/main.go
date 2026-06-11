@@ -86,7 +86,7 @@ func (h *eventHub) publish(name string, data any) {
 	h.mu.Unlock()
 }
 
-var errType = reflect.TypeOf((*error)(nil)).Elem()
+var errType = reflect.TypeFor[error]()
 
 type callRequest struct {
 	Method string            `json:"method"`

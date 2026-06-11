@@ -460,10 +460,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					if r.skeletonStore != nil {
 						endOff := decoder.InputOffset()
 						closeTag := "</source>"
-						endPos := int(endOff) - len(closeTag)
-						if endPos < 0 {
-							endPos = 0
-						}
+						endPos := max(int(endOff)-len(closeTag), 0)
 						elemPositions = append(elemPositions, elemPos{
 							startOffset: int(elemStartOff),
 							endOffset:   endPos,
@@ -480,10 +477,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					if r.skeletonStore != nil {
 						endOff := decoder.InputOffset()
 						closeTag := "</translation>"
-						endPos := int(endOff) - len(closeTag)
-						if endPos < 0 {
-							endPos = 0
-						}
+						endPos := max(int(endOff)-len(closeTag), 0)
 						elemType := "translation"
 						if messageNumerus {
 							// Numerus messages need their own ref so the
@@ -1059,14 +1053,14 @@ func stripCDATA(s string) string {
 		}
 		b.WriteString(s[:i])
 		rest := s[i+len(open):]
-		j := strings.Index(rest, close)
-		if j < 0 {
+		before, after, ok := strings.Cut(rest, close)
+		if !ok {
 			// No terminator — preserve the original text and stop.
 			b.WriteString(s[i:])
 			return b.String()
 		}
-		b.WriteString(rest[:j])
-		s = rest[j+len(close):]
+		b.WriteString(before)
+		s = after
 	}
 }
 

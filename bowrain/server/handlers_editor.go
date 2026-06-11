@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"strconv"
@@ -161,9 +162,7 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		if proj.Properties == nil {
 			proj.Properties = make(map[string]string)
 		}
-		for k, v := range req.Properties {
-			proj.Properties[k] = v
-		}
+		maps.Copy(proj.Properties, req.Properties)
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
@@ -1200,7 +1199,10 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	saved := s.CredentialStore.Upsert(req.toCredentials())
+	saved, err := s.CredentialStore.Upsert(req.toCredentials())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save provider config: %s", err)})
+	}
 
 	if req.APIKey != "" {
 		if err := s.CredentialStore.SetAPIKey(saved.ID, req.APIKey); err != nil {

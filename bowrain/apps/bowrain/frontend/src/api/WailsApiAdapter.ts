@@ -101,9 +101,7 @@ export interface CollabSessionInfo {
   user: { userId: string; name: string; avatarUrl?: string };
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { Backend } from "./backend";
 import { optionalBinding } from "./optionalBinding";
 
 /**

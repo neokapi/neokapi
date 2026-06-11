@@ -1285,9 +1285,8 @@ const pgSessionColumns = `id, file_key, file_hash, file_size_bytes, imported_at,
 	imported_by, tool_name, tool_version, seg_type, admin_lang, src_lang,
 	data_type, original_format, original_encoding, entry_count, properties::text`
 
-type pgScanner interface {
-	Scan(dest ...any) error
-}
+// pgScanner is an alias for storage.Scanner, satisfied by *sql.Row and *sql.Rows.
+type pgScanner = storage.Scanner
 
 func scanPgSession(sc pgScanner) (fw.ImportSession, bool) {
 	var s fw.ImportSession

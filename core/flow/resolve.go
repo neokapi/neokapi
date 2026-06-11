@@ -8,6 +8,7 @@ package flow
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,9 +62,7 @@ func ResolveToolConfig(config map[string]any, cs *schema.ComponentSchema, ctx Re
 	}
 
 	resolved := make(map[string]any, len(config))
-	for k, v := range config {
-		resolved[k] = v
-	}
+	maps.Copy(resolved, config)
 
 	for key, val := range resolved {
 		s, ok := val.(string)
@@ -139,8 +138,8 @@ func resolveURIPrefix(value string) (string, bool, error) {
 		PrefixTermbase: {kind: "termbase"},
 		PrefixSRX:      {kind: "srx"},
 	} {
-		if strings.HasPrefix(value, prefix) {
-			name := strings.TrimPrefix(value, prefix)
+		if after, ok := strings.CutPrefix(value, prefix); ok {
+			name := after
 			if name == "" {
 				return "", true, fmt.Errorf("empty resource name after %s prefix", prefix)
 			}

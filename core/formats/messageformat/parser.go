@@ -3,6 +3,7 @@ package messageformat
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -337,10 +338,8 @@ func (p *parser) readUntil(stops ...rune) string {
 	var buf strings.Builder
 	for p.pos < len(p.input) {
 		r, size := utf8.DecodeRuneInString(p.input[p.pos:])
-		for _, stop := range stops {
-			if r == stop {
-				return buf.String()
-			}
+		if slices.Contains(stops, r) {
+			return buf.String()
 		}
 		buf.WriteRune(r)
 		p.pos += size

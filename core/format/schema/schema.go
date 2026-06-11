@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -281,9 +282,7 @@ func (r *SchemaRegistry) AllSchemas() map[string]*FormatSchema {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	result := make(map[string]*FormatSchema, len(r.schemas))
-	for id, s := range r.schemas {
-		result[id] = s
-	}
+	maps.Copy(result, r.schemas)
 	return result
 }
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -88,8 +89,8 @@ func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareF
 		return func(c echo.Context) error {
 			// Try Bearer header first.
 			header := c.Request().Header.Get("Authorization")
-			if strings.HasPrefix(header, "Bearer ") {
-				token := strings.TrimPrefix(header, "Bearer ")
+			if after, ok := strings.CutPrefix(header, "Bearer "); ok {
+				token := after
 
 				// API token (bwt_ prefix).
 				if strings.HasPrefix(token, "bwt_") && authStore != nil {
@@ -176,7 +177,9 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 				slog.Error("recovered panic in API token last-used update", "panic", r)
 			}
 		}()
-		_ = authStore.UpdateAPITokenLastUsed(context.WithoutCancel(ctx), apiToken.ID)
+		if err := authStore.UpdateAPITokenLastUsed(context.WithoutCancel(ctx), apiToken.ID); err != nil {
+			slog.Debug("update API token last-used", "token_id", apiToken.ID, "error", err)
+		}
 	}()
 
 	return next(c)
@@ -190,8 +193,8 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 			header := c.Request().Header.Get("Authorization")
 
 			// Try ClaimToken first (only from header).
-			if strings.HasPrefix(header, "ClaimToken ") {
-				token := strings.TrimPrefix(header, "ClaimToken ")
+			if after, ok := strings.CutPrefix(header, "ClaimToken "); ok {
+				token := after
 				hash := sha256.Sum256([]byte(token))
 				tokenHash := hex.EncodeToString(hash[:])
 
@@ -211,8 +214,8 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 			}
 
 			// Try Bearer header.
-			if strings.HasPrefix(header, "Bearer ") {
-				token := strings.TrimPrefix(header, "Bearer ")
+			if after, ok := strings.CutPrefix(header, "Bearer "); ok {
+				token := after
 
 				// API token (bwt_ prefix).
 				if strings.HasPrefix(token, "bwt_") && authStore != nil {
@@ -313,10 +316,8 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 	if !ok {
 		return deny(c, "workspace role not available")
 	}
-	for _, r := range allowed {
-		if role == r {
-			return nil
-		}
+	if slices.Contains(allowed, role) {
+		return nil
 	}
 	if actor, _ := c.Get("user_id").(string); actor != "" {
 		s.emitAudit(c, auditEvent{
@@ -502,10 +503,8 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 	if len(languages) == 0 {
 		return nil // all languages allowed
 	}
-	for _, l := range languages {
-		if l == locale {
-			return nil
-		}
+	if slices.Contains(languages, locale) {
+		return nil
 	}
 	return deny(c, "no access to language: "+locale)
 }
@@ -606,12 +605,7 @@ func SessionGrantMiddleware(stateStore SessionStateStore) echo.MiddlewareFunc {
 
 // containsString reports whether s is present in the slice.
 func containsString(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // intersectStrings returns elements present in both slices.

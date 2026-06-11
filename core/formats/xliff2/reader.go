@@ -698,14 +698,14 @@ func setFileNotePropertiesFromEtree(layer *model.Layer, notesEl *etree.Element) 
 func coerceXMLDeclTo10(in []byte) []byte {
 	const decl11 = `<?xml version="1.1"`
 	const decl10 = `<?xml version="1.0"`
-	idx := bytes.Index(in, []byte(decl11))
-	if idx < 0 {
+	before, after, ok := bytes.Cut(in, []byte(decl11))
+	if !ok {
 		return in
 	}
 	out := make([]byte, 0, len(in))
-	out = append(out, in[:idx]...)
+	out = append(out, before...)
 	out = append(out, decl10...)
-	out = append(out, in[idx+len(decl11):]...)
+	out = append(out, after...)
 	return out
 }
 
@@ -1100,10 +1100,7 @@ func (s *xliff2StreamState) emitUnit() {
 func (s *xliff2StreamState) finishSource() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</source>"
-	endPos := int(endOff) - len(closeTag)
-	if endPos < 0 {
-		endPos = 0
-	}
+	endPos := max(int(endOff)-len(closeTag), 0)
 	s.elemPositions = append(s.elemPositions, elemPos{
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,
@@ -1125,10 +1122,7 @@ func (s *xliff2StreamState) finishSource() {
 func (s *xliff2StreamState) finishTarget() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</target>"
-	endPos := int(endOff) - len(closeTag)
-	if endPos < 0 {
-		endPos = 0
-	}
+	endPos := max(int(endOff)-len(closeTag), 0)
 	s.elemPositions = append(s.elemPositions, elemPos{
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,

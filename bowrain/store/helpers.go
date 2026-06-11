@@ -2,50 +2,16 @@ package store
 
 import (
 	"encoding/json"
-	"strings"
-	"unicode"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
-
-// newBlockID generates a short random block ID.
-func newBlockID() string { return id.New() }
 
 // MaxChangesPerRequest is the maximum number of change entries returned per query.
 const MaxChangesPerRequest = 1000
 
 // MaxHistoryEntries is the default maximum number of history entries returned.
 const MaxHistoryEntries = 100
-
-// defaultStream returns "main" when stream is empty.
-func defaultStream(stream string) string {
-	if stream == "" {
-		return "main"
-	}
-	return stream
-}
-
-func joinLocales(locales []model.LocaleID) string {
-	parts := make([]string, len(locales))
-	for i, l := range locales {
-		parts[i] = string(l)
-	}
-	return strings.Join(parts, ",")
-}
-
-func splitLocales(s string) []model.LocaleID {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	locales := make([]model.LocaleID, len(parts))
-	for i, p := range parts {
-		locales[i] = model.LocaleID(strings.TrimSpace(p))
-	}
-	return locales
-}
 
 // scanner is an alias for storage.Scanner, the interface shared by *sql.Row
 // and *sql.Rows. Used by the scanX helper functions.
@@ -111,44 +77,4 @@ func deserializeAnnotations(jsonStr string) map[string]model.Payload {
 	}
 
 	return result
-}
-
-// countWordsFromSourceJSON counts words from the serialized source runs JSON.
-// source_json now holds the block's flat []model.Run sequence directly. Text
-// runs serialize as `{"text":"..."}` per Framework AD-002, so we decode the
-// text key as a bare string.
-func countWordsFromSourceJSON(sourceJSON string) int {
-	var runs []struct {
-		Text *string `json:"text,omitempty"`
-	}
-	if err := json.Unmarshal([]byte(sourceJSON), &runs); err != nil {
-		return 0
-	}
-	count := 0
-	for _, r := range runs {
-		if r.Text != nil {
-			count += countWords(*r.Text)
-		}
-	}
-	return count
-}
-
-// countWords counts whitespace-delimited words, skipping PUA marker runes.
-func countWords(text string) int {
-	count := 0
-	inWord := false
-	for _, r := range text {
-		if unicode.IsSpace(r) || isMarker(r) {
-			inWord = false
-		} else if !inWord {
-			inWord = true
-			count++
-		}
-	}
-	return count
-}
-
-// isMarker checks if a rune is a Unicode Private Use Area marker.
-func isMarker(r rune) bool {
-	return r >= 0xE000 && r <= 0xF8FF
 }

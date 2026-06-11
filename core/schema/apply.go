@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"maps"
 	"reflect"
 )
 
@@ -33,9 +34,7 @@ func serializableConfig(config map[string]any) map[string]any {
 		case reflect.Func, reflect.Chan:
 			if !copied {
 				filtered = make(map[string]any, len(config))
-				for k2, v2 := range config {
-					filtered[k2] = v2
-				}
+				maps.Copy(filtered, config)
 				copied = true
 			}
 			delete(filtered, k)

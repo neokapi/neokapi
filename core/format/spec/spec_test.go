@@ -24,7 +24,7 @@ func TestValidateRejectsUnknownKind(t *testing.T) {
 	s := &Spec{
 		Format:   "okf_x",
 		Kind:     Kind("nonsense"),
-		Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: IntPtr(1)}}}}},
+		Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}}}}},
 	}
 	if err := s.Validate(); err == nil {
 		t.Fatalf("Validate should reject unknown kind")
@@ -36,7 +36,7 @@ func TestValidateAcceptsKnownKinds(t *testing.T) {
 		s := &Spec{
 			Format:   "okf_x",
 			Kind:     k,
-			Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: IntPtr(1)}}}}},
+			Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}}}}},
 		}
 		if err := s.Validate(); err != nil {
 			t.Fatalf("Validate(kind=%q): unexpected err: %v", k, err)
@@ -66,8 +66,8 @@ func TestOriginAndSpecRefsRoundTrip(t *testing.T) {
 						InputXML: "Hello world\n",
 						Origin:   "authored: minimal CommonMark §6.7 soft-break case",
 						Assertions: Assertions{
-							BlockCount:     IntPtr(1),
-							FirstBlockText: StrPtr("Hello world"),
+							BlockCount:     new(1),
+							FirstBlockText: new("Hello world"),
 						},
 					},
 					{
@@ -75,7 +75,7 @@ func TestOriginAndSpecRefsRoundTrip(t *testing.T) {
 						InputXML: "Other line\n",
 						Origin:   "okapi-fixture: MarkdownFilterTest#testEmphasisAcrossLines",
 						Assertions: Assertions{
-							BlockCount: IntPtr(1),
+							BlockCount: new(1),
 						},
 					},
 					{
@@ -83,7 +83,7 @@ func TestOriginAndSpecRefsRoundTrip(t *testing.T) {
 						InputXML: "Real text\n",
 						Origin:   "real-world: Excalidraw locales/en.json",
 						Assertions: Assertions{
-							BlockCount: IntPtr(1),
+							BlockCount: new(1),
 						},
 					},
 				},
@@ -143,12 +143,12 @@ func TestDivergenceKindRoundTrip(t *testing.T) {
 						InputXML:       "x",
 						ExpectedFail:   "bridge != native (bytewise)",
 						DivergenceKind: "okapi-bug",
-						Assertions:     Assertions{BlockCount: IntPtr(1)},
+						Assertions:     Assertions{BlockCount: new(1)},
 					},
 					{
 						Name:       "implicit",
 						InputXML:   "y",
-						Assertions: Assertions{BlockCount: IntPtr(1)},
+						Assertions: Assertions{BlockCount: new(1)},
 					},
 				},
 			},
@@ -182,7 +182,7 @@ func TestOriginAndSpecRefsAreOptional(t *testing.T) {
 					{
 						Name:       "e",
 						InputXML:   "x",
-						Assertions: Assertions{BlockCount: IntPtr(1)},
+						Assertions: Assertions{BlockCount: new(1)},
 					},
 				},
 			},

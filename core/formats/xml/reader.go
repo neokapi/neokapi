@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -476,12 +477,7 @@ func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 		return false
 	}
 	if len(cfg.TranslatableElements) > 0 {
-		for _, e := range cfg.TranslatableElements {
-			if e == frame.name {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(cfg.TranslatableElements, frame.name)
 	}
 	return true
 }
@@ -597,9 +593,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 
 	// Set writable attributes as properties
 	writableAttrs := s.reader.cfg.getWritableAttributes(frame.name, frame.attrs)
-	for k, v := range writableAttrs {
-		block.Properties[k] = v
-	}
+	maps.Copy(block.Properties, writableAttrs)
 
 	// Attach ITS-resolved metadata that was captured at element-start
 	// (locNote text, term flag, …). The frame carries the resolved

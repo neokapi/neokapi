@@ -3,6 +3,7 @@ package backend
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -163,6 +164,8 @@ func (q *OfflineQueue) Close() error {
 // defaultQueuePath returns the default path for the offline queue database.
 func defaultQueuePath() string {
 	dir := desktopConfigDir()
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Info("bowrain: failed to create config dir at", "id", dir, "error", err)
+	}
 	return filepath.Join(dir, "offline-queue.db")
 }

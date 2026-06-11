@@ -340,10 +340,7 @@ func segmentBoundaries(text string, rules []compiledRule) []int {
 			continue
 		}
 		for _, loc := range rule.before.FindAllStringIndex(text, -1) {
-			breakPos := loc[1]
-			if breakPos > len(text) {
-				breakPos = len(text)
-			}
+			breakPos := min(loc[1], len(text))
 			if rule.after != nil && !rule.after.MatchString(text[breakPos:]) {
 				continue
 			}

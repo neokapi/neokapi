@@ -602,7 +602,7 @@ func minifyRunRFontsHAnsi(rPrBody []byte) []byte {
 		return rPrBody
 	}
 	asciiVal := asciiMatch[1]
-	hAnsiPattern := []byte(fmt.Sprintf(` w:hAnsi="%s"`, asciiVal))
+	hAnsiPattern := fmt.Appendf(nil, ` w:hAnsi="%s"`, asciiVal)
 	if !bytes.Contains(tag, hAnsiPattern) {
 		return rPrBody
 	}

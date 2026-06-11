@@ -308,8 +308,8 @@ func parseCrumb(crumb string) (tuID, segID string, ok bool) {
 	if rest == "" {
 		return "", "", false
 	}
-	if i := strings.Index(rest, ":s="); i >= 0 {
-		return rest[:i], rest[i+len(":s="):], true
+	if before, after, ok0 := strings.Cut(rest, ":s="); ok0 {
+		return before, after, true
 	}
 	return rest, "", true
 }

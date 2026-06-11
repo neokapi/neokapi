@@ -3,6 +3,8 @@
 package roundtrip
 
 import (
+	"maps"
+
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -214,9 +216,7 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 			}
 			if len(s.props) > 0 {
 				props := make(map[string]string, len(s.props))
-				for k, v := range s.props {
-					props[k] = v
-				}
+				maps.Copy(props, s.props)
 				sp.Props = props
 			}
 			spans = append(spans, sp)

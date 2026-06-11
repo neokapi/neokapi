@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -817,13 +818,7 @@ func buildCoverageMap(records []parityRecord) []coverageMapEntry {
 
 	out := make([]coverageMapEntry, 0, len(ids))
 	for id := range ids {
-		hasNative := false
-		for _, n := range native {
-			if n == id {
-				hasNative = true
-				break
-			}
-		}
+		hasNative := slices.Contains(native, id)
 		bridgeFilter := bridge[id]
 		rt := roundtrip[id]
 		up := upstream[id]

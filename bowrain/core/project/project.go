@@ -11,9 +11,9 @@
 //     loaded Recipe with its on-disk Layout for use by the source
 //     connector and the bowrain CLI.
 //
-// TODO: re-add source_connector_test.go covering NewSourceConnector,
-// Push/Pull/Status, sync cache persistence, target-path templating, and
-// content iteration with the unified Recipe type.
+// The source connector itself (and its tests covering NewSourceConnector,
+// Push/Pull/Status, sync-cache persistence, target-path templating, and
+// content iteration) lives in bowrain/plugin/connector.
 package project
 
 import (

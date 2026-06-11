@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -312,11 +313,9 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 
 	var writeErr error
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		writeErr = writer.Write(ctx, writerIn)
-	}()
+	})
 	wg.Wait()
 	if err := writer.Close(); err != nil && writeErr == nil {
 		writeErr = err
@@ -421,9 +420,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 		sp := model.Span{ID: id, Range: model.RunRange{StartRun: start, EndRun: end}}
 		if len(props) > 0 {
 			clonedProps := make(map[string]string, len(props))
-			for k, v := range props {
-				clonedProps[k] = v
-			}
+			maps.Copy(clonedProps, props)
 			sp.Props = clonedProps
 		}
 		tgtSpans = append(tgtSpans, sp)

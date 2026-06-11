@@ -634,7 +634,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			// fixtures round-trip with the declared charset matching
 			// the actual byte encoding.
 			headerContent := rewriteHeaderCharset(entry.msgstr)
-			for _, hdrLine := range strings.Split(strings.TrimRight(headerContent, "\n"), "\n") {
+			for hdrLine := range strings.SplitSeq(strings.TrimRight(headerContent, "\n"), "\n") {
 				escaped := strings.ReplaceAll(hdrLine, `\`, `\\`)
 				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
 				r.skelText("\"" + escaped + "\\n\"\n")
@@ -978,10 +978,7 @@ func detectHeaderCharset(raw []byte) string {
 	// Limit the scan to the first ~4 KiB — the header always sits at
 	// the top of the file and we don't want a charset-shaped substring
 	// in a translation to influence decoding.
-	limit := len(raw)
-	if limit > 4096 {
-		limit = 4096
-	}
+	limit := min(len(raw), 4096)
 	m := charsetValueRE.FindSubmatch(raw[:limit])
 	if m == nil {
 		return ""

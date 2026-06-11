@@ -752,7 +752,7 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 
 	// Per-flow defaults from framework presets are not yet expressible on
 	// KapiProject (its Flows map holds StepsSpec definitions, not configs).
-	// TODO: re-introduce per-flow config when the framework gains a
+	// Tracked in #839: re-introduce per-flow config when the framework gains a
 	// FlowDefaults map.
 
 	return nil

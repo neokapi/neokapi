@@ -138,31 +138,6 @@ func TestParsePathEmpty(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestParseScalar(t *testing.T) {
-	tests := []struct {
-		name string
-		raw  string
-		want any
-	}{
-		{"null", "null", nil},
-		{"empty", "", nil},
-		{"true", "true", true},
-		{"false", "false", false},
-		{"integer", "42", int64(42)},
-		{"float", "3.14", 3.14},
-		{"string", `"hello world"`, "hello world"},
-		{"unquoted", "unknown", "unknown"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseScalar(tt.raw)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestToStringMap(t *testing.T) {
 	m := map[string]any{
 		"str":   "hello",

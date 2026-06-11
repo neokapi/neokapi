@@ -19,19 +19,6 @@ type PostgresAuthStore struct {
 	db *storage.PgDB
 }
 
-// NewAuthStore opens a PostgreSQL-backed AuthStore.
-func NewAuthStore(connStr string) (*PostgresAuthStore, error) {
-	db, err := storage.OpenPostgres(connStr)
-	if err != nil {
-		return nil, fmt.Errorf("open auth database: %w", err)
-	}
-	if err := storage.MigratePostgresNS(db, "auth_schema_migrations", authMigrationsPg); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("migrate auth schema: %w", err)
-	}
-	return &PostgresAuthStore{db: db}, nil
-}
-
 // NewAuthStoreFromDB wraps an existing PgDB for auth use.
 func NewAuthStoreFromDB(db *storage.PgDB) (*PostgresAuthStore, error) {
 	if err := storage.MigratePostgresNS(db, "auth_schema_migrations", authMigrationsPg); err != nil {
@@ -843,9 +830,8 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-type scanner interface {
-	Scan(dest ...any) error
-}
+// scanner is an alias for storage.Scanner, satisfied by *sql.Row and *sql.Rows.
+type scanner = storage.Scanner
 
 // parsePulseTermSources unmarshals JSON into PulseTermSources with defaults.
 func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {

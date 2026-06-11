@@ -9,6 +9,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -31,7 +32,7 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 
 	// Auto-set base cursor from parent's latest cursor.
 	if st.Parent != "" {
-		parent := defaultStream(st.Parent)
+		parent := storeutil.DefaultStream(st.Parent)
 		cursor, err := s.LatestCursor(ctx, st.ProjectID, parent)
 		if err != nil {
 			return fmt.Errorf("get parent cursor: %w", err)
@@ -55,7 +56,7 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	}
 
 	// Copy items from the parent stream into the new stream.
-	parentStream := defaultStream(st.Parent)
+	parentStream := storeutil.DefaultStream(st.Parent)
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
 		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, block_index, preview_html, properties, collection_id, ?, ?
@@ -172,7 +173,7 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 		return nil, fmt.Errorf("stream %q has no parent to merge into", streamName)
 	}
 
-	parentStream := defaultStream(stream.Parent)
+	parentStream := storeutil.DefaultStream(stream.Parent)
 
 	// Get all change log entries for this stream since the base cursor.
 	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
@@ -258,7 +259,7 @@ func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName stri
 		return nil, fmt.Errorf("get stream: %w", err)
 	}
 
-	parentName := defaultStream(stream.Parent)
+	parentName := storeutil.DefaultStream(stream.Parent)
 
 	// Get all changes in this stream since the base cursor.
 	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)

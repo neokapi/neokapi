@@ -3,11 +3,11 @@ package backend
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 	"unicode"
 
@@ -160,13 +160,13 @@ type WordCountResult struct {
 // CreateProject creates a new translation project.
 func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*ProjectInfo, error) {
 	if name == "" {
-		return nil, fmt.Errorf("project name is required")
+		return nil, errors.New("project name is required")
 	}
 	if sourceLang == "" {
-		return nil, fmt.Errorf("source language is required")
+		return nil, errors.New("source language is required")
 	}
 	if len(targetLangs) == 0 {
-		return nil, fmt.Errorf("at least one target language is required")
+		return nil, errors.New("at least one target language is required")
 	}
 
 	locales := make([]model.LocaleID, len(targetLangs))
@@ -444,12 +444,6 @@ func countWords(text string) int {
 // countChars counts Unicode runes in text.
 func countChars(text string) int {
 	return len([]rune(text))
-}
-
-// fileExtension returns the file extension without dot, lowercased.
-func fileExtension(path string) string {
-	ext := filepath.Ext(path)
-	return strings.TrimPrefix(strings.ToLower(ext), ".")
 }
 
 // flattenTargetRuns returns the plain-text flattening of a block's

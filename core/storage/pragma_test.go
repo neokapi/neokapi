@@ -51,9 +51,7 @@ func TestForeignKeys_AllPooledConnections(t *testing.T) {
 	ready.Add(conns)
 	ctx := t.Context()
 	for range conns {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			conn, err := db.Conn(ctx)
 			if err != nil {
 				mu.Lock()
@@ -81,7 +79,7 @@ func TestForeignKeys_AllPooledConnections(t *testing.T) {
 			mu.Lock()
 			results = append(results, fk)
 			mu.Unlock()
-		}()
+		})
 	}
 	ready.Wait()
 	close(release)

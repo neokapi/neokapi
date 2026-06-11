@@ -658,7 +658,7 @@ func (a *App) verifyTerminology(cmd *cobra.Command, units []verifyUnit) (VerifyG
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
 				msg := b.Properties[coretools.PropTermCheckErrors]
-				for _, m := range strings.Split(msg, "; ") {
+				for m := range strings.SplitSeq(msg, "; ") {
 					if strings.TrimSpace(m) == "" {
 						continue
 					}

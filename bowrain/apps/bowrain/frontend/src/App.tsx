@@ -35,9 +35,7 @@ import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
 import { Shuffle, Link, Loader2, Users, ShieldCheck } from "lucide-react";
 import { Events } from "@wailsio/runtime";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { Backend } from "./api/backend";
 
 type AppView = View | "flows" | "connectors" | "members" | "brand";
 type AppMode = "loading" | "connecting" | "ready";

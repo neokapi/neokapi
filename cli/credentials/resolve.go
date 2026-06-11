@@ -3,6 +3,7 @@ package credentials
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -182,9 +183,7 @@ func autoDetect(store *Store, providerType string) (*ProviderConfigWithKey, erro
 // Only sets fields that are not already explicitly set by the user.
 func mergeCredentials(config map[string]any, cred *ProviderConfigWithKey) map[string]any {
 	result := make(map[string]any, len(config))
-	for k, v := range config {
-		result[k] = v
-	}
+	maps.Copy(result, config)
 
 	// Remove the credential reference key — tools don't know about it.
 	delete(result, "credential")

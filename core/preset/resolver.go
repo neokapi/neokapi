@@ -219,8 +219,8 @@ func TransformConfigSpec(fromKind, toKind config.Kind, spec map[string]any) (map
 
 // stripPrefix removes common error prefixes for cleaner messages.
 func stripPrefix(s string) string {
-	if i := strings.Index(s, ":\n"); i >= 0 {
-		return strings.TrimSpace(s[i+2:])
+	if _, after, ok := strings.Cut(s, ":\n"); ok {
+		return strings.TrimSpace(after)
 	}
 	return s
 }

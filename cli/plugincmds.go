@@ -391,8 +391,8 @@ func (a *App) newPluginVerifyCmd() *cobra.Command {
 
 // parsePluginRef splits "name@^1.0" → ("name", "^1.0").
 func parsePluginRef(ref string) (name, constraint string) {
-	if i := strings.IndexByte(ref, '@'); i >= 0 {
-		return ref[:i], ref[i+1:]
+	if before, after, ok := strings.Cut(ref, "@"); ok {
+		return before, after
 	}
 	return ref, ""
 }

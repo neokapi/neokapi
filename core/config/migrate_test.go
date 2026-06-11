@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,9 +18,7 @@ func TestMigrationRegistry_SingleStep(t *testing.T) {
 		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			result := make(map[string]any)
-			for k, v := range spec {
-				result[k] = v
-			}
+			maps.Copy(result, spec)
 			if pw, ok := result["preserveWhitespace"]; ok {
 				delete(result, "preserveWhitespace")
 				result["whitespace"] = map[string]any{"preserve": pw}

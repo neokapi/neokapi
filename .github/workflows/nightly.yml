@@ -21,6 +21,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  govulncheck:
+    name: govulncheck (known-vulnerability scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          go-version: stable
+      - name: Install Linux system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+      - name: Scan framework module
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...
+      - name: Scan bowrain module
+        run: cd bowrain && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...
+      - name: Scan cli + kapi modules
+        run: |
+          (cd cli && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...)
+          (cd kapi && go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...)
+
   full-suite:
     name: Full suite (Go stable, race)
     runs-on: ubuntu-latest

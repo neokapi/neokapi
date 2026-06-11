@@ -182,9 +182,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			lineEnding = "\n"
 		}
 
-		if strings.HasSuffix(content, `\`) {
+		if before, ok := strings.CutSuffix(content, `\`); ok {
 			// Continuation line: strip trailing backslash and accumulate
-			stripped := strings.TrimSuffix(content, `\`)
+			stripped := before
 			accumulated = append(accumulated, struct {
 				content    string
 				lineEnding string

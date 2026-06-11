@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -692,13 +693,7 @@ func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.P
 	for _, m := range members {
 		// Check language scope: empty = all languages.
 		if len(m.Languages) > 0 {
-			found := false
-			for _, l := range m.Languages {
-				if l == locale {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(m.Languages, locale)
 			if !found {
 				continue
 			}

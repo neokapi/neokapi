@@ -38,11 +38,11 @@ func routeKind(kind string) overlayTable {
 // splitKindOnce splits on the first `/`. Returns (prefix, rest);
 // rest is empty if there's no slash.
 func splitKindOnce(kind string) (prefix, rest string) {
-	i := strings.IndexByte(kind, '/')
-	if i < 0 {
+	before, after, ok := strings.Cut(kind, "/")
+	if !ok {
 		return kind, ""
 	}
-	return kind[:i], kind[i+1:]
+	return before, after
 }
 
 // translationPayload captures the schema translation writers use

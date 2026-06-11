@@ -153,13 +153,12 @@ func TestUAX29_Concurrent(t *testing.T) {
 	runs := []model.Run{text("Hello world. How are you? Fine.")}
 	var wg sync.WaitGroup
 	for range 32 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			spans, err := eng.Segment(context.Background(), runs, "en")
+			//nolint:testifylint // assert, not require: FailNow must not run off the test goroutine
 			assert.NoError(t, err)
 			assert.Len(t, spans, 3)
-		}()
+		})
 	}
 	wg.Wait()
 }

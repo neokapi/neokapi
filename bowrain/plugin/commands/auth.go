@@ -264,8 +264,6 @@ func resolveServerURLFrom(explicit string) string {
 	return ""
 }
 
-func authFilePath() string { return config.AuthFilePath() }
-
 func saveAuth(a config.StoredAuth) error { return config.SaveAuth(a) }
 
 func loadAuth() (*config.StoredAuth, error) { return config.LoadAuth() }

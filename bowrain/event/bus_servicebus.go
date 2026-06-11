@@ -69,7 +69,7 @@ func (b *ServiceBusEventBus) Publish(ev platev.Event) {
 
 	msg := &azservicebus.Message{
 		Body:    data,
-		Subject: ptrStr(string(ev.Type)),
+		Subject: new(string(ev.Type)),
 	}
 	if ev.ID != "" {
 		msg.MessageID = &ev.ID
@@ -202,5 +202,3 @@ func (b *ServiceBusEventBus) Close() {
 	_ = b.sender.Close(context.Background())
 	_ = b.client.Close(context.Background())
 }
-
-func ptrStr(s string) *string { return &s }

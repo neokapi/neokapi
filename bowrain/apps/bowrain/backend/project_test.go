@@ -188,7 +188,7 @@ func TestGetFileBlocks(t *testing.T) {
 
 	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Greater(t, len(blocks), 0)
+	assert.NotEmpty(t, blocks)
 
 	// Check that blocks have source text
 	for _, b := range blocks {

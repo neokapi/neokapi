@@ -51,10 +51,7 @@ func AnalyzeDrift(trends []*ScoreTrend, cfg DriftConfig) DriftResult {
 	sorted := append([]*ScoreTrend(nil), trends...)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Date < sorted[j].Date })
 
-	split := len(sorted) - cfg.RecentDays
-	if split < 0 {
-		split = 0
-	}
+	split := max(len(sorted)-cfg.RecentDays, 0)
 	baseline := sorted[:split]
 	recent := sorted[split:]
 
