@@ -16,12 +16,12 @@ originals once the translation comes back. The sensitive value never leaves the
 local machine.
 
 <RedactionDiagram
-  original="Mr Bean is the new King of England"
+  original="Email Sarah Chen the Project Halcyon launch date."
   redact={[
-    { text: "Mr Bean", label: "Person" },
-    "King of England",
+    { text: "Sarah Chen", label: "Person" },
+    "Project Halcyon",
   ]}
-  translated="M. Bean est le nouveau Roi d'Angleterre"
+  translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
 />
 
 For the architecture and design decisions behind this, see
@@ -79,11 +79,11 @@ version: v1
 placeholder: "[REDACTED:{category}]"   # {category} and {n} are substituted
 detectors: [rules]
 rules:
-  - term: "Mr Bean"
+  - term: "Sarah Chen"
     category: person
-  - term: "King of England"
-    category: role
-  - pattern: "PROJECT-[A-Z]+"          # regular expression
+  - term: "Project Halcyon"            # unreleased codename
+    category: product
+  - pattern: "ACME-[A-Z]+-\\d+"        # regular expression — internal SKUs
     category: product
     flags: [ignorecase]                # also: wholeword (literal terms)
 ```
