@@ -677,6 +677,13 @@ build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at 
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 	@$(LINK_KAPI_BUSYBOX)
 
+# File-path alias so targets can declare a `bin/kapi` prerequisite (e.g. the
+# l10n-* and *-pseudo-translate dogfood targets). `build` is phony, so this
+# always reruns it — that's intended: callers want a CLI built from current
+# source. Without this rule a clean checkout fails with
+# "No rule to make target 'bin/kapi'".
+bin/kapi: build
+
 build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
