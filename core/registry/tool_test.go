@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -181,9 +182,7 @@ func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
 		assert.Equal(t, "ai-tool", toolName)
 		assert.Contains(t, requires, "credentials")
 		result := make(map[string]any)
-		for k, v := range config {
-			result[k] = v
-		}
+		maps.Copy(result, config)
 		result["apiKey"] = "injected-key"
 		result["provider"] = "anthropic"
 		return result, nil

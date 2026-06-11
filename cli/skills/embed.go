@@ -141,12 +141,12 @@ func parseFrontmatter(content string) map[string]string {
 		if strings.TrimSpace(line) == "---" {
 			break
 		}
-		idx := strings.Index(line, ":")
-		if idx < 0 {
+		before, after, ok := strings.Cut(line, ":")
+		if !ok {
 			continue
 		}
-		key := strings.TrimSpace(line[:idx])
-		val := strings.TrimSpace(line[idx+1:])
+		key := strings.TrimSpace(before)
+		val := strings.TrimSpace(after)
 		out[key] = val
 	}
 	return out

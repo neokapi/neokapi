@@ -73,10 +73,7 @@ func (m *mockAuthStore) ListUsers(_ context.Context, limit, offset int) ([]*plat
 	if offset >= len(m.allUsers) {
 		return nil, nil
 	}
-	end := offset + limit
-	if end > len(m.allUsers) {
-		end = len(m.allUsers)
-	}
+	end := min(offset+limit, len(m.allUsers))
 	return m.allUsers[offset:end], nil
 }
 

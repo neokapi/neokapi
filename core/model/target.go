@@ -83,7 +83,7 @@ type Origin struct {
 type Target struct {
 	Runs   []Run        `json:"runs"`
 	Status TargetStatus `json:"status,omitempty"`
-	Origin Origin       `json:"origin,omitempty"`
+	Origin Origin       `json:"origin,omitzero"`
 	Score  float64      `json:"score,omitempty"`
 }
 

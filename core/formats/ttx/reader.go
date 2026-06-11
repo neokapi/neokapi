@@ -571,10 +571,7 @@ func (r *Reader) parseTuvWithSkeleton(decoder *xml.Decoder, tuIdx, tuvIdx int, t
 
 	if r.skeletonStore != nil {
 		startOff := int(tuvStartOff)
-		end := int(endOff)
-		if end < startOff {
-			end = startOff
-		}
+		end := max(int(endOff), startOff)
 		*segs = append(*segs, segPosition{
 			startOffset: startOff,
 			endOffset:   end,

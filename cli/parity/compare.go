@@ -33,10 +33,7 @@ func canonicalDiff(want, got []CanonicalPart) string {
 	if len(want) != len(got) {
 		var buf strings.Builder
 		fmt.Fprintf(&buf, "len mismatch: bridge=%d native=%d\n", len(want), len(got))
-		n := len(want)
-		if len(got) > n {
-			n = len(got)
-		}
+		n := max(len(got), len(want))
 		for i := range n {
 			var w, g string
 			if i < len(want) {
@@ -185,10 +182,7 @@ func partSummary(native, bridge []*model.Part) string {
 }
 
 func firstDiff(a, b []byte) string {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
+	n := min(len(b), len(a))
 	for i := range n {
 		if a[i] != b[i] {
 			lo := max(i-8, 0)

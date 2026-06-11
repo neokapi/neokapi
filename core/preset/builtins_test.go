@@ -10,7 +10,8 @@ func TestRegisterBuiltinsFrameworkPresets(t *testing.T) {
 	for _, name := range want {
 		p := reg.GetFrameworkPreset(name)
 		if p == nil {
-			t.Fatalf("framework preset %q not registered", name)
+			t.Errorf("framework preset %q not registered", name)
+			continue
 		}
 		if p.Name != name {
 			t.Errorf("preset %q has Name %q", name, p.Name)

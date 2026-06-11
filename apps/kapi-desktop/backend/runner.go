@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -213,9 +214,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 		for _, step := range spec.Steps {
 			// Copy step config to avoid mutating the original flow spec.
 			config := make(map[string]any)
-			for k, v := range step.Config {
-				config[k] = v
-			}
+			maps.Copy(config, step.Config)
 
 			// Inject live progress callback for AI tools.
 			config["onProgress"] = onProgress

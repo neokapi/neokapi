@@ -4,6 +4,7 @@ package formats
 
 import (
 	"fmt"
+	"maps"
 )
 
 // xmlstreamBridgeConfig translates a neokapi-keyed xmlstream spec config
@@ -153,18 +154,14 @@ func xmlstreamBridgeConfig(cfg map[string]any) (map[string]any, error) {
 			if !ok {
 				return nil, fmt.Errorf("xmlstreamBridgeConfig: elements: expected map, got %T", val)
 			}
-			for k, v := range m {
-				elements[k] = v
-			}
+			maps.Copy(elements, m)
 
 		case "attributes":
 			m, ok := val.(map[string]any)
 			if !ok {
 				return nil, fmt.Errorf("xmlstreamBridgeConfig: attributes: expected map, got %T", val)
 			}
-			for k, v := range m {
-				attributes[k] = v
-			}
+			maps.Copy(attributes, m)
 
 		default:
 			return nil, fmt.Errorf("xmlstreamBridgeConfig: unknown spec key %q", key)

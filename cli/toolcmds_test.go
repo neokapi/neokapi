@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -128,13 +129,7 @@ func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
 		if info == nil {
 			continue
 		}
-		needsCredentials := false
-		for _, req := range info.Requires {
-			if req == "credentials" {
-				needsCredentials = true
-				break
-			}
-		}
+		needsCredentials := slices.Contains(info.Requires, "credentials")
 		f := cmd.Flags().Lookup("credential")
 		if needsCredentials {
 			assert.NotNil(t, f, "tool %q requiring credentials should have --credential flag", cmd.Name())

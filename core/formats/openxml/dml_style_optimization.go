@@ -44,7 +44,9 @@
 package openxml
 
 import (
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -378,9 +380,7 @@ func intersectDMLRunProperties(runs []dmlRunWithRPr) (commonAttrs map[string]str
 	// Attribute intersection: start with first run's attrs, drop any
 	// that another run lacks or mismatches.
 	attrCommon := make(map[string]string, len(first.attrs))
-	for k, v := range first.attrs {
-		attrCommon[k] = v
-	}
+	maps.Copy(attrCommon, first.attrs)
 	for _, r := range runs[1:] {
 		for k, v := range attrCommon {
 			if rv, ok := r.attrs[k]; !ok || rv != v {
@@ -411,12 +411,7 @@ func intersectDMLRunProperties(runs []dmlRunWithRPr) (commonAttrs map[string]str
 
 // containsString reports whether s appears in ss.
 func containsString(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, s)
 }
 
 // buildDMLDefRPr serialises the common attributes + children as an

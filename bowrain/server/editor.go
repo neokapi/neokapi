@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -1090,9 +1091,7 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
-	for k, v := range sb.Block.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, sb.Block.Properties)
 
 	bi := BlockInfoResponse{
 		ID:           sb.Block.ID,

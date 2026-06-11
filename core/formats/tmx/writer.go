@@ -397,13 +397,13 @@ func writeInlineData(b *strings.Builder, data string) {
 		}
 		b.WriteString(xmlEscapeString(data[:open]))
 		rest := data[open+1:]
-		end := strings.Index(rest, "\x02")
-		if end < 0 {
+		before, after, ok := strings.Cut(rest, "\x02")
+		if !ok {
 			b.WriteString(xmlEscapeString(rest))
 			return
 		}
-		b.WriteString(rest[:end])
-		data = rest[end+1:]
+		b.WriteString(before)
+		data = after
 	}
 }
 

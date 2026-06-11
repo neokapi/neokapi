@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -173,12 +174,7 @@ func (r *ElementRule) matchesCtx(local, nsURI, parentName string) bool {
 
 // HasRule returns true if the rule set includes the given rule type.
 func (r *ElementRule) HasRule(rt RuleType) bool {
-	for _, t := range r.RuleTypes {
-		if t == rt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.RuleTypes, rt)
 }
 
 // conditionsHold evaluates the rule's conditions against the element's
@@ -267,20 +263,10 @@ func (r *AttributeRule) Matches(attrName string) bool {
 // AppliesToElement returns true if this rule applies to the given element.
 func (r *AttributeRule) AppliesToElement(elemName string) bool {
 	if len(r.OnlyTheseElements) > 0 {
-		for _, e := range r.OnlyTheseElements {
-			if e == elemName {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(r.OnlyTheseElements, elemName)
 	}
 	if len(r.AllElementsExcept) > 0 {
-		for _, e := range r.AllElementsExcept {
-			if e == elemName {
-				return false
-			}
-		}
-		return true
+		return !slices.Contains(r.AllElementsExcept, elemName)
 	}
 	return true
 }
@@ -790,10 +776,8 @@ func parseAttributeRules(val any) ([]*AttributeRule, error) {
 // inline, with the element's namespace URI and parent local name
 // available for namespace-/parent-scoped rules.
 func (c *Config) isInlineElementNS(name, nsURI, parentName string) bool {
-	for _, e := range c.InlineElements {
-		if e == name {
-			return true
-		}
+	if slices.Contains(c.InlineElements, name) {
+		return true
 	}
 	// Check element rules
 	for _, r := range c.ElementRules {
@@ -819,10 +803,8 @@ type elementCtx struct {
 // attributes) available for namespace-/parent-scoped rules and
 // parent-targeted conditions.
 func (c *Config) isExcludedElementCtx(ctx elementCtx) bool {
-	for _, e := range c.ExcludedElements {
-		if e == ctx.local {
-			return true
-		}
+	if slices.Contains(c.ExcludedElements, ctx.local) {
+		return true
 	}
 	for _, r := range c.ElementRules {
 		if r.matchesCtx(ctx.local, ctx.nsURI, ctx.parentName) && r.HasRule(RuleExclude) {
@@ -861,10 +843,8 @@ func (c *Config) shouldPreserveWhitespace(name string) bool {
 	if c.PreserveWhitespace {
 		return true
 	}
-	for _, e := range c.PreserveWhitespaceElements {
-		if e == name {
-			return true
-		}
+	if slices.Contains(c.PreserveWhitespaceElements, name) {
+		return true
 	}
 	for _, r := range c.ElementRules {
 		if r.Matches(name) && r.HasRule(RulePreserveWhitespace) {
@@ -950,12 +930,7 @@ func (c *Config) isTranslatableAttribute(elemName, attrName string, allAttrs map
 		}
 	}
 	// Check simple list
-	for _, a := range c.TranslatableAttributes {
-		if a == attrName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.TranslatableAttributes, attrName)
 }
 
 // getWritableAttributes returns writable attribute values for the given element.
@@ -975,12 +950,7 @@ func (c *Config) getWritableAttributes(elemName string, attrs map[string]string)
 
 // HasAttrRule returns true if the attribute rule set includes the given rule type.
 func (r *AttributeRule) HasAttrRule(rt RuleType) bool {
-	for _, t := range r.RuleTypes {
-		if t == rt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.RuleTypes, rt)
 }
 
 // CodeFinderPatterns returns compiled regex patterns for code finder.

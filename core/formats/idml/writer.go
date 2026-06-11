@@ -159,15 +159,15 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			refID := string(entry.Data)
 
 			// Check for part-boundary markers
-			if strings.HasPrefix(refID, skelPartStartPrefix) {
-				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartStartPrefix); ok {
+				currentPart = after
 				// Fresh buffer per part: its backing array is handed off to
 				// partContents at part-end and never reused, so no copy is needed.
 				currentBuf = &bytes.Buffer{}
 				continue
 			}
-			if strings.HasPrefix(refID, skelPartEndPrefix) {
-				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartEndPrefix); ok {
+				partPath := after
 				if currentBuf != nil && currentBuf.Len() > 0 {
 					partContents[partPath] = currentBuf.Bytes()
 				}

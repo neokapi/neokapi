@@ -285,8 +285,8 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 
 // emitFrontMatterBlocks emits each YAML value as a translatable block.
 func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.PartResult, yaml string) {
-	lines := strings.Split(yaml, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(yaml, "\n")
+	for line := range lines {
 		colonIdx := strings.Index(line, ":")
 		if colonIdx < 0 {
 			r.skelText(line + "\n")

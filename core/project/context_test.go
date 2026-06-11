@@ -1,6 +1,7 @@
 package project
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -517,9 +518,7 @@ func (c *stubConfig) FormatName() string { return "stub" }
 func (c *stubConfig) Reset()             {}
 func (c *stubConfig) Validate() error    { return nil }
 func (c *stubConfig) ApplyMap(values map[string]any) error {
-	for k, v := range values {
-		c.applied[k] = v
-	}
+	maps.Copy(c.applied, values)
 	return nil
 }
 

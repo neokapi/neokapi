@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"slices"
+
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 )
 
@@ -34,25 +36,19 @@ func (p *ToolPolicy) Check(toolName string) PolicyDecision {
 	}
 
 	// Denied tools always take precedence.
-	for _, t := range p.config.DeniedTools {
-		if t == toolName {
-			return PolicyDeny
-		}
+	if slices.Contains(p.config.DeniedTools, toolName) {
+		return PolicyDeny
 	}
 
 	// Check if tool requires human approval.
-	for _, t := range p.config.RequireApproval {
-		if t == toolName {
-			return PolicyApprove
-		}
+	if slices.Contains(p.config.RequireApproval, toolName) {
+		return PolicyApprove
 	}
 
 	// If an allow list is configured, the tool must be on it.
 	if len(p.config.AllowedTools) > 0 {
-		for _, t := range p.config.AllowedTools {
-			if t == toolName {
-				return PolicyAllow
-			}
+		if slices.Contains(p.config.AllowedTools, toolName) {
+			return PolicyAllow
 		}
 		return PolicyDeny
 	}

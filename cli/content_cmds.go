@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -265,10 +266,8 @@ func rmPattern(proj *coreproj.KapiProject, root, pattern string) output.RmEntry 
 			return output.RmEntry{Pattern: pattern, Action: "removed", Format: format}
 		}
 	}
-	for _, exc := range proj.Defaults.Exclude {
-		if exc == pattern {
-			return output.RmEntry{Pattern: pattern, Action: "already_excluded"}
-		}
+	if slices.Contains(proj.Defaults.Exclude, pattern) {
+		return output.RmEntry{Pattern: pattern, Action: "already_excluded"}
 	}
 	proj.Defaults.Exclude = append(proj.Defaults.Exclude, pattern)
 	matches, _ := coreproj.ExpandGlob(root, pattern)

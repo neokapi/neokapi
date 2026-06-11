@@ -3,6 +3,7 @@ package flow
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -216,12 +217,7 @@ func producesPort(info *registry.ToolInfo, portType string, side model.Side) boo
 }
 
 func hasSideEffect(info *registry.ToolInfo, effect schema.SideEffect) bool {
-	for _, e := range info.SideEffects {
-		if e == effect {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(info.SideEffects, effect)
 }
 
 // isPseudoPort reports whether a port type names a pseudo-port (target/source)

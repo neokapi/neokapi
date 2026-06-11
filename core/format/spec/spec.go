@@ -257,5 +257,9 @@ func (s *Spec) IsSubfilter() bool {
 }
 
 // IntPtr / StrPtr help spec authors writing examples programmatically.
-func IntPtr(v int) *int       { return &v }
-func StrPtr(v string) *string { return &v }
+//
+//go:fix inline
+func IntPtr(v int) *int { return new(v) }
+
+//go:fix inline
+func StrPtr(v string) *string { return new(v) }

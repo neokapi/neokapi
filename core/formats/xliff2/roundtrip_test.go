@@ -330,10 +330,7 @@ func findRepoRoot(t *testing.T) string {
 // a and b, or -1 when they are equal. Used for diagnostic messages
 // when self round-trip detects writer non-idempotency.
 func firstByteDiff(a, b []byte) int {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
+	n := min(len(b), len(a))
 	for i := range n {
 		if a[i] != b[i] {
 			return i

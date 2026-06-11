@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"strconv"
@@ -161,9 +162,7 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		if proj.Properties == nil {
 			proj.Properties = make(map[string]string)
 		}
-		for k, v := range req.Properties {
-			proj.Properties[k] = v
-		}
+		maps.Copy(proj.Properties, req.Properties)
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {

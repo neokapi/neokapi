@@ -23,6 +23,7 @@ linters:
     - reassign
     - copyloopvar
     - intrange
+    - modernize
   settings:
     staticcheck:
       checks:

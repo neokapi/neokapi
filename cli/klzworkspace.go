@@ -458,7 +458,7 @@ func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) string
 // splitLocales splits a comma-separated locale flag into a trimmed list.
 func splitLocales(s string) []string {
 	var out []string
-	for _, p := range strings.Split(s, ",") {
+	for p := range strings.SplitSeq(s, ",") {
 		if p = strings.TrimSpace(p); p != "" {
 			out = append(out, p)
 		}

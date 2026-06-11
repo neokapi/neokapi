@@ -203,10 +203,7 @@ func (c *KeycloakAdminClient) token(ctx context.Context) (string, error) {
 		return "", errors.New("empty access token from keycloak")
 	}
 	// Refresh 30s before actual expiry to avoid races.
-	ttl := time.Duration(tr.ExpiresIn) * time.Second
-	if ttl <= 30*time.Second {
-		ttl = 30 * time.Second
-	}
+	ttl := max(time.Duration(tr.ExpiresIn)*time.Second, 30*time.Second)
 	c.cachedToken = tr.AccessToken
 	c.tokenExpiry = time.Now().Add(ttl - 30*time.Second)
 	return c.cachedToken, nil

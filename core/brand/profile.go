@@ -3,6 +3,7 @@ package brand
 import (
 	"fmt"
 	"io"
+	"maps"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -36,7 +37,7 @@ type VoiceProfile struct {
 	Locales     map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
 	Channels    map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
 	WorkspaceID string                            `json:"workspace_id" yaml:"workspace_id,omitempty"`
-	Autonomy    AutonomyConfig                    `json:"autonomy,omitempty" yaml:"autonomy,omitempty"`
+	Autonomy    AutonomyConfig                    `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
 	Version     int                               `json:"version" yaml:"version,omitempty"`
 	VersionNote string                            `json:"version_note,omitempty" yaml:"version_note,omitempty"`
 	CreatedAt   time.Time                         `json:"created_at" yaml:"created_at,omitempty"`
@@ -61,22 +62,16 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	c.Vocabulary.CompetitorTerms = append([]TermRule(nil), p.Vocabulary.CompetitorTerms...)
 	if p.Vocabulary.Abbreviations != nil {
 		c.Vocabulary.Abbreviations = make(map[string]string, len(p.Vocabulary.Abbreviations))
-		for k, v := range p.Vocabulary.Abbreviations {
-			c.Vocabulary.Abbreviations[k] = v
-		}
+		maps.Copy(c.Vocabulary.Abbreviations, p.Vocabulary.Abbreviations)
 	}
 	c.Examples = append([]VoiceExample(nil), p.Examples...)
 	if p.Locales != nil {
 		c.Locales = make(map[model.LocaleID]LocaleOverride, len(p.Locales))
-		for k, v := range p.Locales {
-			c.Locales[k] = v
-		}
+		maps.Copy(c.Locales, p.Locales)
 	}
 	if p.Channels != nil {
 		c.Channels = make(map[string]ChannelOverride, len(p.Channels))
-		for k, v := range p.Channels {
-			c.Channels[k] = v
-		}
+		maps.Copy(c.Channels, p.Channels)
 	}
 	return &c
 }

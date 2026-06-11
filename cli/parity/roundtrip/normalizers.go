@@ -2368,8 +2368,8 @@ func (VTTCueFlattenWS) Normalize(in []byte) ([]byte, error) {
 			// preserving the previous line's CR if it had one.
 			prev := out[len(out)-1]
 			cr := ""
-			if strings.HasSuffix(prev, "\r") {
-				prev = strings.TrimSuffix(prev, "\r")
+			if before, ok := strings.CutSuffix(prev, "\r"); ok {
+				prev = before
 				cr = "\r"
 			}
 			out[len(out)-1] = prev + " " + trimmed + cr

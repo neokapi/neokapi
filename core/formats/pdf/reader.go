@@ -181,10 +181,7 @@ func extractStreams(data []byte) [][]byte {
 
 		// Check if the object header preceding this stream mentions FlateDecode
 		headerStart := offset + idx
-		lookback := 512
-		if headerStart < lookback {
-			lookback = headerStart
-		}
+		lookback := min(headerStart, 512)
 		header := string(data[headerStart-lookback : headerStart])
 
 		if strings.Contains(header, "FlateDecode") {

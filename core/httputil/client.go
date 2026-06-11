@@ -134,10 +134,7 @@ func retryAfterDelay(header string) (time.Duration, bool) {
 	if err != nil || secs < 0 {
 		return 0, false
 	}
-	wait := time.Duration(secs) * time.Second
-	if wait > MaxRetryAfter {
-		wait = MaxRetryAfter
-	}
+	wait := min(time.Duration(secs)*time.Second, MaxRetryAfter)
 	return wait, true
 }
 

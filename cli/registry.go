@@ -52,7 +52,7 @@ func (a *App) NewRegistryCmd() *cobra.Command {
 			name, url := args[0], args[1]
 			var channels []string
 			if channelsFlag != "" {
-				for _, ch := range strings.Split(channelsFlag, ",") {
+				for ch := range strings.SplitSeq(channelsFlag, ",") {
 					if s := strings.TrimSpace(ch); s != "" {
 						channels = append(channels, s)
 					}

@@ -2,6 +2,7 @@ package xliff2
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/config"
 )
@@ -76,12 +77,7 @@ func NamespaceForVersion(version string) string {
 
 // IsSupportedVersion reports whether v is one of the supported XLIFF 2.x versions.
 func IsSupportedVersion(v string) bool {
-	for _, s := range SupportedXLIFFVersions {
-		if s == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(SupportedXLIFFVersions, v)
 }
 
 // FormatName returns the format this config applies to.

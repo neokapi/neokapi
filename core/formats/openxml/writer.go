@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -1109,13 +1110,13 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			refID := string(entry.Data)
 
 			// Check for part-boundary markers
-			if strings.HasPrefix(refID, skelPartStartPrefix) {
-				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartStartPrefix); ok {
+				currentPart = after
 				currentBuf.Reset()
 				continue
 			}
-			if strings.HasPrefix(refID, skelPartEndPrefix) {
-				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartEndPrefix); ok {
+				partPath := after
 				if currentBuf.Len() > 0 {
 					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
 				}
@@ -3594,9 +3595,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					// add/remove pass doesn't mutate live state used
 					// by the outer PcOpen / PcClose branches.
 					anticipatedOpens := make(map[string]string, len(toggleOpenForms))
-					for k, v := range toggleOpenForms {
-						anticipatedOpens[k] = v
-					}
+					maps.Copy(anticipatedOpens, toggleOpenForms)
 					nextTextAt := -1
 					mergeable := true
 					for j := runIdx + 1; j < len(runs); j++ {

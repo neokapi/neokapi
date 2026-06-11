@@ -366,12 +366,7 @@ func matchesSource(c Concept, filter []TermSource) bool {
 	if source == "" {
 		source = TermSourceTerminology
 	}
-	for _, f := range filter {
-		if f == source {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(filter, source)
 }
 
 func matchesDomain(c Concept, domains []string) bool {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -343,12 +344,8 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 			merged := config
 			if len(step.Config) > 0 {
 				merged = make(map[string]any)
-				for k, v := range config {
-					merged[k] = v
-				}
-				for k, v := range step.Config {
-					merged[k] = v
-				}
+				maps.Copy(merged, config)
+				maps.Copy(merged, step.Config)
 			}
 			t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(step.Tool), merged, targetLang)
 			if err != nil {

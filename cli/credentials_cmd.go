@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -49,10 +50,8 @@ func knownProviderTypes() []string {
 func validateProviderType(providerType string) error {
 	known := knownProviderTypes()
 	want := strings.ToLower(strings.TrimSpace(providerType))
-	for _, name := range known {
-		if name == want {
-			return nil
-		}
+	if slices.Contains(known, want) {
+		return nil
 	}
 	return fmt.Errorf("unknown provider %q; valid providers are: %s", providerType, strings.Join(known, ", "))
 }

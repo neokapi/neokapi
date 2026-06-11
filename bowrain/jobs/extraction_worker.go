@@ -181,10 +181,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	var itemsCreated int
 
 	for i := 0; i < totalBlocks; i += progressChunk {
-		end := i + progressChunk
-		if end > totalBlocks {
-			end = totalBlocks
-		}
+		end := min(i+progressChunk, totalBlocks)
 		chunk := storedBlocks[i:end]
 
 		if err := limiter.Wait(ctx); err != nil {

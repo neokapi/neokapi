@@ -322,17 +322,17 @@ func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) s
 		}
 		b.WriteString(s[:i])
 		rest := s[i+len(sentinel):]
-		j := strings.IndexByte(rest, 0)
-		if j < 0 {
+		before, after, ok := strings.Cut(rest, "\x00")
+		if !ok {
 			// Malformed: keep the rest as-is.
 			b.WriteString(s[i:])
 			return b.String()
 		}
-		blockID := rest[:j]
+		blockID := before
 		if blk, ok := blocks[blockID]; ok {
 			b.WriteString(encodeForAttributeValue(w.getBlockText(blk)))
 		}
-		s = rest[j+1:]
+		s = after
 	}
 }
 

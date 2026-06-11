@@ -46,7 +46,7 @@ type KapiProject struct {
 	Version  string                     `yaml:"version" json:"version"`
 	Name     string                     `yaml:"name,omitempty" json:"name"`
 	Plugins  map[string]PluginSpec      `yaml:"plugins,omitempty" json:"plugins,omitempty"`
-	Defaults Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitempty"`
+	Defaults Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitzero"`
 	Content  []ContentCollection        `yaml:"content,omitempty" json:"content,omitempty"`
 	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
@@ -83,14 +83,14 @@ type Defaults struct {
 	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 
 	// Merge governs kapi merge behavior (AD-017).
-	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitempty"`
+	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitzero"`
 
 	// TM governs TM pre-fill on kapi extract and TM write-back on kapi merge (AD-017).
-	TM TMDefaults `yaml:"tm,omitempty" json:"tm,omitempty"`
+	TM TMDefaults `yaml:"tm,omitempty" json:"tm,omitzero"`
 
 	// Segmentation governs the opt-in sentence-level segmentation overlay
 	// applied on extract (AD-017).
-	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`
+	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitzero"`
 
 	// Redaction governs replacing sensitive content with protected
 	// placeholders before processing and restoring it afterwards. nil means

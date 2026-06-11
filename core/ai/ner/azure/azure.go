@@ -78,10 +78,7 @@ func (p *Provider) DetectEntitiesBatch(ctx context.Context, reqs []ner.Request) 
 
 	// Process in chunks of maxBatchSize.
 	for start := 0; start < len(reqs); start += maxBatchSize {
-		end := start + maxBatchSize
-		if end > len(reqs) {
-			end = len(reqs)
-		}
+		end := min(start+maxBatchSize, len(reqs))
 		chunk := reqs[start:end]
 
 		chunkResults, err := p.doBatch(ctx, chunk)

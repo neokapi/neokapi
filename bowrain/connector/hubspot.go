@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -65,9 +66,7 @@ func (c *HubSpotConnector) Name() string                { return c.connName }
 func (c *HubSpotConnector) Category() platconn.Category { return platconn.CategoryMarketing }
 
 func (c *HubSpotConnector) Configure(config map[string]string) error {
-	for k, v := range config {
-		c.config[k] = v
-	}
+	maps.Copy(c.config, config)
 	return nil
 }
 

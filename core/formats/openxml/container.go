@@ -462,8 +462,8 @@ func buildPPTXParts(info *containerInfo, cfg *Config) []string {
 // E.g., relsPath="ppt/_rels/presentation.xml.rels", target="slides/slide1.xml"
 // → "ppt/slides/slide1.xml"
 func resolveRelTarget(relsPath, target string) string {
-	if strings.HasPrefix(target, "/") {
-		return strings.TrimPrefix(target, "/")
+	if after, ok := strings.CutPrefix(target, "/"); ok {
+		return after
 	}
 	// The .rels file is in a _rels/ subdirectory. The base dir for resolution
 	// is the parent of _rels/. E.g., "ppt/_rels/foo.xml.rels" → base is "ppt/".

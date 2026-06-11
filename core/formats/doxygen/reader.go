@@ -357,8 +357,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// Check for trailing line comment: code ///< text
 		if strings.Contains(line, "///<") {
-			idx := strings.Index(line, "///<")
-			before := strings.TrimSpace(line[:idx])
+			before, _, _ := strings.Cut(line, "///<")
+			before = strings.TrimSpace(before)
 			if before != "" {
 				cb := r.parseTrailingLineComment(line)
 				r.skelTrailingCommentGroup(cb, rLines, i, &blockCounter)
@@ -479,11 +479,11 @@ func (r *Reader) isTrailingComment(line string) bool {
 	// If the line starts with ///, it's a regular line comment, not trailing
 	if strings.HasPrefix(trimmed, "///") {
 		// But if it has "///<", check if there's code before the "///<"
-		idx := strings.Index(line, "///<")
-		if idx < 0 {
+		before, _, ok := strings.Cut(line, "///<")
+		if !ok {
 			return false
 		}
-		before := strings.TrimSpace(line[:idx])
+		before = strings.TrimSpace(before)
 		return before != ""
 	}
 	return false
@@ -663,10 +663,10 @@ func (r *Reader) parseTrailingLineComment(line string) *commentBlock {
 	cb := &commentBlock{style: "trailing"}
 	cb.rawLines = []string{line}
 
-	idx := strings.Index(line, "///<")
-	if idx >= 0 {
-		cb.prefix = line[:idx]
-		text := strings.TrimSpace(line[idx+4:])
+	before, after, ok := strings.Cut(line, "///<")
+	if ok {
+		cb.prefix = before
+		text := strings.TrimSpace(after)
 		if text != "" {
 			cb.textLines = append(cb.textLines, text)
 		}
@@ -711,19 +711,19 @@ func (r *Reader) parseDocstring(lines []string, start int) *commentBlock {
 	trimmed := strings.TrimSpace(line)
 
 	// Find the opening """
-	idx := strings.Index(trimmed, `"""`)
-	if idx < 0 {
+	_, after, ok := strings.Cut(trimmed, `"""`)
+	if !ok {
 		cb.rawLines = []string{line}
 		return cb
 	}
 
-	afterOpen := trimmed[idx+3:]
+	afterOpen := after
 
 	// Check for single-line docstring: """text"""
-	closeIdx := strings.Index(afterOpen, `"""`)
-	if closeIdx >= 0 {
+	before, _, ok := strings.Cut(afterOpen, `"""`)
+	if ok {
 		cb.rawLines = []string{line}
-		text := strings.TrimSpace(afterOpen[:closeIdx])
+		text := strings.TrimSpace(before)
 		if text != "" {
 			cb.textLines = append(cb.textLines, text)
 		}
@@ -745,8 +745,8 @@ func (r *Reader) parseDocstring(lines []string, start int) *commentBlock {
 
 		if strings.Contains(lineTrimmed, `"""`) {
 			// Text before closing """
-			ci := strings.Index(lineTrimmed, `"""`)
-			beforeClose := strings.TrimSpace(lineTrimmed[:ci])
+			before, _, _ := strings.Cut(lineTrimmed, `"""`)
+			beforeClose := strings.TrimSpace(before)
 			if beforeClose != "" {
 				cb.textLines = append(cb.textLines, beforeClose)
 			}
@@ -1019,8 +1019,8 @@ func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
 
 	// --- Opening line ---
 	firstTrimmed := strings.TrimSpace(cb.rawLines[0])
-	idx := strings.Index(firstTrimmed, `"""`)
-	afterOpen := strings.TrimSpace(firstTrimmed[idx+3:])
+	_, after, _ := strings.Cut(firstTrimmed, `"""`)
+	afterOpen := strings.TrimSpace(after)
 
 	if afterOpen != "" {
 		if _, isTrans := textIdxToTL[textCursor]; isTrans {
@@ -1059,20 +1059,20 @@ func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
 	// --- Closing line ---
 	closingLine := cb.rawLines[len(cb.rawLines)-1]
 	closingTrimmed := strings.TrimSpace(closingLine)
-	ci := strings.Index(closingTrimmed, `"""`)
+	before, _, ok := strings.Cut(closingTrimmed, `"""`)
 
 	// Unterminated docstring: the opening `"""` has no matching close
 	// before EOF, so the final raw line is genuine body content rather
 	// than a closing delimiter. Emit it verbatim and do not synthesize a
 	// closing `"""` that the source never had — guarding ci avoids a
 	// slice-bounds panic on closingTrimmed[:ci] when ci == -1.
-	if ci < 0 {
+	if !ok {
 		entries = append(entries, "S:"+closingLine)
 		return strings.Join(entries, "\x01")
 	}
 
 	// Check for text before the closing `"""` (rare but valid).
-	beforeClose := strings.TrimSpace(closingTrimmed[:ci])
+	beforeClose := strings.TrimSpace(before)
 	if beforeClose != "" {
 		if _, isTrans := textIdxToTL[textCursor]; isTrans {
 			entries = append(entries, "T:"+indent)

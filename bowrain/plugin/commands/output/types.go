@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -611,14 +612,7 @@ func (o StreamStatusOutput) FormatText(w io.Writer) error {
 
 // joinComma joins parts with ", ".
 func joinComma(parts []string) string {
-	out := ""
-	for i, p := range parts {
-		if i > 0 {
-			out += ", "
-		}
-		out += p
-	}
-	return out
+	return strings.Join(parts, ", ")
 }
 
 // ---------------------------------------------------------------------------
@@ -740,14 +734,7 @@ func diffStat(added, changed, removed int) string {
 	if len(parts) == 0 {
 		return "no changes"
 	}
-	out := ""
-	for i, p := range parts {
-		if i > 0 {
-			out += " "
-		}
-		out += p
-	}
-	return out
+	return strings.Join(parts, " ")
 }
 
 // changeSigil maps a change type to a one-character sigil.

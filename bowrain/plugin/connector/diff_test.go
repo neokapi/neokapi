@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -140,17 +141,13 @@ func seedCacheFromScan(t *testing.T, proj *bproject.Project, reg *registry.Forma
 	cache := bproject.LoadSyncCache(proj.Layout)
 	for itemName, blocks := range hashMap {
 		fc := &bproject.FileCache{Blocks: map[string]string{}}
-		for id, h := range blocks {
-			fc.Blocks[id] = h
-		}
+		maps.Copy(fc.Blocks, blocks)
 		cache.Files[itemName] = fc
 	}
 	if extraBlocks != nil {
 		// Add the phantom blocks to whichever file we have.
 		for itemName := range hashMap {
-			for id, h := range extraBlocks {
-				cache.Files[itemName].Blocks[id] = h
-			}
+			maps.Copy(cache.Files[itemName].Blocks, extraBlocks)
 			break
 		}
 	}

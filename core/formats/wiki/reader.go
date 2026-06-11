@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -654,8 +655,8 @@ func replaceDokuWikiImagesInRuns(runs []model.Run) []model.Run {
 func splitDokuWikiImage(raw string) (name, caption string) {
 	// Strip the `{{` prefix and `}}` suffix.
 	inner := strings.TrimSuffix(strings.TrimPrefix(raw, "{{"), "}}")
-	if pipe := strings.Index(inner, "|"); pipe >= 0 {
-		return inner[:pipe], inner[pipe+1:]
+	if before, after, ok := strings.Cut(inner, "|"); ok {
+		return before, after
 	}
 	return inner, ""
 }
@@ -2123,10 +2124,8 @@ func isMediaWikiImageParam(s string) bool {
 		"baseline", "sub", "super", "top", "text-top", "middle", "bottom", "text-bottom",
 		"upright",
 	}
-	for _, p := range params {
-		if s == p {
-			return true
-		}
+	if slices.Contains(params, s) {
+		return true
 	}
 	// Prefixed params like "link=..."
 	if strings.HasPrefix(s, "link=") || strings.HasPrefix(s, "alt=") || strings.HasPrefix(s, "page=") {
