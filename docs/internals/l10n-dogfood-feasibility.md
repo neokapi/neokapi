@@ -51,7 +51,7 @@ The genuine gaps are wiring, not capability:
 | Screenshots | 5 hand-made logos in `web/docs/static/img`; all other visuals are per-demo artifacts inside videos | Subsumed by video re-capture — no separate screenshot program needed |
 | `packages/ui`, `packages/flow-editor` | ~100 + 26 components, hundreds of labels | Hardcoded; `i18n-manifest.json` defines the intended model |
 | CLI help + output | 153 help entries (~1.1k words) + ~139 fmt-call headers/messages | Hardcoded; no catalog wiring |
-| Landing page `web/landing` | 15 pages (~1–2k words) | Hardcoded |
+| Landing home (folded into `web/docs`) | ~1–2k words | Localizes through the docs-site path |
 | Go error strings | ~1.4k, mostly developer-facing | Out of scope for v1 (recommend: leave English) |
 
 Total kapi-side translatable volume: **~110–120k words, ~85% of it docs.**

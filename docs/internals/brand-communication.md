@@ -1,8 +1,8 @@
 # Brand & Communication Guideline
 
 Guidance for writing user-facing text in this repository: the documentation
-site (`web/docs`), the marketing landing pages (`web/landing`,
-`bowrain/web/landing`), READMEs, release notes, CLI help, and UI copy. Claude
+site and landing home (`web/docs`), the bowrain landing page
+(`bowrain/web/landing`), READMEs, release notes, CLI help, and UI copy. Claude
 and human contributors should follow it whenever they add or edit prose.
 
 The goal: an **academic, precise register** — explain what something is and what

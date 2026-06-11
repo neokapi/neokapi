@@ -1,12 +1,11 @@
 # Regenerating documentation assets (videos, screenshots, scenes)
 
 This is the maintainer runbook for re-recording and republishing every media
-asset embedded on the four public surfaces:
+asset embedded on the three public surfaces:
 
 | Surface | Path | Asset home |
 |---|---|---|
-| kapi landing | `web/landing` | committed in `web/landing/public/` |
-| kapi docs | `web/docs` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
+| kapi docs + landing | `web/docs` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/web/bowrain/docs/`) | `bowrain-docs-assets` GitHub release |
 
