@@ -57,17 +57,15 @@ type deviceVerifyEntry struct {
 
 func randomHex(n int) string {
 	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand: " + err.Error())
-	}
+	// crypto/rand.Read never returns an error as of Go 1.24.
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
 func randomUserCode() string {
 	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		panic("crypto/rand: " + err.Error())
-	}
+	// crypto/rand.Read never returns an error as of Go 1.24.
+	_, _ = rand.Read(b)
 	code := hex.EncodeToString(b)
 	return fmt.Sprintf("%s-%s", code[:4], code[4:])
 }

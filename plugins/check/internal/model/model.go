@@ -195,7 +195,7 @@ func (d *Downloader) lockTimeout() time.Duration {
 
 // Ensure downloads the named model's files if missing and returns their paths.
 // This is the explicit acquisition step.
-func (d *Downloader) Ensure(name string) (Paths, error) {
+func (d *Downloader) Ensure(ctx context.Context, name string) (Paths, error) {
 	p, spec, err := Resolve(name)
 	if err != nil {
 		return Paths{}, err
@@ -203,10 +203,10 @@ func (d *Downloader) Ensure(name string) (Paths, error) {
 	if err := os.MkdirAll(p.Dir, 0o755); err != nil {
 		return Paths{}, fmt.Errorf("model: create cache dir: %w", err)
 	}
-	if err := d.ensureFile(p.ONNX, hfURL(spec.Repo, spec.ONNXFile), expected{sha256: spec.ONNXSHA256, size: spec.ONNXSize}); err != nil {
+	if err := d.ensureFile(ctx, p.ONNX, hfURL(spec.Repo, spec.ONNXFile), expected{sha256: spec.ONNXSHA256, size: spec.ONNXSize}); err != nil {
 		return Paths{}, fmt.Errorf("model: onnx: %w", err)
 	}
-	if err := d.ensureFile(p.Tokenizer, hfURL(spec.TokenizerRepo, spec.TokenizerFile), expected{sha256: spec.TokenizerSHA256, size: spec.TokenizerSize}); err != nil {
+	if err := d.ensureFile(ctx, p.Tokenizer, hfURL(spec.TokenizerRepo, spec.TokenizerFile), expected{sha256: spec.TokenizerSHA256, size: spec.TokenizerSize}); err != nil {
 		return Paths{}, fmt.Errorf("model: tokenizer: %w", err)
 	}
 	return p, nil
@@ -222,11 +222,11 @@ type expected struct {
 	size int64
 }
 
-func (d *Downloader) ensureFile(dst, url string, want expected) error {
+func (d *Downloader) ensureFile(ctx context.Context, dst, url string, want expected) error {
 	if fileNonEmpty(dst) {
 		return nil
 	}
-	unlock, err := d.acquireLock(dst + ".lock")
+	unlock, err := d.acquireLock(ctx, dst+".lock")
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (d *Downloader) ensureFile(dst, url string, want expected) error {
 	if fileNonEmpty(dst) {
 		return nil
 	}
-	return d.download(url, dst, want)
+	return d.download(ctx, url, dst, want)
 }
 
 func fileNonEmpty(path string) bool {
@@ -242,7 +242,7 @@ func fileNonEmpty(path string) bool {
 	return err == nil && fi.Size() > 0
 }
 
-func (d *Downloader) acquireLock(lockPath string) (func(), error) {
+func (d *Downloader) acquireLock(ctx context.Context, lockPath string) (func(), error) {
 	deadline := time.Now().Add(d.lockTimeout())
 	for {
 		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
@@ -260,7 +260,11 @@ func (d *Downloader) acquireLock(lockPath string) (func(), error) {
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf("model: timed out waiting for download lock %s", lockPath)
 		}
-		time.Sleep(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("model: waiting for download lock %s: %w", lockPath, ctx.Err())
+		case <-time.After(250 * time.Millisecond):
+		}
 	}
 }
 
@@ -269,9 +273,9 @@ func (d *Downloader) acquireLock(lockPath string) (func(), error) {
 // The SHA-256 of the received bytes is always computed; when want pins a digest
 // (or size) the download fails on mismatch before the rename, otherwise a
 // warning is logged that the file was installed unverified.
-func (d *Downloader) download(url, dst string, want expected) error {
+func (d *Downloader) download(ctx context.Context, url, dst string, want expected) error {
 	d.logf("downloading %s -> %s", url, dst)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil) //nolint:gosec // fixed registry of HuggingFace repos
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // fixed registry of HuggingFace repos
 	if err != nil {
 		return fmt.Errorf("request %s: %w", url, err)
 	}

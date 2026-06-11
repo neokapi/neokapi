@@ -11,8 +11,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 
 	"github.com/neokapi/neokapi/plugins/check/checkproto"
 	"github.com/neokapi/neokapi/plugins/check/internal/embed"
@@ -27,23 +29,28 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+	var err error
 	switch os.Args[1] {
 	case "pull":
-		cmdPull(os.Args[2:])
+		err = cmdPull(os.Args[2:])
 	case "info":
 		cmdInfo()
 	case "serve":
-		cmdServe()
+		err = cmdServe()
 	case "embed":
-		cmdEmbed(os.Args[2:])
+		err = cmdEmbed(os.Args[2:])
 	case "similarity":
-		cmdSimilarity(os.Args[2:])
+		err = cmdSimilarity(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
 		fmt.Fprintf(os.Stderr, "kapi-check: unknown command %q\n", os.Args[1])
 		usage()
 		os.Exit(2)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "kapi-check: %v\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -63,18 +70,20 @@ the real backend; the default build is a stub.
 `)
 }
 
-func cmdPull(args []string) {
+func cmdPull(args []string) error {
 	name := model.DefaultModelName()
 	if len(args) > 0 {
 		name = args[0]
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	dl := &model.Downloader{Logf: func(f string, a ...any) { fmt.Fprintf(os.Stderr, "· "+f+"\n", a...) }}
-	paths, err := dl.Ensure(name)
+	paths, err := dl.Ensure(ctx, name)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "kapi-check: pull %s: %v\n", name, err)
-		os.Exit(1)
+		return fmt.Errorf("pull %s: %w", name, err)
 	}
 	fmt.Printf("installed %s\n  onnx:      %s\n  tokenizer: %s\n", name, paths.ONNX, paths.Tokenizer)
+	return nil
 }
 
 func cmdInfo() {
@@ -91,22 +100,20 @@ func cmdInfo() {
 	}
 }
 
-func newEngine() embed.Engine {
-	eng, err := embed.NewEngine(func(f string, a ...any) { fmt.Fprintf(os.Stderr, "· "+f+"\n", a...) })
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "kapi-check: %v\n", err)
-		os.Exit(1)
-	}
-	return eng
+func newEngine() (embed.Engine, error) {
+	return embed.NewEngine(func(f string, a ...any) { fmt.Fprintf(os.Stderr, "· "+f+"\n", a...) })
 }
 
-func cmdServe() {
-	eng := newEngine()
+func cmdServe() error {
+	eng, err := newEngine()
+	if err != nil {
+		return err
+	}
 	defer func() { _ = eng.Close() }()
 	if err := checkproto.Serve(os.Stdin, os.Stdout, handler(eng)); err != nil {
-		fmt.Fprintf(os.Stderr, "kapi-check: serve: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("serve: %w", err)
 	}
+	return nil
 }
 
 func handler(eng embed.Engine) checkproto.Handler {
@@ -150,39 +157,44 @@ func modelInfos(eng embed.Engine) []checkproto.ModelInfo {
 	return out
 }
 
-func cmdEmbed(args []string) {
+func cmdEmbed(args []string) error {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: kapi-check embed <text>")
 		os.Exit(2)
 	}
-	eng := newEngine()
+	eng, err := newEngine()
+	if err != nil {
+		return err
+	}
 	defer func() { _ = eng.Close() }()
 	v, err := eng.Embed(args[0], "")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "kapi-check: embed: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("embed: %w", err)
 	}
 	fmt.Printf("embedding: %d dims (first 4: %.4f %.4f %.4f %.4f)\n", len(v), v[0], v[1], v[2], v[3])
+	return nil
 }
 
-func cmdSimilarity(args []string) {
+func cmdSimilarity(args []string) error {
 	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: kapi-check similarity <text> <ref>...")
 		os.Exit(2)
 	}
-	eng := newEngine()
+	eng, err := newEngine()
+	if err != nil {
+		return err
+	}
 	defer func() { _ = eng.Close() }()
 	tv, err := eng.Embed(args[0], "")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "kapi-check: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 	for _, ref := range args[1:] {
 		rv, err := eng.Embed(ref, "")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "kapi-check: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		fmt.Printf("%.4f  %s\n", vec.Cosine(tv, rv), ref)
 	}
+	return nil
 }
