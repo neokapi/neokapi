@@ -73,19 +73,9 @@ export default function LabPage(): React.ReactElement {
               connected by channels of Parts. The graph you design here is
               exactly what runs. Pick a lesson and its{" "}
               <strong>walkthrough</strong> drives the workspace step by step —
-              highlighting the node it talks about, opening its panel, running
-              the flow. <strong>Inspect</strong> on the Source opens the
-              content model the reader produces (Layers → Groups → Blocks of
-              Runs); on the Sink, the written output with a round-trip diff
-              against the input. Click a node after a run for its{" "}
-              <strong>run inspector</strong> — every block that passed through
-              and what the step attached: segmentation spans, entity tags,
-              vaulted redaction secrets, QA findings, the written target. The
-              recipe view shows the <code>.kapi</code> project file the canvas
-              serializes to; the script step opens a real code editor; the
-              Files picker takes one file, several, or a glob — and the
-              recorded-trace replays show what live wasm runs can&apos;t:
-              parallel workers and the Java bridge&apos;s gRPC boundary.
+              the rest of the engine is one click deep, behind the{" "}
+              <strong>Inspect</strong> pills, the node panels, and the recipe
+              view.
             </>
           }
         >

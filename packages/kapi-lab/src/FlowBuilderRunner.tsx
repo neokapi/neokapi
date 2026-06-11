@@ -543,9 +543,14 @@ export default function FlowBuilderRunner({
         {scenarios.length > 1 && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold text-muted-foreground">Scenario</span>
+            {/* spacing>0 keeps each chip independently bordered/rounded so the
+                row wraps cleanly on narrow screens (joined segments would lose
+                their edge borders at the wrap points). */}
             <ToggleGroup
               type="single"
               variant="outline"
+              spacing={1}
+              className="flex-wrap"
               value={scenario.id}
               onValueChange={(v) => {
                 const next = scenarios.find((s) => s.id === v);
@@ -561,16 +566,20 @@ export default function FlowBuilderRunner({
           </div>
         )}
         {/* The scenario's lesson: a walkthrough card that drives the workspace
-            (each step focuses the node/panel it talks about), or the static
-            description for free-play scenarios. */}
+            (each step focuses the node/panel it talks about). On sm+ it lives
+            INSIDE the canvas as a callout (FlowEditor lessonPanel) so the
+            editor keeps its vertical real estate; on phones it stacks here.
+            Free-play scenarios show their static description instead. */}
         {scenario.walkthrough && !imported ? (
-          <WalkthroughCard
-            steps={scenario.walkthrough}
-            index={walkIndex}
-            onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
-            onRun={() => void runFlow(flow)}
-            runDisabled={!runtime.ready || busy}
-          />
+          <div className="sm:hidden">
+            <WalkthroughCard
+              steps={scenario.walkthrough}
+              index={walkIndex}
+              onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+              onRun={() => void runFlow(flow)}
+              runDisabled={!runtime.ready || busy}
+            />
+          </div>
         ) : (
           <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
         )}
@@ -611,7 +620,7 @@ export default function FlowBuilderRunner({
         {/* Workspace lenses: replay a recorded trace (native runs the wasm
             engine can't reproduce) and the project lens (the recipe the canvas
             serializes to). */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {imported ? (
             <span className="text-[11px] text-muted-foreground">
               Replaying <strong>{imported.label}</strong> (recorded native run, read-only) —{" "}
@@ -648,8 +657,9 @@ export default function FlowBuilderRunner({
             onChange={handleFlowChange}
             onGetSchema={handleGetSchema}
             onGetDoc={handleGetDoc}
-            onRun={(spec) => void runFlow(spec)}
-            runDisabled={!runtime.ready || busy || !!imported}
+            onRun={imported ? undefined : (spec) => void runFlow(spec)}
+            runDisabled={!runtime.ready || busy}
+            running={busy}
             readOnly={!!imported}
             trace={imported?.trace ?? trace ?? undefined}
             onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}
@@ -657,6 +667,17 @@ export default function FlowBuilderRunner({
             renderEndpointPanel={imported ? undefined : renderEndpointPanel}
             focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
+            lessonPanel={
+              scenario.walkthrough && !imported ? (
+                <WalkthroughCard
+                  steps={scenario.walkthrough}
+                  index={walkIndex}
+                  onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+                  onRun={() => void runFlow(flow)}
+                  runDisabled={!runtime.ready || busy}
+                />
+              ) : undefined
+            }
           />
         </div>
 

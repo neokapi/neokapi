@@ -110,6 +110,9 @@ interface FlowToolbarProps {
   stepCount: number;
   onRun?: (flow: FlowSpec) => void;
   runDisabled?: boolean;
+  /** A run is actually in flight (drives the spinner/label; disabled alone
+   *  can also mean "not ready yet" or "read-only replay"). */
+  running?: boolean;
   flow: FlowSpec;
   /** Whether the flow currently has the redaction wrap (redact … unredact). */
   redacted?: boolean;
@@ -121,6 +124,7 @@ function FlowToolbar({
   stepCount,
   onRun,
   runDisabled,
+  running,
   flow,
   redacted,
   onToggleRedaction,
@@ -155,8 +159,8 @@ function FlowToolbar({
               disabled={runDisabled}
               aria-label="Run flow"
             >
-              {runDisabled ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-              {runDisabled ? t("Running...") : t("Run")}
+              {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              {running ? t("Running...") : t("Run")}
             </Button>
           )}
         </>
@@ -282,8 +286,8 @@ export function StepConfigPanel({
 
   return (
     <div
-      className="flex flex-col border-l border-border bg-background overflow-hidden"
-      style={{ width: 280, minWidth: 280, maxWidth: 280 }}
+      className="flex h-full flex-col border-l border-border bg-background overflow-hidden"
+      style={{ width: "min(280px, calc(100vw - 2rem))" }}
     >
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
@@ -575,6 +579,8 @@ export function FlowEditor({
   renderEndpointPanel,
   focusRequest,
   renderStepConfigPanel,
+  lessonPanel,
+  running,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -599,11 +605,12 @@ export function FlowEditor({
     return traceEvents ?? null;
   }, [trace, traceDismissed, traceEvents, flow.steps]);
 
-  // A fresh trace starts fully played (the run just happened); scrubbing
-  // rewinds it. Editing the flow invalidates the review.
+  // A fresh trace REPLAYS from the start: the transport auto-plays so the
+  // parts visibly flow through the pipeline (dots on the edges) instead of
+  // the run landing fully played. Editing the flow invalidates the review.
   useEffect(() => {
-    setTraceCursor(trace ? null : null);
-    setTracePlaying(false);
+    setTraceCursor(trace ? 0 : null);
+    setTracePlaying(!!trace);
     setTraceDismissed(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
@@ -706,6 +713,20 @@ export function FlowEditor({
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
+
+  // Re-anchor the viewport whenever the flow's topology is REPLACED (scenario
+  // switch, trace import, back-to-your-flow): the new layout starts at the
+  // top-left, but the pan position survives the swap — leaving the new nodes
+  // off-screen and the canvas looking empty.
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      void reactFlowRef.current?.setViewport(
+        { x: CANVAS_MARGIN, y: CANVAS_MARGIN, zoom: 1 },
+        { duration: 200 },
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topologyKey]);
 
   // Requirement analysis: which non-optional consumed ports has nothing upstream
   // produced? Surfaced as the per-node "needs …" warning + config-panel guidance.
@@ -1247,6 +1268,7 @@ export function FlowEditor({
           stepCount={flow.steps.length}
           onRun={onRun}
           runDisabled={runDisabled}
+          running={running}
           flow={flow}
           redacted={hasRedactionWrap(flow)}
           onToggleRedaction={
@@ -1327,9 +1349,19 @@ export function FlowEditor({
                 </Panel>
               )}
 
-              <Panel position="top-right">
+              {/* The legend would cover most of a phone-width canvas. */}
+              <Panel position="top-right" className="hidden sm:block">
                 <FlowLegend />
               </Panel>
+
+              {/* Lesson callout — the walkthrough lives ON the canvas, next to
+                  the nodes its steps point at. Hidden on phones (the host
+                  stacks it above the editor there). */}
+              {lessonPanel && (
+                <Panel position="bottom-left" className="hidden w-[400px] max-w-[60%] sm:block">
+                  {lessonPanel}
+                </Panel>
+              )}
             </ReactFlow>
           </div>
         )}

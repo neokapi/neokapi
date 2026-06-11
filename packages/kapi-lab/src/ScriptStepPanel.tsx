@@ -63,8 +63,8 @@ export default function ScriptStepPanel({
 
   return (
     <div
-      className="flex flex-col overflow-hidden border-l border-border bg-background"
-      style={{ width: 480, minWidth: 480, maxWidth: 480 }}
+      className="flex h-full flex-col overflow-hidden border-l border-border bg-background"
+      style={{ width: "min(480px, calc(100vw - 2rem))" }}
     >
       <PanelHeader className="flex-col items-start gap-0.5 py-2.5">
         <div className="flex w-full items-center justify-between">

@@ -151,6 +151,12 @@ export interface FlowEditorProps {
   onRun?: (flow: FlowSpec) => void;
   /** Whether the run button is disabled (e.g. a flow is already running). */
   runDisabled?: boolean;
+  /**
+   * A run is actually in flight — drives the Run button's spinner/"Running…"
+   * label. `runDisabled` alone can also mean "engine not ready" or
+   * "read-only replay", which must not read as running.
+   */
+  running?: boolean;
   /** Whether the flow is read-only (built-in flows). */
   readOnly?: boolean;
   /** Called to fetch a tool's config schema. Returns null if none available. */
@@ -202,6 +208,13 @@ export interface FlowEditorProps {
    * default panel.
    */
   renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
+  /**
+   * Host-rendered lesson callout, shown as an overlay INSIDE the canvas
+   * (bottom-left) on sm+ screens so the lesson sits next to the nodes it
+   * points at instead of consuming page height above the editor. Hidden on
+   * phones — stack the same content above the editor there instead.
+   */
+  lessonPanel?: import("react").ReactNode;
 }
 
 /** Context passed to renderStepConfigPanel (see FlowEditorProps). */

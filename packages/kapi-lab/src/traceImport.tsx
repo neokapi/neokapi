@@ -20,7 +20,10 @@ export interface RecordedTraceInfo {
 export function specFromTrace(trace: FlowTrace): FlowSpec {
   const steps = (trace.nodes ?? [])
     .filter((n) => n.type === "tool" || n.type === "bridge-tool")
-    .map((n) => ({ tool: n.name, ...(n.label ? { label: n.label } : {}) }));
+    // Older traces may omit `name`; fall back to the node id so the step
+    // still renders rather than producing a ghost node.
+    .map((n) => ({ tool: n.name || n.id, ...(n.label ? { label: n.label } : {}) }))
+    .filter((s) => s.tool);
   return { steps };
 }
 

@@ -67,7 +67,8 @@ export function TracePanel({
 
   return (
     <div className="flex items-center gap-2 border-t border-border bg-background px-3 py-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {/* The word label and the timestamp yield to the slider on phones. */}
+      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:inline">
         Run
       </span>
       <Button
@@ -138,11 +139,12 @@ export function TracePanel({
 
       <span
         className={cn(
-          "min-w-[110px] text-right font-mono text-[10px]",
+          "text-right font-mono text-[10px] sm:min-w-[110px]",
           done ? "text-foreground" : "text-muted-foreground",
         )}
       >
-        {cursor}/{total} · {tsLabel(events, cursor, durationUs)}
+        {cursor}/{total}
+        <span className="hidden sm:inline"> · {tsLabel(events, cursor, durationUs)}</span>
       </span>
 
       <Button
