@@ -67,3 +67,6 @@ translation or transform stages — typically as the trailing stage after
 translation. In CI, gate on the exit code; in an editor or assistant, surface
 the findings for one-click fixes. A check never blocks the pipeline by mutating
 content; it annotates, and the gate decides.
+
+For a worked example of gating a pull request on a project's bound checks with
+GitHub Actions, see [Gate localization in CI](/kapi/recipes/gate-localization-in-ci).

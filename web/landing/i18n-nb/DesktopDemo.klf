@@ -1,0 +1,341 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "neokapi",
+    "version": "1.0"
+  },
+  "project": {
+    "id": "neokapi-output",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/DesktopDemo.tsx",
+      "documentType": "jsx",
+      "path": "src/components/DesktopDemo.tsx",
+      "blocks": [
+        {
+          "id": "src/components/DesktopDemo.tsx:293:0",
+          "hash": "38p9Mx",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "The"
+            },
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:var",
+                "data": "{value}",
+                "equiv": "value"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "radient-to-r from-brand-400 to-forest-400 bg-clip-text text-transparent\">\n              Kapi D",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " Kapi Desktop "
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "    app",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "ph": {
+                "id": "3",
+                "type": "jsx:var",
+                "data": "{value_2}",
+                "equiv": "value_2"
+              }
+            },
+            {
+              "text": " app"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Appen {=m1} Kapi Desktop {/=m1}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "value",
+              "kind": "variable",
+              "sourceExpr": "n c"
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "radient-to-r from-brand-400 to-forest-400 bg-clip-text text-transparent\">\n              Kapi Desktop\n            </span>{\" \"}\n            app"
+            },
+            {
+              "name": "value_2",
+              "kind": "variable",
+              "sourceExpr": "   "
+            }
+          ],
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 293,
+            "component": "DesktopDemo",
+            "jsxPath": "section > div > div > h2",
+            "element": "h2"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:300:1",
+          "hash": "2FOc6a",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Everything the CLI does, with a visual interface. Work ad-hoc or with projects — shared across Desktop and CLI."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Alt CLI-et gjør, med et visuelt grensesnitt. Jobb ad hoc eller med prosjekter — delt mellom Desktop og CLI."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 300,
+            "component": "DesktopDemo",
+            "jsxPath": "section > div > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:8:t",
+          "hash": "1Gth75",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Projects & Ad-hoc"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Prosjekter og ad hoc"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 8,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:10:t",
+          "hash": "1sVaMk",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Work with projects for organized, repeatable workflows, or go ad-hoc on individual files. Same project config works across Desktop and CLI."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Jobb med prosjekter for organiserte, repeterbare arbeidsflyter, eller ad hoc på enkeltfiler. Samme prosjektkonfigurasjon fungerer i både Desktop og CLI."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 10,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:16:t",
+          "hash": "3UG2U1",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Tools & Flows"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Verktøy og flyter"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 16,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:18:t",
+          "hash": "3w7Dxe",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Execute individual tools like ai-translate, pseudo-translate, or word-count. Compose them into flows and run with one click."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Kjør enkeltverktøy som ai-translate, pseudo-translate eller word-count. Sett dem sammen til flyter og kjør med ett klikk."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 18,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:24:t",
+          "hash": "RtajT",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Formats & Settings"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Formater og innstillinger"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 24,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:26:t",
+          "hash": "NBvjU",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Configure and tweak format readers and writers. Adjust parameters, encoding, segmentation rules, and output options."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Konfigurer og juster formatlesere og -skrivere. Tilpass parametere, tegnkoding, segmenteringsregler og utdatavalg."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 26,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:32:t",
+          "hash": "8gaL7",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "TM & Termbases"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "TM og termbaser"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 32,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        },
+        {
+          "id": "src/components/DesktopDemo.tsx:34:t",
+          "hash": "vIo8f",
+          "translatable": true,
+          "type": "js:t",
+          "source": [
+            {
+              "text": "Manage translation memories and terminology databases. Import, export, browse entries, and configure matching thresholds."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Administrer oversettelsesminner og termbaser. Importer, eksporter, bla i oppføringer og konfigurer terskler for treff."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/DesktopDemo.tsx",
+            "line": 34,
+            "component": "DesktopDemo",
+            "jsxPath": "t()",
+            "element": "t"
+          }
+        }
+      ]
+    }
+  ]
+}

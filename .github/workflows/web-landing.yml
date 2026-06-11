@@ -1,20 +1,20 @@
 name: Web Landing
 
-# Builds the neokapi-web-landing and bowrain-web-landing Vite apps and
-# uploads them as artifacts. Pages Deploy picks them up and slots them at
-# /web/{neokapi,bowrain}/ on neokapi.github.io.
+# Builds the bowrain-web-landing Vite app and uploads it as an artifact. Pages
+# Deploy picks it up and slots it at /web/bowrain/ on neokapi.github.io.
+#
+# (The neokapi landing was retired: the neokapi Docusaurus site is now the
+# product landing page at /web/neokapi/, built by the "Docs — kapi" workflow.)
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "web/landing/**"
       - "bowrain/web/landing/**"
       - ".github/workflows/web-landing.yml"
   push:
     branches: [main]
     paths:
-      - "web/landing/**"
       - "bowrain/web/landing/**"
       - ".github/workflows/web-landing.yml"
 
@@ -47,35 +47,16 @@ jobs:
         id: base
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            {
-              echo "neokapi_base=/web/prs/${PR_NUMBER}/neokapi/"
-              echo "bowrain_base=/web/prs/${PR_NUMBER}/bowrain/"
-            } >> "$GITHUB_OUTPUT"
+            echo "bowrain_base=/web/prs/${PR_NUMBER}/bowrain/" >> "$GITHUB_OUTPUT"
           else
-            {
-              echo "neokapi_base=/web/neokapi/"
-              echo "bowrain_base=/web/bowrain/"
-            } >> "$GITHUB_OUTPUT"
+            echo "bowrain_base=/web/bowrain/" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Build neokapi-web-landing
-        working-directory: web/landing
-        env:
-          VITE_BASE: ${{ steps.base.outputs.neokapi_base }}
-        run: vp run build
 
       - name: Build bowrain-web-landing
         working-directory: bowrain/web/landing
         env:
           VITE_BASE: ${{ steps.base.outputs.bowrain_base }}
         run: vp run build
-
-      - name: Upload neokapi-web artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: neokapi-web
-          path: web/landing/dist
-          retention-days: 7
 
       - name: Upload bowrain-web artifact
         uses: actions/upload-artifact@v7

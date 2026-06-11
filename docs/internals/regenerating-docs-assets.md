@@ -6,7 +6,7 @@ asset embedded on the four public surfaces:
 | Surface | Path | Asset home |
 |---|---|---|
 | kapi landing | `web/landing` | committed in `web/landing/public/` |
-| kapi docs | `web/docs` (baseUrl `/web/neokapi/docs/`) | `docs-assets` GitHub release |
+| kapi docs | `web/docs` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/web/bowrain/docs/`) | `bowrain-docs-assets` GitHub release |
 
@@ -145,7 +145,7 @@ and re-trigger the workflow until they match.
 
 ```bash
 # example: compare one asset
-live=$(curl -sI https://neokapi.github.io/web/neokapi/docs/video/kapi/kapi-desktop-projects-dark.webm | awk '/content-length/{print $2}' | tr -d '\r')
+live=$(curl -sI https://neokapi.github.io/web/neokapi/video/kapi/kapi-desktop-projects-dark.webm | awk '/content-length/{print $2}' | tr -d '\r')
 local=$(stat -f%z web/docs/static/video/kapi/kapi-desktop-projects-dark.webm)
 echo "live=$live local=$local"
 ```

@@ -6,6 +6,7 @@ import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
 import { Sparkles } from "lucide-react";
 import TryNeokapi from "../components/TryNeokapi";
+import StructuredData from "../components/home/StructuredData";
 
 import styles from "./index.module.css";
 
@@ -208,8 +209,9 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Open, AI-native, format-aware content engine in Go"
+      description="An open-source, format-aware content engine in Go. Extract, translate, leverage translation memory, and run terminology, QA, and brand-voice checks — for content written by people or AI agents."
     >
+      <StructuredData />
       <HomepageHeader />
       <main>
         <HomepageFeatures />

@@ -1147,55 +1147,6 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  web/landing:
-    dependencies:
-      '@fontsource-variable/dm-sans':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource-variable/outfit':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource-variable/source-code-pro':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@neokapi/kapi-react':
-        specifier: '*'
-        version: link:../../packages/kapi-react
-      lucide-react:
-        specifier: ^1.14.0
-        version: 1.17.0(react@19.2.6)
-      react:
-        specifier: ^19.2.4
-        version: 19.2.6
-      react-dom:
-        specifier: ^19.2.4
-        version: 19.2.6(react@19.2.6)
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.2.2
-        version: 4.3.0(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3))
-      '@types/node':
-        specifier: ^25.6.0
-        version: 25.9.1
-      '@types/react':
-        specifier: ^19.2.15
-        version: 19.2.15
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.15)
-      '@vitejs/plugin-react':
-        specifier: ^6.0.1
-        version: 6.0.2(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3))
-      tailwindcss:
-        specifier: ^4.2.2
-        version: 4.3.0
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-      vite-plus:
-        specifier: ^0.1.24
-        version: 0.1.24(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(terser@5.48.0)(tsx@4.22.3)(typescript@5.9.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3))
-
 packages:
 
   '@adobe/css-tools@4.5.0':
@@ -2996,12 +2947,6 @@ packages:
 
   '@fontsource-variable/jetbrains-mono@5.2.8':
     resolution: {integrity: sha512-WBA9elru6Jdp5df2mES55wuOO0WIrn3kpXnI4+W2ek5u3ZgLS9XS4gmIlcQhiZOWEKl95meYdvK7xI+ETLCq/Q==}
-
-  '@fontsource-variable/outfit@5.2.8':
-    resolution: {integrity: sha512-4oUDCZx/Tcz6HZP423w/niqEH31Gks5IsqHV2ZZz1qKHaVIZdj2f0/S1IK2n8jl6Xo0o3N+3RjNHlV9R73ozQA==}
-
-  '@fontsource-variable/source-code-pro@5.2.7':
-    resolution: {integrity: sha512-kZ0VNwnhvSA7vu5MaiO52eicQ4zC+k+8HBLZb+1js0MK/RngLy25NEUFB1y/AKd0ZMwru88T433QBcFf9m/huw==}
 
   '@fontsource/dm-mono@5.2.7':
     resolution: {integrity: sha512-Ma1az2atTVgQWuOWwjuxx26p/6A6CU9HBNKq1CFV6YKpKhpswnf9ry9Ql4+T6bTZzkdtSfS6tjJvqZOljVzIFQ==}
@@ -14531,10 +14476,6 @@ snapshots:
   '@fontsource-variable/inter@5.2.8': {}
 
   '@fontsource-variable/jetbrains-mono@5.2.8': {}
-
-  '@fontsource-variable/outfit@5.2.8': {}
-
-  '@fontsource-variable/source-code-pro@5.2.7': {}
 
   '@fontsource/dm-mono@5.2.7': {}
 

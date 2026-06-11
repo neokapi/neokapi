@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         "kapi/recipes/prepare-content",
         "kapi/recipes/pre-translate-with-tm",
         "kapi/recipes/resumable-workspace",
+        "kapi/recipes/gate-localization-in-ci",
         "kapi/bilingual-workflow",
       ],
     },

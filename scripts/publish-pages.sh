@@ -11,7 +11,7 @@
 #
 # Usage:
 #   scripts/publish-pages.sh <site>...
-#   sites: neokapi-docs | bowrain-docs | neokapi-landing | bowrain-landing | all
+#   sites: neokapi-docs | bowrain-docs | bowrain-landing | all
 #
 # Auth: pushes over SSH to git@github.com (override with PAGES_REPO). Any org
 # member with write access + an SSH key already has what CI's PAGES_DEPLOY_KEY
@@ -36,7 +36,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 if [ "$#" -eq 0 ]; then
-  echo "usage: $0 <site>...  (neokapi-docs | bowrain-docs | neokapi-landing | bowrain-landing | all)" >&2
+  echo "usage: $0 <site>...  (neokapi-docs | bowrain-docs | bowrain-landing | all)" >&2
   exit 2
 fi
 
@@ -44,7 +44,7 @@ fi
 sites=()
 for arg in "$@"; do
   if [ "$arg" = "all" ]; then
-    sites=(neokapi-docs bowrain-docs neokapi-landing bowrain-landing)
+    sites=(neokapi-docs bowrain-docs bowrain-landing)
   else
     sites+=("$arg")
   fi
@@ -54,9 +54,8 @@ done
 # landing = replace slot contents but PRESERVE a co-located docs/ subdir).
 site_spec() {
   case "$1" in
-    neokapi-docs)    echo "web/docs/build|web/neokapi/docs|docs" ;;
+    neokapi-docs)    echo "web/docs/build|web/neokapi|docs" ;;
     bowrain-docs)    echo "bowrain/web/docs/build|web/bowrain/docs|docs" ;;
-    neokapi-landing) echo "web/landing/dist|web/neokapi|landing" ;;
     bowrain-landing) echo "bowrain/web/landing/dist|web/bowrain|landing" ;;
     *) return 1 ;;
   esac

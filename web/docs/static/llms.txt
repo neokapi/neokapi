@@ -1,0 +1,48 @@
+# neokapi
+
+> neokapi is an open-source, format-aware content engine written in Go. It parses
+> localization, document, and data formats into a faithful content model, then
+> translates, leverages translation memory, and runs verification checks for
+> terminology, QA, and brand voice — for content written by people or AI agents.
+> `kapi` is the command-line and desktop application built on the engine.
+
+neokapi reimagines the Okapi Framework in Go. The engine extracts translatable
+text from any format into a streaming content model (Block / Run / Overlay),
+processes it through a pipeline of composable tools, and writes the original
+format back faithfully — structure, markup, and placeholders intact. It runs
+offline by default with an embedded SQLite translation memory and termbase, and
+exposes its capabilities to AI assistants over MCP.
+
+## Getting started
+
+- [Kapi overview](https://neokapi.github.io/web/neokapi/kapi/overview): what kapi is and how it relates to the engine
+- [Quickstart](https://neokapi.github.io/web/neokapi/kapi/get-started/quickstart): install and run the first commands
+- [Installation](https://neokapi.github.io/web/neokapi/kapi/get-started/installation): Homebrew, WinGet, binary, desktop app
+- [First project](https://neokapi.github.io/web/neokapi/kapi/get-started/first-project): the `.kapi` recipe and project model
+- [Use with Claude](https://neokapi.github.io/web/neokapi/kapi/get-started/use-with-claude): drive the engine from an AI assistant over MCP
+
+## Framework (Go library)
+
+- [Go quickstart](https://neokapi.github.io/web/neokapi/framework/go-quickstart): embed the engine in a Go program
+- [Architecture](https://neokapi.github.io/web/neokapi/framework/architecture): streaming pipeline, content model, executor
+- [Formats](https://neokapi.github.io/web/neokapi/framework/formats): format-aware readers and writers, plugins, okapi-bridge
+- [AI translation](https://neokapi.github.io/web/neokapi/framework/ai-translation): LLM and MT backends, composed in the pipeline
+- [Tools](https://neokapi.github.io/web/neokapi/framework/tools): the built-in processing tools
+
+## Reference
+
+- [Reference overview](https://neokapi.github.io/web/neokapi/reference): generated and interactive references
+- [CLI commands](https://neokapi.github.io/web/neokapi/commands): every kapi command
+- [Format reference](https://neokapi.github.io/web/neokapi/formats): the full, generated list of supported formats
+- [Tool reference](https://neokapi.github.io/web/neokapi/tools): the full, generated list of tools
+- [Project file](https://neokapi.github.io/web/neokapi/reference/project-file): the `.kapi` recipe format
+- [MCP server](https://neokapi.github.io/web/neokapi/reference/mcp): the engine's MCP tools
+
+## Toolbox and React
+
+- [CLI toolbox](https://neokapi.github.io/web/neokapi/toolbox/overview): kgrep, ksed, kcat — format-aware grep/sed/cat
+- [Kapi React](https://neokapi.github.io/web/neokapi/react/introduction): zero-config i18n library for React
+
+## Source
+
+- [GitHub repository](https://github.com/neokapi/neokapi): source, issues, releases (Apache-2.0)

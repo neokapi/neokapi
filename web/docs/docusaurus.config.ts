@@ -19,18 +19,16 @@ const buildStamp = (() => {
   return `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · ${sha}`;
 })();
 
-// The neokapi-web Vite app sits at /web/neokapi/; this Docusaurus instance
-// lives one level deeper at /web/neokapi/docs/. PR previews are served from
-// /web/prs/<N>/neokapi/docs/ instead, so the deploy workflow overrides the
-// base path via DOCS_BASE_URL — without it, internal links would carry the
-// production prefix and navigate out of the preview.
-const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
-
-// URL of the neokapi marketing landing page (the neokapi-web Vite app that sits
-// one level up from these docs, at /web/neokapi/). The top-left navbar logo
-// links here so it navigates back out to the product landing page; override via
-// env var locally to point at a localhost build of the neokapi site.
-const NEOKAPI_WEB_SITE = process.env.NEOKAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
+// This Docusaurus instance IS the neokapi site: in production it sits at the
+// /web/neokapi/ root and its home page (src/pages/index.tsx) is the product
+// landing page. (A separate Vite landing app previously occupied this root; it
+// was retired and its content folded into the docs home — see
+// src/components/home/.) PR previews are instead served from
+// /web/prs/<N>/neokapi/docs/ (the deploy step runs from the default branch and
+// slots PR docs there), so the deploy workflow overrides the base path via
+// DOCS_BASE_URL — without it, internal links would carry the production prefix
+// and navigate out of the preview.
+const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/";
 
 const config: Config = {
   title: "neokapi",
@@ -143,7 +141,8 @@ const config: Config = {
         docs: {
           // routeBasePath "/" puts docs at the root of the Docusaurus
           // instance, which itself is mounted at baseUrl. So URLs end up
-          // as /web/neokapi/docs/{topic}.
+          // as /web/neokapi/{topic}, and the home page (src/pages/index.tsx)
+          // sits at /web/neokapi/.
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/neokapi/neokapi/tree/main/web/docs/",
@@ -185,20 +184,11 @@ const config: Config = {
       logo: {
         alt: "neokapi",
         src: "img/logo.png",
-        // The logo navigates back out to the neokapi marketing landing page
-        // (one level up from the docs), not to the docs root — the "Home" item
-        // below covers the docs landing page. target _self keeps it in-tab.
-        href: NEOKAPI_WEB_SITE,
-        target: "_self",
+        // The logo links to the home page (src/pages/index.tsx), which is now the
+        // product landing page at the site root.
+        href: "/",
       },
       items: [
-        {
-          // Docs landing page (src/pages/index.tsx). Added because the logo now
-          // leaves the docs site for the marketing landing page.
-          to: "/",
-          label: "Home",
-          position: "left",
-        },
         // IA: Kapi is the product (getting started + CLI + Desktop + recipes +
         // projects); Framework is the engine (an Overview, then concepts +
         // extending + architecture + notes); Reference holds the

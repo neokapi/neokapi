@@ -1,0 +1,564 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "neokapi",
+    "version": "1.0"
+  },
+  "project": {
+    "id": "neokapi-output",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/SeeItInAction.tsx",
+      "documentType": "jsx",
+      "path": "src/components/SeeItInAction.tsx",
+      "blocks": [
+        {
+          "id": "src/components/SeeItInAction.tsx:14:0",
+          "hash": "P1yOs",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "PlayCircle",
+                "data": "<PlayCircle className=\"h-3.5 w-3.5\" />",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " One check, in detail: brand voice"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} Én sjekk, i detalj: merkevarestemme"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<PlayCircle className=\"h-3.5 w-3.5\" />"
+            }
+          ],
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 14,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:18:1",
+          "hash": "4fGXbN",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "A brand-voice check,"
+            },
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:var",
+                "data": "{value}",
+                "equiv": "value"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "<span className=\"bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent\">",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " scored "
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "</span>",
+                "equiv": "=m1"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "En merkevarestemmesjekk, {=m1} poengsatt {/=m1}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "value",
+              "kind": "variable",
+              "sourceExpr": "\" \""
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<span className=\"bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent\">\n            scored\n          </span>"
+            }
+          ],
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 18,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > h2",
+            "element": "h2"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:24:2",
+          "hash": "3FCMdz",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Checks are one part of the engine. Here is the brand-voice check up close: a generic AI draft for a marketing blog drifts off-voice, and kapi scores it against the brand profile and rewrites the violations — the same deterministic scorer the product ships."
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Sjekker er én del av motoren. Her er merkevarestemmesjekken på nært hold: et generisk AI-utkast til en markedsføringsblogg driver ut av stemmen, og kapi poengsetter det mot merkevareprofilen og omskriver bruddene — samme deterministiske poengsetter som produktet leveres med."
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 24,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:33:3",
+          "hash": "1XdmRd",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "pcOpen": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "pan className=\"inline-flex items-center gap-1.5 text-sm font-medium text-red-300\">\n ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "XCircle",
+                "data": "Circle className=\"h-4 w-4\" /> A",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " AI alone "
+            },
+            {
+              "pcClose": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "span>\n ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "pan translate=\"no\" className=\"font-display text-3xl font-bold text-red-400\">\n ",
+                "equiv": "=m2"
+              }
+            },
+            {
+              "text": " 70"
+            },
+            {
+              "pcOpen": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "pan className=\"text-base text-neutral-500\">/1",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": "/100"
+            },
+            {
+              "pcClose": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "span>\n ",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcClose": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "span>\n ",
+                "equiv": "=m2"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} {=m1} AI alene {/=m0} {=m2} 70{=m3}/100{/=m3} {/=m2}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "Circle className=\"h-4 w-4\" /> A"
+            },
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "pan className=\"inline-flex items-center gap-1.5 text-sm font-medium text-red-300\">\n                <XCircle className=\"h-4 w-4\" /> AI alone\n              </span>\n "
+            },
+            {
+              "name": "=m3",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "pan className=\"text-base text-neutral-500\">/100</span>\n "
+            },
+            {
+              "name": "=m2",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "pan translate=\"no\" className=\"font-display text-3xl font-bold text-red-400\">\n                70<span className=\"text-base text-neutral-500\">/100</span>\n              </span>\n "
+            }
+          ],
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 33,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div > div > div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:52:4",
+          "hash": "4lE24E",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "6 brand-voice findings · wordy filler, off-voice"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "6 merkevarestemmefunn · ordrikt fyll, utenfor stemmen"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 52,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:59:5",
+          "hash": "4zZDkN",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "pcOpen": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "lassName=\"inline-flex items-center gap-1.5 text-sm font-medium text-emerald-300\">\n      ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "CheckCircle2",
+                "data": "ircle2 className=\"h-4 w-4\" /> AI + k",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " AI + kapi "
+            },
+            {
+              "pcClose": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "\n      ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "ranslate=\"no\" className=\"font-display text-3xl font-bold text-emerald-400\">\n      ",
+                "equiv": "=m2"
+              }
+            },
+            {
+              "text": " 95"
+            },
+            {
+              "pcOpen": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "lassName=\"text-base text-neutral-500\">/100</s",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": "/100"
+            },
+            {
+              "pcClose": {
+                "id": "3",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "\n      ",
+                "equiv": "=m3"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcClose": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "\n      ",
+                "equiv": "=m2"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} {=m1} AI + kapi {/=m0} {=m2} 95{=m3}/100{/=m3} {/=m2}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "ircle2 className=\"h-4 w-4\" /> AI + k"
+            },
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "lassName=\"inline-flex items-center gap-1.5 text-sm font-medium text-emerald-300\">\n                <CheckCircle2 className=\"h-4 w-4\" /> AI + kapi\n              </span>\n      "
+            },
+            {
+              "name": "=m3",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "lassName=\"text-base text-neutral-500\">/100</span>\n      "
+            },
+            {
+              "name": "=m2",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "ranslate=\"no\" className=\"font-display text-3xl font-bold text-emerald-400\">\n                95<span className=\"text-base text-neutral-500\">/100</span>\n              </span>\n      "
+            }
+          ],
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 59,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div > div > div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:74:6",
+          "hash": "pybMh",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "1 finding · on the marketing-blog voice"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "1 funn · på markedsføringsblogg-stemmen"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 74,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div > div > p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:79:7",
+          "hash": "1828vK",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "+25 brand compliance · one command:"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "+25 merkevareetterlevelse · én kommando:"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 79,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div > span",
+            "element": "span"
+          }
+        },
+        {
+          "id": "src/components/SeeItInAction.tsx:83:8",
+          "hash": "1PppwE",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "pcOpen": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "  href=\"https://neokapi.github.io/web/neokapi/docs/\"\n            target=\"_blank\"\n            rel=\"noopener\"\n            className=\"inline-flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-5 py-2.5 font-display text-sm font-semibold text-brand-300 transition hover:bg-brand-500/[0.12] hover:text-brand-200\"\n          >\n            ",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " Explore the docs "
+            },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:element",
+                "subType": "ChevronRight",
+                "data": " className=\"h-4 w-4\" />\n          </",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcClose": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "a",
+                "data": "</di",
+                "equiv": "=m0"
+              }
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "{=m0} Utforsk dokumentasjonen {=m1} {/=m0}"
+              }
+            ]
+          },
+          "placeholders": [
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": " className=\"h-4 w-4\" />\n          </"
+            },
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "  href=\"https://neokapi.github.io/web/neokapi/docs/\"\n            target=\"_blank\"\n            rel=\"noopener\"\n            className=\"inline-flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-5 py-2.5 font-display text-sm font-semibold text-brand-300 transition hover:bg-brand-500/[0.12] hover:text-brand-200\"\n          >\n            Explore the docs\n            <ChevronRight className=\"h-4 w-4\" />\n          </a>\n        </di"
+            }
+          ],
+          "properties": {
+            "file": "src/components/SeeItInAction.tsx",
+            "line": 83,
+            "component": "SeeItInAction",
+            "jsxPath": "section > div > div",
+            "element": "div"
+          }
+        }
+      ]
+    }
+  ]
+}

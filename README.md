@@ -17,7 +17,7 @@ brew install neokapi/tap/kapi      # macOS/Linux
 winget install Neokapi.Kapi        # Windows
 ```
 
-Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/web/neokapi/docs/kapi/get-started/installation).
+Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/web/neokapi/kapi/get-started/installation).
 
 ## Repository Layout
 
@@ -33,7 +33,7 @@ kapi/                       Standalone CLI tool — github.com/neokapi/neokapi/k
 apps/kapi-desktop/          Wails v3 desktop app (Go + React/TS)
 packages/                   Apache-licensed npm workspaces (UI, kapi-react, docs-shared, ...)
 web/landing/                neokapi.cloud landing site (Vite + React)
-web/docs/                   Docusaurus docs site → /web/neokapi/docs/
+web/docs/                   Docusaurus docs site → /web/neokapi/
 storybook/                  Kapi Storybook (UI primitives + flow editor)
 bench/                      Benchmarks
 examples/                   Plugin examples
@@ -78,7 +78,7 @@ make kapi-storybook           # Storybook on :6007
 
 ## Documentation
 
-- **[kapi docs](https://neokapi.github.io/web/neokapi/docs/)** — published Docusaurus site
+- **[kapi docs](https://neokapi.github.io/web/neokapi/)** — published Docusaurus site
 - **[Architecture](web/docs/docs/architecture/)** — ADs, one per architectural concern
 - **[Implementation notes](web/docs/docs/notes-internal/)** — schemas, protocols, algorithms
 - **[Internals (root)](docs/internals/)** — repo-wide testing, interfaces, release process
