@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"time"
 
@@ -813,9 +814,7 @@ func storedBlockToProto(sb *store.StoredBlock, targetLocales []string) *pb.Block
 	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
-	for k, v := range sb.Block.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, sb.Block.Properties)
 
 	return &pb.BlockInfo{
 		Id:           sb.Block.ID,

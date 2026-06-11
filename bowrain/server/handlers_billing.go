@@ -39,10 +39,7 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 	if alloc != nil {
 		creditsTotal = alloc.CreditsTotal
 		creditsUsed = alloc.CreditsUsed
-		creditsRemaining = creditsTotal - creditsUsed
-		if creditsRemaining < 0 {
-			creditsRemaining = 0
-		}
+		creditsRemaining = max(creditsTotal-creditsUsed, 0)
 		weekEnd = alloc.WeekEnd
 	} else {
 		creditsTotal = billing.CreditsForPlan(sub.Plan)

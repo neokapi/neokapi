@@ -228,10 +228,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	prevUsage := translateTool.TotalUsage()
 
 	for i := 0; i < totalBlocks; i += progressChunk {
-		end := i + progressChunk
-		if end > totalBlocks {
-			end = totalBlocks
-		}
+		end := min(i+progressChunk, totalBlocks)
 		chunk := storedBlocks[i:end]
 
 		// Rate limit.

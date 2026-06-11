@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"maps"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -146,9 +147,8 @@ func TestDiffEngine_CompareBlocks(t *testing.T) {
 
 	// Client has b1 unchanged, b2 changed, b3 is new.
 	clientHashes := map[string]string{}
-	for id, hash := range serverHashes {
-		clientHashes[id] = hash // copy server hashes
-	}
+	// copy server hashes
+	maps.Copy(clientHashes, serverHashes)
 	// Modify b2's hash to simulate a change.
 	for id := range clientHashes {
 		if id != "" { // just change the first one we find for testing

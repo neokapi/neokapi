@@ -430,10 +430,7 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				// Block's rawSource excludes any trailing whitespace —
 				// that whitespace is emitted right after the ref so it
 				// survives translation byte-for-byte.
-				rawEnd := p.pos - len(trailingWS)
-				if rawEnd < skelEnd {
-					rawEnd = skelEnd
-				}
+				rawEnd := max(p.pos-len(trailingWS), skelEnd)
 				block.Properties["tex.rawSource"] = p.source[skelEnd:rawEnd]
 				r.skelRef(blockID)
 				if trailingWS != "" {

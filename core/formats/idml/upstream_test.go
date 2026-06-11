@@ -514,9 +514,7 @@ func TestParallel_InMultipleThreads(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, threads*rounds)
 	for range threads {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range rounds {
 				got := runOnce(t, data)
 				if len(got) != len(want) {
@@ -530,7 +528,7 @@ func TestParallel_InMultipleThreads(t *testing.T) {
 					}
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -852,12 +853,8 @@ func (a *App) checkFlowPlacement(def *flow.FlowDefinition) error {
 // untouched so sibling nodes don't see each other's overrides.
 func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
 	m := make(map[string]any, len(base)+len(over))
-	for k, v := range base {
-		m[k] = v
-	}
-	for k, v := range over {
-		m[k] = v
-	}
+	maps.Copy(m, base)
+	maps.Copy(m, over)
 	return m
 }
 
@@ -1440,9 +1437,7 @@ func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, c
 
 	clone := func() {
 		next := make(map[string]any, len(config)+1)
-		for k, v := range config {
-			next[k] = v
-		}
+		maps.Copy(next, config)
 		config = next
 	}
 
@@ -1474,12 +1469,8 @@ func mergeToolPreset(preset, config map[string]any) map[string]any {
 		return config
 	}
 	merged := make(map[string]any, len(preset)+len(config))
-	for k, v := range preset {
-		merged[k] = v
-	}
-	for k, v := range config {
-		merged[k] = v
-	}
+	maps.Copy(merged, preset)
+	maps.Copy(merged, config)
 	return merged
 }
 

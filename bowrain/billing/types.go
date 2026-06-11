@@ -12,8 +12,8 @@ type Subscription struct {
 	Plan                 Plan       `json:"plan"`
 	Status               string     `json:"status"` // active, past_due, canceled, trialing
 	SeatCount            int        `json:"seat_count"`
-	CurrentPeriodStart   time.Time  `json:"current_period_start,omitempty"`
-	CurrentPeriodEnd     time.Time  `json:"current_period_end,omitempty"`
+	CurrentPeriodStart   time.Time  `json:"current_period_start,omitzero"`
+	CurrentPeriodEnd     time.Time  `json:"current_period_end,omitzero"`
 	CancelAt             *time.Time `json:"cancel_at,omitempty"`
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`

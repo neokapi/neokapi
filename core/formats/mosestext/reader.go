@@ -248,8 +248,8 @@ func groupEntries(lines []rawLine) []entry {
 			var sb strings.Builder
 			ending := ln.ending
 			// Same line closes the segment?
-			if strings.HasSuffix(rest, endSegment) {
-				sb.WriteString(strings.TrimSuffix(rest, endSegment))
+			if before, ok := strings.CutSuffix(rest, endSegment); ok {
+				sb.WriteString(before)
 			} else {
 				sb.WriteString(rest)
 				sb.WriteString("\n")
@@ -258,8 +258,8 @@ func groupEntries(lines []rawLine) []entry {
 					i++
 					cont := lines[i]
 					ending = cont.ending
-					if strings.HasSuffix(cont.content, endSegment) {
-						sb.WriteString(strings.TrimSuffix(cont.content, endSegment))
+					if before, ok := strings.CutSuffix(cont.content, endSegment); ok {
+						sb.WriteString(before)
 						break
 					}
 					sb.WriteString(cont.content)

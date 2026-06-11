@@ -47,10 +47,7 @@ func EnsureWeeklyAllocation(ctx context.Context, store BillingStore, workspaceID
 // ContainerTimeCredits converts container time duration to credits.
 // Container time costs 10 credits per second.
 func ContainerTimeCredits(d time.Duration) int64 {
-	seconds := int64(d.Seconds())
-	if seconds < 1 {
-		seconds = 1
-	}
+	seconds := max(int64(d.Seconds()), 1)
 	return seconds * 10
 }
 

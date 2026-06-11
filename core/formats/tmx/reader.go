@@ -363,10 +363,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						// InputOffset() is now past </seg>, so we need to find the </seg> start
 						endOff := decoder.InputOffset()
 						segEndTag := "</seg>"
-						segEndPos := int(endOff) - len(segEndTag)
-						if segEndPos < 0 {
-							segEndPos = 0
-						}
+						segEndPos := max(int(endOff)-len(segEndTag), 0)
 						segPositions = append(segPositions, segPos{
 							startOffset: int(segStartOff),
 							endOffset:   segEndPos,

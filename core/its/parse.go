@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 )
 
@@ -257,12 +258,8 @@ func buildNamespaceMap(attrs []xml.Attr) map[string]string {
 // entries overriding on prefix collision.
 func mergeNamespaceMaps(parent, child map[string]string) map[string]string {
 	out := make(map[string]string, len(parent)+len(child))
-	for k, v := range parent {
-		out[k] = v
-	}
-	for k, v := range child {
-		out[k] = v
-	}
+	maps.Copy(out, parent)
+	maps.Copy(out, child)
 	return out
 }
 

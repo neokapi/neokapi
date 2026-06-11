@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -378,13 +379,7 @@ func (m *Manifest) Validate() error {
 	if m.ManifestVersion == "" {
 		return errors.New("manifest_version is required")
 	}
-	supported := false
-	for _, v := range SupportedVersions {
-		if v == m.ManifestVersion {
-			supported = true
-			break
-		}
-	}
+	supported := slices.Contains(SupportedVersions, m.ManifestVersion)
 	if !supported {
 		return fmt.Errorf("unsupported manifest_version %q (supported: %s)", m.ManifestVersion, strings.Join(SupportedVersions, ", "))
 	}
@@ -506,7 +501,7 @@ func validateBinaryPath(p string) error {
 	if strings.HasPrefix(p, "/") {
 		return fmt.Errorf("binary %q: absolute paths are not allowed", p)
 	}
-	for _, seg := range strings.Split(p, "/") {
+	for seg := range strings.SplitSeq(p, "/") {
 		if seg == "" {
 			return fmt.Errorf("binary %q: empty path segment", p)
 		}

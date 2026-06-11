@@ -478,7 +478,7 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 	if closeIdx >= 1 && tag[closeIdx] == '>' && tag[closeIdx-1] == '/' {
 		closeIdx--
 	}
-	insert := []byte(fmt.Sprintf(` target-language="%s"`, xmlEscapeAttr(targetLang)))
+	insert := fmt.Appendf(nil, ` target-language="%s"`, xmlEscapeAttr(targetLang))
 	out := make([]byte, 0, len(tag)+len(insert))
 	out = append(out, tag[:closeIdx]...)
 	out = append(out, insert...)

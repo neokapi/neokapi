@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -71,9 +72,7 @@ func (c *WordPressConnector) Name() string                { return c.connName }
 func (c *WordPressConnector) Category() platconn.Category { return platconn.CategoryCMS }
 
 func (c *WordPressConnector) Configure(config map[string]string) error {
-	for k, v := range config {
-		c.config[k] = v
-	}
+	maps.Copy(c.config, config)
 	return nil
 }
 

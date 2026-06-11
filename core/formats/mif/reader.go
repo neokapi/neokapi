@@ -1714,10 +1714,7 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 					// closing `'>` then serves as the close of the
 					// merged String.
 					eraseStart := prevValEnd
-					eraseEnd := absIdx + len("<"+it.searchTag+" `")
-					if eraseEnd < eraseStart {
-						eraseEnd = eraseStart
-					}
+					eraseEnd := max(absIdx+len("<"+it.searchTag+" `"), eraseStart)
 					elisions = append(elisions, elisionRange{
 						startOffset: eraseStart,
 						endOffset:   eraseEnd,
@@ -1764,10 +1761,7 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 			// Tab-style lines that precede the first String. Limit the
 			// walk to the start of the enclosing ParaLine to avoid
 			// crossing into a previous Para's content.
-			paraLineOpen := strings.LastIndex(rawText[:firstStringPos], "<ParaLine")
-			if paraLineOpen < 0 {
-				paraLineOpen = 0
-			}
+			paraLineOpen := max(strings.LastIndex(rawText[:firstStringPos], "<ParaLine"), 0)
 			charSearchFrom := paraLineOpen
 			for _, ic := range it.inlineChars {
 				// Bound the search to the slot region. afterStringSlot
@@ -3159,10 +3153,7 @@ func simplifyBlockCodes(block *model.Block) {
 	}
 	leadStr := renderToks(origToks[leadFrom:leadCount])
 
-	trailStart := leadCount + len(toks)
-	if trailStart > len(origToks) {
-		trailStart = len(origToks)
-	}
+	trailStart := min(leadCount+len(toks), len(origToks))
 	// Symmetric: the trailing trim stops at the FIRST structural inline-code
 	// in the trailing region; content at/after it belongs to a later group.
 	trailEnd := len(origToks)

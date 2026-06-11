@@ -237,13 +237,13 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 			refID := string(entry.Data)
 
 			// Check for part-boundary markers
-			if strings.HasPrefix(refID, skelPartStartPrefix) {
-				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartStartPrefix); ok {
+				currentPart = after
 				currentBuf.Reset()
 				continue
 			}
-			if strings.HasPrefix(refID, skelPartEndPrefix) {
-				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
+			if after, ok := strings.CutPrefix(refID, skelPartEndPrefix); ok {
+				partPath := after
 				if currentBuf.Len() > 0 {
 					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
 				}

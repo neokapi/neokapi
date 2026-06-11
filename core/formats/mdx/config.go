@@ -1,6 +1,8 @@
 package mdx
 
 import (
+	"maps"
+
 	"github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/formats/markdown"
 )
@@ -63,9 +65,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 	if c.params == nil {
 		c.params = make(map[string]any, len(values))
 	}
-	for k, v := range values {
-		c.params[k] = v
-	}
+	maps.Copy(c.params, values)
 	return nil
 }
 

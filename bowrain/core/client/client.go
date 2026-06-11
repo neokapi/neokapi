@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -187,9 +188,7 @@ func (c *BowrainClient) doRequest(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		for k, v := range req.Header {
-			retryReq.Header[k] = v
-		}
+		maps.Copy(retryReq.Header, req.Header)
 		c.applyAuth(retryReq)
 		return c.httpClient.Do(retryReq)
 	}
@@ -272,7 +271,7 @@ type ChangeEntry struct {
 	ChangeType  string    `json:"change_type"`
 	Locale      string    `json:"locale,omitempty"`
 	ContentHash string    `json:"content_hash,omitempty"`
-	LoggedAt    time.Time `json:"logged_at,omitempty"`
+	LoggedAt    time.Time `json:"logged_at,omitzero"`
 }
 
 // SyncPullResponse is the response from a pull.

@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -51,9 +52,7 @@ func (c *FileConnector) Name() string                { return c.name }
 func (c *FileConnector) Category() platconn.Category { return platconn.CategoryFile }
 
 func (c *FileConnector) Configure(config map[string]string) error {
-	for k, v := range config {
-		c.config[k] = v
-	}
+	maps.Copy(c.config, config)
 	if p, ok := config["path"]; ok {
 		c.basePath = p
 	}

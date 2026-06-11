@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,7 +75,7 @@ func validateRepoURL(repoURL string) error {
 
 	// Reject any remaining "scheme://" or "transport::" form that wasn't
 	// explicitly allowlisted above.
-	if i := strings.Index(repoURL, "://"); i >= 0 {
+	if found := strings.Contains(repoURL, "://"); found {
 		return fmt.Errorf("git repo URL %q uses a disallowed transport", repoURL)
 	}
 	if strings.Contains(repoURL, "::") {
@@ -181,9 +182,7 @@ func (c *GitConnector) Name() string                { return c.name }
 func (c *GitConnector) Category() platconn.Category { return platconn.CategoryCode }
 
 func (c *GitConnector) Configure(config map[string]string) error {
-	for k, v := range config {
-		c.config[k] = v
-	}
+	maps.Copy(c.config, config)
 	return nil
 }
 

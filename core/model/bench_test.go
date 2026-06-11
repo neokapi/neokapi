@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -107,9 +108,7 @@ func BenchmarkBlock_Clone(b *testing.B) {
 				Score:  t.Score,
 			}
 		}
-		for k, v := range block.Properties {
-			clone.Properties[k] = v
-		}
+		maps.Copy(clone.Properties, block.Properties)
 		_ = clone
 	}
 }

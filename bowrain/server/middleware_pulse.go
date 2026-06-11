@@ -94,8 +94,8 @@ func pulseAuthCheck(c echo.Context, jwtSecret string, authStore auth.AuthStore, 
 
 	// Try Bearer token.
 	header := c.Request().Header.Get("Authorization")
-	if strings.HasPrefix(header, "Bearer ") {
-		token := strings.TrimPrefix(header, "Bearer ")
+	if after, ok := strings.CutPrefix(header, "Bearer "); ok {
+		token := after
 		if parsed, err := platauth.ValidateToken(token, jwtSecret); err == nil {
 			claims = parsed
 		}

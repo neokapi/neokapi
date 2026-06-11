@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -189,9 +190,7 @@ func (s *AGEGraphStore) CreateEdge(ctx context.Context, edge *coreg.Edge) error 
 	edge.UpdatedAt = now
 
 	props := make(map[string]string)
-	for k, v := range edge.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, edge.Properties)
 	props["id"] = edge.ID
 	props["source"] = edge.Source
 	props["target"] = edge.Target
@@ -545,9 +544,7 @@ func validateIdentifier(name string) error {
 // marshalProps builds a Cypher properties literal for node creation.
 func marshalProps(props map[string]string, id string, createdAt, updatedAt time.Time) (string, error) {
 	all := make(map[string]string, len(props)+3)
-	for k, v := range props {
-		all[k] = v
-	}
+	maps.Copy(all, props)
 	all["id"] = id
 	all["created_at"] = formatTime(createdAt)
 	all["updated_at"] = formatTime(updatedAt)

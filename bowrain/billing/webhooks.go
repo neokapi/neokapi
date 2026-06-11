@@ -206,10 +206,7 @@ func (h *WebhookHandler) handleSubscriptionUpdated(ctx context.Context, event st
 	plan := planFromSubscription(&stripeSub)
 	seatCount := 1
 	if len(stripeSub.Items.Data) > 0 {
-		seatCount = int(stripeSub.Items.Data[0].Quantity)
-		if seatCount < 1 {
-			seatCount = 1
-		}
+		seatCount = max(int(stripeSub.Items.Data[0].Quantity), 1)
 	}
 
 	sub := &Subscription{

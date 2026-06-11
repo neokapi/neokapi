@@ -168,10 +168,7 @@ func (w *Writer) writeFromSkeleton() error {
 				blockOffsets[blockIdx] = len(text)
 			} else {
 				// Not the last token: write origLen bytes
-				end := offset + origLen
-				if end > len(text) {
-					end = len(text)
-				}
+				end := min(offset+origLen, len(text))
 				if offset < len(text) {
 					if _, err := io.WriteString(w.Output, text[offset:end]); err != nil {
 						return err
@@ -279,7 +276,7 @@ func escapeRTF(s string) string {
 		case r == '\t':
 			out = append(out, '\\', 't', 'a', 'b', ' ')
 		case r > 127:
-			out = append(out, []byte(fmt.Sprintf("\\u%d?", r))...)
+			out = append(out, fmt.Appendf(nil, "\\u%d?", r)...)
 		default:
 			out = append(out, byte(r))
 		}

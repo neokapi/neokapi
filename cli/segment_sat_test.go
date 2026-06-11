@@ -126,8 +126,7 @@ func TestSatEngine_SurvivesPerItemContextCancel(t *testing.T) {
 	cancel1() // file 1 done — under the old bug this killed the subprocess
 
 	// File 2: a fresh per-run context on the SAME engine — must still work.
-	ctx2, cancel2 := context.WithCancel(context.Background())
-	defer cancel2()
+	ctx2 := t.Context()
 	spans2, err := eng.Segment(ctx2, runs, "en")
 	require.NoError(t, err, "subprocess must outlive file 1's cancelled context")
 	assert.Equal(t, spans1, spans2)

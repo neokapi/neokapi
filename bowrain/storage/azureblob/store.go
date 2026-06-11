@@ -146,8 +146,8 @@ func (s *Store) generateSASURL(ctx context.Context, key string, opts storage.Sig
 
 	// Try user delegation key first (Managed Identity — no storage account key needed).
 	info := service.KeyInfo{
-		Start:  to(now.Format(sas.TimeFormat)),
-		Expiry: to(now.Add(expiry).Format(sas.TimeFormat)),
+		Start:  new(now.Format(sas.TimeFormat)),
+		Expiry: new(now.Add(expiry).Format(sas.TimeFormat)),
 	}
 	udk, err := s.serviceClient.GetUserDelegationCredential(ctx, info, nil)
 	if err != nil {
@@ -179,7 +179,7 @@ func (s *Store) generateAccountSASURL(key string, expiry time.Duration, perms sa
 
 	now := time.Now().UTC()
 	sasURL, err := blobClient.GetSASURL(perms, now.Add(expiry), &blob.GetSASURLOptions{
-		StartTime: to(now.Add(-5 * time.Minute)),
+		StartTime: new(now.Add(-5 * time.Minute)),
 	})
 	if err != nil {
 		return "", fmt.Errorf("generate account SAS: %w", err)
@@ -214,8 +214,6 @@ func isBlobNotFound(err error) bool {
 	return bytes.Contains([]byte(err.Error()), []byte("BlobNotFound")) ||
 		bytes.Contains([]byte(err.Error()), []byte("404"))
 }
-
-func to[T any](v T) *T { return &v }
 
 // readSeekNopCloser wraps an io.ReadSeeker with a no-op Close.
 type readSeekNopCloser struct {
@@ -285,8 +283,8 @@ func (s *Store) GenerateChunkUploadURLs(ctx context.Context, uploadID string, ch
 	// Generate a user delegation key for SAS tokens.
 	now := time.Now().UTC()
 	info := service.KeyInfo{
-		Start:  to(now.Format(sas.TimeFormat)),
-		Expiry: to(now.Add(expiry).Format(sas.TimeFormat)),
+		Start:  new(now.Format(sas.TimeFormat)),
+		Expiry: new(now.Add(expiry).Format(sas.TimeFormat)),
 	}
 	udk, err := s.serviceClient.GetUserDelegationCredential(ctx, info, nil)
 	if err != nil {
@@ -301,7 +299,7 @@ func (s *Store) GenerateChunkUploadURLs(ctx context.Context, uploadID string, ch
 			Protocol:      sas.ProtocolHTTPS,
 			StartTime:     now,
 			ExpiryTime:    now.Add(expiry),
-			Permissions:   to(sas.BlobPermissions{Write: true, Create: true}).String(),
+			Permissions:   new(sas.BlobPermissions{Write: true, Create: true}).String(),
 			ContainerName: s.containerName,
 			BlobName:      bName,
 		}

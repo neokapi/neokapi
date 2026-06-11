@@ -153,7 +153,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Sub-filter rules",
 				Description: "Regex matching keys for which values should be processed with the sub-filter.",
 				Widget:      "regex",
-				Visible:     &coreschema.ConditionExpr{Field: "subfilter", Empty: boolPtr(false)},
+				Visible:     &coreschema.ConditionExpr{Field: "subfilter", Empty: new(false)},
 			}),
 			"noteRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
@@ -197,5 +197,3 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 	}
 }
-
-func boolPtr(v bool) *bool { return &v }

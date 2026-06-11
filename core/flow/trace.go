@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -188,9 +189,7 @@ func (r *TraceRecorder) Snapshots() map[string]*PartSnapshotSet {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make(map[string]*PartSnapshotSet, len(r.snapshots))
-	for k, v := range r.snapshots {
-		out[k] = v
-	}
+	maps.Copy(out, r.snapshots)
 	return out
 }
 

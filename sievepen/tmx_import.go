@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -218,9 +219,7 @@ func ImportTMXSession(ctx context.Context, store TMStore, reader io.Reader, opts
 
 		// Merge TU-level props into entry-level props.
 		props := make(map[string]string)
-		for k, v := range tu.Properties {
-			props[k] = v
-		}
+		maps.Copy(props, tu.Properties)
 
 		entryID := scopedTUID(opts.OriginKey, tu.TUID, i, session.ID)
 

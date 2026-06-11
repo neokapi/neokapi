@@ -627,7 +627,7 @@ func getAttrNS(n *html.Node, ns, key string) string {
 
 // extractCharset extracts charset from a Content-Type string.
 func extractCharset(contentType string) string {
-	for _, part := range strings.Split(contentType, ";") {
+	for part := range strings.SplitSeq(contentType, ";") {
 		part = strings.TrimSpace(part)
 		if strings.HasPrefix(strings.ToLower(part), "charset=") {
 			return strings.TrimSpace(part[8:])

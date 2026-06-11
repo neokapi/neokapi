@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 )
 
@@ -68,9 +69,7 @@ func mergeMapping(base, override *TMXMapping) {
 		if base.ElementTypeAttr[el] == nil {
 			base.ElementTypeAttr[el] = make(map[string]string)
 		}
-		for a, t := range attrs {
-			base.ElementTypeAttr[el][a] = t
-		}
+		maps.Copy(base.ElementTypeAttr[el], attrs)
 	}
 	if override.Fallback != "" {
 		base.Fallback = override.Fallback

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -239,16 +240,12 @@ func overlayKey(kind, blockHash string) string {
 
 func copyBlocks(in map[string]memBlock) map[string]memBlock {
 	out := make(map[string]memBlock, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 	return out
 }
 
 func copyOverlays(in map[string]Overlay) map[string]Overlay {
 	out := make(map[string]Overlay, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 	return out
 }

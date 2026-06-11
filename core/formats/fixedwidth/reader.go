@@ -169,10 +169,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		for _, col := range r.cfg.Columns {
 			// Write any gap between previous position and this column as skeleton text
 			if col.Start > runePos {
-				gapEnd := col.Start
-				if gapEnd > len(runes) {
-					gapEnd = len(runes)
-				}
+				gapEnd := min(col.Start, len(runes))
 				if runePos < len(runes) {
 					r.skelText(string(runes[runePos:gapEnd]))
 				}
@@ -184,10 +181,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				value = strings.TrimSpace(value)
 			}
 
-			colEnd := col.Start + col.Width
-			if colEnd > len(runes) {
-				colEnd = len(runes)
-			}
+			colEnd := min(col.Start+col.Width, len(runes))
 
 			if !col.Translatable {
 				r.skelText(rawValue)
@@ -326,10 +320,7 @@ func (r *Reader) extractColumn(runes []rune, col ColumnDef) string {
 	if col.Start >= len(runes) {
 		return ""
 	}
-	end := col.Start + col.Width
-	if end > len(runes) {
-		end = len(runes)
-	}
+	end := min(col.Start+col.Width, len(runes))
 	return string(runes[col.Start:end])
 }
 

@@ -186,10 +186,7 @@ func compareBytes(got, reference []byte) string {
 // firstDiff returns the first byte index where a and b differ. When
 // one slice is a prefix of the other, it returns the shorter length.
 func firstDiff(a, b []byte) int {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
+	n := min(len(b), len(a))
 	for i := range n {
 		if a[i] != b[i] {
 			return i
@@ -210,14 +207,8 @@ func firstDiff(a, b []byte) int {
 func snippet(b []byte, offset int) string {
 	const before = 32
 	const after = 256
-	start := offset - before
-	if start < 0 {
-		start = 0
-	}
-	end := offset + after
-	if end > len(b) {
-		end = len(b)
-	}
+	start := max(offset-before, 0)
+	end := min(offset+after, len(b))
 	if start > len(b) {
 		start = len(b)
 	}

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -192,12 +193,7 @@ func TestDaemonPool_LRUEviction(t *testing.T) {
 		if len(active) != 2 {
 			return false
 		}
-		for _, n := range active {
-			if n == "fake-a" {
-				return false
-			}
-		}
-		return true
+		return !slices.Contains(active, "fake-a")
 	}, 5*time.Second, 50*time.Millisecond, "fake-a should be evicted")
 	assert.ElementsMatch(t, []string{"fake-b", "fake-c"}, pool.Active())
 }

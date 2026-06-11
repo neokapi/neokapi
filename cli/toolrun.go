@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -819,12 +820,7 @@ func localeSubtags(lang string) []string {
 // subtag.
 func localeMatches(candidate, sourceLang string) bool {
 	c := strings.ToLower(candidate)
-	for _, s := range localeSubtags(sourceLang) {
-		if c == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(localeSubtags(sourceLang), c)
 }
 
 // swapLocaleSegment replaces the deepest directory segment that matches the

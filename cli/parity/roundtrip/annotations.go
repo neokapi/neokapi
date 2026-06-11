@@ -5,6 +5,7 @@ package roundtrip
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -111,9 +112,7 @@ func AllAnnotations() (map[string]map[string]Annotation, error) {
 	out := make(map[string]map[string]Annotation, len(annotationsByFmt))
 	for fmt, perFmt := range annotationsByFmt {
 		copyFmt := make(map[string]Annotation, len(perFmt))
-		for k, v := range perFmt {
-			copyFmt[k] = v
-		}
+		maps.Copy(copyFmt, perFmt)
 		out[fmt] = copyFmt
 	}
 	return out, nil

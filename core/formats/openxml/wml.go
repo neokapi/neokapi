@@ -4442,11 +4442,11 @@ func sdtEndPrIsEmpty(raw string) bool {
 	}
 	// Empty-body form: `<w:sdtEndPr ...></w:sdtEndPr>` with only whitespace
 	// (or nothing) between the open and close tags.
-	openEnd := strings.IndexByte(raw, '>')
-	if openEnd < 0 {
+	_, after, ok := strings.Cut(raw, ">")
+	if !ok {
 		return false
 	}
-	body := raw[openEnd+1:]
+	body := after
 	closeIdx := strings.LastIndex(body, "</")
 	if closeIdx < 0 {
 		return false
@@ -5015,7 +5015,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
-		if strings.HasPrefix(run.text, "\uE10D:") {
+		if after, ok := strings.CutPrefix(run.text, "\uE10D:"); ok {
 			// Raw run-child markup (TypeRawRunMarkup) for empty
 			// CT_Empty elements that round-trip verbatim:
 			// <w:noBreakHyphen/> (ECMA-376-1 \u00A717.3.3.18) and
@@ -5027,7 +5027,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// set. The sentinel payload after the ":" is the literal
 			// XML to re-emit; the writer wraps it in a <w:r> with
 			// the source rPr context.
-			rawXML := strings.TrimPrefix(run.text, "\uE10D:")
+			rawXML := after
 			subType := SubTypeNoBreakHyphen
 			switch {
 			case strings.Contains(rawXML, "softHyphen"):
@@ -5116,7 +5116,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
-		if strings.HasPrefix(run.text, "\uE102:") {
+		if after, ok := strings.CutPrefix(run.text, "\uE102:"); ok {
 			// Footnote/endnote reference. The per-run rPr children
 			// (e.g. <w:rStyle w:val="FootnoteReference"/>) travel
 			// alongside the marker so the writer can emit the marker
@@ -5128,12 +5128,12 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// footnoteReference, "e" for endnoteReference). Older
 			// callers emit the untagged form ("\uE102:<id>"); treat
 			// those as footnote references for back-compat.
-			rest := strings.TrimPrefix(run.text, "\uE102:")
+			rest := after
 			markerElem := "footnoteReference"
-			if strings.HasPrefix(rest, "f:") {
-				rest = strings.TrimPrefix(rest, "f:")
-			} else if strings.HasPrefix(rest, "e:") {
-				rest = strings.TrimPrefix(rest, "e:")
+			if after, ok := strings.CutPrefix(rest, "f:"); ok {
+				rest = after
+			} else if after, ok := strings.CutPrefix(rest, "e:"); ok {
+				rest = after
 				markerElem = "endnoteReference"
 			}
 			noteID := rest
@@ -5150,9 +5150,9 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
-		if strings.HasPrefix(run.text, "\uE103:") {
+		if after, ok := strings.CutPrefix(run.text, "\uE103:"); ok {
 			// Hyperlink open
-			data := strings.TrimPrefix(run.text, "\uE103:")
+			data := after
 			spanCounter++
 			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
 				TypeHyperlink, SubTypeHyperlink,
@@ -6105,10 +6105,10 @@ func runToXML(r textRun) string {
 	case strings.HasPrefix(r.text, ":"):
 		rest := strings.TrimPrefix(r.text, ":")
 		markerElem := "footnoteReference"
-		if strings.HasPrefix(rest, "f:") {
-			rest = strings.TrimPrefix(rest, "f:")
-		} else if strings.HasPrefix(rest, "e:") {
-			rest = strings.TrimPrefix(rest, "e:")
+		if after, ok := strings.CutPrefix(rest, "f:"); ok {
+			rest = after
+		} else if after, ok := strings.CutPrefix(rest, "e:"); ok {
+			rest = after
 			markerElem = "endnoteReference"
 		}
 		buf.WriteString(fmt.Sprintf(`<w:%s w:id="%s"/>`, markerElem, rest))

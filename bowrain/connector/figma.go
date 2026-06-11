@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"time"
 
@@ -76,9 +77,7 @@ func (c *FigmaConnector) Name() string                { return c.connName }
 func (c *FigmaConnector) Category() platconn.Category { return platconn.CategoryDesign }
 
 func (c *FigmaConnector) Configure(config map[string]string) error {
-	for k, v := range config {
-		c.config[k] = v
-	}
+	maps.Copy(c.config, config)
 	return nil
 }
 

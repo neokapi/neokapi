@@ -3,6 +3,7 @@ package sievepen
 import (
 	"cmp"
 	"context"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -443,10 +444,7 @@ func (tm *InMemoryTM) searchInternal(_ context.Context, params SearchParams) ([]
 	if offset >= total {
 		return nil, total, nil
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	return matched[offset:end], total, nil
 }
 
@@ -722,9 +720,7 @@ func (tm *InMemoryTM) CreateImportSession(_ context.Context, session ImportSessi
 	copySession := session
 	if session.Properties != nil {
 		copySession.Properties = make(map[string]string, len(session.Properties))
-		for k, v := range session.Properties {
-			copySession.Properties[k] = v
-		}
+		maps.Copy(copySession.Properties, session.Properties)
 	}
 	tm.sessions[session.ID] = copySession
 	return nil

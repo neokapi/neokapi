@@ -385,10 +385,7 @@ func (r *Reader) parseSegment(
 				srcRuns = runs
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
-					endPos := int(endOff) - len("</source>")
-					if endPos < 0 {
-						endPos = 0
-					}
+					endPos := max(int(endOff)-len("</source>"), 0)
 					*positions = append(*positions, elemPosition{
 						startOffset: int(startOff),
 						endOffset:   endPos,
@@ -407,10 +404,7 @@ func (r *Reader) parseSegment(
 				sawTarget = true
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
-					endPos := int(endOff) - len("</target>")
-					if endPos < 0 {
-						endPos = 0
-					}
+					endPos := max(int(endOff)-len("</target>"), 0)
 					*positions = append(*positions, elemPosition{
 						startOffset: int(startOff),
 						endOffset:   endPos,
@@ -443,10 +437,7 @@ func (r *Reader) parseSegment(
 				// case at :135-165). decoder.InputOffset() here is the
 				// offset just after the closing ">" of </segment>.
 				if r.skeletonStore != nil && !sawTarget {
-					insertPos := int(decoder.InputOffset()) - len("</segment>")
-					if insertPos < 0 {
-						insertPos = 0
-					}
+					insertPos := max(int(decoder.InputOffset())-len("</segment>"), 0)
 					*positions = append(*positions, elemPosition{
 						startOffset: insertPos,
 						endOffset:   insertPos,

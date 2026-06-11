@@ -165,7 +165,7 @@ func TestEditDocumentDocxRoundtrip(t *testing.T) {
 			if firstWord != "" {
 				return nil
 			}
-			for _, w := range strings.Fields(b.SourceText()) {
+			for w := range strings.FieldsSeq(b.SourceText()) {
 				if isAlphaWord(w) {
 					firstWord = w
 					return nil

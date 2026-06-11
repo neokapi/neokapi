@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strconv"
 	"time"
 
@@ -81,7 +82,7 @@ func (c *StripeClient) CreateCheckoutSessionWithOptions(customerID, priceID, suc
 		params.SubscriptionData.AddMetadata(k, v)
 	}
 	if opts.TrialDays > 0 {
-		params.SubscriptionData.TrialPeriodDays = stripe.Int64(opts.TrialDays)
+		params.SubscriptionData.TrialPeriodDays = new(opts.TrialDays)
 	}
 
 	sess, err := checkoutsession.New(params)
@@ -116,9 +117,7 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 			"stripe_customer_id": customerID,
 		},
 	}
-	for k, v := range dimensions {
-		params.Payload[k] = v
-	}
+	maps.Copy(params.Payload, dimensions)
 
 	// Idempotency key prevents duplicate meter events on retries.
 	// Uses workspace_id + operation_type + timestamp bucket (per-second).

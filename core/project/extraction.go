@@ -51,9 +51,9 @@ type ExtractionManifest struct {
 	Generator     ExtractionGenerator     `yaml:"generator" json:"generator"`
 	CreatedAt     string                  `yaml:"createdAt" json:"createdAt"`
 	SourceLocale  model.LocaleID          `yaml:"sourceLocale,omitempty" json:"sourceLocale,omitempty"`
-	Options       ExtractionOptions       `yaml:"options,omitempty" json:"options,omitempty"`
+	Options       ExtractionOptions       `yaml:"options,omitempty" json:"options,omitzero"`
 	Pairs         []ExtractionPair        `yaml:"pairs" json:"pairs"`
-	Totals        ExtractionLeverageStats `yaml:"totals,omitempty" json:"totals,omitempty"`
+	Totals        ExtractionLeverageStats `yaml:"totals,omitempty" json:"totals,omitzero"`
 }
 
 // ExtractionGenerator records the kapi version that wrote the manifest,
@@ -90,7 +90,7 @@ type ExtractionFile struct {
 	Format     string                  `yaml:"format,omitempty" json:"format,omitempty"`
 	Blocks     int                     `yaml:"blocks" json:"blocks"`
 	Segments   int                     `yaml:"segments" json:"segments"`
-	Leverage   ExtractionLeverageStats `yaml:"leverage,omitempty" json:"leverage,omitempty"`
+	Leverage   ExtractionLeverageStats `yaml:"leverage,omitempty" json:"leverage,omitzero"`
 	Skeleton   string                  `yaml:"skeleton,omitempty" json:"skeleton,omitempty"` // filename inside the batch dir
 }
 

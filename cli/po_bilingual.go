@@ -175,8 +175,8 @@ func parsePOForMerge(r io.Reader) (*poMergeFile, error) {
 		}
 
 		// Extracted comments `#. <text>` — carry kapi bookkeeping.
-		if strings.HasPrefix(line, "#.") {
-			content := strings.TrimSpace(strings.TrimPrefix(line, "#."))
+		if after, ok := strings.CutPrefix(line, "#."); ok {
+			content := strings.TrimSpace(after)
 			switch {
 			case strings.HasPrefix(content, poBatchIDCommentPrefix):
 				out.BatchID = strings.TrimPrefix(content, poBatchIDCommentPrefix)
@@ -190,9 +190,9 @@ func parsePOForMerge(r io.Reader) (*poMergeFile, error) {
 			continue
 		}
 		// Flag comments `#, fuzzy, ...`
-		if strings.HasPrefix(line, "#,") {
-			flags := strings.TrimSpace(strings.TrimPrefix(line, "#,"))
-			for _, f := range strings.Split(flags, ",") {
+		if after, ok := strings.CutPrefix(line, "#,"); ok {
+			flags := strings.TrimSpace(after)
+			for f := range strings.SplitSeq(flags, ",") {
 				if strings.TrimSpace(f) == "fuzzy" {
 					cur.Fuzzy = true
 				}

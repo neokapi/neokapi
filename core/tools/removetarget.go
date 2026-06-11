@@ -52,7 +52,7 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 		// When filtering by IDs, only remove targets for listed text unit IDs.
 		if conf.FilterByIDs && conf.TextUnitIDs != "" {
 			idSet := set.New[string]()
-			for _, id := range strings.Split(conf.TextUnitIDs, ",") {
+			for id := range strings.SplitSeq(conf.TextUnitIDs, ",") {
 				idSet.Add(strings.TrimSpace(id))
 			}
 			if !idSet.Contains(v.ID()) {

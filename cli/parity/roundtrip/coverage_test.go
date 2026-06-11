@@ -5,6 +5,7 @@ package roundtrip_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -154,16 +155,12 @@ func TestRoundTrip_Coverage(t *testing.T) {
 // out to the bridge for a fixture we'd skip anyway, and some skips
 // exist specifically because the okapi engine errors on that file.
 func okapiSkippedForFixture(scan formatScan, base string) bool {
-	for _, e := range scan.formatDefaultSkip.Engines {
-		if e == "okapi" {
-			return true
-		}
+	if slices.Contains(scan.formatDefaultSkip.Engines, "okapi") {
+		return true
 	}
 	if perFile, ok := roundtrip.LookupSkip(string(scan.formatID), base); ok {
-		for _, e := range perFile.Engines {
-			if e == "okapi" {
-				return true
-			}
+		if slices.Contains(perFile.Engines, "okapi") {
+			return true
 		}
 	}
 	return false

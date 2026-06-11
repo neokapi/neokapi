@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -491,21 +492,15 @@ func checkToolPolicy(cfg *platagent.AgentConfig, toolName string) string {
 	if cfg == nil || !cfg.Enabled {
 		return "deny"
 	}
-	for _, t := range cfg.DeniedTools {
-		if t == toolName {
-			return "deny"
-		}
+	if slices.Contains(cfg.DeniedTools, toolName) {
+		return "deny"
 	}
-	for _, t := range cfg.RequireApproval {
-		if t == toolName {
-			return "approve"
-		}
+	if slices.Contains(cfg.RequireApproval, toolName) {
+		return "approve"
 	}
 	if len(cfg.AllowedTools) > 0 {
-		for _, t := range cfg.AllowedTools {
-			if t == toolName {
-				return "allow"
-			}
+		if slices.Contains(cfg.AllowedTools, toolName) {
+			return "allow"
 		}
 		return "deny"
 	}

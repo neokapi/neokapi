@@ -71,10 +71,7 @@ func CalculateScore(findings []BrandVoiceFinding) BrandComplianceScore {
 	for _, dim := range allDims {
 		penalty := penalties[dim]
 		total += penalty
-		score := 100 - penalty
-		if score < 0 {
-			score = 0
-		}
+		score := max(100-penalty, 0)
 		dimensions = append(dimensions, DimensionScore{
 			Dimension: dim,
 			Score:     score,
@@ -83,10 +80,7 @@ func CalculateScore(findings []BrandVoiceFinding) BrandComplianceScore {
 		})
 	}
 
-	overall := 100 - total
-	if overall < 0 {
-		overall = 0
-	}
+	overall := max(100-total, 0)
 
 	return BrandComplianceScore{
 		Overall:    overall,

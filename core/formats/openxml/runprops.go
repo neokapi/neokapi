@@ -2318,13 +2318,13 @@ func parseRPrChildVal(elemXML string) (string, bool) {
 	}
 	head := elemXML[:end]
 	for _, key := range []string{` w:val="`, ` val="`} {
-		if i := strings.Index(head, key); i >= 0 {
-			rest := head[i+len(key):]
-			j := strings.IndexByte(rest, '"')
-			if j < 0 {
+		if _, after, ok := strings.Cut(head, key); ok {
+			rest := after
+			before, _, ok := strings.Cut(rest, "\"")
+			if !ok {
 				return "", false
 			}
-			return rest[:j], true
+			return before, true
 		}
 	}
 	return "", false

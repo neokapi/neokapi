@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -84,10 +85,8 @@ func (c *RedactConfig) Validate() error {
 // redact (e.g. "redact dates"). When true, redact needs an upstream entity
 // overlay (see ResolveRedactContract).
 func (c *RedactConfig) entityDetectionEnabled() bool {
-	for _, d := range c.Detectors {
-		if d == DetectEntities {
-			return true
-		}
+	if slices.Contains(c.Detectors, DetectEntities) {
+		return true
 	}
 	return len(c.EntityTypes) > 0
 }
