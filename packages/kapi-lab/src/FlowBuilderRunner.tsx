@@ -657,8 +657,9 @@ export default function FlowBuilderRunner({
             onChange={handleFlowChange}
             onGetSchema={handleGetSchema}
             onGetDoc={handleGetDoc}
-            onRun={(spec) => void runFlow(spec)}
-            runDisabled={!runtime.ready || busy || !!imported}
+            onRun={imported ? undefined : (spec) => void runFlow(spec)}
+            runDisabled={!runtime.ready || busy}
+            running={busy}
             readOnly={!!imported}
             trace={imported?.trace ?? trace ?? undefined}
             onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}

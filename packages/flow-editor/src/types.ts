@@ -151,6 +151,12 @@ export interface FlowEditorProps {
   onRun?: (flow: FlowSpec) => void;
   /** Whether the run button is disabled (e.g. a flow is already running). */
   runDisabled?: boolean;
+  /**
+   * A run is actually in flight — drives the Run button's spinner/"Running…"
+   * label. `runDisabled` alone can also mean "engine not ready" or
+   * "read-only replay", which must not read as running.
+   */
+  running?: boolean;
   /** Whether the flow is read-only (built-in flows). */
   readOnly?: boolean;
   /** Called to fetch a tool's config schema. Returns null if none available. */

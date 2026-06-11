@@ -109,6 +109,9 @@ interface FlowToolbarProps {
   stepCount: number;
   onRun?: (flow: FlowSpec) => void;
   runDisabled?: boolean;
+  /** A run is actually in flight (drives the spinner/label; disabled alone
+   *  can also mean "not ready yet" or "read-only replay"). */
+  running?: boolean;
   flow: FlowSpec;
   /** Whether the flow currently has the redaction wrap (redact … unredact). */
   redacted?: boolean;
@@ -120,6 +123,7 @@ function FlowToolbar({
   stepCount,
   onRun,
   runDisabled,
+  running,
   flow,
   redacted,
   onToggleRedaction,
@@ -154,8 +158,8 @@ function FlowToolbar({
               disabled={runDisabled}
               aria-label="Run flow"
             >
-              {runDisabled ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-              {runDisabled ? "Running..." : "Run"}
+              {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              {running ? "Running..." : "Run"}
             </Button>
           )}
         </>
@@ -281,7 +285,7 @@ export function StepConfigPanel({
 
   return (
     <div
-      className="flex flex-col border-l border-border bg-background overflow-hidden"
+      className="flex h-full flex-col border-l border-border bg-background overflow-hidden"
       style={{ width: "min(280px, calc(100vw - 2rem))" }}
     >
       {/* Header */}
@@ -573,6 +577,7 @@ export function FlowEditor({
   focusRequest,
   renderStepConfigPanel,
   lessonPanel,
+  running,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -705,6 +710,20 @@ export function FlowEditor({
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
+
+  // Re-anchor the viewport whenever the flow's topology is REPLACED (scenario
+  // switch, trace import, back-to-your-flow): the new layout starts at the
+  // top-left, but the pan position survives the swap — leaving the new nodes
+  // off-screen and the canvas looking empty.
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      void reactFlowRef.current?.setViewport(
+        { x: CANVAS_MARGIN, y: CANVAS_MARGIN, zoom: 1 },
+        { duration: 200 },
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topologyKey]);
 
   // Requirement analysis: which non-optional consumed ports has nothing upstream
   // produced? Surfaced as the per-node "needs …" warning + config-panel guidance.
@@ -1246,6 +1265,7 @@ export function FlowEditor({
           stepCount={flow.steps.length}
           onRun={onRun}
           runDisabled={runDisabled}
+          running={running}
           flow={flow}
           redacted={hasRedactionWrap(flow)}
           onToggleRedaction={
