@@ -18,7 +18,7 @@ func TestInitHonorsCfgFile(t *testing.T) {
 	// Isolate from the developer's real ~/.config/kapi and any cwd config so
 	// the test only observes the explicit file we pass.
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
-	withCwd(t, t.TempDir())
+	t.Chdir(t.TempDir())
 
 	cfgPath := filepath.Join(t.TempDir(), "custom-config.yaml")
 	const cfgBody = `language: fr-FR
@@ -48,7 +48,7 @@ formats:
 func TestInitIgnoresSearchPathWhenCfgFileSet(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", configDir)
-	withCwd(t, t.TempDir())
+	t.Chdir(t.TempDir())
 
 	// Search-path config (would be picked up without an explicit --config).
 	require.NoError(t, os.WriteFile(
@@ -72,7 +72,7 @@ func TestInitIgnoresSearchPathWhenCfgFileSet(t *testing.T) {
 func TestInitWithoutCfgFileUsesSearchPath(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", configDir)
-	withCwd(t, t.TempDir())
+	t.Chdir(t.TempDir())
 
 	require.NoError(t, os.WriteFile(
 		filepath.Join(configDir, "kapi.yaml"),

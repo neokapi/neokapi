@@ -123,8 +123,7 @@ func TestProgressTracker_NoDuplicate(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Wait for all first-event notifications to settle.
-	time.Sleep(100 * time.Millisecond)
-	firstCount := sender.count()
+	firstCount := settledCount(t, sender)
 
 	bus.Publish(platev.Event{
 		Type:      platev.EventPushCompleted,
@@ -138,8 +137,7 @@ func TestProgressTracker_NoDuplicate(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Wait for all second-event notifications to settle.
-	time.Sleep(100 * time.Millisecond)
-	secondCount := sender.count()
+	secondCount := settledCount(t, sender)
 
 	// The dispatcher creates a new notification for each EventPushCompleted (content available),
 	// but the progress tracker should NOT create duplicate milestone notifications.
@@ -208,4 +206,22 @@ func TestProgressTracker_IgnoresNoProjectID(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, 0, sender.count(), "events without ProjectID should be ignored")
+}
+
+// settledCount waits until the sender's notification count is stable across
+// two consecutive poll intervals and returns it. Strictly more robust than a
+// fixed sleep: it keeps waiting while notifications are still arriving and is
+// bounded by the Eventually deadline.
+func settledCount(t *testing.T, sender *mockSender) int {
+	t.Helper()
+	last := sender.count()
+	require.Eventually(t, func() bool {
+		cur := sender.count()
+		if cur == last {
+			return true
+		}
+		last = cur
+		return false
+	}, 5*time.Second, 100*time.Millisecond)
+	return last
 }
