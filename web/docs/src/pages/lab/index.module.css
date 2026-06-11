@@ -2,6 +2,11 @@
   max-width: 1080px;
   margin: 0 auto;
   padding: 2.5rem 1rem 4rem;
+  /* The Docusaurus wrapper is a flex container; without this the page (a flex
+     item, default min-width:auto) inflates to its descendants' min-content on
+     phones instead of letting truncation and wrapping do their jobs. */
+  min-width: 0;
+  width: 100%;
 }
 
 .hero {

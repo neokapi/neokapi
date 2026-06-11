@@ -283,6 +283,35 @@ export const LessonFocus: Story = {
   },
 };
 
+// The lesson callout floats INSIDE the canvas (bottom-left, sm+ only) so a
+// walkthrough sits next to the nodes it points at instead of consuming page
+// height above the editor.
+export const LessonCallout: Story = {
+  name: "Lesson callout (lessonPanel overlay)",
+  args: {
+    flow: {
+      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools,
+    focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
+    lessonPanel: (
+      <div
+        style={{
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          borderLeft: "4px solid var(--primary)",
+          background: "var(--card)",
+          padding: "10px 12px",
+          fontSize: 13,
+          boxShadow: "0 8px 24px oklch(0 0 0 / 0.25)",
+        }}
+      >
+        Host-rendered walkthrough step — prose, Back/Next, Run — floating over the canvas.
+      </div>
+    ),
+  },
+};
+
 // With a host-supplied renderEndpointPanel, the Source/Sink pills grow an
 // Inspect satellite that opens the host's content in the right overlay — the
 // lab uses this to show the reader's content model (source) and the written

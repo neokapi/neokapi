@@ -49,6 +49,13 @@ export default function ScriptCodeEditor({
       language="typescript"
       theme={theme}
       value={code}
+      // Monaco itself loads from the CDN on first use; without a fallback the
+      // panel sits blank for the duration, which reads as "no editor".
+      loading={
+        <div className="px-3 py-4 text-[11px] italic text-muted-foreground">
+          Loading the code editor (one-time, cached)…
+        </div>
+      }
       onChange={(v) => onChange(v ?? "")}
       onMount={(editor, monaco) => {
         // Use the TypeScript service (the model language is "typescript").
