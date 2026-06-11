@@ -60,7 +60,7 @@ func TestDownloadComputesAndVerifiesSHA256(t *testing.T) {
 		dir := t.TempDir()
 		dst := filepath.Join(dir, "model.onnx")
 		d := &Downloader{HTTPClient: srv.Client()}
-		require.NoError(t, d.download(srv.URL, dst, expected{sha256: good, size: int64(len(body))}))
+		require.NoError(t, d.download(t.Context(), srv.URL, dst, expected{sha256: good, size: int64(len(body))}))
 		got, err := os.ReadFile(dst)
 		require.NoError(t, err)
 		assert.Equal(t, body, got)
@@ -70,7 +70,7 @@ func TestDownloadComputesAndVerifiesSHA256(t *testing.T) {
 		dir := t.TempDir()
 		dst := filepath.Join(dir, "model.onnx")
 		d := &Downloader{HTTPClient: srv.Client()}
-		err := d.download(srv.URL, dst, expected{sha256: "deadbeef"})
+		err := d.download(t.Context(), srv.URL, dst, expected{sha256: "deadbeef"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "integrity check failed")
 		_, statErr := os.Stat(dst)
@@ -88,7 +88,7 @@ func TestDownloadComputesAndVerifiesSHA256(t *testing.T) {
 			HTTPClient: srv.Client(),
 			Logf:       func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) },
 		}
-		require.NoError(t, d.download(srv.URL, dst, expected{}))
+		require.NoError(t, d.download(t.Context(), srv.URL, dst, expected{}))
 		require.FileExists(t, dst)
 		var warned bool
 		for _, l := range logs {
@@ -107,7 +107,7 @@ func TestDownloadRejectsNon200(t *testing.T) {
 	defer srv.Close()
 
 	d := &Downloader{HTTPClient: srv.Client()}
-	err := d.download(srv.URL, filepath.Join(t.TempDir(), "x"), expected{})
+	err := d.download(t.Context(), srv.URL, filepath.Join(t.TempDir(), "x"), expected{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status")
 }

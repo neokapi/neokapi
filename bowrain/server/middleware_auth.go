@@ -177,7 +177,9 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 				slog.Error("recovered panic in API token last-used update", "panic", r)
 			}
 		}()
-		_ = authStore.UpdateAPITokenLastUsed(context.WithoutCancel(ctx), apiToken.ID)
+		if err := authStore.UpdateAPITokenLastUsed(context.WithoutCancel(ctx), apiToken.ID); err != nil {
+			slog.Debug("update API token last-used", "token_id", apiToken.ID, "error", err)
+		}
 	}()
 
 	return next(c)

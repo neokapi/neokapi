@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"reflect"
 	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -94,13 +95,19 @@ func (b *BaseTool) Schema() *schema.ComponentSchema {
 // Config returns the current configuration.
 func (b *BaseTool) Config() ToolConfig { return b.Cfg }
 
-// SetConfig applies a new configuration after validation.
+// SetConfig applies a new configuration after validation. Once a tool has a
+// config, replacements must be of the same concrete type: tool handlers
+// type-assert Cfg to their own config type, so a mismatched replacement would
+// otherwise surface as a panic mid-stream instead of an error here.
 func (b *BaseTool) SetConfig(cfg ToolConfig) error {
 	if cfg == nil {
 		return nil
 	}
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
+	}
+	if b.Cfg != nil && reflect.TypeOf(cfg) != reflect.TypeOf(b.Cfg) {
+		return fmt.Errorf("config type %T does not match the tool's config type %T", cfg, b.Cfg)
 	}
 	b.Cfg = cfg
 	return nil

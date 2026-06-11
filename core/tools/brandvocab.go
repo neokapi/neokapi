@@ -59,19 +59,19 @@ func NewBrandVocabCheckToolWithResolver(resolver brand.ProfileResolver, rc brand
 	return t
 }
 
-func (t *BrandVocabCheckTool) resolveOnce() {
+func (t *BrandVocabCheckTool) resolveOnce(ctx context.Context) {
 	if t.resolved || t.resolver == nil {
 		return
 	}
 	t.resolved = true
-	profile, err := t.resolver.ResolveProfile(context.Background(), t.rc)
+	profile, err := t.resolver.ResolveProfile(ctx, t.rc)
 	if err == nil && profile != nil {
 		t.profile = profile
 	}
 }
 
 func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
-	t.resolveOnce()
+	t.resolveOnce(v.Context())
 
 	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
