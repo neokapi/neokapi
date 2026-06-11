@@ -48,7 +48,9 @@ func newTestApp(t *testing.T) *App {
 	}
 	app.tb = tb
 	t.Cleanup(func() {
-		app.ServiceShutdown()
+		if err := app.ServiceShutdown(); err != nil {
+			t.Errorf("shutdown app: %v", err)
+		}
 	})
 	return app
 }

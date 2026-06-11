@@ -85,7 +85,9 @@ func (a *App) getOrCreateTB() (*termbase.SQLiteTermBase, error) {
 		return a.tb, nil
 	}
 	tbDir := filepath.Join(desktopConfigDir(), "termbase")
-	os.MkdirAll(tbDir, 0755)
+	if err := os.MkdirAll(tbDir, 0755); err != nil {
+		return nil, fmt.Errorf("create termbase dir: %w", err)
+	}
 	tbPath := filepath.Join(tbDir, "default.db")
 	tb, err := termbase.NewSQLiteTermBase(tbPath)
 	if err != nil {

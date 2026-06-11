@@ -112,7 +112,7 @@ func TestUpdateTMEntry_NotFound(t *testing.T) {
 		SourceLocale: "en",
 		TargetLocale: "fr",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"os/exec"
 	"runtime"
 
@@ -123,9 +124,7 @@ func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) Block
 	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
-	for k, v := range sb.Block.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, sb.Block.Properties)
 
 	return BlockInfo{
 		ID:           sb.Block.ID,
@@ -270,8 +269,7 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 			// Fall through to update local cache.
 		} else {
 			// Update local cache on success.
-			a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
-			return nil
+			return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
 		}
 	} else if a.isOffline() {
 		a.enqueue("update_block_target", req)
@@ -305,8 +303,7 @@ func (a *App) UpdateBlockTargetRuns(req UpdateBlockTargetRunsRequest) error {
 			a.goOffline()
 			a.enqueue("update_block_target_runs", req)
 		} else {
-			a.updateBlockTargetRunsLocal(req)
-			return nil
+			return a.updateBlockTargetRunsLocal(req)
 		}
 	} else if a.isOffline() {
 		a.enqueue("update_block_target_runs", req)
@@ -339,8 +336,7 @@ func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, rev
 				TargetLocale: targetLocale, Reviewed: reviewed,
 			})
 		} else {
-			a.reviewBlockLocal(projectID, blockID, reviewed)
-			return nil
+			return a.reviewBlockLocal(projectID, blockID, reviewed)
 		}
 	} else if a.isOffline() {
 		a.enqueue("review_block", reviewBlockPayload{
@@ -520,14 +516,15 @@ func (a *App) ExportTranslatedItem(_, itemName, _ string) (string, error) {
 
 // OpenFileInOS opens a file using the OS default application.
 func (a *App) OpenFileInOS(filePath string) error {
+	ctx := context.Background()
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", filePath)
+		cmd = exec.CommandContext(ctx, "open", filePath)
 	case "linux":
-		cmd = exec.Command("xdg-open", filePath)
+		cmd = exec.CommandContext(ctx, "xdg-open", filePath)
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", filePath)
+		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", filePath)
 	default:
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
@@ -811,39 +808,4 @@ var accentMap = map[rune]rune{
 	'Q': '\u01ea', 'R': '\u0154', 'S': '\u0160', 'T': '\u0162',
 	'U': '\u00db', 'V': '\u1e7c', 'W': '\u0174', 'X': '\u1e8a',
 	'Y': '\u00dd', 'Z': '\u017d',
-}
-
-// fileDir returns the directory of a file path.
-func fileDir(path string) string {
-	dir := path
-	for i := len(dir) - 1; i >= 0; i-- {
-		if dir[i] == '/' || dir[i] == '\\' {
-			return dir[:i]
-		}
-	}
-	return "."
-}
-
-// copyTargets creates a shallow copy of a string map.
-func copyTargets(m map[string]string) map[string]string {
-	if m == nil {
-		return map[string]string{}
-	}
-	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
-}
-
-// copyStringMap creates a shallow copy of a string map.
-func copyStringMap(m map[string]string) map[string]string {
-	if m == nil {
-		return map[string]string{}
-	}
-	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
 }

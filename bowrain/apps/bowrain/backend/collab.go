@@ -1,8 +1,6 @@
 package backend
 
-import (
-	"fmt"
-)
+import "errors"
 
 // CollabUser identifies the current user for a collaboration session.
 // The shape mirrors the @neokapi/ui useCollaboration `user` option.
@@ -50,7 +48,7 @@ func (a *App) GetCollabSession() (CollabSession, error) {
 	a.mu.RUnlock()
 
 	if auth == nil || auth.AccessToken == "" {
-		return CollabSession{}, fmt.Errorf("no auth token available for collaboration")
+		return CollabSession{}, errors.New("no auth token available for collaboration")
 	}
 
 	user := CollabUser{

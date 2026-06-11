@@ -189,9 +189,6 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run framework tests
         id: run-tests
         run: make test-framework
@@ -199,7 +196,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-framework.json -out junit-framework.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: test-results-framework.json
+          out: junit-framework.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -240,9 +240,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run platform tests
         id: run-tests
         run: make test-platform
@@ -250,7 +247,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in bowrain/test-results-platform.json -out junit-platform.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: bowrain/test-results-platform.json
+          out: junit-platform.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -282,9 +282,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run cli tests
         id: run-tests
         run: make test-cli
@@ -296,7 +293,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-cli.json -out junit-cli.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: test-results-cli.json
+          out: junit-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -328,9 +328,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run kapi tests
         id: run-tests
         run: make test-kapi
@@ -338,7 +335,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-kapi.json -out junit-kapi.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: test-results-kapi.json
+          out: junit-kapi.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -370,9 +370,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run Bowrain CLI tests
         id: run-tests
         run: make test-bowrain-cli
@@ -380,7 +377,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in bowrain/test-results-bowrain-cli.json -out junit-bowrain-cli.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: bowrain/test-results-bowrain-cli.json
+          out: junit-bowrain-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -419,9 +419,6 @@ jobs:
           cd bowrain/plugin && go mod download && go mod verify
           cd schema && go mod download && go mod verify
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run Bowrain Plugin tests
         id: run-tests
         run: make test-bowrain-plugin
@@ -429,11 +426,17 @@ jobs:
 
       - name: Convert plugin tests to JUnit XML
         if: always()
-        run: go-junit-report -in bowrain/test-results-bowrain-plugin.json -out junit-bowrain-plugin.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: bowrain/test-results-bowrain-plugin.json
+          out: junit-bowrain-plugin.xml
 
       - name: Convert plugin schema tests to JUnit XML
         if: always()
-        run: go-junit-report -in bowrain/test-results-bowrain-plugin-schema.json -out junit-bowrain-plugin-schema.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: bowrain/test-results-bowrain-plugin-schema.json
+          out: junit-bowrain-plugin-schema.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -467,9 +470,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-
       - name: Run bowrain tests
         id: run-tests
         run: make test-bowrain
@@ -477,7 +477,10 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
+        uses: ./.github/actions/go-junit-report
+        with:
+          in: test-results-bowrain.json
+          out: junit-bowrain.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -595,6 +598,7 @@ jobs:
       - name: Create embed placeholders
         run: |
           mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
+          mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
 
       - name: Download modules
         run: |
@@ -614,9 +618,6 @@ jobs:
       - name: Install Linux dependencies for Wails
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
-      - name: Create Bowrain frontend placeholder
-        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
-
       - name: Lint bowrain
         uses: ./.github/actions/golangci
         with:
@@ -632,7 +633,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install actionlint
-        run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/v1.7.10/scripts/download-actionlint.bash) 1.7.10
 
       - name: Lint workflow files
         run: ./actionlint

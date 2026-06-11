@@ -30,7 +30,7 @@ func TestUpdateBlockTarget(t *testing.T) {
 
 	blocks, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
-	require.Greater(t, len(blocks), 0)
+	require.NotEmpty(t, blocks)
 
 	// Update the first block's target
 	err = app.UpdateBlockTarget(UpdateBlockRequest{
@@ -221,7 +221,7 @@ func TestExportTranslatedFile(t *testing.T) {
 
 	// Server-side export is no longer supported (source bytes removed).
 	_, err := app.ExportTranslatedItem(info.ID, itemName, "fr")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "server-side export not available")
 }
 
@@ -271,7 +271,7 @@ func TestHTMLFileBlocks(t *testing.T) {
 
 	blocks, err := app.GetItemBlocks(info.ID, "page.html")
 	require.NoError(t, err)
-	assert.Greater(t, len(blocks), 0)
+	assert.NotEmpty(t, blocks)
 
 	// Check for expected content
 	sources := make([]string, 0)

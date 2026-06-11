@@ -48,7 +48,9 @@ func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
 	tmPath := a.tmPath
 	if tmPath == "" {
 		tmDir := filepath.Join(desktopConfigDir(), "tm")
-		os.MkdirAll(tmDir, 0755)
+		if err := os.MkdirAll(tmDir, 0755); err != nil {
+			return nil, fmt.Errorf("create tm dir: %w", err)
+		}
 		tmPath = filepath.Join(tmDir, "default.db")
 	}
 	tm, err := sievepen.NewSQLiteTM(tmPath)

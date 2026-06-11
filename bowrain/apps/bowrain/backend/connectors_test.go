@@ -11,7 +11,7 @@ import (
 func TestListConnectorTypes(t *testing.T) {
 	app := NewAppWithoutPlugins()
 	types := app.ListConnectorTypes()
-	assert.True(t, len(types) > 0, "should have at least one connector type")
+	assert.NotEmpty(t, types, "should have at least one connector type")
 
 	// The desktop offers remote/CMS connectors only.
 	assert.Contains(t, types, "wordpress", "should offer the wordpress connector")
@@ -44,7 +44,7 @@ func TestConnectorLifecycle(t *testing.T) {
 	// Remove connector.
 	require.NoError(t, app.RemoveConnector(info.ID))
 	active = app.ListConnectors()
-	assert.Len(t, active, 0)
+	assert.Empty(t, active)
 
 	// Cleanup: reset global state for other tests.
 	activeConnectors = map[string]connector.IntegrationConnector{}
