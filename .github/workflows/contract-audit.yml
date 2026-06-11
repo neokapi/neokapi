@@ -111,6 +111,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: contract-audit
-          path: neokapi/web/docs/static/data/contract-audit.json
+          path: neokapi/web/static/data/contract-audit.json
           if-no-files-found: error
           retention-days: 90

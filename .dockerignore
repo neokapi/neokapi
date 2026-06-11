@@ -28,7 +28,7 @@ bowrain/apps/bowrain/
 !bowrain/apps/bowrain/frontend/package.json
 
 # Website / docs
-web/docs/
+web/
 
 # OS files
 .DS_Store

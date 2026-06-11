@@ -24,7 +24,7 @@ export interface DemoManifest {
   kind: string;
   /**
    * When set, this demo is published into the docs site as theme-matched videos:
-   * `<publishAs>-light.webm` / `<publishAs>-dark.webm` under web/docs/static/video/kapi/.
+   * `<publishAs>-light.webm` / `<publishAs>-dark.webm` under web/static/video/kapi/.
    * Demos without it are previews only (not shipped on the website).
    */
   publishAs?: string;

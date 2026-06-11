@@ -213,7 +213,7 @@ Three tiers:
 4. Extend `core/model` with full `CodeAttrs` (or place it in `core/formats/xliff2/inline.go` as a typed annotation).
 5. Run `TestRoundTrip_AllFixtures` to drive bug fixes.
 6. Update `spec.yaml` to point at this design doc.
-7. Document the contract in `web/docs/docs/developer/formats.md`.
+7. Document the contract in `web/docs/developer/formats.md`.
 
 ## 10. Decisions
 

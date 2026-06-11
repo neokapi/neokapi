@@ -19,7 +19,7 @@ Two tools operationalize this document:
 - **Dashboard** — [`/format-maturity`](https://neokapi.org/format-maturity) (in
   the docs site's Reference menu) shows every format's level, a per-dimension
   status grid, and a progress-over-time trend. Its data lives in
-  `web/docs/static/data/format-maturity{,-history}.json`.
+  `web/static/data/format-maturity{,-history}.json`.
 - **Triage workflow** — `.claude/workflows/format-triage.js`. Trigger it to
   re-score all formats, rank the work toward a target level, optionally apply
   the top fix per format, and refresh the dashboard:

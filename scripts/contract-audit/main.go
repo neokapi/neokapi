@@ -25,7 +25,7 @@
 //	-go-commit <sha>        neokapi git SHA for source links.
 //
 //	-out <path>             Output JSON path. Defaults to
-//	                        web/docs/static/data/contract-audit.json so
+//	                        web/static/data/contract-audit.json so
 //	                        the legacy /test-comparison.json stays intact
 //	                        during the MVP.
 //
@@ -113,7 +113,7 @@ type goTestEvent struct {
 	Elapsed float64 `json:"Elapsed,omitempty"`
 }
 
-// ── Dashboard wire schema (mirrors web/docs/src/pages/test-comparison/_types.ts) ──
+// ── Dashboard wire schema (mirrors web/src/pages/test-comparison/_types.ts) ──
 
 type testComparisonData struct {
 	GeneratedAt    string             `json:"generatedAt"`
@@ -300,7 +300,7 @@ func main() {
 	okapiVersion := flag.String("okapi-version", "1.47.0", "Pinned Okapi version, surfaced in the dashboard header")
 	okapiTag := flag.String("okapi-tag", "", "Okapi git tag for source links (e.g. v1.47.0)")
 	goCommit := flag.String("go-commit", "", "neokapi git SHA for source links")
-	out := flag.String("out", "web/docs/static/data/contract-audit.json", "Output JSON path")
+	out := flag.String("out", "web/static/data/contract-audit.json", "Output JSON path")
 	flag.Parse()
 
 	if *surefireDir == "" {

@@ -1,7 +1,7 @@
 # MDX corpus — provenance
 
 Genuine `.mdx` files copied verbatim from THIS repository's documentation sites
-(`web/docs/` and `bowrain/web/docs/`). Because they are same-repo copies there
+(`web/` and `bowrain/web/docs/`). Because they are same-repo copies there
 is no third-party license concern; they are real shipping docs pages, not
 synthetic fixtures.
 
@@ -17,11 +17,11 @@ synthetic fixtures.
 | `bowrain-web-term-explorer.mdx` | `bowrain/web/docs/docs/walkthroughs/bowrain-web-term-explorer.mdx` |
 | `bowrain-web-translation-editor.mdx` | `bowrain/web/docs/docs/walkthroughs/bowrain-web-translation-editor.mdx` |
 | `bowrain-workspaces.mdx` | `bowrain/web/docs/docs/walkthroughs/bowrain-workspaces.mdx` |
-| `kapi-bilingual-workflow.mdx` | `web/docs/docs/walkthroughs/kapi-bilingual-workflow.mdx` |
-| `kapi-pseudo-translate.mdx` | `web/docs/docs/walkthroughs/kapi-pseudo-translate.mdx` |
-| `kapi-terminology-pretranslation.mdx` | `web/docs/docs/walkthroughs/kapi-terminology-pretranslation.mdx` |
-| `kapi-terminology-qa.mdx` | `web/docs/docs/walkthroughs/kapi-terminology-qa.mdx` |
-| `kapi-cli-bilingual-workflow.mdx` | `web/docs/docs/kapi-cli/bilingual-workflow.mdx` |
+| `kapi-bilingual-workflow.mdx` | `web/docs/walkthroughs/kapi-bilingual-workflow.mdx` |
+| `kapi-pseudo-translate.mdx` | `web/docs/walkthroughs/kapi-pseudo-translate.mdx` |
+| `kapi-terminology-pretranslation.mdx` | `web/docs/walkthroughs/kapi-terminology-pretranslation.mdx` |
+| `kapi-terminology-qa.mdx` | `web/docs/walkthroughs/kapi-terminology-qa.mdx` |
+| `kapi-cli-bilingual-workflow.mdx` | `web/docs/kapi-cli/bilingual-workflow.mdx` |
 | `server-web-overview.mdx` | `bowrain/web/docs/docs/server/web-overview.mdx` |
 | `website-translation.mdx` | `bowrain/web/docs/docs/cli/use-cases/website-translation.mdx` |
 
@@ -29,8 +29,8 @@ synthetic fixtures.
 
 ```sh
 # From the repo root, verbatim (no edits):
-cp web/docs/docs/walkthroughs/kapi-terminology-qa.mdx            corpus/kapi-terminology-qa.mdx
-cp web/docs/docs/kapi-cli/bilingual-workflow.mdx                 corpus/kapi-cli-bilingual-workflow.mdx
+cp web/docs/walkthroughs/kapi-terminology-qa.mdx            corpus/kapi-terminology-qa.mdx
+cp web/docs/kapi-cli/bilingual-workflow.mdx                 corpus/kapi-cli-bilingual-workflow.mdx
 cp bowrain/web/docs/docs/server/web-overview.mdx                 corpus/server-web-overview.mdx
 cp bowrain/web/docs/docs/cli/use-cases/website-translation.mdx   corpus/website-translation.mdx
 # … (see the table above for the full set)

@@ -19,7 +19,7 @@ The repository is a **multi-module monorepo** with seven Go modules:
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core.
 - **SaT plugin** (`github.com/neokapi/neokapi/plugins/sat`) — the `kapi-sat` segmenter plugin: runs wtpsplit *Segment any Text* ONNX models in-process (cgo onnxruntime + XLM-RoBERTa tokenizer, gated behind `-tags onnx`) and speaks a line-delimited JSON segmentation protocol on stdin/stdout. Isolated so its native ML stack never enters the `kapi` binary; the CLI's `sat` segment engine (`cli/segment_sat.go`) discovers and drives it. The pure-Go `satproto` package + protocol/algorithm tests build with no native deps.
 
-Both **kapi** and **bowrain** binaries share a common base in `cli/`. The base provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer`, `cli.RegisterMCPToolFactory` (CLI-side), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/docs/contribute/notes-internal/plugin-model.md).
+Both **kapi** and **bowrain** binaries share a common base in `cli/`. The base provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer`, `cli.RegisterMCPToolFactory` (CLI-side), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
 
 A `go.work` file at the root coordinates the modules for local development. The framework (`core/`) stays platform-agnostic — bowrain attaches via the extension mechanism and the CLI plugin registries, not via direct imports from `core/` to bowrain.
 
@@ -88,8 +88,8 @@ make frontend-build                           # Production frontend build
 **Documentation site:**
 
 ```bash
-cd web/docs && vp run start           # Dev server with hot reload
-cd web/docs && vp run build           # Production build → web/docs/build/
+cd web && vp run start           # Dev server with hot reload
+cd web && vp run build           # Production build → web/build/
 ```
 
 ## Build Conventions
@@ -262,7 +262,7 @@ neokapi/
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
-├── web/docs/               # Docusaurus site
+├── web/               # Docusaurus site
 └── Makefile               # Multi-module build targets
 ```
 
@@ -325,7 +325,7 @@ kapi run translate -p myproject.kapi
 kapi run translate-and-qa -p myproject.kapi --target-lang de
 ```
 
-`.kapi` files are portable YAML documents — see [AD-008](web/docs/docs/contribute/architecture/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
+`.kapi` files are portable YAML documents — see [AD-008](web/docs/contribute/architecture/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
 
 **Role Separation:**
 
@@ -400,14 +400,14 @@ Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are
 
 Walkthrough videos serve as documentation and are embedded on the website. **Whenever UI- or CLI-surface code changes, re-record the affected walkthrough videos** as part of the verification process before committing.
 
-Videos are produced by the **harness** (`harness/`): each demo is an authored `demo.yaml` — a real kapi/bowrain command sequence or a UI flow — that the harness drives against real infrastructure, screencasts, narrates (TTS), and renders with Remotion into theme-matched light + dark `.webm` files. Published videos land under `web/docs/static/video/` (kapi) and `bowrain/web/docs/static/video/` (bowrain); the MDX wires them in with `ThemedVideo` / `KapiPlayground` embeds. (The interactive in-browser explorers are a separate system — `{id}.scene.yaml` specs driving the WASM engine — not videos.)
+Videos are produced by the **harness** (`harness/`): each demo is an authored `demo.yaml` — a real kapi/bowrain command sequence or a UI flow — that the harness drives against real infrastructure, screencasts, narrates (TTS), and renders with Remotion into theme-matched light + dark `.webm` files. Published videos land under `web/static/video/` (kapi) and `bowrain/web/docs/static/video/` (bowrain); the MDX wires them in with `ThemedVideo` / `KapiPlayground` embeds. (The interactive in-browser explorers are a separate system — `{id}.scene.yaml` specs driving the WASM engine — not videos.)
 
 ### How to regenerate
 
 ```bash
 make harness-videos-staged        # full pass: stack up → seed → record → narrate → package (light + dark)
 make harness-videos               # render the kapi demo videos from existing captures
-make publish-docs-assets          # publish web/docs/static/{img,video} → docs-assets release (merges, never drops)
+make publish-docs-assets          # publish web/static/{img,video} → docs-assets release (merges, never drops)
 make publish-bowrain-docs-assets  # publish bowrain/web/docs/static/{img,video} → bowrain-docs-assets release
 make fetch-docs-assets            # download already-built assets from the docs-assets release
 ```
@@ -434,7 +434,7 @@ Before committing any UI-related change:
 1. TypeScript checks pass for the frontend projects (`packages/ui`, `bowrain/apps/web`, `bowrain/apps/bowrain/frontend`, `apps/kapi-desktop/frontend`)
 2. All unit tests pass (`cd packages/ui && vp test`)
 3. All frontend production builds succeed
-4. Affected walkthrough scenes re-recorded (see the walkthrough/scenes engine below) and assets land under `web/docs/static/`
+4. Affected walkthrough scenes re-recorded (see the walkthrough/scenes engine below) and assets land under `web/static/`
 5. Go build succeeds (`make build build-server`)
 
 ## Writing & Brand Communication
@@ -464,6 +464,6 @@ for flows, sequences, or relationships.
 
 ## Architecture Decisions
 
-ADs live in `web/docs/docs/contribute/architecture/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
+ADs live in `web/docs/contribute/architecture/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
 
-Implementation notes live in `web/docs/docs/contribute/notes-internal/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.
+Implementation notes live in `web/docs/contribute/notes-internal/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.

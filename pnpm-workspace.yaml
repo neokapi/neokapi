@@ -16,7 +16,7 @@
 packages:
   - packages/*
   - storybook
-  - web/*
+  - web
   - apps/kapi-desktop/frontend
   - bowrain/packages/*
   - bowrain/storybook
@@ -43,7 +43,7 @@ linkWorkspacePackages: true
 shamefullyHoist: true
 
 # npm always runs pre/post scripts; keep that under pnpm so hooks like
-# web/docs' prebuild → gen-reference still fire automatically.
+# web' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
 
 # Cross-workspace version pins (was the root package.json npm "overrides").

@@ -3,8 +3,8 @@
 # Regenerate every neokapi-branded logo asset from the two-background source pair.
 #
 # The neokapi brand mark (the tapir hugging a globe) lives at:
-#   web/docs/assets/neokapi-logo-2-black.png   (logo over solid black)
-#   web/docs/assets/neokapi-logo-2-white.png   (logo over solid white)
+#   web/assets/neokapi-logo-2-black.png   (logo over solid black)
+#   web/assets/neokapi-logo-2-white.png   (logo over solid white)
 #
 # This script is fully deterministic -- no AI, no manual editing. Re-run it after
 # dropping in an updated source pair and every derived asset is rebuilt the same
@@ -19,8 +19,8 @@
 #
 # Generated (all transparent unless noted):
 #   master:
-#     web/docs/assets/neokapi-logo.png                       (1024, transparent)
-#   docs site (Docusaurus, web/docs/static/img/):
+#     web/assets/neokapi-logo.png                       (1024, transparent)
+#   docs site (Docusaurus, web/static/img/):
 #     favicon.png (32)  favicon.ico (16/32/48)  logo.png (256, navbar)
 #     hero-logo.png (512, og:image)  apple-touch-icon.png (180)
 #   Kapi desktop (apps/kapi-desktop/):
@@ -37,7 +37,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ASSETS="$REPO_ROOT/web/docs/assets"
+ASSETS="$REPO_ROOT/web/assets"
 
 BLACK="$ASSETS/neokapi-logo-2-black.png"
 WHITE="$ASSETS/neokapi-logo-2-white.png"
@@ -123,8 +123,8 @@ app_tile() {
 }
 
 # --- Docs site (Docusaurus) ---------------------------------------------------
-echo "docs site (web/docs/static/img):"
-DOCS_IMG="$REPO_ROOT/web/docs/static/img"
+echo "docs site (web/static/img):"
+DOCS_IMG="$REPO_ROOT/web/static/img"
 resize 32  "$DOCS_IMG/favicon.png"
 make_favicon "$DOCS_IMG/favicon.ico"
 resize 256 "$DOCS_IMG/logo.png"

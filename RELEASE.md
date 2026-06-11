@@ -24,7 +24,7 @@ A leading `v` is tolerated: `v=1.3.4` and `v=v1.3.4` both tag `v1.3.4`.
 | Build + publish | CI (`release.yml`) | kapi CLI + `kapi-bowrain` plugin (GoReleaser), desktop apps (Wails v3), Docker images, Homebrew casks, plugin registry |
 | macOS signing | CI | Desktop `.app`/DMG — Developer ID + notarized; CLI darwin binaries — Developer ID + notarized via quill |
 | Windows signing | **local Mac** | CLI + desktop `.exe` — Authenticode via the Certum cert through SimplySign |
-| Plugin trust | CI | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/docs/contribute/architecture/007-plugin-system.md)) |
+| Plugin trust | CI | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/contribute/architecture/007-plugin-system.md)) |
 
 Why Windows is split out: the Certum certificate is held in Certum's cloud HSM and
 reached through **SimplySign Desktop**, which only runs on a logged-in Mac — it
@@ -150,5 +150,5 @@ GitHub Actions repo secrets used by `release.yml`:
 - [`scripts/publish-windows-signed.sh`](scripts/publish-windows-signed.sh) — local Windows signing
 - [`scripts/quill-sign-darwin.sh`](scripts/quill-sign-darwin.sh) — macOS CLI signing in CI
 - [`Brewfile`](Brewfile) — maintainer toolchain
-- [AD-007: Plugin System](web/docs/docs/contribute/architecture/007-plugin-system.md) — plugin signing vs. OS notarization
+- [AD-007: Plugin System](web/docs/contribute/architecture/007-plugin-system.md) — plugin signing vs. OS notarization
 - Tracking issue: [#655](https://github.com/neokapi/neokapi/issues/655)

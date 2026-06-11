@@ -9,8 +9,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "web/docs/docs/**"
-      - "web/docs/walkthroughs/**"
+      - "web/docs/**"
+      - "web/walkthroughs/**"
       - "kapi/cmd/kapi-wasm-cli/**"
       - "kapi/**/*.go"
       - "cli/**/*.go"
@@ -19,8 +19,8 @@ on:
       - ".github/workflows/docs-verify-snippets.yml"
   pull_request:
     paths:
-      - "web/docs/docs/**"
-      - "web/docs/walkthroughs/**"
+      - "web/docs/**"
+      - "web/walkthroughs/**"
       - "kapi/cmd/kapi-wasm-cli/**"
       - "kapi/**/*.go"
       - "cli/**/*.go"

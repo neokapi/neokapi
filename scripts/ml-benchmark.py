@@ -8,7 +8,7 @@ runtime the Go plugin embeds — so they transfer to the kapi-check plugin.
 
 Writes a JSON report consumed by the docs ML-benchmark dashboard. Run:
 
-    python3 scripts/ml-benchmark.py --out web/docs/src/pages/ml-benchmark/_benchmark.json
+    python3 scripts/ml-benchmark.py --out web/src/pages/ml-benchmark/_benchmark.json
 """
 from __future__ import annotations
 

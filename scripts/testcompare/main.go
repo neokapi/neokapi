@@ -1,6 +1,6 @@
 // Command testcompare reads .parity/test-comparison.json (the raw
 // parity report written by the cli/parity/ test packages) and emits
-// the docs-site shape at web/docs/static/data/parity-report.json.
+// the docs-site shape at web/static/data/parity-report.json.
 //
 // The published shape is intentionally narrower than the raw report —
 // it includes only what the /parity dashboard page renders:
@@ -25,7 +25,7 @@
 //
 //	go run ./scripts/testcompare \
 //	    -in .parity/test-comparison.json \
-//	    -out web/docs/static/data/parity-report.json
+//	    -out web/static/data/parity-report.json
 package main
 
 import (
@@ -74,7 +74,7 @@ type published struct {
 
 func main() {
 	in := flag.String("in", ".parity/test-comparison.json", "input parity report path")
-	out := flag.String("out", "web/docs/static/data/parity-report.json", "output dashboard JSON path")
+	out := flag.String("out", "web/static/data/parity-report.json", "output dashboard JSON path")
 	flag.Parse()
 
 	data, err := os.ReadFile(*in)

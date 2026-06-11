@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Publish web/docs/static/{img,video} to the "docs-assets" GitHub release.
+# Publish web/static/{img,video} to the "docs-assets" GitHub release.
 #
 # This MERGES into whatever is already in the release tarball, so it never drops
 # other assets: it downloads the current docs-assets.tar.gz, overlays the local
@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-STATIC="web/docs/static"
+STATIC="web/static"
 TARBALL="docs-assets.tar.gz"
 RELEASE="docs-assets"
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestGlobFixedPrefix(t *testing.T) {
-	assert.Equal(t, "web/docs/docs/", GlobFixedPrefix("web/docs/docs/**/*.mdx"))
+	assert.Equal(t, "web/docs/", GlobFixedPrefix("web/docs/**/*.mdx"))
 	assert.Equal(t, "src/", GlobFixedPrefix("src/*.json"))
 	assert.Equal(t, "core/i18n/builtins/", GlobFixedPrefix("core/i18n/builtins/metadata.json"))
 	assert.Equal(t, "", GlobFixedPrefix("metadata.json"))
@@ -17,12 +17,12 @@ func TestGlobFixedPrefix(t *testing.T) {
 func TestResolveTargetPath(t *testing.T) {
 	// Tree mirroring: {path} is relative to the item pattern's fixed prefix.
 	got := ResolveTargetPath(
-		"web/docs/docs/**/*.mdx",
-		"web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx",
-		"web/docs/docs/kapi/overview.mdx",
+		"web/docs/**/*.mdx",
+		"web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx",
+		"web/docs/kapi/overview.mdx",
 		"nb",
 	)
-	assert.Equal(t, "web/docs/i18n/nb/docusaurus-plugin-content-docs/current/kapi/overview.mdx", got)
+	assert.Equal(t, "web/i18n/nb/docusaurus-plugin-content-docs/current/kapi/overview.mdx", got)
 
 	// Literal item path: {path} is the basename without extension.
 	got = ResolveTargetPath(

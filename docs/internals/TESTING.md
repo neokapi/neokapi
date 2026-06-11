@@ -80,7 +80,7 @@ neokapi/                              ── Framework Module Tests (repo root) 
 The Okapi Java bridge has no Go package in this repo. It lives in the separate
 [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository, ships as a
 plugin binary, and is exercised through `cli/pluginhost` (see
-[Bridge protocol](../../web/docs/docs/contribute/notes-internal/plugin-bridge-protocol.md)).
+[Bridge protocol](../../web/docs/contribute/notes-internal/plugin-bridge-protocol.md)).
 
 ---
 
@@ -648,9 +648,9 @@ func TestDiscover(t *testing.T) {
 }
 ```
 
-See the [plugin model](../../web/docs/docs/contribute/notes-internal/plugin-model.md)
+See the [plugin model](../../web/docs/contribute/notes-internal/plugin-model.md)
 note for the in-process registry contract and
-[AD-007: Plugin system](../../web/docs/docs/contribute/architecture/007-plugin-system.md)
+[AD-007: Plugin system](../../web/docs/contribute/architecture/007-plugin-system.md)
 for discovery and the A/B/C transport modes.
 
 ### Okapi Java bridge
@@ -662,7 +662,7 @@ side (`cli/pluginhost`) spawns the daemon, connects over a Unix-socket gRPC
 `BridgeService`, and converts between neokapi Parts and Okapi Events via
 `core/plugin/protoconvert`. Bridge format tests exercise it through the same
 discovery/dispatch path as any other plugin; the wire protocol is documented
-in the [bridge protocol](../../web/docs/docs/contribute/notes-internal/plugin-bridge-protocol.md)
+in the [bridge protocol](../../web/docs/contribute/notes-internal/plugin-bridge-protocol.md)
 note.
 
 ---

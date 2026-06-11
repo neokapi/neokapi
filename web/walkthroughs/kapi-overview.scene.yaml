@@ -1,0 +1,47 @@
+# Unified scene spec (W3, issue #661).
+#
+# One authored source drives BOTH the recorded VHS video and the interactive
+# KapiEmbed playground, so they cannot drift. Edit this file, then regenerate:
+#
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-overview
+#
+# The generator emits, deterministically:
+#   - web/scenes/<id>/0N-<scene>.tape           (VHS recording source)
+#   - web/src/components/KapiPlayground/embeds/<id>.embed.ts  (embed config)
+#   - keeps smoke_contract: in web/walkthroughs/<id>.md front matter in sync
+#
+# Schema:
+#   id:        walkthrough id (matches <id>.md prompt + docs/walkthroughs/<id>.mdx)
+#   scene:     id of the single terminal scene (1-based file prefix is 01)
+#   mode:      interactive | video
+#              interactive → the .mdx renders a KapiEmbed as the PRIMARY artifact
+#              video       → the .mdx keeps <ThemedVideo> as the primary artifact
+#   tape:      VHS visual settings (width/height/theme/padding/fontSize)
+#   seed:      built-in kit fixture names written to the cwd before the scene
+#              (see packages/kapi-playground/src/fixtures.ts)
+#   files:     inline files written to the cwd (dynamic content not in the kit)
+#   steps:     ordered list. Each step is one of:
+#                - { comment }                       → a "# ..." beat (tape only)
+#                - { command, narration?, offline? } → a runnable command
+#              offline: true  (default) the command runs in the wasm embed and is
+#                              added to the .md smoke_contract (W7 re-runs it).
+#              offline: false the command needs AI/network/SQLite; it appears in
+#                              the tape + narration but is NOT run in the embed and
+#                              NOT added to smoke_contract.
+
+id: kapi-overview
+scene: overview
+mode: interactive
+
+seed: []
+files: []
+
+steps:
+  - command: kapi --help
+    narration: The top-level commands.
+  - comment: List supported formats
+  - command: kapi formats
+    narration: Lists every format kapi can read and write.
+  - comment: List available tools
+  - command: kapi tools
+    narration: The processing tools registry.

@@ -6,8 +6,8 @@ drift (neokapi epic #658, W3 / issue #661).
 
 ## The single source
 
-`web/docs/walkthroughs/<id>.scene.yaml` — ordered steps plus a per-walkthrough
-`mode`. See [`kapi-overview.scene.yaml`](../../web/docs/walkthroughs/kapi-overview.scene.yaml)
+`web/walkthroughs/<id>.scene.yaml` — ordered steps plus a per-walkthrough
+`mode`. See [`kapi-overview.scene.yaml`](../../web/walkthroughs/kapi-overview.scene.yaml)
 for the fully-commented schema. In short:
 
 ```yaml
@@ -40,16 +40,16 @@ node --experimental-strip-types scripts/walkthrough-gen/gen.ts --check   # CI: f
 
 From one `<id>.scene.yaml` it writes, deterministically:
 
-1. **The VHS tape** `web/docs/scenes/<id>/01-<scene>.tape` (interactive
+1. **The VHS tape** `web/scenes/<id>/01-<scene>.tape` (interactive
    walkthroughs only — video walkthroughs keep their hand-curated recording
    tape). For interactive walkthroughs it also materializes the `seed`/`files`
-   into the scene dir at bare paths so `cd web/docs/scenes/<id> && vhs 01-*.tape`
+   into the scene dir at bare paths so `cd web/scenes/<id> && vhs 01-*.tape`
    records against the exact bytes the embed seeds.
-2. **The embed config** `web/docs/src/components/KapiPlayground/embeds/<id>.embed.ts`
+2. **The embed config** `web/src/components/KapiPlayground/embeds/<id>.embed.ts`
    (plus `types.ts` and the `index.ts` registry). `KapiGuidedEmbed` reads these
    to seed + script the kit's `<KapiEmbed>` and render the guided-steps rail.
    Emitted pre-formatted (via `vp fmt`) so `vp fmt --check` stays green.
-3. **Keeps the `smoke_contract:` array in sync** in `web/docs/walkthroughs/<id>.md`
+3. **Keeps the `smoke_contract:` array in sync** in `web/walkthroughs/<id>.md`
    front matter, so the W7 verifier (`make docs-verify-snippets`) keeps
    re-running these commands against the wasm build.
 
@@ -57,7 +57,7 @@ Reproducible: same spec → byte-identical output (`--check` is the CI gate).
 
 ## The published page
 
-`web/docs/docs/walkthroughs/<id>.mdx` renders `<KapiGuidedEmbed id="<id>" />`
+`web/docs/walkthroughs/<id>.mdx` renders `<KapiGuidedEmbed id="<id>" />`
 as the primary artifact for interactive walkthroughs, with `<ThemedVideo>` kept
 as the fallback for video walkthroughs (or for individual steps that need
 AI/network). The MDX prose is authored by hand around the embed.

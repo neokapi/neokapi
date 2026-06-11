@@ -46,12 +46,12 @@ The genuine gaps are wiring, not capability:
 | --- | --- | --- |
 | kapi-desktop frontend | 473 strings (~2–3k words), 37 screens | **Ready.** `@neokapi/kapi-react` build-time extraction + OTA loading; `qps` catalog live; runtime language switching wired (`useNeokapi()`) |
 | Framework data (tool/format/preset metadata, schema titles) | ~500 strings (~5k words), `core/i18n/builtins/metadata.json` | **Ready.** Generated catalog, gettext MO runtime, `qps.mo` proves the loop; surfaces in CLI lists and desktop schemas |
-| Docs site `web/docs` | 111 MD/MDX files, ~141k raw words (~90–100k translatable prose) | Docusaurus i18n configured but `en`-only; kapi's MDX format handles frontmatter + JSX preservation |
+| Docs site `web` | 111 MD/MDX files, ~141k raw words (~90–100k translatable prose) | Docusaurus i18n configured but `en`-only; kapi's MDX format handles frontmatter + JSX preservation |
 | Walkthrough videos (kapi) | 10 published pairs (light + dark); 6 of 10 are desktop-UI demos | No locale dimension in harness; captions baked into frames |
-| Screenshots | 5 hand-made logos in `web/docs/static/img`; all other visuals are per-demo artifacts inside videos | Subsumed by video re-capture — no separate screenshot program needed |
+| Screenshots | 5 hand-made logos in `web/static/img`; all other visuals are per-demo artifacts inside videos | Subsumed by video re-capture — no separate screenshot program needed |
 | `packages/ui`, `packages/flow-editor` | ~100 + 26 components, hundreds of labels | Hardcoded; `i18n-manifest.json` defines the intended model |
 | CLI help + output | 153 help entries (~1.1k words) + ~139 fmt-call headers/messages | Hardcoded; no catalog wiring |
-| Landing home (folded into `web/docs`) | ~1–2k words | Localizes through the docs-site path |
+| Landing home (folded into `web`) | ~1–2k words | Localizes through the docs-site path |
 | Go error strings | ~1.4k, mostly developer-facing | Out of scope for v1 (recommend: leave English) |
 
 Total kapi-side translatable volume: **~110–120k words, ~85% of it docs.**
@@ -91,7 +91,7 @@ Total kapi-side translatable volume: **~110–120k words, ~85% of it docs.**
 
 - Enable `nb` in `docusaurus.config.ts`; `write-translations` for theme
   strings (JSON — kapi json format handles it).
-- Pipeline: kapi MDX translate `web/docs/docs/**` → `i18n/nb/.../current/`
+- Pipeline: kapi MDX translate `web/docs/**` → `i18n/nb/.../current/`
   tree. Code blocks, CLI output, and JSX stay untouched by format config;
   TM session caching makes re-runs incremental as docs drift.
 - Review: a full pass over ~100k words is 70–140 hours at 1–2k words/hour —

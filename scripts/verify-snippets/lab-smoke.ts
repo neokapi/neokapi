@@ -11,7 +11,7 @@ import { createMemFS } from "./memfs.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = pathResolve(__dirname, "../..");
-const wasmDir = join(REPO_ROOT, "web/docs/static/wasm");
+const wasmDir = join(REPO_ROOT, "web/static/wasm");
 
 const dec = new TextDecoder();
 const enc = new TextEncoder();

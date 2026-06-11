@@ -5,12 +5,12 @@
 // commands exactly as the docs lab would.
 //
 // Usage: node --experimental-strip-types scripts/klz-wasm-smoke.ts \
-//          [web/docs/static/wasm/kapi-cli.wasm] [.../wasm_exec.js]
+//          [web/static/wasm/kapi-cli.wasm] [.../wasm_exec.js]
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createMemFS } from "./verify-snippets/memfs.ts";
 
-const wasmPath = process.argv[2] ?? "web/docs/static/wasm/kapi-cli.wasm";
+const wasmPath = process.argv[2] ?? "web/static/wasm/kapi-cli.wasm";
 const wasmExecPath =
   process.argv[3] ??
   join(process.env.GOROOT ?? "", "lib/wasm/wasm_exec.js");

@@ -47,7 +47,7 @@ const BOWRAIN_DOCS_VIDEO_BASE = path.join(REPO_ROOT, "bowrain", "web", "docs", "
 
 /**
  * The docs video directory a demo publishes into, derived from its brand + target.
- * kapi demos land in web/docs/static/video/kapi; bowrain demos route to the matching
+ * kapi demos land in web/static/video/kapi; bowrain demos route to the matching
  * bowrain docs subdir — bowrain-web (target: web), bowrain-desktop (target:
  * bowrain-desktop), or bowrain-cli (shell/terminal demos). This is the single source
  * of truth for routing — without it every demo silently published to the kapi dir

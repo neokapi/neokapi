@@ -54,7 +54,7 @@ done
 # landing = replace slot contents but PRESERVE a co-located docs/ subdir).
 site_spec() {
   case "$1" in
-    neokapi-docs)    echo "web/docs/build|web/neokapi|docs" ;;
+    neokapi-docs)    echo "web/build|web/neokapi|docs" ;;
     bowrain-docs)    echo "bowrain/web/docs/build|web/bowrain/docs|docs" ;;
     bowrain-landing) echo "bowrain/web/landing/dist|web/bowrain|landing" ;;
     *) return 1 ;;

@@ -14,17 +14,17 @@ This hub deliberately cross-links rather than restates. The canonical companions
 
 | Topic | Document |
 |---|---|
-| Step-by-step "add a format" tutorial (reader/writer/Run handling) | `web/docs/docs/contribute/formats.md` (published, correct) |
-| Format-system architecture decision | `web/docs/docs/contribute/architecture/005-format-system.md` |
-| Bilingual format interop | `web/docs/docs/contribute/architecture/017-bilingual-format-interop.md` |
-| Parity testing decision | `web/docs/docs/contribute/architecture/018-parity-testing.md` |
+| Step-by-step "add a format" tutorial (reader/writer/Run handling) | `web/docs/contribute/formats.md` (published, correct) |
+| Format-system architecture decision | `web/docs/contribute/architecture/005-format-system.md` |
+| Bilingual format interop | `web/docs/contribute/architecture/017-bilingual-format-interop.md` |
+| Parity testing decision | `web/docs/contribute/architecture/018-parity-testing.md` |
 | Round-trip / three-engine test harness | `docs/internals/roundtrip-testing.md` |
 | General testing conventions | `docs/internals/TESTING.md` |
 | Interface signatures | `docs/internals/INTERFACES.md` |
-| Skeleton store binary format | `web/docs/docs/contribute/notes-internal/skeleton-store.md` |
+| Skeleton store binary format | `web/docs/contribute/notes-internal/skeleton-store.md` |
 | Maturity rubric + levels + audit procedure | `docs/internals/format-maturity.md` |
 
-> The older `web/docs/docs/contribute/notes-internal/implementing-formats.md`
+> The older `web/docs/contribute/notes-internal/implementing-formats.md`
 > note carries valuable skeleton-store/writer-fallback detail but its reader
 > snippet omits the three base-not-provided methods (`Signature`/`Open`/`Close`);
 > treat `contribute/formats.md` as the authoritative tutorial.

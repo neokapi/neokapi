@@ -2,7 +2,7 @@
 
 neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
 in Go. For the reasoning behind each major design choice, see the
-[Architecture Decisions](../../web/docs/docs/contribute/architecture/README.md).
+[Architecture Decisions](../../web/docs/contribute/architecture/README.md).
 
 ## Architecture Diagram
 
@@ -60,7 +60,7 @@ graph TB
 
 Documents flow through a channel-based concurrent pipeline. Each tool runs in
 its own goroutine. Buffered channels provide backpressure. See
-[AD-004: Processing engine](../../web/docs/docs/contribute/architecture/004-processing-engine.md).
+[AD-004: Processing engine](../../web/docs/contribute/architecture/004-processing-engine.md).
 
 ## Package Layout
 
@@ -150,7 +150,7 @@ neokapi/
 │
 │   ── Non-Go Assets ──
 ├── docs/                            # Architecture notes, maintainer docs (this directory)
-└── web/docs/                        # Docusaurus documentation site (ADs + internal notes)
+└── web/                        # Docusaurus documentation site (ADs + internal notes)
 ```
 
 The format packages live in the framework module under `core/formats/` — one
@@ -237,7 +237,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[AD-002: Content model](../../web/docs/docs/contribute/architecture/002-content-model.md).
+[AD-002: Content model](../../web/docs/contribute/architecture/002-content-model.md).
 
 ### Inline Content as Runs
 

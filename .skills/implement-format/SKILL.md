@@ -60,7 +60,7 @@ See the Okapi→Run mapping in
 
 ## Step 2 — Scaffold the package
 
-Follow the **published** tutorial `web/docs/docs/contribute/formats.md` (it shows
+Follow the **published** tutorial `web/docs/contribute/formats.md` (it shows
 `Signature`/`Open`/`Read`/`Close`; the internal `implementing-formats.md` note
 omits them and won't compile). Create `core/formats/<id>/{reader,writer,config}.go`,
 name == id. Constructors set the `BaseFormatReader`/`BaseFormatWriter` fields,
@@ -169,7 +169,7 @@ level you reached.
   [`docs/internals/format-engineering.md`](../../docs/internals/format-engineering.md)
 - The bar + audit rubric:
   [`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md)
-- Published tutorial: `web/docs/docs/contribute/formats.md`
+- Published tutorial: `web/docs/contribute/formats.md`
 - Exemplars: `core/formats/properties/` (ported, configurable),
   `core/formats/xcstrings/` (harvest, fullest test set)
 - Round-trip harness: `docs/internals/roundtrip-testing.md`

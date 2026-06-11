@@ -83,7 +83,7 @@ intermediates, `l10n/review/`).
 
 1. **Source — human-owned.** The seeds here (`tm/*.klftm`,
    `termbase.klftb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
-   `web/docs/i18n/<locale>/`, and harness narration. Tooling may have
+   `web/i18n/<locale>/`, and harness narration. Tooling may have
    written the first draft, but humans own the content; nothing
    regenerates them. Corrections land here.
 2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
@@ -94,7 +94,7 @@ intermediates, `l10n/review/`).
    static assets. `make l10n-verify` (CI: the l10n-drift job) fails on
    any byte drift from the seeds. Never hand-edit.
 3. **Materialized targets — derived but checkpointed.** The translated
-   docs pages under `web/docs/i18n/<locale>/.../current/`. Derived from
+   docs pages under `web/i18n/<locale>/.../current/`. Derived from
    source + TM, but committed deliberately: re-materialization is not a
    pure function (TM gaps and ambiguous matches intentionally fall back
    to English rather than guess), review and publishing operate on the

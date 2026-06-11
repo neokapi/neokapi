@@ -122,7 +122,7 @@ filenames; any other locale suffixes every derived asset:
 pnpm run demo kapi-desktop-explorer -- --locale=nb --only=narrate,render,publish --theme=both
 #   narrate → public/<id>/narration-nb.json + audio-nb/
 #   render  → out/<id>-nb.mp4 + out/<id>-nb-light.mp4
-#   publish → web/docs/static/video/kapi/<publishAs>-nb-{light,dark}.webm (+ .jpg posters)
+#   publish → web/static/video/kapi/<publishAs>-nb-{light,dark}.webm (+ .jpg posters)
 ```
 
 The docs `ThemedVideo` component automatically prefers the `-<locale>` asset

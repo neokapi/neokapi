@@ -22,7 +22,7 @@ import type { Block, File, Run } from "../../packages/kapi-format/src/block.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = pathResolve(__dirname, "../..");
-const wasmDir = join(REPO_ROOT, "web/docs/static/wasm");
+const wasmDir = join(REPO_ROOT, "web/static/wasm");
 
 const dec = new TextDecoder();
 const mem = createMemFS({

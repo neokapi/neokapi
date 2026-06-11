@@ -58,7 +58,7 @@ const PREP = {
   required: ['audit_json', 'prior_json'],
   properties: {
     audit_json: { type: 'string', description: 'verbatim stdout of `audit-format.py --all --json`' },
-    prior_json: { type: 'string', description: 'verbatim contents of web/docs/static/data/format-maturity.json, or "" if absent' },
+    prior_json: { type: 'string', description: 'verbatim contents of web/static/data/format-maturity.json, or "" if absent' },
   },
 }
 
@@ -299,11 +299,11 @@ function publishPrompt(json) {
   return `Write the refreshed format-maturity dashboard dataset. cwd = ${REPO}.
 
 1. Get today's date: run \`date -u +%Y-%m-%d\`. Call it TODAY.
-2. Take this EXACT JSON, replace the literal string __DATE__ with TODAY, and write it to web/docs/static/data/format-maturity.json (overwrite):
+2. Take this EXACT JSON, replace the literal string __DATE__ with TODAY, and write it to web/static/data/format-maturity.json (overwrite):
 
 ${json}
 
-3. Update web/docs/static/data/format-maturity-history.json (a JSON array): remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total>, "by_level": <summary.by_level>, "golden_passed": <run_integrity.golden_passed>, "moves": <run_integrity.moves>}. Keep it sorted by date ascending.
+3. Update web/static/data/format-maturity-history.json (a JSON array): remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total>, "by_level": <summary.by_level>, "golden_passed": <run_integrity.golden_passed>, "moves": <run_integrity.moves>}. Keep it sorted by date ascending.
 4. Both files MUST be 2-space indented (the repo formatter, \`vp check\`, requires it). Verify both are valid JSON. Report the level distribution you published.`
 }
 
@@ -326,7 +326,7 @@ let floorByFmt = {}, priorByFmt = {}
   const prep = await agent(
     `Two verbatim captures, no editing or summarizing. cwd = ${REPO}.
 1. Run: ${AUDIT} --all --json   → put its EXACT stdout in audit_json.
-2. Read web/docs/static/data/format-maturity.json → put its EXACT contents in prior_json (or "" if the file does not exist).`,
+2. Read web/static/data/format-maturity.json → put its EXACT contents in prior_json (or "" if the file does not exist).`,
     { label: 'prep', phase: 'Prep', schema: PREP },
   ).catch(() => null)
   if (prep) {
@@ -425,7 +425,7 @@ const dataset = buildDataset(rows, runIntegrity)
 if (PUBLISH) {
   phase('Publish')
   await agent(publishPrompt(JSON.stringify(dataset, null, 2)), { label: 'publish', phase: 'Publish' })
-  log('Published web/docs/static/data/format-maturity{,-history}.json — rebuild the docs to see it.')
+  log('Published web/static/data/format-maturity{,-history}.json — rebuild the docs to see it.')
 }
 
 // per-format computed levels exposed for reproducibility measurement

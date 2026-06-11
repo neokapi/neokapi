@@ -5,7 +5,7 @@ asset embedded on the three public surfaces:
 
 | Surface | Path | Asset home |
 |---|---|---|
-| kapi docs + landing | `web/docs` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
+| kapi docs + landing | `web` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/web/bowrain/docs/`) | `bowrain-docs-assets` GitHub release |
 
@@ -35,10 +35,10 @@ in env.
 
 | Asset family | Embedded on | Produced by | Lands in |
 |---|---|---|---|
-| kapi terminal scenes (`/video/kapi/01-*.webm`) | kapi docs recipes/quickstart | `make kapi-scenes` (VHS) | `web/docs/static/video/kapi/` |
-| kapi Claude explainers (`claude-app-i18n`, `claude-translate-document`) | `kapi/get-started/use-with-claude.mdx` | harness demos `02`,`03` (live Claude) | `web/docs/static/video/kapi/` |
-| kapi shell explainers (`kapi-checks-guardrail`, `toolbox-explainer`) | checks / toolbox pages | harness demos `05`,`09` (scripted shell) | `web/docs/static/video/kapi/` |
-| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx` | harness desktop demos (×6) | `web/docs/static/video/kapi/` |
+| kapi terminal scenes (`/video/kapi/01-*.webm`) | kapi docs recipes/quickstart | `make kapi-scenes` (VHS) | `web/static/video/kapi/` |
+| kapi Claude explainers (`claude-app-i18n`, `claude-translate-document`) | `kapi/get-started/use-with-claude.mdx` | harness demos `02`,`03` (live Claude) | `web/static/video/kapi/` |
+| kapi shell explainers (`kapi-checks-guardrail`, `toolbox-explainer`) | checks / toolbox pages | harness demos `05`,`09` (scripted shell) | `web/static/video/kapi/` |
+| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx` | harness desktop demos (×6) | `web/static/video/kapi/` |
 | bowrain CLI scenes (`/video/bowrain-cli/0N-*.webm`) | bowrain walkthroughs | `make bowrain-kapi-scenes` (VHS, needs a server) | `bowrain/web/docs/static/video/bowrain-cli/` |
 | bowrain web walkthrough scenes (`/video/bowrain/<id>/0N-*.webm`) | bowrain walkthroughs | Playwright `scenes` (needs a server) + `stage-scenes.sh` | `bowrain/web/docs/static/video/bowrain/` |
 | bowrain web framed videos (`/video/bowrain-web/bowrain-web-*`) | `server/web-overview.mdx` | harness demos `bowrain-web-*` (needs a server) | `bowrain/web/docs/static/video/bowrain-web/` |
@@ -71,7 +71,7 @@ gh workflow run docs-kapi.yml --ref main   # pages-deploy.yml auto-deploys on su
 ```
 
 The harness publish stage writes `<publishAs>-{light,dark}.webm` + `.jpg`
-posters straight into `web/docs/static/video/kapi/`.
+posters straight into `web/static/video/kapi/`.
 
 ## 2. bowrain docs (needs a running stack)
 
@@ -145,7 +145,7 @@ and re-trigger the workflow until they match.
 ```bash
 # example: compare one asset
 live=$(curl -sI https://neokapi.github.io/web/neokapi/video/kapi/kapi-desktop-projects-dark.webm | awk '/content-length/{print $2}' | tr -d '\r')
-local=$(stat -f%z web/docs/static/video/kapi/kapi-desktop-projects-dark.webm)
+local=$(stat -f%z web/static/video/kapi/kapi-desktop-projects-dark.webm)
 echo "live=$live local=$local"
 ```
 

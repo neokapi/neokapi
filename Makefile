@@ -518,8 +518,8 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    $(GOTEST) -tags parity -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
-PARITY_DASHBOARD := $(ROOT_DIR)/web/docs/static/data/parity-report.json
-PARITY_FIXTURES_JSON := $(ROOT_DIR)/web/docs/static/data/parity-fixtures.json
+PARITY_DASHBOARD := $(ROOT_DIR)/web/static/data/parity-report.json
+PARITY_FIXTURES_JSON := $(ROOT_DIR)/web/static/data/parity-fixtures.json
 
 parity-publish: parity-test ## Run the parity suite and publish dashboard JSON to the docs site
 	@cd $(ROOT_DIR) && go run ./scripts/testcompare \
@@ -593,7 +593,7 @@ regen-srx-parity-golden: ## Regenerate SRX parity golden from the real Okapi (ok
 # use it for the contract audit (#611).
 
 CONTRACT_DIR             := $(ROOT_DIR)/.contract-audit
-CONTRACT_REPORT          := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
+CONTRACT_REPORT          := $(ROOT_DIR)/web/static/data/contract-audit.json
 CONTRACT_FILTER          ?= html
 OKAPI_REPO               ?= /Users/asgeirf/src/okapi/Okapi
 BRIDGE_SCHEMAS           ?= $(ROOT_DIR)/../okapi-bridge/schemas
@@ -1029,9 +1029,9 @@ bench-run: bench-build parity-sandbox ## Run pseudobench against parity sandbox 
 bench-run-full: PSEUDOBENCH_SAMPLE := 1.0
 bench-run-full: bench-run ## Run pseudobench across the full corpus (slow)
 
-bench: bench-run ## Regenerate pseudobench data and publish to web/docs/static/data
-	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
-	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
+bench: bench-run ## Regenerate pseudobench data and publish to web/static/data
+	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/static/data/pseudobench.json
+	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/static/data/pseudobench.json"
 
 # `make bench-stress` is the publish-grade run: full 844-fixture corpus,
 # 3 measurement iterations + 1 warmup. On M1 Max takes ~30-40 min mostly
@@ -1043,8 +1043,8 @@ bench-stress: PSEUDOBENCH_SAMPLE := 1.0
 bench-stress: PSEUDOBENCH_ITERS  := 3
 bench-stress: PSEUDOBENCH_WARMUP := 1
 bench-stress: bench-run ## Stress-run full corpus and publish to docs (slow, ~30-40 min)
-	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
-	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
+	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/static/data/pseudobench.json
+	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/static/data/pseudobench.json"
 
 # ── Content-check quality eval ───────────────────────────────────────────────
 # Scores the content checks (do-not-translate, placeholder, …) against a
@@ -1052,9 +1052,9 @@ bench-stress: bench-run ## Stress-run full corpus and publish to docs (slow, ~30
 # test (go test ./scripts/checkeval) gates the build on any regression — a new
 # false positive or a missed finding — mirroring how `make parity` gates format
 # faithfulness. The corpus grows from real corrections (issue #759).
-check-eval: ## Run the content-check quality eval → web/docs/src/pages/check-eval/_eval.json
+check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_eval.json
 	$(GO) run ./scripts/checkeval
-	@echo "Published check-eval report → web/docs/src/pages/check-eval/_eval.json"
+	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
@@ -1068,12 +1068,12 @@ pulse-build pulse-dev pulse-check:
 # ── Documentation Assets ────────────────────────────────────────────────────
 #
 # Walkthrough engine (issue #425): scenes are recorded by docs-kapi.yml /
-# docs-bowrain.yml workflows from web/docs/scenes/ and bowrain/web/docs/scenes/.
+# docs-bowrain.yml workflows from web/scenes/ and bowrain/web/docs/scenes/.
 # The legacy screenshots/recordings/cli-recordings/docs-assets/Remotion
 # pipeline is removed — see commit history for what was here.
 
 # Regenerate every neokapi-branded logo/icon/favicon from the two-background
-# source pair (web/docs/assets/neokapi-logo-2-{black,white}.png): combines them
+# source pair (web/assets/neokapi-logo-2-{black,white}.png): combines them
 # into one transparent, watermark-free master and fans it out. Fully scripted —
 # no AI. Re-render the demo videos afterwards (make harness-videos) to pick up
 # the new mascot. Bowrain is a separate brand: see scripts/generate-icons.sh.
@@ -1082,12 +1082,12 @@ logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 
 fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrough engine fully covers)
 	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
-	@mkdir -p web/docs/static
-	@tar xzf /tmp/docs-assets.tar.gz -C web/docs/static
+	@mkdir -p web/static
+	@tar xzf /tmp/docs-assets.tar.gz -C web/static
 	@rm -f /tmp/docs-assets.tar.gz
-	@du -sh web/docs/static/img web/docs/static/video 2>/dev/null || true
+	@du -sh web/static/img web/static/video 2>/dev/null || true
 
-publish-docs-assets: ## Publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
+publish-docs-assets: ## Publish web/static/{img,video} to the docs-assets release (merges, never drops)
 	@bash scripts/publish-docs-assets.sh
 
 # Bowrain's framed walkthrough videos (harness-rendered bowrain-web/ +
@@ -1111,7 +1111,7 @@ publish-bowrain-docs-assets: ## Publish bowrain/web/docs/static/{img,video} to t
 harness-deps: ## Install the demo-video harness deps (node + Playwright)
 	$(MAKE) -C harness deps
 
-harness-videos: ## Render + convert the docs demo videos (light + dark) → web/docs/static/video/kapi/
+harness-videos: ## Render + convert the docs demo videos (light + dark) → web/static/video/kapi/
 	$(MAKE) -C harness videos
 
 # Phased video pipeline — seed once, record every screencast (the only phase
@@ -1162,26 +1162,26 @@ generate-contract-types: ## Generate the shared TS IO-contract types (packages/c
 check-contract-types: ## Drift gate: fail if the committed contract types are stale vs. core/schema
 	$(GO) run ./scripts/gen-contract-types -check
 
-generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/docs/reference/{commands,formats,tools}
-	cd web/docs && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
+generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
+	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
-docs-deps: ; cd web/docs && vp install --frozen-lockfile
-docs-dev: docs-wasm ; cd web/docs && vp run start
-docs-build: ; cd web/docs && vp run build
-docs-serve: ; cd web/docs && vp run serve
+docs-deps: ; cd web && vp install --frozen-lockfile
+docs-dev: docs-wasm ; cd web && vp run start
+docs-build: ; cd web && vp run build
+docs-serve: ; cd web && vp run serve
 
 # Output dir for the in-browser playground (gitignored; built locally or in CI).
-WASM_DEMO_DIR := web/docs/static/wasm
+WASM_DEMO_DIR := web/static/wasm
 
-web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/docs/static/wasm/
+web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/static/wasm/
 	@mkdir -p $(WASM_DEMO_DIR)
 	GOOS=js GOARCH=wasm $(GO) build -o $(WASM_DEMO_DIR)/kapi.wasm ./cmd/kapi-wasm
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
 	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
 
-web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/kapi-cli.wasm
+web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
 	@mkdir -p $(WASM_DEMO_DIR)
 	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
@@ -1237,8 +1237,8 @@ BOWRAIN_DOCS_BASE    := /web/bowrain/docs/
 landing-build: ## Build the bowrain landing page with its production base URL → bowrain/web/landing/dist
 	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build
 
-docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (run fetch-docs-assets first to stage videos) → web/docs/build
-	cd web/docs && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
+docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (run fetch-docs-assets first to stage videos) → web/build
+	cd web && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 	cd bowrain/web/docs && corepack pnpm install --ignore-workspace

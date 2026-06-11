@@ -1,0 +1,185 @@
+---
+id: terminology-qa
+title: "Enforce terminology"
+sidebar_label: "Terminology QA"
+sidebar_position: 5
+description: "Import a glossary, look up terms, and flag terminology drift in translated files before they ship."
+hide_table_of_contents: true
+---
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import CsvTable from "@site/src/components/CsvTable";
+
+export const glossaryCsv = `source,target,domain
+password,mot de passe,security
+username,nom d'utilisateur,security
+log in,se connecter,ui
+dashboard,tableau de bord,ui
+settings,paramètres,ui
+encryption,chiffrement,security
+file upload,téléversement de fichier,ui`;
+
+# Enforce terminology
+
+:::note Runs anywhere
+No project needed — this recipe uses a **named** termbase under your config
+home (`--name product-terms`). See
+[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for the other
+storage models.
+:::
+
+**Goal:** verify that translated files use your approved terms — and catch the
+ones that don't, before they ship. A vendor's translations may read well and
+still use "code secret" where your glossary says "mot de passe", or a deprecated
+term your team phased out. Scanning hundreds of segments by hand is tedious and
+error-prone; `kapi termbase` and `kapi term-check` do it from the command line.
+
+## The scenario
+
+Your team maintains a product glossary as a CSV — source term, approved target,
+and a domain to organise by:
+
+<CsvTable csv={glossaryCsv} caption="glossary.csv" />
+
+A translator has delivered `messages_fr.json`. You want to confirm they used the
+approved terms consistently.
+
+## Step 1 — import your glossary
+
+Create a named termbase so you can reuse it across projects:
+
+```bash
+kapi termbase import glossary.csv \
+  --name product-terms \
+  --format csv \
+  --header \
+  -s en -t fr
+```
+
+This stores the glossary under `~/.config/kapi/termbases/product-terms.db` — the
+[named-store model](/kapi/recipes/tm-termbase-storage#2-a-named-store-under-your-config-home),
+reusable across directories. You only do this once; the termbase persists between
+sessions. Use `--header` when the CSV's first row is column names rather than data.
+
+Verify the import:
+
+```bash
+kapi termbase stats --name product-terms
+```
+
+## Step 2 — spot-check a term
+
+Before a full pass, look up individual terms to confirm the termbase is set up
+correctly:
+
+```bash
+kapi termbase lookup "log in" --name product-terms -s en -t fr
+```
+
+This shows the approved French translation along with its status. For a broader
+search across concepts:
+
+```bash
+kapi termbase search "connect" --name product-terms -s en
+```
+
+## Step 3 — check the translated file
+
+Run `kapi term-check` against the delivered file with your termbase attached:
+
+```bash
+kapi term-check messages_fr.json \
+  --source-lang en \
+  --target-lang fr \
+  --termbase product-terms
+```
+
+`kapi term-check` reads the translated file, identifies source segments that
+contain a glossary term, and verifies the corresponding target uses the approved
+equivalent. The check works in two stages:
+
+1. **Term discovery** — kapi scans each source segment for terms that appear in
+   your glossary.
+2. **Term enforcement** — for each discovered term, it checks whether the target
+   contains the approved equivalent.
+
+A violation is raised when, for example, the source contains "password" (a
+glossary term) but the French target uses "code secret" instead of the approved
+"mot de passe". The command exits non-zero when violations are found, so it
+doubles as a CI gate.
+
+## Try it
+
+The in-browser build pre-seeds a termbase from the project glossary (shown as
+`glossary.csv` in the files pane), so the termbase commands operate on a real
+backend. Step through the rail: inspect the termbase, look up and search terms,
+then pseudo-translate `messages_en.json` and run `kapi term-check` to see the
+seeded terminology enforced against the result.
+
+<KapiGuidedEmbed id="kapi-terminology-qa" />
+
+> The interactive embed and the recorded video both come from
+> [`walkthroughs/kapi-terminology-qa.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-terminology-qa.scene.yaml).
+> Change the scene spec and regenerate; don't edit the generated output by hand.
+
+## Scale up
+
+For larger deliveries, pass multiple files (or a glob) and process them in
+parallel:
+
+```bash
+kapi term-check translations/fr/*.json \
+  --source-lang en \
+  --target-lang fr \
+  --termbase product-terms \
+  -j 4
+```
+
+## Keep the termbase current
+
+As the product evolves, re-import to add or update terms, and export to share
+with translators:
+
+```bash
+# Add or update terms (existing concepts are merged)
+kapi termbase import new-terms.csv --name product-terms --format csv --header -s en -t fr
+
+# Export for your translation kit
+kapi termbase export --name product-terms --format csv -s en -t fr -o glossary-for-vendors.csv
+```
+
+Export as JSON for a full backup that preserves all metadata (domains, statuses,
+definitions):
+
+```bash
+kapi termbase export --name product-terms --format json -o glossary-backup.json
+```
+
+A few habits make this pay off:
+
+- **Start small.** Import your most critical terms first — brand names, product
+  features, UI actions. Expand later.
+- **Use domains** to organise terms by area, so you can apply the right glossary
+  to the right content.
+- **Share the glossary** with translators up front. Prevention is cheaper than
+  correction.
+- **Automate in CI.** Run `term-check` on every pull request, not just at manual
+  review.
+
+## In a project
+
+In a `.kapi` project, `term-check` resolves the project termbase and the recipe's
+languages automatically, so the check drops the `--source-lang`, `--target-lang`,
+and `--termbase` flags — and folds naturally into a flow you run with `kapi run`
+or a CI gate. See [Create your first project](/kapi/get-started/first-project).
+
+## Next
+
+- [`kapi termbase`](/reference/commands/termbase) and
+  [`kapi term-check`](/reference/commands/term-check) — command references.
+- [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) — the three
+  places a termbase can live and the flags that select each.
+- [Terminology Management](/framework/terminology) — how the terminology system
+  works.
+- [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) — use your
+  termbase to guide translation, not just check it afterwards.

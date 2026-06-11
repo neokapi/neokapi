@@ -90,13 +90,13 @@ storybook-static/
 test-results/
 playwright-report/
 # kapi docs scene fixtures stay tracked; any transient recordings or
-# screenshots under web/docs/scenes/ are build artifacts, not source.
-web/docs/scenes/**/*.webm
-web/docs/scenes/**/*.mp4
-web/docs/scenes/**/*.mov
-web/docs/scenes/**/*.gif
-web/docs/scenes/**/*.png
-web/docs/scenes/**/*.jpg
+# screenshots under web/scenes/ are build artifacts, not source.
+web/scenes/**/*.webm
+web/scenes/**/*.mp4
+web/scenes/**/*.mov
+web/scenes/**/*.gif
+web/scenes/**/*.png
+web/scenes/**/*.jpg
 
 # Local TLS certs (mkcert)
 docker/traefik/certs/
@@ -104,24 +104,24 @@ docker/traefik/certs/
 # Docusaurus
 
 # In-browser playground wasm artifacts (built by `make web-wasm-demo` / CI)
-web/docs/static/wasm/
+web/static/wasm/
 bowrain/web/landing/dist/
-web/docs/build/
-web/docs/.docusaurus/
+web/build/
+web/.docusaurus/
 
 # Generated per-entry reference pages (R4, #673). One MDX per command / format /
-# tool, produced by web/docs/scripts/gen-reference-pages.ts from
+# tool, produced by web/scripts/gen-reference-pages.ts from
 # @neokapi/reference-data via the prebuild/prestart hooks. Regenerated, not
 # committed. The hand-written reference/index.mdx (R1) is kept.
-web/docs/docs/reference/commands/
-web/docs/docs/reference/formats/
-web/docs/docs/reference/tools/
+web/reference/commands/
+web/reference/formats/
+web/reference/tools/
 
 # Generated documentation assets (fetched from docs-assets release in CI)
-web/docs/static/img/bowrain/
-web/docs/static/img/web-app/
-web/docs/static/video/
-web/docs/static/data/test-comparison.json
+web/static/img/bowrain/
+web/static/img/web-app/
+web/static/video/
+web/static/data/test-comparison.json
 bowrain/apps/bowrain/frontend/recordings-output/
 bowrain/web/docs/build/
 bowrain/web/docs/.docusaurus/
@@ -129,9 +129,9 @@ bowrain/website/node_modules/
 bowrain/web/docs/static/img/bowrain/
 bowrain/web/docs/static/img/web-app/
 bowrain/web/docs/static/video/
-web/docs/tapes/output/
-web/docs/tapes/out/
-web/docs/tapes/.server-token
+web/tapes/output/
+web/tapes/out/
+web/tapes/.server-token
 
 # Remotion video pipeline
 website/videos/output/

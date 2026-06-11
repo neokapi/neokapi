@@ -3,7 +3,7 @@
 //
 // W7 CI gate: boots kapi-cli.wasm in Node, discovers every non-editable
 // <RunnableSnippet cmd> in the docs MDX files and every smoke_contract entry
-// in web/docs/walkthroughs/*.md scene specs, then runs each via kapiRun and
+// in web/walkthroughs/*.md scene specs, then runs each via kapiRun and
 // asserts a zero exit code.
 //
 // Editable snippets (prop `editable` present) are captured but NOT
@@ -344,11 +344,11 @@ function shouldSkipForWasm(cmd: string): boolean {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const wasmDir      = join(REPO_ROOT, "web/docs/static/wasm");
+  const wasmDir      = join(REPO_ROOT, "web/static/wasm");
   const wasmExecPath = join(wasmDir, "wasm_exec.js");
   const wasmPath     = join(wasmDir, "kapi-cli.wasm");
-  const docsDir      = join(REPO_ROOT, "web/docs/docs");
-  const walkthroughsDir = join(REPO_ROOT, "web/docs/walkthroughs");
+  const docsDir      = join(REPO_ROOT, "web/docs");
+  const walkthroughsDir = join(REPO_ROOT, "web/walkthroughs");
 
   if (!existsSync(wasmPath)) {
     console.error(c.red(`\nERROR: ${wasmPath} not found.`));

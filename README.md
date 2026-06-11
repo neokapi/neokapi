@@ -32,7 +32,7 @@ cli/                        Shared CLI base (commands, output, config, credentia
 kapi/                       Standalone CLI tool — github.com/neokapi/neokapi/kapi
 apps/kapi-desktop/          Wails v3 desktop app (Go + React/TS)
 packages/                   Apache-licensed npm workspaces (UI, kapi-react, docs-shared, ...)
-web/docs/                   Docusaurus docs + landing home → /web/neokapi/
+web/                   Docusaurus docs + landing home → /web/neokapi/
 storybook/                  Kapi Storybook (UI primitives + flow editor)
 bench/                      Benchmarks
 examples/                   Plugin examples
@@ -70,15 +70,15 @@ A single root npm workspace coordinates the kapi side:
 
 ```bash
 vp install                    # at the repo root
-cd web/docs && vp run start  # Docusaurus dev server (kapi docs + landing)
+cd web && vp run start  # Docusaurus dev server (kapi docs + landing)
 make kapi-storybook           # Storybook on :6007
 ```
 
 ## Documentation
 
 - **[kapi docs](https://neokapi.github.io/web/neokapi/)** — published Docusaurus site
-- **[Architecture](web/docs/docs/architecture/)** — ADs, one per architectural concern
-- **[Implementation notes](web/docs/docs/notes-internal/)** — schemas, protocols, algorithms
+- **[Architecture](web/docs/architecture/)** — ADs, one per architectural concern
+- **[Implementation notes](web/docs/notes-internal/)** — schemas, protocols, algorithms
 - **[Internals (root)](docs/internals/)** — repo-wide testing, interfaces, release process
 
 ## Make targets

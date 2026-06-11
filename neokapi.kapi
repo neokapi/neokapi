@@ -10,7 +10,7 @@
 #                      embedded in the kapi binary (core/i18n)
 #   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
 #                      @neokapi/kapi-react → public/translations/<locale>.json
-#   docs             — the Docusaurus site → web/docs/i18n/<locale>/ tree
+#   docs             — the Docusaurus site → web/i18n/<locale>/ tree
 #
 # Drive it with the l10n-* Makefile targets. Seeds (brand voice, termbase,
 # reviewed TM) live under l10n/.
@@ -27,8 +27,8 @@ defaults:
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
-    - "web/docs/build/**"
-    - "web/docs/i18n/**"
+    - "web/build/**"
+    - "web/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
 content:
@@ -50,20 +50,20 @@ content:
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
   - name: docs
     items:
-      - path: web/docs/docs/**/*.md
+      - path: web/docs/**/*.md
         format:
           name: markdown
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
-      - path: web/docs/docs/**/*.mdx
+        target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+      - path: web/docs/**/*.mdx
         format:
           name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+        target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
 flows:
   # TM-driven translation: reviewed translations live in the project TM
   # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology

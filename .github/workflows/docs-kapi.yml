@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "web/docs/**"
+      - "web/**"
       - "packages/docs-shared/**"
       - "packages/reference-data/**"
       # The docs site bundles these packages (the Lab + KLF Lab/Tests + the
@@ -16,7 +16,7 @@ on:
       - ".github/workflows/docs-kapi.yml"
   pull_request:
     paths:
-      - "web/docs/**"
+      - "web/**"
       - "packages/docs-shared/**"
       - "packages/reference-data/**"
       - "packages/kapi-lab/**"
@@ -52,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kapi-wasm
-          path: web/docs/static/wasm
+          path: web/static/wasm
           retention-days: 7
 
   build:
@@ -100,11 +100,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p web/docs/static/video
+          mkdir -p web/static/video
           if gh release download docs-assets -p docs-assets.tar.gz -D /tmp/da 2>/dev/null; then
             tar xzf /tmp/da/docs-assets.tar.gz -C /tmp/da
-            [ -d /tmp/da/video ] && cp -R /tmp/da/video/. web/docs/static/video/
-            echo "Staged docs videos: $(find web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+            [ -d /tmp/da/video ] && cp -R /tmp/da/video/. web/static/video/
+            echo "Staged docs videos: $(find web/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
           else
             echo "::warning::docs-assets release unavailable; docs videos will be missing"
           fi
@@ -113,19 +113,19 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: kapi-wasm
-          path: web/docs/static/wasm
+          path: web/static/wasm
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps
         # the build green when the artifact isn't available (e.g. on PRs that
         # don't touch the bridge tests).
         run: |
-          mkdir -p web/docs/static/data
-          if [ ! -f web/docs/static/data/test-comparison.json ]; then
-            echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > web/docs/static/data/test-comparison.json
+          mkdir -p web/static/data
+          if [ ! -f web/static/data/test-comparison.json ]; then
+            echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > web/static/data/test-comparison.json
           fi
 
-      # web/docs is a pnpm workspace member; its deps (and the @neokapi/*
+      # web is a pnpm workspace member; its deps (and the @neokapi/*
       # workspace packages it consumes) are installed by the `vp install` above.
       - name: Determine base URL (production vs PR preview)
         id: base
@@ -146,7 +146,7 @@ jobs:
 
       - name: Build kapi Docusaurus site
         run: vp run build
-        working-directory: web/docs
+        working-directory: web
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
 
@@ -154,5 +154,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kapi-site
-          path: web/docs/build
+          path: web/build
           retention-days: 7

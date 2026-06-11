@@ -231,7 +231,7 @@ func LoadCorpus(path string) (Corpus, error) {
 func main() {
 	corpusPath := flag.String("corpus", "core/check/evaldata/corpus.json", "labeled corpus JSON")
 	correctionsPath := flag.String("corrections", "core/check/evaldata/corrections.json", "simulated correction-stream JSON")
-	out := flag.String("out", "web/docs/src/pages/check-eval/_eval.json", "dashboard report JSON")
+	out := flag.String("out", "web/src/pages/check-eval/_eval.json", "dashboard report JSON")
 	flag.Parse()
 
 	corpus, err := LoadCorpus(*corpusPath)
