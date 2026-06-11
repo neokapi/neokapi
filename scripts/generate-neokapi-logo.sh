@@ -23,8 +23,6 @@
 #   docs site (Docusaurus, web/docs/static/img/):
 #     favicon.png (32)  favicon.ico (16/32/48)  logo.png (256, navbar)
 #     hero-logo.png (512, og:image)  apple-touch-icon.png (180)
-#   neokapi landing (web/landing/public/):
-#     favicon.png (32)  hero-logo.png (512)
 #   Kapi desktop (apps/kapi-desktop/):
 #     build/appicon.png (1024)  build/darwin/icons.icns  build/windows/icon.ico
 #     frontend/public/neokapi-logo.png (512, in-app logo)
@@ -132,12 +130,6 @@ make_favicon "$DOCS_IMG/favicon.ico"
 resize 256 "$DOCS_IMG/logo.png"
 resize 512 "$DOCS_IMG/hero-logo.png"
 resize 180 "$DOCS_IMG/apple-touch-icon.png"
-
-# --- neokapi landing ----------------------------------------------------------
-echo "neokapi landing (web/landing/public):"
-LANDING="$REPO_ROOT/web/landing/public"
-resize 32  "$LANDING/favicon.png"
-resize 512 "$LANDING/hero-logo.png"
 
 # --- Kapi desktop app ---------------------------------------------------------
 echo "kapi-desktop (apps/kapi-desktop):"
