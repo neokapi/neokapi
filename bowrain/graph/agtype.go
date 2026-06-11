@@ -131,38 +131,6 @@ func ParsePath(raw string) (*coreg.Path, error) {
 	return &path, nil
 }
 
-// ParseScalar parses a scalar agtype value.
-// Handles: string, int, float, bool, null.
-func ParseScalar(raw string) (any, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" || raw == "null" {
-		return nil, nil
-	}
-	if raw == "true" {
-		return true, nil
-	}
-	if raw == "false" {
-		return false, nil
-	}
-	// Try integer first.
-	if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
-		return n, nil
-	}
-	// Try float.
-	if f, err := strconv.ParseFloat(raw, 64); err == nil {
-		return f, nil
-	}
-	// Try quoted string.
-	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
-		var s string
-		if err := json.Unmarshal([]byte(raw), &s); err != nil {
-			return nil, fmt.Errorf("parse scalar string: %w", err)
-		}
-		return s, nil
-	}
-	return raw, nil
-}
-
 // stripSuffix removes a type suffix (e.g., "::vertex") from an agtype value.
 func stripSuffix(raw, suffix string) (string, error) {
 	raw = strings.TrimSpace(raw)

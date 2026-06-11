@@ -61,18 +61,6 @@ var providerRateLimits = map[string]rate.Limit{
 	"demo":        1000, // offline stub; no network
 }
 
-// RunWorker runs the translation worker loop. It dequeues job IDs, loads the
-// corresponding TranslationJob, processes blocks through the AI translate tool,
-// and stores results back. It blocks until ctx is cancelled.
-func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.ContentStore, credStore *credentials.Store, queue Queue) error {
-	return RunWorkerWithDeps(ctx, &WorkerDeps{
-		JobStore:     jobStore,
-		ContentStore: contentStore,
-		CredStore:    credStore,
-		Queue:        queue,
-	})
-}
-
 // RunWorkerWithDeps runs the translation worker loop with full dependency injection.
 func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 	slog.InfoContext(ctx, "translation worker started")

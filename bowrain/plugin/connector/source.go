@@ -1119,7 +1119,9 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 			srcPattern := coreproj.ResolvePathPattern(it.Item.Path, srcLang)
 			prefix := globFixedPrefix(srcPattern)
 			relative := strings.TrimPrefix(relPath, prefix)
-			destPrefix := coreproj.ResolvePathPattern(globFixedPrefix(it.Item.Target), locale)
+			// Expand {lang} before taking the fixed prefix — the other way
+			// around the prefix stops at '{' and the locale segment is lost.
+			destPrefix := globFixedPrefix(coreproj.ResolvePathPattern(it.Item.Target, locale))
 			result := destPrefix + relative
 			return result
 		}

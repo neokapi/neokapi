@@ -122,6 +122,26 @@ func runWorker(dbURL string) error {
 	}
 	defer translationQueue.Close()
 
+	// Set up the extraction job queue (Bowrain AD-013/AD-015). The server's
+	// auto-extract automation enqueues on the same broker; this worker
+	// consumes. Mirrors the translation queue selection exactly.
+	var extractionQueue jobs.Queue
+	switch {
+	case serviceBusConn != "":
+		extractionQueue, err = jobs.NewServiceBusQueue(serviceBusConn, "extraction-jobs")
+		if err != nil {
+			return fmt.Errorf("connect to Service Bus (extraction): %w", err)
+		}
+	case natsURL != "":
+		extractionQueue, err = jobs.NewNATSExtractionQueue(natsURL)
+		if err != nil {
+			return fmt.Errorf("connect to NATS (extraction): %w", err)
+		}
+	default:
+		extractionQueue = jobs.NewChannelQueue(64)
+	}
+	defer extractionQueue.Close()
+
 	credStore := credentials.NewStore(credentialsPath)
 
 	// Build translation worker dependencies.
@@ -241,6 +261,31 @@ func runWorker(dbURL string) error {
 	g.Go(func() error {
 		slog.Info("starting translation worker")
 		return jobs.RunWorkerWithDeps(ctx, translationDeps)
+	})
+
+	// Extraction worker (auto-extract-on-push automation, AD-013/AD-015).
+	pgES, err := jobs.NewExtractionJobStore(pgdb)
+	if err != nil {
+		return fmt.Errorf("open PostgreSQL extraction job store: %w", err)
+	}
+	extractionDeps := &jobs.ExtractionWorkerDeps{
+		ExtractionJobStore: pgES,
+		ContentStore:       cs,
+		CredStore:          credStore,
+		Queue:              extractionQueue,
+		ReviewQueueCreator: &jobs.ReviewQueueStoreAdapter{Store: bstore.NewReviewQueueStore(pgdb.DB)},
+		// KnownTermsLoader and NERProvider stay nil here: known-term
+		// filtering reads workspace termbases that live on the server box,
+		// and NER needs per-deployment Azure config. Both are documented
+		// optional — extraction degrades to the plain LLM pass.
+		Platform: translationDeps.Platform,
+		LogFunc: func(stepID, level, message string, data map[string]string) {
+			slog.Info("extraction: "+message, "step_id", stepID, "level", level)
+		},
+	}
+	g.Go(func() error {
+		slog.Info("starting extraction worker")
+		return jobs.RunExtractionWorker(ctx, extractionDeps)
 	})
 
 	// Agent worker (optional — runs when BOWRAIN_AGENT_RUNTIME=aca is set).

@@ -104,9 +104,3 @@ func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, 
 
 	return nil
 }
-
-// loadFlowDefinition is kept as a back-compat alias for callers that
-// previously lived in this package.
-func loadFlowDefinition(path string) (*projflow.FlowDefinition, error) {
-	return projflow.LoadDefinition(path)
-}
