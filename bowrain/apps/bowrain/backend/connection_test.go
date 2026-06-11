@@ -47,7 +47,7 @@ func TestParseServerURLHTTPS(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https", u.scheme)
 	assert.Equal(t, "bowrain.example.com", u.host)
-	assert.Equal(t, "", u.port)
+	assert.Empty(t, u.port)
 }
 
 func TestParseServerURLHTTPSWithPort(t *testing.T) {

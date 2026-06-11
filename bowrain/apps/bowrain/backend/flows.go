@@ -2,7 +2,9 @@ package backend
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -124,7 +126,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 		}
 		reader = bytes.NewReader(buf)
 	}
-	req, err := http.NewRequest(method, urlStr, reader)
+	req, err := http.NewRequestWithContext(context.Background(), method, urlStr, reader)
 	if err != nil {
 		return err
 	}
@@ -201,10 +203,10 @@ func (a *App) GetFlowDefinition(projectID, id string) (*FlowDefinitionInfo, erro
 func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*FlowDefinitionInfo, error) {
 	base, token, ok := a.flowREST(projectID)
 	if !ok {
-		return nil, fmt.Errorf("not connected: connect to a server to save flows")
+		return nil, errors.New("not connected: connect to a server to save flows")
 	}
 	if info.Source == "built-in" {
-		return nil, fmt.Errorf("cannot modify built-in flows")
+		return nil, errors.New("cannot modify built-in flows")
 	}
 	info.Source = "project"
 
@@ -227,7 +229,7 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 func (a *App) DeleteFlowDefinition(projectID, id string) error {
 	base, token, ok := a.flowREST(projectID)
 	if !ok {
-		return fmt.Errorf("not connected: connect to a server to delete flows")
+		return errors.New("not connected: connect to a server to delete flows")
 	}
 	return flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
 }

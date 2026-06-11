@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -228,7 +229,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 		a.mu.Lock()
 		a.connState = StateDisconnected
 		a.mu.Unlock()
-		return fmt.Errorf("not authenticated — use StartLogin first")
+		return errors.New("not authenticated — use StartLogin first")
 	}
 
 	// Check if token has expired.
@@ -236,7 +237,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 		a.mu.Lock()
 		a.connState = StateDisconnected
 		a.mu.Unlock()
-		return fmt.Errorf("token expired — please log in again")
+		return errors.New("token expired — please log in again")
 	}
 
 	// Determine gRPC address. Convention: gRPC port = HTTP port + 1000.
@@ -276,7 +277,11 @@ func (a *App) StartLogin(serverURL string) error {
 
 	// Verify this is a valid Bowrain server before opening the browser.
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(serverURL + "/api/v1/health")
+	healthReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, serverURL+"/api/v1/health", nil)
+	if err != nil {
+		return fmt.Errorf("build health request: %w", err)
+	}
+	resp, err := client.Do(healthReq)
 	if err != nil {
 		return fmt.Errorf("cannot reach server: %w", err)
 	}
@@ -326,7 +331,7 @@ func (a *App) WaitForLogin() (bool, error) {
 	a.mu.RUnlock()
 
 	if resultCh == nil {
-		return false, fmt.Errorf("no active login flow — call StartLogin first")
+		return false, errors.New("no active login flow — call StartLogin first")
 	}
 
 	// Wait for the callback with a 10-minute timeout.
@@ -368,7 +373,7 @@ func (a *App) WaitForLogin() (bool, error) {
 
 	case <-time.After(10 * time.Minute):
 		a.cleanupPKCE()
-		return false, fmt.Errorf("login timed out")
+		return false, errors.New("login timed out")
 	}
 }
 
@@ -426,7 +431,7 @@ func (a *App) HandleDeepLink(webURL string) {
 	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
 
 	var workspace, projectID string
-	for i := 0; i < len(segments)-1; i++ {
+	for i := range len(segments) - 1 {
 		switch segments[i] {
 		case "ws":
 			workspace = segments[i+1]
@@ -489,7 +494,7 @@ func (a *App) Disconnect() {
 // GetServerWorkspaces returns workspaces from the connected server.
 func (a *App) GetServerWorkspaces() ([]WorkspaceInfo, error) {
 	if !a.isConnected() {
-		return nil, fmt.Errorf("not connected")
+		return nil, errors.New("not connected")
 	}
 	return a.remote.ListWorkspaces()
 }
@@ -554,7 +559,7 @@ func loadDesktopAuth() (*storedDesktopAuth, error) {
 
 // fetchDesktopUserInfo calls /api/v1/auth/me to get user details from the server.
 func fetchDesktopUserInfo(serverURL, token string) (*storedDesktopUser, error) {
-	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, serverURL+"/api/v1/auth/me", nil)
 	if err != nil {
 		return nil, err
 	}

@@ -87,7 +87,7 @@ func TestRenderBlockHTML_Source(t *testing.T) {
 	// Get blocks to find a block ID
 	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
-	require.Greater(t, len(blocks), 0)
+	require.NotEmpty(t, blocks)
 
 	blockID := blocks[0].ID
 
@@ -110,7 +110,7 @@ func TestRenderBlockHTML_WithTarget(t *testing.T) {
 
 	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
-	require.Greater(t, len(blocks), 0)
+	require.NotEmpty(t, blocks)
 
 	blockID := blocks[0].ID
 

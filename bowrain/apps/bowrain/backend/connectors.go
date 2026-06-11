@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
@@ -129,7 +130,7 @@ func (a *App) PublishContent(connectorID, projectID string) error {
 		return fmt.Errorf("connector %s not found", connectorID)
 	}
 	if a.store == nil {
-		return fmt.Errorf("content store not initialized")
+		return errors.New("content store not initialized")
 	}
 
 	ctx := context.Background()

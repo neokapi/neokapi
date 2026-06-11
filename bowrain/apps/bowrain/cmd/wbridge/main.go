@@ -89,7 +89,7 @@ func (h *eventHub) publish(name string, data any) {
 	h.mu.Unlock()
 }
 
-var errType = reflect.TypeOf((*error)(nil)).Elem()
+var errType = reflect.TypeFor[error]()
 
 type callRequest struct {
 	Method string            `json:"method"`
@@ -175,7 +175,7 @@ func main() {
 		}
 
 		in := make([]reflect.Value, mt.NumIn())
-		for i := 0; i < mt.NumIn(); i++ {
+		for i := range mt.NumIn() {
 			pv := reflect.New(mt.In(i))
 			if i < len(req.Args) && len(req.Args[i]) > 0 {
 				if err := json.Unmarshal(req.Args[i], pv.Interface()); err != nil {

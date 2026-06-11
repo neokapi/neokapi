@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +38,7 @@ func (a *App) govRequest(method, path string, body, out any) error {
 		return errNotConnected
 	}
 	if auth == nil || auth.AccessToken == "" {
-		return fmt.Errorf("no auth token available")
+		return errors.New("no auth token available")
 	}
 
 	var reqBody io.Reader

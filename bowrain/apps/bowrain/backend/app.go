@@ -56,8 +56,6 @@ type App struct {
 
 	// tmPath overrides the default TM database path (for testing).
 	tmPath string
-	// queuePath overrides the default offline queue database path (for testing).
-	queuePath string
 
 	// eventSink, when set, receives every backend event in addition to the
 	// Wails runtime. The recording wbridge (cmd/wbridge) uses it to stream
@@ -291,7 +289,7 @@ func ioPorts(fs []schema.IOPort) []IOPort {
 	}
 	out := make([]IOPort, len(fs))
 	for i, f := range fs {
-		out[i] = IOPort{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+		out[i] = IOPort{Type: f.Type, Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
 	}
 	return out
 }
@@ -491,7 +489,9 @@ func desktopConfigDir() string {
 // defaultStorePath returns the path for the persistent SQLite store.
 func defaultStorePath() string {
 	dir := desktopConfigDir()
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Info("bowrain: failed to create config dir at", "id", dir, "error", err)
+	}
 	return filepath.Join(dir, "bowrain.db")
 }
 

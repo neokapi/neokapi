@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"time"
@@ -155,7 +156,7 @@ func (w *ProjectWatcher) watchOnce(ctx context.Context, wsSlug, projectID string
 
 	for {
 		event, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

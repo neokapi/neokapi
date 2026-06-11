@@ -1,8 +1,6 @@
 package backend
 
-import (
-	"fmt"
-)
+import "errors"
 
 // ProviderConfigInfo is the frontend-facing provider config (no API key).
 type ProviderConfigInfo struct {
@@ -26,7 +24,7 @@ type SaveProviderRequest struct {
 // ListProviderConfigs returns all saved AI provider configurations from the server.
 func (a *App) ListProviderConfigs() ([]ProviderConfigInfo, error) {
 	if !a.isConnected() {
-		return nil, fmt.Errorf("AI provider management requires a server connection")
+		return nil, errors.New("AI provider management requires a server connection")
 	}
 	a.mu.RLock()
 	ws := a.activeWS
@@ -37,7 +35,7 @@ func (a *App) ListProviderConfigs() ([]ProviderConfigInfo, error) {
 // SaveProviderConfig creates or updates a provider configuration on the server.
 func (a *App) SaveProviderConfig(req SaveProviderRequest) (*ProviderConfigInfo, error) {
 	if !a.isConnected() {
-		return nil, fmt.Errorf("AI provider management requires a server connection")
+		return nil, errors.New("AI provider management requires a server connection")
 	}
 	a.mu.RLock()
 	ws := a.activeWS
@@ -48,7 +46,7 @@ func (a *App) SaveProviderConfig(req SaveProviderRequest) (*ProviderConfigInfo, 
 // DeleteProviderConfig removes a provider configuration on the server.
 func (a *App) DeleteProviderConfig(id string) error {
 	if !a.isConnected() {
-		return fmt.Errorf("AI provider management requires a server connection")
+		return errors.New("AI provider management requires a server connection")
 	}
 	a.mu.RLock()
 	ws := a.activeWS
@@ -59,7 +57,7 @@ func (a *App) DeleteProviderConfig(id string) error {
 // TestProviderConfig tests a provider configuration via the server.
 func (a *App) TestProviderConfig(req SaveProviderRequest) error {
 	if !a.isConnected() {
-		return fmt.Errorf("AI provider management requires a server connection")
+		return errors.New("AI provider management requires a server connection")
 	}
 	a.mu.RLock()
 	ws := a.activeWS
