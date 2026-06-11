@@ -18010,9 +18010,591 @@
       ],
       "created": "2026-06-11T08:02:58Z",
       "updated": "2026-06-11T08:02:58Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-10@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Get kapi running in minutes — pseudo-translate files, count words, and run AI translation from the command line. Runnable examples included; no install required."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Få kapi i gang på minutter — pseudooversett filer, tell ord og kjør AI-oversettelse fra kommandolinjen. Kjørbare eksempler inkludert; ingen installasjon kreves."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-11@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Installation"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installering"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-12@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install the kapi CLI on macOS, Linux, or Windows via Homebrew, WinGet, or a direct binary download. Offline by default; no configuration needed to start."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer kapi CLI på macOS, Linux eller Windows via Homebrew, WinGet eller direkte nedlasting av binærfil. Frakoblet som standard; ingen konfigurasjon kreves for å komme i gang."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-13@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi reads, translates, and ships content in any format — faithfully — and verifies it with checks for terminology, QA, and brand voice that act like tests for AI output. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi leser, oversetter og leverer innhold i alle formater — formattro — og verifiserer det med sjekker for terminologi, kvalitetskontroll og merkevarestemme som fungerer som tester for AI-produsert innhold. Den kjører neokapi-motoren på to måter — kommandolinjeverktøyet kapi og appen Kapi Desktop — med samme verktøy, flyter og .kapi-prosjekter."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-14@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Modes & bindings"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Moduser og bindinger"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-15@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "How Kapi runs the same commands two ways — ad-hoc on loose files, or in a .kapi project — plus the source/sink binding model that unifies them, the .klz parcel that moves work between them, and when it makes sense to mix."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvordan Kapi kjører de samme kommandoene på to måter — ad hoc på løse filer, eller i et .kapi-prosjekt — pluss kilde-/sluk-bindingsmodellen som forener dem, .klz-pakken som flytter arbeid mellom dem, og når det gir mening å kombinere."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-16@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop Overview"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversikt over Kapi Desktop"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-17@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop is the visual companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi Desktop er den visuelle følgesvennen til kapi CLI — en app for å bygge lokaliseringsflyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon uten å skrive YAML eller huske flagg."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-18@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Create your first project"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprett ditt første prosjekt"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-19@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Set up a .kapi project with kapi init — capture languages, content globs, and flows once, then run flows and merge files without repeating flags. The recommended day-to-day working model."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Sett opp et .kapi-prosjekt med kapi init — fang språk, innholdsmønstre og flyter én gang, og kjør deretter flyter og flett filer uten å gjenta flagg. Den anbefalte arbeidsmodellen for daglig bruk."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-1@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi CLI recipes"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi CLI-oppskrifter"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-20@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Front Matter Keys"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Frontmatter-nøkler"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-21@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Frontmatter-nøkler som trekkes ut når translateFrontMatter er på (tom = alle skalarverdier). Angi nøklene som bærer prosa, f.eks. title og description."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-2@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Overview"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversikt"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-3@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Task-by-task recipes for the kapi CLI — estimate a job, catch UI truncation, enforce terminology, pre-translate with TM — each runnable in the browser, with its ad-hoc-or-project mode marked up front."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppgavebaserte oppskrifter for kapi CLI — estimer en jobb, fang opp UI-avkorting, håndhev terminologi, forhåndsoversett med oversettelsesminne — alle kjørbare i nettleseren, med ad hoc- eller prosjektmodus angitt øverst."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-4@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Using kapi with Claude"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bruke kapi med Claude"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-5@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Wire kapi into Claude Code as an agent skill so your AI assistant can extract, translate, and QA localization files on demand — keeping every locale on-brand and structurally faithful."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Koble kapi inn i Claude Code som en agentferdighet, slik at AI-assistenten din kan trekke ut, oversette og kvalitetskontrollere lokaliseringsfiler på forespørsel — og holde hvert språk merkevaretro og strukturelt formattro."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-6@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Interchange"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utveksling"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-7@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Interchange — XLIFF, PO, and your TMS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utveksling — XLIFF, PO og ditt TMS"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-8@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvordan kapi utveksler innhold med eksterne TMS- og CAT-verktøy gjennom standard tospråklige formater — trekk ut til XLIFF eller PO, oversett hvor som helst, og flett tilbake byte-eksakt med oversettelsesminne og terminologi i sløyfen."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-9@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Quick Start"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hurtigstart"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:28Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184028203470323"
+        }
+      ],
+      "created": "2026-06-11T13:20:28Z",
+      "updated": "2026-06-11T13:20:28Z"
     }
   ],
   "importSessions": [
+    {
+      "id": "tmx-0df856038be55f87-1781184028203470323",
+      "fileKey": "fm-delta.tmx",
+      "fileHash": "0df856038be55f87ed5f31fbb80db948ea366d6d9ad8f8e9d2ce6d8b2a40cdbc",
+      "fileSizeBytes": 7079,
+      "importedAt": "2026-06-11T13:20:28Z",
+      "toolName": "neokapi-l10n",
+      "toolVersion": "1.0",
+      "segType": "block",
+      "adminLang": "en",
+      "srcLang": "en",
+      "dataType": "plaintext",
+      "originalFormat": "unknown",
+      "entryCount": 21
+    },
     {
       "id": "tmx-361ab663fecf5e0e-1781164978710929309",
       "fileKey": "builtins-nb.tmx",

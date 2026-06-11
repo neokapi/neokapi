@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
-title: Installation
-description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew, WinGet, or a direct binary download. Offline by default; no configuration needed to start.
+title: Installering
+description: Installer kapi CLI på macOS, Linux eller Windows via Homebrew, WinGet eller direkte nedlasting av binærfil. Frakoblet som standard; ingen konfigurasjon kreves for å komme i gang.
 keywords: [kapi, install, homebrew, winget, binary download, macos, linux, windows]
 ---
 

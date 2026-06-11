@@ -72,6 +72,13 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 // have inconsistent prefixes.
 const BlockPropLinePrefix = "md:line-prefix"
 
+// BlockPropFrontMatterQuote is the per-block property recording the quote
+// character ('"' or "'") that wrapped a front matter value in the source.
+// The skeleton drops the quotes (the block text is the unquoted value);
+// the writer re-applies them — and adds quoting when an unquoted value's
+// translation needs it to stay a valid YAML scalar.
+const BlockPropFrontMatterQuote = "md:fm-quote"
+
 // Reader implements DataFormatReader for Markdown files.
 type Reader struct {
 	format.BaseFormatReader
@@ -285,7 +292,19 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 
 // emitFrontMatterBlocks emits each YAML value as a translatable block.
 func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.PartResult, yaml string) {
+	// Optional key allowlist: when FrontMatterKeys is set, only those keys
+	// become blocks; everything else stays skeleton.
+	allow := map[string]bool{}
+	for _, k := range r.cfg.FrontMatterKeys {
+		allow[k] = true
+	}
 	lines := strings.Split(yaml, "\n")
+	// The yaml slice ends with the newline before the closing fence, so the
+	// split yields a trailing empty element; dropping it avoids emitting a
+	// spurious blank line into the skeleton.
+	if n := len(lines); n > 0 && lines[n-1] == "" {
+		lines = lines[:n-1]
+	}
 	for _, line := range lines {
 		colonIdx := strings.Index(line, ":")
 		if colonIdx < 0 {
@@ -294,14 +313,16 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 		}
 		key := strings.TrimSpace(line[:colonIdx])
 		value := strings.TrimSpace(line[colonIdx+1:])
-		if value == "" || key == "" {
+		if value == "" || key == "" || (len(allow) > 0 && !allow[key]) {
 			r.skelText(line + "\n")
 			continue
 		}
 
 		unquoted := value
+		quote := ""
 		if (strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"")) ||
 			(strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
+			quote = value[:1]
 			unquoted = value[1 : len(value)-1]
 		}
 
@@ -311,6 +332,9 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 		block.Name = "fm_" + key
 		block.Type = "front-matter"
 		block.Properties["key"] = key
+		if quote != "" {
+			block.Properties[BlockPropFrontMatterQuote] = quote
+		}
 
 		prefix := line[:colonIdx+1]
 		valuePart := line[colonIdx+1:]

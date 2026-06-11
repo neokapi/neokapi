@@ -143,7 +143,7 @@
       "variants": {
         "en": [
           {
-            "text": "Source travels as identity + a round-trip skeleton by default; add `--with-source`\nto embed the raw originals (for offline re-extraction)."
+            "text": "Source travels as identity + a round-trip skeleton by default; add --with-source\nto embed the raw originals (for offline re-extraction)."
           }
         ],
         "nb": [
@@ -224,7 +224,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Coherent mixes:** a tool run *inside* a project (`kapi ai-translate src/app.json`)\nstill picks up the project's defaults and TM while working on a single file; the\nsame flow runs ad-hoc or process-only with no change; a `.klz` made in a project\nis consumed ad-hoc by a reviewer and `merge`d back."
+            "text": "Coherent mixes: a tool run inside a project (kapi ai-translate src/app.json)\nstill picks up the project's defaults and TM while working on a single file; the\nsame flow runs ad-hoc or process-only with no change; a .klz made in a project\nis consumed ad-hoc by a reviewer and merged back."
           }
         ],
         "nb": [
@@ -251,7 +251,7 @@
       "variants": {
         "en": [
           {
-            "text": "**The one thing to avoid:** running **two stateful stores over the same content** —\nan ad-hoc `.klz` workspace *and* a `.kapi` project for the same files. Use the\n`.klz` workspace when there is no project; use the project store when there is."
+            "text": "The one thing to avoid: running two stateful stores over the same content —\nan ad-hoc .klz workspace and a .kapi project for the same files. Use the\n.klz workspace when there is no project; use the project store when there is."
           }
         ],
         "nb": [
@@ -278,7 +278,7 @@
       "variants": {
         "en": [
           {
-            "text": "Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same\ntools and flows in a native app with a flow editor, live runner, plugin manager,\nand credential vault. The [Kapi Desktop overview](/kapi/desktop/overview) walks\nthrough your first project."
+            "text": "Prefer a visual interface? Kapi Desktop wraps the same\ntools and flows in a native app with a flow editor, live runner, plugin manager,\nand credential vault. The Kapi Desktop overview walks\nthrough your first project."
           }
         ],
         "nb": [
@@ -305,7 +305,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Worth knowing:** inside a project, an explicit `-o` writes a file and skips the\nstore (process-only) — that's intentional, and `--explain` shows you which you got."
+            "text": "Worth knowing: inside a project, an explicit -o writes a file and skips the\nstore (process-only) — that's intentional, and --explain shows you which you got."
           }
         ],
         "nb": [
@@ -359,7 +359,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Bilingual workflow](/kapi/bilingual-workflow) — the `extract` / `merge` interchange loop in depth."
+            "text": "Bilingual workflow — the extract / merge interchange loop in depth."
           }
         ],
         "nb": [
@@ -386,7 +386,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Work in a `.klz` workspace](/kapi/recipes/resumable-workspace) — the serverless single-file path."
+            "text": "Work in a .klz workspace — the serverless single-file path."
           }
         ],
         "nb": [
@@ -413,7 +413,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Flows](/framework/flows) — authoring composed flows and the source/sink ends."
+            "text": "Flows — authoring composed flows and the source/sink ends."
           }
         ],
         "nb": [
@@ -440,7 +440,7 @@
       "variants": {
         "en": [
           {
-            "text": "[`.kapi` project file](/reference/project-file) — the recipe format."
+            "text": ".kapi project file — the recipe format."
           }
         ],
         "nb": [
@@ -494,7 +494,7 @@
       "variants": {
         "en": [
           {
-            "text": "Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags."
+            "text": "Kapi Desktop is the visual companion for the kapi CLI. It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags."
           }
         ],
         "nb": [
@@ -521,7 +521,7 @@
       "variants": {
         "en": [
           {
-            "text": "Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project."
+            "text": "Like the CLI, the desktop is project-first: it opens to your projects and reopens the ones you had last time, so a .kapi project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as quick tools (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project."
           }
         ],
         "nb": [
@@ -926,7 +926,7 @@
       "variants": {
         "en": [
           {
-            "text": "Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi Framework](https://okapiframework.org/)'s filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them."
+            "text": "Plugins extend Kapi with new formats and tools. The Okapi bridge adds the Okapi Framework's filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them."
           }
         ],
         "nb": [
@@ -980,7 +980,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and per-locale translation status, with flows a click from running."
+            "text": "Project dashboard — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and per-locale translation status, with flows a click from running."
           }
         ],
         "nb": [
@@ -1007,7 +1007,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project."
+            "text": "Flow editor — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project."
           }
         ],
         "nb": [
@@ -1034,7 +1034,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Flow runner** — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat."
+            "text": "Flow runner — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat."
           }
         ],
         "nb": [
@@ -1061,7 +1061,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Quick tools (ad-hoc)** — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required."
+            "text": "Quick tools (ad-hoc) — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required."
           }
         ],
         "nb": [
@@ -1088,7 +1088,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI."
+            "text": "Plugin manager — Browse the plugin registry, install, update, and manage plugins from a UI."
           }
         ],
         "nb": [
@@ -1142,7 +1142,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Project files** — The `.kapi` recipe is a portable file you can share via git or open with double-click."
+            "text": "Project files — The .kapi recipe is a portable file you can share via git or open with double-click."
           }
         ],
         "nb": [
@@ -1169,7 +1169,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Project** — the recommended day-to-day model. Capture the workflow once in a\n  portable `.kapi` recipe (languages, content patterns, flows, plugin\n  requirements, defaults) and replay it with `kapi run <flow>`. The project store\n  accumulates translation memory as you work, and the recipe is shareable via\n  git. Best for any repository or content set you localize repeatedly —\n  [create your first project](/kapi/get-started/first-project)."
+            "text": "Project — the recommended day-to-day model. Capture the workflow once in a\n  portable .kapi recipe (languages, content patterns, flows, plugin\n  requirements, defaults) and replay it with kapi run <flow>. The project store\n  accumulates translation memory as you work, and the recipe is shareable via\n  git. Best for any repository or content set you localize repeatedly —\n  create your first project."
           }
         ],
         "nb": [
@@ -1196,7 +1196,7 @@
       "variants": {
         "en": [
           {
-            "text": "On macOS, the cask installs the app and bundles the `kapi` CLI:"
+            "text": "On macOS, the cask installs the app and bundles the kapi CLI:"
           }
         ],
         "nb": [
@@ -1223,7 +1223,7 @@
       "variants": {
         "en": [
           {
-            "text": "For the Windows installer and the macOS DMG / Linux tarball builds, see\n[Installation](/kapi/get-started/installation#install-kapi-desktop)."
+            "text": "For the Windows installer and the macOS DMG / Linux tarball builds, see\nInstallation."
           }
         ],
         "nb": [
@@ -1304,7 +1304,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Create the project.** Launch Kapi Desktop and click **New Project**. Give\n   it a name, set the **source language** (e.g. `en-US`), and add the **target\n   languages** you translate into (e.g. `fr-FR`, `de-DE`). Naming it is the only\n   required step."
+            "text": "Create the project. Launch Kapi Desktop and click New Project. Give\n   it a name, set the source language (e.g. en-US), and add the target\n   languages you translate into (e.g. fr-FR, de-DE). Naming it is the only\n   required step."
           }
         ],
         "nb": [
@@ -1331,7 +1331,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Add content.** In the **Content** view, add a pattern that points at your\n   source files — for example `src/locales/en/*.json`. Kapi lists the files it\n   matches and the format it detected for each, grouped into a named collection."
+            "text": "Add content. In the Content view, add a pattern that points at your\n   source files — for example src/locales/en/*.json. Kapi lists the files it\n   matches and the format it detected for each, grouped into a named collection."
           }
         ],
         "nb": [
@@ -1358,7 +1358,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Add a provider key.** In **Settings → Providers** (or **Credentials**),\n   add an AI provider and paste your API key. Keys are stored in your OS\n   keychain, never in the project file."
+            "text": "Add a provider key. In Settings → Providers (or Credentials),\n   add an AI provider and paste your API key. Keys are stored in your OS\n   keychain, never in the project file."
           }
         ],
         "nb": [
@@ -1385,7 +1385,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Compose a flow.** In **Flows**, create a flow and add the steps you need —\n   an AI translation, optionally followed by a quality or terminology check.\n   Each flow is a named pipeline saved alongside the project."
+            "text": "Compose a flow. In Flows, create a flow and add the steps you need —\n   an AI translation, optionally followed by a quality or terminology check.\n   Each flow is a named pipeline saved alongside the project."
           }
         ],
         "nb": [
@@ -1412,7 +1412,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Run it.** Select the flow, pick input files and a target language, and\n   click **Run**. You'll see per-file progress, node highlighting, timing, and\n   the output file locations."
+            "text": "Run it. Select the flow, pick input files and a target language, and\n   click Run. You'll see per-file progress, node highlighting, timing, and\n   the output file locations."
           }
         ],
         "nb": [
@@ -1439,7 +1439,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Install plugins (optional).** In **Plugins**, browse the registry and\n   install the **Okapi Bridge** to add its document formats and filters; new\n   formats appear automatically."
+            "text": "Install plugins (optional). In Plugins, browse the registry and\n   install the Okapi Bridge to add its document formats and filters; new\n   formats appear automatically."
           }
         ],
         "nb": [
@@ -1466,7 +1466,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Ad-hoc** — run a tool or flow directly on files, configured by flags (or, in\n  the desktop app, clicks): `kapi ai-translate -i file.json --target-lang fr`.\n  Nothing is saved — the quick path for one-off jobs, scripting, and CI."
+            "text": "Ad-hoc — run a tool or flow directly on files, configured by flags (or, in\n  the desktop app, clicks): kapi ai-translate -i file.json --target-lang fr.\n  Nothing is saved — the quick path for one-off jobs, scripting, and CI."
           }
         ],
         "nb": [
@@ -1493,7 +1493,7 @@
       "variants": {
         "en": [
           {
-            "text": "Everything you configure is written to a portable `<name>.kapi` recipe file.\nCommit it to git to share with your team, reopen it in Kapi Desktop, or run it\nfrom the command line:"
+            "text": "Everything you configure is written to a portable <name>.kapi recipe file.\nCommit it to git to share with your team, reopen it in Kapi Desktop, or run it\nfrom the command line:"
           }
         ],
         "nb": [
@@ -1547,7 +1547,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Kapi Project Files](/reference/project-file) — Full format reference"
+            "text": "Kapi Project Files — Full format reference"
           }
         ],
         "nb": [
@@ -1574,7 +1574,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Kapi CLI](/kapi/cli) — Command-line reference"
+            "text": "Kapi CLI — Command-line reference"
           }
         ],
         "nb": [
@@ -1601,7 +1601,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Installation](/kapi/get-started/installation) — all platforms and options"
+            "text": "Installation — all platforms and options"
           }
         ],
         "nb": [
@@ -1655,7 +1655,7 @@
       "variants": {
         "en": [
           {
-            "text": "The [Quick Start](/kapi/get-started/quickstart) runs kapi ad-hoc — one command,\none file, flags for everything. That's the right shape for a one-off. For content\nyou localize **more than once** — a repository, a product's strings, a docs set —\na **`.kapi` project** is the working model worth adopting: you capture the\nlanguages, content patterns, and flows in a committed recipe once, then drive\neverything through short commands with no repeated flags."
+            "text": "The Quick Start runs kapi ad-hoc — one command,\none file, flags for everything. That's the right shape for a one-off. For content\nyou localize more than once — a repository, a product's strings, a docs set —\na .kapi project is the working model worth adopting: you capture the\nlanguages, content patterns, and flows in a committed recipe once, then drive\neverything through short commands with no repeated flags."
           }
         ],
         "nb": [
@@ -1682,7 +1682,7 @@
       "variants": {
         "en": [
           {
-            "text": "This page walks the smallest end-to-end loop: `init` → read the recipe → run a\nflow → `merge` the files out."
+            "text": "This page walks the smallest end-to-end loop: init → read the recipe → run a\nflow → merge the files out."
           }
         ],
         "nb": [
@@ -1736,7 +1736,7 @@
       "variants": {
         "en": [
           {
-            "text": "Run `kapi init` in the directory you want to localize. It scaffolds a\n`<dir-name>.kapi` recipe and an adjacent `.kapi/` state directory:"
+            "text": "Run kapi init in the directory you want to localize. It scaffolds a\n<dir-name>.kapi recipe and an adjacent .kapi/ state directory:"
           }
         ],
         "nb": [
@@ -1763,7 +1763,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Kapi finds your project automatically.** Like git, it walks up the directory\ntree from wherever you run it; if it finds a `.kapi` recipe, it runs in\n**project mode** with that project's languages, defaults, and flows. Otherwise\nit runs ad-hoc."
+            "text": "Kapi finds your project automatically. Like git, it walks up the directory\ntree from wherever you run it; if it finds a .kapi recipe, it runs in\nproject mode with that project's languages, defaults, and flows. Otherwise\nit runs ad-hoc."
           }
         ],
         "nb": [
@@ -1790,7 +1790,7 @@
       "variants": {
         "en": [
           {
-            "text": "The recipe is committed; the `.kapi/` state directory is regenerable and belongs\nin `.gitignore`. A fresh `init` declares your languages but **no content yet** —\nthat's the next step."
+            "text": "The recipe is committed; the .kapi/ state directory is regenerable and belongs\nin .gitignore. A fresh init declares your languages but no content yet —\nthat's the next step."
           }
         ],
         "nb": [
@@ -1844,7 +1844,7 @@
       "variants": {
         "en": [
           {
-            "text": "Tell the project which files to translate with `kapi add` — a glob, plus the\nformat (auto-detected if you omit it):"
+            "text": "Tell the project which files to translate with kapi add — a glob, plus the\nformat (auto-detected if you omit it):"
           }
         ],
         "nb": [
@@ -1871,7 +1871,7 @@
       "variants": {
         "en": [
           {
-            "text": "Each `kapi add` appends a content entry to the recipe; `kapi rm` removes one and\n`kapi ls` lists the files the project currently tracks (add `--stats` for per-file\nblock and word counts):"
+            "text": "Each kapi add appends a content entry to the recipe; kapi rm removes one and\nkapi ls lists the files the project currently tracks (add --stats for per-file\nblock and word counts):"
           }
         ],
         "nb": [
@@ -1898,7 +1898,7 @@
       "variants": {
         "en": [
           {
-            "text": "If your strings live in a known stack's i18n catalogs, skip the manual `add` and\nlet `kapi init --framework <stack>` (for example `react-i18next`, `nextjs`,\n`flutter`) pre-fill the content mapping for you — see\n`kapi presets list --framework`."
+            "text": "If your strings live in a known stack's i18n catalogs, skip the manual add and\nlet kapi init --framework <stack> (for example react-i18next, nextjs,\nflutter) pre-fill the content mapping for you — see\nkapi presets list --framework."
           }
         ],
         "nb": [
@@ -1952,7 +1952,7 @@
       "variants": {
         "en": [
           {
-            "text": "The `<dir-name>.kapi` recipe is a portable YAML document. A minimal one declares\nits languages, the content globs to localize, and the flows to run:"
+            "text": "The <dir-name>.kapi recipe is a portable YAML document. A minimal one declares\nits languages, the content globs to localize, and the flows to run:"
           }
         ],
         "nb": [
@@ -1979,7 +1979,7 @@
       "variants": {
         "en": [
           {
-            "text": "`kapi add` wrote the `content` entry's source `path` and `format`. The optional\n`target` glob — with the `{lang}` placeholder — tells `merge` where each locale's\nfiles go; set it for a custom layout (or let `--framework` fill it), otherwise\nkapi defaults to a locale-suffixed path beside the source. `defaults` carries the\nsource and target languages every command inherits, and `flows` names reusable\ntool chains. See the [project file reference](/reference/project-file) for the\nfull schema."
+            "text": "kapi add wrote the content entry's source path and format. The optional\ntarget glob — with the {lang} placeholder — tells merge where each locale's\nfiles go; set it for a custom layout (or let --framework fill it), otherwise\nkapi defaults to a locale-suffixed path beside the source. defaults carries the\nsource and target languages every command inherits, and flows names reusable\ntool chains. See the project file reference for the\nfull schema."
           }
         ],
         "nb": [
@@ -2060,7 +2060,7 @@
       "variants": {
         "en": [
           {
-            "text": "Both are the same commands over a different **binding** (where content enters and\nleaves): ad-hoc writes files, while in a project a run commits to the store and\n`kapi merge` materializes the localized files. See **[Modes &\nbindings](/kapi/modes)** for the full model — the source/sink binding diagram, the\ntwo project loops, the portable `.klz` parcel, and when it makes sense to mix."
+            "text": "Both are the same commands over a different binding (where content enters and\nleaves): ad-hoc writes files, while in a project a run commits to the store and\nkapi merge materializes the localized files. See Modes &\nbindings for the full model — the source/sink binding diagram, the\ntwo project loops, the portable .klz parcel, and when it makes sense to mix."
           }
         ],
         "nb": [
@@ -2087,7 +2087,7 @@
       "variants": {
         "en": [
           {
-            "text": "kapi discovers the nearest recipe by walking up the directory tree (like git),\nresolves the project's languages and content, and runs the flow. In a project, a\nrun is **process-only** — it commits results to the project store\n(`.kapi/cache/blocks.db`) rather than writing files directly. That keeps repeated\nruns cheap and lets the store accumulate translation memory and overlays as you\nwork."
+            "text": "kapi discovers the nearest recipe by walking up the directory tree (like git),\nresolves the project's languages and content, and runs the flow. In a project, a\nrun is process-only — it commits results to the project store\n(.kapi/cache/blocks.db) rather than writing files directly. That keeps repeated\nruns cheap and lets the store accumulate translation memory and overlays as you\nwork."
           }
         ],
         "nb": [
@@ -2141,7 +2141,7 @@
       "variants": {
         "en": [
           {
-            "text": "When you're ready to materialize the localized files, `merge` writes them to the\ntargets declared in the recipe:"
+            "text": "When you're ready to materialize the localized files, merge writes them to the\ntargets declared in the recipe:"
           }
         ],
         "nb": [
@@ -2168,7 +2168,7 @@
       "variants": {
         "en": [
           {
-            "text": "This replays the stored translations onto each source and writes\n`src/locales/fr/*.json`, `src/locales/de/*.json`, and so on — no flags, because\nthe recipe already says where each locale goes."
+            "text": "This replays the stored translations onto each source and writes\nsrc/locales/fr/*.json, src/locales/de/*.json, and so on — no flags, because\nthe recipe already says where each locale goes."
           }
         ],
         "nb": [
@@ -2276,7 +2276,7 @@
       "variants": {
         "en": [
           {
-            "text": "Project mode trades a one-time `init` for less repetition and more memory:"
+            "text": "Project mode trades a one-time init for less repetition and more memory:"
           }
         ],
         "nb": [
@@ -2303,7 +2303,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Defaults captured once.** Source and target languages, content globs, and\n  flow definitions live in the recipe. You stop passing `--source-lang`,\n  `--target-lang`, and `-i/-o` on every command."
+            "text": "Defaults captured once. Source and target languages, content globs, and\n  flow definitions live in the recipe. You stop passing --source-lang,\n  --target-lang, and -i/-o on every command."
           }
         ],
         "nb": [
@@ -2330,7 +2330,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Translation memory accumulates.** The project store keeps a TM and termbase\n  that every run reads and writes, so each pass recycles the last one's work."
+            "text": "Translation memory accumulates. The project store keeps a TM and termbase\n  that every run reads and writes, so each pass recycles the last one's work."
           }
         ],
         "nb": [
@@ -2357,7 +2357,7 @@
       "variants": {
         "en": [
           {
-            "text": "See the [project file reference](/reference/project-file) for the full `.kapi`\nformat."
+            "text": "See the project file reference for the full .kapi\nformat."
           }
         ],
         "nb": [
@@ -2384,7 +2384,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Git-style discovery.** Run `kapi` from any subdirectory and it finds the\n  project automatically — no `-p` flag, no cwd dance."
+            "text": "Git-style discovery. Run kapi from any subdirectory and it finds the\n  project automatically — no -p flag, no cwd dance."
           }
         ],
         "nb": [
@@ -2411,7 +2411,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Portable and shareable.** The recipe is a committed YAML file; a teammate who\n  clones the repository runs the same flows with the same configuration."
+            "text": "Portable and shareable. The recipe is a committed YAML file; a teammate who\n  clones the repository runs the same flows with the same configuration."
           }
         ],
         "nb": [
@@ -2438,7 +2438,7 @@
       "variants": {
         "en": [
           {
-            "text": "Ad-hoc runs stay available for one-offs, scripting, and CI — the two are the same\ncommands over a different **binding** (where content enters and leaves). See\n**[Modes & bindings](/kapi/modes)** for the full model."
+            "text": "Ad-hoc runs stay available for one-offs, scripting, and CI — the two are the same\ncommands over a different binding (where content enters and leaves). See\nModes & bindings for the full model."
           }
         ],
         "nb": [
@@ -2492,7 +2492,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Modes & bindings](/kapi/modes) — the source/sink binding model and when to mix\n  ad-hoc and project runs."
+            "text": "Modes & bindings — the source/sink binding model and when to mix\n  ad-hoc and project runs."
           }
         ],
         "nb": [
@@ -2519,7 +2519,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Interchange — XLIFF, PO, and your TMS](/kapi/bilingual-workflow) — extract a\n  project to bilingual files for vendor or human translation, then merge back."
+            "text": "Interchange — XLIFF, PO, and your TMS — extract a\n  project to bilingual files for vendor or human translation, then merge back."
           }
         ],
         "nb": [
@@ -2546,7 +2546,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Project file reference](/reference/project-file) — the full `.kapi` recipe\n  schema and discovery rules."
+            "text": "Project file reference — the full .kapi recipe\n  schema and discovery rules."
           }
         ],
         "nb": [
@@ -2627,7 +2627,7 @@
       "variants": {
         "en": [
           {
-            "text": "the **`kapi` CLI** — a single self-contained binary that runs offline by\n  default and operates directly on your files;"
+            "text": "the kapi CLI — a single self-contained binary that runs offline by\n  default and operates directly on your files;"
           }
         ],
         "nb": [
@@ -2681,7 +2681,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Kapi Desktop** — the visual companion app, which bundles the CLI."
+            "text": "Kapi Desktop — the visual companion app, which bundles the CLI."
           }
         ],
         "nb": [
@@ -2762,7 +2762,7 @@
       "variants": {
         "en": [
           {
-            "text": "Once you've [tried kapi in the browser](/kapi/get-started/quickstart), install\nthe binary to run it locally against your own files."
+            "text": "Once you've tried kapi in the browser, install\nthe binary to run it locally against your own files."
           }
         ],
         "nb": [
@@ -2870,7 +2870,7 @@
       "variants": {
         "en": [
           {
-            "text": "Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:"
+            "text": "Pre-built binaries for all platforms are available on the GitHub Releases page:"
           }
         ],
         "nb": [
@@ -2951,7 +2951,7 @@
       "variants": {
         "en": [
           {
-            "text": "See [Installation](/kapi/get-started/installation) for the CLI (Homebrew or download)\nand Kapi Desktop (macOS cask)."
+            "text": "See Installation for the CLI (Homebrew or download)\nand Kapi Desktop (macOS cask)."
           }
         ],
         "nb": [
@@ -3194,7 +3194,7 @@
       "variants": {
         "en": [
           {
-            "text": "Credentials live in your OS keychain. See the\n[Quick Start](/kapi/get-started/quickstart) for what to run next."
+            "text": "Credentials live in your OS keychain. See the\nQuick Start for what to run next."
           }
         ],
         "nb": [
@@ -3248,7 +3248,7 @@
       "variants": {
         "en": [
           {
-            "text": "Kapi Desktop is the visual companion to the CLI. Each package below installs the\n`kapi` CLI as a dependency, so a single install covers both. See the\n[Kapi Desktop overview](/kapi/desktop/overview) for what it does."
+            "text": "Kapi Desktop is the visual companion to the CLI. Each package below installs the\nkapi CLI as a dependency, so a single install covers both. See the\nKapi Desktop overview for what it does."
           }
         ],
         "nb": [
@@ -3356,7 +3356,7 @@
       "variants": {
         "en": [
           {
-            "text": "Download and run the signed installer from [GitHub Releases](https://github.com/neokapi/neokapi/releases):"
+            "text": "Download and run the signed installer from GitHub Releases:"
           }
         ],
         "nb": [
@@ -3491,7 +3491,7 @@
       "variants": {
         "en": [
           {
-            "text": "Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):"
+            "text": "Download the latest release from GitHub Releases:"
           }
         ],
         "nb": [
@@ -3572,7 +3572,7 @@
       "variants": {
         "en": [
           {
-            "text": ":::info Needs a .kapi project\nInterchange is **project-based**. `kapi extract` and `kapi merge` read the\nrecipe's content globs and target locales and use the project's translation\nmemory plus the extraction bookkeeping kapi records for you, so start with\n`kapi init` (see [Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands\nfrom inside the project directory. See [Project file](/reference/project-file)\nfor the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_\nwith no round-trip needs no project — that is plain `kapi run -i <file>`.)\n:::"
+            "text": ":::info Needs a .kapi project\nInterchange is project-based. kapi extract and kapi merge read the\nrecipe's content globs and target locales and use the project's translation\nmemory plus the extraction bookkeeping kapi records for you, so start with\nkapi init (see Day 0) and run the commands\nfrom inside the project directory. See Project file\nfor the recipe and its git-style discovery. (Ad-hoc, one-way format conversion\nwith no round-trip needs no project — that is plain kapi run -i <file>.)\n:::"
           }
         ],
         "nb": [
@@ -3626,7 +3626,7 @@
       "variants": {
         "en": [
           {
-            "text": "Runnable first steps with kapi — no install, no setup. These are **ad-hoc** runs:\none command, one file, configured by flags. It's the fastest way to see what kapi\ndoes, and the right shape for one-off jobs, scripting, and CI. For content you\nlocalize repeatedly, you'll graduate to a [project](/kapi/get-started/first-project) —\nsee the end of this page."
+            "text": "Runnable first steps with kapi — no install, no setup. These are ad-hoc runs:\none command, one file, configured by flags. It's the fastest way to see what kapi\ndoes, and the right shape for one-off jobs, scripting, and CI. For content you\nlocalize repeatedly, you'll graduate to a project —\nsee the end of this page."
           }
         ],
         "nb": [
@@ -3653,7 +3653,7 @@
       "variants": {
         "en": [
           {
-            "text": "Most commands below carry a **▸ Run** button. Pressing it runs the **real `kapi`\nbinary** in your browser — no install, and nothing leaves your machine. The\nfirst run takes a moment to start; after that it's instant. The commands that\nneed an API key are shown as static blocks; run those after\n[installing](/kapi/get-started/installation) and adding a credential."
+            "text": "Most commands below carry a ▸ Run button. Pressing it runs the real kapi\nbinary in your browser — no install, and nothing leaves your machine. The\nfirst run takes a moment to start; after that it's instant. The commands that\nneed an API key are shown as static blocks; run those after\ninstalling and adding a credential."
           }
         ],
         "nb": [
@@ -3707,7 +3707,7 @@
       "variants": {
         "en": [
           {
-            "text": "Generate pseudo-translations to test your UI for truncation and layout issues.\nPress **▸ Run** — it seeds a small `messages.json` and writes `messages-qps.json`,\nwhich you can preview in the **Files** panel:"
+            "text": "Generate pseudo-translations to test your UI for truncation and layout issues.\nPress ▸ Run — it seeds a small messages.json and writes messages-qps.json,\nwhich you can preview in the Files panel:"
           }
         ],
         "nb": [
@@ -3734,7 +3734,7 @@
       "variants": {
         "en": [
           {
-            "text": "The output is accented text like `▒ Ĥéļļö, Ŵöŕļđ! ▒` that exposes untranslated\nstrings and layout problems. With no `--target-lang`, kapi uses the `qps`\npseudo-locale; pass `--target-lang` to target a real locale."
+            "text": "The output is accented text like ▒ Ĥéļļö, Ŵöŕļđ! ▒ that exposes untranslated\nstrings and layout problems. With no --target-lang, kapi uses the qps\npseudo-locale; pass --target-lang to target a real locale."
           }
         ],
         "nb": [
@@ -3869,7 +3869,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Interchange** is how kapi hands content to the outside world in a\nstandard, tool-neutral file and takes the result back. Most serious\nlocalization runs on bilingual exchange formats like **XLIFF 2.x** and\n**PO (gettext)**: translators open them in a CAT tool (Trados, memoQ,\nOmegaT, Phrase, Lokalise, Crowdin, Poedit, …), translate, and send them\nback. kapi's job is the **engineering glue** on either side of that\nhandoff — emit a clean bilingual file, accept the returned one, rebuild\nthe source format byte-for-byte from a captured **skeleton**, and keep the\nproject's **translation memory** and **terminology** in the loop so every\nmerge makes the next extract cheaper."
+            "text": "Interchange is how kapi hands content to the outside world in a\nstandard, tool-neutral file and takes the result back. Most serious\nlocalization runs on bilingual exchange formats like XLIFF 2.x and\nPO (gettext): translators open them in a CAT tool (Trados, memoQ,\nOmegaT, Phrase, Lokalise, Crowdin, Poedit, …), translate, and send them\nback. kapi's job is the engineering glue on either side of that\nhandoff — emit a clean bilingual file, accept the returned one, rebuild\nthe source format byte-for-byte from a captured skeleton, and keep the\nproject's translation memory and terminology in the loop so every\nmerge makes the next extract cheaper."
           }
         ],
         "nb": [
@@ -3950,7 +3950,7 @@
       "variants": {
         "en": [
           {
-            "text": "With `editable`, the command is placed at the prompt instead of running\nautomatically — press **Enter** when you're ready, or tweak it first:"
+            "text": "With editable, the command is placed at the prompt instead of running\nautomatically — press Enter when you're ready, or tweak it first:"
           }
         ],
         "nb": [
@@ -3977,7 +3977,7 @@
       "variants": {
         "en": [
           {
-            "text": "For a full interactive terminal, open the [CLI Playground](/playground-cli)."
+            "text": "For a full interactive terminal, open the CLI Playground."
           }
         ],
         "nb": [
@@ -4058,7 +4058,7 @@
       "variants": {
         "en": [
           {
-            "text": "This needs a provider credential, so install first and add one with\n`kapi credentials add` — see [Installation](/kapi/get-started/installation). When a\nbrand voice profile is bound on the flow, its guide is injected into the\ntranslation prompt, so output is on-brand at generation time."
+            "text": "This needs a provider credential, so install first and add one with\nkapi credentials add — see Installation. When a\nbrand voice profile is bound on the flow, its guide is injected into the\ntranslation prompt, so output is on-brand at generation time."
           }
         ],
         "nb": [
@@ -4139,7 +4139,7 @@
       "variants": {
         "en": [
           {
-            "text": "Score a draft against a profile. `--min-score` makes it a CI gate — kapi exits\nnon-zero when the score is below the threshold:"
+            "text": "Score a draft against a profile. --min-score makes it a CI gate — kapi exits\nnon-zero when the score is below the threshold:"
           }
         ],
         "nb": [
@@ -4193,7 +4193,7 @@
       "variants": {
         "en": [
           {
-            "text": "Input can be a file argument, `--text \"…\"`, or piped via stdin. Rewrite off-voice\ncontent — forbidden terms, competitor mentions, jargon:"
+            "text": "Input can be a file argument, --text \"…\", or piped via stdin. Rewrite off-voice\ncontent — forbidden terms, competitor mentions, jargon:"
           }
         ],
         "nb": [
@@ -4328,7 +4328,7 @@
       "variants": {
         "en": [
           {
-            "text": "See [Using kapi with Claude](/kapi/get-started/use-with-claude) for the skill-based\nworkflow, or [Using Kapi with AI Assistants](/reference/mcp) for MCP setup with\nClaude Code, Cursor, and Windsurf."
+            "text": "See Using kapi with Claude for the skill-based\nworkflow, or Using Kapi with AI Assistants for MCP setup with\nClaude Code, Cursor, and Windsurf."
           }
         ],
         "nb": [
@@ -4382,7 +4382,7 @@
       "variants": {
         "en": [
           {
-            "text": "The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're\nlocalizing the same repository or content set more than once, capture the\nlanguages, content patterns, and flows in a `.kapi` project so you stop repeating\nflags and start accumulating translation memory."
+            "text": "The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're\nlocalizing the same repository or content set more than once, capture the\nlanguages, content patterns, and flows in a .kapi project so you stop repeating\nflags and start accumulating translation memory."
           }
         ],
         "nb": [
@@ -4409,7 +4409,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Create your first project](/kapi/get-started/first-project) — `kapi init`,\n  read the recipe, run a flow, merge the files out."
+            "text": "Create your first project — kapi init,\n  read the recipe, run a flow, merge the files out."
           }
         ],
         "nb": [
@@ -4436,7 +4436,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Modes & bindings](/kapi/modes) — how ad-hoc and project runs differ, and when\n  to mix them."
+            "text": "Modes & bindings — how ad-hoc and project runs differ, and when\n  to mix them."
           }
         ],
         "nb": [
@@ -4517,7 +4517,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Using kapi with Claude](/kapi/get-started/use-with-claude) — the AI assistant tour"
+            "text": "Using kapi with Claude — the AI assistant tour"
           }
         ],
         "nb": [
@@ -4544,7 +4544,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement"
+            "text": "Brand Voice — profiles, scoring, and enforcement"
           }
         ],
         "nb": [
@@ -4652,7 +4652,7 @@
       "variants": {
         "en": [
           {
-            "text": "You keep building with Claude Code as usual. kapi gives Claude a **structured,\nrepeatable** way to handle localization and brand — so making your product\nmultilingual and keeping its copy on-voice is an engineering pipeline, not a\none-off translation. kapi extracts the text from your **code** and\n**documents**, round-trips it back **faithfully** (structure, formatting, and\nplaceholders intact), reuses **translation memory**, and enforces your **glossary**\nand **brand voice** — the same way every time, and gate-able in CI."
+            "text": "You keep building with Claude Code as usual. kapi gives Claude a structured,\nrepeatable way to handle localization and brand — so making your product\nmultilingual and keeping its copy on-voice is an engineering pipeline, not a\none-off translation. kapi extracts the text from your code and\ndocuments, round-trips it back faithfully (structure, formatting, and\nplaceholders intact), reuses translation memory, and enforces your glossary\nand brand voice — the same way every time, and gate-able in CI."
           }
         ],
         "nb": [
@@ -4679,7 +4679,7 @@
       "variants": {
         "en": [
           {
-            "text": "You install it once. After that you ask Claude in plain language; it decides when\nto call `kapi`."
+            "text": "You install it once. After that you ask Claude in plain language; it decides when\nto call kapi."
           }
         ],
         "nb": [
@@ -4706,7 +4706,7 @@
       "variants": {
         "en": [
           {
-            "text": ":::note\nkapi also speaks [MCP](/reference/mcp), for assistants that prefer structured tools\nover a CLI. This page follows the skill (CLI) path — the two work together.\n:::"
+            "text": ":::note\nkapi also speaks MCP, for assistants that prefer structured tools\nover a CLI. This page follows the skill (CLI) path — the two work together.\n:::"
           }
         ],
         "nb": [
@@ -4760,7 +4760,7 @@
       "variants": {
         "en": [
           {
-            "text": "The bright line: **bilingual round-trip and asset interchange both hand a\nfile to a counterpart and bring the result back, with project state holding the\nway back; format conversion is one-way.** This page is the bilingual round-trip —\nthe handoff to a translator or TMS."
+            "text": "The bright line: bilingual round-trip and asset interchange both hand a\nfile to a counterpart and bring the result back, with project state holding the\nway back; format conversion is one-way. This page is the bilingual round-trip —\nthe handoff to a translator or TMS."
           }
         ],
         "nb": [
@@ -4841,7 +4841,7 @@
       "variants": {
         "en": [
           {
-            "text": "The only prerequisite is the `kapi` CLI on your `PATH` (`kapi version` — see\n[installation](/kapi/get-started/installation)). The rule-based checks need no\ncredential; for provider-backed translation, add one with `kapi credentials add`\n(or let the assistant translate within kapi's guardrails — more below)."
+            "text": "The only prerequisite is the kapi CLI on your PATH (kapi version — see\ninstallation). The rule-based checks need no\ncredential; for provider-backed translation, add one with kapi credentials add\n(or let the assistant translate within kapi's guardrails — more below)."
           }
         ],
         "nb": [
@@ -4895,7 +4895,7 @@
       "variants": {
         "en": [
           {
-            "text": "You're taking a React or Next.js app to a new market. The English text in your JSX\nstays as it is — no message IDs, no `t(\"...\")` wrappers. You just ask:"
+            "text": "You're taking a React or Next.js app to a new market. The English text in your JSX\nstays as it is — no message IDs, no t(\"...\") wrappers. You just ask:"
           }
         ],
         "nb": [
@@ -4949,7 +4949,7 @@
       "variants": {
         "en": [
           {
-            "text": "Claude adopts the zero-wrapper [kapi-react](/react/introduction) stack and runs\na structured pipeline — the same steps every time the UI changes:"
+            "text": "Claude adopts the zero-wrapper kapi-react stack and runs\na structured pipeline — the same steps every time the UI changes:"
           }
         ],
         "nb": [
@@ -4976,7 +4976,7 @@
       "variants": {
         "en": [
           {
-            "text": "The strings stay in your components as plain JSX; kapi handles the build-time\nextraction and the round-trip into a runtime dictionary, carrying placeholders like\n`{userName}` through untouched. The note *data* in your components is left alone —\nonly the UI copy is translated. Add the next locale by re-running the same pipeline."
+            "text": "The strings stay in your components as plain JSX; kapi handles the build-time\nextraction and the round-trip into a runtime dictionary, carrying placeholders like\n{userName} through untouched. The note data in your components is left alone —\nonly the UI copy is translated. Add the next locale by re-running the same pipeline."
           }
         ],
         "nb": [
@@ -5030,7 +5030,7 @@
       "variants": {
         "en": [
           {
-            "text": "Next, a launch one-pager — a Word document. Claude drives kapi for a structured,\nformat-faithful round-trip: kapi parses the `.docx`, translates the text, and writes\nit back with the headings, lists, bold runs, and inline fields preserved — applying\nyour glossary and translation memory along the way."
+            "text": "Next, a launch one-pager — a Word document. Claude drives kapi for a structured,\nformat-faithful round-trip: kapi parses the .docx, translates the text, and writes\nit back with the headings, lists, bold runs, and inline fields preserved — applying\nyour glossary and translation memory along the way."
           }
         ],
         "nb": [
@@ -5057,7 +5057,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Two carriers, chosen by recipient.** neokapi's native interchange format is the\nlossless **bilingual `.klz`** (`kapi extract --format klz`) — for a translator or\nreviewer working in kapi or the neokapi review tool; it carries inline codes, TM\nmatches, and term context in one file and gives integrity-verified, diffable\nreview. For a recipient on a third-party CAT tool, `kapi extract` emits **XLIFF\n2.x / PO** (the default), the industry-interop tier this page focuses on. Both go\nout and come back through the same `extract` / `merge` verbs. See\n[KLF vs XLIFF](/reference/klf/vs-xliff)."
+            "text": "Two carriers, chosen by recipient. neokapi's native interchange format is the\nlossless bilingual .klz (kapi extract --format klz) — for a translator or\nreviewer working in kapi or the neokapi review tool; it carries inline codes, TM\nmatches, and term context in one file and gives integrity-verified, diffable\nreview. For a recipient on a third-party CAT tool, kapi extract emits XLIFF\n2.x / PO (the default), the industry-interop tier this page focuses on. Both go\nout and come back through the same extract / merge verbs. See\nKLF vs XLIFF."
           }
         ],
         "nb": [
@@ -5138,7 +5138,7 @@
       "variants": {
         "en": [
           {
-            "text": "Each recipe takes a single task — estimate a job, catch UI truncation, enforce a\nglossary — states the goal, walks the steps, and lets you run the commands\nyourself. The interactive embeds run the real `kapi` binary in your browser: no\ninstall, no server, no API key. Every command shown is the command that runs."
+            "text": "Each recipe takes a single task — estimate a job, catch UI truncation, enforce a\nglossary — states the goal, walks the steps, and lets you run the commands\nyourself. The interactive embeds run the real kapi binary in your browser: no\ninstall, no server, no API key. Every command shown is the command that runs."
           }
         ],
         "nb": [
@@ -5165,7 +5165,7 @@
       "variants": {
         "en": [
           {
-            "text": "For what kapi is and how the CLI and Kapi Desktop relate, see the\n[Kapi overview](/kapi/overview). For every command and flag, see the\n[command reference](/commands)."
+            "text": "For what kapi is and how the CLI and Kapi Desktop relate, see the\nKapi overview. For every command and flag, see the\ncommand reference."
           }
         ],
         "nb": [
@@ -5219,7 +5219,7 @@
       "variants": {
         "en": [
           {
-            "text": "A **`.kapi` project is the recommended working model** for any repository or\ncontent set you localize repeatedly. It captures the languages, content patterns,\nand flows in a committed recipe once, adds git-style upward discovery of that\nrecipe from any subdirectory, and keeps a project-local translation memory and\ntermbase that every run reuses — so you stop repeating flags and start\naccumulating work. [Create your first project](/kapi/get-started/first-project)\nwalks the setup; the [project file reference](/reference/project-file) covers the\nrecipe format and discovery rules."
+            "text": "A .kapi project is the recommended working model for any repository or\ncontent set you localize repeatedly. It captures the languages, content patterns,\nand flows in a committed recipe once, adds git-style upward discovery of that\nrecipe from any subdirectory, and keeps a project-local translation memory and\ntermbase that every run reuses — so you stop repeating flags and start\naccumulating work. Create your first project\nwalks the setup; the project file reference covers the\nrecipe format and discovery rules."
           }
         ],
         "nb": [
@@ -5246,7 +5246,7 @@
       "variants": {
         "en": [
           {
-            "text": "kapi also runs **ad-hoc**: a command operates directly on the files you name,\nconfigured by flags, with nothing saved —\n`kapi ai-translate -i messages.json --target-lang fr`. That's the quick path for\none-off jobs, scripting, and CI, and a fine on-ramp. Many recipes here are shown\nad-hoc because they're genuine one-offs; each notes the project-mode equivalent\nwhere it helps."
+            "text": "kapi also runs ad-hoc: a command operates directly on the files you name,\nconfigured by flags, with nothing saved —\nkapi ai-translate -i messages.json --target-lang fr. That's the quick path for\none-off jobs, scripting, and CI, and a fine on-ramp. Many recipes here are shown\nad-hoc because they're genuine one-offs; each notes the project-mode equivalent\nwhere it helps."
           }
         ],
         "nb": [
@@ -5273,7 +5273,7 @@
       "variants": {
         "en": [
           {
-            "text": "Every recipe is marked at the top with its mode — **Runs anywhere** (ad-hoc) or\n**Needs a `.kapi` project**."
+            "text": "Every recipe is marked at the top with its mode — Runs anywhere (ad-hoc) or\nNeeds a .kapi project."
           }
         ],
         "nb": [
@@ -5327,7 +5327,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Installation](/kapi/get-started/installation) — Homebrew, WinGet, and binary downloads"
+            "text": "Installation — Homebrew, WinGet, and binary downloads"
           }
         ],
         "nb": [
@@ -5354,7 +5354,7 @@
       "variants": {
         "en": [
           {
-            "text": "For architectural context and design decisions see [AD-017: Bilingual\nFormat Interop](/contribute/architecture/017-bilingual-format-interop)."
+            "text": "For architectural context and design decisions see AD-017: Bilingual\nFormat Interop."
           }
         ],
         "nb": [
@@ -5381,7 +5381,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Command reference](/commands) — every command and flag"
+            "text": "Command reference — every command and flag"
           }
         ],
         "nb": [
@@ -5408,7 +5408,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Kapi Desktop](/kapi/desktop/overview) — the visual companion for building flows and running tools"
+            "text": "Kapi Desktop — the visual companion for building flows and running tools"
           }
         ],
         "nb": [
@@ -5435,7 +5435,7 @@
       "variants": {
         "en": [
           {
-            "text": "[Using kapi with AI assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more"
+            "text": "Using kapi with AI assistants — wire kapi into Claude Code, Cursor, and more"
           }
         ],
         "nb": [
@@ -5489,7 +5489,7 @@
       "variants": {
         "en": [
           {
-            "text": "The two commands that define this workflow are `kapi extract` and\n`kapi merge`. The translation memory participates on both sides:"
+            "text": "The two commands that define this workflow are kapi extract and\nkapi merge. The translation memory participates on both sides:"
           }
         ],
         "nb": [
@@ -5516,7 +5516,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Kapi** reads, translates, and ships content in **any format** — faithfully —\nand verifies it with **checks** (terminology, QA, brand voice) that act like\n**tests for AI output**. It is built on the open-source\n[neokapi framework](/framework/architecture) and comes in two forms that share\nthe same engine, tools, flows, and [`.kapi` projects](/reference/project-file):"
+            "text": "Kapi reads, translates, and ships content in any format — faithfully —\nand verifies it with checks (terminology, QA, brand voice) that act like\ntests for AI output. It is built on the open-source\nneokapi framework and comes in two forms that share\nthe same engine, tools, flows, and .kapi projects:"
           }
         ],
         "nb": [
@@ -5543,7 +5543,7 @@
       "variants": {
         "en": [
           {
-            "text": "**TM pre-fill on extract** — every segment is looked up against the\n  project TM before it lands in the XLIFF. Exact matches are pre-filled\n  with `state=\"translated\"`; fuzzy matches above the recipe's\n  `tm.fuzzy_threshold` are pre-filled as fuzzy. The translator's CAT\n  tool shows leverage as a normal TM match."
+            "text": "TM pre-fill on extract — every segment is looked up against the\n  project TM before it lands in the XLIFF. Exact matches are pre-filled\n  with state=\"translated\"; fuzzy matches above the recipe's\n  tm.fuzzy_threshold are pre-filled as fuzzy. The translator's CAT\n  tool shows leverage as a normal TM match."
           }
         ],
         "nb": [
@@ -5570,7 +5570,7 @@
       "variants": {
         "en": [
           {
-            "text": "**TM absorb on merge** — every accepted target segment becomes a new\n  or updated translation unit (TU) in the project TM, carrying\n  provenance (merge batch id, source file path, block content hash,\n  originating XLIFF filename) so a later `kapi tm audit --batch <id>`\n  can trace every TU back to the merge that introduced it."
+            "text": "TM absorb on merge — every accepted target segment becomes a new\n  or updated translation unit (TU) in the project TM, carrying\n  provenance (merge batch id, source file path, block content hash,\n  originating XLIFF filename) so a later kapi tm audit --batch <id>\n  can trace every TU back to the merge that introduced it."
           }
         ],
         "nb": [
@@ -5624,7 +5624,7 @@
       "variants": {
         "en": [
           {
-            "text": "The diagram above is the workflow; the explorer below is the engine that\nmakes it safe. Pick the bilingual XLIFF sample, run it through, and compare\nthe source with the round-tripped output — kapi reads the file into the\ncontent model, the leaf text is replaced, and everything else (structure,\nidentifiers, the skeleton `kapi merge` later rewrites from) comes back\nunchanged. The same reader and writer back `kapi extract` and `kapi merge`,\nrunning here in your browser via WebAssembly."
+            "text": "The diagram above is the workflow; the explorer below is the engine that\nmakes it safe. Pick the bilingual XLIFF sample, run it through, and compare\nthe source with the round-tripped output — kapi reads the file into the\ncontent model, the leaf text is replaced, and everything else (structure,\nidentifiers, the skeleton kapi merge later rewrites from) comes back\nunchanged. The same reader and writer back kapi extract and kapi merge,\nrunning here in your browser via WebAssembly."
           }
         ],
         "nb": [
@@ -5651,7 +5651,7 @@
       "variants": {
         "en": [
           {
-            "text": "Both are on by default. `--no-tm` and `--no-tm-update` disable them\n(e.g. cold-translation workflows or dry-run review)."
+            "text": "Both are on by default. --no-tm and --no-tm-update disable them\n(e.g. cold-translation workflows or dry-run review)."
           }
         ],
         "nb": [
@@ -5732,7 +5732,7 @@
       "variants": {
         "en": [
           {
-            "text": "The `merge`, `tm`, and `segmentation` sections are described in detail\non the [Kapi project file reference](/reference/project-file). All three are\noptional — defaults apply when a section is omitted."
+            "text": "The merge, tm, and segmentation sections are described in detail\non the Kapi project file reference. All three are\noptional — defaults apply when a section is omitted."
           }
         ],
         "nb": [
@@ -5786,7 +5786,7 @@
       "variants": {
         "en": [
           {
-            "text": "Edit the generated `app.kapi` to declare content globs, target\nlocales, and any optional recipe sections. Then seed the project TM\nfrom existing memory, if you have any:"
+            "text": "Edit the generated app.kapi to declare content globs, target\nlocales, and any optional recipe sections. Then seed the project TM\nfrom existing memory, if you have any:"
           }
         ],
         "nb": [
@@ -5813,7 +5813,7 @@
       "variants": {
         "en": [
           {
-            "text": "**[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.\n  Best for automation, scripting, CI gates, and offline work; no project or\n  server required. It also serves brand and terminology tools to your AI\n  assistant over [MCP](/reference/mcp)."
+            "text": "Kapi CLI — a single binary that operates directly on files.\n  Best for automation, scripting, CI gates, and offline work; no project or\n  server required. It also serves brand and terminology tools to your AI\n  assistant over MCP."
           }
         ],
         "nb": [
@@ -5867,7 +5867,7 @@
       "variants": {
         "en": [
           {
-            "text": "From inside the project directory (no `-p` needed — the command\nauto-discovers the `.kapi` recipe from cwd, git-style):"
+            "text": "From inside the project directory (no -p needed — the command\nauto-discovers the .kapi recipe from cwd, git-style):"
           }
         ],
         "nb": [
@@ -5921,7 +5921,7 @@
       "variants": {
         "en": [
           {
-            "text": "One XLIFF 2.2 per source → target pair under `out/`:"
+            "text": "One XLIFF 2.2 per source → target pair under out/:"
           }
         ],
         "nb": [
@@ -6029,7 +6029,7 @@
       "variants": {
         "en": [
           {
-            "text": "Extraction bookkeeping (the captured skeletons and a manifest) recorded\n  in the project's gitignored cache so `kapi merge` can reattach the\n  returned translations and rebuild the source byte-for-byte — for document\n  and markup formats and for keyed catalog formats alike (JSON, YAML,\n  `.properties`, Android XML, `.resx`, Apple\n  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)"
+            "text": "Extraction bookkeeping (the captured skeletons and a manifest) recorded\n  in the project's gitignored cache so kapi merge can reattach the\n  returned translations and rebuild the source byte-for-byte — for document\n  and markup formats and for keyed catalog formats alike (JSON, YAML,\n  .properties, Android XML, .resx, Apple\n  .strings/.stringsdict/.xcstrings, .arb, i18next, design tokens)"
           }
         ],
         "nb": [
@@ -6056,7 +6056,7 @@
       "variants": {
         "en": [
           {
-            "text": "A file-level `<note category=\"kapi\">` on each XLIFF stamping the\n  batch id, source file, and source hash"
+            "text": "A file-level <note category=\"kapi\"> on each XLIFF stamping the\n  batch id, source file, and source hash"
           }
         ],
         "nb": [
@@ -6110,7 +6110,7 @@
       "variants": {
         "en": [
           {
-            "text": "**[Kapi Desktop](/kapi/desktop/overview)** — a visual companion app for\n  building flows, running tools, managing plugins, and storing AI credentials —\n  without writing YAML or remembering flags."
+            "text": "Kapi Desktop — a visual companion app for\n  building flows, running tools, managing plugins, and storing AI credentials —\n  without writing YAML or remembering flags."
           }
         ],
         "nb": [
@@ -6164,7 +6164,7 @@
       "variants": {
         "en": [
           {
-            "text": "Multi-target in one pass is the default. Omit `--target-lang` to use\nevery locale in `defaults.target_languages`; pass a comma-separated\nsubset to restrict."
+            "text": "Multi-target in one pass is the default. Omit --target-lang to use\nevery locale in defaults.target_languages; pass a comma-separated\nsubset to restrict."
           }
         ],
         "nb": [
@@ -6191,7 +6191,7 @@
       "variants": {
         "en": [
           {
-            "text": "When extraction is redacted (`--redact`, `--redact-rules`, or\n`defaults.redaction` in the recipe), the emitted file carries only\nplaceholders and the originals stay in a local vault; `kapi merge`\nrestores them automatically. See [Redaction](/framework/redaction)."
+            "text": "When extraction is redacted (--redact, --redact-rules, or\ndefaults.redaction in the recipe), the emitted file carries only\nplaceholders and the originals stay in a local vault; kapi merge\nrestores them automatically. See Redaction."
           }
         ],
         "nb": [
@@ -6299,7 +6299,7 @@
       "variants": {
         "en": [
           {
-            "text": "Merge resolves the extraction manifest by reading the batch id from the\nfile's `<note category=\"kapi\" id=\"batch-id\">` — the filename can\nchange during the vendor round-trip and merge still finds the right\nbatch."
+            "text": "Merge resolves the extraction manifest by reading the batch id from the\nfile's <note category=\"kapi\" id=\"batch-id\"> — the filename can\nchange during the vendor round-trip and merge still finds the right\nbatch."
           }
         ],
         "nb": [
@@ -6434,7 +6434,7 @@
       "variants": {
         "en": [
           {
-            "text": "Merge compares every incoming block's `<source>` against the current\nsource file. If the source text drifted since extract (someone edited\nthe JSON while the XLIFF was out with the translator), that block is\nreported as **stale** and **skipped** — neither applied nor TM-absorbed.\nYou can re-extract and re-translate the drifted portion."
+            "text": "Merge compares every incoming block's <source> against the current\nsource file. If the source text drifted since extract (someone edited\nthe JSON while the XLIFF was out with the translator), that block is\nreported as stale and skipped — neither applied nor TM-absorbed.\nYou can re-extract and re-translate the drifted portion."
           }
         ],
         "nb": [
@@ -6488,7 +6488,7 @@
       "variants": {
         "en": [
           {
-            "text": "When an on-disk target (or TM TU) already carries a translation for a\nblock, `merge.conflict_policy` picks what happens:"
+            "text": "When an on-disk target (or TM TU) already carries a translation for a\nblock, merge.conflict_policy picks what happens:"
           }
         ],
         "nb": [
@@ -6677,7 +6677,7 @@
       "variants": {
         "en": [
           {
-            "text": "File-level (on the header entry): `#. kapi-batch:`,\n  `#. kapi-source-file:`, `#. kapi-source-hash:`"
+            "text": "File-level (on the header entry): #. kapi-batch:,\n  #. kapi-source-file:, #. kapi-source-hash:"
           }
         ],
         "nb": [
@@ -6731,7 +6731,7 @@
       "variants": {
         "en": [
           {
-            "text": "Per-entry: `#. kapi-block: <block-id>` for merge correlation"
+            "text": "Per-entry: #. kapi-block: <block-id> for merge correlation"
           }
         ],
         "nb": [
@@ -6785,7 +6785,7 @@
       "variants": {
         "en": [
           {
-            "text": "A single `kapi merge -i` invocation can mix XLIFF and PO inputs from\nthe same batch — useful when different vendors ship in different\nformats."
+            "text": "A single kapi merge -i invocation can mix XLIFF and PO inputs from\nthe same batch — useful when different vendors ship in different\nformats."
           }
         ],
         "nb": [
@@ -6812,7 +6812,7 @@
       "variants": {
         "en": [
           {
-            "text": ":::note\nPO output is one entry per block (matches the segmentation-off case).\nEnabling `defaults.segmentation.source: true` together with\n`--format po` errors early; emit XLIFF for projects that rely on\nsentence-level segmentation.\n:::"
+            "text": ":::note\nPO output is one entry per block (matches the segmentation-off case).\nEnabling defaults.segmentation.source: true together with\n--format po errors early; emit XLIFF for projects that rely on\nsentence-level segmentation.\n:::"
           }
         ],
         "nb": [
@@ -6866,7 +6866,7 @@
       "variants": {
         "en": [
           {
-            "text": "XLIFF and PO carry exactly one chosen target per locale, the source runs\nand inline codes, and — with the captured skeleton — enough to rebuild the\noriginal file byte-for-byte. Everything else in kapi's content model is\n**deliberately not** projected into the bilingual file; it stays in project\nstate (the translation memory, termbase, and stand-off overlays):"
+            "text": "XLIFF and PO carry exactly one chosen target per locale, the source runs\nand inline codes, and — with the captured skeleton — enough to rebuild the\noriginal file byte-for-byte. Everything else in kapi's content model is\ndeliberately not projected into the bilingual file; it stays in project\nstate (the translation memory, termbase, and stand-off overlays):"
           }
         ],
         "nb": [
@@ -6893,7 +6893,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Stand-off overlays** — terminology, entity, and QA annotations anchored\n  to run ranges."
+            "text": "Stand-off overlays — terminology, entity, and QA annotations anchored\n  to run ranges."
           }
         ],
         "nb": [
@@ -6947,7 +6947,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Provenance and status** — where each target came from (TM pre-fill, a\n  specific merge batch, an MT or AI tool) and its review state."
+            "text": "Provenance and status — where each target came from (TM pre-fill, a\n  specific merge batch, an MT or AI tool) and its review state."
           }
         ],
         "nb": [
@@ -7055,7 +7055,7 @@
       "variants": {
         "en": [
           {
-            "text": "[AD-017: Bilingual Format Interop](/contribute/architecture/017-bilingual-format-interop)\n  — full design rationale, six-boundary framing, conflict policy table"
+            "text": "AD-017: Bilingual Format Interop\n  — full design rationale, six-boundary framing, conflict policy table"
           }
         ],
         "nb": [
@@ -7082,7 +7082,7 @@
       "variants": {
         "en": [
           {
-            "text": "[AD-009: Translation Memory](/contribute/architecture/009-translation-memory) —\n  matching tiers, TM schema, `LookupSegment` for sentence-level\n  leverage"
+            "text": "AD-009: Translation Memory —\n  matching tiers, TM schema, LookupSegment for sentence-level\n  leverage"
           }
         ],
         "nb": [
@@ -7109,7 +7109,7 @@
       "variants": {
         "en": [
           {
-            "text": "[AD-008: Project Model](/contribute/architecture/008-project-model) —\n  the extraction-batch bookkeeping and `merge.conflict_policy` recipe\n  shape"
+            "text": "AD-008: Project Model —\n  the extraction-batch bookkeeping and merge.conflict_policy recipe\n  shape"
           }
         ],
         "nb": [
@@ -7136,7 +7136,7 @@
       "variants": {
         "en": [
           {
-            "text": "[AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — command tree and\n  auto-discovery semantics"
+            "text": "AD-013: Kapi CLI — command tree and\n  auto-discovery semantics"
           }
         ],
         "nb": [
@@ -7190,7 +7190,7 @@
       "variants": {
         "en": [
           {
-            "text": "Kapi doesn't have separate \"ad-hoc commands\" and \"project commands.\" It has **one\nset of commands**, and what changes is the **binding** — where content comes from\nand where results go. Understanding that one idea makes every workflow below click."
+            "text": "Kapi doesn't have separate \"ad-hoc commands\" and \"project commands.\" It has one\nset of commands, and what changes is the binding — where content comes from\nand where results go. Understanding that one idea makes every workflow below click."
           }
         ],
         "nb": [
@@ -7244,7 +7244,7 @@
       "variants": {
         "en": [
           {
-            "text": "Kapi runs the **same commands** two ways — the only difference is whether state is kept:"
+            "text": "Kapi runs the same commands two ways — the only difference is whether state is kept:"
           }
         ],
         "nb": [
@@ -7298,7 +7298,7 @@
       "variants": {
         "en": [
           {
-            "text": "Run tools and flows straight from the terminal — `kapi pseudo-translate`,\n`kapi ai-translate`, `kapi brand check`, `kapi run <flow>`. See the\n[Kapi CLI overview](/kapi/cli) for the command surface and the task-by-task\nrecipes you can run in the browser."
+            "text": "Run tools and flows straight from the terminal — kapi pseudo-translate,\nkapi ai-translate, kapi brand check, kapi run <flow>. See the\nKapi CLI overview for the command surface and the task-by-task\nrecipes you can run in the browser."
           }
         ],
         "nb": [
@@ -7325,7 +7325,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Project** — capture the workflow once in a portable `.kapi` recipe (languages,\n  content patterns, flows, defaults) plus a `.kapi/` state directory that\n  accumulates translation memory and per-block work."
+            "text": "Project — capture the workflow once in a portable .kapi recipe (languages,\n  content patterns, flows, defaults) plus a .kapi/ state directory that\n  accumulates translation memory and per-block work."
           }
         ],
         "nb": [
@@ -7352,7 +7352,7 @@
       "variants": {
         "en": [
           {
-            "text": "A **`.klz` parcel** moves work between the two: `pack` a project into a single\nfile (or `extract` loose files into one), then `merge`/`unpack` on the other side."
+            "text": "A .klz parcel moves work between the two: pack a project into a single\nfile (or extract loose files into one), then merge/unpack on the other side."
           }
         ],
         "nb": [
@@ -7406,7 +7406,7 @@
       "variants": {
         "en": [
           {
-            "text": "A **flow** is just an ordered set of tools — it owns no input or output. Where the\ncontent enters (the **source**) and where results go (the **sink**) are *bindings*\nresolved when you run it:"
+            "text": "A flow is just an ordered set of tools — it owns no input or output. Where the\ncontent enters (the source) and where results go (the sink) are bindings\nresolved when you run it:"
           }
         ],
         "nb": [
@@ -7460,7 +7460,7 @@
       "variants": {
         "en": [
           {
-            "text": "**Ad-hoc** = the `file` binding — you name `-i`/`-o`."
+            "text": "Ad-hoc = the file binding — you name -i/-o."
           }
         ],
         "nb": [
@@ -7487,7 +7487,7 @@
       "variants": {
         "en": [
           {
-            "text": "**In a project**, the default *sink* becomes the **store** (a *process-only* run);\n  pass `-o` to force a file instead."
+            "text": "In a project, the default sink becomes the store (a process-only run);\n  pass -o to force a file instead."
           }
         ],
         "nb": [
@@ -7514,7 +7514,7 @@
       "variants": {
         "en": [
           {
-            "text": "Run `kapi run <flow> --explain` any time to print the resolved `source → sink`\nwithout executing:"
+            "text": "Run kapi run <flow> --explain any time to print the resolved source → sink\nwithout executing:"
           }
         ],
         "nb": [
@@ -7615,9 +7615,591 @@
       ],
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-10@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Get kapi running in minutes — pseudo-translate files, count words, and run AI translation from the command line. Runnable examples included; no install required."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Få kapi i gang på minutter — pseudooversett filer, tell ord og kjør AI-oversettelse fra kommandolinjen. Kjørbare eksempler inkludert; ingen installasjon kreves."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-11@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Installation"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installering"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-12@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Install the kapi CLI on macOS, Linux, or Windows via Homebrew, WinGet, or a direct binary download. Offline by default; no configuration needed to start."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installer kapi CLI på macOS, Linux eller Windows via Homebrew, WinGet eller direkte nedlasting av binærfil. Frakoblet som standard; ingen konfigurasjon kreves for å komme i gang."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-13@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi reads, translates, and ships content in any format — faithfully — and verifies it with checks for terminology, QA, and brand voice that act like tests for AI output. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi leser, oversetter og leverer innhold i alle formater — formattro — og verifiserer det med sjekker for terminologi, kvalitetskontroll og merkevarestemme som fungerer som tester for AI-produsert innhold. Den kjører neokapi-motoren på to måter — kommandolinjeverktøyet kapi og appen Kapi Desktop — med samme verktøy, flyter og .kapi-prosjekter."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-14@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Modes & bindings"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Moduser og bindinger"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-15@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "How Kapi runs the same commands two ways — ad-hoc on loose files, or in a .kapi project — plus the source/sink binding model that unifies them, the .klz parcel that moves work between them, and when it makes sense to mix."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvordan Kapi kjører de samme kommandoene på to måter — ad hoc på løse filer, eller i et .kapi-prosjekt — pluss kilde-/sluk-bindingsmodellen som forener dem, .klz-pakken som flytter arbeid mellom dem, og når det gir mening å kombinere."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-16@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop Overview"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversikt over Kapi Desktop"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-17@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop is the visual companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi Desktop er den visuelle følgesvennen til kapi CLI — en app for å bygge lokaliseringsflyter, kjøre verktøy, håndtere tillegg og lagre AI-legitimasjon uten å skrive YAML eller huske flagg."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-18@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Create your first project"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprett ditt første prosjekt"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-19@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Set up a .kapi project with kapi init — capture languages, content globs, and flows once, then run flows and merge files without repeating flags. The recommended day-to-day working model."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Sett opp et .kapi-prosjekt med kapi init — fang språk, innholdsmønstre og flyter én gang, og kjør deretter flyter og flett filer uten å gjenta flagg. Den anbefalte arbeidsmodellen for daglig bruk."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-1@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi CLI recipes"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi CLI-oppskrifter"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-20@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Front Matter Keys"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Frontmatter-nøkler"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-21@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Frontmatter-nøkler som trekkes ut når translateFrontMatter er på (tom = alle skalarverdier). Angi nøklene som bærer prosa, f.eks. title og description."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-2@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Overview"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversikt"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-3@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Task-by-task recipes for the kapi CLI — estimate a job, catch UI truncation, enforce terminology, pre-translate with TM — each runnable in the browser, with its ad-hoc-or-project mode marked up front."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppgavebaserte oppskrifter for kapi CLI — estimer en jobb, fang opp UI-avkorting, håndhev terminologi, forhåndsoversett med oversettelsesminne — alle kjørbare i nettleseren, med ad hoc- eller prosjektmodus angitt øverst."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-4@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Using kapi with Claude"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bruke kapi med Claude"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-5@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Wire kapi into Claude Code as an agent skill so your AI assistant can extract, translate, and QA localization files on demand — keeping every locale on-brand and structurally faithful."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Koble kapi inn i Claude Code som en agentferdighet, slik at AI-assistenten din kan trekke ut, oversette og kvalitetskontrollere lokaliseringsfiler på forespørsel — og holde hvert språk merkevaretro og strukturelt formattro."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-6@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Interchange"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utveksling"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-7@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Interchange — XLIFF, PO, and your TMS"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utveksling — XLIFF, PO og ditt TMS"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-8@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvordan kapi utveksler innhold med eksterne TMS- og CAT-verktøy gjennom standard tospråklige formater — trekk ut til XLIFF eller PO, oversett hvor som helst, og flett tilbake byte-eksakt med oversettelsesminne og terminologi i sløyfen."
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
+    },
+    {
+      "id": "fm-delta.tmx:tu-9@tmx-0df85603",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Quick Start"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hurtigstart"
+          }
+        ]
+      },
+      "origins": [
+        {
+          "source": "import",
+          "key": "fm-delta.tmx",
+          "addedAt": "2026-06-11T13:20:27Z",
+          "addedBy": "kapi tm import",
+          "sessionId": "tmx-0df856038be55f87-1781184027513660867"
+        }
+      ],
+      "created": "2026-06-11T13:20:27Z",
+      "updated": "2026-06-11T13:20:27Z"
     }
   ],
   "importSessions": [
+    {
+      "id": "tmx-0df856038be55f87-1781184027513660867",
+      "fileKey": "fm-delta.tmx",
+      "fileHash": "0df856038be55f87ed5f31fbb80db948ea366d6d9ad8f8e9d2ce6d8b2a40cdbc",
+      "fileSizeBytes": 7079,
+      "importedAt": "2026-06-11T13:20:27Z",
+      "toolName": "neokapi-l10n",
+      "toolVersion": "1.0",
+      "segType": "block",
+      "adminLang": "en",
+      "srcLang": "en",
+      "dataType": "plaintext",
+      "originalFormat": "unknown",
+      "entryCount": 21
+    },
     {
       "id": "tmx-1548425fb44d29f8-1781164979411269788",
       "fileKey": "docs-nb.tmx",

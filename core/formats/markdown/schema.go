@@ -22,7 +22,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
-					"translateCodeBlocks", "translateFrontMatter",
+					"translateCodeBlocks", "translateFrontMatter", "frontMatterKeys",
 					"translateImageAlt", "translateURLs",
 					"translateBlockQuotes", "translateHTMLBlocks",
 				},
@@ -61,6 +61,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Translate YAML Front Matter",
 				Description: "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
+			}),
+			"frontMatterKeys": schema.Prop(coreschema.PropertySchema{
+				Type:        "array",
+				Title:       "Front Matter Keys",
+				Description: "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description.",
+				Visible:     &coreschema.ConditionExpr{Field: "translateFrontMatter", Eq: true},
 			}),
 			"translateImageAlt": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",

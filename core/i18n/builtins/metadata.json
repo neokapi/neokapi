@@ -1460,6 +1460,10 @@
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
+        "frontMatterKeys": {
+          "title": "Front Matter Keys",
+          "description": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
+        },
         "subfilter": {
           "title": "HTML Subfilter",
           "description": "Subfilter format to apply to HTML content within Markdown (e.g., 'html')"
@@ -1510,6 +1514,10 @@
         "codeFinderRules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text."
+        },
+        "frontMatterKeys": {
+          "title": "Front Matter Keys",
+          "description": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
         },
         "translateBlockQuotes": {
           "title": "Translate Block Quotes",

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/markdown"
@@ -381,11 +380,7 @@ func renderBlockSource(block *model.Block) string {
 	if len(block.Source) == 0 {
 		return ""
 	}
-	rendered := model.RenderRunsWithData(block.Source)
-	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
-		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
-	}
-	return rendered
+	return markdown.RenderBlockContent(block, block.Source)
 }
 
 // --- Skeleton helpers (mirror the markdown reader's coalescing pattern) ---

@@ -50,15 +50,19 @@ content:
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
   - name: docs
     items:
-      # TODO(l10n): add `config: {translateFrontMatter: true}` once kapi
-      # extract/merge plumb per-item format config into the reader — today the
-      # item config is not applied, so page title/description frontmatter
-      # stays in English.
       - path: web/docs/docs/**/*.md
-        format: markdown
+        format:
+          name: markdown
+          config:
+            translateFrontMatter: true
+            frontMatterKeys: [title, description, sidebar_label]
         target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: web/docs/docs/**/*.mdx
-        format: mdx
+        format:
+          name: mdx
+          config:
+            translateFrontMatter: true
+            frontMatterKeys: [title, description, sidebar_label]
         target: web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
 flows:
   # TM-driven translation: reviewed translations live in the project TM

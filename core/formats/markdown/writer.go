@@ -241,11 +241,73 @@ func (w *Writer) blockText(block *model.Block) string {
 	if runs == nil {
 		return ""
 	}
+	return RenderBlockContent(block, runs)
+}
+
+// RenderBlockContent renders a block's content (the given run sequence —
+// source or target) the way the skeleton splice emits it: inline codes
+// re-emit their original data, front matter values restore/add YAML
+// quoting, and the markdown line-prefix property re-applies to multi-line
+// continuations. The MDX reader's byte-faithfulness check uses the same
+// function so reader and writer can never disagree about untranslated
+// output.
+func RenderBlockContent(block *model.Block, runs []model.Run) string {
 	rendered := model.RenderRunsWithData(runs)
+	if block.Type == "front-matter" {
+		// The skeleton carries `key: ` and the newline only; the value —
+		// including any quoting — is the block's responsibility. An
+		// unchanged, originally-unquoted value renders raw so the
+		// untranslated round-trip stays byte-exact whatever the source
+		// spelling; quoting is restored (or added when needed) otherwise.
+		quote := block.Properties[BlockPropFrontMatterQuote]
+		if quote == "" && rendered == model.RenderRunsWithData(block.Source) {
+			return rendered
+		}
+		return frontMatterScalar(rendered, quote)
+	}
 	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
 		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 	}
 	return rendered
+}
+
+// frontMatterScalar renders a front matter value, restoring the source's
+// quote style and adding quoting when an unquoted value's translation
+// would not survive as a YAML plain scalar. Sources that were valid plain
+// scalars render byte-identically (the quoting triggers cannot occur in a
+// valid plain scalar), so roundtrip output is unchanged for untranslated
+// content.
+func frontMatterScalar(text, origQuote string) string {
+	switch origQuote {
+	case "\"":
+		return "\"" + strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(text) + "\""
+	case "'":
+		return "'" + strings.ReplaceAll(text, "'", "''") + "'"
+	}
+	if frontMatterNeedsQuoting(text) {
+		return "\"" + strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(text) + "\""
+	}
+	return text
+}
+
+// frontMatterNeedsQuoting reports whether text cannot stand as a YAML
+// plain scalar on a single line.
+func frontMatterNeedsQuoting(text string) bool {
+	if text == "" {
+		return false
+	}
+	if strings.TrimSpace(text) != text {
+		return true
+	}
+	if strings.Contains(text, ": ") || strings.HasSuffix(text, ":") ||
+		strings.Contains(text, " #") || strings.Contains(text, "\n") {
+		return true
+	}
+	switch text[0] {
+	case '"', '\'', '[', ']', '{', '}', '>', '|', '&', '*', '!', '%', '@', '`', ',', '#':
+		return true
+	}
+	return strings.HasPrefix(text, "- ")
 }
 
 // blockRuns returns the target Run sequence for the configured locale,
