@@ -1,6 +1,3 @@
-import { cn } from "../../lib/utils";
-import { Input } from "../ui/input";
-import { Switch } from "../ui/switch";
 import { FormToggle } from "../ui/form";
 import type { PropertySchema, ToolDocParam } from "./types";
 import { evaluateCondition } from "./hooks/useConditionalVisibility";
@@ -8,9 +5,8 @@ import { useFieldEnabled } from "./hooks/useFieldEnabled";
 import { usePresetComparison } from "./hooks/usePresetComparison";
 import { resolveWidgetName } from "./registry";
 import { resolveRef, hasAdditionalProperties, humanizeKey } from "./utils";
+import { enumOptionLabel } from "./field-helpers";
 import { FieldWrapper } from "./primitives/FieldWrapper";
-import { CodeInput } from "../ui/code-input";
-import { TagInput } from "../ui/tag-input";
 import { CodeFinderEditor } from "../ui/code-finder-editor";
 import { MapEditor } from "./widgets/MapEditor";
 import { ArrayEditor } from "./widgets/ArrayEditor";
@@ -19,6 +15,16 @@ import { JsonEditor } from "./widgets/JsonEditor";
 import { NumberListEditor } from "./widgets/NumberListEditor";
 import { PathPicker } from "./widgets/PathPicker";
 import { CredentialPicker } from "./widgets/CredentialPicker";
+import { SegmentedField } from "./widgets/SegmentedField";
+import { CodeInputField } from "./widgets/CodeInputField";
+import { TagsField } from "./widgets/TagsField";
+import { TextareaField } from "./widgets/TextareaField";
+import { PasswordField } from "./widgets/PasswordField";
+import { ChecklistField, type ChecklistEntry } from "./widgets/ChecklistField";
+import { SelectListField } from "./widgets/SelectListField";
+import { EnumSelectField } from "./widgets/EnumSelectField";
+import { NumberField } from "./widgets/NumberField";
+import { TextField } from "./widgets/TextField";
 
 export function PropertyField({
   name,
@@ -67,13 +73,7 @@ export function PropertyField({
   const options = schema.options;
   const enumLabels = schema["ui:enum-labels"];
   const effectiveEnum = options ? options.map((o) => o.value) : schema.enum;
-  const getLabel = (val: unknown): string => {
-    if (options) {
-      const opt = options.find((o) => String(o.value) === String(val));
-      return opt?.label ?? String(val);
-    }
-    return enumLabels?.[String(val)] ?? String(val);
-  };
+  const getLabel = (val: unknown): string => enumOptionLabel(val, options, enumLabels);
 
   const description =
     schema.description && label.toLowerCase() !== schema.description.toLowerCase()
@@ -93,42 +93,20 @@ export function PropertyField({
   // -- Widget dispatch --
 
   if (widget === "segmented" && effectiveEnum && effectiveEnum.length >= 2) {
-    const current = String(resolved ?? effectiveEnum[0]);
     return (
-      <div className="flex mb-1.5">
-        {effectiveEnum.map((opt, i) => {
-          const val = String(opt);
-          const isActive = current === val;
-          const isFirst = i === 0;
-          const isLast = i === effectiveEnum!.length - 1;
-          return (
-            <button
-              key={val}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(val)}
-              className={cn(
-                "flex-1 py-1 text-xs font-semibold tracking-wide border transition-colors capitalize",
-                isFirst && "rounded-l-md",
-                isLast && "rounded-r-md",
-                !isLast && "border-r-0",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent text-muted-foreground hover:bg-accent/50",
-                disabled && "opacity-50 cursor-not-allowed",
-              )}
-            >
-              {getLabel(val)}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedField
+        values={effectiveEnum}
+        current={String(resolved ?? effectiveEnum[0])}
+        disabled={disabled}
+        getLabel={getLabel}
+        onChange={onChange}
+      />
     );
   }
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper
+      <CodeInputField
         label={label}
         description={description}
         compact={compact}
@@ -136,16 +114,12 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <CodeInput
-          value={String(resolved ?? "")}
-          onChange={(v) => onChange(v || undefined)}
-          language="javascript"
-          placeholder={schema["ui:placeholder"] || "// Enter code..."}
-          disabled={disabled}
-          minHeight={compact ? 120 : 200}
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        language="javascript"
+        placeholder={schema["ui:placeholder"] || "// Enter code..."}
+        minHeight={compact ? 120 : 200}
+        onChange={onChange}
+      />
     );
   }
 
@@ -172,7 +146,7 @@ export function PropertyField({
 
   if (widget === "simplifier-rules") {
     return (
-      <FieldWrapper
+      <CodeInputField
         label={label}
         description={description}
         compact={compact}
@@ -180,16 +154,12 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <CodeInput
-          value={String(resolved ?? "")}
-          onChange={(v) => onChange(v || undefined)}
-          language="simplifier-rules"
-          placeholder={'if TYPE = "b";\nif TAG_TYPE = STANDALONE;'}
-          disabled={disabled}
-          minHeight={60}
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        language="simplifier-rules"
+        placeholder={'if TYPE = "b";\nif TAG_TYPE = STANDALONE;'}
+        minHeight={60}
+        onChange={onChange}
+      />
     );
   }
 
@@ -210,7 +180,7 @@ export function PropertyField({
 
   if (widget === "regex") {
     return (
-      <FieldWrapper
+      <CodeInputField
         label={label}
         description={description}
         compact={compact}
@@ -218,30 +188,19 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <CodeInput
-          value={String(resolved ?? "")}
-          onChange={(v) => onChange(v || undefined)}
-          language="regex"
-          placeholder={schema["ui:placeholder"] || "pattern..."}
-          disabled={disabled}
-          singleLine
-          className="text-xs"
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        language="regex"
+        placeholder={schema["ui:placeholder"] || "pattern..."}
+        singleLine
+        inputClassName="text-xs"
+        onChange={onChange}
+      />
     );
   }
 
   if (widget === "tags") {
-    const tagString = String(resolved ?? "");
-    const tags = tagString
-      ? tagString
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      : [];
     return (
-      <FieldWrapper
+      <TagsField
         label={label}
         description={description}
         compact={compact}
@@ -249,14 +208,10 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <TagInput
-          value={tags}
-          onChange={(newTags) => onChange(newTags.length > 0 ? newTags.join(", ") : undefined)}
-          placeholder={schema["ui:placeholder"] || "Add tag..."}
-          disabled={disabled}
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        placeholder={schema["ui:placeholder"]}
+        onChange={onChange}
+      />
     );
   }
 
@@ -336,9 +291,8 @@ export function PropertyField({
   }
 
   if (widget === "textarea") {
-    const textMeta = editor?.text;
     return (
-      <FieldWrapper
+      <TextareaField
         label={showLabel ? label : ""}
         description={description}
         compact={compact}
@@ -347,27 +301,17 @@ export function PropertyField({
         vertical={verticalLayout}
         disabled={disabled}
         error={error}
-      >
-        <textarea
-          value={String(resolved ?? "")}
-          placeholder={schema["ui:placeholder"] || ""}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value || undefined)}
-          rows={textMeta?.height || 4}
-          className={cn(
-            "w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs",
-            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            "resize-y",
-            disabled && "opacity-50",
-          )}
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        placeholder={schema["ui:placeholder"]}
+        height={editor?.text?.height}
+        onChange={onChange}
+      />
     );
   }
 
   if (widget === "password") {
     return (
-      <FieldWrapper
+      <PasswordField
         label={showLabel ? label : ""}
         description={description}
         compact={compact}
@@ -376,32 +320,18 @@ export function PropertyField({
         vertical={verticalLayout}
         disabled={disabled}
         error={error}
-      >
-        <Input
-          type="password"
-          value={String(resolved ?? "")}
-          placeholder={schema["ui:placeholder"]}
-          disabled={disabled}
-          className="text-xs h-8"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(e.target.value || undefined)
-          }
-        />
-      </FieldWrapper>
+        value={String(resolved ?? "")}
+        placeholder={schema["ui:placeholder"]}
+        onChange={onChange}
+      />
     );
   }
 
   const widgetOpts = schema["ui:widget-options"] as Record<string, unknown> | undefined;
 
   if (widget === "checklist" && widgetOpts?.entries) {
-    const entries = widgetOpts.entries as Array<{
-      name: string;
-      title: string;
-      description?: string;
-    }>;
-    const current = (resolved as Record<string, boolean>) ?? {};
     return (
-      <FieldWrapper
+      <ChecklistField
         label={showLabel ? label : ""}
         description={description}
         compact={compact}
@@ -410,39 +340,16 @@ export function PropertyField({
         vertical={verticalLayout}
         disabled={disabled}
         error={error}
-      >
-        <div className="space-y-1">
-          {entries.map((entry) => (
-            <label
-              key={entry.name}
-              className={cn(
-                "flex items-center gap-2 cursor-pointer",
-                disabled && "opacity-50 cursor-not-allowed",
-              )}
-            >
-              <Switch
-                size="sm"
-                checked={current[entry.name] ?? false}
-                disabled={disabled}
-                onCheckedChange={(v: boolean) => onChange({ ...current, [entry.name]: v })}
-              />
-              <div className="flex-1">
-                <span className="text-xs font-medium">{entry.title}</span>
-                {entry.description && !compact && (
-                  <p className="text-xs text-muted-foreground">{entry.description}</p>
-                )}
-              </div>
-            </label>
-          ))}
-        </div>
-      </FieldWrapper>
+        entries={widgetOpts.entries as ChecklistEntry[]}
+        value={resolved as Record<string, boolean> | undefined}
+        onChange={onChange}
+      />
     );
   }
 
   if (widget === "select" && effectiveEnum && effectiveEnum.length > 0) {
-    const current = String(resolved ?? "");
     return (
-      <FieldWrapper
+      <SelectListField
         label={showLabel ? label : ""}
         description={description}
         compact={compact}
@@ -451,35 +358,11 @@ export function PropertyField({
         vertical={verticalLayout}
         disabled={disabled}
         error={error}
-      >
-        <div
-          className={cn(
-            "border border-input rounded-md max-h-[120px] overflow-y-auto",
-            disabled && "opacity-50",
-          )}
-        >
-          {effectiveEnum.map((v) => {
-            const val = String(v);
-            const isActive = current === val;
-            return (
-              <button
-                key={val}
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange(val)}
-                className={cn(
-                  "block w-full px-2 py-1 text-left text-xs border-b last:border-b-0 transition-colors",
-                  isActive
-                    ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-accent/50",
-                )}
-              >
-                {getLabel(val)}
-              </button>
-            );
-          })}
-        </div>
-      </FieldWrapper>
+        values={effectiveEnum}
+        current={String(resolved ?? "")}
+        getLabel={getLabel}
+        onChange={onChange}
+      />
     );
   }
 
@@ -501,7 +384,7 @@ export function PropertyField({
 
   if (effectiveEnum && effectiveEnum.length > 0) {
     return (
-      <FieldWrapper
+      <EnumSelectField
         label={showLabel ? label : ""}
         description={description}
         compact={compact}
@@ -509,43 +392,18 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <select
-          value={String(resolved ?? "")}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(
-            "h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm",
-            "transition-colors outline-none",
-            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-            "dark:bg-input/30",
-            disabled && "opacity-50 pointer-events-none",
-          )}
-        >
-          <option value="">—</option>
-          {effectiveEnum.map((v) => {
-            const val = String(v);
-            return (
-              <option key={val} value={val}>
-                {getLabel(val)}
-              </option>
-            );
-          })}
-        </select>
-        {(() => {
-          const desc =
-            resolved != null ? schema["ui:enum-descriptions"]?.[String(resolved)] : undefined;
-          return desc ? (
-            <p className="text-xs text-muted-foreground italic mt-0.5">{desc}</p>
-          ) : null;
-        })()}
-      </FieldWrapper>
+        values={effectiveEnum}
+        value={resolved}
+        getLabel={getLabel}
+        enumDescriptions={schema["ui:enum-descriptions"]}
+        onChange={onChange}
+      />
     );
   }
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper
+      <NumberField
         label={label}
         description={description}
         compact={compact}
@@ -553,24 +411,13 @@ export function PropertyField({
         docParam={docParam}
         disabled={disabled}
         error={error}
-      >
-        <Input
-          type="number"
-          value={resolved != null ? String(resolved) : ""}
-          placeholder={schema.default != null ? String(schema.default) : undefined}
-          min={schema.minimum}
-          max={schema.maximum}
-          step={schema.type === "integer" ? 1 : undefined}
-          disabled={disabled}
-          className="text-xs h-8"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            const v = e.target.value;
-            onChange(
-              v === "" ? undefined : schema.type === "integer" ? parseInt(v) : parseFloat(v),
-            );
-          }}
-        />
-      </FieldWrapper>
+        value={resolved != null ? String(resolved) : ""}
+        placeholder={schema.default != null ? String(schema.default) : undefined}
+        min={schema.minimum}
+        max={schema.maximum}
+        type={schema.type}
+        onChange={onChange}
+      />
     );
   }
 
@@ -632,7 +479,7 @@ export function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper
+    <TextField
       label={label}
       description={description}
       compact={compact}
@@ -640,16 +487,11 @@ export function PropertyField({
       docParam={docParam}
       disabled={disabled}
       error={error}
-    >
-      <Input
-        value={String(resolved ?? "")}
-        placeholder={
-          schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)
-        }
-        disabled={disabled}
-        className="text-xs h-8"
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
-      />
-    </FieldWrapper>
+      value={String(resolved ?? "")}
+      placeholder={
+        schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)
+      }
+      onChange={onChange}
+    />
   );
 }

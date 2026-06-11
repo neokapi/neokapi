@@ -10,9 +10,7 @@ import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/use
 
 // Wails v3 bindings — used directly for the optional tool-schema lookup, which
 // the FlowEditor requests synchronously and we resolve via a cache.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { Backend } from "../api/backend";
 import { optionalBinding } from "../api/optionalBinding";
 
 /**

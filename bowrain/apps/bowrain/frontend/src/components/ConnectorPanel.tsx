@@ -16,9 +16,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@neokapi/ui";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
+import { Backend } from "../api/backend";
 
 interface ConnectorInfo {
   id: string;
