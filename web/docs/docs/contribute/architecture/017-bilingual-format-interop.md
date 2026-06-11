@@ -233,6 +233,10 @@ without touching the emitted target.
 - Exact match → pre-fill `<target>` with `state="translated"`.
 - Fuzzy match ≥ `tm.fuzzy_threshold` (default 75) → pre-fill with
   `state="fuzzy"` and a `matchQuality` sub-state attribute.
+- Ambiguous match (several full-score exacts with differing targets —
+  `TMMatch.Ambiguous`) → never pre-filled. An unattended merge would turn
+  an arbitrary pick into published content; left empty, the segment
+  surfaces as untranslated for a human to decide.
 - Sub-threshold matches → `suggestions.jsonl`, not inlined.
 
 Disable with `--no-tm`. Additional read-only TMs can be declared in

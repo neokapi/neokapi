@@ -820,12 +820,30 @@ func (tm *SQLiteTM) tieredLookup(ctx context.Context, plainKey, structKey, gener
 			return nil, err
 		}
 		for _, e := range entries {
-			add(e, 1.0, MatchExact)
+			// Plain-text equality is not a full match when the inline-code
+			// structure differs (the industry "tag mismatch" penalty): a
+			// bare heading must not score 1.0 against an icon-button entry
+			// just because the words coincide.
+			score := 1.0
+			if entryStruct := NormalizeText(model.RunsStructuralText(e.Variant(sourceLocale))); entryStruct != structKey {
+				score = ScoreNearExact
+			}
+			add(e, score, MatchExact)
 		}
 	}
 
+	// Ambiguity rule: several full-score exacts with differing targets
+	// demote to ScoreNearExact — none of them is THE translation.
+	demoteAmbiguousExacts(matches, targetLocale)
+
 	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		return LimitResults(matches, opts.MaxResults), nil
+		kept := matches[:0]
+		for _, m := range matches {
+			if m.Score >= opts.MinScore {
+				kept = append(kept, m)
+			}
+		}
+		return LimitResults(sortMatches(kept), opts.MaxResults), nil
 	}
 
 	// Tier 4-6: fuzzy candidates via trigram + Levenshtein scoring.
@@ -880,16 +898,25 @@ func (tm *SQLiteTM) tieredLookup(ctx context.Context, plainKey, structKey, gener
 		add(entry, bestScore, bestType)
 	}
 
+	return LimitResults(sortMatches(matches), opts.MaxResults), nil
+}
+
+// sortMatches orders matches by score (desc), then match-type priority,
+// then entry ID — the last key makes equal candidates deterministic
+// instead of inheriting incidental storage order.
+func sortMatches(matches []TMMatch) []TMMatch {
 	slices.SortFunc(matches, func(a, b TMMatch) int {
+		if c := cmp.Compare(b.Score, a.Score); c != 0 {
+			return c
+		}
 		pa := MatchTypePriority(a.MatchType)
 		pb := MatchTypePriority(b.MatchType)
 		if c := cmp.Compare(pa, pb); c != 0 {
 			return c
 		}
-		return cmp.Compare(b.Score, a.Score)
+		return cmp.Compare(a.Entry.ID, b.Entry.ID)
 	})
-
-	return LimitResults(matches, opts.MaxResults), nil
+	return matches
 }
 
 // queryExactVariant finds entries whose source-locale variant matches the
@@ -905,6 +932,7 @@ func (tm *SQLiteTM) queryExactVariant(ctx context.Context, column, key string, s
 		FROM tm_variants v
 		INNER JOIN tm_entries e ON e.id = v.entry_id
 		WHERE %s%s
+		ORDER BY e.id
 		LIMIT 200
 	`, where, entryWhere)
 

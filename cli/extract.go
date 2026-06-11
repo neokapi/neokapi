@@ -603,7 +603,11 @@ func applyTMPrefill(ctx context.Context, tm sievepen.TranslationMemory, block *m
 			spanID = srcSeg.Spans[i].ID
 		}
 		start := len(targetRuns)
-		if matches, err := tm.LookupSegment(ctx, block, i, source, target, opts); err == nil && len(matches) > 0 {
+		// Ambiguous matches (several full-score exacts with differing
+		// targets) are never pre-filled: an unattended merge would turn an
+		// arbitrary pick into published content. Left empty, they surface
+		// as untranslated for a human (or higher-context tool) to decide.
+		if matches, err := tm.LookupSegment(ctx, block, i, source, target, opts); err == nil && len(matches) > 0 && !matches[0].Ambiguous {
 			if text := matches[0].Entry.VariantText(target); text != "" {
 				targetRuns = append(targetRuns, model.Run{Text: &model.TextRun{Text: text}})
 				matched++
@@ -939,7 +943,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 			continue
 		}
 		if task.tm != nil {
-			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 {
+			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
 					payload, _ := json.Marshal(map[string]string{"text": text})
 					overlays = append(overlays, klz.OverlayDoc{

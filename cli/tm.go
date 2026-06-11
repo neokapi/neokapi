@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -171,6 +173,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if a.Quiet {
 				return nil
 			}
+			warnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
 			tmTotal, err := tm.Count(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("count TM entries: %w", err)
@@ -328,6 +331,7 @@ Examples:
 			if a.Quiet {
 				return nil
 			}
+			warnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
 			tmTotal, err := tm.Count(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("count TM entries: %w", err)
@@ -851,4 +855,58 @@ func truncateID(id string, max int) string {
 		return id
 	}
 	return id[:max]
+}
+
+// markupTokenRe matches KLF runtime-projection markup tokens ({=m0},
+// {/=m0}) serialized as literal text.
+var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
+
+// warnSuspectTokenEntries scans the TM for entries whose variants disagree
+// on their markup-token sets — e.g. a plain-text source paired with a
+// target carrying {=m0} tokens. Such entries bake one format's runtime
+// projection into format-neutral text: matched from another surface, the
+// tokens leak verbatim into the output (the class behind the docs
+// "{=m0} Installer" leak). The durable fix is run-structured entries;
+// until then, importing one earns a warning.
+func warnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Writer) {
+	entries, err := tm.Entries(ctx)
+	if err != nil {
+		return
+	}
+	tokenSet := func(text string) string {
+		toks := markupTokenRe.FindAllString(text, -1)
+		slices.Sort(toks)
+		return strings.Join(toks, " ")
+	}
+	var suspects []string
+	for i := range entries {
+		e := &entries[i]
+		var first string
+		firstSet := false
+		mismatch := false
+		for locale := range e.Variants {
+			set := tokenSet(e.VariantText(locale))
+			if !firstSet {
+				first, firstSet = set, true
+				continue
+			}
+			if set != first {
+				mismatch = true
+				break
+			}
+		}
+		if mismatch {
+			suspects = append(suspects, e.ID)
+		}
+	}
+	if len(suspects) == 0 {
+		return
+	}
+	slices.Sort(suspects)
+	show := suspects
+	if len(show) > 5 {
+		show = show[:5]
+	}
+	fmt.Fprintf(out, "Warning: %d TM entr%s with markup tokens ({=mN}) in some variants but not others — format-specific projections in format-neutral text leak into other surfaces (e.g. %s). Store these entries run-structured instead.\n",
+		len(suspects), map[bool]string{true: "y", false: "ies"}[len(suspects) == 1], strings.Join(show, ", "))
 }

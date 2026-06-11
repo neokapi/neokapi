@@ -101,16 +101,41 @@ Lookup tries strategies in order of reuse potential:
 
 1. generalized exact — score 1.0 (entities differ, structure identical)
 2. structural exact — score 1.0 (inline codes match exactly)
-3. plain exact — score 1.0 (text-only exact match)
+3. plain exact — score 1.0 only when the inline-code structure also
+   matches; a text-only match across *differing* structure (a bare heading
+   against a markup-wrapped entry) is capped at `ScoreNearExact` (0.99) —
+   the industry "tag mismatch" penalty. A 100% match means text *and*
+   structure.
 4. generalized fuzzy — Levenshtein on generalized keys
 5. structural fuzzy — Levenshtein on structural keys
 6. plain fuzzy — Levenshtein on plain keys
+
+Two cross-cutting rules apply to the exact tiers:
+
+- **Ambiguity demotion.** When several entries match at full score but
+  disagree on the target text, none of them is *the* translation: all are
+  demoted to `ScoreNearExact` and flagged `TMMatch.Ambiguous`. Full-score
+  policies (`MinScore: 1.0` lookups, `fillTargetThreshold: 100` leverage,
+  extract pre-fill) therefore get nothing rather than a coin flip; the
+  choice surfaces for review. Identical targets at full score are not
+  ambiguous — the pick doesn't matter.
+- **Deterministic ordering.** Results sort by score, then match-type
+  priority, then entry ID. Before this, equal candidates inherited
+  incidental storage order — re-importing a TM could silently flip which
+  of two exact matches won (the failure mode that leaked a desktop UI
+  markup token into a docs page).
 
 The first match at or above the configured score threshold wins. A
 generalized exact match (different entity values, identical structure) is
 preferred over a plain fuzzy match (similar text, unknown structure).
 Levenshtein edit distance with a configurable threshold (default 70%)
 controls fuzzy matching.
+
+One data-hygiene corollary: entries must keep inline markup as code runs,
+not literal text. An entry whose target text embeds another format's
+markup tokens behind a plain-text source defeats the structural tier and
+can leak those tokens into any surface that shares the text —
+`kapi tm import` warns when variants disagree on their markup-token sets.
 
 ### Entity adaptation
 
@@ -125,6 +150,7 @@ type TMMatch struct {
     MatchType         MatchType
     ProjectID         string
     EntityAdaptations []EntityAdaptation
+    Ambiguous         bool // several full-score exacts with differing targets
 }
 ```
 

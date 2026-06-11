@@ -38,10 +38,19 @@ Lookup tries matching strategies in order of reuse potential:
 
 1. generalized exact -- score 1.0 (entities differ, structure identical)
 2. structural exact -- score 1.0 (inline codes match exactly)
-3. plain exact -- score 1.0 (text-only exact match)
+3. plain exact -- score 1.0 only when the structural key also matches;
+   text-only equality across differing inline-code structure caps at
+   `ScoreNearExact` (0.99, tag-mismatch penalty)
 4. generalized fuzzy -- Levenshtein on generalized keys
 5. structural fuzzy -- Levenshtein on structural keys
 6. plain fuzzy -- Levenshtein on plain keys
+
+After the exact tiers, the ambiguity rule runs: multiple full-score
+matches with *differing* target texts all demote to `ScoreNearExact` and
+flag `TMMatch.Ambiguous` -- exact-only consumers (extract pre-fill,
+`fillTargetThreshold: 100`) skip them instead of picking by storage order.
+Results order deterministically by (score desc, match-type priority,
+entry ID).
 
 The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold (default 70%) provides fuzzy matching.
 
@@ -52,7 +61,7 @@ When a generalized match is found, the match result carries adaptation informati
 ```go
 type TMMatch struct {
     Entry             TMEntry
-    Score             float64 // 0.0-1.0 (1.0 = exact match)
+    Score             float64 // 0.0-1.0 (1.0 = exact match, text AND structure)
     MatchType         MatchType
     ProjectID         string // provenance: project ID of the matched entry
     EntityAdaptations []EntityAdaptation
