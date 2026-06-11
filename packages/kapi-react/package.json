@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "*",
-    "@swc/core": "^1.15.40",
+    "@swc/core": "^1.15.41",
     "unplugin": "^3.0.0"
   },
   "devDependencies": {
@@ -78,13 +78,13 @@
     "@babel/plugin-syntax-jsx": "^7.29.7",
     "@babel/preset-typescript": "^7.29.7",
     "@babel/types": "^7.29.0",
-    "@storybook/react-vite": "^10.3.6",
-    "@types/node": "^25.6.0",
-    "@types/react": "^19.2.15",
+    "@storybook/react-vite": "^10.4.3",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
     "esbuild": "^0.28.0",
-    "react": "^19.0.0",
+    "react": "^19.2.7",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "@babel/core": "^7.29.7",
