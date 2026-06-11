@@ -30,6 +30,8 @@ export interface FlowBuilderRunnerProps {
   scenarioIds?: string[];
   /** Offer the built-in recorded native traces for replay (default: off). */
   withRecordedTraces?: boolean;
+  /** App-like mode: the workspace fills the host's height (see kapi-lab). */
+  fill?: boolean;
 }
 
 // Recorded `kapi run --trace` outputs from native runs — the workspace replays

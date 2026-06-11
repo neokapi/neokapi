@@ -5,6 +5,7 @@ import {
   Background,
   BackgroundVariant,
   Panel,
+  ViewportPortal,
   MarkerType,
   useNodesState,
   useEdgesState,
@@ -116,7 +117,8 @@ interface FlowToolbarProps {
   flow: FlowSpec;
   /** Whether the flow currently has the redaction wrap (redact … unredact). */
   redacted?: boolean;
-  /** Toggle the redaction wrap; absent in read-only flows. */
+  /** Remove the redaction wrap; absent in read-only flows. The wrap is ADDED
+   *  from the Add-tool dialog — the toolbar only shows the active state. */
   onToggleRedaction?: () => void;
 }
 
@@ -135,20 +137,24 @@ function FlowToolbar({
       className="py-1.5"
       actions={
         <>
-          {onToggleRedaction && (
+          {/* Protection is a STATE chip, not a primary action: it appears only
+              while the redact … unredact wrap is on. Wrapping the flow lives
+              with the other composition actions in the Add-tool dialog. */}
+          {redacted && (
             <Button
-              variant={redacted ? "outline" : "ghost"}
+              variant="ghost"
               size="xs"
               onClick={onToggleRedaction}
-              className={cn(redacted && "border-[oklch(0.6_0.2_15)] text-[oklch(0.6_0.2_15)]")}
+              disabled={!onToggleRedaction}
+              className="border border-[oklch(0.6_0.2_15/0.4)] text-[oklch(0.6_0.2_15)]"
               title={
-                redacted
-                  ? "Remove redaction: stop protecting sensitive content"
-                  : "Protect sensitive content: wrap the flow with redact … unredact"
+                onToggleRedaction
+                  ? "Protected: sensitive content is redacted before the tools run and restored after. Click to remove the wrap."
+                  : "Protected: sensitive content is redacted before the tools run and restored after."
               }
             >
               <Lock size={12} />
-              {redacted ? t("Protected") : t("Protect")}
+              {t("Protected")}
             </Button>
           )}
 
@@ -228,6 +234,8 @@ interface StepConfigPanelProps {
   onConfigChange: (config: Record<string, unknown>) => void;
   onClose: () => void;
   onRemove?: () => void;
+  /** Open the host's project-defaults editor for this tool (see FlowEditorProps.onEditPresets). */
+  onEditPresets?: () => void;
 }
 
 // Exported for colocated tests (not re-exported from the package index).
@@ -243,6 +251,7 @@ export function StepConfigPanel({
   onConfigChange,
   onClose,
   onRemove,
+  onEditPresets,
 }: StepConfigPanelProps) {
   const [showDocs, setShowDocs] = useState(false);
   const category = toolInfo?.category || "pipeline";
@@ -287,7 +296,7 @@ export function StepConfigPanel({
   return (
     <div
       className="flex h-full flex-col border-l border-border bg-background overflow-hidden"
-      style={{ width: "min(280px, calc(100vw - 2rem))" }}
+      style={{ width: "min(320px, calc(100vw - 2rem))" }}
     >
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
@@ -472,6 +481,15 @@ export function StepConfigPanel({
                 );
               })}
             </div>
+            {onEditPresets && (
+              <button
+                type="button"
+                className="mt-1 cursor-pointer font-semibold underline underline-offset-2"
+                onClick={onEditPresets}
+              >
+                Edit project defaults
+              </button>
+            )}
           </div>
         )}
 
@@ -581,6 +599,8 @@ export function FlowEditor({
   renderStepConfigPanel,
   lessonPanel,
   running,
+  endpointsReadOnly,
+  onEditPresets,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
@@ -588,6 +608,10 @@ export function FlowEditor({
 
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
   const [addOpen, setAddOpen] = useState(false);
+  // Where the next added tool lands in the steps array: set by an edge's "+"
+  // (insert between two stations), cleared when the dialog closes (the global
+  // Add button appends).
+  const insertIndexRef = useRef<number | null>(null);
 
   // Run review: the trace from running THIS flow plays back on the canvas.
   // The cursor windows the (editor-remapped) events; a selected node shows the
@@ -857,7 +881,7 @@ export function FlowEditor({
     const endpointData = (role: "source" | "sink", binding?: string) => ({
       role,
       binding: parseBinding(binding),
-      readOnly,
+      readOnly: readOnly || !!endpointsReadOnly,
       handlePosition: role === "source" ? ends.source.handlePosition : ends.sink.handlePosition,
       onBindingChange: role === "source" ? handleSourceChange : handleSinkChange,
       // With a host-supplied inspector, the pill grows an Inspect satellite
@@ -942,17 +966,47 @@ export function FlowEditor({
       return e;
     };
 
+    // Contextual insert: every editable chain edge grows a midpoint "+" that
+    // pins the insertion slot and opens the Add dialog — a tool lands exactly
+    // where the data flows, not only appended at the end. The slot is the
+    // target step's index (sink edge = append).
+    const withInsert = (e: Edge): Edge => {
+      if (readOnly) return e;
+      let at: number | null = null;
+      if (e.target === "endpoint-sink") {
+        at = flow.steps.length;
+      } else {
+        const tgt = aligned.find((n) => n.id === e.target);
+        const idx = tgt?.data?.stepIndex;
+        if (typeof idx === "number") at = idx;
+      }
+      if (at === null) return e;
+      const slot = at;
+      return {
+        ...e,
+        data: {
+          ...e.data,
+          onInsert: () => {
+            insertIndexRef.current = slot;
+            setAddOpen(true);
+          },
+        },
+      };
+    };
+
     return {
       displayNodes: aligned,
-      displayEdges: [...initial.edges, ...endpointEdges].map(routeWrap),
+      displayEdges: [...initial.edges, ...endpointEdges].map(routeWrap).map(withInsert),
     };
   }, [
     enrichedNodes,
     initial.nodes,
     initial.edges,
     readOnly,
+    endpointsReadOnly,
     flow.source,
     flow.sink,
+    flow.steps.length,
     handleSourceChange,
     handleSinkChange,
     renderEndpointPanel,
@@ -1056,16 +1110,16 @@ export function FlowEditor({
   const handleAddTool = useCallback(
     (toolName: string) => {
       if (readOnly) return;
-      const newNodeIndex = flow.steps.length;
-      const updated: FlowSpec = {
-        ...flow,
-        steps: [...flow.steps, { tool: toolName }],
-      };
-      onChange(updated);
+      // An edge's "+" pins the insertion slot; the Add button appends.
+      const at = Math.min(insertIndexRef.current ?? flow.steps.length, flow.steps.length);
+      insertIndexRef.current = null;
+      const steps = [...flow.steps];
+      steps.splice(at, 0, { tool: toolName });
+      onChange({ ...flow, steps });
       // Close the browse modal (if open) and auto-select the new tool so the
       // config panel opens immediately.
       setAddOpen(false);
-      setSelectedNodeId(`tool-${newNodeIndex}`);
+      setSelectedNodeId(`tool-${at}`);
       // Re-anchor the content top-left at 100% (keeps Source pinned top-left).
       requestAnimationFrame(() => {
         reactFlowRef.current?.setViewport(
@@ -1246,6 +1300,57 @@ export function FlowEditor({
     [selectedLocation, flow, onChange, readOnly],
   );
 
+  // Keep the selected station out from under the right overlay: when a
+  // selection opens a panel (config, run inspector, endpoint inspector), pan
+  // the canvas — zoom is locked — so the node stays in the visible area
+  // instead of being covered by the panel. Reads nodes through a ref so the
+  // pan happens once per selection, never re-fighting the user's own panning.
+  const nodesRef = useRef<Node[]>(nodes);
+  nodesRef.current = nodes;
+  const lessonTarget = focusRequest?.select ?? null;
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    const inst = reactFlowRef.current;
+    const host = canvasRef.current;
+    if (!inst || !host) return;
+    const baseId = selectedNodeId.split("::")[0];
+    const node = nodesRef.current.find((n) => n.id === baseId);
+    if (!node) return;
+    const vp = inst.getViewport();
+    const margin = 24;
+    const panelW = Math.min(320, host.clientWidth / 2);
+    const nodeW = node.measured?.width ?? 200;
+    const nodeH = node.measured?.height ?? 84;
+    // The lesson callout hangs below its focused node; keep it visible too.
+    const extraBelow = lessonPanel && lessonTarget === baseId ? 170 : 0;
+    const visibleW = host.clientWidth - panelW;
+    const visibleH = host.clientHeight;
+    const screenL = node.position.x + vp.x;
+    const screenT = node.position.y + vp.y;
+    let dx = 0;
+    if (screenL + nodeW > visibleW - margin) dx = visibleW - margin - (screenL + nodeW);
+    if (screenL + dx < margin) dx = margin - screenL;
+    let dy = 0;
+    if (screenT + nodeH + extraBelow > visibleH - margin)
+      dy = visibleH - margin - (screenT + nodeH + extraBelow);
+    if (screenT + dy < margin) dy = margin - screenT;
+    if (dx !== 0 || dy !== 0) {
+      void inst.setViewport({ x: vp.x + dx, y: vp.y + dy, zoom: 1 }, { duration: 250 });
+    }
+  }, [selectedNodeId, lessonPanel, lessonTarget]);
+
+  // Anchor for the lesson callout: the node the active lesson step points at.
+  // Rendered in flow coordinates (a ViewportPortal) right below that node, so
+  // the walkthrough visually attaches to the thing it describes and pans with
+  // the canvas. Steps with no target fall back to the bottom-left float.
+  const lessonAnchor = useMemo(() => {
+    if (!lessonPanel || !lessonTarget) return null;
+    const node = nodes.find((n) => n.id === lessonTarget);
+    if (!node) return null;
+    const h = node.measured?.height ?? 84;
+    return { x: node.position.x, y: node.position.y + h + 14 };
+  }, [lessonPanel, lessonTarget, nodes]);
+
   // Template library covers the full editor when shown.
   if (showTemplates) {
     return (
@@ -1354,10 +1459,28 @@ export function FlowEditor({
                 <FlowLegend />
               </Panel>
 
-              {/* Lesson callout — the walkthrough lives ON the canvas, next to
-                  the nodes its steps point at. Hidden on phones (the host
-                  stacks it above the editor there). */}
-              {lessonPanel && (
+              {/* Lesson callout — the walkthrough lives ON the canvas. When the
+                  active step points at a node it renders ANCHORED below that
+                  node (flow coordinates, pans with the graph, with a connector
+                  stub), and the editor pans the pair into view; steps with no
+                  target float bottom-left. Hidden on phones (the host stacks
+                  the same content above the editor there). */}
+              {lessonPanel && lessonAnchor && (
+                <ViewportPortal>
+                  <div
+                    className="pointer-events-auto absolute z-[5] hidden w-[360px] max-w-[80vw] sm:block"
+                    style={{ left: lessonAnchor.x, top: lessonAnchor.y }}
+                  >
+                    <div
+                      className="ml-8 -mb-px h-3 w-0 border-l-2"
+                      style={{ borderColor: "var(--primary)" }}
+                      aria-hidden
+                    />
+                    {lessonPanel}
+                  </div>
+                </ViewportPortal>
+              )}
+              {lessonPanel && !lessonAnchor && (
                 <Panel position="bottom-left" className="hidden w-[400px] max-w-[60%] sm:block">
                   {lessonPanel}
                 </Panel>
@@ -1448,6 +1571,11 @@ export function FlowEditor({
                 onConfigChange={handleConfigChange}
                 onClose={() => setSelectedNodeId(null)}
                 onRemove={readOnly ? undefined : handleRemoveSelected}
+                onEditPresets={
+                  selectedToolName && onEditPresets
+                    ? () => onEditPresets(selectedToolName)
+                    : undefined
+                }
               />
             )}
           </div>
@@ -1455,7 +1583,13 @@ export function FlowEditor({
 
       {/* Browse-and-add tools — a modal so the canvas stays full-width. */}
       {!readOnly && (
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <Dialog
+          open={addOpen}
+          onOpenChange={(open) => {
+            setAddOpen(open);
+            if (!open) insertIndexRef.current = null;
+          }}
+        >
           <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
             <DialogHeader className="px-4 pb-2 pt-4">
               <DialogTitle className="text-sm">Add a tool</DialogTitle>
@@ -1463,6 +1597,31 @@ export function FlowEditor({
             <div className="h-[60vh]">
               <ToolPalette tools={tools} onAddTool={handleAddTool} embedded />
             </div>
+            {/* Flow-level composition action: the redaction wrap lives with the
+                other add actions instead of as a primary toolbar button. */}
+            {!hasRedactionWrap(flow) && (
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-start gap-2.5 border-t border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
+                onClick={() => {
+                  onChange(wrapWithRedaction(flow));
+                  insertIndexRef.current = null;
+                  setAddOpen(false);
+                }}
+              >
+                <Lock size={14} className="mt-0.5 shrink-0 text-[oklch(0.6_0.2_15)]" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-xs font-medium text-foreground">
+                    {t("Protect sensitive content")}
+                  </span>
+                  <span className="text-[11px] leading-snug text-muted-foreground">
+                    {t(
+                      "Wraps the flow with redact … unredact: sensitive spans are replaced with placeholders before the tools run and restored at the end.",
+                    )}
+                  </span>
+                </span>
+              </button>
+            )}
           </DialogContent>
         </Dialog>
       )}

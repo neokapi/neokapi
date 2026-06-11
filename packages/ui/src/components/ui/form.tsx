@@ -147,7 +147,8 @@ function FormToggle({
     <label
       data-slot="form-toggle"
       className={cn(
-        "flex items-center gap-2 py-0.5 pl-2.5 border-l-2 cursor-pointer",
+        "flex gap-2 py-0.5 pl-2.5 border-l-2 cursor-pointer",
+        description ? "items-start" : "items-center",
         modified ? "border-primary" : "border-transparent",
         disabled && "opacity-50 cursor-not-allowed",
         className,
@@ -155,13 +156,23 @@ function FormToggle({
     >
       <Switch
         size="sm"
+        className={cn(description && "mt-0.5")}
         checked={checked}
         disabled={disabled}
         onCheckedChange={(v: boolean) => !disabled && onCheckedChange(v)}
       />
       <div className="flex-1">
         <span className="text-xs font-medium">{label}</span>
-        {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
+        {description && (
+          <p
+            className={cn(
+              "text-muted-foreground",
+              compact ? "text-[11px] leading-snug" : "text-xs",
+            )}
+          >
+            {description}
+          </p>
+        )}
       </div>
     </label>
   );

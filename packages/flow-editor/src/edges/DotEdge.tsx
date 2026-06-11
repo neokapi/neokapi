@@ -1,4 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
+import { Plus } from "lucide-react";
 
 /**
  * A clean smooth-step edge with an arrowhead. The data type crossing the edge
@@ -57,10 +58,31 @@ export function DotEdge({
   const traversed = (data as { traversed?: number } | undefined)?.traversed ?? 0;
   const transit = (data as { transit?: number } | undefined)?.transit ?? 0;
   const transitDots = Math.min(transit, 4); // cap the dots; the chip has the number
+  // Contextual insert: the editor supplies onInsert for editable chain edges,
+  // and the edge grows a hover "+" at its midpoint — add a tool exactly where
+  // the data flows, instead of always appending at the end.
+  const onInsert = (data as { onInsert?: () => void } | undefined)?.onInsert;
 
   return (
     <>
       <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
+      {onInsert && traversed === 0 && (
+        <EdgeLabelRenderer>
+          <button
+            type="button"
+            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-50 shadow-sm transition-[opacity,scale,border-color,color] duration-150 hover:scale-125 hover:border-primary hover:text-primary hover:opacity-100 focus-visible:opacity-100"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInsert();
+            }}
+            title="Insert a tool here"
+            aria-label="Insert a tool here"
+          >
+            <Plus size={14} aria-hidden />
+          </button>
+        </EdgeLabelRenderer>
+      )}
       {/* One dot per in-transit part: moving while playing, frozen mid-edge
           while paused — the dot IS the part. */}
       {transitDots > 0 &&

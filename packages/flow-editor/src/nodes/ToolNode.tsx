@@ -15,7 +15,7 @@ import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
 import type { PlacementDiagnostic } from "../placement";
 import { formatUs } from "../traceSelectors";
-import { PortChip } from "./PortChip";
+import { PortChip, mergePortSides } from "./PortChip";
 import { getSystemEffects } from "../sideEffects";
 
 /** Accent color for transformer (rewrites-source) affordances. */
@@ -79,8 +79,9 @@ function BoundaryPorts({
         : position === Position.Left
           ? { left: -11, top: "50%", transform: "translateY(-50%)" }
           : { right: -11, top: "50%", transform: "translateY(-50%)" };
-  const shown = ports.slice(0, 4);
-  const hidden = ports.length - shown.length;
+  const merged = mergePortSides(ports);
+  const shown = merged.slice(0, 4);
+  const hidden = merged.length - shown.length;
 
   return (
     <>
@@ -111,9 +112,9 @@ function BoundaryPorts({
         >
           {shown.map((f, i) => (
             <PortChip
-              key={`${verb}-${f.type}-${f.side ?? ""}-${i}`}
+              key={`${verb}-${f.type}-${i}`}
               type={f.type}
-              side={f.side}
+              sides={f.sides}
               optional={f.optional}
               verb={verb}
             />
@@ -174,7 +175,7 @@ export function ToolNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative flex h-[84px] min-w-[170px] max-w-[200px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
+      className="group relative flex h-[84px] min-w-[170px] max-w-[200px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
       style={{
         border: !isValid
           ? "2px solid oklch(0.7 0.15 85)"
@@ -442,7 +443,8 @@ export function ToolNode({ data, selected }: NodeProps) {
         />
       </div>
 
-      {/* Remove button */}
+      {/* Remove button — appears on hover or selection so the affordance is
+          discoverable without 84 little circles cluttering an idle canvas. */}
       {onRemove && (
         <button
           onClick={(e) => {
@@ -450,16 +452,17 @@ export function ToolNode({ data, selected }: NodeProps) {
             onRemove();
           }}
           className={cn(
-            "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full",
-            "bg-secondary border border-border",
+            "nopan absolute -top-2 -left-2 size-5 rounded-full",
+            "bg-card border border-border shadow-sm",
             "flex items-center justify-center cursor-pointer z-[2]",
+            "text-muted-foreground hover:text-destructive hover:border-destructive",
             "transition-opacity duration-150",
-            selected ? "opacity-100" : "opacity-0",
+            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           )}
           title="Remove tool (Delete)"
           aria-label="Remove tool"
         >
-          <X size={10} className="text-muted-foreground" />
+          <X size={12} strokeWidth={2.5} aria-hidden />
         </button>
       )}
 

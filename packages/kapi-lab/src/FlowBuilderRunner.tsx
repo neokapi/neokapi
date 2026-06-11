@@ -16,11 +16,21 @@ import { SAMPLES } from "./samples";
 import { LAB_SCENARIOS, type LabScenario, type LessonStep } from "./labScenarios";
 import WalkthroughCard from "./WalkthroughCard";
 import ScriptStepPanel from "./ScriptStepPanel";
-import RecipeView from "./RecipeView";
 import { TraceImportControl, specFromTrace } from "./traceImport";
 import type { RecordedTraceInfo } from "./traceImport";
 import { ensureLocalNer, localNerLoaded, type LocalNerProgress } from "./localNer";
-import { PortalThemeProvider, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
+import ProjectPanel, { type ProjectPanelTab } from "./ProjectPanel";
+import {
+  Button,
+  PortalThemeProvider,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn,
+} from "@neokapi/ui-primitives";
+import { FileCode2, GraduationCap, Undo2 } from "lucide-react";
 import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
 
@@ -203,6 +213,13 @@ export interface FlowBuilderRunnerProps {
    * Java bridge's gRPC boundary). URLs must already be base-resolved.
    */
   recordedTraces?: RecordedTraceInfo[];
+  /**
+   * Fill the host's height (app-like): the editor frame stretches to the
+   * available space instead of the fixed inline-embed height. The host must
+   * give the workspace an explicit height (e.g. the /lab page sizes it to the
+   * viewport).
+   */
+  fill?: boolean;
 }
 
 // FlowBuilderRunner is the lab's flow workspace: a learner picks a teaching
@@ -220,6 +237,7 @@ export default function FlowBuilderRunner({
   defaultScenarioId,
   scenarioIds,
   recordedTraces,
+  fill,
 }: FlowBuilderRunnerProps): React.ReactElement {
   const runtime = useLabRuntime(assets);
 
@@ -311,6 +329,7 @@ export default function FlowBuilderRunner({
   const handleTraceImport = useCallback((t: FlowTrace, label: string) => {
     setImported({ trace: t, spec: specFromTrace(t), label });
     setError(null);
+    setProjectOpen(false);
   }, []);
 
   // Guided walkthrough state: the active step of the scenario's lesson, plus
@@ -321,12 +340,26 @@ export default function FlowBuilderRunner({
   const [focusRequest, setFocusRequest] = useState<FlowFocusRequest | undefined>(undefined);
   const focusNonce = useRef(0);
 
-  // The project lens: the live recipe the canvas serializes to, shown below it.
-  const [recipeOpen, setRecipeOpen] = useState(false);
+  // The project lens: a right-side overlay over the canvas with the defaults
+  // FORM and the live recipe SOURCE the canvas serializes to.
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [projectTab, setProjectTab] = useState<ProjectPanelTab>("defaults");
+
+  const openProject = useCallback((tab: ProjectPanelTab) => {
+    setProjectTab(tab);
+    setProjectOpen(true);
+  }, []);
 
   const applyStepFocus = useCallback((step: LessonStep | undefined) => {
     if (!step) return;
-    if (step.recipe !== undefined) setRecipeOpen(step.recipe);
+    if (step.recipe !== undefined) {
+      if (step.recipe) {
+        setProjectTab("recipe");
+        setProjectOpen(true);
+      } else {
+        setProjectOpen(false);
+      }
+    }
     if (step.select === undefined) return;
     focusNonce.current += 1;
     setFocusRequest({ nonce: focusNonce.current, select: step.select, mode: step.mode });
@@ -360,6 +393,7 @@ export default function FlowBuilderRunner({
       setFlow(graphToSteps(graph.nodes));
       setRuns({});
       setError(null);
+      setProjectOpen(false);
       // Restart the lesson; scenarios without one clear any lingering focus.
       setWalkIndex(0);
       if (s.walkthrough) applyStepFocus(s.walkthrough[0]);
@@ -529,47 +563,127 @@ export default function FlowBuilderRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
 
+  // The live recipe the canvas serializes to (the Project panel's source tab).
+  const recipe = buildRecipe(
+    { steps: (imported?.spec ?? flow).steps.filter((s) => s.tool) },
+    imported ? undefined : presets,
+  );
+
+  // The binding dropdowns only make sense where bindings are the lesson: in
+  // every other scenario the workspace ALWAYS feeds the working-set files, so
+  // a dropdown would offer a choice with no effect — show a fixed pill instead.
+  const bindingsTeachable = scenario.id === "project" || scenario.id === "build-your-own";
+
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
     // --border, …) the flow-editor's Tailwind classes resolve against; the docs
     // site scopes those vars to that class so they don't leak into Infima docs.
-    // PortalThemeProvider carries that same class onto popover content (the
-    // source/sink dropdowns, tool-config selects) which Radix portals to
-    // document.body — outside this wrapper — so their theme vars still resolve.
+    // PortalThemeProvider carries that same class onto popover and dialog
+    // content (the source/sink dropdowns, the Add-tool modal, tool-config
+    // selects) which Radix portals to document.body — outside this wrapper —
+    // so their theme vars still resolve.
     <PortalThemeProvider className="kapi-reference">
-      <div className={`${shared.explorer} kapi-reference`}>
-        {/* Scenario picker: each is a complete teaching setup (flow + sample +
-            project presets). */}
-        {scenarios.length > 1 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-muted-foreground">Scenario</span>
-            {/* spacing>0 keeps each chip independently bordered/rounded so the
-                row wraps cleanly on narrow screens (joined segments would lose
-                their edge borders at the wrap points). */}
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              spacing={1}
-              className="flex-wrap"
+      <div className={cn(shared.explorer, "kapi-reference", fill && styles.fillRoot)}>
+        {/* Workspace toolbar: lesson picker, working set, replay, project —
+            one fixed row so nothing below it jumps as state changes. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {scenarios.length > 1 && (
+            <Select
               value={scenario.id}
               onValueChange={(v) => {
                 const next = scenarios.find((s) => s.id === v);
                 if (next) selectScenario(next);
               }}
             >
-              {scenarios.map((s) => (
-                <ToggleGroupItem key={s.id} value={s.id} className="px-3 text-xs">
-                  {s.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+              <SelectTrigger
+                size="sm"
+                className="w-[230px] gap-1.5 text-xs font-medium"
+                aria-label="Lesson"
+              >
+                <GraduationCap className="size-3.5 shrink-0 text-muted-foreground" />
+                {/* Children override Radix's default item mirroring: the trigger
+                    shows only the label, not the item's description block. */}
+                <SelectValue placeholder="Pick a lesson">{scenario.label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="w-[320px]">
+                {scenarios.map((s) => (
+                  <SelectItem key={s.id} value={s.id} textValue={s.label}>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-xs font-medium">{s.label}</span>
+                      <span className="line-clamp-2 text-[10px] leading-tight text-muted-foreground">
+                        {s.description}
+                      </span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {imported ? (
+            /* Replay mode: the working set is irrelevant (the recorded trace
+               carries its own run), so the file controls give way to one
+               status chip with the exit. */
+            <span className="flex items-center gap-2 rounded-md border border-border bg-secondary/60 px-2 py-1 text-[11px] text-muted-foreground">
+              Replaying <strong className="text-foreground">{imported.label}</strong> · recorded
+              native run · read-only
+              <Button
+                variant="ghost"
+                size="xs"
+                className="gap-1 text-[11px]"
+                onClick={() => setImported(null)}
+              >
+                <Undo2 className="size-3" />
+                Back to your flow
+              </Button>
+            </span>
+          ) : (
+            <>
+              <FileSelectorField
+                label="Files"
+                library={library}
+                selection={selection}
+                onSelectionChange={(sel) => {
+                  setSelection(sel);
+                  setRuns({});
+                }}
+                sampleIds={sampleIds}
+                multiple
+              />
+              <TraceImportControl
+                traces={recordedTraces}
+                onLoad={handleTraceImport}
+                onError={setError}
+              />
+            </>
+          )}
+
+          <Button
+            variant={projectOpen ? "secondary" : "outline"}
+            size="sm"
+            className="ml-auto gap-1.5 text-xs"
+            onClick={() => (projectOpen ? setProjectOpen(false) : openProject("defaults"))}
+            title="The project this canvas serializes to: tool defaults (form) and the live .kapi recipe (source)"
+          >
+            <FileCode2 className="size-3.5 text-muted-foreground" />
+            Project
+          </Button>
+        </div>
+
+        {/* Multi-file working sets get a second row picking whose run is
+            reviewed; single-file (the common case) renders nothing. */}
+        {!imported && (
+          <ActiveFileSwitcher
+            files={selected}
+            activePath={activeFile?.path}
+            onChange={setActivePath}
+          />
         )}
-        {/* The scenario's lesson: a walkthrough card that drives the workspace
-            (each step focuses the node/panel it talks about). On sm+ it lives
-            INSIDE the canvas as a callout (FlowEditor lessonPanel) so the
-            editor keeps its vertical real estate; on phones it stacks here.
-            Free-play scenarios show their static description instead. */}
+
+        {/* The scenario's lesson drives the workspace (each step focuses the
+            node/panel it talks about). On sm+ it lives INSIDE the canvas,
+            anchored to the node the active step points at; on phones it
+            stacks here. Free-play scenarios show their description instead. */}
         {scenario.walkthrough && !imported ? (
           <div className="sm:hidden">
             <WalkthroughCard
@@ -581,76 +695,21 @@ export default function FlowBuilderRunner({
             />
           </div>
         ) : (
-          <p className="text-sm leading-relaxed text-muted-foreground">{scenario.description}</p>
+          !imported && (
+            <p
+              className="m-0 line-clamp-1 text-xs leading-relaxed text-muted-foreground"
+              title={scenario.description}
+            >
+              {scenario.description}
+            </p>
+          )
         )}
-
-        {/* The working set: one file, several, or a glob — every selected file
-            runs through the flow; the switcher picks whose run is reviewed. */}
-        <FileSelectorField
-          label="Files"
-          library={library}
-          selection={selection}
-          onSelectionChange={(sel) => {
-            setSelection(sel);
-            setRuns({});
-          }}
-          sampleIds={sampleIds}
-          multiple
-        />
-        <ActiveFileSwitcher
-          files={selected}
-          activePath={activeFile?.path}
-          onChange={setActivePath}
-        />
-
-        {/* Project presets (defaults.tools in the generated recipe): the
-            project scope a step inherits; select a preset-backed node to see
-            the inherited values in its config panel. */}
-        {presets && Object.keys(presets).length > 0 && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            This project pins presets for{" "}
-            {Object.keys(presets)
-              .map((tool) => `“${tool}”`)
-              .join(", ")}{" "}
-            under <code>defaults.tools</code> — every flow in the project inherits them, and a
-            step's own config overrides per key.
-          </p>
-        )}
-
-        {/* Workspace lenses: replay a recorded trace (native runs the wasm
-            engine can't reproduce) and the project lens (the recipe the canvas
-            serializes to). */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {imported ? (
-            <span className="text-[11px] text-muted-foreground">
-              Replaying <strong>{imported.label}</strong> (recorded native run, read-only) —{" "}
-              <button
-                type="button"
-                className="font-medium underline underline-offset-2 hover:text-foreground"
-                onClick={() => setImported(null)}
-              >
-                back to your flow
-              </button>
-            </span>
-          ) : (
-            <TraceImportControl
-              traces={recordedTraces}
-              onLoad={handleTraceImport}
-              onError={setError}
-            />
-          )}
-          <button
-            type="button"
-            className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            onClick={() => setRecipeOpen((v) => !v)}
-          >
-            {recipeOpen ? "Hide recipe" : "View recipe"}
-          </button>
-        </div>
 
         {/* Sized container — FlowEditor lays out as `h-full`, so the host must
-          give it explicit dimensions or it collapses to zero height. */}
-        <div className={styles.editorFrame}>
+            give it explicit dimensions or it collapses to zero height. In fill
+            mode it stretches to the page-provided height instead. The Project
+            panel overlays its right edge, same as the editor's own panels. */}
+        <div className={cn(styles.editorFrame, fill && styles.editorFrameFill, "relative")}>
           <FlowEditor
             flow={imported?.spec ?? flow}
             tools={toolInfos}
@@ -661,12 +720,14 @@ export default function FlowBuilderRunner({
             runDisabled={!runtime.ready || busy}
             running={busy}
             readOnly={!!imported}
+            endpointsReadOnly={!bindingsTeachable}
             trace={imported?.trace ?? trace ?? undefined}
             onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}
             projectPresets={imported ? undefined : presets}
             renderEndpointPanel={imported ? undefined : renderEndpointPanel}
             focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
+            onEditPresets={imported ? undefined : () => openProject("defaults")}
             lessonPanel={
               scenario.walkthrough && !imported ? (
                 <WalkthroughCard
@@ -679,17 +740,21 @@ export default function FlowBuilderRunner({
               ) : undefined
             }
           />
+          {projectOpen && (
+            <div className="absolute bottom-0 right-0 top-0 z-30 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
+              <ProjectPanel
+                recipe={recipe}
+                presets={imported ? undefined : presets}
+                onPresetsChange={imported ? undefined : setPresets}
+                getSchema={handleGetSchema}
+                getLabel={(tool) => toolByName.get(tool)?.displayName ?? tool}
+                tab={projectTab}
+                onTabChange={setProjectTab}
+                onClose={() => setProjectOpen(false)}
+              />
+            </div>
+          )}
         </div>
-
-        {/* The project lens: the live recipe the canvas serializes to. */}
-        {recipeOpen && (
-          <RecipeView
-            recipe={buildRecipe(
-              { steps: (imported?.spec ?? flow).steps.filter((s) => s.tool) },
-              imported ? undefined : presets,
-            )}
-          />
-        )}
 
         {runtime.status === "booting" && (
           <DownloadProgress
@@ -714,14 +779,12 @@ export default function FlowBuilderRunner({
             !error &&
             trace &&
             `Run complete${Object.keys(runs).length > 1 ? ` (${Object.keys(runs).length} files)` : ""} — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written.`}
+          {runtime.ready &&
+            !busy &&
+            !error &&
+            !trace &&
+            "Edit the flow, then press Run in its toolbar — the run plays back on the same nodes you designed."}
         </div>
-
-        {!trace && !error && (
-          <div className={shared.emptyHint}>
-            Edit the flow above, then press Run in the flow's toolbar — the run plays back on the
-            same nodes you designed.
-          </div>
-        )}
       </div>
     </PortalThemeProvider>
   );

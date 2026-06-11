@@ -11,6 +11,9 @@ import { getPortType } from "../portTypes";
 export interface PortChipProps {
   type: string;
   side?: Side;
+  /** Multiple sides merged into one chip (e.g. the same overlay written to
+   *  source AND target); takes precedence over `side` in the tooltip. */
+  sides?: Side[];
   /** Render dashed + faded to signal an optional (graceful-degradation) input. */
   optional?: boolean;
   /** Show the port label next to the icon (default icon-only for compactness). */
@@ -25,6 +28,7 @@ const SIDE_LABEL: Record<Side, string> = { source: "source", target: "target" };
 export function PortChip({
   type,
   side,
+  sides,
   optional,
   showLabel = false,
   verb = "produces",
@@ -32,7 +36,12 @@ export function PortChip({
 }: PortChipProps) {
   const pt = getPortType(type);
   const Icon = pt.icon;
-  const sideText = side ? ` · ${SIDE_LABEL[side]}` : "";
+  const sideText =
+    sides && sides.length > 1
+      ? ` · ${sides.map((s) => SIDE_LABEL[s]).join(" + ")}`
+      : side
+        ? ` · ${SIDE_LABEL[side]}`
+        : "";
   const verbText = verb === "consumes" ? t("Consumes") : t("Produces");
   const optText = optional ? t(" (optional)") : "";
   return (
@@ -52,8 +61,36 @@ export function PortChip({
     >
       <Icon size={9} style={{ color: pt.color }} aria-hidden />
       {showLabel && <span className="whitespace-nowrap">{pt.label}</span>}
+      {sides && sides.length > 1 && (
+        <span className="font-mono text-[7px] uppercase opacity-80" aria-hidden>
+          {sides.map((s) => s[0]).join("+")}
+        </span>
+      )}
     </span>
   );
+}
+
+/**
+ * Merge ports that differ only by side into one entry carrying `sides`, so a
+ * tool writing the same overlay to source AND target shows one chip (with an
+ * "s+t" marker) instead of two identical icons.
+ */
+export function mergePortSides(ports: IOPort[]): (IOPort & { sides: Side[] })[] {
+  const out: (IOPort & { sides: Side[] })[] = [];
+  const byKey = new Map<string, IOPort & { sides: Side[] }>();
+  for (const p of ports) {
+    const key = `${p.type}|${p.optional ? 1 : 0}`;
+    const existing = byKey.get(key);
+    const side = p.side ?? "source";
+    if (existing) {
+      if (!existing.sides.includes(side)) existing.sides.push(side);
+      continue;
+    }
+    const merged = { ...p, sides: [side] };
+    byKey.set(key, merged);
+    out.push(merged);
+  }
+  return out;
 }
 
 /**

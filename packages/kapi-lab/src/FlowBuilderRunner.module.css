@@ -22,3 +22,20 @@
     height: 520px;
   }
 }
+
+/* ── App-like fill mode ─────────────────────────────────────────────────────
+ *
+ * With `fill`, the workspace stretches to whatever height the host provides
+ * (the /lab page sizes it to the viewport) and the editor frame takes all the
+ * room the toolbar and status rows leave — the lab IS the page, no double
+ * scrolling. */
+.fillRoot {
+  height: 100%;
+  min-height: 0;
+}
+
+.fillRoot .editorFrameFill {
+  height: auto;
+  flex: 1;
+  min-height: 320px;
+}

@@ -406,18 +406,30 @@ export function graphToSteps(
   // A node becomes its step: a parallel group node emits a `parallel` step from
   // its branches; any other emits a plain step. (No position-grouping needed —
   // the parallel group is already a single node.)
+  // A node's display label is presentation (the tool's display name resolved
+  // at render time), not identity: only a label the user actually customized
+  // (one that differs from the tool id) round-trips into the step. Persisting
+  // the id-as-label would permanently shadow the display name.
+  const customLabel = (label: unknown, tool: string): string | undefined =>
+    typeof label === "string" && label && label !== tool ? label : undefined;
+
   const toStep = (n: Node): FlowStep => {
     if (n.type === "parallel") {
       const branches = (n.data.branches as ParallelBranch[] | undefined) ?? [];
       return {
         tool: "",
-        parallel: branches.map((b) => ({ tool: b.toolName, config: b.config, label: b.label })),
+        parallel: branches.map((b) => ({
+          tool: b.toolName,
+          config: b.config,
+          label: customLabel(b.label, b.toolName),
+        })),
       };
     }
+    const tool = (n.data.toolName as string) || "";
     return {
-      tool: (n.data.toolName as string) || "",
+      tool,
       config: n.data.config as Record<string, unknown> | undefined,
-      label: n.data.label as string | undefined,
+      label: customLabel(n.data.label, tool),
     };
   };
 

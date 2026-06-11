@@ -1,51 +1,81 @@
-.page {
-  max-width: 1080px;
+/* App-like Lab page: the workspace IS the page. The main column is sized to
+ * the viewport below the navbar so the lab gets the full height and the page
+ * never double-scrolls; the workspace's own panels scroll internally. */
+
+/* The Docusaurus shell (#__docusaurus) is a min-height:100vh flex column of
+ * banner / navbar / main-wrapper. The main wrapper defaults to `flex: 1 0
+ * auto` (grows with content); for the app-like lab we flip it to a shrinkable
+ * `1 1 0` so banner + navbar + workspace add up to EXACTLY one viewport —
+ * whatever the banner's real height — and the page itself never scrolls.
+ * Applied via Layout's wrapperClassName. */
+:global(.lab-app-wrapper) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0 !important;
+  min-height: 0;
+}
+
+.appPage {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2.5rem 1rem 4rem;
+  width: 100%;
+  padding: 1rem 1.25rem 0.75rem;
   /* The Docusaurus wrapper is a flex container; without this the page (a flex
      item, default min-width:auto) inflates to its descendants' min-content on
      phones instead of letting truncation and wrapping do their jobs. */
   min-width: 0;
-  width: 100%;
 }
 
-.hero {
-  margin-bottom: 2rem;
+.appHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  margin-bottom: 0.85rem;
 }
 
-.hero h1 {
-  margin-bottom: 0.5rem;
+.appTitle {
+  font-size: 1.35rem;
+  margin: 0;
 }
 
-.lede {
-  font-size: 1.05rem;
+.appLede {
+  margin: 0;
+  font-size: 0.9rem;
   color: var(--ifm-color-emphasis-700);
-  max-width: 70ch;
 }
 
-.section {
-  margin-top: 2.75rem;
-  padding-top: 1.75rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
+.appNav {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
-.section h2 {
-  margin-bottom: 0.4rem;
+.appWorkspace {
+  flex: 1;
+  min-height: 0;
 }
 
-.sectionIntro {
-  color: var(--ifm-color-emphasis-700);
-  max-width: 72ch;
-  margin-bottom: 1rem;
-}
+@media (max-width: 996px) {
+  /* Phones/tablets: a hard viewport height would crush the stacked layout —
+     fall back to natural page flow with a sensibly tall workspace. */
+  :global(.lab-app-wrapper) {
+    flex: 1 0 auto !important;
+    min-height: auto;
+  }
 
-.step {
-  display: inline-block;
-  font-family: var(--ifm-font-family-monospace);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ifm-color-primary);
-  margin-bottom: 0.25rem;
+  .appWorkspace {
+    min-height: 640px;
+  }
+
+  .appNav {
+    margin-left: 0;
+  }
 }

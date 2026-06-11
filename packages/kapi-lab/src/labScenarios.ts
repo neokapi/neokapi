@@ -263,15 +263,16 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe — the same committed YAML kapi uses on disk. Open the recipe below the canvas: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
+          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe — the same committed YAML kapi uses on disk. The Project panel that just opened shows it live: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
         recipe: true,
         select: null,
       },
       {
         prose:
-          "Project scope in action: the redact step is bare on the canvas, but defaults.tools.redact pins its rules for every flow in the project — the step's config panel shows the inherited preset, and any key the step sets itself would win.",
+          "Project scope in action: the redact step is bare on the canvas, but defaults.tools.redact pins its rules for every flow in the project — the step's config panel shows the inherited preset (with an Edit project defaults shortcut), and any key the step sets itself would win.",
         select: "tool-1",
         mode: "configure",
+        recipe: false,
       },
       {
         prose:
@@ -285,9 +286,9 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "The run wrote through the sink binding: the output file, structure intact. Edit the flow — add a tool, change a config — and reopen the recipe: the YAML follows the canvas.",
+          "The run wrote through the sink binding: the output file, structure intact. Edit the flow — add a tool, change a config — then open Project again: the YAML follows the canvas.",
         select: "endpoint-sink",
-        recipe: true,
+        recipe: false,
       },
     ],
   },

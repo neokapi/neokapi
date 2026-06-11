@@ -1,0 +1,22 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 4rem;
+  /* See lab/index.module.css — keep the flex item shrinkable on phones. */
+  min-width: 0;
+  width: 100%;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  margin-bottom: 0.5rem;
+}
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-700);
+  max-width: 78ch;
+}

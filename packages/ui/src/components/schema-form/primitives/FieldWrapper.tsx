@@ -35,7 +35,11 @@ export function FieldWrapper({
     <FormItem disabled={disabled} modified={isModified}>
       {label && <FormLabel disabled={disabled}>{label}</FormLabel>}
 
-      {!compact && description && <FormDescription>{description}</FormDescription>}
+      {description && (
+        <FormDescription className={compact ? "text-[11px] leading-snug" : undefined}>
+          {description}
+        </FormDescription>
+      )}
 
       <FormControl vertical={vertical}>{children}</FormControl>
 

@@ -27,7 +27,7 @@
 @source "../components/reference";
 /* The interactive lab explorers (@neokapi/kapi-lab) render shadcn primitives
  * inside `.kapi-reference` scopes, so scan their source + the docs adapters. */
-@source "../../../../packages/kapi-lab/src";
+@source "../../../packages/kapi-lab/src";
 @source "../components/Lab";
 @source "../pages/lab";
 /* The "Try Neokapi" modal renders ui-primitives (Dialog) + a few Tailwind

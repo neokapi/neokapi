@@ -209,12 +209,26 @@ export interface FlowEditorProps {
    */
   renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
   /**
-   * Host-rendered lesson callout, shown as an overlay INSIDE the canvas
-   * (bottom-left) on sm+ screens so the lesson sits next to the nodes it
-   * points at instead of consuming page height above the editor. Hidden on
-   * phones — stack the same content above the editor there instead.
+   * Host-rendered lesson callout. When the active focusRequest points at a
+   * node, the callout renders ANCHORED to that node on the canvas (and the
+   * editor pans the node into view); otherwise it floats bottom-left. Hidden
+   * on phones — stack the same content above the editor there instead.
    */
   lessonPanel?: import("react").ReactNode;
+  /**
+   * Make only the Source/Sink binding pickers read-only while the rest of the
+   * flow stays editable. For embeddings where the binding is fixed by the
+   * host (the lab always feeds the working-set files), so a dropdown would
+   * suggest a choice that has no effect.
+   */
+  endpointsReadOnly?: boolean;
+  /**
+   * Called when the user asks to edit a tool's project-level preset from the
+   * config panel (the "Edit project defaults" affordance on the inherited
+   * preset note). The host owns project scope, so it decides what opens —
+   * e.g. the lab's Project panel.
+   */
+  onEditPresets?: (toolName: string) => void;
 }
 
 /** Context passed to renderStepConfigPanel (see FlowEditorProps). */

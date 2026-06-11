@@ -5,9 +5,17 @@
 // run review then plays the recorded events back on those nodes.
 
 import React, { useRef, useState } from "react";
-import { FileUp } from "lucide-react";
+import { ChevronDown, FileUp, PlayCircle } from "lucide-react";
 import type { FlowSpec, FlowTrace } from "@neokapi/flow-editor";
-import shared from "./styles.module.css";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@neokapi/ui-primitives";
 
 /** A built-in recorded trace offered by the host (URLs already base-resolved). */
 export interface RecordedTraceInfo {
@@ -70,36 +78,46 @@ export function TraceImportControl({
 
   return (
     <div className="flex items-center gap-2">
-      {traces && traces.length > 0 && (
-        <select
-          className={shared.select}
-          defaultValue=""
-          disabled={busy}
-          onChange={(e) => {
-            const t = traces.find((x) => x.url === e.target.value);
-            if (t) void loadBuiltin(t.url, t.name);
-            e.target.value = "";
-          }}
-        >
-          <option value="" disabled>
-            Replay a recorded trace…
-          </option>
-          {traces.map((t) => (
-            <option key={t.url} value={t.url} title={t.description}>
-              {t.name}
-            </option>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" disabled={busy} className="gap-1.5 text-xs">
+            <PlayCircle className="size-3.5 text-muted-foreground" />
+            Replay a run
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Recorded native runs — things a live wasm run can&apos;t show
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {(traces ?? []).map((t) => (
+            <DropdownMenuItem
+              key={t.url}
+              className="items-start py-1.5"
+              onSelect={() => void loadBuiltin(t.url, t.name)}
+            >
+              <span className="flex flex-col gap-0.5">
+                <span className="text-xs font-medium">{t.name}</span>
+                {t.description && (
+                  <span className="text-[10px] leading-tight text-muted-foreground">
+                    {t.description}
+                  </span>
+                )}
+              </span>
+            </DropdownMenuItem>
           ))}
-        </select>
-      )}
-      <button
-        type="button"
-        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-        onClick={() => fileRef.current?.click()}
-        title="Load your own `kapi run --trace` output"
-      >
-        <FileUp size={11} />
-        Upload trace
-      </button>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="gap-1.5 text-xs"
+            onSelect={() => fileRef.current?.click()}
+            title="Load your own `kapi run --trace` output"
+          >
+            <FileUp className="size-3.5 text-muted-foreground" />
+            Upload a trace file…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <input
         ref={fileRef}
         type="file"

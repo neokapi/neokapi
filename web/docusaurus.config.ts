@@ -207,9 +207,15 @@ const config: Config = {
           position: "left",
         },
         {
-          to: "/lab",
-          label: "Lab",
+          type: "dropdown",
+          label: "Labs",
           position: "left",
+          items: [
+            { label: "Neokapi Lab", to: "/lab" },
+            { label: "Segmentation Lab", to: "/lab/segmentation" },
+            { label: "CLI Playground", to: "/playground-cli" },
+            { label: "KLF Lab", to: "/klf-lab" },
+          ],
         },
         {
           type: "dropdown",
