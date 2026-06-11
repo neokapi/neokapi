@@ -21,8 +21,13 @@ export interface LessonStep {
    * Omitted = leave the current selection alone.
    */
   select?: string | null;
-  /** Panel for a tool-node focus (default "inspect"). */
-  mode?: "inspect" | "configure";
+  /**
+   * Panel for the focused node (default "inspect"). "highlight" rings + pans
+   * the node WITHOUT opening a panel (closing any panel a previous step
+   * opened) — for steps whose point is the node itself; the learner clicks
+   * the node when they want its panel.
+   */
+  mode?: "inspect" | "configure" | "highlight";
   /** This step's primary action is running the flow (the card offers Run). */
   run?: boolean;
   /** Open (true) or close (false) the recipe view when the step activates. */
@@ -215,8 +220,10 @@ export const LAB_SCENARIOS: LabScenario[] = [
       {
         prose:
           "term-check and qa-check attach findings without touching text or target — open each and read the +overlay / +annotation delta chips.",
+        // The prose invites the learner to open the panels themselves; the
+        // step only points at the node.
         select: "tool-2",
-        mode: "inspect",
+        mode: "highlight",
       },
       {
         prose:
@@ -277,7 +284,9 @@ export const LAB_SCENARIOS: LabScenario[] = [
       {
         prose:
           "Source and Sink are BINDINGS, not steps — the flow itself owns no I/O. In a real project, extract reads the recipe's content globs into the project store, an in-project run is process-only over that store, and merge writes localized files back out. Here the bindings are file in → file out, so you can watch the whole loop.",
+        // About the binding pills themselves, not the inspector's content.
         select: "endpoint-source",
+        mode: "highlight",
       },
       {
         prose: "Run the flow — exactly what `kapi run` does with this recipe.",

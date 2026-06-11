@@ -99,6 +99,9 @@ const nodeTypes: NodeTypes = {
 /** Top-left margin for the content within the canvas (px, at 100% zoom). */
 const CANVAS_MARGIN = 80;
 
+/** Width of the anchored lesson callout (kept in sync with its w-[360px]). */
+const LESSON_CALLOUT_W = 360;
+
 const edgeTypes: EdgeTypes = {
   dot: DotEdge,
 };
@@ -639,12 +642,18 @@ export function FlowEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
 
-  // Host-driven focus (lesson steps): apply once per nonce — select the
-  // requested node/endpoint (opening its panel) or clear the selection.
+  // Host-driven focus (lesson steps): apply once per nonce. "highlight" only
+  // rings + pans (closing any panel a previous step opened — the learner can
+  // click the node to open it); other modes select the node, which opens the
+  // matching panel.
   useEffect(() => {
     if (!focusRequest) return;
-    setSelectedNodeId(focusRequest.select);
-    setPanelMode(focusRequest.mode ?? "inspect");
+    if (focusRequest.mode === "highlight") {
+      setSelectedNodeId(null);
+    } else {
+      setSelectedNodeId(focusRequest.select);
+      setPanelMode(focusRequest.mode ?? "inspect");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest?.nonce]);
   const cursor = traceCursor ?? runEvents?.length ?? 0;
@@ -1311,35 +1320,41 @@ export function FlowEditor({
     [selectedLocation, flow, onChange, readOnly],
   );
 
-  // Keep the selected station out from under the right overlay: when a
-  // selection opens a panel (config, run inspector, endpoint inspector), pan
-  // the canvas — zoom is locked — so the node stays in the visible area
-  // instead of being covered by the panel. Reads nodes through a ref so the
-  // pan happens once per selection, never re-fighting the user's own panning.
+  // Keep the focused station out from under the right overlay: when a
+  // selection opens a panel (config, run inspector, endpoint inspector) — or
+  // a lesson step highlights a node — pan the canvas (zoom is locked) so the
+  // node AND its anchored lesson callout stay in the visible area instead of
+  // being covered. Reads nodes through a ref so the pan happens once per
+  // focus change, never re-fighting the user's own panning.
   const nodesRef = useRef<Node[]>(nodes);
   nodesRef.current = nodes;
   const lessonTarget = focusRequest?.select ?? null;
   useEffect(() => {
-    if (!selectedNodeId) return;
+    const baseId = selectedNodeId?.split("::")[0] ?? lessonTarget;
+    if (!baseId) return;
     const inst = reactFlowRef.current;
     const host = canvasRef.current;
     if (!inst || !host) return;
-    const baseId = selectedNodeId.split("::")[0];
     const node = nodesRef.current.find((n) => n.id === baseId);
     if (!node) return;
     const vp = inst.getViewport();
     const margin = 24;
-    const panelW = Math.min(320, host.clientWidth / 2);
+    // A right overlay only opens for an actual selection (highlight-only
+    // lesson steps keep the canvas full-width).
+    const panelW = selectedNodeId ? Math.min(320, host.clientWidth / 2) : 0;
     const nodeW = node.measured?.width ?? 200;
     const nodeH = node.measured?.height ?? 84;
-    // The lesson callout hangs below its focused node; keep it visible too.
-    const extraBelow = lessonPanel && lessonTarget === baseId ? 170 : 0;
+    // The lesson callout hangs below-left of its focused node; keep its full
+    // extent (wider than the node) visible too.
+    const hasCallout = !!lessonPanel && lessonTarget === baseId;
+    const extentW = hasCallout ? Math.max(nodeW, LESSON_CALLOUT_W) : nodeW;
+    const extraBelow = hasCallout ? 170 : 0;
     const visibleW = host.clientWidth - panelW;
     const visibleH = host.clientHeight;
     const screenL = node.position.x + vp.x;
     const screenT = node.position.y + vp.y;
     let dx = 0;
-    if (screenL + nodeW > visibleW - margin) dx = visibleW - margin - (screenL + nodeW);
+    if (screenL + extentW > visibleW - margin) dx = visibleW - margin - (screenL + extentW);
     if (screenL + dx < margin) dx = margin - screenL;
     let dy = 0;
     if (screenT + nodeH + extraBelow > visibleH - margin)
@@ -1353,14 +1368,21 @@ export function FlowEditor({
   // Anchor for the lesson callout: the node the active lesson step points at.
   // Rendered in flow coordinates (a ViewportPortal) right below that node, so
   // the walkthrough visually attaches to the thing it describes and pans with
-  // the canvas. Steps with no target fall back to the bottom-left float.
+  // the canvas. Steps with no target fall back to the bottom-left float — as
+  // does a step that opened a right panel on a canvas too narrow to show the
+  // callout beside it (the float sits bottom-left, never under the panel).
   const lessonAnchor = useMemo(() => {
     if (!lessonPanel || !lessonTarget) return null;
     const node = nodes.find((n) => n.id === lessonTarget);
     if (!node) return null;
+    if (selectedNodeId) {
+      const hostW = canvasRef.current?.clientWidth ?? 0;
+      const panelW = hostW > 0 ? Math.min(320, hostW / 2) : 320;
+      if (hostW > 0 && hostW - panelW < LESSON_CALLOUT_W + 2 * 48) return null;
+    }
     const h = node.measured?.height ?? 84;
     return { x: node.position.x, y: node.position.y + h + 14 };
-  }, [lessonPanel, lessonTarget, nodes]);
+  }, [lessonPanel, lessonTarget, nodes, selectedNodeId]);
 
   // Template library covers the full editor when shown.
   if (showTemplates) {

@@ -247,6 +247,12 @@ export interface FlowFocusRequest {
   nonce: number;
   /** Node id to select (`tool-<i>`, `endpoint-source`, `endpoint-sink`), or null to clear. */
   select: string | null;
-  /** Panel to open for a tool node (default "inspect"; pre-run falls back to config). */
-  mode?: "inspect" | "configure";
+  /**
+   * Panel to open for the focused node (default "inspect"; pre-run falls back
+   * to config). "highlight" draws the focus ring and pans the node into view
+   * WITHOUT opening any panel (and closes one left over from a previous
+   * focus) — for lesson steps whose point is the node itself, where the
+   * learner can click the node to open its panel.
+   */
+  mode?: "inspect" | "configure" | "highlight";
 }
