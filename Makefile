@@ -857,15 +857,24 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 # produced by TM leverage so output only ever contains reviewed strings.
 L10N_LANGS := nb
 
+# Seeds are committed in the native KLF-family forms (.klftm / .klftb):
+# deterministic, lossless, and identity-preserving, so wipe-and-reseed
+# reproduces the TM/termbase state exactly. TMX/CSV are the lossy
+# interchange tier — emit them on demand with l10n-review-export.
 l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ seeds
 	@mkdir -p .kapi/cache
 	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi termbase import l10n/termbase.csv -s en -t nb --header
-	@for f in l10n/tm/*.tmx; do \
+	./bin/kapi termbase import l10n/termbase.klftb
+	@for f in l10n/tm/*.klftm; do \
 		[ -e "$$f" ] || continue; \
-		lang=$$(basename "$$f" .tmx); lang=$${lang##*-}; \
-		./bin/kapi tm import "$$f" -s en -t "$$lang"; \
+		./bin/kapi tm import "$$f"; \
 	done
+
+l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the native seeds → l10n/review/
+	@mkdir -p l10n/review
+	./bin/kapi tm export --format tmx -o l10n/review/tm-all.tmx
+	./bin/kapi termbase export --format csv -s en -t nb -o l10n/review/termbase-en-nb.csv
+	@echo "Review views written to l10n/review/ (gitignored; the .klftm/.klftb seeds are the source of truth)"
 
 l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
 	@for lang in $(L10N_LANGS); do \

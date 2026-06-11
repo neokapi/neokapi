@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/termbase/klftb"
 	"github.com/spf13/cobra"
 )
 
@@ -87,8 +90,8 @@ func (a *App) resolveTermbaseCmdPath(cmd *cobra.Command) (string, error) {
 func (a *App) newTermbaseImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
-		Short:   "Import terms from CSV, JSON, or TBX into a termbase",
-		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx",
+		Short:   "Import terms from CSV, JSON, TBX, or native .klftb into a termbase",
+		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -97,6 +100,11 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
+			// The native extension wins over the csv default when the user
+			// did not ask for a format explicitly.
+			if !cmd.Flags().Changed("format") && strings.HasSuffix(strings.ToLower(args[0]), ".klftb") {
+				format = "klftb"
+			}
 
 			tb, dbPath, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
@@ -131,8 +139,10 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 				count, err = termbase.ImportTBX(cmd.Context(), tb, f, termbase.TBXImportOptions{
 					Domain: domain,
 				})
+			case "klftb":
+				count, err = importKLFTBFile(cmd.Context(), tb, f)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, or tbx)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or klftb)", format)
 			}
 
 			if err != nil {
@@ -154,7 +164,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx)")
+	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, klftb); a .klftb input is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
@@ -167,7 +177,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 func (a *App) newTermbaseExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export termbase to CSV, JSON, or TBX",
+		Short: "Export termbase to CSV, JSON, TBX, or native .klftb",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -190,6 +200,9 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 				defer w.Close()
 			}
 
+			if !cmd.Flags().Changed("format") && strings.HasSuffix(strings.ToLower(outputPath), ".klftb") {
+				format = "klftb"
+			}
 			switch strings.ToLower(format) {
 			case "csv":
 				err = termbase.ExportCSV(cmd.Context(), tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
@@ -202,8 +215,10 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 				err = termbase.ExportTBX(cmd.Context(), tb, w, termbase.TBXExportOptions{
 					SourceLocale: model.LocaleID(srcLocale),
 				})
+			case "klftb":
+				err = exportKLFTB(cmd.Context(), tb, w)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, json, or tbx)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, or klftb)", format)
 			}
 
 			if err != nil {
@@ -225,7 +240,7 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
-	cmd.Flags().String("format", "json", "export format (csv, json, tbx)")
+	cmd.Flags().String("format", "json", "export format (csv, json, tbx, klftb); a .klftb -o path is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
 	cmd.Flags().String("export-name", "", "termbase name for JSON export")
@@ -445,4 +460,37 @@ func (a *App) newTermbaseListCmd() *cobra.Command {
 			})
 		},
 	}
+}
+
+// importKLFTBFile imports a native .klftb document. Concepts keep their
+// serialized identity (AddConcept upserts by concept ID), so a
+// wipe-and-reseed from a committed .klftb reproduces the termbase exactly.
+func importKLFTBFile(ctx context.Context, tb termbase.TermBase, r io.Reader) (int, error) {
+	file, err := klftb.Decode(r)
+	if err != nil {
+		return 0, fmt.Errorf("parse klftb: %w", err)
+	}
+	for _, c := range file.Concepts {
+		if err := tb.AddConcept(ctx, c); err != nil {
+			return 0, fmt.Errorf("add concept %s: %w", c.ID, err)
+		}
+	}
+	return len(file.Concepts), nil
+}
+
+// exportKLFTB writes the whole termbase as a deterministic, lossless .klftb
+// document — the native form for committing a termbase to git.
+func exportKLFTB(ctx context.Context, tb termbase.TermBase, w io.Writer) error {
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("list concepts: %w", err)
+	}
+	data, err := klftb.Marshal(klftb.FromConcepts(concepts))
+	if err != nil {
+		return fmt.Errorf("marshal klftb: %w", err)
+	}
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("write klftb: %w", err)
+	}
+	return nil
 }

@@ -1,0 +1,1129 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-termbase-format",
+  "concepts": [
+    {
+      "id": "csv-1",
+      "domain": "product",
+      "definition": "Project and Go framework name. Never translate; always lowercase.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "neokapi",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "neokapi",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-10",
+      "domain": "localization",
+      "definition": "The .kapi project file.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "recipe",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "oppskrift",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-11",
+      "domain": "localization",
+      "definition": "A kapi project rooted at a .kapi recipe.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "project",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "prosjekt",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-12",
+      "domain": "localization",
+      "definition": "The translatable content unit in the content model (Okapi: text unit).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "block",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "blokk",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-13",
+      "domain": "localization",
+      "definition": "Stand-off annotation layer on a block (segmentation, terms, QA).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "overlay",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "overlegg",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-14",
+      "domain": "localization",
+      "definition": "TM; the sievepen-backed store of source/target pairs.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "translation memory",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "oversettelsesminne",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-15",
+      "domain": "localization",
+      "definition": "Terminology database. Established loan word in Norwegian localization practice; do not translate.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "termbase",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "termbase",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-16",
+      "domain": "localization",
+      "definition": "A termbase entry for a concept in one locale.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "term",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "term",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-17",
+      "domain": "localization",
+      "definition": "Simple source-to-target term mapping fed to ai-translate.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "glossary",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "ordliste",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-18",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "source language",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kildespråk",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-19",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "target language",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "målspråk",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-2",
+      "domain": "product",
+      "definition": "The standalone CLI. Never translate; always lowercase.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "kapi",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kapi",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-20",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "source text",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kildetekst",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-21",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "target text",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "måltekst",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-22",
+      "domain": "localization",
+      "definition": "Reading a file extracts its text into blocks. Noun form.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "extraction",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "uttrekk",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-23",
+      "domain": "localization",
+      "definition": "Verb: extract the text. Not 'ekstraher'.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "extract",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "trekk ut",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-24",
+      "domain": "localization",
+      "definition": "Verb: write translated blocks back into the original format. Noun: fletting.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "merge",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "flett",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-25",
+      "domain": "localization",
+      "definition": "Opt-in sentence-level overlay within a block — not what produces blocks.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "segmentation",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "segmentering",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-26",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "translate",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "oversett",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-27",
+      "domain": "localization",
+      "definition": "Deterministic test localization with accents and expansion padding.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "pseudo-translate",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "pseudooversett",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-28",
+      "domain": "localization",
+      "definition": "Filling targets from TM before human or AI translation.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "pre-translate",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "forhåndsoversett",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-29",
+      "domain": "localization",
+      "definition": "The VoiceProfile bound to a project.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "brand voice",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "merkevarestemme",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-3",
+      "domain": "product",
+      "definition": "The desktop GUI companion. Never translate; always lowercase and hyphenated.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "kapi-desktop",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kapi-desktop",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-30",
+      "domain": "localization",
+      "definition": "QA tools run over translated content.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "quality check",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kvalitetskontroll",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-31",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "word count",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "ordtelling",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-32",
+      "domain": "ui",
+      "definition": "Subprocess-dispatched vendor plugin (kapi-bowrain, okapi-bridge).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "plugin",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "tillegg",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-33",
+      "domain": "ui",
+      "definition": "The recipe schema extension mechanism.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "extension",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "utvidelse",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-34",
+      "domain": "ui",
+      "definition": "Saved per-framework or per-format configuration.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "preset",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "forhåndsinnstilling",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-35",
+      "domain": "ui",
+      "definition": "API keys and tokens in the OS keychain.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "credentials",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "legitimasjon",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-36",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "settings",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "innstillinger",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-37",
+      "domain": "localization",
+      "definition": "BCP-47 identifier such as nb or pt-BR.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "locale",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "språkkode",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-38",
+      "domain": "localization",
+      "definition": "The streaming channel-based execution model. Keep the English term in nb.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "pipeline",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "pipeline",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-39",
+      "domain": "localization",
+      "definition": "Reusing TM matches; TM Leverage → TM-gjenbruk.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "leverage",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "gjenbruk",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-4",
+      "domain": "product",
+      "definition": "The full-stack platform. Never translate; capitalized product name.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "Bowrain",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "Bowrain",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-40",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "fuzzy match",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "fuzzy-treff",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-41",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "exact match",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "eksakt treff",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-42",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "threshold",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "terskel",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-43",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "placeholder",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "plassholder",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-44",
+      "domain": "localization",
+      "definition": "AI/MT backend (Anthropic, DeepL, ...).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "provider",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "leverandør",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-45",
+      "domain": "localization",
+      "definition": "Inline markup runs within a block.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "inline code",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "inline-kode",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-46",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "whitespace",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "blanktegn",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-47",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "subfilter",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "underfilter",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-48",
+      "domain": "localization",
+      "definition": "Verb; the tools are Sladding (redact) and Avsladding (unredact).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "redact",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "sladde",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-49",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "redaction",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "sladding",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-5",
+      "domain": "product",
+      "definition": "The built-in translation memory library. Never translate.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "sievepen",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "sievepen",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-50",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "caption",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "undertekst",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-51",
+      "domain": "localization",
+      "definition": "Noun; verb: kontrollere. A content check run over a file.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "check",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "kontroll",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-52",
+      "domain": "localization",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "case-sensitive",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "versalfølsom",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-53",
+      "domain": "product",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "engine",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "motor",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-54",
+      "domain": "localization",
+      "definition": "Read → write → compare validation.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "roundtrip",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "rundtur",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-55",
+      "domain": "ui",
+      "definition": "Microsoft terminology.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "hyperlink",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "hyperkobling",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-56",
+      "domain": "ui",
+      "definition": "Microsoft terminology.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "slide master",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "lysbildemal",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-57",
+      "domain": "ui",
+      "definition": "Microsoft terminology.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "speaker notes",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "foredragsholdernotater",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-6",
+      "domain": "product",
+      "definition": "Kapi Localization Format. Never translate the acronym.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "KLF",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "KLF",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-7",
+      "domain": "localization",
+      "definition": "A composed chain of tools (Okapi: pipeline). UI and docs noun.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "flow",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "flyt",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-8",
+      "domain": "localization",
+      "definition": "A processing step in a flow (Okapi: step).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "tool",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "verktøy",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "csv-9",
+      "domain": "localization",
+      "definition": "A data format with reader/writer support (Okapi: filter).",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "format",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "format",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-06-11T06:47:18Z",
+      "updated_at": "2026-06-11T06:47:18Z"
+    }
+  ]
+}

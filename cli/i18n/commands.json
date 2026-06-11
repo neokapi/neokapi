@@ -327,11 +327,11 @@
         "termbase": {
           "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
           "export": {
-            "short": "Export termbase to CSV, JSON, or TBX"
+            "short": "Export termbase to CSV, JSON, TBX, or native .klftb"
           },
           "import": {
-            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx",
-            "short": "Import terms from CSV, JSON, or TBX into a termbase"
+            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
+            "short": "Import terms from CSV, JSON, TBX, or native .klftb into a termbase"
           },
           "list": {
             "short": "List named termbases in KAPI_HOME"
@@ -358,13 +358,13 @@
           },
           "example": "  kapi tm stats\n  kapi tm lookup \"welcome back\" -s en -t fr\n  kapi tm import corpus.tmx -s en -t fr",
           "export": {
-            "long": "Export the TM to TMX 1.4 format. Each entry is written as a single\n\u003ctu\u003e with one \u003ctuv\u003e per language variant present (or the subset requested\nvia --locales). Inline markup is preserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e.\n\nBy default all variants on every entry are emitted. Pass --locales to\nrestrict to a subset (comma-separated).",
-            "short": "Export translation memory to TMX"
+            "long": "Export the TM to TMX 1.4 (default) or the native .klftm form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nklftm (--format klftm, or a -o path ending in .klftm): the deterministic,\nlossless native serialization — the right form for committing a TM to git\nand for seeding a fresh TM exactly. --locales does not apply.",
+            "short": "Export translation memory to TMX or .klftm"
           },
           "import": {
-            "example": "  kapi tm import corpus.tmx -s en -t fr\n  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm",
-            "long": "Import a single TMX file (plain or .gz) into the TM.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
-            "short": "Import a TMX file into translation memory"
+            "example": "  kapi tm import corpus.tmx -s en -t fr\n  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm\n  kapi tm import seeds/builtins-nb.klftm",
+            "long": "Import a single TMX file (plain or .gz) or a native .klftm file into the TM.\n\nklftm is the KLF-family native TM form: a deterministic, lossless JSON\nserialization that round-trips every TMEntry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .klftm\npreserves entry identity verbatim, so re-seeding a TM from committed .klftm\nfiles is fully reproducible. The format is selected by file extension;\n--format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+            "short": "Import a TMX or .klftm file into translation memory"
           },
           "import-dir": {
             "long": "Walk a directory and import every matching TMX file into the TM.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE",
