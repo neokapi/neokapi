@@ -1,0 +1,106 @@
+---
+id: gate-localization-in-ci
+title: "Gate localization in CI"
+sidebar_label: "Gate in CI"
+sidebar_position: 7
+description: "Run a project's brand, terminology, and QA gates on every pull request with GitHub Actions, failing the build when a check regresses."
+hide_table_of_contents: true
+---
+
+:::note Needs a project
+This recipe runs `kapi verify`, which checks a **project's** bound gates. It
+assumes a committed [`.kapi` recipe](/kapi/get-started/first-project) at the
+repo root — the same project you author and run locally.
+:::
+
+**Goal:** treat localization quality like a test. When a pull request changes
+source content or translations, run the project's checks in CI and **fail the
+build** if a placeholder is dropped, a glossary term drifts, or the brand-voice
+score falls below threshold — so a regression never merges.
+
+## How `kapi verify` gates
+
+`kapi verify` runs a project's bound quality gates in one shot and returns a
+single pass/fail plus actionable findings. Each gate runs only when the project
+binds the resource it needs:
+
+- **brand** — when a brand voice is bound (`defaults.brand_voice`), score the
+  source content against it; fails below the threshold (default `80`, override
+  with `--min-score`). See [Brand Voice](/framework/checks/brand-voice).
+- **terminology** — when a termbase is bound (`defaults.termbase`), check that
+  target files use the required translations. See
+  [Enforce terminology](/kapi/recipes/terminology-qa).
+- **qa** — for translated targets, check placeholder and tag integrity against
+  the source and flag untranslated or empty targets. See
+  [QA Checks](/framework/checks/qa-checks).
+
+The exit code is what gates CI:
+
+| Exit | Meaning |
+| ---- | ------- |
+| `0`  | all gates passed |
+| `3`  | a gate failed — not on-spec yet (read the findings and fix) |
+| `1`  | operational error (no project, load failure) |
+
+A failing gate exits `3`, which fails the workflow step. (The `--no-fail` flag
+turns verify into report-only mode — it always exits `0`. Use it inside an
+assistant fix-loop; **omit it for CI gating.**)
+
+## The workflow
+
+Install the CLI on the runner with the companion
+[`setup-kapi`](https://github.com/neokapi/setup-kapi) action, then run
+`kapi verify`:
+
+```yaml title=".github/workflows/localization.yml"
+name: Localization checks
+
+on:
+  pull_request:
+    paths:
+      - "content/**"
+      - "src/locales/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the kapi CLI on the runner. Pin to a released version; see the
+      # action's README for available inputs.
+      - uses: neokapi/setup-kapi@v1
+
+      # Runs the project's bound brand, terminology, and QA gates. Exits 3 — and
+      # fails the job — if any gate regresses. With no file arguments, verify
+      # inspects the project's content.
+      - run: kapi verify
+```
+
+`kapi verify` reads the nearest `.kapi` recipe by walking up from the working
+directory, the same way it does locally, so no project path is needed when the
+recipe sits at the repo root.
+
+## Narrow or widen the gate
+
+- **One locale:** `kapi verify --locale de` scopes terminology and QA to a
+  single target language.
+- **Specific gates:** pass `--brand`, `--terms`, or `--qa` to run a subset (all
+  run by default).
+- **Specific files:** `kapi verify path/to/file.json` checks just those files
+  instead of the whole project.
+- **Machine-readable output:** add `--json` to capture the structured result for
+  a job summary or a bot comment.
+
+:::tip One step instead of two
+The all-in-one [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action)
+wraps install + run in a single step. See its README for the inputs it accepts.
+:::
+
+## Next
+
+- Author the gates the project binds: [Brand Voice](/framework/checks/brand-voice),
+  [terminology](/kapi/recipes/terminology-qa), and [QA Checks](/framework/checks/qa-checks).
+- Understand the shared model behind every gate: [Checks](/framework/checks).
+- Set up the project these checks run against:
+  [Create your first project](/kapi/get-started/first-project).
