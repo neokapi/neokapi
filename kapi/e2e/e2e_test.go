@@ -266,23 +266,11 @@ func TestTMExport(t *testing.T) {
 	assert.Contains(t, content, "Paramètres")
 }
 
-// TestTMLeverage exercises standalone `kapi tm-leverage` against an external
-// TM via --tm. The tool command runs end-to-end (it accepts --tm and a project
-// .kapi/tm.db, contrary to the earlier skip rationale), but it does NOT fill
-// targets from exact TM matches: see #700.
-//
-// Root cause (#700): the tm-leverage tool keys its TM lookup on
-// TMLeverageConfig.SourceLocale, but neither CLI path sets it from --source-lang.
-// The exact-match SQL filters by source locale (`v.locale = ?`), so an empty
-// SourceLocale matches nothing and every block passes through with its source
-// text unchanged. Confirmed against the probe binary: "Settings"/"File upload"
-// (both present in project.tmx) stay English in the fr output, and --make-tmx
-// emits no matches. Fixing this requires wiring --source-lang into the
-// tm-leverage tool config in cli/ (out of scope for the e2e suite).
-//
-// We still assert the command runs cleanly end-to-end and writes its output so
-// the CLI surface (flag parsing, --tm resolution, file processing) stays
-// covered; the leverage-fill assertion is gated behind #700.
+// TestTMLeverage exercises standalone `kapi tm-leverage` against an external TM
+// via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the #700
+// fix wired SourceLocale from --source-lang — it fills targets from exact TM
+// matches: "Settings" and "File upload" (both in project.tmx) are leveraged into
+// their French equivalents in the output.
 func TestTMLeverage(t *testing.T) {
 	tmFile := importedTM(t)
 	tmp := t.TempDir()
@@ -295,17 +283,17 @@ func TestTMLeverage(t *testing.T) {
 		"-o", out)
 	assert.FileExists(t, out)
 
-	t.Skip("`kapi tm-leverage --tm <db>` runs but never fills targets from exact " +
-		"matches because the tool's SourceLocale is not wired from --source-lang " +
-		"(exact lookup filters by source locale, so an empty locale matches " +
-		"nothing). Tracked by #700; needs a CLI fix in tm-leverage config wiring.")
+	// The exact TM matches must be leveraged into the French output (#700).
+	content := readFile(t, out)
+	assert.Contains(t, content, "Paramètres")
+	assert.Contains(t, content, "Téléversement de fichier")
 }
 
 // ─── Full Pipeline: TM Leverage → Pseudo-Translate → QA + Termbase ──────────
 
 // TestFullPipeline runs the supported standalone pipeline end-to-end:
 // pseudo-translate → qa-check → term-check against the project glossary.
-// (TM leverage is omitted — see TestTMLeverage for the current CLI gap.)
+// (TM leverage is covered separately by TestTMLeverage.)
 func TestFullPipeline(t *testing.T) {
 	tb := importedTermbase(t)
 	tmp := t.TempDir()
