@@ -6,7 +6,6 @@ package graph
 // Run with: go test -tags integration ./graph/... -v
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
