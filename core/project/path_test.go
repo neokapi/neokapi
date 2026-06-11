@@ -10,7 +10,7 @@ func TestGlobFixedPrefix(t *testing.T) {
 	assert.Equal(t, "web/docs/", GlobFixedPrefix("web/docs/**/*.mdx"))
 	assert.Equal(t, "src/", GlobFixedPrefix("src/*.json"))
 	assert.Equal(t, "core/i18n/builtins/", GlobFixedPrefix("core/i18n/builtins/metadata.json"))
-	assert.Equal(t, "", GlobFixedPrefix("metadata.json"))
+	assert.Empty(t, GlobFixedPrefix("metadata.json"))
 	assert.Equal(t, "a/", GlobFixedPrefix("a/{x,y}/z.md"))
 }
 
