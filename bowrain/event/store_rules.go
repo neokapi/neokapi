@@ -7,6 +7,7 @@ import (
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // RuleStore implements AutomationRuleStore and AutomationHistoryStore.
@@ -117,10 +118,8 @@ func (s *RuleStore) ListHistory(ctx context.Context, projectID string, limit int
 	return entries, rows.Err()
 }
 
-// scanner is satisfied by both *sql.Row and *sql.Rows.
-type scanner interface {
-	Scan(dest ...any) error
-}
+// scanner is an alias for storage.Scanner, satisfied by *sql.Row and *sql.Rows.
+type scanner = storage.Scanner
 
 func scanRule(row scanner) (*StoredRule, error) {
 	var r StoredRule

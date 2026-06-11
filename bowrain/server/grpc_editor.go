@@ -1226,7 +1226,10 @@ func (g *EditorGRPCServer) SaveProviderConfig(_ context.Context, req *pb.SavePro
 		Model:        req.Model,
 		BaseURL:      req.BaseUrl,
 	}
-	saved := g.srv.CredentialStore.Upsert(cfg)
+	saved, err := g.srv.CredentialStore.Upsert(cfg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "save provider config: %v", err)
+	}
 
 	if req.ApiKey != "" {
 		if err := g.srv.CredentialStore.SetAPIKey(saved.ID, req.ApiKey); err != nil {

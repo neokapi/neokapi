@@ -537,9 +537,8 @@ func (s *PostgresBrandStore) GetScoresByStream(ctx context.Context, projectID, s
 // Scan helpers
 // ---------------------------------------------------------------------------
 
-type scanner interface {
-	Scan(dest ...any) error
-}
+// scanner is an alias for storage.Scanner, satisfied by *sql.Row and *sql.Rows.
+type scanner = storage.Scanner
 
 func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 	var p corebrand.VoiceProfile

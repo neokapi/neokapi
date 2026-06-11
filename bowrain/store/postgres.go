@@ -12,6 +12,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -70,7 +71,7 @@ func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project)
 	p.CreatedAt = now
 	p.UpdatedAt = now
 
-	locales := joinLocales(p.TargetLanguages)
+	locales := storeutil.JoinLocales(p.TargetLanguages)
 	propsJSON, err := json.Marshal(p.Properties)
 	if err != nil {
 		return fmt.Errorf("marshal properties: %w", err)
@@ -122,7 +123,7 @@ func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project,
 
 func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project) error {
 	p.UpdatedAt = time.Now().UTC()
-	locales := joinLocales(p.TargetLanguages)
+	locales := storeutil.JoinLocales(p.TargetLanguages)
 	propsJSON, err := json.Marshal(p.Properties)
 	if err != nil {
 		return fmt.Errorf("marshal properties: %w", err)
@@ -369,7 +370,7 @@ func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, er
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string, item *platstore.Item) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	item.CreatedAt = now
 	item.UpdatedAt = now
@@ -413,7 +414,7 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 }
 
 func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
@@ -421,7 +422,7 @@ func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName
 }
 
 func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 ORDER BY name`, projectID, stream)
@@ -442,7 +443,7 @@ func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string)
 }
 
 func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -467,7 +468,7 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 }
 
 func (s *PostgresStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, itemID)
@@ -487,7 +488,7 @@ func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, strea
 }
 
 func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -605,7 +606,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			if existingID, found := existingSourceIDs[sourceID]; found {
 				internalID = existingID
 			} else {
-				internalID = newBlockID()
+				internalID = storeutil.NewBlockID()
 				existingSourceIDs[sourceID] = internalID
 			}
 			b.ID = internalID
@@ -689,7 +690,7 @@ func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID
 	if err != nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if err := HydrateOverlays(ctx, s.db.DB, "pg", projectID, stream, []*platstore.StoredBlock{sb}); err != nil {
 		return nil, err
 	}
@@ -762,14 +763,14 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if err := HydrateOverlays(ctx, s.db.DB, "pg", query.ProjectID, defaultStream(query.Stream), result); err != nil {
+	if err := HydrateOverlays(ctx, s.db.DB, "pg", query.ProjectID, storeutil.DefaultStream(query.Stream), result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
 func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 
 	// Get item names for the stream to scope the query.
 	items, err := s.ListItems(ctx, projectID, stream)
@@ -816,7 +817,7 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable,
-			sourceWords: countWordsFromSourceJSON(sourceJSON),
+			sourceWords: storeutil.CountWordsFromSourceJSON(sourceJSON),
 		})
 		blockIDs = append(blockIDs, blockID)
 	}
@@ -840,7 +841,7 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 }
 
 func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -998,7 +999,7 @@ func scanProject(row scanner) (*platstore.Project, error) {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}
 	p.DefaultSourceLanguage = model.LocaleID(srcLocale)
-	p.TargetLanguages = splitLocales(targetLocales)
+	p.TargetLanguages = storeutil.SplitLocales(targetLocales)
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
@@ -1111,7 +1112,7 @@ func queryVersionBlocks(ctx context.Context, db *sql.DB, versionID string) (map[
 
 // logChange inserts a single change log entry within a PostgreSQL transaction.
 func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	var localeVal any
 	if locale == "" {
@@ -1137,7 +1138,7 @@ func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, chan
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if asset.ID == "" {
 		asset.ID = id.New()
 	}
@@ -1200,7 +1201,7 @@ func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string
 }
 
 func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
 			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
@@ -1209,7 +1210,7 @@ func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID
 }
 
 func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	var rows *sql.Rows
 	var err error
 	if itemName != "" {
@@ -1240,7 +1241,7 @@ func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemN
 }
 
 func (s *PostgresStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)

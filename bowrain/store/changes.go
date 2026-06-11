@@ -8,11 +8,12 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
 // GetChanges returns change log entries for a project since the given cursor.
 func (s *PostgresStore) GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if limit <= 0 || limit > MaxChangesPerRequest {
 		limit = MaxChangesPerRequest
 	}
@@ -81,7 +82,7 @@ func (s *PostgresStore) GetChanges(ctx context.Context, projectID, stream string
 
 // LatestCursor returns the most recent change log sequence number for a project.
 func (s *PostgresStore) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	var cursor int64
 	err := s.db.QueryRowContext(ctx,
 		`SELECT COALESCE(MAX(seq), 0) FROM change_log WHERE project_id = $1 AND stream = $2`,
@@ -97,7 +98,7 @@ func (s *PostgresStore) LatestCursor(ctx context.Context, projectID, stream stri
 // to change_log_archive rather than deleted, so the historical sync trail is
 // preserved.
 func (s *PostgresStore) CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	cutoff := time.Now().AddDate(0, 0, -retainDays)
 
 	const where = `project_id = $1 AND stream = $2 AND logged_at <= $3

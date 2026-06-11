@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // AddBlockNote inserts a new block note.
 func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	if note.ID == "" {
 		note.ID = id.New()
 	}
@@ -31,7 +32,7 @@ func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, stream, blo
 
 // ListBlockNotes returns all notes for a block, ordered by creation time.
 func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error) {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, block_id, author, text, created_at
 		 FROM block_notes
@@ -63,7 +64,7 @@ func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, stream, b
 
 // DeleteBlockNote removes a block note by ID.
 func (s *PostgresStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
-	stream = defaultStream(stream)
+	stream = storeutil.DefaultStream(stream)
 	res, err := s.db.ExecContext(ctx,
 		`DELETE FROM block_notes WHERE project_id = $1 AND stream = $2 AND id = $3`,
 		projectID, stream, noteID)

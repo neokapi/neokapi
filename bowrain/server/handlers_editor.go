@@ -1199,7 +1199,10 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	saved := s.CredentialStore.Upsert(req.toCredentials())
+	saved, err := s.CredentialStore.Upsert(req.toCredentials())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save provider config: %s", err)})
+	}
 
 	if req.APIKey != "" {
 		if err := s.CredentialStore.SetAPIKey(saved.ID, req.APIKey); err != nil {

@@ -843,9 +843,8 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-type scanner interface {
-	Scan(dest ...any) error
-}
+// scanner is an alias for storage.Scanner, satisfied by *sql.Row and *sql.Rows.
+type scanner = storage.Scanner
 
 // parsePulseTermSources unmarshals JSON into PulseTermSources with defaults.
 func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
