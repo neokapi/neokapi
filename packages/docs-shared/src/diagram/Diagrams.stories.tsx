@@ -182,9 +182,9 @@ export const Redaction: Story = {
   name: "RedactionDiagram (marker black-out + category chips)",
   render: () => (
     <RedactionDiagram
-      original="Mr Bean is the new King of England"
-      redact={[{ text: "Mr Bean", label: "Person" }, "King of England"]}
-      translated="M. Bean est le nouveau Roi d'Angleterre"
+      original="Email Sarah Chen the Project Halcyon launch date."
+      redact={[{ text: "Sarah Chen", label: "Person" }, "Project Halcyon"]}
+      translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
       caption="A span is either blacked out with a marker (sensitive) or shown as a labeled category chip."
     />
   ),

@@ -15,12 +15,12 @@ import "./diagram.css";
   category.
 
       <RedactionDiagram
-        original="Mr Bean is the new King of England"
+        original="Email Sarah Chen the Project Halcyon launch date."
         redact={[
-          { text: "Mr Bean", label: "Person" }, // placeholder chip
-          "King of England",                    // fully blacked out
+          { text: "Sarah Chen", label: "Person" }, // placeholder chip
+          "Project Halcyon",                        // fully blacked out (codename)
         ]}
-        translated="M. Bean est le nouveau Roi d'Angleterre"
+        translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
       />
 
   Three stacked rows — original source → redacted (what the model / translator

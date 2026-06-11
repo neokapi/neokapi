@@ -25,9 +25,9 @@ export const Redaction: Story = {
   name: "Redaction — framework/redaction",
   render: () => (
     <RedactionDiagram
-      original="Mr Bean is the new King of England"
-      redact={[{ text: "Mr Bean", label: "Person" }, "King of England"]}
-      translated="M. Bean est le nouveau Roi d'Angleterre"
+      original="Email Sarah Chen the Project Halcyon launch date."
+      redact={[{ text: "Sarah Chen", label: "Person" }, "Project Halcyon"]}
+      translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
     />
   ),
 };
