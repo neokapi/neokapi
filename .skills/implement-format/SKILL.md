@@ -14,9 +14,11 @@ description: >-
 
 Add a new format under `core/formats/<id>/` that faithfully extracts
 translatable content as `model.Block`s of `model.Run`s and round-trips
-everything else. Hold yourself to the maturity bar in
-[`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md);
-the architecture this skill assumes is in
+everything else. Hold yourself to the multi-axis maturity bar in
+[`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md) —
+Engine (L0–L4) plus the Vocabulary/Editor/Knowledge/Corpus axes: a new format
+ships with its axis artifacts scaffolded (Step 9), not just code. The
+architecture this skill assumes is in
 [`docs/internals/format-engineering.md`](../../docs/internals/format-engineering.md).
 
 ## When to use
@@ -107,6 +109,13 @@ format surfaces in the CLI, UI, and reference docs.
 - `ids.go`: add the id constant.
 - `register_test.go`: update all **three** expected lists (the length assert
   fails *without naming* the missing format).
+- `core/formats/support.yaml`: add the tier entry — `tier: available`,
+  `tier_since: <today>`, `gates:` naming `make test` or an existing workflow
+  file. The support-universe guardrail `TestSupportYAML`
+  (`core/formats/maturity_test.go`) **fails until this entry exists** (one
+  entry per real format dir, no extras). A new format always enters at
+  `available`; promotion is a later `tier-review` event, never part of this
+  change.
 - Detection: for json/xml/zip overlap use a `Sniff` or a unique extension only;
   niche JSON formats must **not** advertise `application/json`.
 
@@ -138,14 +147,53 @@ input (run with `-race`). Add `corpus_test`/`upstream_test` on real files;
 **SKIP — never FAIL — when the external validator is absent**). Import helpers
 from `core/internal/testutil` (not `core/testutil`).
 
-## Step 9 — Generate & verify
+## Step 9 — Scaffold the axis artifacts
+
+A new format ships with its per-axis artifacts in place — honest at the zero
+floor, never aspirational:
+
+- **`vocabulary.yaml`** (Vocabulary axis, rubric §2.2): seed from the
+  `core/formats/constructs.yaml` baseline — declare the format's `family:` and
+  take the construct rows; every `read`/`write` cell starts `unknown` until
+  you can bind it to **resolved evidence** (a `pkg.TestFunc` that greps in the
+  package, or a spec-case id in `spec.yaml`). Unresolvable evidence counts as
+  `unknown`; an `expressible: false` override of the baseline needs
+  `reviewed_by` + date when it affects a gate. A fresh format at V0 is correct.
+- **`dossier.yaml`** (Knowledge axis, rubric §2.4): authoritative spec sources
+  `{id, version, url, watch}` — **register each spec in `specs/catalog.yaml`
+  first** (pin or don't cite) — plus the implementations table (the Okapi
+  filter and the obvious others — Pandoc/Tika/LibreOffice/translate-toolkit;
+  GPL sources are *read-about*, never harvested) and learning-material
+  pointers.
+- **`corpus.yaml`** (Corpus axis, rubric §2.5): generate it —
+  `node scripts/format-ops/gen-corpus-manifest.mjs <id>` walks `testdata/`
+  into Tier A entries (sha256/size computed from disk); hand-fill
+  `origin`/`source_url`/`license` where the generator can't know. Re-run with
+  `--check` to prove manifest↔disk sync.
+- **Editor axis**: nothing to scaffold — no entry in
+  `core/formats/integrations.yaml` *is* E0. Add an entry only when a real
+  integration exists on HEAD, and never in the same change that improves a
+  score (the file is change-controlled, rubric §3).
+
+## Step 10 — Generate & verify
 
 `make kapi-i18n-generate` and `make generate-reference-docs` (the `nativedocs`
 sidecar must be named exactly the id — a typo silently no-ops). Then verify:
 `go build ./...`, `make test`, the parity run, and that dashboards regenerate
-cleanly. Confirm the target level against
+cleanly. Check the per-axis floors:
+
+```bash
+python3 .skills/refresh-format-maturity/scripts/audit-format.py <id>
+```
+
+A fresh format that followed this ladder lands at **V0 / K1 / C1** (and E0);
+anything lower means a scaffold step was skipped (K0 = dossier or nativedocs
+sidecar missing; C0 = testdata files not covered by `corpus.yaml`). Confirm
+the target Engine level against
 [format-maturity.md](../../docs/internals/format-maturity.md) and state which
-level you reached.
+level you reached per axis. The `format-ops` runbook
+([format-ops.md](../../docs/internals/format-ops.md)) picks the new format up
+automatically on its next `triage-score` run — no manual dashboard step.
 
 ## Footguns
 
@@ -160,6 +208,11 @@ level you reached.
   `okapi:` real fixtures.
 - xliff2's DOM writer is **intentionally** non-byte-exact (#560); don't "fix" it
   to byte-equal.
+- **Change control** (rubric §3): a change that improves any maturity score may
+  not touch the scorer (`format-triage.js`), `audit-format.py`,
+  `repro-check.mjs`, the rubric, `constructs.yaml`, or `integrations.yaml` in
+  the same change — scaffold your format's own artifacts only; gate changes
+  land separately across the whole surface.
 - golangci-lint under-reports without `icu4c` on `PKG_CONFIG_PATH`; parity needs
   the `fts5` tag + the sandbox.
 
@@ -167,8 +220,13 @@ level you reached.
 
 - Architecture, spec grammar, parity, Okapi mapping, principles:
   [`docs/internals/format-engineering.md`](../../docs/internals/format-engineering.md)
-- The bar + audit rubric:
+- The bar + audit rubric (tiers, five axes, scorer rules):
   [`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md)
+- Operating process (rituals, ledger, new-format adoption funnel):
+  [`docs/internals/format-ops.md`](../../docs/internals/format-ops.md)
+- Axis registries: `core/formats/constructs.yaml` (vocabulary baseline),
+  `core/formats/support.yaml` (tiers), `core/formats/integrations.yaml`
+  (editor depth), `specs/catalog.yaml` (spec knowledge base)
 - Published tutorial: `web/docs/contribute/formats.md`
 - Exemplars: `core/formats/properties/` (ported, configurable),
   `core/formats/xcstrings/` (harvest, fullest test set)
