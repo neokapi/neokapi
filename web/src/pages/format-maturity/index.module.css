@@ -59,7 +59,49 @@
   display: inline-block;
 }
 
-/* level colors */
+/* ── per-axis mini distribution bars (summary.by_axis) ───────────── */
+.axisBars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0 0 1.75rem;
+}
+.axisBarRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.axisBarLabel {
+  flex: 0 0 92px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-emphasis-700);
+}
+.miniBar {
+  display: flex;
+  flex: 1;
+  height: 1.2rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.miniSeg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  min-width: 0;
+}
+.miniSeg.lvlL2,
+.miniSeg.lvlE2 {
+  color: #222;
+}
+
+/* level colors — engine (L0–L4) */
 .lvlL0 {
   background: #d64545;
 }
@@ -77,6 +119,65 @@
   background: #2b8fb3;
 }
 
+/* grade colors for the other axes: the same red → teal progression, scaled to
+   each ladder; the axis letter on the badge carries the axis identity. */
+/* vocabulary (V0–V3) */
+.lvlV0 {
+  background: #d64545;
+}
+.lvlV1 {
+  background: #e08a2b;
+}
+.lvlV2 {
+  background: #3fa05a;
+}
+.lvlV3 {
+  background: #2b8fb3;
+}
+/* editor (E0–E4) */
+.lvlE0 {
+  background: #d64545;
+}
+.lvlE1 {
+  background: #e08a2b;
+}
+.lvlE2 {
+  background: #d6b83a;
+  color: #222;
+}
+.lvlE3 {
+  background: #3fa05a;
+}
+.lvlE4 {
+  background: #2b8fb3;
+}
+/* knowledge (K0–K3) */
+.lvlK0 {
+  background: #d64545;
+}
+.lvlK1 {
+  background: #e08a2b;
+}
+.lvlK2 {
+  background: #3fa05a;
+}
+.lvlK3 {
+  background: #2b8fb3;
+}
+/* corpus (C0–C3) */
+.lvlC0 {
+  background: #d64545;
+}
+.lvlC1 {
+  background: #e08a2b;
+}
+.lvlC2 {
+  background: #3fa05a;
+}
+.lvlC3 {
+  background: #2b8fb3;
+}
+
 .levelBadge {
   display: inline-block;
   padding: 0.1rem 0.5rem;
@@ -85,8 +186,32 @@
   font-size: 0.78rem;
   color: #fff;
 }
-.levelBadge.lvlL2 {
+.levelBadge.lvlL2,
+.levelBadge.lvlE2 {
   color: #222;
+}
+
+/* compact per-format axis profile (e.g. L3 · V1 · E1 · K1 · C1) */
+.axisProfile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+.miniBadge {
+  display: inline-block;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.62rem;
+  color: #fff;
+}
+.miniBadge.lvlL2,
+.miniBadge.lvlE2 {
+  color: #222;
+}
+.gradeMissing {
+  color: var(--ifm-color-emphasis-500);
 }
 
 /* ── trend ───────────────────────────── */
@@ -119,6 +244,33 @@
   white-space: nowrap;
 }
 
+/* per-axis trend lanes — only snapshots carrying by_axis contribute */
+.axisTrends {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.5rem 0 2rem;
+}
+.axisTrendRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+.axisTrendLane {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex: 1;
+  height: 48px;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+.axisTrendCol {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 38px;
+  height: 100%;
+}
+
 /* ── controls ───────────────────────────── */
 .controls {
   display: flex;
@@ -148,6 +300,21 @@
   background: var(--ifm-color-primary);
   color: #fff;
   border-color: var(--ifm-color-primary);
+}
+
+/* ── axis selector ───────────────────────────── */
+.axisSelect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.5rem 0 0;
+}
+.axisSelectLabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-emphasis-700);
 }
 
 /* ── table ───────────────────────────── */
@@ -228,4 +395,57 @@
 }
 .riskText {
   color: var(--ifm-color-emphasis-800);
+}
+
+/* ── support tier badges (declared / stale >45d / decayed >120d) ──── */
+.tierCell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.tierBadge {
+  display: inline-block;
+  padding: 0.08rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+}
+.tierSupported {
+  color: #3fa05a;
+  border-color: #3fa05a;
+}
+.tierMaintained {
+  color: #2b8fb3;
+  border-color: #2b8fb3;
+}
+.tierAvailable {
+  color: var(--ifm-color-emphasis-600);
+  border-color: var(--ifm-color-emphasis-400);
+}
+.tierStale {
+  border-style: dashed;
+  border-color: #e08a2b;
+}
+.staleNote {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #e08a2b;
+}
+.decayNote {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #d64545;
+}
+.tierDecayedDeclared {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.tierDecayed {
+  border-style: dashed;
 }
