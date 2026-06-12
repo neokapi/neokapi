@@ -1,0 +1,372 @@
+# Support tiers — the per-format promise (docs/internals/format-maturity.md §1).
+#
+# Writer partition (rubric §1): the `tier-review` ritual (human-approved) writes
+# `tier` / `tier_since` / `gates` / `notes`; the `triage-score` ritual may
+# mechanically refresh ONLY `last_certified` on a passing run. No other writer
+# exists, and a change that improves a score may not edit this file.
+#
+# Bootstrap seed (format-ops.md §9, 2026-06-12): tiers derived from the v2
+# audit's coarse Engine level (L2 and above => maintained, else available); no
+# format enters at `supported` until its gates are certified by a multi-axis
+# triage-score run. `grandfathered: true` suspends the under-run rule and
+# certification decay per format until its first multi-axis publish.
+#
+# Universe: exactly the 49 real format dirs under core/formats/
+# (exec/jsx/memorytest excluded). Validated by TestSupportYAML in
+# core/formats/maturity_test.go and scripts/format-ops/check-support-gates.mjs.
+formats:
+  androidxml:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  applestrings:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  arb:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  csv:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  designtokens:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  doxygen:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  dtd:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  epub:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  fixedwidth:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  html:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  i18next:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  icml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  idml:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  json:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  markdown:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  mdx:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  messageformat:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  mif:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  mo:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - make test
+    notes: >-
+      No parity or acceptance wiring; package tests are the only gate. Standing
+      retirement candidate (format-ops.md §6).
+  mosestext:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  odf:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  openxml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  paraplaintext:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  pdf:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  phpcontent:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+    notes: >-
+      Parity wiring lives in cli/parity/formats/php_spec_test.go (file name does
+      not match the format id).
+  plaintext:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  po:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  properties:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  regex:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  resx:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  rtf:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  splicedlines:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  srt:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - make test
+    notes: >-
+      No cli/parity/formats/srt_spec_test.go yet; package tests are the only
+      gate.
+  tex:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  tmx:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  transtable:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  ts:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  ttml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  ttx:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  txml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  versifiedtext:
+    tier: available
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - make test
+  vignette:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  vtt:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  wiki:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  xcstrings:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  xliff:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  xliff2:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+  xml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml
+    notes: >-
+      Parity wiring lives in cli/parity/formats/xmlstream_spec_test.go (file
+      name does not match the format id).
+  yaml:
+    tier: maintained
+    tier_since: "2026-06-12"
+    last_certified: null
+    grandfathered: true
+    gates:
+      - .github/workflows/parity.yml

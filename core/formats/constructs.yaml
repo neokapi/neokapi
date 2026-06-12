@@ -1,0 +1,977 @@
+# core/formats/constructs.yaml — the repo-level construct registry.
+#
+# This is the construct row space for the Vocabulary maturity axis
+# (docs/internals/format-maturity.md §2.2): the format-independent
+# localization-semantic constructs that per-format vocabulary matrices
+# (core/formats/<id>/vocabulary.yaml) score themselves against. Seeded from
+# the ITS 2.0 data categories (https://www.w3.org/TR/its20/ §2.1), the
+# XLIFF 2.x core inline-code vocabulary and module set
+# (https://docs.oasis-open.org/xliff/xliff-core/v2.2/), the canonical
+# run-type packs (core/model/vocabularies/*.json), and block-level kinds.
+# Design rationale: docs/internals/research/format-ops/
+# followup-representation-fidelity-vocabulary.md (TTML feature-designator
+# model: a flat universe of stable construct IDs, per-class content profiles,
+# per-implementation support scored only against what is expressible).
+#
+# ── Stable-ID & change-control rules (format-maturity.md §3) ────────────────
+#
+# 1. This file is part of the change-controlled scoring surface, together
+#    with the scorer (format-triage.js), audit-format.py, repro-check.mjs,
+#    integrations.yaml, and the rubric. A change that improves any format's
+#    score MAY NOT touch this file in the same change. Edits to construct
+#    rows or expressibility baselines are gate changes: they land in one
+#    commit across the whole surface and trigger the calibration phase of
+#    the process-health ritual (docs/internals/format-ops.md §5).
+# 2. Construct ids are STABLE. Once published, an id is never renamed,
+#    never deleted, and never reused with a different meaning — per-format
+#    vocabulary.yaml files and published dashboard history reference them.
+#    To retire or split a construct: add the replacement row(s), then mark
+#    the old row `deprecated: true` + `superseded_by: <id>`; the row stays.
+#    New constructs are appended within their category section.
+# 3. `canonical_types` values MUST exist in the embedded vocabulary packs
+#    (core/model/vocabularies/*.json, loaded by
+#    core/model/vocabulary.go LoadDefaults). Never invent a type string
+#    here: add it to a pack first (with rendering metadata), then reference
+#    it. Known gaps are recorded under `pack_additions_needed`, not papered
+#    over. Format-local types (e.g. openxml's struct:field/struct:revision-*
+#    in core/formats/openxml/vocabulary.go) are realizations, not canonical
+#    types, and do not belong in `canonical_types`.
+# 4. `default_expressibility` is a per-family BASELINE, not a per-format
+#    claim. Each format's vocabulary.yaml declares its `family:` and scores
+#    only constructs expressible for it; a per-format override of the
+#    baseline (either direction) is a reviewed diff — `expressible: false`
+#    against a `true` baseline needs `reviewed_by` + date when it affects a
+#    gate, and `expressible: true` against a `false` baseline needs
+#    resolving evidence (the audit rejects a false override when the package
+#    demonstrably emits the corresponding canonical type).
+#
+# ── Schema ───────────────────────────────────────────────────────────────────
+#
+# version: integer, bumped on any gate-affecting change to this file.
+#
+# pack_additions_needed[]: canonical-type strings that real readers emit (or
+#   constructs here need) but that no embedded pack defines yet. Tracked
+#   here so the gap is explicit; resolving one is a pack change + a registry
+#   edit in the same (change-controlled) commit.
+#
+# families: informative documentation of the eight format-family classes
+#   used as `default_expressibility` keys. Every construct's
+#   default_expressibility map carries exactly these eight keys.
+#
+# constructs[]: one row per construct.
+#   id              — stable dotted id, `<prefix>.<name>`, lowercase-kebab.
+#                     Prefixes: inline, link, media, placeholder, sub, i18n,
+#                     block, meta.
+#   name            — human label.
+#   category        — one of: inline-format | link | media | placeholder |
+#                     sub | plural-select | block-kind | i18n-meta.
+#   canonical_types — the core/model vocabulary type strings this construct
+#                     maps to (subset of the pack universe; may be empty for
+#                     constructs realized outside the run-type vocabulary —
+#                     see model_mapping).
+#   model_mapping   — where the construct lives in the Block/Run/Overlay
+#                     model: run:pc (paired inline codes) | run:ph
+#                     (standalone placeholder) | run:sub | run:plural |
+#                     run:select | block:type | block:id | block:property |
+#                     block:target (the Targets map) | layer:property |
+#                     overlay:term | overlay:entity. Makes model gaps
+#                     queryable: many formats mapping a construct to
+#                     skeleton-only would indicate a missing model facility.
+#   block_type      — block-kind rows only: the canonical Block.Type string
+#                     (grounded in core/formats/html/reader.go blockTypeMap
+#                     and the markdown reader's block types).
+#   its_category    — ITS 2.0 data-category seed where applicable
+#                     (https://www.w3.org/TR/its20/ §2.1), lowercase-kebab:
+#                     translate, localization-note, terminology,
+#                     directionality, language-information,
+#                     elements-within-text, domain, text-analysis,
+#                     locale-filter, provenance, external-resource,
+#                     target-pointer, id-value, preserve-space,
+#                     localization-quality-issue, localization-quality-rating,
+#                     mt-confidence, allowed-characters, storage-size.
+#   xliff_module    — XLIFF 2.x seed where applicable: core (Part 1 core,
+#                     incl. the inline-code vocabulary and core attributes) |
+#                     fs (Format Style) | mda (Metadata) | mtc (Translation
+#                     Candidates) | gls (Glossary) | res (Resource Data) |
+#                     ctr (Change Tracking) | slr (Size & Length
+#                     Restriction) | val (Validation) | itsm (ITS module) |
+#                     pgs (Plural, Gender and Select, XLIFF 2.2).
+#   notes           — grounding for the row (informative).
+#   default_expressibility — map of all eight family classes → true|false.
+#                     Curated judgment of what is TYPICAL for the family;
+#                     it deliberately under-promises so that per-format
+#                     diffs in vocabulary.yaml are mostly evidence-backed
+#                     `true` upgrades, not reviewed `false` walk-backs.
+
+version: 1
+
+pack_additions_needed:
+  # Emitted by core/formats/html/reader.go ("button" → "ui:button") but
+  # absent from every embedded pack — it currently renders via the registry
+  # fallback chip. inline.ui-widget keeps canonical_types empty until a
+  # `ui:` pack entry exists.
+  - type: "ui:button"
+    needed_by: inline.ui-widget
+    emitted_by: core/formats/html/reader.go
+
+families:
+  rich-markup:
+    description: >-
+      Marked-up text documents with native inline styling and block
+      structure.
+    examples: [html, epub, markdown, mdx, wiki, tex, doxygen, jsx]
+  office-doc:
+    description: >-
+      Word-processor / DTP document formats with styled runs, structural
+      styles, and review features.
+    examples: [openxml, odf, rtf, idml, icml, mif]
+  bilingual-interchange:
+    description: >-
+      Localization interchange formats built around source/target pairs and
+      typed inline codes.
+    examples: [xliff, xliff2, tmx, ts, ttx, txml]
+  catalog-keyvalue:
+    description: >-
+      String-resource catalogs keyed by identifier; values are messages,
+      possibly with placeholders and plural machinery.
+    examples: [json, yaml, properties, po, mo, resx, androidxml,
+      applestrings, arb, xcstrings, i18next, designtokens, messageformat,
+      dtd, phpcontent]
+  subtitle-timedtext:
+    description: >-
+      Timed-text and subtitle formats: cues with timing, limited inline
+      styling.
+    examples: [srt, vtt, ttml]
+  plain-text:
+    description: >-
+      Unmarked text; structure is lines/paragraphs only.
+    examples: [plaintext, paraplaintext, mosestext, versifiedtext,
+      splicedlines]
+  data-config:
+    description: >-
+      Structured data and configuration carriers; translatable strings are
+      embedded in cells/fields, semantics live in the surrounding structure.
+    examples: [csv, xml, fixedwidth, transtable, regex, vignette]
+  binary-readonly:
+    description: >-
+      Binary or render-oriented formats neokapi reads but does not write
+      back natively.
+    examples: [pdf]
+
+constructs:
+  # ── Inline formatting ─────────────────────────────────────────────────────
+  - id: inline.bold
+    name: Bold
+    category: inline-format
+    canonical_types: ["fmt:bold"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      HTML b/strong; markdown **; OOXML w:b; XLIFF 1.2 ctype bold.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: true
+
+  - id: inline.italic
+    name: Italic
+    category: inline-format
+    canonical_types: ["fmt:italic"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      HTML i/em; markdown *; OOXML w:i; XLIFF 1.2 ctype italic.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: true
+
+  - id: inline.underline
+    name: Underline
+    category: inline-format
+    canonical_types: ["fmt:underline"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      HTML u; OOXML w:u; SRT/VTT/TTML underline; XLIFF 1.2 ctype underlined.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.strikethrough
+    name: Strikethrough
+    category: inline-format
+    canonical_types: ["fmt:strikethrough"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: HTML s/del; markdown ~~; OOXML w:strike.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.superscript
+    name: Superscript
+    category: inline-format
+    canonical_types: ["fmt:superscript"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: HTML sup; OOXML w:vertAlign superscript.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.subscript
+    name: Subscript
+    category: inline-format
+    canonical_types: ["fmt:subscript"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: HTML sub; OOXML w:vertAlign subscript.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.code
+    name: Inline code (monospace)
+    category: inline-format
+    canonical_types: ["fmt:code"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      HTML code; markdown backticks. Office formats express monospace via
+      named character styles, not a semantic code construct.
+    default_expressibility:
+      rich-markup: true
+      office-doc: false
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.highlight
+    name: Highlight
+    category: inline-format
+    canonical_types: ["fmt:highlight"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: HTML mark; OOXML w:highlight.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.ruby
+    name: Ruby annotation
+    category: inline-format
+    canonical_types: ["struct:ruby"]
+    model_mapping: run:pc
+    notes: >-
+      HTML ruby/rt; OOXML w:ruby; ODF text:ruby; VTT ruby tags; TTML2
+      feature #ruby.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.ui-widget
+    name: UI widget element
+    category: inline-format
+    canonical_types: []
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      Interactive UI elements inline in content (HTML button/input; XLIFF 2
+      inline-code type "ui"). canonical_types empty pending the "ui:button"
+      pack addition (see pack_additions_needed).
+    default_expressibility:
+      rich-markup: true
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  # ── Links ─────────────────────────────────────────────────────────────────
+  - id: link.hyperlink
+    name: Hyperlink
+    category: link
+    canonical_types: ["link:hyperlink"]
+    model_mapping: run:pc
+    xliff_module: core
+    notes: >-
+      HTML a; markdown []() with md:link subtypes; OOXML w:hyperlink;
+      XLIFF 1.2 ctype link; XLIFF 2 inline-code type "link"; PDF link
+      annotations.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: true
+
+  # ── Media ─────────────────────────────────────────────────────────────────
+  - id: media.image
+    name: Inline image / object
+    category: media
+    canonical_types: ["media:image"]
+    model_mapping: run:ph
+    its_category: external-resource
+    xliff_module: core
+    notes: >-
+      HTML img; markdown ![](); OOXML w:drawing; XLIFF 2 inline-code type
+      "image". ITS External Resource covers the referenced-asset facet.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: true
+
+  # ── Standalone placeholders ───────────────────────────────────────────────
+  - id: placeholder.line-break
+    name: Line break
+    category: placeholder
+    canonical_types: ["struct:break"]
+    model_mapping: run:ph
+    xliff_module: core
+    notes: >-
+      HTML br; OOXML w:br; catalog escape sequences (\n in properties /
+      androidxml); meaningful intra-cue breaks in subtitles; XLIFF 1.2
+      ctype lb. In plain-text families a newline is block structure, not an
+      inline code.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.tab
+    name: Tab stop
+    category: placeholder
+    canonical_types: ["struct:tab"]
+    model_mapping: run:ph
+    notes: OOXML w:tab; RTF \tab. Elsewhere a tab is plain text.
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.footnote-ref
+    name: Footnote / endnote reference
+    category: placeholder
+    canonical_types: ["struct:footnote"]
+    model_mapping: run:ph
+    notes: >-
+      OOXML w:footnoteReference; markdown [^1]; TeX \footnote. The note
+      body itself is a sub-flow (sub.flow) or separate layer.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.named
+    name: Named placeholder / variable
+    category: placeholder
+    canonical_types: ["code:placeholder", "code:variable", "jsx:var"]
+    model_mapping: run:ph
+    xliff_module: core
+    notes: >-
+      Named message arguments: ICU {name}, i18next {{name}}, arb
+      {placeholder}, JSX/MDX {expr} interpolation, Qt %1-style named forms.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.positional
+    name: Positional placeholder
+    category: placeholder
+    canonical_types: ["code:placeholder"]
+    model_mapping: run:ph
+    xliff_module: core
+    notes: >-
+      printf-style %s / %1$s, .NET {0}, C-format directives in po.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.function-call
+    name: Formatting function call
+    category: placeholder
+    canonical_types: ["code:function"]
+    model_mapping: run:ph
+    notes: >-
+      Callable formatting tokens inside messages: ICU MessageFormat
+      number/date/time arguments, template-engine helpers.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: false
+      catalog-keyvalue: true
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: placeholder.markup-opaque
+    name: Opaque markup fragment
+    category: placeholder
+    canonical_types: ["code:markup"]
+    model_mapping: run:ph
+    xliff_module: core
+    notes: >-
+      Native inline markup carried without a semantic mapping (HTML reader's
+      degradation target; bridge readers' generic spans; embedded markup in
+      catalog/data values; OOXML fields and unknown inline XML; XLIFF 2 type
+      "other"). The honest fallback every family except plain text needs.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: true
+      binary-readonly: false
+
+  # ── Component wrappers (paired, non-styling) ──────────────────────────────
+  - id: placeholder.component-element
+    name: Component / element wrapper
+    category: placeholder
+    canonical_types: ["jsx:element", "jsx:node"]
+    model_mapping: run:pc
+    notes: >-
+      Paired non-styling element wrappers around translatable text: JSX/MDX
+      components, Trans-style component indices. Distinct from
+      inline-format because the wrapper has no canonical styling meaning.
+    default_expressibility:
+      rich-markup: true
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  # ── Sub-flows ─────────────────────────────────────────────────────────────
+  - id: sub.flow
+    name: Sub-flow (translatable content inside an inline code)
+    category: sub
+    canonical_types: []
+    model_mapping: run:sub
+    its_category: elements-within-text
+    xliff_module: core
+    notes: >-
+      Translatable text nested inside an inline code: HTML alt/title
+      attributes, OOXML textbox-in-run content, XLIFF 1.2 <sub>. Realized
+      by the Run union's Sub member (core/model/run.go), not a vocabulary
+      type. XLIFF 2 represents sub-flows as separate units (subFlows
+      attribute).
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  # ── Plural / select message variants ──────────────────────────────────────
+  - id: i18n.plural
+    name: Plural variants
+    category: plural-select
+    canonical_types: []
+    model_mapping: run:plural
+    xliff_module: pgs
+    notes: >-
+      CLDR-category message variants: ICU plural, gettext nplurals,
+      androidxml plurals, arb/xcstrings plural variations, Qt numerusform.
+      Realized by the Run union's Plural member (core/model/run.go), keyed
+      by PluralCategory; the XLIFF 2.2 PGS module is the interchange
+      counterpart.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: i18n.select
+    name: Select / gender variants
+    category: plural-select
+    canonical_types: []
+    model_mapping: run:select
+    xliff_module: pgs
+    notes: >-
+      Keyed message variants (ICU select, gender, xcstrings
+      vary-by-device). Realized by the Run union's Select member. Baseline
+      false for catalogs (a minority expresses select; ICU-bearing formats
+      override true with evidence).
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  # ── Block kinds ───────────────────────────────────────────────────────────
+  # Block.Type is a free-form string today; these rows pin the canonical
+  # values (grounded in core/formats/html/reader.go blockTypeMap and the
+  # markdown reader) that the V2 "block kinds populated" criterion scores
+  # against. Level/depth (h1..h6, list nesting) rides Block.Properties.
+  - id: block.heading
+    name: Heading
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: heading
+    xliff_module: fs
+    notes: >-
+      HTML h1-h6; markdown #; OOXML pStyle Heading* (expressible; the
+      current reader drops it — a vocabulary.yaml read-cell concern, not an
+      expressibility one). Level via Properties["level"].
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: block.paragraph
+    name: Paragraph
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: paragraph
+    xliff_module: fs
+    notes: HTML p; OOXML w:p; paraplaintext's unit of extraction.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: true
+      data-config: false
+      binary-readonly: false
+
+  - id: block.list-item
+    name: List item
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: listitem
+    xliff_module: fs
+    notes: HTML li; markdown list items; OOXML numPr paragraphs.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: block.table-cell
+    name: Table cell
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: cell
+    xliff_module: fs
+    notes: >-
+      HTML td/th; OOXML w:tc; the natural block kind for csv / fixedwidth /
+      transtable fields.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: true
+      binary-readonly: false
+
+  - id: block.quote
+    name: Block quote
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: quote
+    xliff_module: fs
+    notes: HTML blockquote; markdown >; OOXML Quote/IntenseQuote styles.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: block.title
+    name: Document title
+    category: block-kind
+    canonical_types: []
+    model_mapping: block:type
+    block_type: title
+    xliff_module: fs
+    notes: HTML title; OOXML Title style / core-properties title.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  # ── i18n metadata (ITS 2.0-seeded) ────────────────────────────────────────
+  - id: meta.translate-flag
+    name: Translate flag (do-not-translate)
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: translate
+    xliff_module: core
+    notes: >-
+      ITS Translate; HTML translate attribute; XLIFF translate="no";
+      androidxml translatable="false"; xcstrings shouldTranslate. Baseline
+      false for rich-markup and catalogs (only a minority expresses it
+      natively — html/androidxml/xcstrings override true).
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.localization-note
+    name: Localization note / translator comment
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: localization-note
+    xliff_module: core
+    notes: >-
+      ITS Localization Note; XLIFF notes; po "#." extracted comments; resx
+      comment; arb @description; xcstrings comment; designtokens
+      $description; OOXML/ODF comments; VTT NOTE blocks.
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.terminology
+    name: Terminology annotation
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: overlay:term
+    its_category: terminology
+    xliff_module: gls
+    notes: >-
+      ITS Terminology; XLIFF mrk mtype="term" / Glossary module. Realized
+      as the stand-off term overlay (core/model/overlay.go OverlayTerm),
+      not a run type.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.text-analysis
+    name: Text analysis / entity annotation
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: overlay:entity
+    its_category: text-analysis
+    xliff_module: itsm
+    notes: >-
+      ITS Text Analysis. Realized as the entity overlay
+      (core/model/overlay.go OverlayEntity); redaction-typed runs use the
+      "entity:" prefix declared as entity_prefix in
+      core/model/vocabularies/common-formatting.json. No family expresses
+      it natively by default (ITS-decorated HTML/XML overrides true).
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.id-value
+    name: Stable unit identifier / resource key
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:id
+    its_category: id-value
+    xliff_module: core
+    notes: >-
+      ITS Id Value; XLIFF unit ids; catalog keys; HTML/xml:id anchors; VTT
+      cue identifiers / SRT indices; OOXML bookmarks. Realized as
+      Block.ID/Name.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: true
+      subtitle-timedtext: true
+      plain-text: false
+      data-config: true
+      binary-readonly: false
+
+  - id: meta.preserve-space
+    name: Whitespace preservation
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: preserve-space
+    xliff_module: core
+    notes: >-
+      ITS Preserve Space; xml:space (OOXML w:t, XLIFF); HTML pre; markdown
+      fenced code blocks.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.language
+    name: Language information
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: layer:property
+    its_category: language-information
+    xliff_module: core
+    notes: >-
+      ITS Language Information; xml:lang / srcLang / trgLang; OOXML w:lang;
+      PDF /Lang. Realized as Layer.Locale (and per-target VariantKey
+      locales). Baseline false for rich-markup/catalog/subtitle families
+      where in-file language marking is the minority (html, po, arb,
+      xcstrings, ts, ttml override true).
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: true
+
+  - id: meta.directionality
+    name: Directionality (bidi)
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: directionality
+    xliff_module: core
+    notes: >-
+      ITS Directionality; HTML dir; OOXML bidi properties; XLIFF 2
+      srcDir/trgDir and inline-code dir. Baseline false for rich-markup
+      (html overrides true).
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.locale-filter
+    name: Locale filter (conditional text)
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: locale-filter
+    xliff_module: itsm
+    notes: >-
+      ITS Locale Filter; IDML/MIF conditional text — characteristic of DTP
+      office formats.
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.size-restriction
+    name: Size / length restriction
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:property
+    its_category: storage-size
+    xliff_module: slr
+    notes: >-
+      ITS Storage Size; XLIFF 2 Size & Length Restriction module; XLIFF 1.2
+      maxwidth.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.target-pointer
+    name: Target pointer (in-file source/target pairing)
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: block:target
+    its_category: target-pointer
+    xliff_module: core
+    notes: >-
+      ITS Target Pointer; the defining construct of bilingual interchange
+      (XLIFF target, TMX tuv, Qt ts translation). Realized as the Targets
+      map on Block. Baseline false for catalogs (most are monolingual; po /
+      mo / xcstrings override true).
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: meta.change-tracking
+    name: Tracked changes
+    category: i18n-meta
+    canonical_types: []
+    model_mapping: run:pc
+    xliff_module: ctr
+    notes: >-
+      Revision marks: OOXML w:ins/w:del (read as openxml-local
+      struct:revision-* paired codes — format-local realizations, no
+      canonical pack type); ODF tracked changes; XLIFF 2 Change Tracking
+      module. Baseline false for bilingual interchange (ctr is rarely
+      implemented; xliff2 may override with evidence).
+    default_expressibility:
+      rich-markup: false
+      office-doc: true
+      bilingual-interchange: false
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false

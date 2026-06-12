@@ -1,0 +1,172 @@
+# Format radar — the ranked candidate shortlist for the new-format adoption
+# funnel (docs/internals/format-ops.md §6; maintained by the `format-radar`
+# ritual, §3 #10).
+#
+# Each candidate carries adoption evidence against the adoption-evidence bar
+# (demand signal, harvestable corpus, identifiable spec source, what kapi
+# uniquely adds). Outcomes are three-valued — `as: format | connector | watch`
+# — so connector-tier and watch-only calls are recorded, not re-litigated.
+# Accept/reject decisions are PROPOSALS into the ops ledger's pending[] queue;
+# the maintainer approves. Engineering build-out work is GitHub issues, never
+# radar entries.
+#
+# Seeded 2026-06-12 from the research base's ranked shortlist
+# (docs/internals/research/format-ops/SYNTHESIS.md §5).
+version: 1
+updated: "2026-06-12"
+candidates:
+  - id: fluent
+    as: format
+    rank: 1
+    evidence:
+      - https://projectfluent.org/
+      - https://discourse.mozilla.org/t/institutional-support-icu4x-unicode-messageformat-2-0/142297
+    notes: >-
+      Fluent .ftl ships in all of Firefox plus a broad OSS ecosystem; upstream
+      is in maintenance mode, so the frozen syntax is cheap to keep faithful
+      forever.
+    status: proposed
+  - id: dapt-ttal
+    as: format
+    rank: 2
+    evidence:
+      - https://www.w3.org/TR/dapt/
+      - https://github.com/Netflix/ttal-dapt-conv
+    notes: >-
+      DAPT (dubbing/audio-description TTML2 profile) is the active W3C
+      timed-text spec, CR heading to Rec in 2026; pure-l10n dubbing/AD script
+      exchange. Netflix published a TTAL-to-DAPT converter — TTAL rides along.
+    status: proposed
+  - id: portable-text-contentful-richtext
+    as: format
+    rank: 3
+    evidence:
+      - https://github.com/portabletext/portabletext
+      - https://www.contentful.com/developers/docs/concepts/rich-text/
+    notes: >-
+      Portable Text (Sanity) and Contentful Rich Text are JSON rich-text ASTs
+      whose span/mark model maps 1:1 onto Block/Run; inline marks justify
+      bespoke readers despite the prefer-configured-readers rule (the Portable
+      Text rule, format-ops.md §6).
+    status: proposed
+  - id: asciidoc
+    as: format
+    rank: 4
+    evidence:
+      - https://projects.eclipse.org/projects/asciidoc.asciidoc-lang
+    notes: >-
+      Eclipse-hosted spec plus TCK incubating; large documentation ecosystems.
+    status: proposed
+  - id: typst
+    as: format
+    rank: 5
+    evidence:
+      - https://github.com/typst/typst
+    notes: >-
+      Second-fastest-growing language on GitHub 2025 (Octoverse); clean
+      grammar; zero TMS support today = first-mover opening.
+    status: proposed
+  - id: epub-evolution
+    as: format
+    rank: 6
+    evidence:
+      - https://w3c.github.io/epub-specs/
+    notes: >-
+      EPUB 3.4 is in flight; the work is mostly orchestration over the existing
+      html reader plus OPF. Deepens the existing core/formats/epub (Engine L0
+      at seed time) rather than adding a new reader.
+    status: proposed
+  - id: odf-native
+    as: format
+    rank: 7
+    evidence:
+      - https://blog.documentfoundation.org/blog/2025/12/03/tdf-announces-odf-v14-as-oasis-standard/
+    notes: >-
+      ODF 1.4 ratified as an OASIS Standard 2025-12-03; a native reader extends
+      the faithful-engine moat to the second office suite (core/formats/odf is
+      Engine L0 at seed time).
+    status: proposed
+  - id: ipynb-qmd-marimo
+    as: format
+    rank: 8
+    evidence:
+      - https://github.com/marimo-team/marimo
+      - https://quarto.org/
+      - https://docs.marimo.io/guides/coming_from/jupytext/
+    notes: >-
+      Docs-as-notebooks. .ipynb is tractable as a configured JSON reader with
+      embedded-markdown child layers (prefer-configured-readers compliant);
+      .qmd/marimo via markdown/comment-aware readers. Localizable payload is
+      markdown cells plus output alt-text
+      (docs/internals/research/format-ops/format-watch-trends.md).
+    status: proposed
+  - id: llmstxt-agentsmd
+    as: format
+    rank: 9
+    evidence:
+      - https://llmstxt.org/
+      - https://agents.md/
+    notes: >-
+      Trivially parseable; the value is detection plus localized-variant
+      conventions, and a strong AI-native positioning fit.
+    status: proposed
+  - id: mf2-in-catalogs
+    as: format
+    rank: 10
+    evidence:
+      - https://messageformat.unicode.org/
+      - https://github.com/unicode-org/message-format-wg
+    notes: >-
+      MF2 message syntax inside existing catalogs, plus the standalone
+      strategic play: no native Go MF2 implementation exists (spec stable in
+      LDML 47/48; ICU4C/4J shipped; Go has nothing) — high-leverage,
+      low-competition.
+    status: proposed
+  - id: figma-rest
+    as: connector
+    rank: 11
+    evidence:
+      - https://developers.figma.com/docs/plugins/working-with-text/
+      - https://store.crowdin.com/figma
+    notes: >-
+      Connector tier, not a format: Figma's REST JSON has no document-format
+      contract worth a reader (TEXT-node extraction already exists in
+      bowrain/connector/figma.go; write-back needs the Plugin/Variables API).
+      The Figma plugin slot is saturated by incumbent TMSes — a demand signal,
+      not an opening.
+    status: proposed
+  - id: cmi5-scorm
+    as: connector
+    rank: 12
+    evidence:
+      - https://github.com/AICC/CMI-5_Spec_Current
+      - https://www.easygenerator.com/en/blog/results-tracking/cmi5-what-it-is-and-why-you-need-it/
+    notes: >-
+      cmi5 (an xAPI profile) is the designated SCORM successor on an IEEE
+      standards track; packages still wrap HTML/JS content, so the l10n unit
+      of work is the package manifest plus embedded html — connector
+      orchestration over the existing html reader, not a new parser.
+    status: proposed
+  - id: usd
+    as: watch
+    rank: 13
+    evidence:
+      - https://aousd.org/news/core-spec-announcement/
+    notes: >-
+      AOUSD published OpenUSD Core Specification 1.0 (2025-12-17), the first
+      step toward ISO standardization; Core Spec 1.1 on the 2026 roadmap.
+      Localizable strings in 3D scenes are a long-tail target — watch only.
+    status: proposed
+  - id: gltf
+    as: watch
+    rank: 14
+    evidence:
+      - https://www.khronos.org/news/press/khronos-gltf-2.0-released-as-an-iso-iec-international-standard
+      - https://github.com/KhronosGroup/glTF
+    notes: >-
+      glTF 2.0 is ISO/IEC 12113:2022, refreshed via the PAS process; no
+      translatable-content exchange convention today — watch only.
+    status: proposed
+decided:
+  accepted: []
+  rejected: {}

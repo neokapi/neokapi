@@ -1,0 +1,78 @@
+# Editor-integrations index — declared Editor-axis depth per format
+# (docs/internals/format-maturity.md §2.3).
+#
+# Change-controlled (rubric §3): this file is part of the scorer/worker
+# separation surface — a change that improves any score may not edit it.
+# Depth is DECLARED here and CORROBORATED by independent deterministic probes
+# in the audit; the published floor is min(declared, probed). Entries on
+# unmerged branches do not count: everything below is verified on HEAD
+# (2026-06-12). Validated by TestIntegrationsIndex in
+# core/formats/maturity_test.go (real format ids, E1-E4 enums, evidence
+# resolves on HEAD).
+#
+# Per format: a list of {surface, depth, evidence, files, notes}. Evidence is
+# a repo-root-relative "path" or "path:TestName". Formats with no entry are
+# E0 (files in, files out) implicitly.
+#
+# Surveyed on HEAD but deliberately NOT recorded (no qualifying depth):
+# - wordpress/hubspot connectors (bowrain/connector/{wordpress,hubspot}.go):
+#   field/metadata-level push-pull whose Format:"html" is a free-string label —
+#   the html DataFormat reader never runs, and there is no canonical
+#   editor-anchor overlay round-trip test (issue #851), so E2's
+#   stable-identity bar is not met.
+# - figma connector (bowrain/connector/figma.go): extract-only (Publish
+#   returns an error), and "figma" is not a registered format id.
+# - Office task pane + Google Workspace add-on + microsoft365/google-workspace
+#   connectors: live only on PR #776 (branch worktree-google-ms-addon), not on
+#   HEAD — the E3 probe requires a committed manifest on HEAD.
+# - jsx: has a block-level PreviewBuilder (BuildBlockPreview in
+#   core/formats/jsx/jsx.go) which is NOT the format.PreviewBuilder interface,
+#   and jsx is outside the 49-format reporting universe.
+integrations:
+  html:
+    - surface: core-preview
+      depth: E1
+      evidence: core/editor/editor_test.go:TestHTMLPreview
+      files:
+        - core/formats/html/preview.go
+        - core/editor/preview_html.go
+      notes: >-
+        Reader implements format.PreviewBuilder (core/format/preview.go);
+        structure-true kat-block preview proven by TestHTMLPreview and
+        TestHTMLPreviewWithSpans.
+  markdown:
+    - surface: core-preview
+      depth: E1
+      evidence: core/editor/editor_test.go:TestMarkdownPreview
+      files:
+        - core/formats/markdown/preview.go
+        - core/editor/preview_markdown.go
+      notes: >-
+        Reader implements format.PreviewBuilder; structure proven by
+        TestMarkdownPreview.
+  mdx:
+    - surface: core-preview
+      depth: E1
+      evidence: core/formats/mdx/preview.go
+      files:
+        - core/formats/mdx/preview.go
+      notes: >-
+        Reader implements format.PreviewBuilder, delegating to the markdown
+        preview path (editor.BuildMarkdownPreview). No mdx-named preview test
+        yet — the shared builder is covered by
+        core/editor/editor_test.go:TestMarkdownPreview only.
+  openxml:
+    - surface: preview-kit
+      depth: E1
+      evidence: packages/ui/src/components/preview/renderDoc.ts
+      files:
+        - packages/ui/src/components/preview/renderDoc.ts
+        - packages/kapi-lab/src/stories/FormatPreview.stories.tsx
+      notes: >-
+        The exported STRUCTURE_RULES table's slides/sheet/doc detectors match
+        openxml-produced layer trees (pptx slides, xlsx sheets, docx
+        paragraphs); structure proven by the FormatPreview stories (pptx, xlsx,
+        docx fixtures). Caveat for the probe: the rules are shape-keyed, not
+        format-id-keyed, so a strict "format id present in the index" probe
+        floors this to E0 until the table carries format ids (or the probe
+        matches shapes).
