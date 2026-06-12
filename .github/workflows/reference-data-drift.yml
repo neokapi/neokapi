@@ -29,6 +29,11 @@ on:
       - "cli/**/*.go"
       - "cli/i18n/**"
       - "l10n/**"
+      - "docs/internals/format-ops-ledger.json"
+      - "core/formats/support.yaml"
+      - "core/formats/constructs.yaml"
+      - "core/formats/integrations.yaml"
+      - "scripts/format-ops/**"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -44,6 +49,11 @@ on:
       - "cli/**/*.go"
       - "cli/i18n/**"
       - "l10n/**"
+      - "docs/internals/format-ops-ledger.json"
+      - "core/formats/support.yaml"
+      - "core/formats/constructs.yaml"
+      - "core/formats/integrations.yaml"
+      - "scripts/format-ops/**"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -68,6 +78,25 @@ jobs:
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types
+
+      - name: Validate format-ops ledger
+        run: node scripts/format-ops/validate-ledger.mjs
+
+      - name: Validate support tiers
+        run: node scripts/format-ops/check-support-gates.mjs
+
+      # TODO(format-ops): check-vocab-packs currently fails on HEAD — known
+      # live drift between the vocabulary packs and the format packages. The
+      # burndown is owned by the `remediate` ritual (docs/internals/format-ops.md
+      # §3, ritual 2). Once it runs green, make this step hard: drop
+      # continue-on-error and the ::warning wrapper.
+      - name: Vocabulary pack drift
+        continue-on-error: true
+        run: |
+          if ! node scripts/format-ops/check-vocab-packs.mjs; then
+            echo "::warning title=Vocabulary pack drift::scripts/format-ops/check-vocab-packs.mjs failed — known drift, tracked by the format-ops remediate ritual (docs/internals/format-ops.md §3)"
+            exit 1
+          fi
 
   l10n-drift:
     name: l10n catalogs are fresh
