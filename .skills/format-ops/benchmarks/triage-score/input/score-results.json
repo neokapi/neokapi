@@ -1,0 +1,27 @@
+{
+  "phase": "score (frozen per-format agent outputs, benchmark fixture)",
+  "results": [
+    {
+      "id": "html",
+      "proposed": { "engine": "L3", "vocabulary": "V1", "editor": "E1", "knowledge": "K1", "corpus": "C1" },
+      "delta_justification": {},
+      "quality_demotions": []
+    },
+    {
+      "id": "po",
+      "proposed": { "engine": "L2", "vocabulary": "V1", "editor": "E0", "knowledge": "K1", "corpus": "C1" },
+      "delta_justification": {
+        "engine": "prior holds; parity suite green per cli/parity/formats/po_spec_test.go:TestParityPoSpec"
+      },
+      "quality_demotions": []
+    },
+    {
+      "id": "csv",
+      "proposed": { "engine": "L3", "vocabulary": "V0", "editor": "E0", "knowledge": "K1", "corpus": "C0" },
+      "delta_justification": {
+        "engine": ""
+      },
+      "quality_demotions": []
+    }
+  ]
+}

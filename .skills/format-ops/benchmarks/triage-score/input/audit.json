@@ -1,0 +1,111 @@
+{
+  "generated_by": "audit-format.py --all --json (frozen benchmark fixture)",
+  "formats": [
+    {
+      "id": "html",
+      "okapi_counterpart": "okf_html",
+      "files": {
+        "reader": true,
+        "writer": true,
+        "config": true,
+        "schema": true,
+        "spec_yaml": true,
+        "parity_spec_test": true,
+        "malformed_test": true,
+        "roundtrip_test": true
+      },
+      "axes": {
+        "engine": {
+          "base": "L2",
+          "ceiling": "L3",
+          "signals": {
+            "reader": "complete",
+            "writer": "complete",
+            "config": "complete",
+            "spec": "complete",
+            "parity": "complete",
+            "malformed": "complete",
+            "corpus": "partial",
+            "detection": "complete",
+            "docs": "complete"
+          }
+        },
+        "vocabulary": { "base": "V1", "ceiling": "V2", "signals": { "vocabmap": "complete", "vocabtypes": "complete", "writecells": "partial", "equivalence": "complete" } },
+        "editor": { "base": "E1", "ceiling": "E1", "signals": { "preview_builder": "complete" } },
+        "knowledge": { "base": "K1", "ceiling": "K2", "signals": { "dossier": "complete", "sidecar": "complete", "refs": "partial", "citations": "none", "contextpack": "none" } },
+        "corpus": { "base": "C1", "ceiling": "C2", "signals": { "corpusmanifest": "complete", "corpus": "partial", "fetchwiring": "complete", "acceptance": "none", "sweep": "none" } }
+      }
+    },
+    {
+      "id": "po",
+      "okapi_counterpart": "okf_po",
+      "files": {
+        "reader": true,
+        "writer": true,
+        "config": true,
+        "schema": true,
+        "spec_yaml": true,
+        "parity_spec_test": true,
+        "malformed_test": false,
+        "roundtrip_test": true
+      },
+      "axes": {
+        "engine": {
+          "base": "L1",
+          "ceiling": "L1",
+          "signals": {
+            "reader": "complete",
+            "writer": "complete",
+            "config": "complete",
+            "spec": "complete",
+            "parity": "complete",
+            "malformed": "none",
+            "corpus": "partial",
+            "detection": "complete",
+            "docs": "complete"
+          },
+          "note": "malformed_test.go deleted since the prior publish — L2 entry requirement missing; ceiling capped at L1"
+        },
+        "vocabulary": { "base": "V1", "ceiling": "V1", "signals": { "vocabmap": "complete", "vocabtypes": "complete", "writecells": "none", "equivalence": "none" } },
+        "editor": { "base": "E0", "ceiling": "E0", "signals": {} },
+        "knowledge": { "base": "K1", "ceiling": "K2", "signals": { "dossier": "complete", "sidecar": "complete", "refs": "complete", "citations": "none", "contextpack": "none" } },
+        "corpus": { "base": "C1", "ceiling": "C1", "signals": { "corpusmanifest": "complete", "corpus": "partial", "fetchwiring": "none", "acceptance": "none", "sweep": "none" } }
+      }
+    },
+    {
+      "id": "csv",
+      "okapi_counterpart": "okf_table",
+      "files": {
+        "reader": true,
+        "writer": true,
+        "config": true,
+        "schema": true,
+        "spec_yaml": true,
+        "parity_spec_test": true,
+        "malformed_test": true,
+        "roundtrip_test": true
+      },
+      "axes": {
+        "engine": {
+          "base": "L2",
+          "ceiling": "L3",
+          "signals": {
+            "reader": "complete",
+            "writer": "complete",
+            "config": "complete",
+            "spec": "complete",
+            "parity": "partial",
+            "malformed": "complete",
+            "corpus": "partial",
+            "detection": "complete",
+            "docs": "complete"
+          }
+        },
+        "vocabulary": { "base": "V0", "ceiling": "V1", "signals": { "vocabmap": "none", "vocabtypes": "none", "writecells": "none", "equivalence": "none" } },
+        "editor": { "base": "E0", "ceiling": "E0", "signals": {} },
+        "knowledge": { "base": "K1", "ceiling": "K1", "signals": { "dossier": "complete", "sidecar": "complete", "refs": "partial", "citations": "none", "contextpack": "none" } },
+        "corpus": { "base": "C0", "ceiling": "C1", "signals": { "corpusmanifest": "none", "corpus": "partial", "fetchwiring": "none", "acceptance": "none", "sweep": "none" } }
+      }
+    }
+  ]
+}

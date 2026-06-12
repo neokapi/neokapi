@@ -1,0 +1,24 @@
+[
+  {
+    "iid": 1502,
+    "project_id": 62298414,
+    "title": "PO filter drops obsolete-entry comments (#~) on merge",
+    "state": "opened",
+    "labels": ["bug", "filters"],
+    "updated_at": "2026-06-02T09:14:33.000Z",
+    "created_at": "2026-05-28T11:02:10.000Z",
+    "web_url": "https://gitlab.com/okapiframework/Okapi/-/issues/1502",
+    "description": "When merging a translated PO, obsolete entries marked with #~ lose their preceding translator comments. Reproduced on 1.48.0 with the attached minimal.po."
+  },
+  {
+    "iid": 1495,
+    "project_id": 62298414,
+    "title": "HTML filter: CDATA inside <script> double-escaped",
+    "state": "closed",
+    "labels": ["bug", "filters"],
+    "updated_at": "2026-04-19T16:40:05.000Z",
+    "created_at": "2026-03-30T08:12:44.000Z",
+    "web_url": "https://gitlab.com/okapiframework/Okapi/-/issues/1495",
+    "description": "Fixed in dev; CDATA sections within script elements were escaped twice on merge."
+  }
+]

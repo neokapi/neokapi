@@ -1,0 +1,127 @@
+{
+  "ledger_version": 1,
+  "rituals": {
+    "triage-score": {
+      "cadence_days": 14,
+      "last_run": "2026-05-31",
+      "watermarks": {
+        "core_formats_sha": "",
+        "scorer_version": 3,
+        "audit_sha": "",
+        "model_id": "",
+        "prompt_sha": "",
+        "axes_published": []
+      }
+    },
+    "remediate": {
+      "cadence_days": 30,
+      "last_run": null,
+      "max_fixes_per_run": 3,
+      "watermarks": {
+        "dashboard_generated_at": ""
+      },
+      "carryover": []
+    },
+    "parity-publish": {
+      "cadence_days": 30,
+      "last_run": "2026-05-20",
+      "watermarks": {
+        "report_generated_at": "2026-05-20T15:34:08Z",
+        "main_sha": ""
+      }
+    },
+    "contract-audit": {
+      "cadence_days": 0,
+      "ci_owned": true,
+      "last_run": "2026-05-21",
+      "watermarks": {
+        "generatedAt": "2026-05-21T17:06:56Z",
+        "okapiTag": "v1.48.0"
+      }
+    },
+    "upstream-watch": {
+      "cadence_days": 30,
+      "last_run": null,
+      "watermarks": {
+        "okapi_last_issue_iid": 0,
+        "okapi_last_issue_updated_at": "",
+        "okapi_latest_tag": "",
+        "okapi_pinned": "1.48.0",
+        "per_spec": {},
+        "per_implementation": {}
+      },
+      "per_format_last_swept": {}
+    },
+    "xfail-hygiene": {
+      "cadence_days": 60,
+      "last_run": null,
+      "watermarks": {
+        "tracked_issues": {}
+      }
+    },
+    "corpus-census": {
+      "cadence_days": 90,
+      "last_run": "2026-05-13",
+      "watermarks": {
+        "manifest_shas": {},
+        "release_tag": ""
+      },
+      "external_verification": {}
+    },
+    "corpus-sweep": {
+      "cadence_days": 60,
+      "last_run": null,
+      "blocked_on": "https://github.com/neokapi/neokapi/issues/848",
+      "watermarks": {
+        "per_format_counts": {}
+      }
+    },
+    "case-gen": {
+      "cadence_days": 60,
+      "last_run": null,
+      "blocked_on": "https://github.com/neokapi/neokapi/issues/847",
+      "watermarks": {
+        "per_section_coverage": {}
+      }
+    },
+    "format-radar": {
+      "cadence_days": 90,
+      "last_run": null,
+      "decided": {
+        "accepted": [],
+        "rejected": {}
+      }
+    },
+    "process-health": {
+      "cadence_days": 90,
+      "last_run": "2026-04-13",
+      "watermarks": {
+        "model_id": "",
+        "prompt_sha": "",
+        "rubric_sha": "",
+        "learnings_sha": ""
+      },
+      "golden_set": [
+        "html",
+        "json",
+        "po",
+        "xcstrings",
+        "xliff2",
+        "properties"
+      ],
+      "adjudicated": {
+        "rubric_sha": "",
+        "grades": {}
+      }
+    },
+    "tier-review": {
+      "cadence_days": 0,
+      "last_run": null,
+      "watermarks": {
+        "support_sha": ""
+      }
+    }
+  },
+  "pending": [],
+  "runs": []
+}

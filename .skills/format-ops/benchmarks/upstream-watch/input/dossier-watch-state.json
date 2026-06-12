@@ -1,0 +1,28 @@
+{
+  "note": "Frozen dossier watch-feed reads + the ledger watermark snapshot they are compared against.",
+  "feeds": {
+    "designtokens/dtcg": {
+      "source": "https://design-tokens.github.io/community-group/format/",
+      "watch": "https://github.com/design-tokens/community-group/releases.atom",
+      "current_version": "draft-2026-05",
+      "fetched_at": "2026-06-10"
+    },
+    "ttml/ttml2": {
+      "source": "https://www.w3.org/TR/ttml2/",
+      "watch": "https://www.w3.org/TR/tr-outdated-spec?shortname=ttml2",
+      "current_version": "ttml2-2e-2021",
+      "fetched_at": "2026-06-10"
+    }
+  },
+  "ledger_watermarks": {
+    "okapi_last_issue_iid": 1495,
+    "okapi_last_issue_updated_at": "2026-04-19T16:40:05.000Z",
+    "okapi_latest_tag": "v1.48.0",
+    "okapi_pinned": "1.48.0",
+    "per_spec": {
+      "designtokens/dtcg": "draft-2025-10",
+      "ttml/ttml2": "ttml2-2e-2021"
+    },
+    "per_implementation": {}
+  }
+}

@@ -1,0 +1,169 @@
+# .skills/format-ops/artifacts.yaml — machine-readable artifact map.
+# Single source for format-ops.md §7: when this file and the §7 table
+# disagree, this file wins and the run preamble flags the drift.
+# Consumed by scripts/due.mjs and scripts/format-ops/validate-ledger.mjs.
+#
+# Fields:
+#   id               stable artifact id
+#   path             repo-root-relative (a "*" path is a per-format glob)
+#   freshness_field  JSON field carrying the artifact's own timestamp (null = none)
+#   owner            ritual id (or "maintainer" / "all") that writes it
+#   glob             true = per-format glob; path check counts matches instead
+#   fetch_on_demand  true = gitignored fetch-time artifact; absence is a note,
+#                    never a path-drift finding
+#   bootstrap        true = created by bootstrap (format-ops.md §9); absence is
+#                    reported as bootstrap-pending path drift
+#   notes            free text
+#
+# Keep values comment-free: the due.mjs parser is a deliberate YAML subset
+# (flat list items, scalar values, no inline comments after values).
+
+artifacts:
+  - id: rubric
+    path: docs/internals/format-maturity.md
+    freshness_field: null
+    owner: process-health
+    notes: maintainer + process-health approved edits; also carries the generated maturity-report snapshot block
+  - id: ops-doc
+    path: docs/internals/format-ops.md
+    freshness_field: null
+    owner: process-health
+    notes: maintainer + process-health approved edits
+  - id: spec-case-design
+    path: docs/internals/format-spec-cases.md
+    freshness_field: null
+    owner: process-health
+    bootstrap: true
+    notes: maintainer + process-health
+  - id: research-base
+    path: docs/internals/research/format-ops
+    freshness_field: null
+    owner: maintainer
+    notes: frozen at adoption; superseded by ritual outputs, never edited
+  - id: runbook-skill
+    path: .skills/format-ops
+    freshness_field: null
+    owner: process-health
+    notes: SKILL.md + scripts/due.mjs + artifacts.yaml + references + benchmarks; benchmark-gated edits only
+  - id: ops-ledger
+    path: docs/internals/format-ops-ledger.json
+    freshness_field: null
+    owner: all
+    notes: written by every ritual run; schema-checked by scripts/format-ops/validate-ledger.mjs
+  - id: learnings
+    path: docs/internals/format-ops-learnings.md
+    freshness_field: null
+    owner: all
+    bootstrap: true
+    notes: appended by every ritual run; pruned and archived by process-health
+  - id: support-tiers
+    path: core/formats/support.yaml
+    freshness_field: null
+    owner: tier-review
+    bootstrap: true
+    notes: tier fields human-approved via tier-review; triage-score may refresh last_certified only
+  - id: demotions-ledger
+    path: docs/internals/format-demotions.md
+    freshness_field: null
+    owner: tier-review
+    bootstrap: true
+  - id: format-radar
+    path: docs/internals/format-radar.yaml
+    freshness_field: null
+    owner: format-radar
+    bootstrap: true
+  - id: construct-registry
+    path: core/formats/constructs.yaml
+    freshness_field: null
+    owner: maintainer
+    bootstrap: true
+    notes: versioned stable IDs; change-controlled scoring surface
+  - id: vocabulary-matrices
+    path: core/formats/*/vocabulary.yaml
+    freshness_field: null
+    owner: remediate
+    glob: true
+    bootstrap: true
+    notes: written by implement-format + remediate
+  - id: dossiers
+    path: core/formats/*/dossier.yaml
+    freshness_field: null
+    owner: upstream-watch
+    glob: true
+    bootstrap: true
+    notes: written by implement-format + upstream-watch
+  - id: corpus-manifests
+    path: core/formats/*/corpus.yaml
+    freshness_field: null
+    owner: corpus-census
+    glob: true
+    bootstrap: true
+    notes: written by corpus tooling + corpus-census
+  - id: integrations-index
+    path: core/formats/integrations.yaml
+    freshness_field: null
+    owner: maintainer
+    bootstrap: true
+    notes: maintainer + editor work; change-controlled scoring surface
+  - id: spec-knowledge-base
+    path: specs
+    freshness_field: null
+    owner: upstream-watch
+    bootstrap: true
+    notes: catalog.yaml + snapshots + sections; written by upstream-watch + case-gen
+  - id: corpus-store
+    path: corpus
+    freshness_field: null
+    owner: corpus-census
+    fetch_on_demand: true
+    notes: release format-corpus-vN fetched via scripts/fetch-corpus.sh; gitignored
+  - id: publish-corpus-script
+    path: scripts/publish-corpus.sh
+    freshness_field: null
+    owner: maintainer
+    bootstrap: true
+  - id: fetch-corpus-script
+    path: scripts/fetch-corpus.sh
+    freshness_field: null
+    owner: maintainer
+    bootstrap: true
+  - id: maturity-dashboard
+    path: web/static/data/format-maturity.json
+    freshness_field: generated_at
+    owner: triage-score
+    notes: dataset contract in format-maturity.md section 3
+  - id: maturity-history
+    path: web/static/data/format-maturity-history.json
+    freshness_field: null
+    owner: triage-score
+    notes: append-only; mutation is remove-today-then-append, keyed on generated_at
+  - id: parity-report
+    path: web/static/data/parity-report.json
+    freshness_field: generated_at
+    owner: parity-publish
+  - id: contract-audit-report
+    path: web/static/data/contract-audit.json
+    freshness_field: generatedAt
+    owner: contract-audit
+    notes: regenerated by the CI-owned contract-audit workflow / make contract-audit
+  - id: scorer-workflow
+    path: .claude/workflows/format-triage.js
+    freshness_field: null
+    owner: maintainer
+    notes: change-controlled with the rubric; scorer/worker separation applies
+  - id: audit-script
+    path: .skills/refresh-format-maturity/scripts/audit-format.py
+    freshness_field: null
+    owner: maintainer
+    notes: change-controlled with the rubric
+  - id: repro-check
+    path: .skills/refresh-format-maturity/scripts/repro-check.mjs
+    freshness_field: null
+    owner: maintainer
+    notes: change-controlled with the rubric
+  - id: ops-scripts
+    path: scripts/format-ops
+    freshness_field: null
+    owner: process-health
+    bootstrap: true
+    notes: validate-ledger.mjs + check-support-gates.mjs + check-citations.mjs + context-pack.mjs

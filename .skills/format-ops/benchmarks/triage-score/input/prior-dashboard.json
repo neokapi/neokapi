@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-05-15",
+  "scorer_version": 3,
+  "target_level": "L4",
+  "source": "format-triage workflow (frozen benchmark fixture)",
+  "summary": {
+    "total": 3,
+    "by_level": { "L0": 0, "L1": 0, "L2": 2, "L3": 1, "L4": 0 }
+  },
+  "formats": [
+    {
+      "id": "html",
+      "type": "parity",
+      "level": "L3",
+      "next_level": "L4",
+      "okapi_counterpart": "okf_html",
+      "levels": { "engine": "L3", "vocabulary": "V1", "editor": "E1", "knowledge": "K1", "corpus": "C1" }
+    },
+    {
+      "id": "po",
+      "type": "parity",
+      "level": "L2",
+      "next_level": "L3",
+      "okapi_counterpart": "okf_po",
+      "levels": { "engine": "L2", "vocabulary": "V1", "editor": "E0", "knowledge": "K1", "corpus": "C1" }
+    },
+    {
+      "id": "csv",
+      "type": "parity",
+      "level": "L2",
+      "next_level": "L3",
+      "okapi_counterpart": "okf_table",
+      "levels": { "engine": "L2", "vocabulary": "V0", "editor": "E0", "knowledge": "K1", "corpus": "C0" }
+    }
+  ]
+}

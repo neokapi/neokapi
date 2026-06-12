@@ -1,0 +1,12 @@
+[
+  {
+    "name": "v1.48.0",
+    "commit": { "committed_date": "2025-11-08T14:22:01.000+00:00" },
+    "release": { "tag_name": "v1.48.0", "description": "Okapi 1.48.0" }
+  },
+  {
+    "name": "v1.47.0",
+    "commit": { "committed_date": "2025-05-02T10:11:45.000+00:00" },
+    "release": { "tag_name": "v1.47.0", "description": "Okapi 1.47.0" }
+  }
+]
