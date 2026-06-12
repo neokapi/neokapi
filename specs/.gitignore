@@ -1,0 +1,6 @@
+# Cache-class spec snapshots (rights: cache in catalog.yaml — Unicode prose,
+# unverified licenses) are never committed; they are fetched/regenerated
+# deterministically by the extraction tooling on the machine or CI runner
+# that needs them. Vendor-class snapshots (snapshots/<spec>/<version>/) ARE
+# committed. See snapshots/README.md for the two classes.
+snapshots/cache/

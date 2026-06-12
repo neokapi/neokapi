@@ -35,6 +35,13 @@ okapi-testdata/
 okapi-surefire/
 compat-report/
 
+# Tier B format corpora fetched from the format-corpus-vN release
+# (make fetch-corpus) and the local publish staging area
+# (scripts/publish-corpus.sh). Anchored to the repo root: the committed
+# core/formats/<id>/testdata/corpus/ exemplars must stay tracked.
+/corpus/
+/corpus-staging/
+
 # Frontend
 node_modules/
 dist/

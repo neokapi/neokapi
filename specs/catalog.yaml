@@ -1,0 +1,313 @@
+# specs/catalog.yaml — registry of governing specs for the spec knowledge base.
+#
+# Contract: docs/internals/format-maturity.md §2.4 (catalog-registered spec
+# sources) and docs/internals/format-ops.md §7 (written by the upstream-watch
+# and case-gen rituals). Rights matrix and class semantics: specs/README.md.
+#
+# Per entry:
+#   id:      catalog key — snapshots/<id>/<version>/ and
+#            sections/<id>/<version>/ key off it; citations name it as `spec`.
+#   name:    human title.
+#   version: current pinned version. "living" marks an unpinned living
+#            standard/manual — pin a dated or commit snapshot the first time
+#            text is snapshotted.
+#   url:     canonical spec URL (versioned where the publisher offers one).
+#   rights:  vendor | cache | link-only | never (see specs/README.md).
+#   watch:   zero-auth feeds/pages the upstream-watch ritual checks; omitted
+#            where no zero-auth mechanism exists.
+#   notes:   license conditions, ISO twins, release-train timing, deltas.
+
+specs:
+  # ── Localization interchange (OASIS) ────────────────────────────────
+  - id: xliff-1.2
+    name: XLIFF Version 1.2 (OASIS Standard)
+    version: "1.2-os"
+    url: https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html
+    rights: vendor
+    watch:
+      - https://www.oasis-open.org/committees/xliff/
+    notes: >-
+      OASIS — unmodified copies and implementation-assisting excerpts only,
+      with the OASIS notice retained. Cited by core/formats/xliff/spec.yaml.
+
+  - id: xliff-2.0
+    name: XLIFF Version 2.0 (OASIS Standard)
+    version: "2.0-os"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.0/os/xliff-core-v2.0-os.html
+    rights: vendor
+    watch:
+      - https://www.oasis-open.org/committees/xliff/
+    notes: >-
+      OASIS — unmodified copies + implementation excerpts with notice.
+      Section numbers shift between 2.0/2.1/2.2, so the version stays in the
+      catalog key.
+
+  - id: xliff-2.1
+    name: XLIFF Version 2.1 (OASIS Standard)
+    version: "2.1-os"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html
+    rights: vendor
+    watch:
+      - https://www.oasis-open.org/committees/xliff/
+    notes: >-
+      OASIS — unmodified copies + implementation excerpts with notice.
+      XLIFF 2.1 (2018) remains the last full OASIS Standard; cited by
+      core/formats/xliff2/spec.yaml.
+
+  - id: xliff-2.2
+    name: XLIFF Version 2.2 (OASIS Committee Specification)
+    version: "2.2-cs"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html
+    rights: vendor
+    watch:
+      - https://www.oasis-open.org/committees/xliff/
+      - https://docs.oasis-open.org/xliff/
+    notes: >-
+      OASIS — unmodified copies + implementation excerpts with notice.
+      Committee Specification 2025-03-13, split into Part 1 Core (url) and
+      Part 2 Extended
+      (https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html);
+      adds the Plural/Gender/Select module. Plan the 2.0/2.1→2.2 delta;
+      watch the TC's "XLIFF as TM" direction.
+
+  # ── Office documents ────────────────────────────────────────────────
+  - id: ecma-376
+    name: ECMA-376 Office Open XML (OOXML)
+    version: "ed5-2021"
+    url: https://ecma-international.org/publications-and-standards/standards/ecma-376/
+    rights: vendor
+    watch:
+      - https://learn.microsoft.com/en-us/openspecs/office_standards/ms-docx/
+      - https://ecma-international.org/publications-and-standards/standards/ecma-376/
+    notes: >-
+      Ecma text policy — unmodified copies with notice. 5th edition
+      (Dec 2021) updated only Part 2; Part 1 is still the Dec 2016 text.
+      OOXML maintenance = watch Microsoft, not ISO: the [MS-DOCX]/[MS-PPTX]/
+      [MS-XLSX] revision-history pages on learn.microsoft.com are the real
+      watch target (quarterly), and MS-* text itself is excerpt-class
+      ("as necessary to properly document the implementation").
+      ISO/IEC 29500 is the never-class twin — cite and snapshot ECMA-376
+      instead.
+
+  - id: odf-1.4
+    name: OASIS Open Document Format for Office Applications (OpenDocument) 1.4
+    version: "1.4-os"
+    url: https://docs.oasis-open.org/office/OpenDocument/v1.4/OpenDocument-v1.4-part2-packages.html
+    rights: vendor
+    watch:
+      - https://www.oasis-open.org/committees/office/
+    notes: >-
+      OASIS — unmodified copies + implementation excerpts with notice.
+      Approved as a full OASIS Standard 2025-12-03; the url is the Part 2
+      (Packages) entry point cited by the watch research, with the remaining
+      parts in the same v1.4 directory. ISO/IEC 26300 (still at ODF 1.2) is
+      the never-class twin. LibreOffice is the reference producer; ODF moves
+      roughly once a decade.
+
+  # ── Unicode / i18n data train (annual: expect a Sep–Oct disruption
+  #    window every year; CLDR 49 / ICU 79 / Unicode 18 land Oct 2026 —
+  #    schedule one heavy i18n-data upgrade window each Oct–Nov) ────────
+  - id: unicode
+    name: Unicode Standard (UCD data + UAX/UTS prose)
+    version: "17.0.0"
+    url: https://www.unicode.org/Public/17.0.0/ucd/
+    rights: cache
+    watch:
+      - http://blog.unicode.org/feeds/posts/default
+    notes: >-
+      Split rights — UCD/CLDR data files are Unicode-3.0 and vendorable
+      (they land as corpus/test fixtures, not here); UAX/UTS/core-spec
+      prose is cache-or-link only ("internal business use"), so prose
+      snapshots live under snapshots/cache/. Annual release train (see
+      group note above).
+
+  - id: cldr
+    name: Unicode CLDR (Common Locale Data Repository)
+    version: "48.2"
+    url: https://cldr.unicode.org/downloads
+    rights: vendor
+    watch:
+      - http://blog.unicode.org/feeds/posts/default
+      - https://cldr.unicode.org/downloads
+    notes: >-
+      Unicode-3.0 data — vendorable. CLDR 48 shipped 2025-10-29 (Unicode 17);
+      48.2 shipped 2026-03-17 alongside ICU 78.3. CLDR 49 planned Oct 2026.
+
+  - id: icu
+    name: ICU (International Components for Unicode)
+    version: "78.3"
+    url: https://unicode-org.github.io/icu/download/78.html
+    rights: vendor
+    watch:
+      - https://github.com/unicode-org/icu/releases.atom
+    notes: >-
+      Unicode-3.0. A library, not a document spec — tracked here because the
+      cgo-ICU segmentation/locale stack pins it and the annual train
+      (ICU 79, Oct 2026) is a scheduled disruption window.
+
+  - id: messageformat-2
+    name: Unicode MessageFormat 2.0 (LDML)
+    version: "ldml-48"
+    url: https://messageformat.unicode.org/
+    rights: cache
+    watch:
+      - https://github.com/unicode-org/message-format-wg/releases.atom
+    notes: >-
+      LDML prose = Unicode prose, cache-or-link only. Stable part of LDML
+      as of LDML 47, refined in LDML 48 (Oct 2025); shipped in ICU4C/ICU4J.
+      No native Go MF2 implementation exists as of 2025–2026 — an open lane.
+
+  # ── Markup / web ────────────────────────────────────────────────────
+  - id: commonmark
+    name: CommonMark Spec
+    version: "0.31.2"
+    url: https://spec.commonmark.org/0.31.2/
+    rights: vendor
+    watch:
+      - https://github.com/commonmark/commonmark-spec/releases.atom
+      - https://spec.commonmark.org/changelog.txt
+    notes: >-
+      CC-BY-SA 4.0 — vendored text stays in clearly separately-licensed
+      files with its LICENSE alongside. Dormant since 2024-01-28; markdown
+      risk is profile/dialect drift (GFM, MDX, Markdoc), not core churn.
+      spec.txt doubles as the upstream test corpus.
+
+  - id: html-whatwg
+    name: HTML Living Standard (WHATWG)
+    version: living
+    url: https://html.spec.whatwg.org/multipage/
+    rights: vendor
+    watch:
+      - https://github.com/whatwg/html/commits/main.atom
+    notes: >-
+      CC BY 4.0 with attribution (source-code portions BSD-3-Clause).
+      Living standard — pin snapshots via the commit-snapshot URL pattern
+      (https://html.spec.whatwg.org/commit-snapshots/<sha>/) so
+      {snapshot-url, #fragment} is frozen.
+
+  # ── Timed text (W3C TR — unmodified copies + implementation excerpts
+  #    with notice; no spec-like derivatives) ──────────────────────────
+  - id: ttml2
+    name: TTML2 — Timed Text Markup Language 2 (W3C)
+    version: rec
+    url: https://www.w3.org/TR/ttml2/
+    rights: vendor
+    watch:
+      - https://www.w3.org/groups/wg/timed-text/publications/
+    notes: >-
+      W3C Document License — verbatim copies with notice; excerpts ride the
+      implementation carve-out. The estate cites the undated latest-version
+      /TR/ URI; pin the dated TR snapshot when the first snapshot lands.
+
+  - id: webvtt
+    name: WebVTT — The Web Video Text Tracks Format (W3C)
+    version: cr
+    url: https://www.w3.org/TR/webvtt1/
+    rights: vendor
+    watch:
+      - https://www.w3.org/groups/wg/timed-text/publications/
+    notes: >-
+      W3C Document License — verbatim copies with notice. Remains a
+      Candidate Recommendation; steady maintenance, low churn.
+
+  - id: dapt
+    name: DAPT — Dubbing and Audio description Profiles of TTML2 (W3C)
+    version: "cr-2025-12-18"
+    url: https://www.w3.org/TR/dapt/
+    rights: vendor
+    watch:
+      - https://www.w3.org/groups/wg/timed-text/publications/
+      - https://www.w3.org/blog/news/feed
+    notes: >-
+      W3C Document License — verbatim copies with notice. The active
+      timed-text spec: updated CR snapshots Jul and 2025-12-18, Rec expected
+      2026. Netflix publishes a TTAL→DAPT converter
+      (https://github.com/Netflix/ttal-dapt-conv).
+
+  # ── Message catalogs / config / data ────────────────────────────────
+  - id: fluent
+    name: Fluent (Mozilla, .ftl)
+    version: "1.0"
+    url: https://projectfluent.org/
+    rights: vendor
+    watch:
+      - https://github.com/projectfluent/fluent/releases.atom
+    notes: >-
+      Apache-2.0 per repo LICENSE. Upstream in maintenance — frozen syntax
+      with a large installed base (all of Firefox + OSS); expect no syntax
+      evolution.
+
+  - id: po-gettext
+    name: GNU gettext PO file format
+    version: living
+    url: https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html
+    rights: cache
+    watch: []
+    notes: >-
+      The PO format is defined by the living GNU gettext manual (GFDL) — a
+      publisher not covered by the per-publisher rights matrix, so held at
+      cache until its license terms are recorded; pin by manual/gettext
+      release on first snapshot. Cited by core/formats/po/spec.yaml.
+
+  - id: yaml-1.2
+    name: YAML Ain't Markup Language 1.2
+    version: "1.2.2"
+    url: https://yaml.org/spec/1.2.2/
+    rights: cache
+    watch: []
+    notes: >-
+      Publisher not covered by the per-publisher rights matrix — held at
+      cache until the yaml-spec repo LICENSE is recorded (promote to vendor
+      if permissive). Spec dormant (1.2.2, Oct 2021). Cited by
+      core/formats/yaml/spec.yaml.
+
+  - id: toml-1.0
+    name: TOML v1.0.0
+    version: "1.0.0"
+    url: https://toml.io/en/v1.0.0
+    rights: vendor
+    watch:
+      - https://github.com/toml-lang/toml/releases.atom
+    notes: >-
+      MIT per repo LICENSE (community row of the rights matrix); pin by git
+      SHA. toml-test (the upstream language-agnostic suite) is the corpus
+      import target.
+
+  - id: json-schema-2020-12
+    name: JSON Schema draft 2020-12
+    version: "2020-12"
+    url: https://json-schema.org/specification-links
+    rights: vendor
+    watch:
+      - https://json-schema.org/specification-links
+      - https://json-schema.org/blog
+    notes: >-
+      Community spec, per repo LICENSE. The self-published "stable" release
+      has still not shipped as of mid-2026; 2020-12 is the de-facto deployed
+      dialect (including as MCP's default). Low urgency.
+
+  - id: dtcg
+    name: DTCG Design Tokens Specification
+    version: "2025.10"
+    url: https://www.designtokens.org/
+    rights: vendor
+    watch:
+      - https://www.designtokens.org/blog/
+      - https://github.com/design-tokens/community-group
+    notes: >-
+      W3C Community Group Final Specification Agreement — permissive,
+      vendorable. First stable version "2025.10" (2025-10-28) starts a
+      calendar-versioned train: re-validate the designtokens format yearly
+      (CSS Color 4 spaces — Display-P3/Oklch, aliases, resolver/theming).
+
+  - id: regex-re2
+    name: Go regexp/syntax (RE2 grammar)
+    version: living
+    url: https://pkg.go.dev/regexp/syntax
+    rights: vendor
+    watch: []
+    notes: >-
+      Go project documentation, CC BY 4.0 (Google dev-docs row of the
+      rights matrix). Tracks the Go standard library; the RE2 grammar — no
+      backreferences or lookaround — is effectively frozen. Cited by
+      core/formats/regex/spec.yaml.

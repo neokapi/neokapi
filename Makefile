@@ -1105,6 +1105,18 @@ fetch-bowrain-docs-assets: ## Download bowrain docs assets from the bowrain-docs
 publish-bowrain-docs-assets: ## Publish bowrain/web/docs/static/{img,video} to the bowrain-docs-assets release (merges, never drops)
 	@bash scripts/publish-bowrain-docs-assets.sh
 
+# Tier B format corpora (docs/internals/format-maturity.md §2.5): one
+# corpus-<id>.tar.gz asset per format on the lexically-latest format-corpus-vN
+# release, fetched into corpus/<tag>/<id>/ (gitignored). Tests reference the
+# files via the `corpus:` input scheme (core/format/spec) and skip — never
+# fail — when the corpus is absent. Publishing stages new files from
+# corpus-staging/<id>/ and merges per-format assets (never drops).
+fetch-corpus: ## Download Tier B format corpora from the format-corpus release (FORMAT=<id> for one format)
+	@FORMAT="$(FORMAT)" bash scripts/fetch-corpus.sh
+
+publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
+	@bash scripts/publish-corpus.sh
+
 # harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
 # and publishes them theme-matched (light + dark) into the docs site. Built and
 # published from your desktop — no CI required. See harness/Makefile for details.
@@ -1364,6 +1376,7 @@ help: ## Show this help
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
+        fetch-corpus publish-corpus \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \

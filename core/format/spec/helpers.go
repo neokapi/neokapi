@@ -17,8 +17,9 @@ import (
 )
 
 // ResolveInput returns the input bytes for an Example by reading
-// InputFile (relative to the Spec dir, or under okapi-testdata when
-// prefixed with "okapi:") or by returning InputXML / InputBytes
+// InputFile (relative to the Spec dir, under okapi-testdata when
+// prefixed with "okapi:", or under the fetched Tier B corpus when
+// prefixed with "corpus:") or by returning InputXML / InputBytes
 // directly. Used by both the native and parity runners.
 func ResolveInput(s *Spec, ex Example) ([]byte, error) {
 	switch {
@@ -37,8 +38,14 @@ func ResolveInput(s *Spec, ex Example) ([]byte, error) {
 }
 
 // ResolveFilePath turns a spec-relative input_file value into an
-// absolute filesystem path. See package docs for the supported
-// schemes.
+// absolute filesystem path. Supported schemes:
+//
+//   - "okapi:<relpath>"  — under the fetched okapi-testdata root
+//     (FindOkapiTestdataRoot)
+//   - "corpus:<relpath>" — under the fetched Tier B corpus root
+//     (FindCorpusRoot)
+//   - absolute paths     — returned as-is
+//   - anything else      — relative to the spec.yaml directory
 func ResolveFilePath(s *Spec, rel string) (string, error) {
 	if strings.HasPrefix(rel, "okapi:") {
 		base, err := FindOkapiTestdataRoot()
@@ -47,10 +54,36 @@ func ResolveFilePath(s *Spec, rel string) (string, error) {
 		}
 		return filepath.Join(base, strings.TrimPrefix(rel, "okapi:")), nil
 	}
+	if strings.HasPrefix(rel, "corpus:") {
+		base, err := FindCorpusRoot()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(base, strings.TrimPrefix(rel, "corpus:")), nil
+	}
 	if filepath.IsAbs(rel) {
 		return rel, nil
 	}
 	return filepath.Join(s.dir, rel), nil
+}
+
+// findRepoRoot walks up from cwd to the directory containing go.work
+// (the repository root coordinating the multi-module workspace).
+func findRepoRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("could not find repo root (go.work) walking up from %s", dir)
+		}
+		dir = parent
+	}
 }
 
 // FindOkapiTestdataRoot walks up from cwd to find go.work, then
@@ -58,21 +91,11 @@ func ResolveFilePath(s *Spec, rel string) (string, error) {
 // Returns an error when not found so callers can decide between skip
 // and fail.
 func FindOkapiTestdataRoot() (string, error) {
-	dir, err := os.Getwd()
+	root, err := findRepoRoot()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("okapi-testdata: %w", err)
 	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
-			break
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("okapi-testdata: could not find repo root (go.work) walking up from %s", dir)
-		}
-		dir = parent
-	}
-	base := filepath.Join(dir, "okapi-testdata")
+	base := filepath.Join(root, "okapi-testdata")
 	entries, err := os.ReadDir(base)
 	if err != nil {
 		return "", fmt.Errorf("okapi-testdata not found at %s — run scripts/fetch-okapi-testdata.sh", base)
@@ -85,6 +108,38 @@ func FindOkapiTestdataRoot() (string, error) {
 	}
 	if latest == "" {
 		return "", fmt.Errorf("okapi-testdata: no version directories under %s", base)
+	}
+	return filepath.Join(base, latest), nil
+}
+
+// corpusTagPrefix is the release-tag prefix of the Tier B corpus store
+// (release format-corpus-vN, fetched into corpus/<tag>/<id>/ by
+// scripts/fetch-corpus.sh).
+const corpusTagPrefix = "format-corpus-v"
+
+// FindCorpusRoot walks up from cwd to find go.work, then returns the
+// path to the lexically-latest format-corpus-v* version dir under
+// corpus/. Returns an error when not found so callers can decide
+// between skip and fail; the error names `make fetch-corpus` so a
+// test skip message tells the reader how to stage the corpus.
+func FindCorpusRoot() (string, error) {
+	root, err := findRepoRoot()
+	if err != nil {
+		return "", fmt.Errorf("corpus: %w", err)
+	}
+	base := filepath.Join(root, "corpus")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return "", fmt.Errorf("corpus not found at %s — run `make fetch-corpus`", base)
+	}
+	var latest string
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), corpusTagPrefix) && e.Name() > latest {
+			latest = e.Name()
+		}
+	}
+	if latest == "" {
+		return "", fmt.Errorf("corpus: no %s* version directories under %s — run `make fetch-corpus`", corpusTagPrefix, base)
 	}
 	return filepath.Join(base, latest), nil
 }
