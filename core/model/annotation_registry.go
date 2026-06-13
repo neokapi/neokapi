@@ -31,6 +31,7 @@ func init() {
 	RegisterPayload("entity", func() Payload { return &EntityAnnotation{} })
 	RegisterPayload("term", func() Payload { return &TermAnnotation{} })
 	RegisterPayload("term-candidate", func() Payload { return &TermCandidateAnnotation{} })
+	RegisterPayload(string(OverlayEditorAnchor), func() Payload { return &EditorAnchor{} })
 }
 
 // RegisterPayload registers a factory for the given stand-off payload type
