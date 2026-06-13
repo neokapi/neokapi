@@ -7,6 +7,8 @@ import type {
   ConceptRelation,
   ConceptStoryEntry,
   GraphViz,
+  GraphVizEdge,
+  GraphVizNode,
   Market,
   Observation,
 } from "../../types/brand-graph";
@@ -131,7 +133,46 @@ export const richGraph: GraphViz = {
     { id: "e8", source: "c-quickpay", target: "c-checkout", type: "COMPETITOR" },
     { id: "e9", source: "c-wallet", target: "c-payment", type: "CLOSE_MATCH" },
   ],
+  total: 7,
+  truncated: false,
 };
+
+// A large, truncated graph payload for the scale-guard story: the server has
+// capped the node set well below the full vocabulary, so the graph view shows
+// its focus-or-filter guard instead of an unreadable hairball. The shape mirrors
+// a real capped response — `nodes` holds the worth-seeing subset, `total` the
+// full matching count, `truncated` true.
+export const largeGraph: GraphViz = (() => {
+  const statuses: GraphVizNode["status"][] = [
+    "preferred",
+    "approved",
+    "admitted",
+    "proposed",
+    "deprecated",
+    "forbidden",
+  ];
+  const domains = ["commerce", "marketing", "support"];
+  const nodes: GraphVizNode[] = [];
+  const edges: GraphVizEdge[] = [];
+  for (let i = 0; i < 60; i++) {
+    nodes.push({
+      id: `c-${i}`,
+      label: `Concept ${i + 1}`,
+      domain: domains[i % domains.length],
+      status: statuses[i % statuses.length],
+      term_count: 1 + (i % 4),
+    });
+    if (i > 0) {
+      edges.push({
+        id: `e-${i}`,
+        source: `c-${i}`,
+        target: `c-${Math.floor((i - 1) / 3)}`,
+        type: "RELATED",
+      });
+    }
+  }
+  return { nodes, edges, total: 312, truncated: true };
+})();
 
 export const richRelations: ConceptRelation[] = [
   {

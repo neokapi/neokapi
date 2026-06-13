@@ -55,6 +55,7 @@ import {
   relationNeighbours,
   type RelationFamily,
 } from "./graph-style";
+import { shouldGuardGraph } from "./graph-guard";
 
 const ALL = "all";
 
@@ -86,7 +87,35 @@ export function ConceptGraphView({ onOpenConcept, className }: ConceptGraphViewP
 
   const nodeCount = graph?.nodes.length ?? 0;
   const edgeCount = graph?.edges.length ?? 0;
-  const hasFilters = asOf !== "" || market !== ALL || neighbourhoodOnly;
+  const hasScopeFilter = asOf !== "" || market !== ALL;
+  const hasFilters = hasScopeFilter || neighbourhoodOnly;
+
+  // The graph is the one navigator surface that cannot paginate, so when the
+  // wide-open view would draw more concepts than read legibly (the server caps
+  // and flags the payload), we show a focus-or-filter guard instead of a
+  // hairball. A focus or a scope filter narrows the view, so it renders normally.
+  //
+  // The guard gates on params.focus — what actually scopes the server query —
+  // not on selectedId, which only opens the side panel. Selecting a concept (via
+  // the search combobox, or after resetting the neighbourhood) leaves the graph
+  // wide-open, so it must keep guarding until a neighbourhood focus or a scope
+  // filter narrows it.
+  const guarded =
+    !!graph &&
+    nodeCount > 0 &&
+    shouldGuardGraph({
+      truncated: graph.truncated,
+      nodeCount,
+      hasFocus: !!params.focus,
+      hasFilter: hasScopeFilter,
+    });
+
+  // Focusing a concept from the guard scopes the canvas to its neighbourhood, so
+  // the steward lands on a readable, relevant view rather than an arbitrary slice.
+  const focusConcept = (id: string) => {
+    setSelectedId(id);
+    setNeighbourhoodOnly(true);
+  };
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -160,6 +189,7 @@ export function ConceptGraphView({ onOpenConcept, className }: ConceptGraphViewP
                 setAsOf("");
                 setMarket(ALL);
                 setNeighbourhoodOnly(false);
+                setSelectedId(null);
               }}
             >
               Reset
@@ -202,6 +232,13 @@ export function ConceptGraphView({ onOpenConcept, className }: ConceptGraphViewP
                 ? "No concepts or relations match the current time, market, or neighbourhood. Try widening the scope."
                 : "Add concepts and relations to see the brand graph take shape."
             }
+          />
+        ) : guarded ? (
+          <GraphScaleGuard
+            graph={graph}
+            shown={nodeCount}
+            total={graph.total}
+            onFocus={focusConcept}
           />
         ) : (
           <>
@@ -295,6 +332,43 @@ function ConceptSearch({
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ── Scale guard ──────────────────────────────────────────────────────────────
+
+// Shown in place of the canvas when the wide-open graph would be a hairball: a
+// calm, helpful state (not an error) that names the scale and keeps the focus
+// affordance front and centre. Picking a concept here scopes the canvas to its
+// neighbourhood, so the steward moves straight into a readable view.
+function GraphScaleGuard({
+  graph,
+  shown,
+  total,
+  onFocus,
+}: {
+  graph: GraphViz;
+  shown: number;
+  total: number;
+  onFocus: (id: string) => void;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground [&_svg]:size-6">
+        <Network />
+      </div>
+      <div className="space-y-1.5">
+        <h3 className="text-sm font-medium text-foreground">Too many concepts to graph at once</h3>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          Showing {shown.toLocaleString()} of {total.toLocaleString()} concepts. Focus on a concept,
+          or narrow by market or date, to explore the graph without losing the thread.
+        </p>
+      </div>
+      <ConceptSearch graph={graph} value={null} onSelect={onFocus} />
+      <p className="text-xs text-muted-foreground">
+        The graph stays readable when it is scoped to what you are working on.
+      </p>
+    </div>
   );
 }
 

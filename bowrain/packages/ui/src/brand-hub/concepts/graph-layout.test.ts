@@ -10,6 +10,10 @@ function edge(id: string, source: string, target: string, type: RelationType): G
   return { id, source, target, type };
 }
 
+function gv(nodes: GraphVizNode[], edges: GraphVizEdge[]): GraphViz {
+  return { nodes, edges, total: nodes.length, truncated: false };
+}
+
 describe("hierarchyPair", () => {
   it("resolves each hierarchy relation to parent → child", () => {
     expect(hierarchyPair(edge("e", "a", "b", "BROADER"))).toEqual({ parent: "a", child: "b" });
@@ -26,14 +30,11 @@ describe("hierarchyPair", () => {
 
 describe("layoutConcepts", () => {
   it("returns an empty layout for an empty graph", () => {
-    expect(layoutConcepts({ nodes: [], edges: [] })).toEqual({ nodes: {}, width: 0, height: 0 });
+    expect(layoutConcepts(gv([], []))).toEqual({ nodes: {}, width: 0, height: 0 });
   });
 
   it("places a broader parent above its child", () => {
-    const graph: GraphViz = {
-      nodes: [node("a"), node("b")],
-      edges: [edge("e1", "a", "b", "BROADER")],
-    };
+    const graph = gv([node("a"), node("b")], [edge("e1", "a", "b", "BROADER")]);
     const layout = layoutConcepts(graph);
     expect(layout.nodes.a.level).toBe(0);
     expect(layout.nodes.b.level).toBe(1);
@@ -41,10 +42,7 @@ describe("layoutConcepts", () => {
   });
 
   it("respects relation direction (NARROWER flips parent/child)", () => {
-    const graph: GraphViz = {
-      nodes: [node("a"), node("b")],
-      edges: [edge("e1", "a", "b", "NARROWER")],
-    };
+    const graph = gv([node("a"), node("b")], [edge("e1", "a", "b", "NARROWER")]);
     const layout = layoutConcepts(graph);
     // NARROWER a → b means b is broader, so b sits above a.
     expect(layout.nodes.b.level).toBe(0);
@@ -52,10 +50,7 @@ describe("layoutConcepts", () => {
   });
 
   it("falls back to a deterministic grid when there is no hierarchy", () => {
-    const graph: GraphViz = {
-      nodes: [node("a"), node("b"), node("c")],
-      edges: [edge("e1", "a", "b", "RELATED")],
-    };
+    const graph = gv([node("a"), node("b"), node("c")], [edge("e1", "a", "b", "RELATED")]);
     const layout = layoutConcepts(graph);
     // No hierarchy edge → all on level 0 (grid columns default to 4).
     expect(layout.nodes.a.level).toBe(0);
@@ -67,10 +62,10 @@ describe("layoutConcepts", () => {
   });
 
   it("levels a three-deep chain", () => {
-    const graph: GraphViz = {
-      nodes: [node("a"), node("b"), node("c")],
-      edges: [edge("e1", "a", "b", "BROADER"), edge("e2", "b", "c", "BROADER")],
-    };
+    const graph = gv(
+      [node("a"), node("b"), node("c")],
+      [edge("e1", "a", "b", "BROADER"), edge("e2", "b", "c", "BROADER")],
+    );
     const layout = layoutConcepts(graph);
     expect(layout.nodes.a.level).toBe(0);
     expect(layout.nodes.b.level).toBe(1);
@@ -79,18 +74,15 @@ describe("layoutConcepts", () => {
   });
 
   it("is deterministic — equal input yields equal output", () => {
-    const graph: GraphViz = {
-      nodes: [node("a"), node("b"), node("c")],
-      edges: [edge("e1", "a", "b", "BROADER"), edge("e2", "a", "c", "BROADER")],
-    };
+    const graph = gv(
+      [node("a"), node("b"), node("c")],
+      [edge("e1", "a", "b", "BROADER"), edge("e2", "a", "c", "BROADER")],
+    );
     expect(layoutConcepts(graph)).toEqual(layoutConcepts(graph));
   });
 
   it("ignores hierarchy edges that reference unknown nodes", () => {
-    const graph: GraphViz = {
-      nodes: [node("a")],
-      edges: [edge("e1", "a", "ghost", "BROADER")],
-    };
+    const graph = gv([node("a")], [edge("e1", "a", "ghost", "BROADER")]);
     const layout = layoutConcepts(graph);
     expect(layout.nodes.a).toBeDefined();
     expect(Object.keys(layout.nodes)).toEqual(["a"]);

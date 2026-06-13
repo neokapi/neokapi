@@ -2614,6 +2614,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (params?.status) q.set("status", params.status);
     if (params?.focus) q.set("focus", params.focus);
     if (params?.depth !== undefined) q.set("depth", String(params.depth));
+    if (params?.limit !== undefined) q.set("limit", String(params.limit));
     const qs = q.toString();
     return this.fetchJSON(`${this.graphEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
   }

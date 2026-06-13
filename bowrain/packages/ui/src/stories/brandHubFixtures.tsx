@@ -166,6 +166,8 @@ export const sampleGraph: GraphViz = {
     { id: "r-2", source: "c-rival", target: "c-checkout", type: "COMPETITOR" },
     { id: "r-3", source: "c-checkout", target: "c-pay", type: "HAS_PART" },
   ],
+  total: 4,
+  truncated: false,
 };
 
 const sampleMarkets: Market[] = [

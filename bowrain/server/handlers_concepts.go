@@ -160,9 +160,15 @@ type GraphVizEdge struct {
 }
 
 // GraphVizResponse is the force-directed graph payload the navigator renders.
+// Total is the size of the full selection the payload was capped from — every
+// candidate concept in the default view, or the focus neighbourhood in focus
+// mode — and Truncated reports whether the node cap dropped any of it, so the UI
+// can refuse to draw a hairball and steer the steward to focus or filter.
 type GraphVizResponse struct {
-	Nodes []GraphVizNode `json:"nodes"`
-	Edges []GraphVizEdge `json:"edges"`
+	Nodes     []GraphVizNode `json:"nodes"`
+	Edges     []GraphVizEdge `json:"edges"`
+	Total     int            `json:"total"`
+	Truncated bool           `json:"truncated"`
 }
 
 // ---------------------------------------------------------------------------
@@ -213,7 +219,13 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Post-filter the page by the graph-specific facets.
+	// Post-filter the page by the graph-specific facets. These facets are derived
+	// from a concept's terms (status/market/source) or its domain — fields the
+	// termbase text search does not index — so they are applied to the page here.
+	// total stays the termbase's DB-wide match count (an upper bound once a facet
+	// narrows the page) rather than len(filtered): overwriting it with the
+	// post-filtered page count would collapse a workspace of hundreds to a
+	// single-digit count whenever a facet is active.
 	if statusFilter != "" || domainFilter != "" || marketFilter != "" || sourceFilter != "" {
 		filtered := make([]termbase.Concept, 0, len(concepts))
 		for _, cp := range concepts {
@@ -222,7 +234,6 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 			}
 		}
 		concepts = filtered
-		total = len(filtered)
 	}
 
 	infos := make([]ConceptInfoResponse, len(concepts))
@@ -799,10 +810,24 @@ func (s *Server) HandleDeleteConceptComment(c echo.Context) error {
 // Graph visualization
 // ---------------------------------------------------------------------------
 
+// Graph-viz node caps. The concept graph is the one navigator surface that does
+// not paginate, so the server bounds the node set: a default that comfortably
+// holds a typical governed vocabulary (tens to low hundreds of concepts) and a
+// hard ceiling a client cannot exceed however large its `limit` asks.
+const (
+	graphDefaultNodeLimit = 60
+	graphMaxNodeLimit     = 500
+)
+
 // HandleGetGraphViz returns the concept graph as nodes and edges for the
-// navigator's force-directed canvas. as_of and market scope the relations;
-// domain and status narrow the nodes; focus + depth restrict the payload to the
-// neighborhood of one concept within depth hops (default 2).
+// navigator's force-directed canvas, bounded so it never ships a hairball.
+// as_of and market scope the relations; domain and status narrow the candidate
+// concepts; limit caps the node count (default graphDefaultNodeLimit, ceiling
+// graphMaxNodeLimit). With focus + depth (depth default 1) the payload is the
+// BFS neighbourhood of one concept; without focus it is the governed,
+// worth-seeing subset — relation-connected and steered concepts first — filling
+// up to the cap. The response carries total (the full selection size before the
+// cap) and truncated so the client can guard the view.
 func (s *Server) HandleGetGraphViz(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -825,30 +850,115 @@ func (s *Server) HandleGetGraphViz(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Optional focus neighborhood.
-	if focus := c.QueryParam("focus"); focus != "" {
-		depth := 2
-		if d, err := strconv.Atoi(c.QueryParam("depth")); err == nil && d > 0 {
-			depth = d
-		}
-		keep := neighborhood(focus, relations, depth)
-		concepts = filterConcepts(concepts, keep)
-		relations = filterRelations(relations, keep)
+	p := graphVizParams{
+		focus:  c.QueryParam("focus"),
+		domain: c.QueryParam("domain"),
+		status: model.TermStatus(c.QueryParam("status")),
+		limit:  graphNodeLimit(c.QueryParam("limit")),
+	}
+	if d, err := strconv.Atoi(c.QueryParam("depth")); err == nil && d > 0 {
+		p.depth = d
 	}
 
-	domainFilter := c.QueryParam("domain")
-	statusFilter := model.TermStatus(c.QueryParam("status"))
+	return c.JSON(http.StatusOK, assembleGraphViz(concepts, relations, p))
+}
 
-	nodes := make([]GraphVizNode, 0, len(concepts))
-	included := make(map[string]bool, len(concepts))
+// graphNodeLimit parses the requested node cap, defaulting and clamping it. A
+// missing or non-positive value yields the default; anything above the ceiling
+// is clamped to it.
+func graphNodeLimit(raw string) int {
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return graphDefaultNodeLimit
+	}
+	if v > graphMaxNodeLimit {
+		return graphMaxNodeLimit
+	}
+	return v
+}
+
+// graphVizParams are the resolved inputs to assembleGraphViz.
+type graphVizParams struct {
+	focus  string           // when set, restrict to this concept's neighbourhood
+	depth  int              // BFS hops for focus mode (<=0 → 1)
+	domain string           // narrow candidates to a domain
+	status model.TermStatus // narrow candidates to a steered status
+	limit  int              // node cap (already defaulted/clamped)
+}
+
+// assembleGraphViz builds the capped graph-viz payload from a workspace's
+// concepts and relations. It first narrows the candidates by the domain and
+// status filters (these compose with both modes), then selects an ordered set —
+// the focus neighbourhood when focus is set, otherwise the governed subset — and
+// caps it to the node limit. Total is the full selection size before the cap;
+// edges are kept only when both endpoints survived into the node set.
+func assembleGraphViz(concepts []termbase.Concept, relations []termbase.ConceptRelation, p graphVizParams) GraphVizResponse {
+	limit := p.limit
+	if limit <= 0 {
+		limit = graphDefaultNodeLimit
+	}
+	if limit > graphMaxNodeLimit {
+		limit = graphMaxNodeLimit
+	}
+
+	// 1. Narrow to the candidate set (filters compose with both modes).
+	candByID := make(map[string]termbase.Concept, len(concepts))
+	candidates := make([]termbase.Concept, 0, len(concepts))
 	for _, cp := range concepts {
-		if domainFilter != "" && cp.Domain != domainFilter {
+		if p.domain != "" && cp.Domain != p.domain {
 			continue
 		}
-		if statusFilter != "" && !conceptHasStatus(cp, statusFilter) {
+		if p.status != "" && !conceptHasStatus(cp, p.status) {
 			continue
 		}
-		included[cp.ID] = true
+		candidates = append(candidates, cp)
+		candByID[cp.ID] = cp
+	}
+
+	// Relations among candidates only — an edge to a filtered-out concept is undrawable.
+	candRelations := make([]termbase.ConceptRelation, 0, len(relations))
+	for _, r := range relations {
+		if _, ok := candByID[r.SourceID]; !ok {
+			continue
+		}
+		if _, ok := candByID[r.TargetID]; !ok {
+			continue
+		}
+		candRelations = append(candRelations, r)
+	}
+
+	// 2. Choose the ordered selection (uncapped) for the active mode.
+	var selected []string
+	if p.focus != "" {
+		if _, ok := candByID[p.focus]; ok {
+			depth := p.depth
+			if depth <= 0 {
+				depth = 1
+			}
+			selected = orderedNeighborhood(p.focus, candRelations, depth)
+		}
+		// A focus narrowed out by the filters yields an empty selection.
+	} else {
+		selected = governedSubsetOrder(candidates, candRelations)
+	}
+
+	// 3. Cap to the node limit; total is the pre-cap selection size.
+	total := len(selected)
+	truncated := false
+	if len(selected) > limit {
+		selected = selected[:limit]
+		truncated = true
+	}
+
+	// 4. Build nodes in selection order and a membership set for edge consistency.
+	included := make(map[string]bool, len(selected))
+	nodes := make([]GraphVizNode, 0, len(selected))
+	for _, cid := range selected {
+		cp, ok := candByID[cid]
+		if !ok {
+			continue
+		}
+		included[cid] = true
 		nodes = append(nodes, GraphVizNode{
 			ID:        cp.ID,
 			Label:     conceptLabel(cp),
@@ -859,8 +969,9 @@ func (s *Server) HandleGetGraphViz(c echo.Context) error {
 		})
 	}
 
-	edges := make([]GraphVizEdge, 0, len(relations))
-	for _, r := range relations {
+	// 5. Edges: only when both endpoints are in the returned node set.
+	edges := make([]GraphVizEdge, 0, len(candRelations))
+	for _, r := range candRelations {
 		if !included[r.SourceID] || !included[r.TargetID] {
 			continue
 		}
@@ -873,7 +984,51 @@ func (s *Server) HandleGetGraphViz(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, GraphVizResponse{Nodes: nodes, Edges: edges})
+	return GraphVizResponse{Nodes: nodes, Edges: edges, Total: total, Truncated: truncated}
+}
+
+// governedSubsetOrder ranks a workspace's candidate concepts for the default
+// (unfocused) graph view so the node cap keeps the worth-seeing ones: concepts
+// that participate in at least one relation come first, then concepts carrying a
+// steered term status (preferred/forbidden/deprecated), then the remainder.
+// Every candidate stays in the list — so a graph that fits under the cap renders
+// in full — but the ranking decides which survive when it does not. Order within
+// each tier follows the input concept order, keeping the result deterministic.
+func governedSubsetOrder(candidates []termbase.Concept, relations []termbase.ConceptRelation) []string {
+	connected := make(map[string]bool, len(relations)*2)
+	for _, r := range relations {
+		connected[r.SourceID] = true
+		connected[r.TargetID] = true
+	}
+	var first, second, rest []string
+	for _, cp := range candidates {
+		switch {
+		case connected[cp.ID]:
+			first = append(first, cp.ID)
+		case conceptIsSteered(cp):
+			second = append(second, cp.ID)
+		default:
+			rest = append(rest, cp.ID)
+		}
+	}
+	order := make([]string, 0, len(candidates))
+	order = append(order, first...)
+	order = append(order, second...)
+	order = append(order, rest...)
+	return order
+}
+
+// conceptIsSteered reports whether a concept carries a steered (governed) term
+// status — preferred, forbidden, or deprecated — the statuses worth surfacing in
+// the graph even when the concept has no relations.
+func conceptIsSteered(cp termbase.Concept) bool {
+	for _, t := range cp.Terms {
+		switch t.Status {
+		case model.TermPreferred, model.TermForbidden, model.TermDeprecated:
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -1212,51 +1367,40 @@ func scopeFromQuery(c echo.Context) *graph.Scope {
 	return sc
 }
 
-// neighborhood returns the set of concept IDs within depth hops of focus over the
-// relation graph (relations are traversed in both directions).
-func neighborhood(focus string, relations []termbase.ConceptRelation, depth int) map[string]bool {
+// orderedNeighborhood returns the concept IDs within depth hops of focus over the
+// relation graph (relations traversed in both directions), in deterministic BFS
+// order with focus first. Adjacency is built from relations sorted by ID and the
+// frontier is processed in discovery order, so a breadth truncation by the node
+// cap drops the same nodes every time. focus is always the first element; an
+// isolated focus returns just itself.
+func orderedNeighborhood(focus string, relations []termbase.ConceptRelation, depth int) []string {
+	sorted := make([]termbase.ConceptRelation, len(relations))
+	copy(sorted, relations)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
+
 	adj := map[string][]string{}
-	for _, r := range relations {
+	for _, r := range sorted {
 		adj[r.SourceID] = append(adj[r.SourceID], r.TargetID)
 		adj[r.TargetID] = append(adj[r.TargetID], r.SourceID)
 	}
-	keep := map[string]bool{focus: true}
+
+	seen := map[string]bool{focus: true}
+	order := []string{focus}
 	frontier := []string{focus}
 	for hop := 0; hop < depth && len(frontier) > 0; hop++ {
 		var next []string
-		for _, id := range frontier {
-			for _, nb := range adj[id] {
-				if !keep[nb] {
-					keep[nb] = true
+		for _, cid := range frontier {
+			for _, nb := range adj[cid] {
+				if !seen[nb] {
+					seen[nb] = true
+					order = append(order, nb)
 					next = append(next, nb)
 				}
 			}
 		}
 		frontier = next
 	}
-	return keep
-}
-
-// filterConcepts keeps only the concepts whose ID is in keep.
-func filterConcepts(concepts []termbase.Concept, keep map[string]bool) []termbase.Concept {
-	out := concepts[:0]
-	for _, cp := range concepts {
-		if keep[cp.ID] {
-			out = append(out, cp)
-		}
-	}
-	return out
-}
-
-// filterRelations keeps only the relations with both endpoints in keep.
-func filterRelations(relations []termbase.ConceptRelation, keep map[string]bool) []termbase.ConceptRelation {
-	out := relations[:0]
-	for _, r := range relations {
-		if keep[r.SourceID] && keep[r.TargetID] {
-			out = append(out, r)
-		}
-	}
-	return out
+	return order
 }
 
 // changeSetTouchesConcept reports whether any op in a change-set references the

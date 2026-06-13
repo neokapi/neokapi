@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { ConceptGraphView } from "./ConceptGraphView";
 import { createProvidersDecorator } from "../../stories/decorators";
 import { brandHubOverrides } from "../../stories/brandHubFixtures";
-import { richGraph, richMarkets, richConcepts, conceptById } from "./graphSample";
+import { richGraph, largeGraph, richMarkets, richConcepts, conceptById } from "./graphSample";
 
 const richDecorator = createProvidersDecorator(undefined, {
   ...brandHubOverrides,
@@ -49,4 +49,22 @@ export const LoadError: Story = {
   name: "Load error",
   args: { onOpenConcept: fn() },
   decorators: [errorDecorator],
+};
+
+// The workspace has outgrown a single canvas: the server caps the payload and
+// flags it truncated, so the wide-open view shows the focus-or-filter guard
+// instead of a hairball. Choosing a concept (or setting a filter) renders the
+// graph normally.
+const largeDecorator = createProvidersDecorator(undefined, {
+  ...brandHubOverrides,
+  getGraph: async () => largeGraph,
+  listMarkets: async () => richMarkets,
+  getConcept: async (_ws: string, id: string) => conceptById(id),
+  listConcepts: async () => ({ concepts: richConcepts, total_count: richConcepts.length }),
+});
+
+export const LargeTruncated: Story = {
+  name: "Large / truncated (scale guard)",
+  args: { onOpenConcept: fn() },
+  decorators: [largeDecorator],
 };

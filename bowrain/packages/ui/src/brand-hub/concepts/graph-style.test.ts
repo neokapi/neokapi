@@ -17,6 +17,9 @@ function node(id: string, extra?: Partial<GraphVizNode>): GraphVizNode {
 function edge(id: string, source: string, target: string, type: RelationType): GraphVizEdge {
   return { id, source, target, type };
 }
+function gv(nodes: GraphVizNode[], edges: GraphVizEdge[]): GraphViz {
+  return { nodes, edges, total: nodes.length, truncated: false };
+}
 
 describe("statusTone / statusColorVar", () => {
   it("buckets statuses into tones", () => {
@@ -98,14 +101,14 @@ describe("orientEdge", () => {
 });
 
 describe("neighbourhood", () => {
-  const graph: GraphViz = {
-    nodes: [node("a"), node("b"), node("c"), node("d")],
-    edges: [
+  const graph = gv(
+    [node("a"), node("b"), node("c"), node("d")],
+    [
       edge("e1", "a", "b", "RELATED"),
       edge("e2", "c", "a", "COMPETITOR"),
       edge("e3", "c", "d", "RELATED"),
     ],
-  };
+  );
 
   it("collects the focus, its neighbours, and touching edges", () => {
     const nbh = neighbourhood(graph, "a");
@@ -121,10 +124,10 @@ describe("neighbourhood", () => {
 });
 
 describe("relationNeighbours", () => {
-  const graph: GraphViz = {
-    nodes: [node("a"), node("b"), node("c")],
-    edges: [edge("e1", "a", "b", "RELATED"), edge("e2", "c", "a", "COMPETITOR")],
-  };
+  const graph = gv(
+    [node("a"), node("b"), node("c")],
+    [edge("e1", "a", "b", "RELATED"), edge("e2", "c", "a", "COMPETITOR")],
+  );
 
   it("returns neighbours with the correct direction", () => {
     const result = relationNeighbours(graph, "a");

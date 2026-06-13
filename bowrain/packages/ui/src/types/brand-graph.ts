@@ -143,6 +143,13 @@ export interface GraphVizEdge {
 export interface GraphViz {
   nodes: GraphVizNode[];
   edges: GraphVizEdge[];
+  /**
+   * Size of the full selection the payload was capped from: every candidate
+   * concept in the default view, or the focus neighbourhood in focus mode.
+   */
+  total: number;
+  /** Whether the node cap dropped any of the selection (total > nodes.length). */
+  truncated: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -672,6 +679,8 @@ export interface GraphParams {
   status?: TermStatus;
   focus?: string;
   depth?: number;
+  /** Node cap (server default 60, ceiling 500). The server fills the worth-seeing subset up to it. */
+  limit?: number;
 }
 
 /** Validity scope for relation reads (as_of RFC3339 + market). */
