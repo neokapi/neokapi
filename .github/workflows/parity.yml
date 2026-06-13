@@ -119,6 +119,35 @@ jobs:
           OKAPI_BRIDGE_REPO: ${{ github.workspace }}/okapi-bridge
         run: make parity-test
 
+      - name: Route parity regressions by support tier (#850)
+        # Additive routing on top of the parity gate above. Map the parity
+        # report's failing rows to each format's declared support tier
+        # (core/formats/support.yaml) and route by tier (format-maturity.md §1,
+        # "enforcement direction"): a *Supported* format regression fails this
+        # release-consulted job; Maintained/Available failures emit ::warning
+        # annotations and a machine list (so a follow-on step can open issues)
+        # but never fail.
+        #
+        # NO-OP TODAY: support.yaml declares zero Supported formats, so there is
+        # no blocking condition and this step always passes. It becomes
+        # load-bearing as the tier-review ritual promotes formats to Supported.
+        #
+        # The parity-test step above already over-delivers (it fails on any
+        # parity row regardless of tier); this step adds only the tier
+        # *distinction* the rubric requires. It runs on always() so it can
+        # classify the report even when the parity gate failed. Route mode reads
+        # only support.yaml `tier` + each spec.yaml `format:` and falls back to a
+        # dependency-free parser when js-yaml is absent, so this single `node`
+        # call is safe on this Go/Java runner (no node_modules).
+        if: always()
+        working-directory: neokapi
+        run: |
+          if [ ! -f .parity/test-comparison.json ]; then
+            echo "::warning::no parity report at neokapi/.parity/test-comparison.json — skipping tier routing"
+            exit 0
+          fi
+          node scripts/format-ops/check-support-gates.mjs --route .parity/test-comparison.json
+
       - name: Upload parity report
         if: always()
         uses: actions/upload-artifact@v7
