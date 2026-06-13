@@ -8,10 +8,11 @@ import (
 )
 
 // ContentTree is a hierarchical, JSON-serializable view of a document's Part
-// stream, purpose-built for the "Anatomy" learning explorer in the docs site.
-// It shows how a format reader decomposes raw bytes into the content model:
-// nested Layers and Groups containing Blocks (with their run sequences), Data
-// (non-translatable skeleton structure) and Media.
+// stream, purpose-built for the "Anatomy" learning explorer in the docs site
+// and the shared visual-editor preview kit (see AD-027: Visual Editor Data
+// Model & Round-Trip). It shows how a format reader decomposes raw bytes into
+// the content model: nested Layers and Groups containing Blocks (with their run
+// sequences), Data (non-translatable skeleton structure) and Media.
 //
 // Unlike [BlockIndex] — which flattens a Block's source to plain strings for
 // reconstruction — ContentTree preserves the run sequence so a reader can see
