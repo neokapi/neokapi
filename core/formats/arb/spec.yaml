@@ -1,0 +1,113 @@
+# ARB (Application Resource Bundle) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `arb`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline .arb JSON snippets (input_xml) or the committed
+#     testdata fixtures. Assertions reflect the live reader under default
+#     config; numbers verified via go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: descriptionNotes.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact).
+
+format: arb
+mime_type: application/json
+description: |
+  Application Resource Bundle filter (Flutter gen-l10n profile). Each
+  top-level "key": "value" pair is a translatable Block; the parallel
+  "@key" metadata objects (description, placeholders) and the @@-prefixed
+  globals (@@locale) are structure, never extracted. ICU MessageFormat
+  plural/select/argument syntax embedded in values is protected as inline
+  codes. The @key.description is attached as a translator note when
+  descriptionNotes is enabled. The document is parsed losslessly so the
+  writer produces byte-faithful output, splicing only changed values.
+
+config:
+  - key: descriptionNotes
+    type: boolean
+    default: true
+    description: |
+      Attach the matching "@key": { "description": … } metadata as a
+      translator note on the emitted block. When false the description is
+      ignored (it still round-trips verbatim in the output).
+
+features:
+  - id: simple_extraction
+    name: Simple key/value extraction
+    description: |
+      Each top-level "key": "value" pair becomes a Block; the parallel
+      "@key" metadata object is not extracted.
+    spec_refs:
+      - "Application Resource Bundle Specification — resource entries and @-metadata (https://github.com/google/app-resource-bundle/wiki/ApplicationResourceBundleSpecification)"
+    native_refs:
+      - arb.TestSimpleModeling
+      - arb.TestGlobalsAndAttributesNotExtracted
+    examples:
+      - id: arb1kv
+        name: title_and_button
+        class: valid
+        origin: "authored: two entries, one with @-metadata that must not be extracted"
+        cite:
+          spec: arb
+          url: https://github.com/google/app-resource-bundle/wiki/ApplicationResourceBundleSpecification
+        input_xml: |
+          {
+            "title": "My App",
+            "@title": { "description": "Shown in the title bar." },
+            "ok": "OK"
+          }
+        block_count: 2
+        block_texts:
+          - "My App"
+          - "OK"
+        first_block_text: "My App"
+        no_block_with_text:
+          - "Shown in the title bar."
+
+  - id: icu_protection
+    name: ICU MessageFormat protection
+    description: |
+      ICU plural/select/argument syntax embedded in a value is protected
+      as inline codes so the message structure survives translation.
+    spec_refs:
+      - "ICU User Guide — Formatting Messages (plural/select/argument syntax) (https://unicode-org.github.io/icu/userguide/format_parse/messages/)"
+    native_refs:
+      - arb.TestPluralProtected
+      - arb.TestPlaceholderUpdatePreservesICU
+    examples:
+      - id: arbicu
+        name: icu_fixture
+        class: valid
+        origin: "authored: the committed testdata/icu_en.arb fixture (plural/select messages)"
+        input_file: testdata/icu_en.arb
+        block_count_min: 1
+        expected:
+          roundtrip:
+            mode: byte_exact
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the input byte-for-byte
+      (#847 expected.roundtrip view), demonstrated on the committed
+      testdata/simple_en.arb fixture.
+    spec_refs:
+      - "Application Resource Bundle Specification — file format (https://github.com/google/app-resource-bundle/wiki/ApplicationResourceBundleSpecification)"
+    native_refs:
+      - arb.TestByteFaithfulRoundTrip
+      - arb.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: arb2rt
+        name: fixture_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/simple_en.arb fixture"
+        input_file: testdata/simple_en.arb
+        block_count: 4
+        has_block_with_text:
+          - "Flutter Gallery"
+          - "Cancel"
+        expected:
+          roundtrip:
+            mode: byte_exact

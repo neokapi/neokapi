@@ -1,0 +1,109 @@
+# Design Tokens (DTCG) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `designtokens`, not an `okf_*` bridge id; there
+# are no okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline DTCG JSON snippets (input_xml) or the committed
+#     testdata fixtures. Assertions reflect the live reader under default
+#     config; numbers verified via go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractDescriptions.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact).
+
+format: designtokens
+mime_type: application/json
+description: |
+  Design Tokens Community Group (DTCG) filter. Only human-readable
+  $description fields are translatable — token $value, $type, aliases
+  ({group.token}), $extensions, and $deprecated are structure and never
+  extracted. Each $description (on a token or a group) becomes one Block.
+  The document is parsed losslessly so the writer produces byte-faithful
+  output, splicing only changed descriptions.
+
+config:
+  - key: extractDescriptions
+    type: boolean
+    default: true
+    description: |
+      Extract $description fields as translatable blocks. When false the
+      format yields no translatable content (every $description still
+      round-trips verbatim).
+
+features:
+  - id: description_extraction
+    name: Description-only extraction
+    description: |
+      Only $description fields are extracted; $value (including aliases and
+      composite values) is structure and is never translatable.
+    spec_refs:
+      - "Design Tokens Format Module — $description and $value (https://tr.designtokens.org/format/)"
+    native_refs:
+      - designtokens.TestOnlyDescriptionsExtracted
+      - designtokens.TestCorpusExtractsOnlyDescriptions
+    examples:
+      - id: dt1ex
+        name: single_description
+        class: valid
+        origin: "authored: one color token with a $description and a $value"
+        cite:
+          spec: dtcg
+          url: https://tr.designtokens.org/format/
+        input_xml: |
+          {
+            "color": {
+              "$type": "color",
+              "primary": {
+                "$value": "#ff0000",
+                "$description": "Primary brand colour."
+              }
+            }
+          }
+        block_count: 1
+        first_block_text: "Primary brand colour."
+        no_block_with_text:
+          - "#ff0000"
+      - id: dt2off
+        name: descriptions_disabled
+        class: valid
+        origin: "authored: same input, extractDescriptions off — no translatable content"
+        config:
+          extractDescriptions: false
+        input_xml: |
+          {
+            "color": {
+              "$type": "color",
+              "primary": {
+                "$value": "#ff0000",
+                "$description": "Primary brand colour."
+              }
+            }
+          }
+        block_count: 0
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the input byte-for-byte
+      (#847 expected.roundtrip view), demonstrated on the committed
+      testdata/tokens.tokens.json fixture.
+    spec_refs:
+      - "Design Tokens Format Module — file format (JSON) (https://tr.designtokens.org/format/)"
+    native_refs:
+      - designtokens.TestByteFaithfulRoundTrip
+      - designtokens.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: dt3rt
+        name: tokens_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/tokens.tokens.json fixture"
+        input_file: testdata/tokens.tokens.json
+        block_count_min: 6
+        has_block_with_text:
+          - "Primary brand colour used for calls to action."
+        no_block_with_text:
+          - "#0d6efd"
+        expected:
+          roundtrip:
+            mode: byte_exact

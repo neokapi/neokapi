@@ -1,0 +1,212 @@
+# Android string-resources format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort, see
+# .skills/refresh-format-maturity/scripts/audit-format.py KNOWN_HARVEST).
+# The `format` id is therefore the bare native id `androidxml`, not an
+# `okf_*` bridge id, and there are no okapi_param / okapi_refs anywhere
+# in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline <resources> snippets (input_xml) or the committed
+#     testdata/strings.xml fixture. Block-text assertions reflect what the
+#     native reader produces under default config; numbers were verified
+#     against the live reader (go test ./core/formats/androidxml -run TestSpec).
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
+#     skipNonTranslatable, skipResourceReferences.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact) — the reader stores the original document bytes on
+#     the root layer so the writer reproduces unchanged input byte-for-byte.
+
+format: androidxml
+mime_type: application/xml
+description: |
+  Android string-resources filter (res/values/strings.xml). Extracts
+  translatable text from <string>, <string-array> items, and <plurals>
+  items as Blocks, protecting printf placeholders (%1$s, %d, %%),
+  <xliff:g> spans, CDATA, and inline styling as inline codes. Entries
+  marked translatable="false" and bare resource references (@string/foo)
+  round-trip verbatim and are never extracted. The whole document is
+  tokenised losslessly and the original bytes are retained so the writer
+  produces byte-faithful output, splicing only changed values.
+
+config:
+  - key: extractComments
+    type: boolean
+    default: true
+    description: |
+      Surface an XML comment immediately preceding an entry as a
+      translator note on the emitted block. Comments always round-trip
+      verbatim regardless of this setting.
+  - key: skipNonTranslatable
+    type: boolean
+    default: true
+    description: |
+      Exclude entries marked translatable="false" from extraction. Such
+      resources are developer-owned (the Android lint tooling forbids
+      translating them). When false the flag is ignored and the entry is
+      extracted anyway.
+  - key: skipResourceReferences
+    type: boolean
+    default: true
+    description: |
+      Exclude <string> values that are a bare resource reference
+      (e.g. @string/foo, ?attr/bar). A reference is an alias, not
+      translatable UI text.
+
+features:
+  - id: string_extraction
+    name: String-element extraction
+    description: |
+      Each translatable <string name="…"> element becomes one Block in
+      document order, the @name carried on Block.Name.
+    spec_refs:
+      - "Android Developers — String resources: <string> (https://developer.android.com/guide/topics/resources/string-resource#String)"
+    native_refs:
+      - androidxml.TestExtraction
+      - androidxml.TestRichFixtureExtraction
+    examples:
+      - id: a1str
+        name: two_strings
+        class: valid
+        origin: "authored: minimal <resources> with two <string> entries"
+        cite:
+          spec: android-string-resources
+          url: https://developer.android.com/guide/topics/resources/string-resource#String
+        input_xml: |
+          <resources>
+            <string name="hello">Hello, world!</string>
+            <string name="bye">Goodbye</string>
+          </resources>
+        block_count: 2
+        block_texts:
+          - "Hello, world!"
+          - "Goodbye"
+        first_block_text: "Hello, world!"
+
+  - id: nontranslatable
+    name: Non-translatable entries skipped
+    description: |
+      Entries marked translatable="false" (when skipNonTranslatable) and
+      <string> values that are a bare resource reference (when
+      skipResourceReferences) are excluded from extraction and round-trip
+      verbatim.
+    spec_refs:
+      - "Android Developers — Localization: translatable attribute and resource aliases (https://developer.android.com/guide/topics/resources/localization)"
+    native_refs:
+      - androidxml.TestConfigToggles
+      - androidxml.TestExtraction
+    examples:
+      - id: a2skip
+        name: translatable_false_and_reference
+        class: valid
+        origin: "authored: one real string plus a translatable=false entry and a resource alias"
+        input_xml: |
+          <resources>
+            <string name="keep">Keep me</string>
+            <string name="debug" translatable="false">DEBUG_MARKER</string>
+            <string name="alias">@string/keep</string>
+          </resources>
+        block_count: 1
+        block_texts:
+          - "Keep me"
+        no_block_with_text:
+          - "DEBUG_MARKER"
+          - "@string/keep"
+      - id: a2cfg
+        name: extract_when_disabled
+        class: valid
+        origin: "authored: same input, skip toggles off — the marked entry and the alias are now extracted"
+        config:
+          skipNonTranslatable: false
+          skipResourceReferences: false
+        input_xml: |
+          <resources>
+            <string name="keep">Keep me</string>
+            <string name="debug" translatable="false">DEBUG_MARKER</string>
+            <string name="alias">@string/keep</string>
+          </resources>
+        block_count: 3
+        has_block_with_text:
+          - "DEBUG_MARKER"
+          - "@string/keep"
+
+  - id: plurals_and_arrays
+    name: Plurals and string-array items
+    description: |
+      A <string-array> emits one Block per <item> (name[index]); a
+      <plurals> emits one Block per <item quantity="…"> (name[quantity]).
+    spec_refs:
+      - "Android Developers — String resources: <string-array> and <plurals> (https://developer.android.com/guide/topics/resources/string-resource#StringArray)"
+    native_refs:
+      - androidxml.TestPluralAndArrayProps
+      - androidxml.TestArrayItemMarkupRoundTrip
+    examples:
+      - id: a3pln
+        name: plurals_and_array
+        class: valid
+        origin: "authored: a 2-item plurals and a 2-item string-array, plain text"
+        input_xml: |
+          <resources>
+            <plurals name="apples">
+              <item quantity="one">one apple</item>
+              <item quantity="other">many apples</item>
+            </plurals>
+            <string-array name="days">
+              <item>Monday</item>
+              <item>Tuesday</item>
+            </string-array>
+          </resources>
+        block_count: 4
+        block_texts:
+          - "one apple"
+          - "many apples"
+          - "Monday"
+          - "Tuesday"
+
+  - id: placeholders
+    name: Placeholder protection
+    description: |
+      printf-style arguments (%1$s, %d) are protected as inline codes
+      rather than translatable text, so they survive translation intact.
+    spec_refs:
+      - "Android Developers — Formatting and styling: format strings (https://developer.android.com/guide/topics/resources/string-resource#FormattingAndStyling)"
+    native_refs:
+      - androidxml.TestPlaceholderProtection
+      - androidxml.TestTranslationWithPlaceholders
+    examples:
+      - id: a4ph
+        name: positional_arg
+        class: valid
+        origin: "authored: a single positional %1$s argument inside the string"
+        input_xml: |
+          <resources>
+            <string name="welcome">Welcome back, %1$s!</string>
+          </resources>
+        block_count: 1
+        has_block_with_text:
+          - "Welcome back,"
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      The reader retains the original document bytes; with no edits the
+      writer reproduces the input byte-for-byte. Demonstrated here with
+      the committed testdata fixture (#847 expected.roundtrip view).
+    spec_refs:
+      - "Android Developers — String resources: file format (https://developer.android.com/guide/topics/resources/string-resource)"
+    native_refs:
+      - androidxml.TestByteFaithfulRoundTrip
+      - androidxml.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: a5rt
+        name: fixture_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/strings.xml fixture"
+        input_file: testdata/strings.xml
+        block_count_min: 10
+        has_block_with_text:
+          - "My Application"
+          - "Hello, world!"
+        expected:
+          roundtrip:
+            mode: byte_exact

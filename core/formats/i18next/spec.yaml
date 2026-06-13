@@ -1,0 +1,119 @@
+# i18next JSON (v4) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `i18next`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline i18next JSON snippets (input_xml) or the committed
+#     testdata fixtures. Assertions reflect the live reader under default
+#     config; numbers verified via go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: protectInterpolation,
+#     subfilterHtmlValues, legacyPluralForms.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact).
+
+format: i18next
+mime_type: application/json
+description: |
+  i18next JSON v4 catalog filter. Each leaf string value is a translatable
+  Block; nested keys form dotted Block names. The _plural / _ordinal /
+  context (key_male, key_female) suffix families are recognised and the
+  related keys annotated so plural/context groups stay together.
+  {{interpolation}} and $t() nesting tokens are protected as inline codes;
+  optionally HTML-bearing values are processed by the HTML subfilter. The
+  document is parsed losslessly so the writer produces byte-faithful output,
+  splicing only changed values.
+
+config:
+  - key: protectInterpolation
+    type: boolean
+    default: true
+    description: |
+      Protect {{interpolation}} and $t(nested.key) tokens as inline codes so
+      they survive translation intact. When false they are left as plain
+      text in the source.
+  - key: subfilterHtmlValues
+    type: boolean
+    default: false
+    description: |
+      Route values that contain HTML markup through the HTML subfilter so
+      inline tags become structured inline codes. Off by default — most
+      i18next catalogs are plain text.
+  - key: legacyPluralForms
+    type: boolean
+    default: true
+    description: |
+      Recognise the legacy i18next plural suffixes (key_0, key_1, …) in
+      addition to the v4 Intl.PluralRules suffixes (key_one, key_other).
+      When false only the v4 suffix family is treated as a plural group.
+
+features:
+  - id: leaf_extraction
+    name: Leaf value extraction
+    description: |
+      Each leaf string value becomes a Block; nested object keys form the
+      dotted Block name.
+    spec_refs:
+      - "i18next — JSON format v4 (nested and flat keys) (https://www.i18next.com/misc/json-format)"
+    native_refs:
+      - i18next.TestPlainJSONBaseline
+      - i18next.TestNestedNamespaceNames
+    examples:
+      - id: i18flt
+        name: two_leaves
+        class: valid
+        origin: "authored: a minimal flat catalog with two leaf values"
+        cite:
+          spec: i18next
+          url: https://www.i18next.com/misc/json-format
+        input_xml: |
+          { "greeting": "Hello", "farewell": "Goodbye" }
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "Goodbye"
+        first_block_text: "Hello"
+
+  - id: interpolation_protection
+    name: Interpolation protection
+    description: |
+      {{interpolation}} tokens are protected as inline codes rather than
+      translatable text.
+    spec_refs:
+      - "i18next — Interpolation ({{var}} syntax) (https://www.i18next.com/translation-function/interpolation)"
+    native_refs:
+      - i18next.TestInterpolationProtected
+    examples:
+      - id: i18int
+        name: interpolated_value
+        class: valid
+        origin: "authored: a single {{name}} interpolation token"
+        input_xml: |
+          { "welcome": "Welcome, {{name}}!" }
+        block_count: 1
+        has_block_with_text:
+          - "Welcome,"
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the input byte-for-byte
+      (#847 expected.roundtrip view), demonstrated on the committed
+      testdata/compact_en.json fixture.
+    spec_refs:
+      - "i18next — JSON format v4 (file format) (https://www.i18next.com/misc/json-format)"
+    native_refs:
+      - i18next.TestByteFaithfulRoundTrip
+      - i18next.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: i18rt
+        name: compact_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/compact_en.json fixture"
+        input_file: testdata/compact_en.json
+        has_block_with_text:
+          - "Upload"
+        expected:
+          roundtrip:
+            mode: byte_exact

@@ -1,0 +1,130 @@
+# Apple String Catalog (.xcstrings) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `xcstrings`, not an `okf_*` bridge id; there are
+# no okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline .xcstrings JSON snippets (input_xml) or the
+#     committed testdata fixtures. Assertions reflect the live reader under
+#     default config; numbers verified via go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractStale,
+#     markTranslatedState.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact): Apple's pretty-printed JSON round-trips verbatim.
+
+format: xcstrings
+mime_type: application/json
+description: |
+  Apple String Catalog filter (Xcode .xcstrings). The catalog key is the
+  source string; each entry becomes a Block whose source is the key (or the
+  sourceLanguage localization when present) and whose "comment" is attached
+  as a translator note. Plural / device-width variation and substitutions
+  are modeled; %@/%lld argument tokens are protected as inline codes.
+  Entries with extractionState "stale" are extracted unless extractStale is
+  disabled. The document is parsed losslessly so the writer produces
+  byte-faithful output, splicing only changed values.
+
+config:
+  - key: extractStale
+    type: boolean
+    default: true
+    description: |
+      Emit entries whose extractionState is "stale" (the source string no
+      longer appears in the code base) as translatable blocks. Defaults to
+      true — stale entries remain localizable until removed. When false they
+      are skipped.
+  - key: markTranslatedState
+    type: string
+    default: translated
+    description: |
+      The state value written into a localization's stringUnit when a
+      target translation is produced for a previously untranslated locale.
+      Existing states round-trip verbatim; this only governs newly populated
+      localizations.
+
+features:
+  - id: simple_extraction
+    name: Source-keyed extraction
+    description: |
+      Each key under "strings" becomes a Block whose source is the key
+      itself (the catalog is keyed by source text), in document order.
+    spec_refs:
+      - "Apple Developer — Localizing and varying text with a string catalog (https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog)"
+    native_refs:
+      - xcstrings.TestSimpleModeling
+      - xcstrings.TestUntranslatedModeling
+    examples:
+      - id: xc1ex
+        name: two_keys
+        class: valid
+        origin: "authored: a minimal catalog with two entries carrying source-language (en) string units"
+        cite:
+          spec: apple-xcstrings
+          url: https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog
+        input_xml: |
+          {
+            "sourceLanguage" : "en",
+            "strings" : {
+              "greeting" : {
+                "localizations" : {
+                  "en" : { "stringUnit" : { "state" : "translated", "value" : "Hello" } }
+                }
+              },
+              "farewell" : {
+                "localizations" : {
+                  "en" : { "stringUnit" : { "state" : "translated", "value" : "Goodbye" } }
+                }
+              }
+            },
+            "version" : "1.0"
+          }
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "Goodbye"
+
+  - id: variation_modeling
+    name: Plural, device, and substitution modeling
+    description: |
+      Plural categories, device-width variations, and named substitutions
+      are modeled from the committed fixtures; %@/%lld tokens are protected.
+    spec_refs:
+      - "Apple Developer — String catalog plural and device variations (https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog)"
+    native_refs:
+      - xcstrings.TestPluralModeling
+      - xcstrings.TestDeviceModeling
+      - xcstrings.TestSubstitutionModeling
+    examples:
+      - id: xc2pl
+        name: plural_fixture
+        class: valid
+        origin: "authored: the committed testdata/plural.xcstrings fixture"
+        input_file: testdata/plural.xcstrings
+        block_count_min: 1
+        expected:
+          roundtrip:
+            mode: byte_exact
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces Apple's pretty-printed JSON
+      byte-for-byte (#847 expected.roundtrip view), demonstrated on the
+      committed testdata/simple.xcstrings fixture.
+    spec_refs:
+      - "Apple Developer — String catalog file format (https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog)"
+    native_refs:
+      - xcstrings.TestByteFaithfulRoundTrip
+      - xcstrings.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: xc3rt
+        name: simple_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/simple.xcstrings fixture"
+        input_file: testdata/simple.xcstrings
+        has_block_with_text:
+          - "Cancel"
+        expected:
+          roundtrip:
+            mode: byte_exact

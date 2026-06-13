@@ -1,0 +1,121 @@
+# MDX format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `mdx`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec.
+#
+# Config: MDX exposes NO configuration keys of its own. Config.ApplyMap
+# (config.go) forwards every key to the embedded Markdown filter and rejects
+# any key Markdown does not recognise, so the `config:` block below is
+# intentionally empty. Markdown-side keys are documented in the markdown
+# format's reference, not duplicated here.
+#
+# Authoring notes:
+#   - Inputs are inline MDX snippets (input_xml) or the committed testdata
+#     fixtures. Assertions reflect the live reader under default config;
+#     numbers verified via go test -run TestSpec.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact).
+
+format: mdx
+mime_type: text/markdown
+description: |
+  MDX filter (CommonMark superset with JSX, ESM import/export, and
+  expressions). Markdown prose — paragraphs, headings, list items, table
+  cells — is extracted as translatable Blocks; inline emphasis/code/link
+  markup is preserved as inline codes. JSX elements, ESM import/export
+  statements, {expressions}, fenced code blocks, and YAML front matter are
+  opaque structure and round-trip verbatim, never translatable. The document
+  is segmented losslessly so the writer reproduces opaque spans byte-for-byte
+  and splices only changed prose.
+
+config: []
+
+features:
+  - id: prose_extraction
+    name: Prose extraction
+    description: |
+      Markdown prose (headings, paragraphs) is extracted as translatable
+      Blocks in document order.
+    spec_refs:
+      - "MDX — What is MDX (CommonMark superset) (https://mdxjs.com/)"
+      - "CommonMark Spec 0.31.2 — Leaf blocks (paragraphs, ATX headings) (https://spec.commonmark.org/0.31.2/)"
+    native_refs:
+      - mdx.TestProseExtracted
+      - mdx.TestInvariantProseTranslatedStructurePreserved
+    examples:
+      - id: mdx1pr
+        name: heading_and_paragraph
+        class: valid
+        origin: "authored: an ATX heading plus a prose paragraph"
+        cite:
+          spec: commonmark
+          url: https://spec.commonmark.org/0.31.2/
+        input_xml: |
+          # Hello
+
+          This is a paragraph.
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "This is a paragraph."
+        first_block_text: "Hello"
+
+  - id: opaque_constructs
+    name: Opaque constructs preserved
+    description: |
+      JSX elements, ESM import/export, {expressions}, fenced code blocks,
+      and YAML front matter are opaque structure and are never extracted.
+    spec_refs:
+      - "MDX — Markdown is for content, JSX/ESM/expressions are opaque program syntax (https://mdxjs.com/docs/what-is-mdx/)"
+    native_refs:
+      - mdx.TestJSXPreservedOpaque
+      - mdx.TestCodeFenceNotTranslated
+      - mdx.TestExpressionPreservedOpaque
+      - mdx.TestCorpusOpaqueConstructsNotTranslatable
+    examples:
+      - id: mdx2op
+        name: jsx_and_code
+        class: valid
+        origin: "authored: prose around a self-closing JSX element and a fenced code block"
+        input_xml: |
+          Intro prose.
+
+          <MyWidget id="x" />
+
+          ```js
+          const secret = 1;
+          ```
+        has_block_with_text:
+          - "Intro prose."
+        no_block_with_text:
+          - "MyWidget"
+          - "const secret"
+
+  - id: fixture_fidelity
+    name: Real-world walkthrough fidelity
+    description: |
+      On a committed MDX walkthrough fixture (front matter + import + prose
+      + a <ThemedVideo> embed) the reader extracts only the prose: the
+      heading and paragraphs are translatable while the front matter, the
+      ESM import, and the JSX component stay opaque. Byte-faithful
+      round-trip is exercised by the package's roundtrip tests (native_refs
+      below), which wire the skeleton store the in-process spec runner does
+      not — so this case asserts the extracted view rather than an
+      expected.roundtrip view.
+    spec_refs:
+      - "MDX — file format and opaque program syntax (https://mdxjs.com/)"
+    native_refs:
+      - mdx.TestRoundTripByteFaithful
+      - mdx.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: mdx3fx
+        name: walkthrough_fixture
+        class: valid
+        origin: "authored: the committed testdata/kapi-word-count.mdx fixture"
+        input_file: testdata/kapi-word-count.mdx
+        has_block_with_text:
+          - "Estimate translation cost with word-count"
+        no_block_with_text:
+          - "ThemedVideo"
+          - "sidebar_label"

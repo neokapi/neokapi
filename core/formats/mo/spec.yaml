@@ -1,0 +1,54 @@
+# GNU gettext MO (compiled binary catalog) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `mo`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec.
+#
+# This is a deliberately MINIMAL spec: MO is a WRITE-ONLY runtime catalog,
+# not an exchange format (see feedback_klf_exchange_only — PO is the
+# editable/exchange side). The MO reader is a stub that exists only so the
+# registry can route `-o file.mo` to the writer; opening a MO file as a
+# pipeline source is unsupported by design. The single feature below pins
+# that contract as a class: invalid case (the reader must reject cleanly).
+#
+# Config: MO exposes NO configuration keys. Config.ApplyMap (config.go)
+# rejects every key, so the `config:` block is intentionally empty.
+
+format: mo
+mime_type: application/x-gettext-translation
+description: |
+  GNU gettext MO filter — the compiled binary message catalog (magic
+  0x950412de, string + translation offset tables). MO is treated as a
+  runtime catalog, not a localization exchange format: the writer compiles
+  translated Blocks (msgctxt derived from Block scope) into a deterministic
+  MO image, but reading MO as a pipeline source is unsupported. Runtime
+  consumers load MO via gotext.NewMo().ParseFile; the editable side of the
+  workflow is PO.
+
+config: []
+
+features:
+  - id: read_unsupported
+    name: Reading MO as a source is unsupported
+    description: |
+      MO is a write-only runtime catalog. The reader is a registry stub:
+      Open returns a clean error directing the caller to load compiled MO
+      catalogs via gotext at runtime rather than through the pipeline. The
+      writer (exercised by the package's writer tests, not by this spec
+      runner) is the only supported direction.
+    spec_refs:
+      - "GNU gettext manual — The Format of MO Files (magic, offset tables) (https://www.gnu.org/software/gettext/manual/html_node/MO-Files.html)"
+    native_refs:
+      - mo.TestWriter_RoundTrip_WithContext
+      - mo.TestWriter_DeterministicOutput
+      - mo.TestWriter_SkipsUntranslated
+    examples:
+      - id: moread
+        name: open_rejects
+        class: invalid
+        origin: "authored: a placeholder MO payload — the reader rejects before parsing any bytes"
+        input_xml: "GETTEXT-MO-BINARY (read path is unsupported by design)"
+        expected:
+          error:
+            category: unsupported
+            message_contains: "read not supported"

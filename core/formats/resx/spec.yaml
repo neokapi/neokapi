@@ -1,0 +1,120 @@
+# .NET RESX / RESW resource format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `resx`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are the committed testdata fixtures (the RESX envelope — XSD
+#     header + resheaders — is too verbose to inline). Assertions reflect
+#     the live reader under default config; numbers verified via
+#     go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
+#     skipNameDataReferences.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact): the embedded XSD + resheaders round-trip verbatim.
+
+format: resx
+mime_type: application/xml
+description: |
+  .NET resource filter for .resx and .resw documents. Each <data
+  name="…"><value>…</value></data> string entry becomes a Block; the
+  sibling <comment> is attached as a translator note. The XSD schema
+  header, <resheader> reader/writer types, <metadata>, and typed
+  (non-string) <data> entries are structure and round-trip verbatim. .NET
+  composite-format placeholders ({0}, {1}) are protected as inline codes.
+  The document is tokenised losslessly so the writer produces byte-faithful
+  output, splicing only changed values.
+
+config:
+  - key: extractComments
+    type: boolean
+    default: true
+    description: |
+      Surface a <data> entry's sibling <comment> element as a translator
+      note on the emitted block. When false, comments still round-trip
+      verbatim; they are simply not exposed as block annotations.
+  - key: skipNameDataReferences
+    type: boolean
+    default: true
+    description: |
+      Exclude string <data> entries whose @name begins with ">" (WinForms
+      designer "name reference" entries such as ">>control.Name", which
+      carry a field name, not UI text). When false they are extracted too.
+
+features:
+  - id: string_extraction
+    name: String data extraction
+    description: |
+      Each <data name="…"><value>…</value></data> string entry becomes one
+      Block in document order; the @name is carried on Block.Name and a
+      sibling <comment> becomes a translator note.
+    spec_refs:
+      - "Microsoft .NET — Work with .resx files programmatically (data/value/comment elements) (https://learn.microsoft.com/en-us/dotnet/core/extensions/work-with-resx-files-programmatically)"
+    native_refs:
+      - resx.TestStringExtraction
+      - resx.TestTypedDataPassthrough
+    examples:
+      - id: rx1ex
+        name: resources_fixture
+        class: valid
+        origin: "authored: the committed testdata/Resources.resx fixture"
+        cite:
+          spec: dotnet-resx
+          url: https://learn.microsoft.com/en-us/dotnet/core/extensions/work-with-resx-files-programmatically
+        input_file: testdata/Resources.resx
+        block_count: 5
+        first_block_text: "Hello, world!"
+        has_block_with_text:
+          - "Hello, world!"
+          - "Save"
+        no_block_with_text:
+          - "text/microsoft-resx"
+
+  - id: placeholder_protection
+    name: Composite-format placeholder protection
+    description: |
+      .NET composite-format placeholders ({0}, {1}) are protected as inline
+      codes rather than translatable text.
+    spec_refs:
+      - "Microsoft .NET — Composite formatting ({index} placeholders) (https://learn.microsoft.com/en-us/dotnet/standard/base-types/composite-formatting)"
+    native_refs:
+      - resx.TestPlaceholderProtection
+    examples:
+      - id: rx2ph
+        name: itemcount_placeholder
+        class: valid
+        origin: "authored: the ItemCount entry of testdata/Resources.resx carries {0}"
+        input_file: testdata/Resources.resx
+        has_block_with_text:
+          - "items in your cart"
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the input byte-for-byte
+      (#847 expected.roundtrip view), including the embedded XSD schema and
+      resheaders. Demonstrated on testdata/Resources.resx and the WinRT
+      .resw variant.
+    spec_refs:
+      - "Microsoft .NET — RESX file structure (XSD header + resheaders) (https://learn.microsoft.com/en-us/dotnet/core/extensions/work-with-resx-files-programmatically)"
+    native_refs:
+      - resx.TestByteFaithfulRoundTrip
+      - resx.TestReswRoundTrip
+    examples:
+      - id: rx3rt
+        name: resx_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/Resources.resx fixture"
+        input_file: testdata/Resources.resx
+        expected:
+          roundtrip:
+            mode: byte_exact
+      - id: rx4rw
+        name: resw_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/Resources.resw (WinRT) fixture"
+        input_file: testdata/Resources.resw
+        expected:
+          roundtrip:
+            mode: byte_exact

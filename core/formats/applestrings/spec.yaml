@@ -1,0 +1,117 @@
+# Apple .strings / .stringsdict format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format`
+# id is the bare native id `applestrings`, not an `okf_*` bridge id; there
+# are no okapi_param / okapi_refs in this spec.
+#
+# Authoring notes:
+#   - Inputs are inline .strings snippets (input_xml) or the committed
+#     testdata fixtures. The single reader sniffs content to choose the
+#     legacy "key" = "value"; grammar (.strings) vs the plist-backed
+#     .stringsdict grammar. Assertions reflect the live reader under
+#     default config; numbers verified via go test -run TestSpec.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
+#     protectPlaceholders.
+#   - The byte_faithful feature carries a #847 expected.roundtrip view
+#     (mode: byte_exact): the reader retains the original bytes so the
+#     writer reproduces unchanged input byte-for-byte.
+
+format: applestrings
+mime_type: text/plain
+description: |
+  Apple string-resource filter for both .strings (the legacy
+  "key" = "value"; old-style plist grammar) and .stringsdict (plist-backed
+  plural/width variation). Each entry becomes a Block keyed by its string
+  key, with the leading /* */ or // comment attached as a translator note.
+  printf placeholders (%@, %lld, %1$@), \n/\t escapes and \uNNNN sequences
+  are protected as inline codes. The document is tokenised losslessly so
+  the writer produces byte-faithful output, splicing only changed values.
+
+config:
+  - key: extractComments
+    type: boolean
+    default: true
+    description: |
+      Surface the /* … */ or // comment immediately preceding an entry as
+      a translator note on the emitted block. Comments always round-trip
+      verbatim regardless of this setting.
+  - key: protectPlaceholders
+    type: boolean
+    default: true
+    description: |
+      Protect printf-style format specifiers (%@, %lld, %1$@, %%) as inline
+      codes so they survive translation intact. When false the specifiers
+      are left as plain text in the source.
+
+features:
+  - id: key_value_extraction
+    name: Key/value entry extraction
+    description: |
+      Each "key" = "value"; entry becomes one Block in document order; the
+      key is carried on Block.Name and the value is the translatable source.
+    spec_refs:
+      - "Apple Documentation Archive — Strings Files (key = value grammar) (https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html)"
+    native_refs:
+      - applestrings.TestStringsModeling
+      - applestrings.TestStringsTranslationUpdate
+    examples:
+      - id: as1kv
+        name: two_entries
+        class: valid
+        origin: "authored: minimal two-entry .strings snippet"
+        cite:
+          spec: apple-strings
+          url: https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html
+        input_xml: |
+          "greeting" = "Hello";
+          "farewell" = "Goodbye";
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "Goodbye"
+        first_block_text: "Hello"
+
+  - id: placeholder_protection
+    name: Placeholder protection
+    description: |
+      printf format specifiers are protected as inline codes rather than
+      translatable text.
+    spec_refs:
+      - "Apple Documentation Archive — Strings Files: format specifiers (https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html)"
+    native_refs:
+      - applestrings.TestStringsTranslationPreservesPlaceholders
+    examples:
+      - id: as2ph
+        name: at_specifier
+        class: valid
+        origin: "authored: a single %@ specifier in the value"
+        input_xml: |
+          "greeting" = "Hello, %@!";
+        block_count: 1
+        has_block_with_text:
+          - "Hello,"
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the input byte-for-byte
+      (#847 expected.roundtrip view), demonstrated on the committed
+      testdata/Localizable.strings fixture.
+    spec_refs:
+      - "Apple Documentation Archive — Strings Files (file format) (https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html)"
+    native_refs:
+      - applestrings.TestByteFaithfulRoundTrip
+      - applestrings.TestCorpusByteFaithfulRoundTrip
+    examples:
+      - id: as3rt
+        name: fixture_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/Localizable.strings fixture"
+        input_file: testdata/Localizable.strings
+        block_count_min: 6
+        has_block_with_text:
+          - "Cancel"
+          - "OK"
+        expected:
+          roundtrip:
+            mode: byte_exact
