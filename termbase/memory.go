@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 )
@@ -26,6 +27,8 @@ type InMemoryTermBase struct {
 	mu          sync.RWMutex
 	concepts    []Concept
 	byID        map[string]int // concept ID → index
+	relations   []ConceptRelation
+	relByID     map[string]int // relation ID → index
 	maxConcepts int            // 0 = unlimited
 }
 
@@ -44,6 +47,7 @@ func WithMaxConcepts(max int) InMemoryTermBaseOption {
 func NewInMemoryTermBase(opts ...InMemoryTermBaseOption) *InMemoryTermBase {
 	tb := &InMemoryTermBase{
 		byID:        make(map[string]int),
+		relByID:     make(map[string]int),
 		maxConcepts: DefaultMaxConcepts,
 	}
 	for _, opt := range opts {
@@ -59,6 +63,9 @@ func (tb *InMemoryTermBase) AddConcept(_ context.Context, concept Concept) error
 
 	if concept.ID == "" {
 		return errors.New("concept ID is required")
+	}
+	if err := validateConceptTermStatuses(concept); err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -99,6 +106,25 @@ func (tb *InMemoryTermBase) evictOldest() {
 	for id, idx := range tb.byID {
 		tb.byID[id] = idx - 1
 	}
+
+	tb.deleteRelationsOf(oldest.ID)
+}
+
+// deleteRelationsOf removes all relations touching the concept, mirroring the
+// SQLite backend's ON DELETE CASCADE. Caller must hold tb.mu.
+func (tb *InMemoryTermBase) deleteRelationsOf(conceptID string) {
+	kept := tb.relations[:0]
+	for _, rel := range tb.relations {
+		if rel.SourceID == conceptID || rel.TargetID == conceptID {
+			delete(tb.relByID, rel.ID)
+			continue
+		}
+		kept = append(kept, rel)
+	}
+	tb.relations = kept
+	for i, rel := range tb.relations {
+		tb.relByID[rel.ID] = i
+	}
 }
 
 // MaxConcepts returns the configured maximum concept count (0 = unlimited).
@@ -136,7 +162,105 @@ func (tb *InMemoryTermBase) DeleteConcept(_ context.Context, id string) error {
 	tb.concepts = tb.concepts[:lastIdx]
 	delete(tb.byID, id)
 
+	tb.deleteRelationsOf(id)
+
 	return nil
+}
+
+// AddRelation inserts or updates (by ID) a relation between two concepts.
+func (tb *InMemoryTermBase) AddRelation(_ context.Context, rel ConceptRelation) error {
+	if err := ValidateRelation(rel); err != nil {
+		return err
+	}
+
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	if _, ok := tb.byID[rel.SourceID]; !ok {
+		return fmt.Errorf("source concept not found: %s", rel.SourceID)
+	}
+	if _, ok := tb.byID[rel.TargetID]; !ok {
+		return fmt.Errorf("target concept not found: %s", rel.TargetID)
+	}
+
+	if rel.CreatedAt.IsZero() {
+		rel.CreatedAt = time.Now()
+	}
+
+	if idx, exists := tb.relByID[rel.ID]; exists {
+		rel.CreatedAt = tb.relations[idx].CreatedAt // preserve original creation time
+		tb.relations[idx] = rel
+		return nil
+	}
+
+	tb.relByID[rel.ID] = len(tb.relations)
+	tb.relations = append(tb.relations, rel)
+	return nil
+}
+
+// DeleteRelation removes a relation by ID.
+func (tb *InMemoryTermBase) DeleteRelation(_ context.Context, id string) error {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	idx, exists := tb.relByID[id]
+	if !exists {
+		return fmt.Errorf("relation not found: %s", id)
+	}
+
+	lastIdx := len(tb.relations) - 1
+	if idx != lastIdx {
+		tb.relations[idx] = tb.relations[lastIdx]
+		tb.relByID[tb.relations[idx].ID] = idx
+	}
+	tb.relations = tb.relations[:lastIdx]
+	delete(tb.relByID, id)
+
+	return nil
+}
+
+// RelationsOf returns all relations touching the concept, in either direction,
+// filtered by the validity scope when one is given.
+func (tb *InMemoryTermBase) RelationsOf(_ context.Context, conceptID string, scope *graph.Scope) ([]ConceptRelation, error) {
+	tb.mu.RLock()
+	defer tb.mu.RUnlock()
+
+	var out []ConceptRelation
+	for _, rel := range tb.relations {
+		if rel.SourceID != conceptID && rel.TargetID != conceptID {
+			continue
+		}
+		if !MatchesScope(rel.Validity, scope) {
+			continue
+		}
+		out = append(out, rel)
+	}
+	sortRelations(out)
+	return out, nil
+}
+
+// ListRelations returns all relations, filtered by the validity scope when one
+// is given.
+func (tb *InMemoryTermBase) ListRelations(_ context.Context, scope *graph.Scope) ([]ConceptRelation, error) {
+	tb.mu.RLock()
+	defer tb.mu.RUnlock()
+
+	var out []ConceptRelation
+	for _, rel := range tb.relations {
+		if !MatchesScope(rel.Validity, scope) {
+			continue
+		}
+		out = append(out, rel)
+	}
+	sortRelations(out)
+	return out, nil
+}
+
+// sortRelations orders relations deterministically by ID.
+func sortRelations(rels []ConceptRelation) {
+	slices.SortFunc(rels, func(a, b ConceptRelation) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
 
 // Lookup finds terms matching the source text.
@@ -166,6 +290,9 @@ func (tb *InMemoryTermBase) Lookup(_ context.Context, sourceText string, opts Lo
 				continue
 			}
 			if !MatchesStatus(term.Status, opts.StatusFilter) {
+				continue
+			}
+			if !MatchesScope(term.Validity, opts.Scope) {
 				continue
 			}
 
@@ -244,6 +371,9 @@ func (tb *InMemoryTermBase) LookupAll(_ context.Context, sourceText string, opts
 				continue
 			}
 			if !MatchesStatus(term.Status, opts.StatusFilter) {
+				continue
+			}
+			if !MatchesScope(term.Validity, opts.Scope) {
 				continue
 			}
 

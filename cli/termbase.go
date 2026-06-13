@@ -23,7 +23,8 @@ func (a *App) NewTermbaseCmd() *cobra.Command {
 		Long: `Manage project terminology.
 
 A termbase is a glossary of approved terms stored as a SQLite database.
-Use these commands to import, export, look up, and manage terms.
+Use these commands to import, export, look up, and manage terms, and to
+maintain the typed relations between concepts.
 
 Resource location (mutually exclusive):
   --name <n>      Named termbase in KAPI_HOME (~/.config/kapi/termbases/<n>.db)
@@ -33,7 +34,8 @@ Resource location (mutually exclusive):
 Default (no flag): same as --local (uses ./termbase.db).`,
 		Example: `  kapi termbase stats
   kapi termbase lookup "dashboard" -s en -t fr
-  kapi termbase import glossary.csv -s en -t fr`,
+  kapi termbase import glossary.csv -s en -t fr
+  kapi termbase relate old-name replaced-by new-name`,
 	}
 
 	importCmd := a.newTermbaseImportCmd()
@@ -42,13 +44,17 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 	searchCmd := a.newTermbaseSearchCmd()
 	statsCmd := a.newTermbaseStatsCmd()
 	listCmd := a.newTermbaseListCmd()
+	relateCmd := a.newTermbaseRelateCmd()
+	relationsCmd := a.newTermbaseRelationsCmd()
+	unrelateCmd := a.newTermbaseUnrelateCmd()
+	showCmd := a.newTermbaseShowCmd()
 
 	// Shared resource flags for all subcommands (except list).
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, relateCmd, relationsCmd, unrelateCmd, showCmd} {
 		AddResourceFlags(cmd)
 	}
 
-	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd)
+	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd, relateCmd, relationsCmd, unrelateCmd, showCmd)
 	return tbCmd
 }
 

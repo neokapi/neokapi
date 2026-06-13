@@ -210,19 +210,22 @@ func TestPostgresTermBase_IntegrationAddConceptWithStream(t *testing.T) {
 	}
 	require.NoError(t, tb.AddConcept(t.Context(), wsConcept))
 
-	concepts, total := tb.SearchForStream("", "", "",
+	concepts, total, err := tb.SearchForStream(t.Context(), "", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 3, total)
 	assert.Len(t, concepts, 3)
 	assert.Equal(t, "c-feat", concepts[0].ID)
 
-	concepts, total = tb.SearchForStream("", "", "", "", nil, 0, 100)
+	concepts, total, err = tb.SearchForStream(t.Context(), "", "", "", "", nil, 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
 
-	concepts, total = tb.SearchForStream("save", "", "",
+	concepts, total, err = tb.SearchForStream(t.Context(), "save", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
+	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
