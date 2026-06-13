@@ -87,72 +87,80 @@ deterministically (sorted by ID) under the existing schema version.
 
 ### New package `bowrain/knowledge`
 
-Stores (SQLite **and** PostgreSQL, full parity) in migration namespace
-`knowledge_migrations`:
+A PostgreSQL store (`NewPostgresKnowledgeStore`, migration namespace
+`knowledge_schema_migrations`), mirroring the brand store: bowrain-server runs
+exclusively on PostgreSQL, and the knowledge graph is a server-side governance
+subsystem with no standalone-kapi or desktop-cache use. The change-set state
+machine, op validation, governed/ordinary classification, separation-of-duties
+merge gate, and conflict detection are pure functions in
+`bowrain/knowledge/changeset.go`, unit-tested without a database; the SQL layer
+adds compile-time interface checks, scan round-trips, and `//go:build
+integration` CRUD tests. Tables (`PRIMARY KEY (workspace_id, id)` where
+workspace-scoped; `TIMESTAMPTZ` timestamps, `JSONB` for snapshot/payload/locales):
 
 ```sql
 kg_markets (
-  workspace_id TEXT, id TEXT, name TEXT, description TEXT DEFAULT '',
-  locales TEXT DEFAULT '[]',          -- JSON array of locale IDs
-  created_at, updated_at,
+  workspace_id TEXT, id TEXT, name TEXT, description TEXT NOT NULL DEFAULT '',
+  locales JSONB NOT NULL DEFAULT '[]',     -- array of locale IDs
+  created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, id)
 )
 
 kg_observations (
   workspace_id TEXT, id TEXT, concept_id TEXT,
-  kind TEXT,                          -- competitor|customer|style_guide|regulatory|web|internal
-  quote TEXT, source TEXT, url TEXT DEFAULT '',
-  locale TEXT DEFAULT '', market TEXT DEFAULT '',
-  note TEXT DEFAULT '',
-  created_by TEXT, created_at,
+  kind TEXT,                               -- competitor|customer|style_guide|regulatory|web|internal
+  quote TEXT, source TEXT, url TEXT NOT NULL DEFAULT '',
+  locale TEXT NOT NULL DEFAULT '', market TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  created_by TEXT, created_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, id)
 )
 
 kg_comments (
   workspace_id TEXT, id TEXT, concept_id TEXT,
-  parent_id TEXT DEFAULT '',          -- threaded; empty = top-level
-  changeset_id TEXT DEFAULT '',       -- set when the thread belongs to a change-set
-  body TEXT, author TEXT, created_at,
-  resolved INTEGER/BOOLEAN DEFAULT false,
+  parent_id TEXT NOT NULL DEFAULT '',      -- threaded; empty = top-level
+  changeset_id TEXT NOT NULL DEFAULT '',   -- set when the thread belongs to a change-set
+  body TEXT, author TEXT, created_at TIMESTAMPTZ,
+  resolved BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (workspace_id, id)
 )
 
 kg_concept_revisions (
-  workspace_id TEXT, concept_id TEXT, rev BIGINT/INTEGER,
-  snapshot TEXT,                      -- JSON of termbase.Concept + relations delta
-  summary TEXT,                       -- human-readable change summary
-  actor TEXT, changeset_id TEXT DEFAULT '',
-  created_at,
+  workspace_id TEXT, concept_id TEXT, rev BIGINT,
+  snapshot JSONB,                          -- termbase.Concept + relations delta
+  summary TEXT,                            -- human-readable change summary
+  actor TEXT, changeset_id TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, concept_id, rev)
 )
 
 kg_changesets (
-  workspace_id TEXT, id TEXT, name TEXT, description TEXT DEFAULT '',
-  status TEXT DEFAULT 'draft',        -- draft|in_review|approved|merged|abandoned
-  created_by TEXT, created_at, updated_at,
-  submitted_at TIMESTAMPTZ, merged_at TIMESTAMPTZ, merged_by TEXT DEFAULT '',
+  workspace_id TEXT, id TEXT, name TEXT, description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'draft',    -- draft|in_review|approved|merged|abandoned
+  created_by TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
+  submitted_at TIMESTAMPTZ, merged_at TIMESTAMPTZ, merged_by TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (workspace_id, id)
 )
 
 kg_changeset_ops (
-  workspace_id TEXT, changeset_id TEXT, seq BIGINT/INTEGER,
-  op TEXT,                            -- op type, see below
-  payload TEXT,                       -- JSON, op-specific
-  base_rev BIGINT DEFAULT 0,          -- concept revision the op was authored against
-  created_by TEXT, created_at,
+  workspace_id TEXT, changeset_id TEXT, seq BIGINT,
+  op TEXT,                                 -- op type, see below
+  payload JSONB,                           -- op-specific
+  base_rev BIGINT NOT NULL DEFAULT 0,      -- concept revision the op was authored against
+  created_by TEXT, created_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, changeset_id, seq)
 )
 
 kg_changeset_reviews (
   workspace_id TEXT, changeset_id TEXT, reviewer TEXT,
-  verdict TEXT,                       -- approve|reject
-  comment TEXT DEFAULT '', created_at,
+  verdict TEXT,                            -- approve|reject
+  comment TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, changeset_id, reviewer)
 )
 
 kg_pilots (
   workspace_id TEXT, changeset_id TEXT, project_id TEXT, stream TEXT,
-  created_by TEXT, created_at,
+  created_by TEXT, created_at TIMESTAMPTZ,
   PRIMARY KEY (workspace_id, changeset_id, project_id, stream)
 )
 ```
