@@ -85,18 +85,10 @@ jobs:
       - name: Validate support tiers
         run: node scripts/format-ops/check-support-gates.mjs
 
-      # TODO(format-ops): check-vocab-packs currently fails on HEAD — known
-      # live drift between the vocabulary packs and the format packages. The
-      # burndown is owned by the `remediate` ritual (docs/internals/format-ops.md
-      # §3, ritual 2). Once it runs green, make this step hard: drop
-      # continue-on-error and the ::warning wrapper.
+      # Hard gate: the Go vocabulary packs (core/model/vocabularies/*.json) and
+      # their verbatim TS copies (packages/*/src/vocabularies/) must not drift.
       - name: Vocabulary pack drift
-        continue-on-error: true
-        run: |
-          if ! node scripts/format-ops/check-vocab-packs.mjs; then
-            echo "::warning title=Vocabulary pack drift::scripts/format-ops/check-vocab-packs.mjs failed — known drift, tracked by the format-ops remediate ritual (docs/internals/format-ops.md §3)"
-            exit 1
-          fi
+        run: node scripts/format-ops/check-vocab-packs.mjs
 
   l10n-drift:
     name: l10n catalogs are fresh

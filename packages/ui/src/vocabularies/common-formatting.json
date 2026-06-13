@@ -88,6 +88,48 @@
       "equiv": "",
       "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
+    "fmt:strikethrough": {
+      "category": "formatting",
+      "label": "Strikethrough",
+      "html": { "open": "<s>", "close": "</s>" },
+      "display": { "open": "[S]", "close": "[/S]" },
+      "chipLabel": { "open": "S>", "close": "/S", "placeholder": "S" },
+      "color": {
+        "bg": "rgba(239,68,68,0.15)",
+        "border": "rgba(239,68,68,0.5)",
+        "text": "rgb(239,68,68)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "fmt:superscript": {
+      "category": "formatting",
+      "label": "Superscript",
+      "html": { "open": "<sup>", "close": "</sup>" },
+      "display": { "open": "[SUP]", "close": "[/SUP]" },
+      "chipLabel": { "open": "sup>", "close": "/sup", "placeholder": "sup" },
+      "color": {
+        "bg": "rgba(168,85,247,0.15)",
+        "border": "rgba(168,85,247,0.5)",
+        "text": "rgb(168,85,247)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "fmt:subscript": {
+      "category": "formatting",
+      "label": "Subscript",
+      "html": { "open": "<sub>", "close": "</sub>" },
+      "display": { "open": "[SUB]", "close": "[/SUB]" },
+      "chipLabel": { "open": "sub>", "close": "/sub", "placeholder": "sub" },
+      "color": {
+        "bg": "rgba(168,85,247,0.15)",
+        "border": "rgba(168,85,247,0.5)",
+        "text": "rgb(168,85,247)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
     "struct:break": {
       "category": "structure",
       "label": "Line Break",
@@ -100,6 +142,34 @@
         "text": "rgb(107,114,128)"
       },
       "equiv": "\n",
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
+    },
+    "struct:tab": {
+      "category": "structure",
+      "label": "Tab",
+      "html": { "placeholder": "<span class=\"tab\">\t</span>" },
+      "display": { "placeholder": "[TAB]" },
+      "chipLabel": { "placeholder": "tab" },
+      "color": {
+        "bg": "rgba(107,114,128,0.15)",
+        "border": "rgba(107,114,128,0.5)",
+        "text": "rgb(107,114,128)"
+      },
+      "equiv": "\t",
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
+    },
+    "struct:footnote": {
+      "category": "structure",
+      "label": "Footnote Reference",
+      "html": { "placeholder": "<sup class=\"footnote\">[*]</sup>" },
+      "display": { "placeholder": "[FN]" },
+      "chipLabel": { "placeholder": "fn" },
+      "color": {
+        "bg": "rgba(234,179,8,0.15)",
+        "border": "rgba(234,179,8,0.5)",
+        "text": "rgb(234,179,8)"
+      },
+      "equiv": "",
       "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
     }
   },

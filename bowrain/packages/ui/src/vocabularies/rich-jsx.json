@@ -1,0 +1,63 @@
+{
+  "name": "rich-jsx",
+  "version": "1.0",
+  "extends": "rich-html",
+  "types": {
+    "jsx:element": {
+      "category": "structure",
+      "label": "JSX Element",
+      "html": {
+        "open": "<{subType} data-neokapi-span=\"{id}\">",
+        "close": "</{subType}>"
+      },
+      "display": {
+        "open": "<{subType}>",
+        "close": "</{subType}>"
+      },
+      "chipLabel": { "open": "{subType}>", "close": "/{subType}", "placeholder": "{subType}" },
+      "color": {
+        "bg": "rgba(226,232,240,1)",
+        "border": "rgba(148,163,184,1)",
+        "text": "rgba(30,41,59,1)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": true }
+    },
+    "jsx:var": {
+      "category": "variable",
+      "label": "JSX Variable",
+      "html": {
+        "placeholder": "<span class=\"neokapi-var\" data-var=\"{equiv}\" data-type=\"{subType}\">{equiv}</span>"
+      },
+      "display": {
+        "placeholder": "{{equiv}}"
+      },
+      "chipLabel": { "placeholder": "{equiv}" },
+      "color": {
+        "bg": "rgba(219,234,254,1)",
+        "border": "rgba(59,130,246,1)",
+        "text": "rgba(30,64,175,1)"
+      },
+      "equiv": "{equiv}",
+      "constraints": { "deletable": false, "cloneable": true, "reorderable": true }
+    },
+    "jsx:node": {
+      "category": "node",
+      "label": "JSX ReactNode",
+      "html": {
+        "placeholder": "<span class=\"neokapi-node\" data-node=\"{id}\" title=\"{data}\">{equiv}</span>"
+      },
+      "display": {
+        "placeholder": "«{equiv}»"
+      },
+      "chipLabel": { "placeholder": "⟨⟩" },
+      "color": {
+        "bg": "rgba(254,243,199,1)",
+        "border": "rgba(245,158,11,1)",
+        "text": "rgba(146,64,14,1)"
+      },
+      "equiv": "{equiv}",
+      "constraints": { "deletable": true, "cloneable": false, "reorderable": true }
+    }
+  }
+}
