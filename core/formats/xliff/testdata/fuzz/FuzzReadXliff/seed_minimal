@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<?xml version=\"1.0\"?><xliff version=\"1.2\" xmlns=\"urn:oasis:names:tc:xliff:document:1.2\"><file original=\"x\" source-language=\"en\" datatype=\"plaintext\"><body><trans-unit id=\"1\"><source>Hi</source></trans-unit></body></file></xliff>")

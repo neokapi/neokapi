@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<html>\n  <body>\n    <p>Click <b>here</b> for <a href=\"http://example.com\">more info</a></p>\n  </body>\n</html>\n")

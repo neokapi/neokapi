@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for Adobe InDesign IDML files.
@@ -94,6 +95,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("idml: not a valid ZIP archive: %w", err)}
+		return
+	}
+
+	// Validate the archive against the shared safeio budget before reading any
+	// part; per-entry reads are additionally bounded in readZipFile.
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("idml: %w", err)}
 		return
 	}
 
@@ -1655,12 +1663,9 @@ func (r *Reader) Close() error {
 // Helper functions
 
 func readZipFile(f *zip.File) ([]byte, error) {
-	rc, err := f.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	return io.ReadAll(rc)
+	// Bounded by the shared safeio zip limits (per-entry uncompressed size +
+	// inflate-ratio zip-bomb guard on the actual decompressed stream).
+	return safeio.DefaultZipLimits.ReadEntry(f)
 }
 
 func zipFileByName(zr *zip.Reader, name string) *zip.File {

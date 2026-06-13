@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // ODF XML namespaces.
@@ -225,6 +226,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if err != nil {
 		tmpFile.Close()
 		ch <- model.PartResult{Error: fmt.Errorf("odf: not a valid ZIP archive: %w", err)}
+		return
+	}
+
+	// Validate the archive against the shared safeio budget before reading any
+	// part; per-entry reads are additionally bounded in readZipFile.
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
+		tmpFile.Close()
+		ch <- model.PartResult{Error: fmt.Errorf("odf: %w", err)}
 		return
 	}
 
@@ -1010,14 +1019,11 @@ func (r *Reader) Close() error {
 	return nil
 }
 
-// readZipFile reads the contents of a ZIP file entry.
+// readZipFile reads the contents of a ZIP file entry, bounded by the shared
+// safeio zip limits (per-entry uncompressed size + inflate-ratio zip-bomb
+// guard on the actual decompressed stream).
 func readZipFile(f *zip.File) ([]byte, error) {
-	rc, err := f.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	return io.ReadAll(rc)
+	return safeio.DefaultZipLimits.ReadEntry(f)
 }
 
 // zipFileByName returns the zip.File for a given path, or nil.

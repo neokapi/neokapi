@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\n  \"title\": \"Hello World\",\n  \"description\": \"A simple test\",\n  \"nested\": {\n    \"key\": \"Nested value\"\n  },\n  \"items\": [\"First\", \"Second\", \"Third\"]\n}\n")

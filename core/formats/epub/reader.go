@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for EPUB e-book files.
@@ -173,6 +174,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 	defer zr.Close()
+
+	// Validate the archive against the shared safeio budget before reading any
+	// entry; per-entry reads are additionally bounded in readEntry.
+	if err := safeio.DefaultZipLimits.CheckReader(&zr.Reader); err != nil {
+		r.emitError(ch, fmt.Errorf("epub: %w", err))
+		return
+	}
 
 	// Build file map
 	fileMap := make(map[string]*zip.File)
@@ -366,12 +374,9 @@ func (r *Reader) parseOPF(fileMap map[string]*zip.File, opfPath string) ([]strin
 }
 
 func (r *Reader) readEntry(file *zip.File) ([]byte, error) {
-	rc, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	return io.ReadAll(rc)
+	// Bounded by the shared safeio zip limits (per-entry uncompressed size +
+	// inflate-ratio zip-bomb guard on the actual decompressed stream).
+	return safeio.DefaultZipLimits.ReadEntry(file)
 }
 
 // extractAndEmitXHTML parses XHTML content and extracts translatable text,

@@ -8,6 +8,8 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // docType identifies the OpenXML document type.
@@ -154,7 +156,7 @@ func parseContentTypes(zr *zip.Reader) ([]contentType, error) {
 		return nil, errors.New("missing [Content_Types].xml")
 	}
 
-	rc, err := ctFile.Open()
+	rc, err := safeio.DefaultZipLimits.OpenEntry(ctFile)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +210,7 @@ func detectDocType(ctypes []contentType) docType {
 
 // parseRelationships parses a .rels XML file.
 func parseRelationships(f *zip.File) ([]relationship, error) {
-	rc, err := f.Open()
+	rc, err := safeio.DefaultZipLimits.OpenEntry(f)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +559,7 @@ func parseSharedStrings(zr *zip.Reader) ([]string, error) {
 		return nil, nil // No shared strings — not an error
 	}
 
-	rc, err := f.Open()
+	rc, err := safeio.DefaultZipLimits.OpenEntry(f)
 	if err != nil {
 		return nil, err
 	}

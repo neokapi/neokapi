@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<html>\n  <head>\n    <title>Test</title>\n  </head>\n  <body>\n    <p>Hello world</p>\n  </body>\n</html>\n")
