@@ -144,21 +144,78 @@
   }
 
   /*
-   * Tailwind preflight is disabled here (it would clobber Infima), so bare
-   * <button> elements keep the user-agent button background/border/padding.
-   * Restore the preflight reset, scoped to .kapi-reference, so unstyled buttons
-   * (e.g. the lab's tree toggles and collapsible triggers) are transparent.
-   * shadcn Button variants re-apply their own background/border/padding via
-   * utilities, which win. The `padding: 0` matters beyond looks: Radix's Switch
-   * is a <button>, and the native `1px 6px` padding squeezes its thumb (the
-   * track is only ~24px wide), so an "on" toggle never travels fully right and
-   * reads as a solid blob. Zeroing it lets the thumb size + translate correctly.
+   * Tailwind preflight is disabled here (it would clobber Infima's global
+   * element styles), but the shadcn / ui-primitives components rendered inside
+   * `.kapi-reference` are authored against preflight's resets. Without them,
+   * native user-agent chrome leaks through: <button>/<select> padding + font,
+   * <ul>/<ol> bullets and a ~40px indent, default heading/paragraph margins,
+   * un-collapsed <table> borders. (The original symptom: Radix's Switch is a
+   * <button>, and native `1px 6px` padding squeezed its thumb so an "on" toggle
+   * read as a solid blob.) Restore the load-bearing subset of preflight, scoped
+   * to `.kapi-reference` only — it wraps component UIs, never Infima doc prose,
+   * so this can't touch ordinary docs pages. Component utilities (shadcn's px-*,
+   * border-*, text-*, list-* …) still win via the utilities layer.
    */
+
+  /* Form controls inherit typography and shed native metrics. */
+  .kapi-reference button,
+  .kapi-reference input,
+  .kapi-reference optgroup,
+  .kapi-reference select,
+  .kapi-reference textarea {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    margin: 0;
+    padding: 0;
+  }
   .kapi-reference button {
     background-color: transparent;
     background-image: none;
     border: 0 solid;
+  }
+
+  /* Lists carry no markers/indent unless a component opts back in. */
+  .kapi-reference ol,
+  .kapi-reference ul,
+  .kapi-reference menu {
+    list-style: none;
+    margin: 0;
     padding: 0;
+  }
+
+  /* Block elements shed default margins; headings don't inflate (components
+   * size + space them with utilities). */
+  .kapi-reference h1,
+  .kapi-reference h2,
+  .kapi-reference h3,
+  .kapi-reference h4,
+  .kapi-reference h5,
+  .kapi-reference h6,
+  .kapi-reference p,
+  .kapi-reference figure,
+  .kapi-reference blockquote,
+  .kapi-reference dl,
+  .kapi-reference dd,
+  .kapi-reference pre,
+  .kapi-reference hr {
+    margin: 0;
+  }
+  .kapi-reference h1,
+  .kapi-reference h2,
+  .kapi-reference h3,
+  .kapi-reference h4,
+  .kapi-reference h5,
+  .kapi-reference h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  /* Tables collapse their borders. */
+  .kapi-reference table {
+    border-collapse: collapse;
+    border-color: inherit;
+    text-indent: 0;
   }
 
   /*
