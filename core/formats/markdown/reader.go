@@ -847,6 +847,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Name = fmt.Sprintf("heading%d", r.blockCounter)
 	block.Type = "heading"
 	block.Properties["level"] = strconv.Itoa(n.Level)
+	block.SetSemanticRole(model.RoleHeading, n.Level)
 	r.addInlineRuns(block, n, source)
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
@@ -1474,6 +1475,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	block := model.NewBlock(blockID, textContent)
 	block.Name = fmt.Sprintf("item%d", r.blockCounter)
 	block.Type = "list-item"
+	block.SetSemanticRole(model.RoleListItem, 0)
 
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if p, ok := child.(*ast.Paragraph); ok {
@@ -1539,6 +1541,7 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 		block := model.NewBlock(blockID, textContent)
 		block.Name = fmt.Sprintf("item%d", r.blockCounter)
 		block.Type = "list-item"
+		block.SetSemanticRole(model.RoleListItem, 0)
 		r.addInlineRuns(block, headerNode, source)
 		if hasOnlyHardBreaks(headerNode) {
 			if prefix := detectLinePrefix(headerNode, source); prefix != "" {

@@ -135,20 +135,22 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 		}
 		w.firstBlock = false
 
-		// Reconstruct heading prefix
-		if block.Type == "heading" {
-			if level, ok := block.Properties["level"]; ok {
-				n := 0
-				_, _ = fmt.Sscanf(level, "%d", &n)
-				prefix := strings.Repeat("#", n) + " "
-				if _, err := fmt.Fprint(out, prefix); err != nil {
+		// Structure prefix, keyed on the normalized semantic role (WS6).
+		// SemanticRole drives clean cross-format export (any source → Markdown);
+		// it falls back to the format-specific block.Type so same-format
+		// round-trips are unchanged.
+		role := block.SemanticRole()
+		if role == "" {
+			role = block.Type
+		}
+		switch role {
+		case model.RoleHeading:
+			if n := headingLevel(block); n > 0 {
+				if _, err := fmt.Fprint(out, strings.Repeat("#", n)+" "); err != nil {
 					return err
 				}
 			}
-		}
-
-		// Reconstruct list item prefix
-		if block.Type == "list-item" {
+		case model.RoleListItem:
 			if _, err := fmt.Fprint(out, "- "); err != nil {
 				return err
 			}
@@ -159,6 +161,21 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// headingLevel returns a block's heading level, preferring the normalized
+// structural annotation (WS1) and falling back to the legacy "level" property;
+// 0 when neither is present.
+func headingLevel(block *model.Block) int {
+	if s, ok := block.Structure(); ok && s != nil && s.Level > 0 {
+		return s.Level
+	}
+	if level, ok := block.Properties["level"]; ok {
+		n := 0
+		_, _ = fmt.Sscanf(level, "%d", &n)
+		return n
+	}
+	return 0
 }
 
 // trailSpaceTrimmer is an io.Writer that mirrors upstream Okapi's
