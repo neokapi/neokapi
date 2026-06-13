@@ -132,7 +132,7 @@
     {
       "date": "2026-06-13",
       "ritual": "triage-score",
-      "commit": "pending",
+      "commit": "c7d12ef630550827f391ec00935db6d9dc216359",
       "model_id": "deterministic",
       "outcome": "bootstrap floor publish: engine L0:2 L1:9 L2:31 L3:7 L4:0; 49 formats; first multi-axis snapshot",
       "evidence": [
