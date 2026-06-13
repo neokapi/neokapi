@@ -145,15 +145,20 @@
 
   /*
    * Tailwind preflight is disabled here (it would clobber Infima), so bare
-   * <button> elements keep the user-agent button background/border. Restore the
-   * preflight reset, scoped to .kapi-reference, so unstyled buttons (e.g. the
-   * lab's tree toggles and collapsible triggers) are transparent. shadcn Button
-   * variants re-apply their own background/border via utilities, which win.
+   * <button> elements keep the user-agent button background/border/padding.
+   * Restore the preflight reset, scoped to .kapi-reference, so unstyled buttons
+   * (e.g. the lab's tree toggles and collapsible triggers) are transparent.
+   * shadcn Button variants re-apply their own background/border/padding via
+   * utilities, which win. The `padding: 0` matters beyond looks: Radix's Switch
+   * is a <button>, and the native `1px 6px` padding squeezes its thumb (the
+   * track is only ~24px wide), so an "on" toggle never travels fully right and
+   * reads as a solid blob. Zeroing it lets the thumb size + translate correctly.
    */
   .kapi-reference button {
     background-color: transparent;
     background-image: none;
     border: 0 solid;
+    padding: 0;
   }
 
   /*
