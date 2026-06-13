@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/arb"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/designtokens"
+	"github.com/neokapi/neokapi/core/formats/doclang"
 	"github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
 	"github.com/neokapi/neokapi/core/formats/epub"
@@ -112,6 +113,18 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "XML")
 	reg.RegisterWriter("xml", func() format.DataFormatWriter { return xmlfmt.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "xml", func() format.DataFormatReader { return xmlfmt.NewReader() })
+
+	// DocLang (LF AI & Data open standard, v0.6). Read-only for now — the
+	// writer lands in a follow-up; like pdf, it registers a reader and no
+	// writer. The dual <doclang root check wins detection over generic xml.
+	reg.RegisterReader("doclang",
+		func() format.DataFormatReader { return doclang.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/doclang+xml"},
+			Extensions: []string{".dclg.xml"},
+			Sniff:      func(data []byte) bool { return bytes.Contains(data, []byte("<doclang")) },
+		}, "DocLang")
+	registerSchemaAndDecoder(o, reg, "doclang", func() format.DataFormatReader { return doclang.NewReader() })
 
 	// .NET RESX / .resw (Microsoft ResX 2.0). The Sniff keys on the
 	// resmimetype resheader so RESX files routed without the .resx/.resw

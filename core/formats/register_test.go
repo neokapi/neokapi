@@ -28,7 +28,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec

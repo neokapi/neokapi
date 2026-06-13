@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6">
+  <heading level="1">
+    <location value="60"/><location value="40"/><location value="452"/><location value="64"/>
+    Quarterly Report
+  </heading>
+  <text>
+    <location value="60"/><location value="80"/><location value="452"/><location value="120"/>
+    This report summarizes <bold>Q1</bold> results and lists the key action items.
+  </text>
+  <list class="ordered">
+    <ldiv><marker>1.</marker></ldiv>
+    <text>Review the sales figures.</text>
+    <ldiv><marker>2.</marker></ldiv>
+    <text>Approve the budget.</text>
+  </list>
+  <table>
+    <location value="60"/><location value="200"/><location value="452"/><location value="320"/>
+    <caption>Table 1: Sales by region</caption>
+    <ched/>Region<ched/>Revenue<nl/>
+    <fcel/>North<fcel/>1200<nl/>
+    <fcel/>South<fcel/>980<nl/>
+  </table>
+</doclang>
