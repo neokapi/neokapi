@@ -1270,161 +1270,185 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Brand knowledge graph (AD-021) ---
-  // The desktop app is a working copy of the server and proxies these via the
-  // REST surface once connected; they are not wired to local Wails bindings, so
-  // they follow the file's "not implemented in desktop app" convention until the
-  // desktop knowledge-graph bindings land.
-  async listConcepts(_ws: string, _params?: ListConceptsParams): Promise<TermSearchResult> {
-    throw new Error("not implemented in desktop app");
+  // The desktop app is a working copy of the server (AD-021): these proxy the
+  // workspace REST surface through the Go backend's knowledge.go (Bearer
+  // keychain auth, govRequest), exactly like the Brand Voice methods above. The
+  // graph is never authored offline. The backend returns json.RawMessage, which
+  // the bindings surface untyped, so cast at the boundary to the typed shapes
+  // the ApiAdapter promises. Ordinary concept terminology edits keep using the
+  // gRPC editor methods (addConcept/updateConcept/deleteConcept) above.
+  async listConcepts(
+    workspaceSlug: string,
+    params?: ListConceptsParams,
+  ): Promise<TermSearchResult> {
+    return Backend.ListConcepts(workspaceSlug, params ?? {}) as Promise<TermSearchResult>;
   }
-  async getConcept(_ws: string, _conceptId: string): Promise<ConceptInfo> {
-    throw new Error("not implemented in desktop app");
+  async getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo> {
+    return Backend.GetConcept(workspaceSlug, conceptId) as Promise<ConceptInfo>;
   }
-  async createConcept(_ws: string, _req: AddConceptRequest): Promise<ConceptInfo> {
-    throw new Error("not implemented in desktop app");
+  async createConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo> {
+    return Backend.CreateConcept(workspaceSlug, req) as Promise<ConceptInfo>;
   }
-  async getConceptStory(_ws: string, _conceptId: string): Promise<ConceptStory> {
-    throw new Error("not implemented in desktop app");
+  async getConceptStory(workspaceSlug: string, conceptId: string): Promise<ConceptStory> {
+    return Backend.GetConceptStory(workspaceSlug, conceptId) as Promise<ConceptStory>;
   }
   async listConceptRelations(
-    _ws: string,
-    _conceptId: string,
-    _scope?: RelationScope,
+    workspaceSlug: string,
+    conceptId: string,
+    scope?: RelationScope,
   ): Promise<ConceptRelation[]> {
-    throw new Error("not implemented in desktop app");
+    return Backend.ListConceptRelations(
+      workspaceSlug,
+      conceptId,
+      scope?.as_of ?? "",
+      scope?.market ?? "",
+    ) as Promise<ConceptRelation[]>;
   }
   async addConceptRelation(
-    _ws: string,
-    _conceptId: string,
-    _req: AddConceptRelationRequest,
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddConceptRelationRequest,
   ): Promise<ConceptRelation> {
-    throw new Error("not implemented in desktop app");
+    return Backend.AddConceptRelation(workspaceSlug, conceptId, req) as Promise<ConceptRelation>;
   }
   async deleteConceptRelation(
-    _ws: string,
-    _conceptId: string,
-    _relationId: string,
+    workspaceSlug: string,
+    conceptId: string,
+    relationId: string,
   ): Promise<void> {
-    throw new Error("not implemented in desktop app");
+    return Backend.DeleteConceptRelation(workspaceSlug, conceptId, relationId);
   }
-  async getConceptBlastRadius(_ws: string, _conceptId: string): Promise<ConceptUsage> {
-    throw new Error("not implemented in desktop app");
+  async getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage> {
+    return Backend.GetConceptBlastRadius(workspaceSlug, conceptId) as Promise<ConceptUsage>;
   }
-  async listObservations(_ws: string, _conceptId: string): Promise<Observation[]> {
-    throw new Error("not implemented in desktop app");
+  async listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]> {
+    return Backend.ListObservations(workspaceSlug, conceptId) as Promise<Observation[]>;
   }
   async addObservation(
-    _ws: string,
-    _conceptId: string,
-    _req: AddObservationRequest,
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddObservationRequest,
   ): Promise<Observation> {
-    throw new Error("not implemented in desktop app");
+    return Backend.AddObservation(workspaceSlug, conceptId, req) as Promise<Observation>;
   }
   async deleteObservation(
-    _ws: string,
-    _conceptId: string,
-    _observationId: string,
+    workspaceSlug: string,
+    conceptId: string,
+    observationId: string,
   ): Promise<void> {
-    throw new Error("not implemented in desktop app");
+    return Backend.DeleteObservation(workspaceSlug, conceptId, observationId);
   }
-  async listConceptComments(_ws: string, _conceptId: string): Promise<Comment[]> {
-    throw new Error("not implemented in desktop app");
+  async listConceptComments(workspaceSlug: string, conceptId: string): Promise<Comment[]> {
+    return Backend.ListConceptComments(workspaceSlug, conceptId) as Promise<Comment[]>;
   }
   async addConceptComment(
-    _ws: string,
-    _conceptId: string,
-    _req: AddCommentRequest,
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddCommentRequest,
   ): Promise<Comment> {
-    throw new Error("not implemented in desktop app");
+    return Backend.AddConceptComment(workspaceSlug, conceptId, req) as Promise<Comment>;
   }
   async resolveConceptComment(
-    _ws: string,
-    _conceptId: string,
-    _commentId: string,
-    _resolved?: boolean,
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+    resolved?: boolean,
   ): Promise<void> {
-    throw new Error("not implemented in desktop app");
+    // The Go proxy always sends an explicit bool; the resolve action defaults to
+    // marking resolved when the caller doesn't pass an explicit toggle value.
+    return Backend.ResolveConceptComment(workspaceSlug, conceptId, commentId, resolved ?? true);
   }
-  async deleteConceptComment(_ws: string, _conceptId: string, _commentId: string): Promise<void> {
-    throw new Error("not implemented in desktop app");
+  async deleteConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+  ): Promise<void> {
+    return Backend.DeleteConceptComment(workspaceSlug, conceptId, commentId);
   }
-  async getGraph(_ws: string, _params?: GraphParams): Promise<GraphViz> {
-    throw new Error("not implemented in desktop app");
+  async getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz> {
+    return Backend.GetGraph(workspaceSlug, params ?? {}) as Promise<GraphViz>;
   }
-  async listMarkets(_ws: string): Promise<Market[]> {
-    throw new Error("not implemented in desktop app");
+  async listMarkets(workspaceSlug: string): Promise<Market[]> {
+    return Backend.ListMarkets(workspaceSlug) as Promise<Market[]>;
   }
-  async createMarket(_ws: string, _req: MarketRequest): Promise<Market> {
-    throw new Error("not implemented in desktop app");
+  async createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market> {
+    return Backend.CreateMarket(workspaceSlug, req) as Promise<Market>;
   }
-  async updateMarket(_ws: string, _marketId: string, _req: MarketRequest): Promise<Market> {
-    throw new Error("not implemented in desktop app");
+  async updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market> {
+    return Backend.UpdateMarket(workspaceSlug, marketId, req) as Promise<Market>;
   }
-  async deleteMarket(_ws: string, _marketId: string): Promise<void> {
-    throw new Error("not implemented in desktop app");
+  async deleteMarket(workspaceSlug: string, marketId: string): Promise<void> {
+    return Backend.DeleteMarket(workspaceSlug, marketId);
   }
-  async listChangesets(_ws: string, _status?: ChangeSetStatus): Promise<ChangeSet[]> {
-    throw new Error("not implemented in desktop app");
+  async listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]> {
+    return Backend.ListChangesets(workspaceSlug, status ?? "") as Promise<ChangeSet[]>;
   }
-  async getChangeset(_ws: string, _changesetId: string): Promise<ChangeSetDetail> {
-    throw new Error("not implemented in desktop app");
+  async getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail> {
+    return Backend.GetChangeset(workspaceSlug, changesetId) as Promise<ChangeSetDetail>;
   }
-  async createChangeset(_ws: string, _req: CreateChangeSetRequest): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+  async createChangeset(workspaceSlug: string, req: CreateChangeSetRequest): Promise<ChangeSet> {
+    return Backend.CreateChangeset(workspaceSlug, req) as Promise<ChangeSet>;
   }
   async patchChangeset(
-    _ws: string,
-    _changesetId: string,
-    _req: UpdateChangeSetRequest,
+    workspaceSlug: string,
+    changesetId: string,
+    req: UpdateChangeSetRequest,
   ): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+    return Backend.PatchChangeset(workspaceSlug, changesetId, req) as Promise<ChangeSet>;
   }
   async appendChangesetOp(
-    _ws: string,
-    _changesetId: string,
-    _req: AddChangeSetOpRequest,
+    workspaceSlug: string,
+    changesetId: string,
+    req: AddChangeSetOpRequest,
   ): Promise<ChangeSetOp> {
-    throw new Error("not implemented in desktop app");
+    return Backend.AppendChangesetOp(workspaceSlug, changesetId, req) as Promise<ChangeSetOp>;
   }
-  async removeChangesetOp(_ws: string, _changesetId: string, _seq: number): Promise<void> {
-    throw new Error("not implemented in desktop app");
+  async removeChangesetOp(workspaceSlug: string, changesetId: string, seq: number): Promise<void> {
+    return Backend.RemoveChangesetOp(workspaceSlug, changesetId, seq);
   }
-  async submitChangeset(_ws: string, _changesetId: string): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+  async submitChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return Backend.SubmitChangeset(workspaceSlug, changesetId) as Promise<ChangeSet>;
   }
   async approveChangeset(
-    _ws: string,
-    _changesetId: string,
-    _req?: ReviewRequest,
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
   ): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+    return Backend.ApproveChangeset(workspaceSlug, changesetId, req ?? {}) as Promise<ChangeSet>;
   }
   async rejectChangeset(
-    _ws: string,
-    _changesetId: string,
-    _req?: ReviewRequest,
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
   ): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+    return Backend.RejectChangeset(workspaceSlug, changesetId, req ?? {}) as Promise<ChangeSet>;
   }
-  async mergeChangeset(_ws: string, _changesetId: string): Promise<MergeResult> {
-    throw new Error("not implemented in desktop app");
+  async mergeChangeset(workspaceSlug: string, changesetId: string): Promise<MergeResult> {
+    return Backend.MergeChangeset(workspaceSlug, changesetId) as Promise<MergeResult>;
   }
-  async abandonChangeset(_ws: string, _changesetId: string): Promise<ChangeSet> {
-    throw new Error("not implemented in desktop app");
+  async abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return Backend.AbandonChangeset(workspaceSlug, changesetId) as Promise<ChangeSet>;
   }
-  async getChangesetBlastRadius(_ws: string, _changesetId: string): Promise<ChangeSetImpact> {
-    throw new Error("not implemented in desktop app");
+  async getChangesetBlastRadius(
+    workspaceSlug: string,
+    changesetId: string,
+  ): Promise<ChangeSetImpact> {
+    return Backend.GetChangesetBlastRadius(workspaceSlug, changesetId) as Promise<ChangeSetImpact>;
   }
-  async addPilot(_ws: string, _changesetId: string, _req: StartPilotRequest): Promise<Pilot> {
-    throw new Error("not implemented in desktop app");
+  async addPilot(
+    workspaceSlug: string,
+    changesetId: string,
+    req: StartPilotRequest,
+  ): Promise<Pilot> {
+    return Backend.AddPilot(workspaceSlug, changesetId, req) as Promise<Pilot>;
   }
   async removePilot(
-    _ws: string,
-    _changesetId: string,
-    _projectId: string,
-    _stream: string,
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
   ): Promise<void> {
-    throw new Error("not implemented in desktop app");
+    return Backend.RemovePilot(workspaceSlug, changesetId, projectId, stream);
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

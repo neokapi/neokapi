@@ -30,6 +30,16 @@ import * as application$0 from "../../../../../../wailsapp/wails/v3/pkg/applicat
 import * as $models from "./models.js";
 
 /**
+ * AbandonChangeset abandons a change-set.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AbandonChangeset(workspaceSlug, changesetID) {
+    return $Call.ByID(2548870795, workspaceSlug, changesetID);
+}
+
+/**
  * AddConcept adds a new concept to the termbase.
  * @param {$models.AddConceptRequest} req
  * @returns {$CancellablePromise<$models.ConceptInfo | null>}
@@ -38,6 +48,28 @@ export function AddConcept(req) {
     return $Call.ByID(1629877469, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
+}
+
+/**
+ * AddConceptComment posts a comment to a concept thread.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {$models.AddCommentArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AddConceptComment(workspaceSlug, conceptID, req) {
+    return $Call.ByID(1021175558, workspaceSlug, conceptID, req);
+}
+
+/**
+ * AddConceptRelation adds a typed edge from a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {$models.AddConceptRelationArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AddConceptRelation(workspaceSlug, conceptID, req) {
+    return $Call.ByID(1519794041, workspaceSlug, conceptID, req);
 }
 
 /**
@@ -64,6 +96,28 @@ export function AddMember(workspaceSlug, userID, role) {
 }
 
 /**
+ * AddObservation attaches a piece of external evidence to a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {$models.AddObservationArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AddObservation(workspaceSlug, conceptID, req) {
+    return $Call.ByID(3494012171, workspaceSlug, conceptID, req);
+}
+
+/**
+ * AddPilot binds a change-set to a project's content stream.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {$models.StartPilotArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AddPilot(workspaceSlug, changesetID, req) {
+    return $Call.ByID(3466861303, workspaceSlug, changesetID, req);
+}
+
+/**
  * AddTMEntry adds a new entry to the TM.
  * @param {string} projectID
  * @param {string} source
@@ -76,6 +130,28 @@ export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale
     return $Call.ByID(2110941316, projectID, source, target, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
     }));
+}
+
+/**
+ * AppendChangesetOp appends an ordered op to a draft change-set.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {$models.AddChangesetOpArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function AppendChangesetOp(workspaceSlug, changesetID, req) {
+    return $Call.ByID(1794848911, workspaceSlug, changesetID, req);
+}
+
+/**
+ * ApproveChangeset records an approving review verdict.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {$models.ReviewArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ApproveChangeset(workspaceSlug, changesetID, req) {
+    return $Call.ByID(330321919, workspaceSlug, changesetID, req);
 }
 
 /**
@@ -119,6 +195,27 @@ export function ConnectToServer(serverURL) {
 }
 
 /**
+ * CreateChangeset opens a new draft change-set.
+ * @param {string} workspaceSlug
+ * @param {$models.CreateChangesetArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function CreateChangeset(workspaceSlug, req) {
+    return $Call.ByID(162210356, workspaceSlug, req);
+}
+
+/**
+ * CreateConcept creates a concept via the REST /concepts surface. The body
+ * reuses the AddConceptRequest shape (project_id, domain, definition, terms).
+ * @param {string} workspaceSlug
+ * @param {$models.AddConceptRequest} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function CreateConcept(workspaceSlug, req) {
+    return $Call.ByID(2351091952, workspaceSlug, req);
+}
+
+/**
  * CreateInvite creates a workspace invitation.
  * @param {string} workspaceSlug
  * @param {string} email
@@ -130,6 +227,16 @@ export function CreateInvite(workspaceSlug, email, role, maxUses) {
     return $Call.ByID(1479401621, workspaceSlug, email, role, maxUses).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType8($result);
     }));
+}
+
+/**
+ * CreateMarket defines a new market scope.
+ * @param {string} workspaceSlug
+ * @param {$models.MarketArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function CreateMarket(workspaceSlug, req) {
+    return $Call.ByID(145657116, workspaceSlug, req);
 }
 
 /**
@@ -169,6 +276,28 @@ export function DeleteConcept(projectID, conceptID) {
 }
 
 /**
+ * DeleteConceptComment removes a comment from a concept thread.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} commentID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteConceptComment(workspaceSlug, conceptID, commentID) {
+    return $Call.ByID(584017598, workspaceSlug, conceptID, commentID);
+}
+
+/**
+ * DeleteConceptRelation removes a typed edge from a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} relationID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteConceptRelation(workspaceSlug, conceptID, relationID) {
+    return $Call.ByID(728159105, workspaceSlug, conceptID, relationID);
+}
+
+/**
  * DeleteFlowDefinition removes a project flow definition on the server.
  * @param {string} projectID
  * @param {string} id
@@ -186,6 +315,27 @@ export function DeleteFlowDefinition(projectID, id) {
  */
 export function DeleteInvite(workspaceSlug, inviteID) {
     return $Call.ByID(2213394222, workspaceSlug, inviteID);
+}
+
+/**
+ * DeleteMarket removes a market scope.
+ * @param {string} workspaceSlug
+ * @param {string} marketID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteMarket(workspaceSlug, marketID) {
+    return $Call.ByID(1340556279, workspaceSlug, marketID);
+}
+
+/**
+ * DeleteObservation removes an observation from a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} observationID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteObservation(workspaceSlug, conceptID, observationID) {
+    return $Call.ByID(3297455731, workspaceSlug, conceptID, observationID);
 }
 
 /**
@@ -315,6 +465,26 @@ export function GetBrandTrends(workspaceSlug, projectID) {
 }
 
 /**
+ * GetChangeset returns a single change-set with its ops, reviews, and pilots.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetChangeset(workspaceSlug, changesetID) {
+    return $Call.ByID(2747190700, workspaceSlug, changesetID);
+}
+
+/**
+ * GetChangesetBlastRadius returns the impact of a change-set over stored content.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetChangesetBlastRadius(workspaceSlug, changesetID) {
+    return $Call.ByID(3628701404, workspaceSlug, changesetID);
+}
+
+/**
  * GetCollabSession returns the presence-collaboration session info for the
  * currently connected server + workspace. It surfaces the keychain auth token,
  * the HTTP server URL, the active workspace slug, and the current user so the
@@ -329,6 +499,36 @@ export function GetCollabSession() {
     return $Call.ByID(1897887727).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType13($result);
     }));
+}
+
+/**
+ * GetConcept returns a single concept by id.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetConcept(workspaceSlug, conceptID) {
+    return $Call.ByID(2000513960, workspaceSlug, conceptID);
+}
+
+/**
+ * GetConceptBlastRadius returns the where-used footprint of a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetConceptBlastRadius(workspaceSlug, conceptID) {
+    return $Call.ByID(3260453664, workspaceSlug, conceptID);
+}
+
+/**
+ * GetConceptStory returns a concept's merged chronological timeline.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetConceptStory(workspaceSlug, conceptID) {
+    return $Call.ByID(4032379005, workspaceSlug, conceptID);
 }
 
 /**
@@ -384,6 +584,16 @@ export function GetFlowDefinition(projectID, id) {
     return $Call.ByID(1916918101, projectID, id).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType19($result);
     }));
+}
+
+/**
+ * GetGraph returns the force-directed graph payload for the workspace.
+ * @param {string} workspaceSlug
+ * @param {$models.GraphArgs} params
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetGraph(workspaceSlug, params) {
+    return $Call.ByID(2170406408, workspaceSlug, params);
 }
 
 /**
@@ -600,6 +810,50 @@ export function ListBrandProfiles(workspaceSlug) {
 }
 
 /**
+ * ListChangesets returns the workspace change-sets, optionally filtered by status.
+ * @param {string} workspaceSlug
+ * @param {string} status
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListChangesets(workspaceSlug, status) {
+    return $Call.ByID(1452496417, workspaceSlug, status);
+}
+
+/**
+ * ListConceptComments returns the discussion thread on a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListConceptComments(workspaceSlug, conceptID) {
+    return $Call.ByID(122407102, workspaceSlug, conceptID);
+}
+
+/**
+ * ListConceptRelations returns the typed edges of a concept. asOf (RFC3339) and
+ * market scope the read; empty values omit the corresponding query param.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} asOf
+ * @param {string} market
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListConceptRelations(workspaceSlug, conceptID, asOf, market) {
+    return $Call.ByID(1508991505, workspaceSlug, conceptID, asOf, market);
+}
+
+/**
+ * ListConcepts searches the workspace concept/terminology graph. The shape is
+ * opaque to the proxy; the frontend has the TermSearchResult type.
+ * @param {string} workspaceSlug
+ * @param {$models.ListConceptsArgs} params
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListConcepts(workspaceSlug, params) {
+    return $Call.ByID(1388878909, workspaceSlug, params);
+}
+
+/**
  * ListConnectorTypes returns all available connector type names.
  * @returns {$CancellablePromise<string[]>}
  */
@@ -664,6 +918,15 @@ export function ListInvites(workspaceSlug) {
 }
 
 /**
+ * ListMarkets returns the workspace-defined market scopes.
+ * @param {string} workspaceSlug
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListMarkets(workspaceSlug) {
+    return $Call.ByID(3635256721, workspaceSlug);
+}
+
+/**
  * ListMembers returns the members of a workspace.
  * @param {string} workspaceSlug
  * @returns {$CancellablePromise<$models.MemberInfo[]>}
@@ -672,6 +935,16 @@ export function ListMembers(workspaceSlug) {
     return $Call.ByID(557660227, workspaceSlug).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType39($result);
     }));
+}
+
+/**
+ * ListObservations returns the external evidence attached to a concept.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListObservations(workspaceSlug, conceptID) {
+    return $Call.ByID(3990992331, workspaceSlug, conceptID);
 }
 
 /**
@@ -829,12 +1102,33 @@ export function LookupTermsForBlock(projectID, itemName, blockID, targetLocale) 
 }
 
 /**
+ * MergeChangeset merges an approved change-set into the live graph.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function MergeChangeset(workspaceSlug, changesetID) {
+    return $Call.ByID(3660554460, workspaceSlug, changesetID);
+}
+
+/**
  * OpenFileInOS opens a file using the OS default application.
  * @param {string} filePath
  * @returns {$CancellablePromise<void>}
  */
 export function OpenFileInOS(filePath) {
     return $Call.ByID(3445961939, filePath);
+}
+
+/**
+ * PatchChangeset edits a change-set's name/description.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {$models.UpdateChangesetArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function PatchChangeset(workspaceSlug, changesetID, req) {
+    return $Call.ByID(2394300770, workspaceSlug, changesetID, req);
 }
 
 /**
@@ -880,6 +1174,17 @@ export function PublishContent(connectorID, projectID) {
 }
 
 /**
+ * RejectChangeset records a rejecting review verdict.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {$models.ReviewArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function RejectChangeset(workspaceSlug, changesetID, req) {
+    return $Call.ByID(2686951285, workspaceSlug, changesetID, req);
+}
+
+/**
  * RejectRule rejects a candidate rule so it stops re-surfacing.
  * @param {string} workspaceSlug
  * @param {string} profileID
@@ -888,6 +1193,17 @@ export function PublishContent(connectorID, projectID) {
  */
 export function RejectRule(workspaceSlug, profileID, rule) {
     return $Call.ByID(2322256213, workspaceSlug, profileID, rule);
+}
+
+/**
+ * RemoveChangesetOp removes the op with the given seq from a draft change-set.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {number} seq
+ * @returns {$CancellablePromise<void>}
+ */
+export function RemoveChangesetOp(workspaceSlug, changesetID, seq) {
+    return $Call.ByID(1442658831, workspaceSlug, changesetID, seq);
 }
 
 /**
@@ -922,6 +1238,18 @@ export function RemoveMember(workspaceSlug, userID) {
 }
 
 /**
+ * RemovePilot unbinds a change-set from a project's content stream.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {string} projectID
+ * @param {string} stream
+ * @returns {$CancellablePromise<void>}
+ */
+export function RemovePilot(workspaceSlug, changesetID, projectID, stream) {
+    return $Call.ByID(1881482814, workspaceSlug, changesetID, projectID, stream);
+}
+
+/**
  * RenderBlockHTML returns the rendered HTML for a single block.
  * If targetLocale is non-empty and a translation exists, it returns the
  * target text; otherwise it returns the source HTML.
@@ -946,6 +1274,18 @@ export function RenderBlockHTML(projectID, itemName, blockID, targetLocale) {
  */
 export function RenderDocumentPreview(projectID, itemName, targetLocale) {
     return $Call.ByID(2234199739, projectID, itemName, targetLocale);
+}
+
+/**
+ * ResolveConceptComment marks a comment resolved (or re-opens it).
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} commentID
+ * @param {boolean} resolved
+ * @returns {$CancellablePromise<void>}
+ */
+export function ResolveConceptComment(workspaceSlug, conceptID, commentID, resolved) {
+    return $Call.ByID(3898256013, workspaceSlug, conceptID, commentID, resolved);
 }
 
 /**
@@ -1060,6 +1400,16 @@ export function StoreProject(name, sourceLocale, targetLocales) {
 }
 
 /**
+ * SubmitChangeset moves a draft change-set into review.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function SubmitChangeset(workspaceSlug, changesetID) {
+    return $Call.ByID(378276088, workspaceSlug, changesetID);
+}
+
+/**
  * TMTranslateItem leverages translation memory to translate blocks.
  * @param {string} projectID
  * @param {string} itemName
@@ -1129,6 +1479,17 @@ export function UpdateBlockTargetRuns(req) {
  */
 export function UpdateConcept(req) {
     return $Call.ByID(3374190367, req);
+}
+
+/**
+ * UpdateMarket updates an existing market scope.
+ * @param {string} workspaceSlug
+ * @param {string} marketID
+ * @param {$models.MarketArgs} req
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function UpdateMarket(workspaceSlug, marketID, req) {
+    return $Call.ByID(2036367517, workspaceSlug, marketID, req);
 }
 
 /**
