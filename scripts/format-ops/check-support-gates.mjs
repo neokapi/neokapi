@@ -87,7 +87,6 @@ import {
   Problems,
   isISODate,
   isPlainObject,
-  loadYamlFile,
   parseArgs,
   realFormatDirs,
 } from "./lib.mjs";
@@ -155,12 +154,20 @@ function runDefault({ file, root }) {
     return p.report();
   }
 
+  // Prefer js-yaml for full fidelity; fall back to the dependency-free reader
+  // when it is not resolvable (e.g. the Go-only reference-data-drift CI job),
+  // so this gate runs everywhere without `vp install`.
   let doc;
-  try {
-    doc = loadYamlFile(file);
-  } catch (e) {
-    p.error(`not valid YAML: ${e.message}`);
-    return p.report();
+  const yamlMod = tryYaml();
+  if (yamlMod) {
+    try {
+      doc = yamlMod.load(fs.readFileSync(file, "utf8"));
+    } catch (e) {
+      p.error(`not valid YAML: ${e.message}`);
+      return p.report();
+    }
+  } else {
+    doc = { formats: fallbackSupportTiers(file) };
   }
 
   // ── Normalize to {id: entry} ──────────────────────────────────────────────
@@ -292,17 +299,23 @@ function stripQuotes(s) {
 }
 
 /**
- * Minimal fallback for the `formats:` mapping shape (what support.yaml uses):
- * returns {id: {tier}} by line-scanning indentation. Used only when js-yaml is
- * not resolvable. Comments and blank lines are skipped; bare top-level mappings
- * (no `formats:` wrapper) are also handled.
+ * Dependency-free reader for the committed support.yaml shape: a `formats:`
+ * mapping of id -> {tier, tier_since, last_certified, grandfathered, notes,
+ * gates: [...]}. Used when js-yaml is not resolvable (e.g. the Go-only
+ * reference-data-drift CI job), so this gate runs everywhere at full fidelity —
+ * not the frontend workspace's responsibility. Comments/blank lines skipped;
+ * a bare top-level mapping (no `formats:` wrapper) is also handled. The values
+ * are typed (null/boolean/inline list) to match what js-yaml would yield.
  */
 function fallbackSupportTiers(file) {
   const out = {};
   let inFormats = false;
-  let sawFormatsKey = false;
   let curId = null;
   let curIndent = -1;
+  const field = (line, name) => {
+    const m = line.match(new RegExp(`^${name}:\\s*(.+?)\\s*$`));
+    return m ? stripQuotes(m[1]) : null;
+  };
   for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
@@ -310,14 +323,11 @@ function fallbackSupportTiers(file) {
     if (!inFormats) {
       if (/^formats:\s*$/.test(line)) {
         inFormats = true;
-        sawFormatsKey = true;
         continue;
       }
-      // No `formats:` wrapper — treat indent-0 "id:" lines as format starts.
       if (indent === 0 && /^[A-Za-z0-9_.\-]+:\s*$/.test(line)) inFormats = true;
       else continue;
     }
-    // A format id line (the shallowest mapping key under formats:).
     if (/^[A-Za-z0-9_.\-]+:\s*$/.test(line) && (curIndent < 0 || indent <= curIndent)) {
       curId = line.slice(0, -1);
       out[curId] = out[curId] ?? {};
@@ -325,11 +335,18 @@ function fallbackSupportTiers(file) {
       continue;
     }
     if (curId && indent > curIndent) {
-      const m = line.match(/^tier:\s*(.+?)\s*$/);
-      if (m) out[curId].tier = stripQuotes(m[1]);
+      let v;
+      if ((v = field(line, "tier")) !== null) out[curId].tier = v;
+      else if ((v = field(line, "tier_since")) !== null) out[curId].tier_since = v;
+      else if ((v = field(line, "last_certified")) !== null) out[curId].last_certified = v === "null" ? null : v;
+      else if ((v = field(line, "grandfathered")) !== null) out[curId].grandfathered = v === "true";
+      else if ((v = field(line, "notes")) !== null) out[curId].notes = v;
+      else {
+        const m = line.match(/^gates:\s*\[(.*)\]\s*$/);
+        if (m) out[curId].gates = m[1].split(",").map((s) => stripQuotes(s.trim())).filter(Boolean);
+      }
     }
   }
-  void sawFormatsKey;
   return out;
 }
 
