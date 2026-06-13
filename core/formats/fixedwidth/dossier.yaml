@@ -1,0 +1,25 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: fixedwidth
+spec_sources:
+  # No formal spec for fixed-width columnar text; the Okapi Table Filter
+  # documentation (FixedWidthColumnsFilter, okf_fixedwidthcolumns)
+  # defines the extraction contract (rights: link-only — pending
+  # registration in specs/catalog.yaml).
+  - id: okapi-table-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Table_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Table_Filter&action=history&feed=atom
+    notes: >-
+      Fixed-width mode of the okf_table family; native takes
+      columns:[{name,start,width,translatable}] where the bridge takes
+      columnStartPositions/columnEndPositions (see
+      cli/parity/formats/fixedwidth_bridge_config.go).
+implementations:
+  - name: Okapi FixedWidthColumnsFilter (okf_fixedwidthcolumns, table filter module)
+    kind: okapi
+    pointer: okapi/filters/table
+learning_materials:
+  - web/docs/reference/formats/fixedwidth.mdx
+  - scripts/gen-refs/nativedocs/formats/fixedwidth.yaml
+divergences:
+  - "core/formats/fixedwidth/spec.yaml expected_fail (out-of-range column): bridge falls back to whole-line extraction when the only declared column starts past line length; native emits no Block — bridge feature difference, no tracked issue"

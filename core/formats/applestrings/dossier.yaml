@@ -1,0 +1,27 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: applestrings
+spec_sources:
+  - id: apple-strings
+    version: archive
+    url: https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html
+    watch: null
+    notes: >-
+      "Strings Files" in Apple's Documentation Archive (frozen) is the
+      closest thing to a spec for .strings ("key" = "value"; with the
+      old-style plist grammar behind it). Apple is link-only: no stored
+      text; citations carry URL + short fair-use quote only. Successor
+      authoring format is String Catalogs (see xcstrings dossier).
+implementations:
+  - name: Apple Foundation / plutil (.strings loader)
+    kind: other
+    pointer: Apple OS toolchain (closed source)
+    license_note: proprietary — reference producer/consumer; behavior observed via Xcode output only
+  - name: translate-toolkit properties storage (strings dialects)
+    kind: translate-toolkit
+    pointer: translate/storage/properties.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/applestrings.mdx
+  - scripts/gen-refs/nativedocs/formats/applestrings.yaml
+divergences: []

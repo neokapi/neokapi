@@ -1,0 +1,21 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: transtable
+spec_sources:
+  - id: okapi-transtable-filter
+    version: "1.48.0"
+    url: https://okapiframework.org/wiki/index.php?title=Table_Filter
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+    notes: >-
+      Okapi-specific translation-table format (no external standard). The
+      Okapi filter definition is the only normative reference (link-only).
+implementations:
+  - name: Okapi TransTable Filter (okf_transtable)
+    kind: okapi
+    pointer: okapi/filters/transtable
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/transtable.mdx
+  - scripts/gen-refs/nativedocs/formats/transtable.yaml
+divergences:
+  - core/formats/transtable/parity-annotations.yaml

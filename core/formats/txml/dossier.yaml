@@ -1,0 +1,22 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: txml
+spec_sources:
+  - id: wordfast-txml
+    version: "Wordfast Pro 3.x"
+    url: https://okapiframework.org/wiki/index.php?title=TXML_Filter
+    watch: null
+    notes: >-
+      Wordfast TXML — proprietary bilingual format, no public normative spec.
+      Okapi filter wiki page + filter source are the de-facto reference
+      (link-only). <translatable>/<segment> with <source>/<target>.
+implementations:
+  - name: Okapi TXML Filter (okf_txml)
+    kind: okapi
+    pointer: okapi/filters/txml
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/txml.mdx
+  - scripts/gen-refs/nativedocs/formats/txml.yaml
+divergences:
+  - core/formats/txml/parity-annotations.yaml

@@ -1,0 +1,26 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: tmx
+spec_sources:
+  - id: tmx-1.4b
+    version: "1.4b"
+    url: https://www.gala-global.org/tmx-14b
+    watch: null
+    notes: >-
+      Translation Memory eXchange (LISA OSCAR, now stewarded by GALA). Dormant
+      upstream; the <tu>/<tuv>/<seg> structure and inline <bpt>/<ept>/<ph>
+      markup are stable. neokapi treats TMX as a TM interchange format.
+implementations:
+  - name: Okapi TMX Filter (okf_tmx)
+    kind: okapi
+    pointer: okapi/filters/tmx
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: Translate Toolkit (translate.storage.tmx)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/tmx.mdx
+  - scripts/gen-refs/nativedocs/formats/tmx.yaml
+divergences:
+  - core/formats/tmx/parity-annotations.yaml

@@ -1,0 +1,33 @@
+# Knowledge dossier (K1) — see docs/internals/format-maturity.md §2.4.
+format: ttml
+spec_sources:
+  - id: ttml2
+    version: rec
+    url: https://www.w3.org/TR/ttml2/
+    watch: https://www.w3.org/groups/wg/timed-text/publications/
+    notes: >-
+      Supersedes TTML1/DFXP; the reader also registers the legacy
+      .dfxp extension.
+  - id: dapt
+    version: cr-2025-12-18
+    url: https://www.w3.org/TR/dapt/
+    watch: https://www.w3.org/groups/wg/timed-text/publications/
+    notes: >-
+      Dubbing and Audio description Profiles of TTML2 — the active
+      timed-text spec (Rec expected 2026); watch entry for the
+      dubbing-script exchange extension of the subtitle family.
+implementations:
+  - name: okf_ttml — TTMLFilter on the shared SubtitleFilter base
+    kind: okapi
+    pointer: okapi/filters/subtitles
+  - name: imscJS — TTML/IMSC renderer (reference-grade parser)
+    kind: other
+    pointer: https://github.com/sandflow/imscJS
+learning_materials:
+  - web/docs/reference/formats/ttml.mdx
+  - scripts/gen-refs/nativedocs/formats/ttml.yaml
+  - core/formats/ttml/spec.yaml
+divergences:
+  - core/formats/ttml/parity-annotations.yaml
+  - "core/formats/ttml/spec.yaml expected_fail (escapeBrMode=false) — bridge emits <br/> as a structured inline code, native preserves the literal string; spec asserts native behavior"
+  - "#461 — bridge composite schema surfaces inlineCodes (useCodeFinder/codeFinderRules) via $defs which the contract-audit walker doesn't follow; parameters intentionally absent from spec.config"

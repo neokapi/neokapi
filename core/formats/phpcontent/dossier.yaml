@@ -1,0 +1,22 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: phpcontent
+spec_sources:
+  - id: php-lang
+    version: "8.x"
+    url: https://www.php.net/manual/en/language.types.string.php
+    watch: null
+    notes: >-
+      PHP string/array language reference — single/double-quoted strings,
+      heredoc/nowdoc, and the define()/return array() idioms PHP localization
+      files use. No l10n-specific standard; the language manual is the
+      reference (link-only).
+implementations:
+  - name: Okapi PHP Content Filter (okf_php)
+    kind: okapi
+    pointer: okapi/filters/php
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/phpcontent.mdx
+  - scripts/gen-refs/nativedocs/formats/phpcontent.yaml
+divergences: []

@@ -1,0 +1,32 @@
+# Knowledge dossier (K1) — see docs/internals/format-maturity.md §2.4.
+format: srt
+spec_sources:
+  # SubRip is a de-facto format with no formal spec; the Matroska
+  # subtitle guide's SRT section is the stable technical description.
+  - id: subrip
+    version: de-facto
+    url: https://www.matroska.org/technical/subtitles.html
+    watch: null
+    notes: >-
+      No formal RFC/standard exists. Cue grammar: sequence number,
+      `HH:MM:SS,mmm --> HH:MM:SS,mmm` timecode line (comma decimal
+      separator), one or more text lines, blank-line terminator.
+implementations:
+  - name: okf_regex — okf_regex-srt sub-configuration (upstream ships no dedicated SubRip filter)
+    kind: okapi
+    pointer: okapi/filters/regex
+  - name: okf_vtt — VTTFilter also reads .srt under its default configuration
+    kind: okapi
+    pointer: okapi/filters/subtitles
+  - name: translate-toolkit subtitles storage (aeidon-backed)
+    kind: translate-toolkit
+    pointer: translate/storage/subtitles.py
+    license_note: "GPL-2.0 — read-about only, never harvest"
+learning_materials:
+  - web/docs/reference/formats/srt.mdx
+  - scripts/gen-refs/nativedocs/formats/srt.yaml
+  - core/formats/srt/spec.yaml
+# Native-only filter: no apples-to-apples okapi-bridge counterpart to
+# parity-test against (upstream uses a regex rule pack), so there is no
+# parity-annotations.yaml and no expected_fail divergence ledger.
+divergences: []

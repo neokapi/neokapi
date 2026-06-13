@@ -1,0 +1,22 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: ttx
+spec_sources:
+  - id: trados-ttx
+    version: "TRADOStag 2.x"
+    url: https://okapiframework.org/wiki/index.php?title=TTX_Filter
+    watch: null
+    notes: >-
+      SDL Trados TTX (TRADOStag XML) — proprietary, no public normative spec.
+      The Okapi filter wiki page + filter source are the de-facto reference
+      (link-only). Bilingual format with <Tu>/<Tuv> and ut inline codes.
+implementations:
+  - name: Okapi TTX Filter (okf_ttx)
+    kind: okapi
+    pointer: okapi/filters/ttx
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/ttx.mdx
+  - scripts/gen-refs/nativedocs/formats/ttx.yaml
+divergences:
+  - core/formats/ttx/parity-annotations.yaml

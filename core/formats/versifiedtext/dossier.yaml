@@ -1,0 +1,26 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: versifiedtext
+spec_sources:
+  # Native-only format with no external spec of its own; the USFM
+  # standard defines the `\v` verse-marker syntax the reader accepts
+  # (the plain-numeric `1.` / `1 ` markers are a native convenience).
+  # core/formats/versifiedtext/spec.yaml is the executable contract.
+  - id: usfm-3.0
+    version: "3.0"
+    url: https://ubsicap.github.io/usfm/
+    watch: https://github.com/ubsicap/usfm/releases.atom
+    notes: >-
+      Only the verse-marker subset (\v N) applies — full USFM is a much
+      larger scripture markup language. Pending registration in
+      specs/catalog.yaml.
+implementations:
+  # No Okapi counterpart: Okapi 1.48.0 ships no versified-text filter
+  # (verified against the pinned filter tree; audit-format.py agrees).
+  - name: usfm-grammar (Bridgeconn) — full-USFM parser, superset of this format
+    kind: other
+    pointer: https://github.com/Bridgeconn/usfm-grammar
+    license_note: "MIT"
+learning_materials:
+  - web/docs/reference/formats/versifiedtext.mdx
+  - scripts/gen-refs/nativedocs/formats/versifiedtext.yaml
+divergences: []

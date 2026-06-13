@@ -1,0 +1,24 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: vignette
+spec_sources:
+  # Vignette CMS (later OpenText) export/import XML has no public
+  # vendor spec; the Okapi filter documentation is the only public
+  # contract (rights: link-only — pending registration in
+  # specs/catalog.yaml).
+  - id: okapi-vignette-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Vignette_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Vignette_Filter&action=history&feed=atom
+    notes: >-
+      vgnexport XML — importContentInstance blocks paired via SOURCE_ID,
+      payload attributes selected by partsNames, UTF-8 forced both ways.
+implementations:
+  - name: Okapi VignetteFilter (okf_vignette)
+    kind: okapi
+    pointer: okapi/filters/vignette
+learning_materials:
+  - web/docs/reference/formats/vignette.mdx
+  - scripts/gen-refs/nativedocs/formats/vignette.yaml
+divergences:
+  - core/formats/vignette/parity-annotations.yaml
+  - "neokapi#453 — spec.yaml expected_fail: bridge daemon emits 0 Blocks from inline packageBody snippets (okf_vignette row, remaining bridge-side gap); native passes since the #501 rewrite"

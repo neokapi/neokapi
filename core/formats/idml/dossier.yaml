@@ -1,0 +1,36 @@
+# Knowledge-axis dossier (format-maturity.md §2.4). K1 backbone: spec
+# sources, sibling implementations, learning materials, divergence pointers.
+format: idml
+spec_sources:
+  - id: adobe-idml
+    version: CS6
+    url: https://developer.adobe.com/indesign/
+    watch: null
+    notes: >-
+      Adobe "IDML File Format Specification" (link-only — Adobe docs, never
+      snapshot). The spec PDF has no stable public URL anymore: Adobe's old
+      devnet links 404 and the document now ships inside the InDesign
+      Products SDK download from the developer portal (url above). CS6 is
+      the last published revision; the XML vocabulary is shared with ICML.
+implementations:
+  - name: Okapi IDML filter (okf_idml)
+    kind: okapi
+    pointer: okapi/filters/idml
+  - name: translate-toolkit IDML storage
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate (translate/storage/idml.py)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/idml.mdx
+  - scripts/gen-refs/nativedocs/formats/idml.yaml
+divergences:
+  - >-
+    "#482 — Okapi IDMLFilter NPEs on synthetic designmap.xml from
+    scripts/gen-idml-fixtures (missing an attribute real InDesign always
+    emits); resolved by moving examples to okapi: upstream fixtures, but
+    the two discretionary-hyphen examples in core/formats/idml/spec.yaml
+    retain synth fixtures (no upstream IDML carries a soft hyphen) and
+    stay expected_fail."
+  - >-
+    "#515 / #461 — binary-format fixture rule that drove the synthetic→
+    upstream fixture switch (context for the remaining xfails)."

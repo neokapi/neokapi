@@ -1,0 +1,23 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: splicedlines
+spec_sources:
+  # No formal spec; the spliced-lines (backslash line-continuation)
+  # contract is defined by the Okapi Plain Text Filter documentation
+  # (SplicedLinesFilter, okf_splicedlines) (rights: link-only — pending
+  # registration in specs/catalog.yaml).
+  - id: okapi-plaintext-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter&action=history&feed=atom
+    notes: >-
+      Spliced-lines mode of the okf_plaintext family — a trailing
+      backslash splices the next physical line into one logical Block.
+implementations:
+  - name: Okapi SplicedLinesFilter (okf_splicedlines, plaintext filter module)
+    kind: okapi
+    pointer: okapi/filters/plaintext
+learning_materials:
+  - web/docs/reference/formats/splicedlines.mdx
+  - scripts/gen-refs/nativedocs/formats/splicedlines.yaml
+divergences:
+  - "neokapi#536 — spec.yaml expected_fail (two_line_splice, three_line_splice): bridge LF-collapse divergence — bridge consumes the splicer and the LF; native preserves inner LFs"

@@ -1,0 +1,40 @@
+# core/formats/xliff2/dossier.yaml — per-format knowledge backbone (K1).
+# Contract: docs/internals/format-maturity.md §2.4.
+
+format: xliff2
+spec_sources:
+  - id: xliff-2.1
+    version: "2.1-os"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html
+    watch: https://www.oasis-open.org/committees/xliff/
+    notes: >-
+      Primary cited spec (core/formats/xliff2/spec.yaml spec_refs) —
+      the last full OASIS Standard. The reader accepts the 2.0/2.1/2.2
+      namespace family.
+  - id: xliff-2.0
+    version: "2.0-os"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.0/os/xliff-core-v2.0-os.html
+    watch: https://www.oasis-open.org/committees/xliff/
+  - id: xliff-2.2
+    version: "2.2-cs"
+    url: https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html
+    watch: https://docs.oasis-open.org/xliff/
+    notes: >-
+      Committee Specification 2025-03-13, Core + Extended two-part
+      split with the Plural/Gender/Select module — the planned delta
+      target.
+implementations:
+  - name: Okapi XLIFF-2 Filter
+    kind: okapi
+    pointer: okapi/filters/xliff2
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/xliff2.mdx
+  - scripts/gen-refs/nativedocs/formats/xliff2.yaml
+  - web/docs/kapi/bilingual-workflow.mdx
+  - web/docs/contribute/architecture/017-bilingual-format-interop.md
+  - web/docs/reference/klf/vs-xliff.mdx
+  - docs/internals/research/xliff2-design.md
+divergences:
+  - "#560 — normalizing DOM writer byte-equal divergence (faithful-class; cited in docs/internals/format-maturity.md §6)"
+  - "core/formats/xliff2/spec.yaml expected_fail: bridge segment granularity + translate=no handling (no tracked issue numbers)"

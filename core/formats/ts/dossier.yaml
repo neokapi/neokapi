@@ -1,0 +1,30 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: ts
+spec_sources:
+  - id: qt-ts
+    version: "Qt 6"
+    url: https://doc.qt.io/qt-6/linguist-ts-file-format.html
+    watch: null
+    notes: >-
+      Qt Linguist TS — XML translation source (<context>/<message>/<source>/
+      <translation> with numerus plural forms and type="unfinished|vanished").
+      Defined by the Qt-shipped DTD; stable across Qt 5/6.
+implementations:
+  - name: Okapi TS Filter (okf_ts)
+    kind: okapi
+    pointer: okapi/filters/ts
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: Qt lupdate/lrelease
+    kind: other
+    pointer: https://doc.qt.io/qt-6/linguist-manager.html
+    license_note: the reference toolchain (LGPL/commercial)
+  - name: Translate Toolkit (translate.storage.ts2)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/ts.mdx
+  - scripts/gen-refs/nativedocs/formats/ts.yaml
+divergences:
+  - core/formats/ts/parity-annotations.yaml

@@ -1,0 +1,23 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: mif
+spec_sources:
+  - id: adobe-mif
+    version: "MIF 2020 (FrameMaker)"
+    url: https://help.adobe.com/en_US/framemaker/mif_reference/mif_reference.pdf
+    watch: null
+    notes: >-
+      Adobe FrameMaker MIF (Maker Interchange Format) — a structured text
+      serialization of FrameMaker documents (<MIFFile>, <Para>/<ParaLine>/
+      <String>, statement nesting). Stable; Adobe's MIF Reference PDF is the
+      normative source (link-only). Large binary-ish fixtures favour okapi: /
+      corpus: inputs.
+implementations:
+  - name: Okapi MIF Filter (okf_mif)
+    kind: okapi
+    pointer: okapi/filters/mif
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+learning_materials:
+  - web/docs/reference/formats/mif.mdx
+  - scripts/gen-refs/nativedocs/formats/mif.yaml
+divergences: []

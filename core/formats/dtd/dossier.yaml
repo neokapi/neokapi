@@ -1,0 +1,27 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: dtd
+spec_sources:
+  - id: xml-1.0
+    version: "5ed-2008"
+    url: https://www.w3.org/TR/2008/REC-xml-20081126/
+    watch: null
+    notes: >-
+      XML 1.0 Fifth Edition defines DTD declarations — entity declarations
+      (§4.2) are the translatable surface; ELEMENT/ATTLIST are
+      skeleton-only. Final Recommendation, dormant. Cited by
+      core/formats/dtd/spec.yaml spec_refs (#sec-entity-decl).
+implementations:
+  - name: Okapi DTD filter (okf_dtd)
+    kind: okapi
+    pointer: okapi/filters/dtd
+    license_note: Targets Mozilla-style entity-catalog DTD files; tests in DTDFilterTest.
+  - name: translate-toolkit dtd storage (Mozilla DTD)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate (translate/storage/dtd.py)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/dtd.mdx
+  - scripts/gen-refs/nativedocs/formats/dtd.yaml
+divergences: []
+# Note: spec.yaml carries 2 expected_fail blocks — no tracked issue numbers.
+# ("&#227;" in spec.yaml is a numeric character reference fixture, not an issue.)

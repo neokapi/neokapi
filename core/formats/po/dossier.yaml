@@ -1,0 +1,29 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: po
+spec_sources:
+  - id: po-gettext
+    version: "0.22"
+    url: https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html
+    watch: https://savannah.gnu.org/news/?group=gettext
+    notes: >-
+      GNU gettext PO file grammar (msgid/msgstr, plural forms, #-comments,
+      #, flags, #| previous, obsolete entries). The plural-forms header drives
+      the catalog's plural handling.
+implementations:
+  - name: Okapi PO Filter (okf_po)
+    kind: okapi
+    pointer: okapi/filters/po
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: GNU gettext (msgfmt/msgmerge)
+    kind: other
+    pointer: https://www.gnu.org/software/gettext/
+    license_note: GPL-3.0 — the reference toolchain; msgfmt -c is the acceptance validator
+  - name: Translate Toolkit (translate.storage.pypo)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/po.mdx
+  - scripts/gen-refs/nativedocs/formats/po.yaml
+divergences: []

@@ -1,0 +1,35 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: rtf
+spec_sources:
+  - id: rtf-1.9.1
+    version: "1.9.1"
+    url: https://interoperability.blob.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf
+    watch: null
+    notes: >-
+      Rich Text Format Specification 1.9.1 (Microsoft, Word 2007,
+      March 2008) — the final RTF spec; frozen since 2008. URL is the
+      [MSFT-RTF] archive reference used by Microsoft Open Specifications
+      normative-reference lists. Scope note: the neokapi reader targets
+      Trados-tagged RTF, a de-facto convention defined by Okapi RTFFilter
+      behavior rather than the Microsoft spec.
+implementations:
+  - name: Okapi RTF filter (okf_rtf)
+    kind: okapi
+    pointer: okapi/filters/rtf
+    license_note: >-
+      No configurable parameters (composite schema okf_rtf.v2 is empty);
+      defines the Trados-tagged extraction contract spec.yaml asserts.
+  - name: LibreOffice RTF import (writerfilter rtftok)
+    kind: libreoffice
+    pointer: https://git.libreoffice.org/core (writerfilter/source/rtftok)
+    license_note: MPL-2.0
+  - name: Apache Tika RTFParser
+    kind: tika
+    pointer: https://github.com/apache/tika
+    license_note: Apache-2.0
+learning_materials:
+  - web/docs/reference/formats/rtf.mdx
+  - scripts/gen-refs/nativedocs/formats/rtf.yaml
+divergences: []
+# Note: spec.yaml carries 13 expected_fail blocks (native-vs-bridge
+# divergences on RTF control-word edge cases) — no tracked issue numbers yet.

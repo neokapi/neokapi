@@ -1,0 +1,30 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: html
+spec_sources:
+  - id: html-whatwg
+    version: living
+    url: https://html.spec.whatwg.org/multipage/
+    watch: https://github.com/whatwg/html/commits/main.atom
+    notes: >-
+      Living standard — pin via the commit-snapshot URL pattern
+      (https://html.spec.whatwg.org/commit-snapshots/<sha>/) when the first
+      snapshot lands. spec.yaml spec_refs already cite multipage anchors
+      (parsing, character references, the translate attribute).
+implementations:
+  - name: Okapi HTML filter (okf_html)
+    kind: okapi
+    pointer: okapi/filters/html
+  - name: golang.org/x/net/html
+    kind: other
+    pointer: golang.org/x/net/html
+    license_note: BSD-3-Clause — the tokenizer the native reader builds on
+    watch: https://github.com/golang/net/tags.atom
+  - name: Pandoc HTML reader/writer
+    kind: pandoc
+    pointer: https://github.com/jgm/pandoc
+    license_note: GPL-2.0-or-later — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/html.mdx
+  - scripts/gen-refs/nativedocs/formats/html.yaml
+divergences:
+  - core/formats/html/parity-annotations.yaml

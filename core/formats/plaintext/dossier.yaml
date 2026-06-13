@@ -1,0 +1,25 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: plaintext
+spec_sources:
+  # No formal plaintext specification exists; the Okapi filter wiki page
+  # defines the line-extraction contract the native reader mirrors
+  # (rights: link-only — pending registration in specs/catalog.yaml).
+  - id: okapi-plaintext-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter&action=history&feed=atom
+    notes: >-
+      Covers the whole okf_plaintext family; this format maps the
+      line-based BasePlainTextFilter default configuration.
+implementations:
+  - name: Okapi Plain Text Filter (okf_plaintext)
+    kind: okapi
+    pointer: okapi/filters/plaintext
+  - name: translate-toolkit txt2po (text module)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: "GPL-2.0 — read-about only, never harvest"
+learning_materials:
+  - web/docs/reference/formats/plaintext.mdx
+  - scripts/gen-refs/nativedocs/formats/plaintext.yaml
+divergences: []

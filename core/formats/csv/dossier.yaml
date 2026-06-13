@@ -1,0 +1,39 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: csv
+spec_sources:
+  - id: rfc-4180
+    version: "2005-10"
+    url: https://www.rfc-editor.org/rfc/rfc4180
+    watch: https://www.rfc-editor.org/errata/rfc4180
+    notes: >-
+      Common Format and MIME Type for CSV Files — quoting, embedded
+      newlines, header row. Pending registration in specs/catalog.yaml.
+  # Extraction semantics (columns-as-Blocks, key/comment columns,
+  # delimiter variants incl. TSV) come from the Okapi Table Filter
+  # documentation (rights: link-only — pending catalog registration).
+  - id: okapi-table-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Table_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Table_Filter&action=history&feed=atom
+    notes: >-
+      okf_commaseparatedvalues / okf_tabseparatedvalues both map to this
+      one native reader; the separator is config, not a sub-format.
+implementations:
+  - name: Okapi CommaSeparatedValuesFilter (okf_commaseparatedvalues, table filter module)
+    kind: okapi
+    pointer: okapi/filters/table
+  - name: Go encoding/csv (native reader's RFC 4180 parsing substrate)
+    kind: other
+    pointer: https://pkg.go.dev/encoding/csv
+  - name: translate-toolkit csvl10n (csv2po)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: "GPL-2.0 — read-about only, never harvest"
+learning_materials:
+  - web/docs/reference/formats/csv.mdx
+  - web/docs/reference/formats/tsv.mdx
+  - scripts/gen-refs/nativedocs/formats/csv.yaml
+divergences:
+  - core/formats/csv/parity-annotations.yaml
+  - "neokapi#530 — spec.yaml expected_fail: default-config divergence — native skips header + every cell a Block; Okapi default extracts header and one TextUnit per row (legitimate default difference, explicit configs converge)"
+  - "neokapi#533 — spec.yaml expected_fail: bridge edge-case — header-only single-line files emit 1 spurious Block on the bridge even with sendHeaderMode=0; native emits 0"

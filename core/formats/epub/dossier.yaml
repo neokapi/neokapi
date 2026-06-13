@@ -1,0 +1,25 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: epub
+spec_sources:
+  - id: epub-3
+    version: "3.4"
+    url: https://www.w3.org/TR/epub-34/
+    watch: https://github.com/w3c/epub-specs/commits/main.atom
+    notes: >-
+      EPUB 3.4 (W3C) — OCF ZIP container + OPF package + XHTML content
+      documents. neokapi orchestrates the html reader over the spine; the
+      container/OPF layer is the EPUB-specific part. EPUB 3.4 in flight (watch).
+implementations:
+  - name: Okapi EPUB Filter (okf_epub)
+    kind: okapi
+    pointer: okapi/filters/epub
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: EPUBCheck
+    kind: other
+    pointer: https://github.com/w3c/epubcheck
+    license_note: BSD-3-Clause — the EPUB conformance validator (acceptance oracle)
+learning_materials:
+  - web/docs/reference/formats/epub.mdx
+  - scripts/gen-refs/nativedocs/formats/epub.yaml
+divergences: []

@@ -1,0 +1,33 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: tex
+spec_sources:
+  - id: latex2e
+    version: living
+    url: https://latexref.xyz/
+    watch: null
+    notes: >-
+      "LaTeX2e: An unofficial reference manual" — the most citable
+      clause-addressable description of the LaTeX2e document syntax (no
+      formal spec exists). Cited by core/formats/tex/spec.yaml spec_refs
+      (Sectioning, Environments, Math formulas, Font styles, …); spec.yaml
+      additionally cites Wikibooks LaTeX pages for document structure and
+      mathematics.
+implementations:
+  - name: Okapi TEX filter (okf_tex)
+    kind: okapi
+    pointer: okapi/filters/tex
+    license_note: >-
+      No configurable parameters (composite schema okf_tex.v3 is empty);
+      upstream tests in TEXFilterTest.
+  - name: Pandoc LaTeX reader/writer
+    kind: pandoc
+    pointer: https://github.com/jgm/pandoc
+    license_note: GPL-2.0-or-later — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/tex.mdx
+  - scripts/gen-refs/nativedocs/formats/tex.yaml
+divergences: []
+# Note: spec.yaml carries expected_fail blocks for the native-vs-bridge
+# inline-math segmentation divergence (native splits paragraphs around
+# $...$ / \[...\]; the bridge keeps text contiguous) — documented in the
+# spec.yaml header, no tracked issue numbers yet.

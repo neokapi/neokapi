@@ -1,0 +1,28 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: properties
+spec_sources:
+  - id: java-properties
+    version: "21"
+    url: "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html#load(java.io.Reader)"
+    watch: null
+    notes: >-
+      The format is defined by the java.util.Properties::load API
+      specification (escape grammar, line continuations, key/value
+      separators, ISO-8859-1 + \uXXXX escapes). Oracle docs are not in
+      the rights matrix — link-only; cite by URL + short quote.
+implementations:
+  - name: Okapi PropertiesFilter (okf_properties)
+    kind: okapi
+    pointer: okapi/filters/properties
+  - name: translate-toolkit properties storage
+    kind: translate-toolkit
+    pointer: translate/storage/properties.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/properties.mdx
+  - scripts/gen-refs/nativedocs/formats/properties.yaml
+divergences:
+  - core/formats/properties/spec.yaml — expected_fail entries (bridge
+    escape-handling divergences around useJavaEscapes/convertLFandTab;
+    "tracked separately", no issue numbers recorded)

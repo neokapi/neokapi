@@ -1,0 +1,26 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: androidxml
+spec_sources:
+  - id: android-string-resources
+    version: living
+    url: https://developer.android.com/guide/topics/resources/string-resource
+    watch: null
+    notes: >-
+      Android Developers documentation defines string/string-array/
+      plurals resources, the quoting + escape rules, styled text (HTML
+      subset, CDATA), and xliff:g protected spans. aapt2 behavior is
+      the executable arbiter where the prose is silent.
+implementations:
+  - name: AOSP aapt2 resource compiler
+    kind: other
+    pointer: android.googlesource.com/platform/frameworks/base (tools/aapt2)
+    license_note: Apache-2.0 — the executable arbiter of escape/quoting semantics
+  - name: translate-toolkit aresource (Android string resources)
+    kind: translate-toolkit
+    pointer: translate/storage/aresource.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/androidxml.mdx
+  - scripts/gen-refs/nativedocs/formats/androidxml.yaml
+divergences: []

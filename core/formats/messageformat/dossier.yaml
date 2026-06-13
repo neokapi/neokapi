@@ -1,0 +1,32 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: messageformat
+spec_sources:
+  - id: icu
+    version: "78"
+    url: https://unicode-org.github.io/icu/userguide/format_parse/messages/
+    watch: https://github.com/unicode-org/icu/releases.atom
+    notes: >-
+      ICU MessageFormat (MF1) — argument/plural/select/selectordinal/choice
+      syntax and quoting. The format this filter parses today.
+  - id: messageformat-2
+    version: "LDML 47"
+    url: https://www.unicode.org/reports/tr35/tr35-messageFormat.html
+    watch: https://github.com/unicode-org/message-format-wg/releases.atom
+    notes: >-
+      MessageFormat 2 (stable in LDML 47/48) — the successor syntax. WATCH:
+      no native Go MF2 implementation exists yet (format-radar.yaml strategic
+      play). Not yet parsed natively.
+implementations:
+  - name: Okapi MessageFormat Filter (okf_messageformat)
+    kind: okapi
+    pointer: okapi/filters/messageformat
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: ICU4C/ICU4J
+    kind: icu
+    pointer: https://github.com/unicode-org/icu
+    license_note: Unicode-3.0 — the MF1/MF2 reference implementation
+learning_materials:
+  - web/docs/reference/formats/messageformat.mdx
+  - scripts/gen-refs/nativedocs/formats/messageformat.yaml
+divergences: []

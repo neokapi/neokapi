@@ -1,0 +1,22 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: resx
+spec_sources:
+  - id: dotnet-resx
+    version: living
+    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/work-with-resx-files-programmatically
+    watch: null
+    notes: >-
+      .NET documentation defines the .resx envelope (xsd header, data/
+      value/comment elements, resheader reader/writer types); the
+      embedded XSD in real Visual Studio output is the de-facto
+      skeleton contract the writer preserves byte-exactly.
+implementations:
+  - name: .NET ResXResourceReader/Writer
+    kind: other
+    pointer: github.com/dotnet/winforms (System.Windows.Forms ResX types)
+    license_note: MIT — the reference implementation; System.Resources.Extensions in dotnet/runtime is the modern reader
+learning_materials:
+  - web/docs/reference/formats/resx.mdx
+  - scripts/gen-refs/nativedocs/formats/resx.yaml
+divergences: []

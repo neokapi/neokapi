@@ -1,0 +1,32 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: arb
+spec_sources:
+  - id: arb
+    version: living
+    url: https://github.com/google/app-resource-bundle/wiki/ApplicationResourceBundleSpecification
+    watch: null
+    notes: >-
+      Google's Application Resource Bundle specification (wiki text;
+      dormant upstream). Flutter's gen-l10n is the de-facto living
+      profile (@@locale, @-metadata, placeholders).
+  - id: icu-messageformat
+    version: "78"
+    url: https://unicode-org.github.io/icu/userguide/format_parse/messages/
+    watch: https://github.com/unicode-org/icu/releases.atom
+    notes: >-
+      ARB values embed ICU MessageFormat (MF1) plural/select/argument
+      syntax; the catalog parser in icu.go follows this grammar.
+implementations:
+  - name: Flutter gen-l10n (flutter_tools)
+    kind: other
+    pointer: github.com/flutter/flutter (packages/flutter_tools — gen_l10n)
+    license_note: BSD-3-Clause — the de-facto reference consumer
+  - name: translate-toolkit jsonl10n (ARB dialect)
+    kind: translate-toolkit
+    pointer: translate/storage/jsonl10n.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/arb.mdx
+  - scripts/gen-refs/nativedocs/formats/arb.yaml
+divergences: []

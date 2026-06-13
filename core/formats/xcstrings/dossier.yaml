@@ -1,0 +1,23 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: xcstrings
+spec_sources:
+  - id: apple-xcstrings
+    version: living
+    url: https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog
+    watch: null
+    notes: >-
+      Apple publishes no formal schema for String Catalogs — the Xcode
+      documentation plus observed Xcode/xcstringstool output define the
+      format (extractionState, plural/device variation, substitutions).
+      Apple is link-only: no stored text; citations carry URL + short
+      fair-use quote only.
+implementations:
+  - name: Xcode xcstringstool / String Catalog editor
+    kind: other
+    pointer: Xcode toolchain (closed source)
+    license_note: proprietary — reference producer; behavior observed via Xcode output only
+learning_materials:
+  - web/docs/reference/formats/xcstrings.mdx
+  - scripts/gen-refs/nativedocs/formats/xcstrings.yaml
+divergences: []

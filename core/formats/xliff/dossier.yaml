@@ -1,0 +1,29 @@
+# core/formats/xliff/dossier.yaml — per-format knowledge backbone (K1).
+# Contract: docs/internals/format-maturity.md §2.4.
+
+format: xliff
+spec_sources:
+  - id: xliff-1.2
+    version: "1.2-os"
+    url: https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html
+    watch: https://www.oasis-open.org/committees/xliff/
+implementations:
+  - name: Okapi XLIFF Filter
+    kind: okapi
+    pointer: okapi/filters/xliff
+    watch: https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - name: Translate Toolkit (translate.storage.xliff)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: "GPL-2.0 — read-about only, never harvest"
+    watch: https://github.com/translate/translate/releases.atom
+learning_materials:
+  - web/docs/reference/formats/xliff.mdx
+  - scripts/gen-refs/nativedocs/formats/xliff.yaml
+  - web/docs/kapi/bilingual-workflow.mdx
+  - web/docs/contribute/architecture/017-bilingual-format-interop.md
+  - web/docs/reference/klf/vs-xliff.mdx
+  - docs/internals/research/xliff-okapi-compat-quirks.md
+divergences:
+  - core/formats/xliff/parity-annotations.yaml
+  - "core/formats/xliff/spec.yaml expected_fail: bridge does not expose ignoreInputSegmentation (no tracked issue number)"

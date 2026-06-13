@@ -311,3 +311,217 @@ specs:
       rights matrix). Tracks the Go standard library; the RE2 grammar — no
       backreferences or lookaround — is effectively frozen. Cited by
       core/formats/regex/spec.yaml.
+
+  # ── backfilled by the format-ops dossier sweep (2026-06-13) ──
+  - id: adobe-idml
+    name: Adobe InDesign IDML
+    version: CS6
+    url: https://developer.adobe.com/indesign/
+    rights: link-only
+  - id: adobe-mif
+    name: Adobe FrameMaker MIF Reference
+    version: MIF 2020 (FrameMaker)
+    url: https://help.adobe.com/en_US/framemaker/mif_reference/mif_reference.pdf
+    rights: link-only
+  - id: android-string-resources
+    name: Android String Resources
+    version: living
+    url: https://developer.android.com/guide/topics/resources/string-resource
+    rights: link-only
+  - id: apple-strings
+    name: Apple .strings (legacy)
+    version: archive
+    url: https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/LoadingResources/Strings/Strings.html
+    rights: link-only
+  - id: apple-xcstrings
+    name: Apple String Catalog (.xcstrings)
+    version: living
+    url: https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog
+    rights: link-only
+  - id: arb
+    name: Application Resource Bundle (ARB)
+    version: living
+    url: https://github.com/google/app-resource-bundle/wiki/ApplicationResourceBundleSpecification
+    rights: link-only
+  - id: dokuwiki-syntax
+    name: DokuWiki Syntax
+    version: living
+    url: https://www.dokuwiki.org/wiki:syntax
+    rights: link-only
+    watch:
+      - https://github.com/dokuwiki/dokuwiki/releases.atom
+  - id: dotnet-resx
+    name: .NET RESX Resources
+    version: living
+    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/work-with-resx-files-programmatically
+    rights: link-only
+  - id: doxygen-manual
+    name: Doxygen Special Commands
+    version: living
+    url: https://www.doxygen.nl/manual/docblocks.html
+    rights: link-only
+    watch:
+      - https://github.com/doxygen/doxygen/releases.atom
+  - id: epub-3
+    name: EPUB 3.4 (W3C)
+    version: '3.4'
+    url: https://www.w3.org/TR/epub-34/
+    rights: vendor
+    watch:
+      - https://github.com/w3c/epub-specs/commits/main.atom
+  - id: gfm
+    name: GitHub Flavored Markdown
+    version: 0.29-gfm
+    url: https://github.github.com/gfm/
+    rights: cache
+    watch:
+      - https://github.com/github/cmark-gfm/releases.atom
+  - id: i18next
+    name: i18next JSON Format
+    version: v4 JSON
+    url: https://www.i18next.com/misc/json-format
+    rights: link-only
+    watch:
+      - https://github.com/i18next/i18next/releases.atom
+  - id: icu-messageformat
+    name: ICU MessageFormat (MF1)
+    version: '78'
+    url: https://unicode-org.github.io/icu/userguide/format_parse/messages/
+    rights: cache
+    watch:
+      - https://github.com/unicode-org/icu/releases.atom
+  - id: java-properties
+    name: Java Properties (java.util.Properties)
+    version: '21'
+    url: https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html#load(java.io.Reader)
+    rights: link-only
+  - id: latex2e
+    name: LaTeX2e Reference
+    version: living
+    url: https://latexref.xyz/
+    rights: link-only
+  - id: mdx-3
+    name: MDX 3
+    version: '3'
+    url: https://mdxjs.com/
+    rights: link-only
+    watch:
+      - https://github.com/mdx-js/mdx/releases.atom
+  - id: mediawiki-wikitext
+    name: MediaWiki Wikitext
+    version: living
+    url: https://www.mediawiki.org/wiki/Wikitext
+    rights: link-only
+  - id: okapi-mosestext-filter
+    name: Okapi Moses Text Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Moses_Text_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=Moses_Text_Filter&action=history&feed=atom
+  - id: okapi-plaintext-filter
+    name: Okapi Plain Text Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter&action=history&feed=atom
+  - id: okapi-regex-filter
+    name: Okapi Regex Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Regex_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=Regex_Filter&action=history&feed=atom
+  - id: okapi-table-filter
+    name: Okapi Table Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Table_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=Table_Filter&action=history&feed=atom
+  - id: okapi-transtable-filter
+    name: Okapi TransTable Filter
+    version: 1.48.0
+    url: https://okapiframework.org/wiki/index.php?title=Table_Filter
+    rights: link-only
+    watch:
+      - https://gitlab.com/okapiframework/Okapi/-/tags?format=atom
+  - id: okapi-vignette-filter
+    name: Okapi Vignette Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Vignette_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=Vignette_Filter&action=history&feed=atom
+  - id: okapi-xmlstream-filter
+    name: Okapi XML Stream Filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=XML_Stream_Filter
+    rights: link-only
+    watch:
+      - https://okapiframework.org/wiki/index.php?title=XML_Stream_Filter&action=history&feed=atom
+  - id: pdf-1.7
+    name: PDF 1.7 (Adobe free copy of ISO 32000-1)
+    version: 1.7 (ISO 32000-1)
+    url: https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf
+    rights: link-only
+  - id: php-lang
+    name: PHP Language Reference (strings)
+    version: 8.x
+    url: https://www.php.net/manual/en/language.types.string.php
+    rights: link-only
+  - id: qt-ts
+    name: Qt Linguist TS File Format
+    version: Qt 6
+    url: https://doc.qt.io/qt-6/linguist-ts-file-format.html
+    rights: link-only
+  - id: rfc-4180
+    name: RFC 4180 (CSV)
+    version: 2005-10
+    url: https://www.rfc-editor.org/rfc/rfc4180
+    rights: vendor
+    watch:
+      - https://www.rfc-editor.org/errata/rfc4180
+  - id: rfc-8259
+    name: RFC 8259 (JSON)
+    version: '8259'
+    url: https://www.rfc-editor.org/rfc/rfc8259
+    rights: vendor
+  - id: rtf-1.9.1
+    name: Microsoft RTF 1.9.1 Specification
+    version: 1.9.1
+    url: https://interoperability.blob.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf
+    rights: link-only
+  - id: subrip
+    name: SubRip (SRT)
+    version: de-facto
+    url: https://www.matroska.org/technical/subtitles.html
+    rights: link-only
+  - id: tmx-1.4b
+    name: TMX 1.4b (GALA/LISA OSCAR)
+    version: 1.4b
+    url: https://www.gala-global.org/tmx-14b
+    rights: link-only
+  - id: trados-ttx
+    name: SDL Trados TTX (TRADOStag)
+    version: TRADOStag 2.x
+    url: https://okapiframework.org/wiki/index.php?title=TTX_Filter
+    rights: link-only
+  - id: usfm-3.0
+    name: USFM 3.0
+    version: '3.0'
+    url: https://ubsicap.github.io/usfm/
+    rights: cache
+    watch:
+      - https://github.com/ubsicap/usfm/releases.atom
+  - id: wordfast-txml
+    name: Wordfast TXML
+    version: Wordfast Pro 3.x
+    url: https://okapiframework.org/wiki/index.php?title=TXML_Filter
+    rights: link-only
+  - id: xml-1.0
+    name: XML 1.0 (Fifth Edition)
+    version: 5ed-2008
+    url: https://www.w3.org/TR/2008/REC-xml-20081126/
+    rights: vendor

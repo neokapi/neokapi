@@ -1,0 +1,32 @@
+# Knowledge-axis dossier (format-maturity.md §2.4). K1 backbone: spec
+# sources, sibling implementations, learning materials, divergence pointers.
+format: icml
+spec_sources:
+  - id: adobe-idml
+    version: CS6
+    url: https://developer.adobe.com/indesign/
+    watch: null
+    notes: >-
+      ICML (InCopy Markup Language, .icml/.wcml) is the Story-only subset
+      of the IDML XML vocabulary — there is no separate ICML spec; the
+      Adobe IDML File Format Specification covers it. Adobe URLs rotate,
+      so core/formats/icml/spec.yaml cites elements/attributes by name
+      within the IDML specification (link-only — never snapshot).
+implementations:
+  - name: Okapi ICML filter (okf_icml)
+    kind: okapi
+    pointer: okapi/filters/icml
+  - name: Pandoc ICML writer
+    kind: pandoc
+    pointer: https://github.com/jgm/pandoc (src/Text/Pandoc/Writers/ICML.hs)
+    license_note: GPL-2.0-or-later — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/icml.mdx
+  - scripts/gen-refs/nativedocs/formats/icml.yaml
+divergences:
+  - core/formats/icml/parity-annotations.yaml
+  - >-
+    "#506 — bridge bug: Okapi ICMLFilter extracts <Note> content
+    divergently (expected_fail in core/formats/icml/spec.yaml); several
+    upstream fixtures also crash Okapi's icml merge (fixture-bug skips in
+    parity-annotations.yaml)."

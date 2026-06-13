@@ -1,0 +1,27 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+# NOTE: mo is a thin/stub reader and the standing retirement candidate
+# (format-ops.md §6). The dossier is required regardless of tier.
+format: mo
+spec_sources:
+  - id: po-gettext
+    version: "0.22"
+    url: https://www.gnu.org/software/gettext/manual/html_node/MO-Files.html
+    watch: https://savannah.gnu.org/news/?group=gettext
+    notes: >-
+      GNU gettext MO — the compiled binary catalog (magic 0x950412de, string
+      and translation offset tables). KLF treats MO as a runtime catalog, not
+      an exchange format (feedback_klf_exchange_only); PO is the editable side.
+implementations:
+  - name: GNU gettext (msgfmt/msgunfmt)
+    kind: other
+    pointer: https://www.gnu.org/software/gettext/
+    license_note: GPL-3.0 — produces/consumes MO; the binary-format reference
+  - name: Translate Toolkit (translate.storage.mo)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/mo.mdx
+  - scripts/gen-refs/nativedocs/formats/mo.yaml
+divergences: []

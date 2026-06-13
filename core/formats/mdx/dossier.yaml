@@ -1,0 +1,31 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: mdx
+spec_sources:
+  - id: mdx-3
+    version: "3"
+    url: https://mdxjs.com/
+    watch: https://github.com/mdx-js/mdx/releases.atom
+    notes: >-
+      Stable at v3 (no MDX 4 signal in 2025–2026 per the format-watch
+      research); the de-facto spec is the mdxjs.com docs plus the
+      micromark-extension-mdxjs grammar.
+  - id: commonmark
+    version: "0.31.2"
+    url: https://spec.commonmark.org/0.31.2/
+    watch: https://github.com/commonmark/commonmark-spec/releases.atom
+    notes: MDX is a CommonMark superset (JSX, ESM import/export, expressions).
+implementations:
+  # No Okapi counterpart — harvest cohort (okapi_skip_test.go documents this).
+  - name: mdx-js/mdx (reference implementation)
+    kind: other
+    pointer: https://github.com/mdx-js/mdx
+    license_note: MIT
+    watch: https://github.com/mdx-js/mdx/releases.atom
+  - name: micromark-extension-mdxjs (grammar)
+    kind: other
+    pointer: https://github.com/micromark/micromark-extension-mdxjs
+    license_note: MIT
+learning_materials:
+  - web/docs/reference/formats/mdx.mdx
+  - scripts/gen-refs/nativedocs/formats/mdx.yaml
+divergences: []

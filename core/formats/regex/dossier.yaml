@@ -1,0 +1,30 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: regex
+spec_sources:
+  - id: regex-re2
+    version: living
+    url: https://pkg.go.dev/regexp/syntax
+    watch: null
+    notes: >-
+      The native rule engine compiles patterns with Go regexp (RE2
+      grammar — no backreferences or lookaround); effectively frozen.
+  # Filter semantics (rule list, source/id/note capture groups,
+  # first-match-wins) come from the Okapi Regex Filter documentation
+  # (rights: link-only — pending registration in specs/catalog.yaml).
+  - id: okapi-regex-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Regex_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Regex_Filter&action=history&feed=atom
+implementations:
+  - name: Okapi RegexFilter (okf_regex)
+    kind: okapi
+    pointer: okapi/filters/regex
+  - name: Go regexp (RE2 engine used by the native reader)
+    kind: other
+    pointer: https://pkg.go.dev/regexp
+learning_materials:
+  - web/docs/reference/formats/regex.mdx
+  - scripts/gen-refs/nativedocs/formats/regex.yaml
+divergences:
+  - "neokapi#616 — rules transport: the bridge ships the rule list as JSON under the reserved regexRulesJson parameter (spec.yaml header, Track 3 Stage B)"
+  - "core/formats/regex/spec.yaml expected_fail (escaped_quotes): escape-decoding divergence — Okapi's useBSlashEscape fires only in STRING-type delimiter scan / write path, native decodes at extraction; divergence_kind bridge-gap, no tracked issue"

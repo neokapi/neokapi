@@ -1,0 +1,42 @@
+# Knowledge-axis dossier (format-maturity.md §2.4). K1 backbone: spec
+# sources, sibling implementations, learning materials, divergence pointers.
+format: openxml
+spec_sources:
+  - id: ecma-376
+    version: ed5-2021
+    url: https://ecma-international.org/publications-and-standards/standards/ecma-376/
+    watch: https://learn.microsoft.com/en-us/openspecs/office_standards/ms-docx/
+    notes: >-
+      ECMA editions are near-static (5th ed updated only Part 2; Part 1 is
+      still the Dec 2016 text). Real-world .docx/.xlsx/.pptx evolve through
+      the [MS-DOCX]/[MS-XLSX]/[MS-PPTX] revision-history pages — watch
+      Microsoft, not ISO. ISO/IEC 29500 is the never-class twin; cite
+      ECMA-376 instead.
+implementations:
+  - name: Okapi OpenXML filter (okf_openxml)
+    kind: okapi
+    pointer: okapi/filters/openxml
+  - name: LibreOffice OOXML import/export (reference open implementation)
+    kind: libreoffice
+    pointer: https://github.com/LibreOffice/core
+    license_note: MPL-2.0 — open reference producer/consumer
+  - name: Pandoc docx reader/writer
+    kind: pandoc
+    pointer: https://github.com/jgm/pandoc (src/Text/Pandoc/Readers/Docx.hs)
+    license_note: GPL-2.0-or-later — read-about only, never harvest
+  - name: Apache Tika OOXML parser (wraps Apache POI)
+    kind: tika
+    pointer: https://github.com/apache/tika (org.apache.tika.parser.microsoft.ooxml)
+    license_note: Apache-2.0
+learning_materials:
+  - web/docs/reference/formats/openxml.mdx
+  - scripts/gen-refs/nativedocs/formats/openxml.yaml
+  - docs/internals/research/openxml-faithful-writer-design.md
+divergences:
+  - core/formats/openxml/parity-annotations.yaml
+  - core/formats/openxml/PARITY_NOTES.md
+  - >-
+    core/formats/openxml/spec.yaml expected_fail entries (no tracked issue
+    numbers yet): pptx hidden-slide/master extraction defaults disagree with
+    the Okapi contract; xlsx author/comments feature lacks a packaged fixture
+    (raw-XML path is bridge_only).

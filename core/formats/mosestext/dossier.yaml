@@ -1,0 +1,27 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: mosestext
+spec_sources:
+  # No formal spec — the Moses InlineText corpus convention (one segment
+  # per line, XLIFF-flavoured <g>/<x>/<bx>/<ex> inline markup) is defined
+  # by the Okapi filter documentation (rights: link-only — pending
+  # registration in specs/catalog.yaml).
+  - id: okapi-mosestext-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Moses_Text_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Moses_Text_Filter&action=history&feed=atom
+    notes: >-
+      The native reader ports MosesTextFilter.fromPseudoXLIFF inline
+      markup decoding; the line-per-segment convention originates with
+      the Moses SMT toolkit.
+implementations:
+  - name: Okapi Moses Text Filter (okf_mosestext)
+    kind: okapi
+    pointer: okapi/filters/mosestext
+  - name: Moses SMT decoder (origin of the corpus convention)
+    kind: other
+    pointer: https://github.com/moses-smt/mosesdecoder
+    license_note: "LGPL-2.1"
+learning_materials:
+  - web/docs/reference/formats/mosestext.mdx
+  - scripts/gen-refs/nativedocs/formats/mosestext.yaml
+divergences: []

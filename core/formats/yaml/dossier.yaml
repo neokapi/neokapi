@@ -1,0 +1,32 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: yaml
+spec_sources:
+  - id: yaml-1.2
+    version: "1.2.2"
+    url: https://yaml.org/spec/1.2.2/
+    watch: null
+    notes: >-
+      Spec dormant since Oct 2021. Scalar/chomping/quoting semantics
+      (plain vs literal vs folded, strip/keep chomp) are the clauses the
+      reader and the recorded bridge divergences hinge on.
+implementations:
+  - name: Okapi YamlFilter (okf_yaml)
+    kind: okapi
+    pointer: okapi/filters/yaml
+    license_note: built on SnakeYAML; same public extraction contract as the native reader
+  - name: gopkg.in/yaml.v3
+    kind: other
+    pointer: gopkg.in/yaml.v3
+    license_note: parsing substrate of the native reader (node-walk extraction)
+  - name: translate-toolkit YAML storage
+    kind: translate-toolkit
+    pointer: translate/storage/yaml.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/yaml.mdx
+  - scripts/gen-refs/nativedocs/formats/yaml.yaml
+divergences:
+  - core/formats/yaml/parity-annotations.yaml
+  - core/formats/yaml/spec.yaml — expected_fail entries (bridge literal-scalar
+    and strip-chomp divergences; "tracked separately", no issue numbers recorded)

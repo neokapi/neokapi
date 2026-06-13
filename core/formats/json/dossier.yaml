@@ -1,0 +1,26 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+format: json
+spec_sources:
+  - id: rfc-8259
+    version: "8259"
+    url: https://www.rfc-editor.org/rfc/rfc8259
+    watch: null
+    notes: >-
+      STD 90 (Dec 2017) — the governing JSON grammar; frozen. ECMA-404
+      2nd edition is the byte-identical-grammar twin. The filter's
+      extraction behavior (which strings are translatable) is config,
+      not spec; config keys mirror upstream Okapi JSONFilter parameters.
+implementations:
+  - name: Okapi JSONFilter (okf_json)
+    kind: okapi
+    pointer: okapi/filters/json
+  - name: translate-toolkit jsonl10n (flat/nested JSON dialects)
+    kind: translate-toolkit
+    pointer: translate/storage/jsonl10n.py (github.com/translate/translate)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/json.mdx
+  - scripts/gen-refs/nativedocs/formats/json.yaml
+divergences:
+  - core/formats/json/parity-annotations.yaml

@@ -1,0 +1,27 @@
+# Knowledge dossier (K1) — see docs/internals/format-maturity.md §2.4.
+format: vtt
+spec_sources:
+  - id: webvtt
+    version: cr
+    url: https://www.w3.org/TR/webvtt1/
+    watch: https://www.w3.org/groups/wg/timed-text/publications/
+    notes: >-
+      Remains a W3C Candidate Recommendation; steady maintenance, low
+      churn (Timed Text WG rechartered 2025).
+implementations:
+  - name: okf_vtt — VTTFilter on the shared SubtitleFilter base
+    kind: okapi
+    pointer: okapi/filters/subtitles
+  - name: translate-toolkit subtitles storage (aeidon-backed)
+    kind: translate-toolkit
+    pointer: translate/storage/subtitles.py
+    license_note: "GPL-2.0 — read-about only, never harvest"
+learning_materials:
+  - web/docs/reference/formats/vtt.mdx
+  - scripts/gen-refs/nativedocs/formats/vtt.yaml
+  - core/formats/vtt/spec.yaml
+divergences:
+  # No parity-annotations.yaml. The bridge divergences live as
+  # expected_fail entries in spec.yaml; none carries a tracker issue
+  # number yet ("Tracked separately" placeholders).
+  - "core/formats/vtt/spec.yaml expected_fail entries — Okapi VTTFilter mergeCaptions=true default merges cues and joins intra-cue lines with spaces; native emits one Block per cue with line endings preserved (no tracked issue number recorded)"

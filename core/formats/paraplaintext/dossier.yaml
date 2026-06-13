@@ -1,0 +1,21 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+format: paraplaintext
+spec_sources:
+  # No formal spec; paragraph mode is defined by the Okapi Plain Text
+  # Filter documentation (ParaPlainTextFilter, okf_paraplaintext)
+  # (rights: link-only — pending registration in specs/catalog.yaml).
+  - id: okapi-plaintext-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=Plain_Text_Filter&action=history&feed=atom
+    notes: >-
+      Paragraph mode of the okf_plaintext family — one Block per
+      blank-line-separated paragraph, inner line breaks preserved.
+implementations:
+  - name: Okapi ParaPlainTextFilter (okf_paraplaintext, plaintext filter module)
+    kind: okapi
+    pointer: okapi/filters/plaintext
+learning_materials:
+  - web/docs/reference/formats/paraplaintext.mdx
+  - scripts/gen-refs/nativedocs/formats/paraplaintext.yaml
+divergences: []

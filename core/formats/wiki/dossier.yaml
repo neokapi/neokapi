@@ -1,0 +1,40 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: wiki
+spec_sources:
+  - id: dokuwiki-syntax
+    version: living
+    url: https://www.dokuwiki.org/wiki:syntax
+    watch: https://github.com/dokuwiki/dokuwiki/releases.atom
+    notes: >-
+      The default dialect (VariantDokuWiki) — matches okf_wiki, which per
+      the upstream filter docs supports DokuWiki markup only. Cited by
+      core/formats/wiki/spec.yaml spec_refs.
+  - id: mediawiki-wikitext
+    version: living
+    url: https://www.mediawiki.org/wiki/Wikitext
+    watch: null
+    notes: >-
+      Covers the opt-in VariantMediaWiki dialect shipped in the same
+      package (native-only; not part of the okf_wiki parity contract).
+implementations:
+  - name: Okapi Wiki filter (okf_wiki)
+    kind: okapi
+    pointer: okapi/filters/wiki
+    license_note: >-
+      Dispatched via MIME text/x-wiki-txt and extension .txt (not .wiki);
+      filter doc page https://okapiframework.org/wiki/index.php/Wiki_Filter.
+  - name: DokuWiki (reference parser)
+    kind: other
+    pointer: https://github.com/dokuwiki/dokuwiki
+    license_note: GPL-2.0 — read-about only, never harvest
+  - name: Pandoc dokuwiki/mediawiki readers
+    kind: pandoc
+    pointer: https://github.com/jgm/pandoc
+    license_note: GPL-2.0-or-later — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/wiki.mdx
+  - scripts/gen-refs/nativedocs/formats/wiki.yaml
+divergences:
+  - "#521" # DokuWiki {{image|caption}} recognition (spec.yaml expected_fail)
+  - "#522" # paragraph soft-break collapse (spec.yaml expected_fail)
+  - "#523" # <file> block-tag handling (spec.yaml expected_fail)

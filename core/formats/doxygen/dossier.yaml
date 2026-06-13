@@ -1,0 +1,27 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+format: doxygen
+spec_sources:
+  - id: doxygen-manual
+    version: living
+    url: https://www.doxygen.nl/manual/docblocks.html
+    watch: https://github.com/doxygen/doxygen/releases.atom
+    notes: >-
+      The Doxygen manual ("Documenting the code" + "Special Commands",
+      https://www.doxygen.nl/manual/commands.html) is the authoritative
+      description of doc-comment syntax; pin by Doxygen release on first
+      snapshot. Cited by core/formats/doxygen/spec.yaml spec_refs.
+implementations:
+  - name: Okapi Doxygen filter (okf_doxygen)
+    kind: okapi
+    pointer: okapi/filters/doxygen
+  - name: Doxygen (reference implementation)
+    kind: other
+    pointer: https://github.com/doxygen/doxygen
+    license_note: GPL-2.0 — read-about only, never harvest
+    watch: https://github.com/doxygen/doxygen/releases.atom
+learning_materials:
+  - web/docs/reference/formats/doxygen.mdx
+  - scripts/gen-refs/nativedocs/formats/doxygen.yaml
+divergences: []
+# Note: spec.yaml carries 11 expected_fail blocks (native-vs-bridge
+# divergences on comment-style edge cases) — no tracked issue numbers yet.

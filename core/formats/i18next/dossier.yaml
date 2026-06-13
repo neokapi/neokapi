@@ -1,0 +1,26 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+# Harvest cohort — no Okapi counterpart (format-maturity.md §2.1).
+format: i18next
+spec_sources:
+  - id: i18next
+    version: "v4 JSON"
+    url: https://www.i18next.com/misc/json-format
+    watch: https://github.com/i18next/i18next/releases.atom
+    notes: >-
+      i18next JSON v4 — nested/flat keys, _plural / _ordinal / context suffixes,
+      {{interpolation}} and $t() nesting. The de-facto web-i18n catalog format;
+      the suffix-driven plural model is the parser's main subtlety.
+implementations:
+  - name: i18next runtime + i18next-parser
+    kind: other
+    pointer: https://github.com/i18next/i18next
+    license_note: MIT — the reference runtime; format owner
+  - name: Translate Toolkit (translate.storage.jsonl10n — i18next dialect)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/i18next.mdx
+  - scripts/gen-refs/nativedocs/formats/i18next.yaml
+divergences: []

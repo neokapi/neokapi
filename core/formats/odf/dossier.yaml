@@ -1,0 +1,39 @@
+# Knowledge-axis dossier (format-maturity.md §2.4). K1 backbone: spec
+# sources, sibling implementations, learning materials, divergence pointers.
+format: odf
+spec_sources:
+  - id: odf-1.4
+    version: 1.4-os
+    url: https://docs.oasis-open.org/office/OpenDocument/v1.4/OpenDocument-v1.4-part2-packages.html
+    watch: https://www.oasis-open.org/committees/office/
+    notes: >-
+      ODF 1.4 approved as a full OASIS Standard 2025-12-03; LibreOffice is
+      the reference producer; ODF moves roughly once a decade. The
+      spec_refs in core/formats/odf/spec.yaml currently cite the v1.3
+      part/section numbering (docs.oasis-open.org/office/OpenDocument/v1.3/)
+      — re-pin to 1.4 anchors on the next citation refresh. ISO/IEC 26300
+      (still ODF 1.2) is the never-class twin.
+implementations:
+  - name: Okapi OpenOffice filter (okf_openoffice)
+    kind: okapi
+    pointer: okapi/filters/openoffice
+    notes: >-
+      Upstream splits ODF handling in two — okf_openoffice wraps the ZIP
+      package (the parity counterpart for the native ZIP-aware reader);
+      okf_odf is the content.xml-only inner filter.
+  - name: LibreOffice (reference ODF producer/consumer)
+    kind: libreoffice
+    pointer: https://github.com/LibreOffice/core
+    license_note: MPL-2.0 — open reference producer
+  - name: translate-toolkit odf2xliff / xliff2odf
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate (translate/storage/odf_io.py)
+    license_note: GPL-2.0 — read-about only, never harvest
+learning_materials:
+  - web/docs/reference/formats/odf.mdx
+  - scripts/gen-refs/nativedocs/formats/odf.yaml
+divergences:
+  - >-
+    core/formats/odf/parity-annotations.yaml — no outstanding native
+    divergences: canonical-equal with the okapi reference on all 15
+    fixtures; bridge byte-equal via okapi-bridge#11's two-pass pipeline.

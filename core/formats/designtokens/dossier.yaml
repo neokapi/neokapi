@@ -1,0 +1,23 @@
+# Knowledge dossier (K1) — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+# Harvest cohort — no Okapi counterpart (format-maturity.md §2.1).
+format: designtokens
+spec_sources:
+  - id: dtcg
+    version: "2025.10"
+    url: https://tr.designtokens.org/format/
+    watch: https://www.w3.org/community/design-tokens/
+    notes: >-
+      Design Tokens Community Group format — $value/$type/$description, token
+      groups, aliases ({group.token}), composite types. First stable
+      "2025.10"; calendar-versioned train (re-validate yearly). Only $description
+      (and string $value where applicable) is translatable.
+implementations:
+  - name: Style Dictionary
+    kind: other
+    pointer: https://github.com/amzn/style-dictionary
+    license_note: Apache-2.0 — the dominant DTCG build tool / reference consumer
+learning_materials:
+  - web/docs/reference/formats/designtokens.mdx
+  - scripts/gen-refs/nativedocs/formats/designtokens.yaml
+divergences: []

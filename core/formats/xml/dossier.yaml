@@ -1,0 +1,32 @@
+# Knowledge-axis dossier (docs/internals/format-maturity.md §2.4).
+# Native package `xml` = the streaming XML filter; Okapi alias
+# xmlstream→xml (scripts/contract-audit/main.go).
+format: xml
+spec_sources:
+  - id: xml-1.0
+    version: "1.0-5ed"
+    url: https://www.w3.org/TR/2008/REC-xml-20081126/
+    watch: null
+    notes: >-
+      W3C XML 1.0 (Fifth Edition) — well-formedness, entities,
+      whitespace. Dormant (XML Core WG closed). Pending registration in
+      specs/catalog.yaml.
+  # Rule-driven extraction semantics (TEXTUNIT/EXCLUDE/INLINE element
+  # rules, ATTRIBUTE_* rules) come from the Okapi XML Stream Filter
+  # documentation (rights: link-only — pending catalog registration).
+  - id: okapi-xmlstream-filter
+    version: living
+    url: https://okapiframework.org/wiki/index.php?title=XML_Stream_Filter
+    watch: https://okapiframework.org/wiki/index.php?title=XML_Stream_Filter&action=history&feed=atom
+implementations:
+  - name: Okapi XmlStreamFilter (okf_xmlstream)
+    kind: okapi
+    pointer: okapi/filters/xmlstream
+  - name: translate-toolkit flatxml (flatxml2po)
+    kind: translate-toolkit
+    pointer: https://github.com/translate/translate
+    license_note: "GPL-2.0 — read-about only, never harvest"
+learning_materials:
+  - web/docs/reference/formats/xml.mdx
+  - scripts/gen-refs/nativedocs/formats/xml.yaml
+divergences: []
