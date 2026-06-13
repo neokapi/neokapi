@@ -14,9 +14,10 @@ export type VocabGrade = "V0" | "V1" | "V2" | "V3";
 export type EditorGrade = "E0" | "E1" | "E2" | "E3" | "E4";
 export type KnowledgeGrade = "K0" | "K1" | "K2" | "K3";
 export type CorpusGrade = "C0" | "C1" | "C2" | "C3";
-export type Grade = Level | VocabGrade | EditorGrade | KnowledgeGrade | CorpusGrade;
+export type SecurityGrade = "S0" | "S1" | "S2" | "S3" | "S4";
+export type Grade = Level | VocabGrade | EditorGrade | KnowledgeGrade | CorpusGrade | SecurityGrade;
 
-export type AxisId = "engine" | "vocabulary" | "editor" | "knowledge" | "corpus";
+export type AxisId = "engine" | "vocabulary" | "editor" | "knowledge" | "corpus" | "security";
 export type DimScore = "complete" | "partial" | "none" | "na";
 export type FormatType = "parity" | "harvest" | "read-only" | "internal";
 
@@ -123,7 +124,14 @@ export const LEVEL_NAME: Record<Level, string> = {
   L4: "Rock-solid",
 };
 
-export const AXIS_IDS: AxisId[] = ["engine", "vocabulary", "editor", "knowledge", "corpus"];
+export const AXIS_IDS: AxisId[] = [
+  "engine",
+  "vocabulary",
+  "editor",
+  "knowledge",
+  "corpus",
+  "security",
+];
 
 export const AXIS_LABEL: Record<AxisId, string> = {
   engine: "Engine",
@@ -131,6 +139,7 @@ export const AXIS_LABEL: Record<AxisId, string> = {
   editor: "Editor",
   knowledge: "Knowledge",
   corpus: "Corpus",
+  security: "Security",
 };
 
 export const AXIS_GRADES: Record<AxisId, Grade[]> = {
@@ -139,6 +148,7 @@ export const AXIS_GRADES: Record<AxisId, Grade[]> = {
   editor: ["E0", "E1", "E2", "E3", "E4"],
   knowledge: ["K0", "K1", "K2", "K3"],
   corpus: ["C0", "C1", "C2", "C3"],
+  security: ["S0", "S1", "S2", "S3", "S4"],
 };
 
 /**
@@ -163,6 +173,8 @@ export const AXIS_DIMS: Record<AxisId, string[]> = {
   editor: [],
   knowledge: ["dossier", "sidecar", "refs", "citations", "contextpack"],
   corpus: ["corpusmanifest", "corpus", "fetchwiring", "acceptance", "sweep"],
+  // Security is floor-only (rubric §2.6); these signal ids map S1–S4.
+  security: ["safeio", "fuzz", "sweepclean", "sustained"],
 };
 
 export const GRADE_NAME: Record<Grade, string> = {
@@ -184,6 +196,11 @@ export const GRADE_NAME: Record<Grade, string> = {
   C1: "Exemplars",
   C2: "Manifested + fetched",
   C3: "Broad",
+  S0: "Unbounded",
+  S1: "Bounded",
+  S2: "Fuzzed",
+  S3: "Hostile-hardened",
+  S4: "Continuously-assured",
 };
 
 /** Demotion ladder order, highest promise first (rubric §1). */

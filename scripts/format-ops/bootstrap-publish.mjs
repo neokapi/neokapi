@@ -146,6 +146,7 @@ function gapsFor(floor, axis, dims) {
     editor: [['preview', 'implement format.PreviewBuilder'], ['identity', 'add an identity-binding round-trip test'], ['embedded', 'ship a committed add-in/connector manifest']],
     knowledge: [['dossier', 'add dossier.yaml with a catalog-registered spec source'], ['sidecar', 'wire the nativedocs sidecar'], ['refs', 'populate spec_refs/native_refs + divergence_kind']],
     corpus: [['corpusmanifest', 'add corpus.yaml covering testdata'], ['fetchwiring', 'wire Tier B (corpus: scheme / make fetch-corpus)'], ['corpus', 'replace synthetic corpus with real files'], ['acceptance', 'wire an external acceptance validator']],
+    security: [['safeio', 'wire core/safeio budgets into the reader (S1)'], ['fuzz', 'add a Fuzz* target + testdata/fuzz seed (S2)'], ['sweepclean', 'record a clean corpus-sweep in the ledger (S3)']],
   }[axis] || []
   const gaps = []
   for (const [dim, msg] of want) {
@@ -219,12 +220,16 @@ function renderDocsBlock() {
   L.push('')
   L.push('### Per-format vector')
   L.push('')
-  L.push('| Format | Tier | Engine | Vocab | Editor | Know | Corpus | Top engine gap |')
-  L.push('|---|---|---|---|---|---|---|---|')
+  // Per-format columns iterate AXIS_IDS so a new axis (e.g. Security) appears
+  // automatically; "Top engine gap" stays the headline-axis gap.
+  const cols = ['Format', 'Tier', ...S.AXIS_IDS.map((a) => S.AXIS_LABELS[a]), 'Top engine gap']
+  L.push(`| ${cols.join(' | ')} |`)
+  L.push(`|${cols.map(() => '---').join('|')}|`)
   for (const r of rows.slice().sort((a, b) => a.id.localeCompare(b.id))) {
     const t = r.tier && r.tier.declared ? r.tier.declared : '—'
     const gap = (r.blocking_gaps[0] || '—').slice(0, 60)
-    L.push(`| \`${r.id}\` | ${t} | ${r.levels.engine} | ${r.levels.vocabulary} | ${r.levels.editor} | ${r.levels.knowledge} | ${r.levels.corpus} | ${gap} |`)
+    const cells = [`\`${r.id}\``, t, ...S.AXIS_IDS.map((a) => r.levels[a]), gap]
+    L.push(`| ${cells.join(' | ')} |`)
   }
   return L.join('\n')
 }

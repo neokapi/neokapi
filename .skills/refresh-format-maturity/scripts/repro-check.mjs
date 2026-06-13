@@ -3,11 +3,12 @@
 //
 // The scorer (.claude/workflows/format-triage.js) computes each format's level
 // PER AXIS (engine L0-L4, vocabulary V0-V3, editor E0-E4, knowledge K0-K3,
-// corpus C0-C3) from the deterministic file floor (audit-format.py --json,
-// additive `axes{}` block) plus the model-judged QUALITY dimensions of that
-// axis: engine {writer, parity, corpus}, vocabulary {writecells}, knowledge
-// {refs}, corpus {corpus — the cell SHARED with engine}, editor {} (no judged
-// dims: spread 0 by construction, asserted below). This harness enumerates
+// corpus C0-C3, security S0-S4) from the deterministic file floor
+// (audit-format.py --json, additive `axes{}` block) plus the model-judged
+// QUALITY dimensions of that axis: engine {writer, parity, corpus}, vocabulary
+// {writecells}, knowledge {refs}, corpus {corpus — the cell SHARED with
+// engine}, editor {} and security {} (no judged dims: spread 0 by
+// construction, asserted below). This harness enumerates
 // EVERY realistic value of each axis's quality dims and reports the resulting
 // per-axis level spread — i.e. the maximum the model can move the published
 // level. Spread 0 = fully pinned by files; spread 1 = a single boundary the
@@ -29,6 +30,7 @@ const AXES = {
   editor: ['E0', 'E1', 'E2', 'E3', 'E4'],
   knowledge: ['K0', 'K1', 'K2', 'K3'],
   corpus: ['C0', 'C1', 'C2', 'C3'],
+  security: ['S0', 'S1', 'S2', 'S3', 'S4'],
 }
 const AXIS_IDS = Object.keys(AXES)
 const RANK = {}
@@ -42,6 +44,7 @@ const QUALITY = {
   editor: [], // probe-pinned: no judged dims (spread 0 by construction)
   knowledge: ['refs'],
   corpus: ['corpus'], // SHARED with engine: one judgment, both gates
+  security: [], // floor-only (file + ledger signals): spread 0 by construction
 }
 
 function minG(axis, a, b) { return RANK[axis][a] <= RANK[axis][b] ? a : b }
@@ -155,11 +158,23 @@ function corpusDims(floor, engineCells) {
   }
 }
 
+function securityDims(floor) {
+  const cells = (floor && floor.axes && floor.axes.security && floor.axes.security.signals
+    && floor.axes.security.signals.cells) || {}
+  return {
+    safeio: cells.safeio || 'none',
+    fuzz: cells.fuzz || 'none',
+    sweepclean: cells.sweepclean || 'none',
+    sustained: cells.sustained || 'none',
+  }
+}
+
 function floorDimsFor(axis, floor, type) {
   if (axis === 'engine') return engineDims(floor, type)
   if (axis === 'vocabulary') return vocabularyDims(floor, type)
   if (axis === 'editor') return editorDims(floor)
   if (axis === 'knowledge') return knowledgeDims(floor, type)
+  if (axis === 'security') return securityDims(floor)
   return corpusDims(floor, engineDims(floor, type))
 }
 
@@ -219,6 +234,15 @@ function gateCorpus(dims) {
   return 'C3'
 }
 
+function gateSecurity(dims) {
+  const full = (k) => (dims[k] || 'none') === 'complete' || (dims[k] || 'none') === 'na'
+  if (!full('safeio')) return 'S0'
+  if (!full('fuzz')) return 'S1'
+  if (!full('sweepclean')) return 'S2'
+  if (!full('sustained')) return 'S3'
+  return 'S4'
+}
+
 // ── caps (mirror of format-triage.js) ──
 
 function capEngine(level, floor) {
@@ -248,6 +272,7 @@ function axisLevel(axis, dims, floor, type) {
   else if (axis === 'vocabulary') g = gateVocab(dims)
   else if (axis === 'editor') g = gateEditor(dims)
   else if (axis === 'knowledge') g = gateKnowledge(dims, !!(floor && floor.has && floor.has.schema))
+  else if (axis === 'security') g = gateSecurity(dims)
   else g = gateCorpus(dims)
   return capAxis(axis, g, floor)
 }
@@ -300,9 +325,10 @@ process.stdin.on('end', () => {
       const sp = axisSpread(axis, f)
       const n = sp.length - 1
       if (n === 0) totals[axis].pinned++; else if (n === 1) totals[axis].boundary++; else totals[axis].wide++
-      if (axis === 'editor' && n !== 0) {
-        // editor has no quality dims — any spread is a mirror/gate bug, not judgment
-        console.error(`!! editor axis spread for ${f.format}: ${sp.join('|')} (must be 0 by construction)`)
+      if ((axis === 'editor' || axis === 'security') && n !== 0) {
+        // editor + security have no quality dims — any spread is a mirror/gate
+        // bug, not judgment (floor-only ⇒ spread 0 by construction)
+        console.error(`!! ${axis} axis spread for ${f.format}: ${sp.join('|')} (must be 0 by construction)`)
         leak = true
       }
       if (n >= 2) leak = true

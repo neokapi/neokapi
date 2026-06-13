@@ -84,6 +84,7 @@ AXIS_GRADES = {
     "editor": ["E0", "E1", "E2", "E3", "E4"],
     "knowledge": ["K0", "K1", "K2", "K3"],
     "corpus": ["C0", "C1", "C2", "C3"],
+    "security": ["S0", "S1", "S2", "S3", "S4"],
 }
 VOCAB_STATUSES = {"lossless", "lossy", "dropped", "rejected"}
 CANONICAL_TYPE_RE = re.compile(r'"(fmt|link|media|code):')
@@ -800,6 +801,128 @@ def _corpus_axis(d: str, fmt: str, kinds: list[str], ledger) -> dict:
     return {"base": base, "ceiling": ceiling, "signals": sig}
 
 
+# ── security axis (S0–S4) ──
+# A pure floor ladder, no quality dimensions (rubric §2.6). Signals are
+# deterministic file facts plus two ledger-driven ceiling rungs:
+#   S1 bounded  — the package imports core/safeio (boundedness is structural).
+#   S2 fuzzed   — a Fuzz* target AND ≥1 testdata/fuzz seed exist for the format.
+#   S3 hostile-hardened — S2 + a CLEAN corpus-sweep record in the ledger
+#                 (0 CRASH/HANG/OOM/ROUNDTRIP_DRIFT); absent ledger ⇒ ceiling S2.
+#   S4 continuously-assured — S3 + a sustained ledger signal (ceiling only;
+#                 reachable later). govulncheck-clean is module-wide — a noted
+#                 co-signal, not a per-format gate.
+# `base` is the structural file floor (S0/S1/S2 only); the ledger rungs raise
+# the `ceiling` exactly like Knowledge/Corpus, and the format-triage gate then
+# computes the published level from the cells and caps it at the ceiling.
+
+def _has_fuzz_seed(d: str) -> bool:
+    """≥1 seed file under testdata/fuzz/<FuzzName>/ (Go native fuzz corpus)."""
+    root = os.path.join(d, "testdata", "fuzz")
+    if not os.path.isdir(root):
+        return False
+    for _dirpath, _dirs, files in os.walk(root):
+        if any(name != ".DS_Store" for name in files):
+            return True
+    return False
+
+
+def _sweep_counts(ledger, fmt: str):
+    """The corpus-sweep per-format classification counts, or 'unknown'."""
+    if not isinstance(ledger, dict):
+        return "unknown"
+    counts = ((((ledger.get("rituals", {}) or {}).get("corpus-sweep") or {})
+               .get("watermarks") or {}).get("per_format_counts") or {})
+    return counts[fmt] if fmt in counts else "unknown"
+
+
+def _sweepclean_cell(sweep) -> str:
+    """complete = recorded with 0 CRASH/HANG/OOM/ROUNDTRIP_DRIFT; partial =
+    recorded but dirty; none = no record (mirrors the corpus sweep cell)."""
+    if sweep is None or sweep == "unknown":
+        return "none"
+    if isinstance(sweep, dict):
+        bad = ("CRASH", "HANG", "OOM", "ROUNDTRIP_DRIFT")
+        return "partial" if any(int(sweep.get(k, 0) or 0) > 0 for k in bad) else "complete"
+    return "partial"  # recorded but in an unrecognized shape
+
+
+def _security_sustained(ledger, fmt: str) -> bool:
+    """S4 ceiling: a ledger-recorded sustained green-sweep / batch-fuzz streak
+    (≥30 days) for the format. Accepts a `sustained_formats` list or a
+    `sustained` map of {fmt: {green_days}} under the corpus-sweep watermarks."""
+    if not isinstance(ledger, dict):
+        return False
+    wm = ((((ledger.get("rituals", {}) or {}).get("corpus-sweep") or {})
+           .get("watermarks")) or {})
+    lst = wm.get("sustained_formats")
+    if isinstance(lst, list) and fmt in lst:
+        return True
+    streaks = wm.get("sustained")
+    rec = streaks.get(fmt) if isinstance(streaks, dict) else None
+    if isinstance(rec, dict):
+        return int(rec.get("green_days", 0) or 0) >= 30
+    if isinstance(rec, (int, float)) and not isinstance(rec, bool):
+        return rec >= 30
+    return False
+
+
+def _security_axis(d: str, fmt: str, ledger) -> dict:
+    # S1 signal: the package imports core/safeio in a non-test .go file.
+    safeio = False
+    if os.path.isdir(d):
+        for name in sorted(os.listdir(d)):
+            if name.endswith(".go") and not name.endswith("_test.go"):
+                if "core/safeio" in _read_text(os.path.join(d, name)):
+                    safeio = True
+                    break
+    # S2 signal: a Fuzz* target AND ≥1 testdata/fuzz seed for the format.
+    fuzz_target = False
+    if os.path.isdir(d):
+        for name in sorted(os.listdir(d)):
+            if name.endswith("_test.go") and re.search(
+                    r"func\s+Fuzz\w+", _read_text(os.path.join(d, name))):
+                fuzz_target = True
+                break
+    fuzz_seed = _has_fuzz_seed(d)
+    fuzzed = fuzz_target and fuzz_seed
+    # S3 / S4 signals come from the ledger (ceiling rungs).
+    sweep = _sweep_counts(ledger, fmt)
+    sweepclean = _sweepclean_cell(sweep)
+    sustained = _security_sustained(ledger, fmt)
+
+    cells = {
+        "safeio": "complete" if safeio else "none",
+        "fuzz": "complete" if fuzzed else "none",
+        "sweepclean": sweepclean,
+        "sustained": "complete" if sustained else "none",
+    }
+    full = lambda c: c == "complete"
+    # structural file floor — never above what the files alone guarantee (S2).
+    if not full(cells["safeio"]):
+        base = "S0"
+    elif not full(cells["fuzz"]):
+        base = "S1"
+    else:
+        base = "S2"
+    # ledger-enhanced ceiling (cumulative): a clean sweep unlocks S3, a
+    # sustained signal unlocks S4. No ledger ⇒ ceiling stays at the file floor.
+    ceiling = base
+    if base == "S2" and full(cells["sweepclean"]):
+        ceiling = "S3"
+        if full(cells["sustained"]):
+            ceiling = "S4"
+    sig = {
+        "safeio": safeio,
+        "fuzz_target": fuzz_target,
+        "fuzz_seed": fuzz_seed,
+        "fuzzed": fuzzed,
+        "sweep": sweep,
+        "sustained": sustained,
+        "cells": cells,
+    }
+    return {"base": base, "ceiling": ceiling, "signals": sig}
+
+
 def _axes_block(d: str, fmt: str, has: dict, kinds: list[str], ftype: str,
                 base: str, ceiling: str, ledger) -> dict:
     return {
@@ -808,6 +931,7 @@ def _axes_block(d: str, fmt: str, has: dict, kinds: list[str], ftype: str,
         "editor": _editor_axis(d, fmt),
         "knowledge": _knowledge_axis(d, fmt, has, kinds, ftype, ledger),
         "corpus": _corpus_axis(d, fmt, kinds, ledger),
+        "security": _security_axis(d, fmt, ledger),
     }
 
 
@@ -869,6 +993,19 @@ def _axis_hints(fmt: str, axes: dict) -> list[str]:
             miss.append("acceptance/sweep unknown (pass --ledger)")
         if miss:
             hints.append("corpus    : " + "; ".join(miss))
+    s = axes["security"]["signals"]
+    if axes["security"]["ceiling"] != "S4":
+        miss = []
+        if not s["safeio"]:
+            miss.append("reader does not import core/safeio (S1)")
+        elif not s["fuzzed"]:
+            miss.append("no Fuzz* target + testdata/fuzz seed (S2)")
+        elif s["cells"]["sweepclean"] != "complete":
+            miss.append("no clean corpus-sweep record (S3; pass --ledger)")
+        elif not s["sustained"]:
+            miss.append("no sustained sweep/batch-fuzz signal (S4)")
+        if miss:
+            hints.append("security  : " + "; ".join(miss))
     return hints
 
 
@@ -878,7 +1015,7 @@ def _axes_summary(axes: dict) -> str:
         return f"{a['base']}..{a['ceiling']}"
     return (f"engine {band('engine')} | vocab {band('vocabulary')} | "
             f"editor {band('editor')} | knowledge {band('knowledge')} | "
-            f"corpus {band('corpus')}")
+            f"corpus {band('corpus')} | security {band('security')}")
 
 
 def audit_one(fmt: str, ledger=None) -> dict:
@@ -971,7 +1108,8 @@ def main() -> int:
             for x in data:
                 ax = x["axes"]
                 compact = " ".join(ax[a]["base"] for a in
-                                   ("vocabulary", "editor", "knowledge", "corpus"))
+                                   ("vocabulary", "editor", "knowledge",
+                                    "corpus", "security"))
                 print(f"{x['format']}: {x['coarse_level']}  [{compact}]")
         return 0
 

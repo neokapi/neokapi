@@ -18,13 +18,15 @@ things:
    may rely on. They change only by explicit, human-approved promotion or
    demotion events, and a tier claim must be backed by a CI gate — a tier not
    enforced by CI is marketing. (Rust's target-tier policy is the model.)
-2. **The score** — a five-**axis** maturity vector (§2), recomputed by every
+2. **The score** — a six-**axis** maturity vector (§2), recomputed by every
    audit from deterministic file floors plus evidence-cited quality judgments.
    The vector is diagnostic: it ranks work and explains the tier; it does not
    itself promise anything.
 
 The headline tier is derived as the **minimum over the gating axes** — never a
 weighted average (a scalar aggregate is where measurement validity collapses).
+The sixth axis, **Security** (§2.6), is a non-gating display axis: it scores and
+ranks hardening work but does not enter the tier minimum (for now).
 
 ## 1. Support tiers (the promise)
 
@@ -85,13 +87,14 @@ Rules:
 - The vector may exceed the tier; it must never durably *under*-run it
   (suspended per-format while `grandfathered: true` during bootstrap).
 
-## 2. The five axes (the score)
+## 2. The six axes (the score)
 
 Each axis has its own ladder, its own deterministic file floor, and (where
 defined) quality dimensions. A format sits at exactly one level per axis: the
 highest level whose criteria are fully met (a missing lower-tier requirement
 caps the level). Axes evolve independently — a format can be E3 (embedded in
-its native editor) at V1, or L3 at K1.
+its native editor) at V1, or L3 at K1. Five axes (Engine, Vocabulary, Editor,
+Knowledge, Corpus) feed the tier; the sixth (Security) is display-only (§2.6).
 
 | Axis | Ladder | Measures | Primary artifacts |
 |---|---|---|---|
@@ -100,6 +103,7 @@ its native editor) at V1, or L3 at K1.
 | **Editor** | E0–E4 | How close kapi gets to the format's native editing surface | `integrations.yaml`, `format.PreviewBuilder`, connectors/add-ins |
 | **Knowledge** | K0–K3 | The spec/learning assets that let a person or model work on the format | `dossier.yaml`, the spec knowledge base (`specs/`), `spec.yaml` refs, divergence attribution |
 | **Corpus** | C0–C3 | Reference files that validate support, with provenance | `corpus.yaml` manifests, `testdata/`, fetched corpus tiers, acceptance validators |
+| **Security** | S0–S4 | Resource-boundedness, fuzzing, and hostile-corpus hardening of the parser (non-gating display axis) | `core/safeio` imports, `Fuzz*` targets + `testdata/fuzz/` seeds, corpus-sweep ledger records |
 
 Shared signals are deliberate: the `corpus` quality dimension feeds both the
 Engine gate (as in scorer v2) and the Corpus gate, so one cited judgment moves
@@ -147,12 +151,11 @@ explicitly:
 > is not artificially capped — L4's edge-case and corpus bars apply unchanged.
 
 **Robustness beyond malformed.** Go fuzz targets (`func Fuzz*` with seeds in
-`testdata/fuzz/`) and hostile-corpus sweeps are advisory Engine signals today,
-counted by the audit but not yet gating. They seed a future dedicated Security
-axis (S0–S4: bounded → fuzzed → hostile-hardened → continuously assured),
-which becomes its own column once the shared `core/safeio` budget primitives
-and the corpus-sweep harness exist (a tracked GitHub issue, not a radar
-entry — the radar is for format candidates).
+`testdata/fuzz/`), `core/safeio` budgets, and hostile-corpus sweeps are now
+scored on their own **Security axis** (S0–S4: bounded → fuzzed →
+hostile-hardened → continuously assured — §2.6), not on Engine. The Engine
+ladder keeps its `malformed_test` robustness floor; deeper hardening reads on
+Security, which is a non-gating display axis.
 
 ### 2.2 Vocabulary (V0–V3) — representation fidelity
 
@@ -355,6 +358,45 @@ Engine gate (its v2 corpus slot, unchanged) and the Corpus gate;
 (`fetchwiring`) scheme + fetch-script probes; (`acceptance`) latest
 acceptance CI conclusion; (`sweep`) latest corpus-sweep record.
 
+### 2.6 Security (S0–S4) — resource-boundedness & hostile-input hardening
+
+Measures how well a format's parser resists malicious or pathological input —
+the structural advantage of a memory-safe Go engine made measurable. The
+residual risk classes for the pure-Go readers are resource DoS
+(CPU/memory/stack, decompression bombs), path traversal on extraction, and
+round-trip semantic corruption; cgo/bridge formats re-introduce memory-unsafety
+and need subprocess isolation. (Research base:
+[`research/format-ops/followup-format-parser-security-ops.md`](./research/format-ops/followup-format-parser-security-ops.md)
+and SYNTHESIS D7.)
+
+This is a **pure floor ladder with no quality dimensions** — every rung is a
+deterministic file or ledger signal, so the published level is fully pinned
+(`repro-check.mjs` asserts spread 0, exactly as for Editor).
+
+| Level | Name | Entry criteria |
+|---|---|---|
+| **S0** | Unbounded | No `core/safeio` budgets wired and no fuzz target — the default for an un-hardened reader. |
+| **S1** | Bounded | The format's package imports `core/safeio` (byte budget, depth guard, zip ratio/entry caps, `SafeJoin`) — boundedness is structurally present and applied identically across CLI/server/WASM. |
+| **S2** | Fuzzed | S1 **plus** a Go native fuzz target (`FuzzRead*`/`FuzzRoundTrip*`) with ≥1 committed `testdata/fuzz/` seed for the format (OpenSSF Scorecard `fuzzedWithGoNative` would pass). |
+| **S3** | Hostile-hardened | S2 **plus** a clean corpus-sweep record in the ops ledger — 0 `CRASH`/`HANG`/`OOM` **and** 0 `ROUNDTRIP_DRIFT` over the wild/hostile set. (`govulncheck`-clean is module-wide — a noted co-signal, not a per-format gate.) Absent a ledger sweep record, the ceiling stays S2. |
+| **S4** | Continuously-assured | S3 **plus** a sustained ledger signal (batch fuzzing / repeated green sweeps over the cadence). A ledger-only ceiling rung, reachable later. |
+
+Floor signals (dimension ids): (`safeio`) a package-wide grep of non-test `.go`
+files for a `core/safeio` import; (`fuzz`) a `Fuzz*` target plus a
+`testdata/fuzz/` seed; (`sweepclean`) the latest corpus-sweep record for the
+format (clean = 0 CRASH/HANG/OOM/ROUNDTRIP_DRIFT); (`sustained`) a
+ledger-recorded sustained-green signal. `base` is the structural file floor
+(S0–S2); the ledger rungs raise only the `ceiling` (S3/S4), exactly like
+Knowledge and Corpus. The format-triage gate then computes the published level
+from the cells and caps it at that ceiling.
+
+**Non-gating, for now.** Security is a **display axis**: it does *not* enter the
+headline-tier minimum (§1) and does not cap a format's support tier. It informs
+and ranks hardening work without blocking releases. Promoting it to a gating
+axis (e.g. "Supported requires S2") is a future **tier-policy** decision made
+through the `tier-review` ritual, recorded here when taken — not an audit
+outcome.
+
 ## 3. How scores are computed (scorer v3 — reproducible by design)
 
 The triage workflow does **not** let the model pick levels; each axis level is
@@ -380,6 +422,7 @@ The triage workflow does **not** let the model pick levels; each axis level is
    | Knowledge | `refs` | refs + divergence_kind census |
    | Corpus | `corpus` | manifest origin census (shared with Engine) |
    | Editor | — | floor-only (probes) |
+   | Security | — | floor-only (safeio import / fuzz target+seed / ledger sweep; spread 0) |
 
    `normDim` matches dimension ids **exactly** (no substring matching); the
    SCORE schema enum, the per-axis QUALITY sets, and `repro-check.mjs`'s
@@ -519,6 +562,10 @@ Corpus   C1 : corpus.yaml covering all testdata (tier/origin/license/sha256) + t
          C2 : + Tier B wiring (corpus: scheme, fetch, skip-not-fail) or countersigned na + verified manifests
          C3 : + externally-verified wild files + edge matrix + generator/fuzz seeds
               + acceptance CI green + green corpus-sweep record + flywheel evidence
+Security S1 : reader package imports core/safeio (bounded)                          [floor-only]
+         S2 : + a Fuzz* target + testdata/fuzz seed                                 [floor-only]
+         S3 : + clean corpus-sweep record in the ledger (0 crash/hang/oom/drift)    [ledger ceiling]
+         S4 : + sustained green-sweep / batch-fuzz signal                           [ledger ceiling]
 ```
 
 <!-- BEGIN: gap-analysis report (generated) -->
@@ -532,64 +579,65 @@ republishes the dashboard — do not edit by hand. The dashboard
 ### Per-axis distribution
 
 - **Engine** — L0:2 · L1:9 · L2:31 · L3:7 · L4:0
-- **Vocabulary** — V0:49 · V1:0 · V2:0 · V3:0
+- **Vocabulary** — V0:45 · V1:4 · V2:0 · V3:0
 - **Editor** — E0:46 · E1:3 · E2:0 · E3:0 · E4:0
-- **Knowledge** — K0:0 · K1:38 · K2:11 · K3:0
-- **Corpus** — C0:17 · C1:32 · C2:0 · C3:0
+- **Knowledge** — K0:0 · K1:37 · K2:12 · K3:0
+- **Corpus** — C0:20 · C1:29 · C2:0 · C3:0
+- **Security** — S0:34 · S1:13 · S2:2 · S3:0 · S4:0
 
 ### Per-format vector
 
-| Format | Tier | Engine | Vocab | Editor | Know | Corpus | Top engine gap |
-|---|---|---|---|---|---|---|---|
-| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | add malformed_test.go |
-| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | add malformed_test.go |
-| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | — |
-| `csv` | maintained | L3 | V0 | E0 | K1 | C1 | — |
-| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | add malformed_test.go |
-| `doxygen` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `dtd` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `epub` | available | L0 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `fixedwidth` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `html` | available | L1 | V0 | E1 | K1 | C1 | add malformed_test.go |
-| `i18next` | available | L1 | V0 | E0 | K2 | C0 | add malformed_test.go |
-| `icml` | maintained | L3 | V0 | E0 | K1 | C1 | — |
-| `idml` | available | L3 | V0 | E0 | K1 | C0 | — |
-| `json` | maintained | L2 | V0 | E0 | K2 | C1 | add a corpus/upstream test |
-| `markdown` | available | L2 | V0 | E1 | K1 | C1 | add a corpus/upstream test |
-| `mdx` | available | L1 | V0 | E1 | K2 | C0 | add malformed_test.go |
-| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `mif` | maintained | L3 | V0 | E0 | K1 | C0 | — |
-| `mo` | available | L0 | V0 | E0 | K1 | C0 | add malformed_test.go |
-| `mosestext` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `odf` | available | L1 | V0 | E0 | K1 | C0 | — |
-| `openxml` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `paraplaintext` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `pdf` | available | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `phpcontent` | maintained | L2 | V0 | E0 | K1 | C1 | add cli/parity spec_test |
-| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `po` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `regex` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | — |
-| `rtf` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `splicedlines` | available | L1 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | add cli/parity spec_test |
-| `tex` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `transtable` | maintained | L2 | V0 | E0 | K1 | C0 | add a corpus/upstream test |
-| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `ttml` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `ttx` | maintained | L2 | V0 | E0 | K1 | C0 | add a corpus/upstream test |
-| `txml` | maintained | L2 | V0 | E0 | K1 | C0 | add a corpus/upstream test |
-| `versifiedtext` | available | L1 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `vignette` | maintained | L2 | V0 | E0 | K1 | C0 | add a corpus/upstream test |
-| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `wiki` | maintained | L2 | V0 | E0 | K2 | C1 | add a corpus/upstream test |
-| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | — |
-| `xliff` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
-| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | add a corpus/upstream test |
-| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | add cli/parity spec_test |
-| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | add a corpus/upstream test |
+| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Top engine gap |
+|---|---|---|---|---|---|---|---|---|
+| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
+| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
+| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
+| `csv` | maintained | L3 | V0 | E0 | K1 | C1 | S1 | — |
+| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
+| `doxygen` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `dtd` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `fixedwidth` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `html` | available | L1 | V1 | E1 | K1 | C0 | S2 | add malformed_test.go |
+| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
+| `icml` | maintained | L3 | V0 | E0 | K1 | C1 | S0 | — |
+| `idml` | available | L3 | V0 | E0 | K1 | C0 | S1 | — |
+| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | add a corpus/upstream test |
+| `markdown` | available | L2 | V1 | E1 | K1 | C1 | S1 | add a corpus/upstream test |
+| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | add malformed_test.go |
+| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `mif` | maintained | L3 | V0 | E0 | K1 | C0 | S0 | — |
+| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
+| `mosestext` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `odf` | available | L1 | V0 | E0 | K1 | C0 | S1 | — |
+| `openxml` | maintained | L2 | V1 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `paraplaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `pdf` | available | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `phpcontent` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add cli/parity spec_test |
+| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| `regex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
+| `rtf` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `splicedlines` | available | L1 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add cli/parity spec_test |
+| `tex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `transtable` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `ttml` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `ttx` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `txml` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `versifiedtext` | available | L1 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `vignette` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
+| `wiki` | maintained | L2 | V0 | E0 | K2 | C1 | S0 | add a corpus/upstream test |
+| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
+| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
+| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | add cli/parity spec_test |
+| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions
@@ -620,10 +668,13 @@ ritual, not by the mechanical snapshot regeneration).
    (`exec`/`jsx`/`memorytest` excluded everywhere, including the dashboard).
 6. **Step parity** — still open: steps are tools, not formats; out of scope
    for the format axes. Revisit if step regressions recur.
-7. **Security axis** — designed (S0–S4) but not yet scored; becomes the sixth
-   axis when `core/safeio` budgets and the corpus-sweep harness exist
-   (GitHub issues). Until then fuzz and hostile signals ride Engine/Corpus as
-   advisory dimensions.
+7. **Security axis** — *resolved: scored as of 2026-06-13.* The S0–S4 axis
+   (§2.6) is wired across the scorer (`format-triage.js`), the audit
+   (`audit-format.py` `axes.security`), the mirror (`repro-check.mjs`), and the
+   `/format-maturity` dashboard now that `core/safeio` budgets and the
+   corpus-sweep harness exist. It is a **non-gating display axis** for now;
+   promoting it into the headline-tier minimum is a future `tier-review`
+   decision.
 8. **`detection` floor signal** — currently a constant (v2 compatibility);
    candidate real signal: presence in `register_test.go`'s detection lists.
    Change requires a gate change ritual (calibration + same-commit mirror

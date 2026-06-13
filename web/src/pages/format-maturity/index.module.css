@@ -97,7 +97,8 @@
   min-width: 0;
 }
 .miniSeg.lvlL2,
-.miniSeg.lvlE2 {
+.miniSeg.lvlE2,
+.miniSeg.lvlS2 {
   color: #222;
 }
 
@@ -177,6 +178,23 @@
 .lvlC3 {
   background: #2b8fb3;
 }
+/* security (S0–S4) — the full red → teal ladder, S2 mid uses dark text */
+.lvlS0 {
+  background: #d64545;
+}
+.lvlS1 {
+  background: #e08a2b;
+}
+.lvlS2 {
+  background: #d6b83a;
+  color: #222;
+}
+.lvlS3 {
+  background: #3fa05a;
+}
+.lvlS4 {
+  background: #2b8fb3;
+}
 
 .levelBadge {
   display: inline-block;
@@ -187,7 +205,8 @@
   color: #fff;
 }
 .levelBadge.lvlL2,
-.levelBadge.lvlE2 {
+.levelBadge.lvlE2,
+.levelBadge.lvlS2 {
   color: #222;
 }
 
@@ -207,7 +226,8 @@
   color: #fff;
 }
 .miniBadge.lvlL2,
-.miniBadge.lvlE2 {
+.miniBadge.lvlE2,
+.miniBadge.lvlS2 {
   color: #222;
 }
 .gradeMissing {

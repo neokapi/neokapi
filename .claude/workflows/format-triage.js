@@ -1,6 +1,6 @@
 export const meta = {
   name: 'format-triage',
-  description: 'Triage every neokapi format against the multi-axis maturity rubric (Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus C0–C3), rank the work to push each toward a target level, optionally remediate (add the top missing test/artifact, verified), and refresh the /format-maturity dashboard dataset',
+  description: 'Triage every neokapi format against the multi-axis maturity rubric (Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus C0–C3, Security S0–S4), rank the work to push each toward a target level, optionally remediate (add the top missing test/artifact, verified), and refresh the /format-maturity dashboard dataset',
   whenToUse: 'Run periodically to track and advance format maturity. Default (no args) = score + triage + publish the dashboard. args: {target:"L2|L3|L4", mode:"triage|remediate", formats:[ids], limit:N, publish:false, samples:N, anchor:true}',
   phases: [
     { title: 'Prep', detail: 'one agent: deterministic per-axis file-floor (audit-format.py --all --json) + prior dashboard levels + support.yaml tiers' },
@@ -58,9 +58,13 @@ const AXES = {
   editor: ['E0', 'E1', 'E2', 'E3', 'E4'],
   knowledge: ['K0', 'K1', 'K2', 'K3'],
   corpus: ['C0', 'C1', 'C2', 'C3'],
+  // S0–S4: a NON-GATING display axis (rubric §2.6) — floor-only, no quality
+  // dims. S1 bounded (core/safeio), S2 fuzzed, S3 hostile-hardened (clean
+  // ledger sweep), S4 continuously-assured (sustained ledger signal).
+  security: ['S0', 'S1', 'S2', 'S3', 'S4'],
 }
 const AXIS_IDS = Object.keys(AXES)
-const AXIS_LABELS = { engine: 'Engine', vocabulary: 'Vocabulary', editor: 'Editor', knowledge: 'Knowledge', corpus: 'Corpus' }
+const AXIS_LABELS = { engine: 'Engine', vocabulary: 'Vocabulary', editor: 'Editor', knowledge: 'Knowledge', corpus: 'Corpus', security: 'Security' }
 // per-axis RANK/NEXT lookups (generalize the v2 L-only tables)
 const RANK = {}, NEXT = {}
 for (const axis of AXIS_IDS) {
@@ -79,6 +83,9 @@ const AXIS_DIMS = {
   editor: ['preview', 'identity', 'embedded', 'events'],
   knowledge: ['dossier', 'sidecar', 'refs', 'citations', 'contextpack'],
   corpus: ['corpusmanifest', 'corpus', 'fetchwiring', 'acceptance', 'sweep'],
+  // security ladder signals (rubric §2.6) — floor-only, no quality dims:
+  // S1 safeio import, S2 fuzz target+seed, S3 clean ledger sweep, S4 sustained.
+  security: ['safeio', 'fuzz', 'sweepclean', 'sustained'],
 }
 const CANON = [] // ordered union (engine first; shared `corpus` appears once)
 const DIM_AXES = {} // dim id -> [axis ids] (corpus maps to both)
@@ -97,6 +104,7 @@ const LABELS = {
   preview: 'Preview', identity: 'Identity binding', embedded: 'Embedded add-in', events: 'Editor events',
   dossier: 'Dossier', sidecar: 'Nativedocs sidecar', refs: 'Spec refs', citations: 'Citations check', contextpack: 'Context pack',
   corpusmanifest: 'Corpus manifest', fetchwiring: 'Fetch wiring', acceptance: 'Acceptance CI', sweep: 'Corpus sweep',
+  safeio: 'Bounded (core/safeio)', fuzz: 'Fuzz target + seed', sweepclean: 'Clean sweep', sustained: 'Sustained',
 }
 
 // Per-axis QUALITY sets (rubric §3 table): the only dims the model may judge,
@@ -107,6 +115,7 @@ const QUALITY = {
   editor: new Set(),
   knowledge: new Set(['refs']),
   corpus: new Set(['corpus']), // the SHARED dim — same cell as engine's corpus
+  security: new Set(), // floor-only (deterministic file + ledger signals)
 }
 const QUALITY_UNION = new Set(['writer', 'parity', 'corpus', 'writecells', 'refs'])
 
@@ -153,7 +162,7 @@ const SCORE = {
       description: 'Per axis: if your cells imply a level DIFFERENT from that axis\'s prior level shown, cite the SPECIFIC artifact gained (move up) or removed/RED (move down). Omit or "" otherwise.',
       properties: {
         engine: { type: 'string' }, vocabulary: { type: 'string' }, editor: { type: 'string' },
-        knowledge: { type: 'string' }, corpus: { type: 'string' },
+        knowledge: { type: 'string' }, corpus: { type: 'string' }, security: { type: 'string' },
       },
     },
     blocking_gaps: {
@@ -166,6 +175,7 @@ const SCORE = {
         editor: { type: 'array', items: { type: 'string' } },
         knowledge: { type: 'array', items: { type: 'string' } },
         corpus: { type: 'array', items: { type: 'string' } },
+        security: { type: 'array', items: { type: 'string' } },
       },
     },
     top_risk: { type: 'string', description: 'the single most important correctness/robustness risk' },
@@ -357,10 +367,25 @@ function corpusDims(floor, engineCells) {
   }
 }
 
+// security: a pure echo of the audit's deterministic signal cells (S1 safeio
+// import, S2 fuzz target+seed, S3 clean ledger sweep, S4 sustained). Like
+// editorDims, it reads audit `axes.security.signals` and never re-judges a file
+// fact. Floor-only — no quality dims, so the published level is fully pinned.
+function securityDims(floor) {
+  const cells = (floor && floor.axes && floor.axes.security && floor.axes.security.signals
+    && floor.axes.security.signals.cells) || {}
+  return {
+    safeio: cells.safeio || 'none',
+    fuzz: cells.fuzz || 'none',
+    sweepclean: cells.sweepclean || 'none',
+    sustained: cells.sustained || 'none',
+  }
+}
+
 // the full floor grid: every canon dim, decided by files (shared corpus once)
 function floorDimsAll(floor, type) {
   const e = engineDims(floor, type)
-  return { ...e, ...vocabularyDims(floor, type), ...editorDims(floor), ...knowledgeDims(floor, type), ...corpusDims(floor, e) }
+  return { ...e, ...vocabularyDims(floor, type), ...editorDims(floor), ...knowledgeDims(floor, type), ...corpusDims(floor, e), ...securityDims(floor) }
 }
 
 // reconcileDims: start from the floor, then let the model DEMOTE (never raise)
@@ -459,6 +484,20 @@ function gateCorpus(dims) {
   return 'C3'
 }
 
+// gateSecurity (rubric §2.6): a pure cumulative floor ladder — a missing lower
+// rung caps the level, no quality dims (so spread 0 by construction). S1
+// bounded (safeio), S2 fuzzed, S3 hostile-hardened (clean sweep), S4
+// continuously-assured (sustained). The S3/S4 cells are ledger-driven; the
+// audit ceiling (S2 absent a clean sweep) clamps the published level.
+function gateSecurity(dims) {
+  const full = (k) => (dims[k] || 'none') === 'complete' || (dims[k] || 'none') === 'na'
+  if (!full('safeio')) return 'S0'
+  if (!full('fuzz')) return 'S1'
+  if (!full('sweepclean')) return 'S2'
+  if (!full('sustained')) return 'S3'
+  return 'S4'
+}
+
 // objective hard caps from files (always apply, both directions are unambiguous).
 // engine keeps the v2 reader/writer hard caps + top-level ceiling; the other
 // axes clamp to their audit band ceiling (per-axis — harvest ceilings diverge).
@@ -490,6 +529,7 @@ function axisLevel(axis, dims, floor, type) {
   else if (axis === 'vocabulary') g = gateVocab(dims)
   else if (axis === 'editor') g = gateEditor(dims)
   else if (axis === 'knowledge') g = gateKnowledge(dims, !!(floor && floor.has && floor.has.schema))
+  else if (axis === 'security') g = gateSecurity(dims)
   else g = gateCorpus(dims)
   return capAxis(axis, g, floor)
 }
@@ -583,7 +623,7 @@ Your job is NOT to pick levels. Each axis level is COMPUTED from the floor above
 - corpus (ONE dim SHARED by the engine and corpus axes — your single judgment flows into both gates): "complete" only if testdata/ + the corpus.yaml origin census (axes.corpus.signals.corpus) show REAL/upstream files (origin url/archive-member/bug, or spec.yaml input_file: okapi:...), "partial" if synthetic/vendored-only.
 - writecells (vocabulary): do the tests cited by vocabulary.yaml's write cells actually AUTHOR a target from canonical vocabulary types (fmt:*/link:*/media:*/code:*), or merely echo what the reader produced? Echo-only => "partial".
 - refs (knowledge): do the spec_refs/okapi_refs/native_refs in core/formats/${fmt}/spec.yaml actually point at the clause that justifies the behavior? Wrong/vague clauses => "partial".
-The editor axis has NO judged dimensions (probe-pinned). Every other dimension is floor-pinned — cells you return for them are ignored. Dimension ids EXACTLY as listed (lowercase); unknown ids are dropped with a warning.
+The editor and security axes have NO judged dimensions (editor probe-pinned; security is a non-gating display axis pinned to deterministic core/safeio-import / fuzz-target / ledger-sweep signals). Every other dimension is floor-pinned — cells you return for them are ignored. Dimension ids EXACTLY as listed (lowercase); unknown ids are dropped with a warning.
 Evidence/citation shapes the gate accepts (use EXACTLY these forms): a path ending .go/.yaml/.json (optionally :line, e.g. core/formats/${fmt}/roundtrip_test.go:42), a TestName (e.g. TestRoundTrip), the word RED, "added ...", "removed ...", "now asserts/passes/fails ...".
 If your cells imply a level on some axis DIFFERENT from that axis's PRIOR above, you MUST cite the specific artifact gained or removed/RED in delta_justification.<axis> (same accepted shapes); otherwise leave it "" and the prior stands. A prior sitting above an axis's floor ceiling is demoted automatically (FLOOR-FORCED) — no citation needed from you.
 Give blocking_gaps PER AXIS to each axis's next level (highest weight first, citing files), the single top correctness/robustness risk, and your confidence. Be skeptical and specific.`
@@ -617,12 +657,12 @@ ${json}
 3. Update web/static/data/format-maturity-history.json (a JSON array): remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total>, "by_level": <summary.by_level>, "by_axis": <summary.by_axis>, "golden_passed": <run_integrity.golden_passed>, "moves": <run_integrity.moves>}. Keep it sorted by date ascending. NEVER rewrite, reshape, or add fields to any EXISTING entry — "by_axis" appears on the NEW snapshot only; old single-axis entries stay byte-identical.
 4. Regenerate the snapshot block in docs/internals/format-maturity.md: replace everything BETWEEN the marker lines \`<!-- BEGIN: gap-analysis report (generated) -->\` and \`<!-- END: gap-analysis report -->\` (keep both marker lines exactly) with a compact fleet report derived ONLY from the dataset you wrote in step 2:
    - the "## Maturity report" heading, then one short paragraph: generated TODAY by the triage-score ritual; data lives in web/static/data/format-maturity{,-history}.json (the /format-maturity dashboard); regenerated by any ritual that republishes the dashboard — do not edit by hand.
-   - a per-axis distribution table: one row per axis (Engine, Vocabulary, Editor, Knowledge, Corpus), columns = that axis's grades with counts from summary.by_level (engine) / summary.by_axis (the rest).
-   - a per-format table sorted by id, one line each: | format | axis vector (levels.engine levels.vocabulary levels.editor levels.knowledge levels.corpus space-separated, e.g. "L3 V0 E1 K0 C0") | top gap (the first entry of the row's engine blocking_gaps, truncated to ~100 chars, or "—") |
+   - a per-axis distribution table: one row per axis (Engine, Vocabulary, Editor, Knowledge, Corpus, Security), columns = that axis's grades with counts from summary.by_level (engine) / summary.by_axis (the rest).
+   - a per-format table sorted by id, one line each: | format | axis vector (levels.engine levels.vocabulary levels.editor levels.knowledge levels.corpus levels.security space-separated, e.g. "L3 V0 E1 K0 C0 S1") | top gap (the first entry of the row's engine blocking_gaps, truncated to ~100 chars, or "—") |
 5. Refresh certification in core/formats/support.yaml: for EVERY format id present in the dataset's formats[], set that format's \`last_certified\` field to "TODAY" (quoted). Change NOTHING else in this file — tier / tier_since / gates / notes / grandfathered are owned by the tier-review ritual (writer partition, format-maturity.md §1).
 6. Record the run in docs/internals/format-ops-ledger.json:
    - rituals."triage-score".last_run = TODAY
-   - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 3; axes_published = ["engine","vocabulary","editor","knowledge","corpus"]. Leave model_id and prompt_sha as they are.
+   - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 3; axes_published = ["engine","vocabulary","editor","knowledge","corpus","security"]. Leave model_id and prompt_sha as they are.
    - append to runs[] (append-only — never modify existing entries): {"date": TODAY, "ritual": "triage-score", "commit": output of \`git rev-parse HEAD\`, "model_id": "", "outcome": "published", "evidence": [], "followups": []}
 7. Every edited JSON file MUST be 2-space indented (the repo formatter, \`vp check\`, requires it). Verify every edited JSON file parses as valid JSON. Report the engine level distribution and the per-axis distributions you published.`
 }

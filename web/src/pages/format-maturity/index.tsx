@@ -58,6 +58,11 @@ const gradeClass: Record<Grade, string> = {
   C1: styles.lvlC1,
   C2: styles.lvlC2,
   C3: styles.lvlC3,
+  S0: styles.lvlS0,
+  S1: styles.lvlS1,
+  S2: styles.lvlS2,
+  S3: styles.lvlS3,
+  S4: styles.lvlS4,
 };
 
 const tierClass: Record<SupportTier, string> = {
@@ -401,7 +406,7 @@ export default function FormatMaturity() {
               <>
                 {" "}
                 Axis grades: Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus
-                C0–C3.
+                C0–C3, Security S0–S4.
               </>
             )}
           </p>
