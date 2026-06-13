@@ -77,7 +77,6 @@
     "corpus-sweep": {
       "cadence_days": 60,
       "last_run": null,
-      "blocked_on": "https://github.com/neokapi/neokapi/issues/848",
       "watermarks": {
         "per_format_counts": {}
       }
@@ -85,7 +84,6 @@
     "case-gen": {
       "cadence_days": 60,
       "last_run": null,
-      "blocked_on": "https://github.com/neokapi/neokapi/issues/847",
       "watermarks": {
         "per_section_coverage": {}
       }
