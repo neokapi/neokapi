@@ -45,6 +45,12 @@
 
 format: okf_fixedwidthcolumns
 kind: top_level
+
+# Parity-runner config (#852): native and Okapi agree the file parses but
+# disagree on which segments are translatable; the filter-level parity
+# runner skips the format. Documented gap: #453.
+parity:
+  skip: "documented divergence — see #453"
 mime_type: text/csv
 description: |
   Fixed-Width Columns filter. Reads a tabular text file where every

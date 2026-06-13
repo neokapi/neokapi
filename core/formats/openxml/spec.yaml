@@ -18,6 +18,11 @@
 
 format: okf_openxml
 mime_type: application/vnd.openxmlformats-officedocument
+
+# Parity-runner config (#852): no binary OpenXML corpus is committed to
+# the neokapi repo, so the filter-level parity runner skips the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 description: |
   Microsoft Office Open XML formats — Word documents (.docx),
   Excel workbooks (.xlsx), and PowerPoint presentations (.pptx). One

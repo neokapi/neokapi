@@ -138,6 +138,11 @@ func (s *Spec) Validate() error {
 	if err := s.validateCases(); err != nil {
 		return err
 	}
+	// Parity-runner config (tikal / bridge config-preset, #852). Additive —
+	// a no-op for specs that declare no tikal/parity/bridge block.
+	if err := s.validateParity(); err != nil {
+		return err
+	}
 	return nil
 }
 

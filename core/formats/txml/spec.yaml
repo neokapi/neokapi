@@ -36,6 +36,12 @@
 
 format: okf_txml
 mime_type: text/xml
+
+# Parity-runner config (#852): native and Okapi agree the file parses but
+# disagree on which segments are translatable; the filter-level parity
+# runner skips the format. Documented gap: #453.
+parity:
+  skip: "documented divergence — see #453"
 description: |
   Wordfast Pro TXML — bilingual XML format produced by Wordfast Pro
   4.x and consumed by Wordfast Pro / Lingobit downstream. The

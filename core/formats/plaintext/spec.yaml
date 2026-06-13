@@ -38,6 +38,12 @@
 
 format: okf_plaintext
 mime_type: text/plain
+
+# Parity-runner config (#852): the filter-level parity runner sources the
+# tikal reference corner from here.
+tikal:
+  ext: .txt
+  config: okf_plaintext
 description: |
   Generic plain-text filter. The default line-based extraction emits
   one translatable Block per non-empty line, preserving blank lines,

@@ -31,6 +31,15 @@ func TestParityFormats(t *testing.T) {
 
 func runFormatSpec(t *testing.T, spec FormatSpec) {
 	t.Helper()
+	// Source bridge class, tikal config, parity skips, and the writer from
+	// spec.yaml + the Go writer registry (#852) — the table no longer
+	// hand-maintains them. Must run before the deferred Report below
+	// captures spec.Skip.
+	resolved, err := resolveParity(spec)
+	if err != nil {
+		t.Fatalf("resolve parity config for %s: %v", spec.ID, err)
+	}
+	spec = resolved
 	mode := "head-to-head"
 	if spec.NewReader == nil {
 		mode = "bridge-only"

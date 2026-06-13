@@ -45,6 +45,11 @@
 
 format: okf_icml
 mime_type: application/x-icml+xml
+
+# Parity-runner config (#852): no binary ICML corpus is committed to the
+# neokapi repo, so the filter-level parity runner skips the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 description: |
   Adobe InCopy Markup Language (ICML / WCML). A single XML document
   whose root `<Document>` carries one or more `<Story>` elements

@@ -34,6 +34,13 @@
 
 format: okf_ttml
 kind: top_level
+
+# Parity-runner config (#852): the okapi-bridge daemon errors out on valid
+# input (NPE in Jericho), so the filter-level parity runner skips the
+# format. Documented gap: #452. The per-example parity runner
+# (ttml_spec_test.go) is unaffected.
+parity:
+  skip: "bridge crash — see #452"
 mime_type: application/ttml+xml
 description: |
   Timed Text Markup Language (TTML) subtitle filter, per W3C TTML2.

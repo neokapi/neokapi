@@ -11,6 +11,8 @@
 // Specs live next to their format: core/formats/<name>/spec.yaml.
 package spec
 
+import "fmt"
+
 // Spec is the canonical specification for one neokapi format.
 //
 // The same Spec drives:
@@ -54,6 +56,40 @@ type Spec struct {
 	// parameter name for drift checking against the bridge schema.
 	Config []ConfigKey `yaml:"config,omitempty"`
 
+	// BridgeFilterClass overrides the FilterClass the parity bridge runner
+	// dispatches to when it differs from Format. Config-preset formats use
+	// the manifest id as Format (e.g. "okf_dita") for the dashboard join,
+	// but dispatch to the base filter on the bridge (e.g. "okf_xmlstream")
+	// plus BridgeConfigID. Empty = dispatch to Format. This replaces the
+	// hand-maintained FormatSpec.BridgeFilterClass parity-table field —
+	// spec.yaml is now the single source of truth (#852). Use BridgeClass()
+	// to read the effective value.
+	BridgeFilterClass string `yaml:"bridge_filter_class,omitempty"`
+
+	// BridgeConfigID names a built-in Okapi filter configuration the parity
+	// bridge loads before opening (e.g. "okf_xmlstream-dita"). The native
+	// side configures the equivalent preset via its reader; the bridge
+	// applies the same named config so the comparison is head-to-head.
+	// Empty = filter defaults. Replaces FormatSpec.ConfigID (#852).
+	BridgeConfigID string `yaml:"bridge_config_id,omitempty"`
+
+	// Tikal wires the third parity reference corner: when set and a tikal
+	// launcher is reachable, the parity harness runs `tikal -x` + `tikal -m`
+	// against the same input and compares the merged bytes against the
+	// native round-trip output. Replaces FormatSpec.TikalExt / TikalConfig
+	// (#852). Nil disables the tikal corner for the format.
+	Tikal *TikalSpec `yaml:"tikal,omitempty"`
+
+	// Parity carries spec/feature-level parity-runner skip directives that
+	// are implementation/transport facts rather than spec contract (a bridge
+	// crash, a binary-corpus gap, a documented bridge↔native divergence).
+	// Replaces the hand-maintained FormatSpec.Skip / SkipRoundTrip /
+	// SkipTikal parity-table fields (#852). Nil = no parity skips. The
+	// always-on native runner and the per-example expectations mechanisms
+	// (bridge_only / expected_fail / parity_strict, §7) are unaffected by
+	// this block — it only steers the legacy filter-level parity runner.
+	Parity *ParitySpec `yaml:"parity,omitempty"`
+
 	// Features are the named behaviors this format implements. Each
 	// feature carries one or more Examples that demonstrate it
 	// concretely.
@@ -73,6 +109,58 @@ type Variant struct {
 	Extension   string `yaml:"extension"`
 	MimeType    string `yaml:"mime_type"`
 	Description string `yaml:"description,omitempty"`
+}
+
+// TikalSpec configures the tikal parity reference corner (Spec.Tikal).
+type TikalSpec struct {
+	// Ext is the file extension tikal receives (e.g. ".properties"). It is
+	// the gating field — a TikalSpec is meaningless without it.
+	Ext string `yaml:"ext"`
+	// Config is the optional `-fc` filter-configuration id passed to tikal
+	// (e.g. "okf_properties"). Empty lets tikal pick by extension.
+	Config string `yaml:"config,omitempty"`
+}
+
+// ParitySpec carries filter-level parity-runner skip directives (Spec.Parity).
+// These are transport/implementation facts, never spec contract — the corpus
+// stays implementation-agnostic (format-spec-cases.md §7). The reasons are
+// recorded so the parity dashboard surfaces the gap.
+type ParitySpec struct {
+	// Skip, when non-empty, skips the whole filter in the legacy
+	// filter-level parity runner with this reason (e.g. a binary-corpus gap
+	// or a bridge crash).
+	Skip string `yaml:"skip,omitempty"`
+	// SkipRoundTrip skips just the read→write round-trip pass with this
+	// reason, leaving read parity intact.
+	SkipRoundTrip string `yaml:"skip_roundtrip,omitempty"`
+	// SkipTikal skips just the tikal pass with this reason.
+	SkipTikal string `yaml:"skip_tikal,omitempty"`
+}
+
+// BridgeClass returns the FilterClass the parity bridge runner should
+// dispatch to: BridgeFilterClass when set (config-preset formats dispatch to a
+// base filter), else Format.
+func (s *Spec) BridgeClass() string {
+	if s == nil {
+		return ""
+	}
+	if s.BridgeFilterClass != "" {
+		return s.BridgeFilterClass
+	}
+	return s.Format
+}
+
+// validateParity checks the optional parity-runner config (Tikal, BridgeConfigID)
+// the spec.yaml may carry (#852). Called from Validate(); a no-op for the
+// (majority of) specs that declare no parity block.
+func (s *Spec) validateParity() error {
+	if s.Tikal != nil && s.Tikal.Ext == "" {
+		return fmt.Errorf("tikal: ext is required when a tikal block is present")
+	}
+	if s.BridgeConfigID != "" && s.BridgeFilterClass == "" {
+		return fmt.Errorf("bridge_config_id %q requires bridge_filter_class (the base filter the config applies to)", s.BridgeConfigID)
+	}
+	return nil
 }
 
 // ConfigKey is one configuration option recognised by the format.
@@ -250,7 +338,23 @@ type Example struct {
 	//     real fixtures expose subtle layout the synthetic ones miss.
 	// Free-text after the kind tag is welcome; the form is for grep
 	// not for parsing.
+	//
+	// The structured `origin: {kind: okapi-fixture, ...}` form
+	// (format-spec-cases.md §9) is the target shape for the harvested
+	// fixtures the legacy parity table still carries inline in Go
+	// (cli/parity/formats/fixtures_*_generated.go). Folding those bulk
+	// fixtures into spec.yaml as informational cases is deferred (#852
+	// took the lighter touch); the field is recognised here so the fold
+	// is a data move, not a grammar change.
 	Origin string `yaml:"origin,omitempty"`
+
+	// Informational marks an exploratory case: it is recorded and reported
+	// to the parity dashboard but its assertion failures do not fail CI.
+	// Auto-generated / harvested fixtures (origin: okapi-fixture) carry it;
+	// hand-curated cases leave it false so they act as strict gates. Mirrors
+	// the legacy FormatInput.Informational parity-table field, surfaced in
+	// the grammar so harvested fixtures can fold into spec.yaml (#852).
+	Informational bool `yaml:"informational,omitempty"`
 
 	// Assertions evaluated against the read parts. Inlined so spec
 	// authors write assertion fields directly under the example.

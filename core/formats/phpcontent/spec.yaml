@@ -32,6 +32,12 @@
 
 format: okf_phpcontent
 mime_type: application/x-php
+
+# Parity-runner config (#852): native and Okapi agree the file parses but
+# disagree on which segments are translatable; the filter-level parity
+# runner skips the format. Documented gap: #453.
+parity:
+  skip: "documented divergence — see #453"
 description: |
   PHP content filter (`.php`, `.phpcnt`). Extracts translatable
   strings from PHP source files: single-quoted, double-quoted,

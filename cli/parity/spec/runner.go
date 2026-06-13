@@ -142,7 +142,11 @@ func (r *ParityRunner) runExample(t *testing.T, feat formatspec.Feature, ex form
 		bridgeCfg = translated
 	}
 	bridgeReq := parity.BridgeRequest{
-		FilterClass:  r.Spec.Format,
+		// BridgeClass()/BridgeConfigID let a config-preset spec.yaml dispatch
+		// to a base filter plus a named Okapi config (#852). Empty for every
+		// current spec, so this is identical to dispatching on Format today.
+		FilterClass:  r.Spec.BridgeClass(),
+		ConfigID:     r.Spec.BridgeConfigID,
 		InputBytes:   input,
 		MimeType:     mimeForVariant(r.Spec, ex.Variant),
 		FilterParams: parity.StringifyParams(bridgeCfg),

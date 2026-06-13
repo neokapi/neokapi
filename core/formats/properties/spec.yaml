@@ -21,6 +21,13 @@
 
 format: okf_properties
 mime_type: text/x-java-properties
+
+# Parity-runner config (#852). The filter-level parity runner
+# (cli/parity/formats) sources the tikal reference corner from here rather
+# than a hand-maintained Go table.
+tikal:
+  ext: .properties
+  config: okf_properties
 description: |
   Java Properties files (.properties). Each logical line is an entry
   of the form `key=value`, `key:value`, or `key value` (whitespace

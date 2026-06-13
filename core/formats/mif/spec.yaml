@@ -48,6 +48,11 @@
 
 format: okf_mif
 mime_type: application/vnd.mif
+
+# Parity-runner config (#852): no binary MIF corpus is committed to the
+# neokapi repo, so the filter-level parity runner skips the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 description: |
   Adobe FrameMaker Maker Interchange Format (MIF). Walks the MIF
   statement tree, extracts `<String `…'>` values nested under `<Para>`

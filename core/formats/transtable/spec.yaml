@@ -25,6 +25,12 @@
 
 format: okf_transtable
 mime_type: text/x-transtable
+
+# Parity-runner config (#852): native and Okapi agree the file parses but
+# disagree on which segments are translatable; the filter-level parity
+# runner skips the format. Documented gap: #453.
+parity:
+  skip: "documented divergence — see #453"
 description: |
   Okapi TransTable v1 — a tab-separated bilingual exchange table
   written by Okapi's GenericFilterWriter for the "Translation Table"

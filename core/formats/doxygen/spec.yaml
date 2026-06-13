@@ -34,6 +34,12 @@
 
 format: okf_doxygen
 mime_type: text/x-doxygen-txt
+
+# Parity-runner config (#852): native and Okapi agree the file parses but
+# disagree on which segments are translatable; the filter-level parity
+# runner skips the format. Documented gap: #453.
+parity:
+  skip: "documented divergence — see #453"
 description: |
   Doxygen-commented source code. Extracts the documentation prose from
   `///`, `//!`, `/** */`, and `/*! */` comment styles plus the trailing

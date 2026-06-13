@@ -5,24 +5,38 @@
 // neokapi Go counterpart (when one exists) or as a bridge-only
 // stability snapshot (when no Go port exists).
 //
-// Each entry in `formatSpecs` declares one filter:
+// Each entry in `formatSpecs` declares one filter. The fields that
+// can't live in YAML stay inline; the per-format parity KNOWLEDGE
+// moved to the format's spec.yaml as of #852 (see resolveParity):
 //
-//	ID            okf_<name> — the manifest id and the FilterClass
-//	              sent to BridgeService.Process.
+//	ID            okf_<name> — the manifest id and the default
+//	              FilterClass sent to BridgeService.Process.
 //	MimeType      mime hint passed to both bridge and native readers.
-//	Inputs        list of named sample inputs (small inline strings
-//	              or testdata paths).
+//	Inputs        list of named sample inputs (small inline strings,
+//	              curated, plus the harvested fixtures_*_generated.go
+//	              batches). Inputs and NewReader are the Go-irreducible
+//	              part — a func() and bulk Go literals can't move to YAML.
 //	NewReader     constructs the in-process Go reader. Nil means
 //	              bridge-only — the test asserts the bridge runs and
 //	              produces a non-empty stream against `Inputs`, but
 //	              does not compare against a native implementation.
-//	Skip          if non-empty, the test skips with this reason
-//	              (used for filters that need binary corpus we don't
-//	              ship in the repo — see SkipBinary).
+//
+// Bridge filter class, bridge config id, the tikal corner, the parity
+// skips, and the writer factory are NO LONGER set here. They are sourced
+// from the format's spec.yaml (`bridge_filter_class`, `bridge_config_id`,
+// `tikal:`, `parity:`) and the parityWriters registry (writers.go) by
+// resolveParity at run time, making spec.yaml the single source of truth.
+// Rows whose id has no spec.yaml (bridge-manifest-completeness entries
+// with no native Go port) keep those fields inline as a residue.
 package formats
 
 import (
+	"fmt"
+	"path/filepath"
+	"sync"
+
 	"github.com/neokapi/neokapi/core/format"
+	formatspec "github.com/neokapi/neokapi/core/format/spec"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	doxygenfmt "github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
@@ -70,17 +84,23 @@ import (
 // gap. Resolution path: ship a tiny corpus inside okapi-bridge's
 // plugin tarball (under testdata/) and adapt the spec to read from
 // there.
+//
+// Since #852 the binary filters WITH a native Go port carry this reason
+// in their spec.yaml `parity.skip` (resolveParity reads it). This const
+// now serves only the residual no-spec.yaml rows (okf_odf alias,
+// okf_archive, okf_sdlpackage, okf_pensieve, …).
 const SkipBinary = "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 
 // SkipDivergence453 marks filters whose Go port and Okapi filter
 // agree the file is parseable but disagree on which segments are
 // translatable. Each row has a per-filter line in #453 explaining
 // the gap. Flip Skip back to "" once aligned.
+//
+// Since #852 the formats WITH a spec.yaml carry this reason in their
+// spec.yaml `parity.skip`; this const now serves only the residual
+// no-spec.yaml okf_table family rows (okf_tabseparatedvalues,
+// okf_basetable, okf_table).
 const SkipDivergence453 = "documented divergence — see #453"
-
-// SkipBridgeBug452 marks rows where the bridge daemon errors out
-// on a valid input. The first one filed is okf_ttml (NPE in Jericho).
-const SkipBridgeBug452 = "bridge crash — see #452"
 
 // SkipBridgeConfig marks the okf_xml/okf_xmlstream config-preset formats
 // (DITA, DocBook, ResX) whose native side is wired (xml reader + the Go
@@ -114,46 +134,54 @@ type FormatInput struct {
 
 // FormatSpec describes one parity test row.
 //
-// NewWriter is optional. When set (and neither Skip nor SkipRoundTrip
-// fires), the harness drives an additional round-trip pass: input →
-// reader → writer on each side and compares the two output byte
-// streams. The round-trip outcome is reported separately under
-// Kind="format-roundtrip" so the contract-audit dashboard can surface
-// read parity and round-trip parity as distinct badges.
+// Per-format parity KNOWLEDGE — the bridge filter class, the tikal corner,
+// and the skip directives — is no longer hand-set here. It lives in the
+// format's spec.yaml (bridge_filter_class / bridge_config_id / tikal / parity)
+// and is overlaid onto the row at run time by resolveParity (#852), making
+// spec.yaml the single source of truth. The fields below remain because (a)
+// resolveParity fills them and the runner reads them, and (b) the residual
+// bridge-manifest-completeness rows with no spec.yaml still set them inline.
 //
-// SkipRoundTrip skips just the round-trip pass with the given reason,
-// while leaving read parity intact. Use it to document a known writer
-// divergence without breaking CI.
+// NewReader / NewWriter are `func()` factories and therefore cannot live in
+// YAML. NewReader stays inline; NewWriter is sourced from the parityWriters
+// registry (writers.go) by resolveParity — the one irreducibly-Go piece.
 //
-// TikalExt and TikalConfig wire the third reference corner: when a
-// tikal launcher is reachable and TikalExt is set, the harness also
-// runs `tikal -x` + `tikal -m` against the same input and compares
-// the merged bytes against the native round-trip output. Tikal
-// outcomes report under Kind="format-tikal" so a tikal-vs-native
-// divergence is visible without polluting bridge-vs-native rows.
+//   - When NewWriter is set (and neither Skip nor SkipRoundTrip fires) the
+//     harness drives a read→write round-trip pass on both sides and compares
+//     the output bytes (Kind="format-roundtrip").
+//   - SkipRoundTrip / SkipTikal skip just those passes, leaving read parity
+//     intact; sourced from spec.yaml `parity.skip_roundtrip` / `skip_tikal`.
+//   - TikalExt / TikalConfig wire the third reference corner (tikal -x + -m vs
+//     the native round-trip, Kind="format-tikal"); sourced from spec.yaml
+//     `tikal.ext` / `tikal.config`.
+//   - BridgeFilterClass / ConfigID dispatch config-preset formats to a base
+//     filter plus a named Okapi config; sourced from spec.yaml
+//     `bridge_filter_class` / `bridge_config_id`.
 type FormatSpec struct {
 	ID            string
 	MimeType      string
 	Inputs        []FormatInput
 	NewReader     func() format.DataFormatReader
-	NewWriter     func() format.DataFormatWriter
-	Skip          string
-	SkipRoundTrip string
-	SkipTikal     string
+	NewWriter     func() format.DataFormatWriter // from parityWriters registry (writers.go)
+	Skip          string                         // from spec.yaml parity.skip
+	SkipRoundTrip string                         // from spec.yaml parity.skip_roundtrip
+	SkipTikal     string                         // from spec.yaml parity.skip_tikal
 
 	// BridgeFilterClass overrides the FilterClass sent to the bridge when it
-	// differs from ID. Config-preset formats use the manifest id as ID (e.g.
-	// "okf_dita") for the dashboard join, but dispatch to the base filter on
-	// the bridge (e.g. "okf_xmlstream") plus ConfigID. Empty = use ID.
+	// differs from ID (from spec.yaml bridge_filter_class). Config-preset
+	// formats use the manifest id as ID (e.g. "okf_dita") for the dashboard
+	// join, but dispatch to the base filter (e.g. "okf_xmlstream") plus
+	// ConfigID. Empty = use ID.
 	BridgeFilterClass string
 
 	// ConfigID names a built-in Okapi filter configuration the bridge loads
-	// before opening (e.g. "okf_xmlstream-dita"). Native side configures via
-	// NewReader+SetConfig; the bridge applies the same named config so the
-	// comparison is head-to-head. Empty = filter defaults.
+	// before opening (e.g. "okf_xmlstream-dita"; from spec.yaml
+	// bridge_config_id). Native side configures via NewReader+SetConfig; the
+	// bridge applies the same named config so the comparison is head-to-head.
+	// Empty = filter defaults.
 	ConfigID    string
-	TikalExt    string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
-	TikalConfig string // optional -fc filter id (e.g. "okf_properties").
+	TikalExt    string // from spec.yaml tikal.ext; empty disables tikal.
+	TikalConfig string // from spec.yaml tikal.config; optional -fc filter id.
 
 	// Params holds the configuration applied to both sides of the
 	// comparison. Native filters receive these via the existing
@@ -177,6 +205,87 @@ func bridgeClass(s FormatSpec) string {
 		return s.BridgeFilterClass
 	}
 	return s.ID
+}
+
+// specIndex maps a bridge filter id (the spec.yaml `format:` field) to its
+// loaded Spec. Built once from core/formats/*/spec.yaml. spec.yaml is the
+// single source of truth for per-format parity knowledge — bridge filter
+// class, tikal config, and parity skips (#852); resolveParity overlays it
+// onto each formatSpecs row at run time so that knowledge is no longer
+// hand-maintained twice.
+var (
+	specIndexOnce sync.Once
+	specIndexMap  map[string]*formatspec.Spec
+	specIndexErr  error
+)
+
+// loadSpecIndex globs and loads every core/formats/<id>/spec.yaml, indexing by
+// the spec's `format:` id. The cwd during a parity test run is the package dir
+// (cli/parity/formats), the same base the per-format spec tests resolve
+// against, so the relative glob is stable.
+func loadSpecIndex() (map[string]*formatspec.Spec, error) {
+	specIndexOnce.Do(func() {
+		pattern := filepath.Join("..", "..", "..", "core", "formats", "*", "spec.yaml")
+		paths, err := filepath.Glob(pattern)
+		if err != nil {
+			specIndexErr = fmt.Errorf("glob %s: %w", pattern, err)
+			return
+		}
+		m := make(map[string]*formatspec.Spec, len(paths))
+		for _, p := range paths {
+			s, err := formatspec.Load(p)
+			if err != nil {
+				specIndexErr = fmt.Errorf("load %s: %w", p, err)
+				return
+			}
+			if prev, dup := m[s.Format]; dup && prev != nil {
+				specIndexErr = fmt.Errorf("two spec.yaml declare format %q", s.Format)
+				return
+			}
+			m[s.Format] = s
+		}
+		specIndexMap = m
+	})
+	return specIndexMap, specIndexErr
+}
+
+// resolveParity overlays the spec.yaml-sourced parity knowledge (bridge filter
+// class, bridge config id, tikal corner, parity skips) and the Go writer
+// registry onto a formatSpecs row, then returns the augmented row. Rows whose
+// id has no spec.yaml — the bridge-manifest-completeness entries with no
+// native Go port (okf_archive, okf_pensieve, the okf_table abstract parents,
+// the okf_xml/okf_dita config presets, …) — keep their inline fields: that
+// residue is what genuinely can't move to spec.yaml.
+func resolveParity(fs FormatSpec) (FormatSpec, error) {
+	idx, err := loadSpecIndex()
+	if err != nil {
+		return fs, err
+	}
+	// The writer registry is independent of spec.yaml (a Go func() can't
+	// live in YAML); apply it regardless of whether a spec.yaml exists.
+	if w := parityWriterFor(fs.ID); w != nil {
+		fs.NewWriter = w
+	}
+	s := idx[fs.ID]
+	if s == nil {
+		return fs, nil // residual row — no spec.yaml to source from
+	}
+	if s.BridgeFilterClass != "" {
+		fs.BridgeFilterClass = s.BridgeFilterClass
+	}
+	if s.BridgeConfigID != "" {
+		fs.ConfigID = s.BridgeConfigID
+	}
+	if s.Tikal != nil {
+		fs.TikalExt = s.Tikal.Ext
+		fs.TikalConfig = s.Tikal.Config
+	}
+	if s.Parity != nil {
+		fs.Skip = s.Parity.Skip
+		fs.SkipRoundTrip = s.Parity.SkipRoundTrip
+		fs.SkipTikal = s.Parity.SkipTikal
+	}
+	return fs, nil
 }
 
 // mergeInputs concatenates curated fixtures with one or more
@@ -337,12 +446,11 @@ var formatSpecs = []FormatSpec{
 		),
 	},
 	{
-		ID:          "okf_properties",
-		MimeType:    "text/x-properties",
-		NewReader:   func() format.DataFormatReader { return propertiesfmt.NewReader() },
-		NewWriter:   func() format.DataFormatWriter { return propertiesfmt.NewWriter() },
-		TikalExt:    ".properties",
-		TikalConfig: "okf_properties",
+		ID:        "okf_properties",
+		MimeType:  "text/x-properties",
+		NewReader: func() format.DataFormatReader { return propertiesfmt.NewReader() },
+		// NewWriter (parityWriters), tikal corner (spec.yaml tikal:) sourced
+		// by resolveParity.
 		// extraComments=true exercises the typed-Params chain end-to-end:
 		// the native side receives it via DataFormatConfig.ApplyMap,
 		// the bridge receives it via StringifyParams → FilterParams.
@@ -360,21 +468,11 @@ var formatSpecs = []FormatSpec{
 		),
 	},
 	{
-		ID:          "okf_po",
-		MimeType:    "application/x-gettext",
-		NewReader:   func() format.DataFormatReader { return pofmt.NewReader() },
-		NewWriter:   func() format.DataFormatWriter { return pofmt.NewWriter() },
-		TikalExt:    ".po",
-		TikalConfig: "okf_po",
-		// Bridge writes msgstr "Hello world." (auto-fills target with
-		// source); native preserves msgstr "" (empty target). Tikal
-		// (the canonical Okapi CLI) produces the same auto-fill output
-		// as the bridge — confirming this is an Okapi semantic, not
-		// bridge plumbing. Recorded as a documented divergence rather
-		// than a bug; needs a recipe-level decision before either side
-		// changes.
-		SkipRoundTrip: "writer fills empty target with source on bridge side; native preserves empty target",
-		SkipTikal:     "same divergence as bridge: tikal also auto-fills empty msgstr with source",
+		ID:        "okf_po",
+		MimeType:  "application/x-gettext",
+		NewReader: func() format.DataFormatReader { return pofmt.NewReader() },
+		// NewWriter (parityWriters), tikal corner + round-trip/tikal skips
+		// (spec.yaml tikal: / parity:) sourced by resolveParity.
 		Inputs: mergeInputs(
 			[]FormatInput{
 				{Name: "single", Content: ttext(`msgid ""
@@ -393,15 +491,14 @@ msgstr ""
 		ID:        "okf_phpcontent",
 		MimeType:  "application/x-php",
 		NewReader: func() format.DataFormatReader { return phpcontentfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from phpcontent/spec.yaml (resolveParity).
 	},
 	{
-		ID:          "okf_plaintext",
-		MimeType:    "text/plain",
-		NewReader:   func() format.DataFormatReader { return plaintextfmt.NewReader() },
-		NewWriter:   func() format.DataFormatWriter { return plaintextfmt.NewWriter() },
-		TikalExt:    ".txt",
-		TikalConfig: "okf_plaintext",
+		ID:        "okf_plaintext",
+		MimeType:  "text/plain",
+		NewReader: func() format.DataFormatReader { return plaintextfmt.NewReader() },
+		// NewWriter (parityWriters), tikal corner (spec.yaml tikal:) sourced
+		// by resolveParity.
 		Inputs: []FormatInput{
 			{Name: "two-lines", Content: ttext("Hello world.\nGoodbye.\n")},
 		},
@@ -453,7 +550,7 @@ msgstr ""
 		ID:        "okf_doxygen",
 		MimeType:  "text/x-doxygen-txt",
 		NewReader: func() format.DataFormatReader { return doxygenfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from doxygen/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_markdown",
@@ -483,7 +580,7 @@ msgstr ""
 		ID:        "okf_tex",
 		MimeType:  "text/x-tex-text",
 		NewReader: func() format.DataFormatReader { return texfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from tex/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_mosestext",
@@ -497,13 +594,13 @@ msgstr ""
 		ID:        "okf_transtable",
 		MimeType:  "text/x-transtable",
 		NewReader: func() format.DataFormatReader { return transtablefmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from transtable/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_commaseparatedvalues",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from csv/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_tabseparatedvalues",
@@ -523,7 +620,7 @@ msgstr ""
 		ID:        "okf_fixedwidthcolumns",
 		MimeType:  "text/csv",
 		NewReader: func() format.DataFormatReader { return fixedwidthfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from fixedwidth/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_table",
@@ -588,19 +685,19 @@ msgstr ""
 		ID:        "okf_ttx",
 		MimeType:  "application/x-ttx+xml",
 		NewReader: func() format.DataFormatReader { return ttxfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from ttx/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_txml",
 		MimeType:  "text/xml",
 		NewReader: func() format.DataFormatReader { return txmlfmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from txml/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_ttml",
 		MimeType:  "application/ttml+xml",
 		NewReader: func() format.DataFormatReader { return ttmlfmt.NewReader() },
-		Skip:      SkipBridgeBug452,
+		// parity skip sourced from ttml/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_ts",
@@ -632,60 +729,57 @@ msgstr ""
 		ID:        "okf_vignette",
 		MimeType:  "text/xml",
 		NewReader: func() format.DataFormatReader { return vignettefmt.NewReader() },
-		Skip:      SkipDivergence453,
+		// parity skip sourced from vignette/spec.yaml (resolveParity).
 	},
 
 	// ── Office / archive (binary, snapshotted as bridge-only) ────────
+	// The seven rows with a native Go port (idml, icml, openxml, openoffice,
+	// mif, pdf, rtf) source their binary-corpus parity skip from their
+	// spec.yaml `parity.skip` (resolveParity). The remaining rows have no
+	// spec.yaml — bridge-manifest-completeness entries with no native port —
+	// so they keep the inline SkipBinary constant.
 	{
 		ID:       "okf_idml",
 		MimeType: "application/vnd.adobe.indesign-idml-package",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_icml",
 		MimeType: "application/x-icml+xml",
-		// Need binary ICML; treat as skipped until corpus is shipped.
-		Skip: SkipBinary,
 	},
 	{
 		ID:       "okf_openxml",
 		MimeType: "text/xml",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_odf",
 		MimeType: "text/x-odf",
-		Skip:     SkipBinary,
+		Skip:     SkipBinary, // no spec.yaml (odf/spec.yaml is okf_openoffice)
 	},
 	{
 		ID:       "okf_openoffice",
 		MimeType: "application/x-openoffice",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_archive",
 		MimeType: "application/x-archive",
-		Skip:     SkipBinary,
+		Skip:     SkipBinary, // no spec.yaml
 	},
 	{
 		ID:       "okf_mif",
 		MimeType: "application/vnd.mif",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_pdf",
 		MimeType: "application/pdf",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_rtf",
 		MimeType: "application/rtf",
-		Skip:     SkipBinary,
 	},
 	{
 		ID:       "okf_sdlpackage",
 		MimeType: "application/x-sdlpackage",
-		Skip:     SkipBinary,
+		Skip:     SkipBinary, // no spec.yaml
 	},
 
 	// ── Bridge-only or specialized (no native Go port) ───────────────

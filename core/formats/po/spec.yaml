@@ -18,6 +18,20 @@
 
 format: okf_po
 mime_type: application/x-gettext
+
+# Parity-runner config (#852). The filter-level parity runner
+# (cli/parity/formats) sources the tikal corner and its skips from here.
+# The bridge writer auto-fills an empty msgstr with the source text;
+# native preserves the empty target. Tikal (the canonical Okapi CLI)
+# produces the same auto-fill as the bridge — confirming this is an Okapi
+# semantic, not bridge plumbing — so both the round-trip and tikal passes
+# are recorded as documented divergences rather than failures.
+tikal:
+  ext: .po
+  config: okf_po
+parity:
+  skip_roundtrip: "writer fills empty target with source on bridge side; native preserves empty target"
+  skip_tikal: "same divergence as bridge: tikal also auto-fills empty msgstr with source"
 description: |
   GNU gettext PO and POT files. Bilingual catalogues with msgid /
   msgstr pairs, optional msgctxt for disambiguation, plural forms via

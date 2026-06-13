@@ -109,6 +109,11 @@
 
 format: okf_pdf
 kind: top_level
+
+# Parity-runner config (#852): no binary PDF corpus is committed to the
+# neokapi repo, so the filter-level parity runner skips the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 mime_type: application/pdf
 description: |
   PDF Filter — extracts translatable text from PDF documents. The

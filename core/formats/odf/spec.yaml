@@ -38,6 +38,11 @@
 
 format: okf_openoffice
 kind: top_level
+
+# Parity-runner config (#852): no binary ODF/OpenOffice corpus is committed
+# to the neokapi repo, so the filter-level parity runner skips the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 mime_type: application/x-openoffice
 description: |
   OASIS Open Document Format — text documents (.odt), spreadsheets

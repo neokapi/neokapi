@@ -33,6 +33,13 @@
 
 format: okf_idml
 mime_type: application/vnd.adobe.indesign-idml-package
+
+# Parity-runner config (#852): no binary IDML corpus is committed to the
+# neokapi repo, so the filter-level parity runner skips the format. The
+# per-example parity runner (idml_spec_test.go) reads okapi: fixtures and
+# skips cleanly when the okapi-testdata corpus is absent.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 description: |
   Adobe InDesign Markup Language. IDML packages are ZIP archives
   bundling one or more Story XML files plus design metadata. The

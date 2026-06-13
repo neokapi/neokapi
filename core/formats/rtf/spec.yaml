@@ -15,6 +15,12 @@
 
 format: okf_rtf
 mime_type: application/rtf
+
+# Parity-runner config (#852): no binary/Trados-tagged RTF corpus is
+# committed to the neokapi repo, so the filter-level parity runner skips
+# the format.
+parity:
+  skip: "binary corpus not in repo (rely on okapi-bridge testdata/ when available)"
 description: |
   Trados-tagged Rich Text Format reader. Walks the RTF token stream,
   extracts text from paragraph runs as translatable Blocks, and skips
