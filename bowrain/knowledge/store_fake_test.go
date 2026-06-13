@@ -214,6 +214,17 @@ func (s *memStore) ListChangeSets(_ context.Context, ws string, status ChangeSet
 	return out, nil
 }
 
+func (s *memStore) UpdateChangeSet(_ context.Context, cs *ChangeSet) error {
+	existing, ok := s.changesets[csKey(cs.WorkspaceID, cs.ID)]
+	if !ok {
+		return fmt.Errorf("change-set %s not found", cs.ID)
+	}
+	existing.Name = cs.Name
+	existing.Description = cs.Description
+	existing.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
 func (s *memStore) SetChangeSetStatus(_ context.Context, ws, id string, to ChangeSetStatus) error {
 	if to == ChangeSetMerged {
 		return fmt.Errorf("use SetMergeResult to merge a change-set, not SetChangeSetStatus")

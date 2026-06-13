@@ -80,6 +80,10 @@ type Store interface {
 	// ListChangeSets returns the workspace's change-sets. A non-empty status
 	// filters to that status; an empty status returns all, newest first.
 	ListChangeSets(ctx context.Context, workspaceID string, status ChangeSetStatus) ([]*ChangeSet, error)
+	// UpdateChangeSet persists a change-set's mutable header fields (name,
+	// description) and bumps UpdatedAt. It is used for ordinary draft edits;
+	// status changes go through SetChangeSetStatus / SetMergeResult, not here.
+	UpdateChangeSet(ctx context.Context, cs *ChangeSet) error
 	// SetChangeSetStatus moves a change-set to a new non-merge status. The
 	// implementation loads the current status, validates the edge with
 	// ValidateStatusTransition (returning its error on a disallowed edge),

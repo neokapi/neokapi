@@ -82,7 +82,8 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(nil, tb, newFakeProfileStore(), store)
-	require.NoError(t, e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
+	require.NoError(t, err)
 
 	// Shadow concepts exist under namespaced IDs.
 	oldID := pilotConceptID(cs.ID, pilotStream, "old")
@@ -164,7 +165,8 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(content, termbase.NewInMemoryTermBase(), profiles, store)
-	require.NoError(t, e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
+	require.NoError(t, err)
 
 	// A candidate profile was materialized with the rule applied.
 	candID := pilotProfileID(cs.ID, pilotStream, "p1")
@@ -225,8 +227,10 @@ func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	require.NoError(t, err)
 
 	e := NewEngine(nil, tb, newFakeProfileStore(), store)
-	require.NoError(t, e.StartPilot(ctx, ws, store, *loaded, "projA", "pilot/a"))
-	require.NoError(t, e.StartPilot(ctx, ws, store, *loaded, "projB", "pilot/b"))
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "projA", "pilot/a")
+	require.NoError(t, err)
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "projB", "pilot/b")
+	require.NoError(t, err)
 
 	stopped, events, err := e.StopAllPilots(ctx, ws, store, *loaded)
 	require.NoError(t, err)

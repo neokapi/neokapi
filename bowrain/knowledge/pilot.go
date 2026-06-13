@@ -70,19 +70,21 @@ func pilotProfileID(changesetID, stream, profileID string) string {
 // stream-scoped shadow (AddConceptWithStream / AddRelationWithStream on the pilot
 // stream, under namespaced IDs), materializes a candidate brand profile for the
 // change-set's voice ops and binds it to the content stream's brand-voice
-// property, then records the pilot. It is safe to re-run: shadow writes are
-// upserts and the pilot record upserts by its key.
-func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) error {
+// property, then records the pilot. It returns the recorded pilot so callers
+// surface the persisted creator and creation time rather than reconstructing
+// them. It is safe to re-run: shadow writes are upserts and the pilot record
+// upserts by its key.
+func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) (*Pilot, error) {
 	if store == nil {
-		return errors.New("knowledge: StartPilot requires a non-nil store")
+		return nil, errors.New("knowledge: StartPilot requires a non-nil store")
 	}
 	if stream == "" {
-		return errors.New("knowledge: StartPilot requires a stream")
+		return nil, errors.New("knowledge: StartPilot requires a stream")
 	}
 
 	ops, err := e.loadOps(ctx, store, workspaceID, cs.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Write the change-set's resulting concepts and relations into the termbase
@@ -90,13 +92,13 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 	// termbase store at all.
 	if hasTermbaseOps(ops) {
 		if err := e.writePilotShadow(ctx, cs, ops, stream); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Bind a candidate voice profile to the content stream for voice ops.
 	if err := e.bindPilotVoice(ctx, cs, ops, projectID, stream); err != nil {
-		return err
+		return nil, err
 	}
 
 	pilot := &Pilot{
@@ -108,9 +110,9 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 		CreatedAt:   time.Now().UTC(),
 	}
 	if err := store.AddPilot(ctx, pilot); err != nil {
-		return fmt.Errorf("record pilot: %w", err)
+		return nil, fmt.Errorf("record pilot: %w", err)
 	}
-	return nil
+	return pilot, nil
 }
 
 // StopPilot retires a pilot: it removes the change-set's stream-shadow concepts

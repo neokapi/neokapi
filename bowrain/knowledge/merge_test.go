@@ -284,7 +284,8 @@ func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 	e := NewEngine(nil, tb, newFakeProfileStore(), store)
 
 	// Pilot the change-set on a stream (no voice ops → no stream binding needed).
-	require.NoError(t, e.StartPilot(ctx, ws, store, *loaded, "proj1", "pilot/widgets"))
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", "pilot/widgets")
+	require.NoError(t, err)
 	pilots, err := store.ListPilots(ctx, ws, cs.ID)
 	require.NoError(t, err)
 	require.Len(t, pilots, 1)

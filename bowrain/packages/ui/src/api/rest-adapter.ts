@@ -1397,7 +1397,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Terminology ──────────────────────────────────────────────────────────
 
   private termsEp(ws: string) {
-    return `/api/v1/${ws}/terms`;
+    return `/api/v1/${ws}/concepts`;
   }
 
   async getTerms(

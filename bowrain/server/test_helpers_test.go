@@ -21,6 +21,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
@@ -298,4 +299,12 @@ func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept termba
 
 func (t *testTermStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]termbase.Concept, int, error) {
 	return t.Search(ctx, query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (t *testTermStore) AddRelationWithStream(ctx context.Context, rel termbase.ConceptRelation, _ string) error {
+	return t.AddRelation(ctx, rel)
+}
+
+func (t *testTermStore) RelationsForStream(ctx context.Context, conceptID, _ string, _ []string, scope *graph.Scope) ([]termbase.ConceptRelation, error) {
+	return t.RelationsOf(ctx, conceptID, scope)
 }

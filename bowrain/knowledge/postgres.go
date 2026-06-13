@@ -501,6 +501,25 @@ func (s *PostgresKnowledgeStore) ListChangeSets(ctx context.Context, workspaceID
 	return result, rows.Err()
 }
 
+func (s *PostgresKnowledgeStore) UpdateChangeSet(ctx context.Context, cs *ChangeSet) error {
+	cs.UpdatedAt = time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE kg_changesets SET name = $1, description = $2, updated_at = $3
+		 WHERE workspace_id = $4 AND id = $5`,
+		cs.Name, cs.Description, cs.UpdatedAt, cs.WorkspaceID, cs.ID)
+	if err != nil {
+		return fmt.Errorf("update change-set: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update change-set rows affected: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("change-set %s not found", cs.ID)
+	}
+	return nil
+}
+
 func (s *PostgresKnowledgeStore) SetChangeSetStatus(ctx context.Context, workspaceID, changesetID string, to ChangeSetStatus) error {
 	if to == ChangeSetMerged {
 		return errors.New("use SetMergeResult to merge a change-set, not SetChangeSetStatus")
