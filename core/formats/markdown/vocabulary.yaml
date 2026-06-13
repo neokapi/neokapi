@@ -1,0 +1,115 @@
+# core/formats/markdown/vocabulary.yaml — Markdown representation-fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
+# against core/formats/constructs.yaml. Cells record only what the
+# reader/writer code provably does, evidence-bound for the audit.
+#
+# READER (core/formats/markdown/reader.go): the goldmark AST emphasis/strong/
+# link/code switch maps strong→fmt:bold, emphasis→fmt:italic, inline code→
+# fmt:code, link/autolink→link:hyperlink (canonical). Two constructs map to
+# FORMAT-LOCAL types rather than the canonical pack string and are recorded
+# `lossy`: strikethrough→"fmt:strike" (pack/constructs.yaml canonical is
+# fmt:strikethrough) and image→"link:image" (canonical is media:image). The
+# styling/asset still survives as a typed run carrying its original markdown
+# in Data, so it round-trips; only canonical-type alignment is lost.
+#
+# (The same reader is shared by the mdx format; per the task scope no mdx
+# vocabulary.yaml is authored here.)
+#
+# WRITER (core/formats/markdown/writer.go): re-emits captured Data via
+# model.RenderRunsWithData (core/model/run.go) — markup round-trips from the
+# run's stored Data but is not authored from canonical Type, so write cells
+# are `unknown`. This caps markdown at V1 (typed reading), the honest state.
+#
+# DEFERRED to V3 (no grounding test asserting the canonical type yet):
+# block.paragraph / block.list-item / block.quote, placeholder.footnote-ref,
+# placeholder.named ({{interpolation}}). Emitted by the reader but omitted
+# rather than claimed without resolvable evidence.
+version: 1
+family: rich-markup
+
+constructs:
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
+    write:
+      status: unknown
+      notes: >-
+        Round-trips via captured Data (RenderRunsWithData), not authored from
+        the canonical fmt:bold Type.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: [markdown.TestRead_Emphasis]
+    write:
+      status: unknown
+      notes: Data-replay writer; no canonical-authoring claim.
+
+  - construct: inline.code
+    expressible: true
+    read:
+      status: lossless
+      evidence: [markdown.TestRead_Code]
+    write:
+      status: unknown
+      notes: Data-replay writer; no canonical-authoring claim.
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: [markdown.TestRead_Link]
+    write:
+      status: unknown
+      notes: >-
+        The []() destination round-trips via captured Data, not re-authored
+        from link:hyperlink.
+
+  - construct: inline.strikethrough
+    expressible: true
+    read:
+      status: lossy
+      policy: preserve-as-skeleton
+      evidence: [markdown.TestRead_StrikethroughSubscript]
+      notes: >-
+        The reader emits the FORMAT-LOCAL type "fmt:strike" rather than the
+        canonical fmt:strikethrough (core/formats/markdown/reader.go). The
+        ~~...~~ styling survives as a typed run carrying its markdown in Data
+        (round-trips), but canonical-type alignment is lost — hence lossy.
+    write:
+      status: unknown
+      notes: Data-replay writer; the ~~...~~ markup round-trips from Data.
+
+  - construct: media.image
+    expressible: true
+    read:
+      status: lossy
+      policy: preserve-as-skeleton
+      evidence: [markdown.TestRead_Image]
+      notes: >-
+        The reader emits the FORMAT-LOCAL type "link:image" rather than the
+        canonical media:image (core/formats/markdown/reader.go). This is the
+        divergence excluded from the cross-format vocab_equivalence_test
+        (html/xliff emit media:image). The ![]() asset reference survives in
+        Data, but canonical-type alignment is lost.
+    write:
+      status: unknown
+      notes: Data-replay writer; the ![]() markup round-trips from Data.
+
+  - construct: block.heading
+    expressible: true
+    read:
+      status: lossless
+      evidence: [markdown.TestReadHeadings]
+      notes: >-
+        Block.Type set to "heading" with the level on Properties["level"]
+        (block-kind row; model_mapping block:type).
+    write:
+      status: unknown
+      notes: >-
+        Heading markers (# / underline) round-trip via the block skeleton /
+        captured Data, not re-authored from the block kind.

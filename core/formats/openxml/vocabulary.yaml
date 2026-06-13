@@ -1,0 +1,121 @@
+# core/formats/openxml/vocabulary.yaml — OpenXML (WordprocessingML)
+# representation-fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
+# against core/formats/constructs.yaml. Cells record only what the
+# reader/writer code provably does, evidence-bound for the audit.
+#
+# READER (core/formats/openxml/vocabulary.go constants + reader.go/wml.go):
+# run properties and run children map to canonical types — w:b→fmt:bold,
+# w:i→fmt:italic, w:u→fmt:underline, w:strike→fmt:strikethrough,
+# w:vertAlign superscript→fmt:superscript, w:hyperlink→link:hyperlink,
+# w:br→struct:break.
+#
+# WRITER (core/formats/openxml/writer.go — the strongest writer): addWMLProp
+# (~L4200-4217) AUTHORS native rPr markup directly from the canonical Type
+# — fmt:bold→`<w:b/>`, fmt:italic→`<w:i/>`, fmt:underline→
+# `<w:u w:val="single"/>`, fmt:strikethrough→`<w:strike/>`,
+# fmt:superscript→`<w:vertAlign w:val="superscript"/>`. Break is authored
+# canonically (`<w:br/>` fallback at writer.go ~L3149-3152) or replayed from
+# Data; hyperlink round-trips via its preserved paired-code native markup.
+# All write claims are proven by the round-trip suite.
+#
+# This format participates in the cross-format vocab_equivalence_test only as
+# a TODO: a .docx fixture needs an OOXML/zip builder the equivalence test
+# does not yet have (see that file's TODO). Without an equivalence case the
+# audit holds OpenXML at V1 even though read+write cells resolve — the
+# bidirectional V2 gate is the equivalence case, which is the intended skip.
+#
+# DEFERRED to V3 (mapped by vocabulary.go but no dedicated test asserts the
+# canonical type yet): inline.subscript (w:vertAlign subscript —
+# TestReadStrikethroughAndSuperscript covers superscript only),
+# placeholder.tab (w:tab), media.image (w:drawing), placeholder.footnote-ref
+# (w:footnoteReference), meta.change-tracking (w:ins/w:del), and the
+# block-kind rows.
+version: 1
+family: office-doc
+
+constructs:
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadInlineFormatting]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundtripFormatted, openxml.TestRoundTrip_Docx]
+      notes: >-
+        addWMLProp authors `<w:b/>` from the canonical fmt:bold Type
+        (writer.go ~L4203); the round-trip suite proves bold survives.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadInlineFormatting]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundtripFormatted, openxml.TestRoundTrip_Docx]
+      notes: addWMLProp authors `<w:i/>` from fmt:italic (writer.go ~L4205).
+
+  - construct: inline.underline
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadBoldUnderline]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundtripFormatted, openxml.TestRoundTrip_Docx]
+      notes: >-
+        addWMLProp authors `<w:u w:val="single"/>` from fmt:underline
+        (writer.go ~L4207).
+
+  - construct: inline.strikethrough
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadStrikethroughAndSuperscript]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundTrip_Docx]
+      notes: >-
+        addWMLProp authors `<w:strike/>` from fmt:strikethrough
+        (writer.go ~L4209).
+
+  - construct: inline.superscript
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadStrikethroughAndSuperscript]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundTrip_Docx]
+      notes: >-
+        addWMLProp authors `<w:vertAlign w:val="superscript"/>` from
+        fmt:superscript (writer.go ~L4211).
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadHyperlink]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundtripFormatted, openxml.TestRoundTrip_Docx]
+      notes: >-
+        The w:hyperlink paired code round-trips via its preserved native
+        markup (Data on PcOpen/PcClose), not re-authored from link:hyperlink
+        — round-trip-faithful rather than canonical-authoring.
+
+  - construct: placeholder.line-break
+    expressible: true
+    read:
+      status: lossless
+      evidence: [openxml.TestReadLineBreak]
+    write:
+      status: lossless
+      evidence: [openxml.TestRoundTrip_Docx]
+      notes: >-
+        The writer authors `<w:br/>` canonically when the Ph carries no Data
+        (writer.go ~L3149-3152), else replays the captured `<w:br .../>`;
+        the round-trip suite proves breaks survive.

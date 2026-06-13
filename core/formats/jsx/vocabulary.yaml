@@ -1,0 +1,85 @@
+# core/formats/jsx/vocabulary.yaml — JSX (.klf interchange) representation-
+# fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
+# against core/formats/constructs.yaml. Cells record only what the
+# reader/writer code provably does, evidence-bound for the audit.
+#
+# NOTE: `jsx` is on the format-maturity NOT_A_FORMAT list (it has no
+# reader.go; it reads/writes the typed .klf envelope, not raw .jsx source),
+# so audit-format.py skips it and this matrix is not scored. It is authored
+# for completeness because jsx is the canonical home of the rich-jsx pack
+# (core/model/vocabularies/rich-jsx.json: jsx:element, jsx:var, jsx:node).
+#
+# READER/WRITER (core/formats/jsx/jsx.go): the reader reads a .klf envelope
+# (DocumentTypeJSX) and passes its typed runs through to the model unchanged;
+# the writer serialises canonical runs back to .klf without flattening
+# (TestWriterPreservesStructuredTargetRuns). Because the rich-jsx pack
+# extends common-formatting, jsx also carries the inherited fmt:*/link:*
+# styling constructs — its participation in vocab_equivalence_test validates
+# that KLF-borne canonical types survive the reader unchanged.
+version: 1
+family: rich-markup
+
+constructs:
+  - construct: placeholder.component-element
+    expressible: true
+    read:
+      status: lossless
+      evidence: [jsx.TestReaderReadsKLF, jsx.TestWriterRoundTripKLF]
+      notes: >-
+        Paired non-styling component wrappers carry the canonical jsx:element
+        run Type (rich-jsx pack); the KLF round-trip preserves them.
+    write:
+      status: lossless
+      evidence: [jsx.TestWriterRoundTripKLF]
+      notes: The writer serialises jsx:element runs back to .klf faithfully.
+
+  - construct: placeholder.named
+    expressible: true
+    read:
+      status: lossless
+      evidence: [jsx.TestWriterPreservesStructuredTargetRuns]
+      notes: >-
+        {expr} interpolation carries the canonical jsx:var Ph Type. NOTE:
+        constructs.yaml gives placeholder.named a rich-markup baseline of
+        `false`; this is an evidence-backed `true` override — jsx:var is one
+        of placeholder.named's canonical_types and the package demonstrably
+        emits it (run Type "jsx:var", round-tripped by the cited test).
+    write:
+      status: lossless
+      evidence: [jsx.TestWriterPreservesStructuredTargetRuns]
+      notes: >-
+        The writer preserves a jsx:var Ph target run (Equiv intact) rather
+        than flattening it to text — canonical-authoring back to .klf.
+
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
+      notes: Inherited from the rich-jsx → rich-html → common-formatting pack.
+    write:
+      status: lossless
+      evidence: [jsx.TestWriterRoundTripKLF]
+      notes: fmt:bold runs serialise back to .klf unchanged.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
+      notes: Inherited rich-html styling carried in KLF.
+    write:
+      status: lossless
+      evidence: [jsx.TestWriterRoundTripKLF]
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
+      notes: Inherited common-formatting link construct carried in KLF.
+    write:
+      status: lossless
+      evidence: [jsx.TestWriterRoundTripKLF]

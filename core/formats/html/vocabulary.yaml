@@ -1,0 +1,73 @@
+# core/formats/html/vocabulary.yaml — HTML representation-fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2). Scored
+# against the construct row space in core/formats/constructs.yaml. Every
+# `read`/`write` cell records ONLY what the reader/writer code provably does,
+# with `evidence:` the audit can resolve (a pkg.TestFunc or the shared
+# equivalence test).
+#
+# READER (core/formats/html/reader.go htmlSemanticTypes, ~L92-105): HTML
+# element names map to canonical run types — b/strong→fmt:bold, i/em→
+# fmt:italic, a→link:hyperlink, br/hr→struct:break (plus u/s/code/sub/sup/
+# mark/img, deferred below). Unmapped elements degrade to code:markup.
+#
+# WRITER (core/formats/html/writer.go): re-emits each inline code's captured
+# Data via model.RenderRunsWithData (core/model/run.go) — markup round-trips
+# losslessly from the run's stored Data, but the writer does NOT synthesise
+# native markup from a bare canonical Type. So write cells are `unknown`
+# (no canonical-authoring claim); this caps HTML at V1 (typed reading), which
+# is the honest state.
+#
+# DEFERRED to V3 (emitted by htmlSemanticTypes but no dedicated test asserts
+# the canonical type yet, so they are honestly omitted rather than claimed):
+# inline.underline (u→fmt:underline), inline.strikethrough (s/del→
+# fmt:strikethrough), inline.code (code→fmt:code), inline.highlight
+# (mark→fmt:highlight), inline.superscript/subscript (sup/sub), media.image
+# (img→media:image), and the block-kind rows (blockTypeMap heading/paragraph/
+# list-item/cell/quote/title).
+version: 1
+family: rich-markup
+
+constructs:
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: [html.TestReadInlineSpans]
+    write:
+      status: unknown
+      notes: >-
+        Round-trips via the run's captured Data (RenderRunsWithData), not
+        authored from the canonical fmt:bold Type — no canonical-authoring
+        write claim.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
+    write:
+      status: unknown
+      notes: >-
+        Same Data-replay writer as inline.bold; no canonical-authoring claim.
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: [html.TestReadLinkSpan]
+    write:
+      status: unknown
+      notes: >-
+        The href-bearing <a> round-trips via captured Data, not re-authored
+        from link:hyperlink — no canonical-authoring write claim.
+
+  - construct: placeholder.line-break
+    expressible: true
+    read:
+      status: lossless
+      evidence: [html.TestReadPlaceholderSpan]
+    write:
+      status: unknown
+      notes: >-
+        <br/> round-trips via captured Data; not authored from struct:break.

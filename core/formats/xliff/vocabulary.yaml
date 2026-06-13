@@ -1,0 +1,86 @@
+# core/formats/xliff/vocabulary.yaml — XLIFF 1.2 representation-fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
+# against core/formats/constructs.yaml. Cells record only what the
+# reader/writer code provably does, evidence-bound for the audit.
+#
+# READER (core/formats/xliff/reader.go ctypeToSpanType, ~L1713-1732, also
+# core/formats/xliff/native_parse.go): the inline-code ctype attribute maps
+# to canonical run types — bold→fmt:bold, italic→fmt:italic, underlined→
+# fmt:underline, link→link:hyperlink, lb→struct:break, image→media:image.
+# Unknown ctypes degrade to a format-local "xliff:<ctype>". The Targets map
+# carries the in-file source/target pairing (meta.target-pointer).
+#
+# WRITER (core/formats/xliff/writer.go + native_render.go): inline codes are
+# serialised by replaying the captured native <bpt>/<ept>/<ph>/<x>/<g>
+# structure (NativeContent), NOT by authoring a ctype attribute from the
+# canonical run Type — there is no spanType→ctype emission path. So inline
+# write cells are `unknown` (no canonical-authoring claim), which caps XLIFF
+# at V1 (typed reading), the honest state.
+#
+# NOTE: XLIFF 1.2 <ept> carries no ctype, so the reader leaves the PcClose
+# Type empty; the typed read claim is on the opening code (<bpt>/<x>/<g>).
+#
+# DEFERRED to V3 (mapped by ctypeToSpanType but no dedicated test asserts the
+# canonical type yet): inline.underline (ctype underlined→fmt:underline),
+# media.image (ctype image→media:image), and the i18n-meta rows beyond
+# target-pointer (notes, id-value, language).
+version: 1
+family: bilingual-interchange
+
+constructs:
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: [xliff.TestExtract_CtypeBold]
+    write:
+      status: unknown
+      notes: >-
+        The <bpt ctype="bold"> round-trips by replaying the captured native
+        inline structure, not by authoring ctype from fmt:bold — no
+        canonical-authoring write claim.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: [xliff.TestExtract_CtypeItalic]
+    write:
+      status: unknown
+      notes: Native-structure replay; no canonical-authoring claim.
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: [xliff.TestExtract_CtypeLink]
+    write:
+      status: unknown
+      notes: Native-structure replay; no canonical-authoring claim.
+
+  - construct: placeholder.line-break
+    expressible: true
+    read:
+      status: lossless
+      evidence: [xliff.TestExtract_CtypeLb]
+    write:
+      status: unknown
+      notes: >-
+        The <x ctype="lb"/> standalone code round-trips via the captured
+        native structure, not authored from struct:break.
+
+  - construct: meta.target-pointer
+    expressible: true
+    read:
+      status: lossless
+      evidence: [xliff.TestReadXLIFFTargets]
+      notes: >-
+        The defining bilingual-interchange construct: <target> populates the
+        Block.Targets map keyed by trgLang (model_mapping block:target).
+    write:
+      status: unknown
+      notes: >-
+        The writer emits <target> from the Targets map, but no test isolates
+        canonical-authored target serialisation from native round-trip; left
+        unknown pending that evidence.
