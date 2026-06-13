@@ -100,8 +100,7 @@ function SecondaryPanel({
 
 const viewLabels: Record<string, string> = {
   translate: "Projects",
-  brand: "Brand Voice",
-  termbase: "Termbase",
+  brand: "Brand",
   memory: "Memory",
   auditlog: "Audit Log",
   bin: "Recycle Bin",

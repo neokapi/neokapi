@@ -26,7 +26,7 @@ export function BrandProfilesRoute() {
   const handleSelect = useCallback(
     (profile: VoiceProfile) => {
       void navigate({
-        to: "/$workspace/brand/$profileId",
+        to: "/$workspace/brand/voice/$profileId",
         params: { workspace: workspace ?? "", profileId: profile.id },
       });
     },
@@ -35,7 +35,7 @@ export function BrandProfilesRoute() {
 
   const handleCreate = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/$profileId",
+      to: "/$workspace/brand/voice/$profileId",
       params: { workspace: workspace ?? "", profileId: "new" },
     });
   }, [navigate, workspace]);

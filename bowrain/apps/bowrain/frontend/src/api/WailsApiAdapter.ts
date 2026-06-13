@@ -85,6 +85,32 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
+  GraphViz,
+  GraphParams,
+  ListConceptsParams,
+  ConceptStory,
+  ConceptRelation,
+  ConceptUsage,
+  AddConceptRelationRequest,
+  RelationScope,
+  Observation,
+  AddObservationRequest,
+  Comment,
+  AddCommentRequest,
+  Market,
+  MarketRequest,
+  ChangeSet,
+  ChangeSetDetail,
+  ChangeSetStatus,
+  ChangeSetOp,
+  AddChangeSetOpRequest,
+  CreateChangeSetRequest,
+  UpdateChangeSetRequest,
+  ReviewRequest,
+  ChangeSetImpact,
+  MergeResult,
+  Pilot,
+  StartPilotRequest,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -1241,6 +1267,164 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async billingGetLedger(_ws: string, _from?: string, _to?: string): Promise<CreditLedgerEntry[]> {
     return [];
+  }
+
+  // --- Brand knowledge graph (AD-021) ---
+  // The desktop app is a working copy of the server and proxies these via the
+  // REST surface once connected; they are not wired to local Wails bindings, so
+  // they follow the file's "not implemented in desktop app" convention until the
+  // desktop knowledge-graph bindings land.
+  async listConcepts(_ws: string, _params?: ListConceptsParams): Promise<TermSearchResult> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getConcept(_ws: string, _conceptId: string): Promise<ConceptInfo> {
+    throw new Error("not implemented in desktop app");
+  }
+  async createConcept(_ws: string, _req: AddConceptRequest): Promise<ConceptInfo> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getConceptStory(_ws: string, _conceptId: string): Promise<ConceptStory> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listConceptRelations(
+    _ws: string,
+    _conceptId: string,
+    _scope?: RelationScope,
+  ): Promise<ConceptRelation[]> {
+    throw new Error("not implemented in desktop app");
+  }
+  async addConceptRelation(
+    _ws: string,
+    _conceptId: string,
+    _req: AddConceptRelationRequest,
+  ): Promise<ConceptRelation> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteConceptRelation(
+    _ws: string,
+    _conceptId: string,
+    _relationId: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getConceptBlastRadius(_ws: string, _conceptId: string): Promise<ConceptUsage> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listObservations(_ws: string, _conceptId: string): Promise<Observation[]> {
+    throw new Error("not implemented in desktop app");
+  }
+  async addObservation(
+    _ws: string,
+    _conceptId: string,
+    _req: AddObservationRequest,
+  ): Promise<Observation> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteObservation(
+    _ws: string,
+    _conceptId: string,
+    _observationId: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listConceptComments(_ws: string, _conceptId: string): Promise<Comment[]> {
+    throw new Error("not implemented in desktop app");
+  }
+  async addConceptComment(
+    _ws: string,
+    _conceptId: string,
+    _req: AddCommentRequest,
+  ): Promise<Comment> {
+    throw new Error("not implemented in desktop app");
+  }
+  async resolveConceptComment(
+    _ws: string,
+    _conceptId: string,
+    _commentId: string,
+    _resolved?: boolean,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteConceptComment(_ws: string, _conceptId: string, _commentId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getGraph(_ws: string, _params?: GraphParams): Promise<GraphViz> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listMarkets(_ws: string): Promise<Market[]> {
+    throw new Error("not implemented in desktop app");
+  }
+  async createMarket(_ws: string, _req: MarketRequest): Promise<Market> {
+    throw new Error("not implemented in desktop app");
+  }
+  async updateMarket(_ws: string, _marketId: string, _req: MarketRequest): Promise<Market> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteMarket(_ws: string, _marketId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listChangesets(_ws: string, _status?: ChangeSetStatus): Promise<ChangeSet[]> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getChangeset(_ws: string, _changesetId: string): Promise<ChangeSetDetail> {
+    throw new Error("not implemented in desktop app");
+  }
+  async createChangeset(_ws: string, _req: CreateChangeSetRequest): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async patchChangeset(
+    _ws: string,
+    _changesetId: string,
+    _req: UpdateChangeSetRequest,
+  ): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async appendChangesetOp(
+    _ws: string,
+    _changesetId: string,
+    _req: AddChangeSetOpRequest,
+  ): Promise<ChangeSetOp> {
+    throw new Error("not implemented in desktop app");
+  }
+  async removeChangesetOp(_ws: string, _changesetId: string, _seq: number): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async submitChangeset(_ws: string, _changesetId: string): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async approveChangeset(
+    _ws: string,
+    _changesetId: string,
+    _req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async rejectChangeset(
+    _ws: string,
+    _changesetId: string,
+    _req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async mergeChangeset(_ws: string, _changesetId: string): Promise<MergeResult> {
+    throw new Error("not implemented in desktop app");
+  }
+  async abandonChangeset(_ws: string, _changesetId: string): Promise<ChangeSet> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getChangesetBlastRadius(_ws: string, _changesetId: string): Promise<ChangeSetImpact> {
+    throw new Error("not implemented in desktop app");
+  }
+  async addPilot(_ws: string, _changesetId: string, _req: StartPilotRequest): Promise<Pilot> {
+    throw new Error("not implemented in desktop app");
+  }
+  async removePilot(
+    _ws: string,
+    _changesetId: string,
+    _projectId: string,
+    _stream: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

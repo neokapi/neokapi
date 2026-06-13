@@ -106,6 +106,34 @@ import type {
   BlastRadius,
   DriftResult,
 } from "../brand/types";
+import type {
+  GraphViz,
+  GraphParams,
+  ListConceptsParams,
+  ConceptStory,
+  ConceptRelation,
+  ConceptUsage,
+  AddConceptRelationRequest,
+  RelationScope,
+  Observation,
+  AddObservationRequest,
+  Comment,
+  AddCommentRequest,
+  Market,
+  MarketRequest,
+  ChangeSet,
+  ChangeSetDetail,
+  ChangeSetStatus,
+  ChangeSetOp,
+  AddChangeSetOpRequest,
+  CreateChangeSetRequest,
+  UpdateChangeSetRequest,
+  ReviewRequest,
+  ChangeSetImpact,
+  MergeResult,
+  Pilot,
+  StartPilotRequest,
+} from "../types/brand-graph";
 
 /**
  * RestApiAdapter talks to the neokapi REST server.
@@ -2409,6 +2437,327 @@ export class RestApiAdapter implements ApiAdapter {
     if (to) params.set("to", to);
     const qs = params.toString();
     return this.fetchJSON(`${this.billingEp(workspaceSlug)}/ledger${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── Brand knowledge graph — Concepts (AD-021) ─────────────────────────────
+  // The concept routes share the /concepts base (termsEp) with the Terminology
+  // block above; these add the graph/governance surface.
+
+  private conceptEp(ws: string, conceptId: string) {
+    return `${this.termsEp(ws)}/${encodeURIComponent(conceptId)}`;
+  }
+
+  private graphEp(ws: string) {
+    return `/api/v1/${ws}/graph`;
+  }
+
+  private marketsEp(ws: string) {
+    return `/api/v1/${ws}/markets`;
+  }
+
+  private changesetsEp(ws: string) {
+    return `/api/v1/${ws}/changesets`;
+  }
+
+  private changesetEp(ws: string, id: string) {
+    return `${this.changesetsEp(ws)}/${encodeURIComponent(id)}`;
+  }
+
+  async listConcepts(
+    workspaceSlug: string,
+    params?: ListConceptsParams,
+  ): Promise<TermSearchResult> {
+    const q = new URLSearchParams();
+    if (params?.q) q.set("q", params.q);
+    if (params?.status) q.set("status", params.status);
+    if (params?.domain) q.set("domain", params.domain);
+    if (params?.market) q.set("market", params.market);
+    if (params?.locale) q.set("locale", params.locale);
+    if (params?.source) q.set("source", params.source);
+    if (params?.stream) q.set("stream", params.stream);
+    if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.offset !== undefined) q.set("offset", String(params.offset));
+    if (params?.limit !== undefined) q.set("limit", String(params.limit));
+    const qs = q.toString();
+    return this.fetchJSON(`${this.termsEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
+  }
+
+  async getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo> {
+    return this.fetchJSON(this.conceptEp(workspaceSlug, conceptId));
+  }
+
+  async createConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo> {
+    return this.fetchJSON(this.termsEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async getConceptStory(workspaceSlug: string, conceptId: string): Promise<ConceptStory> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/story`);
+  }
+
+  async listConceptRelations(
+    workspaceSlug: string,
+    conceptId: string,
+    scope?: RelationScope,
+  ): Promise<ConceptRelation[]> {
+    const q = new URLSearchParams();
+    if (scope?.as_of) q.set("as_of", scope.as_of);
+    if (scope?.market) q.set("market", scope.market);
+    const qs = q.toString();
+    return this.fetchJSON(
+      `${this.conceptEp(workspaceSlug, conceptId)}/relations${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async addConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddConceptRelationRequest,
+  ): Promise<ConceptRelation> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/relations`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async deleteConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    relationId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.conceptEp(workspaceSlug, conceptId)}/relations/${encodeURIComponent(relationId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/blast-radius`);
+  }
+
+  async listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/observations`);
+  }
+
+  async addObservation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddObservationRequest,
+  ): Promise<Observation> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/observations`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async deleteObservation(
+    workspaceSlug: string,
+    conceptId: string,
+    observationId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.conceptEp(workspaceSlug, conceptId)}/observations/${encodeURIComponent(observationId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async listConceptComments(workspaceSlug: string, conceptId: string): Promise<Comment[]> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/comments`);
+  }
+
+  async addConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddCommentRequest,
+  ): Promise<Comment> {
+    return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/comments`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async resolveConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+    resolved?: boolean,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.conceptEp(workspaceSlug, conceptId)}/comments/${encodeURIComponent(commentId)}/resolve`,
+      {
+        method: "POST",
+        body: JSON.stringify(resolved === undefined ? {} : { resolved }),
+      },
+    );
+  }
+
+  async deleteConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.conceptEp(workspaceSlug, conceptId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  // ── Brand knowledge graph — Graph viz (AD-021) ────────────────────────────
+
+  async getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz> {
+    const q = new URLSearchParams();
+    if (params?.as_of) q.set("as_of", params.as_of);
+    if (params?.market) q.set("market", params.market);
+    if (params?.domain) q.set("domain", params.domain);
+    if (params?.status) q.set("status", params.status);
+    if (params?.focus) q.set("focus", params.focus);
+    if (params?.depth !== undefined) q.set("depth", String(params.depth));
+    const qs = q.toString();
+    return this.fetchJSON(`${this.graphEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── Brand knowledge graph — Markets (AD-021) ──────────────────────────────
+
+  async listMarkets(workspaceSlug: string): Promise<Market[]> {
+    return this.fetchJSON(this.marketsEp(workspaceSlug));
+  }
+
+  async createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market> {
+    return this.fetchJSON(this.marketsEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market> {
+    return this.fetchJSON(`${this.marketsEp(workspaceSlug)}/${encodeURIComponent(marketId)}`, {
+      method: "PUT",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async deleteMarket(workspaceSlug: string, marketId: string): Promise<void> {
+    await this.fetchJSON(`${this.marketsEp(workspaceSlug)}/${encodeURIComponent(marketId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ── Brand knowledge graph — Change-sets / experiments (AD-021) ────────────
+
+  async listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+    return this.fetchJSON(`${this.changesetsEp(workspaceSlug)}${qs}`);
+  }
+
+  async getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail> {
+    return this.fetchJSON(this.changesetEp(workspaceSlug, changesetId));
+  }
+
+  async createChangeset(workspaceSlug: string, req: CreateChangeSetRequest): Promise<ChangeSet> {
+    return this.fetchJSON(this.changesetsEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async patchChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req: UpdateChangeSetRequest,
+  ): Promise<ChangeSet> {
+    return this.fetchJSON(this.changesetEp(workspaceSlug, changesetId), {
+      method: "PATCH",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async appendChangesetOp(
+    workspaceSlug: string,
+    changesetId: string,
+    req: AddChangeSetOpRequest,
+  ): Promise<ChangeSetOp> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/ops`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async removeChangesetOp(workspaceSlug: string, changesetId: string, seq: number): Promise<void> {
+    await this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/ops/${seq}`, {
+      method: "DELETE",
+    });
+  }
+
+  async submitChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/submit`, {
+      method: "POST",
+    });
+  }
+
+  async approveChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify(req ?? {}),
+    });
+  }
+
+  async rejectChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/reject`, {
+      method: "POST",
+      body: JSON.stringify(req ?? {}),
+    });
+  }
+
+  async mergeChangeset(workspaceSlug: string, changesetId: string): Promise<MergeResult> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/merge`, {
+      method: "POST",
+    });
+  }
+
+  async abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/abandon`, {
+      method: "POST",
+    });
+  }
+
+  async getChangesetBlastRadius(
+    workspaceSlug: string,
+    changesetId: string,
+  ): Promise<ChangeSetImpact> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/blast-radius`);
+  }
+
+  async addPilot(
+    workspaceSlug: string,
+    changesetId: string,
+    req: StartPilotRequest,
+  ): Promise<Pilot> {
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/pilots`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async removePilot(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.changesetEp(workspaceSlug, changesetId)}/pilots/${encodeURIComponent(projectId)}/${encodeURIComponent(stream)}`,
+      { method: "DELETE" },
+    );
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

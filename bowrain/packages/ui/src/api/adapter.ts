@@ -97,6 +97,34 @@ import type {
   BlastRadius,
   DriftResult,
 } from "../brand/types";
+import type {
+  GraphViz,
+  GraphParams,
+  ListConceptsParams,
+  ConceptStory,
+  ConceptRelation,
+  ConceptUsage,
+  AddConceptRelationRequest,
+  RelationScope,
+  Observation,
+  AddObservationRequest,
+  Comment,
+  AddCommentRequest,
+  Market,
+  MarketRequest,
+  ChangeSet,
+  ChangeSetDetail,
+  ChangeSetStatus,
+  ChangeSetOp,
+  AddChangeSetOpRequest,
+  CreateChangeSetRequest,
+  UpdateChangeSetRequest,
+  ReviewRequest,
+  ChangeSetImpact,
+  MergeResult,
+  Pilot,
+  StartPilotRequest,
+} from "../types/brand-graph";
 
 /**
  * ApiAdapter abstracts the communication layer so that the same
@@ -841,6 +869,99 @@ export interface ApiAdapter {
   ): Promise<{ url: string }>;
   billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }>;
   billingGetLedger(workspaceSlug: string, from?: string, to?: string): Promise<CreditLedgerEntry[]>;
+
+  // Brand knowledge graph — Concepts (AD-021)
+  // The concept routes share /api/v1/{ws}/concepts with the Terminology block
+  // above; these add the graph/governance surface that hangs off a concept.
+  // listConcepts/getConcept/createConcept return the same ConceptInfo /
+  // TermSearchResult shapes as the Terminology methods; ordinary concept edits
+  // reuse updateConcept/deleteConcept above.
+  listConcepts(workspaceSlug: string, params?: ListConceptsParams): Promise<TermSearchResult>;
+  getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo>;
+  createConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
+  getConceptStory(workspaceSlug: string, conceptId: string): Promise<ConceptStory>;
+  listConceptRelations(
+    workspaceSlug: string,
+    conceptId: string,
+    scope?: RelationScope,
+  ): Promise<ConceptRelation[]>;
+  addConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddConceptRelationRequest,
+  ): Promise<ConceptRelation>;
+  deleteConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    relationId: string,
+  ): Promise<void>;
+  getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage>;
+  listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]>;
+  addObservation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddObservationRequest,
+  ): Promise<Observation>;
+  deleteObservation(workspaceSlug: string, conceptId: string, observationId: string): Promise<void>;
+  listConceptComments(workspaceSlug: string, conceptId: string): Promise<Comment[]>;
+  addConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddCommentRequest,
+  ): Promise<Comment>;
+  resolveConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+    resolved?: boolean,
+  ): Promise<void>;
+  deleteConceptComment(workspaceSlug: string, conceptId: string, commentId: string): Promise<void>;
+
+  // Brand knowledge graph — Graph viz (AD-021)
+  getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz>;
+
+  // Brand knowledge graph — Markets (AD-021)
+  listMarkets(workspaceSlug: string): Promise<Market[]>;
+  createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market>;
+  updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market>;
+  deleteMarket(workspaceSlug: string, marketId: string): Promise<void>;
+
+  // Brand knowledge graph — Change-sets / experiments (AD-021)
+  listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]>;
+  getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail>;
+  createChangeset(workspaceSlug: string, req: CreateChangeSetRequest): Promise<ChangeSet>;
+  patchChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req: UpdateChangeSetRequest,
+  ): Promise<ChangeSet>;
+  appendChangesetOp(
+    workspaceSlug: string,
+    changesetId: string,
+    req: AddChangeSetOpRequest,
+  ): Promise<ChangeSetOp>;
+  removeChangesetOp(workspaceSlug: string, changesetId: string, seq: number): Promise<void>;
+  submitChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet>;
+  approveChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet>;
+  rejectChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet>;
+  mergeChangeset(workspaceSlug: string, changesetId: string): Promise<MergeResult>;
+  abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet>;
+  getChangesetBlastRadius(workspaceSlug: string, changesetId: string): Promise<ChangeSetImpact>;
+  addPilot(workspaceSlug: string, changesetId: string, req: StartPilotRequest): Promise<Pilot>;
+  removePilot(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<void>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

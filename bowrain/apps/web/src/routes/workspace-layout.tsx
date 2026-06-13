@@ -259,6 +259,20 @@ export function WorkspaceLayout() {
   const effectiveView =
     activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
+  // Derive Brand hub sub-nav from URL (Concepts · Voice · Experiments · Activity
+  // · Dashboard). Concept-story and experiment-detail pages keep their section
+  // highlighted; bare /brand falls back to Concepts (the landing section).
+  const brandSubNav = useMemo(() => {
+    if (activeView !== "brand") return undefined;
+    const brandPath = `/${workspaceSlug}/brand`;
+    const rest = pathname.slice(brandPath.length).replace(/^\//, "");
+    if (rest.startsWith("voice")) return "voice";
+    if (rest.startsWith("experiments")) return "experiments";
+    if (rest.startsWith("activity")) return "activity";
+    if (rest.startsWith("dashboard")) return "dashboard";
+    return "concepts";
+  }, [activeView, pathname, workspaceSlug]);
+
   // Derive settings sub-nav from URL.
   const settingsSubNav = useMemo(() => {
     if (activeView === "auditlog") return "auditlog";
@@ -282,6 +296,37 @@ export function WorkspaceLayout() {
     (id: string) => {
       const wsSlug = workspaceSlug ?? "";
       switch (id) {
+        // Brand hub sections
+        case "concepts":
+          void navigate({
+            to: "/$workspace/brand/concepts",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "voice":
+          void navigate({
+            to: "/$workspace/brand/voice",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "experiments":
+          void navigate({
+            to: "/$workspace/brand/experiments",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "activity":
+          void navigate({
+            to: "/$workspace/brand/activity",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "dashboard":
+          void navigate({
+            to: "/$workspace/brand/dashboard",
+            params: { workspace: wsSlug },
+          });
+          break;
         case "general":
           void navigate({
             to: "/$workspace/settings",
@@ -633,7 +678,7 @@ export function WorkspaceLayout() {
               onCollapsedChange={setSidebarCollapsed}
               showThemeToggle={false}
               sidebarContext={sidebarContext}
-              activeSubNav={settingsSubNav}
+              activeSubNav={activeView === "brand" ? brandSubNav : settingsSubNav}
               onSubNavChange={handleSubNavChange}
               headerSlot={
                 <ConnectedTopBar

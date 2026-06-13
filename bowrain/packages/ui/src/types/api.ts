@@ -640,7 +640,11 @@ export interface TermSearchResult {
 
 /** Add concept request */
 export interface AddConceptRequest {
-  project_id: string;
+  /**
+   * Optional project affinity. Omit (or leave empty) for a workspace-scoped
+   * concept; the server stores an empty ProjectID for those.
+   */
+  project_id?: string;
   domain: string;
   definition: string;
   terms: TermInfo[];

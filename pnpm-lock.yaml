@@ -483,6 +483,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.3.0(vite@8.0.14(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
+      '@xyflow/react':
+        specifier: ^12.11.0
+        version: 12.11.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@11.1.8)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1087,25 +1090,25 @@ importers:
         version: 3.1.1(@types/react@19.2.17)(react@19.2.7)
       '@neokapi/docs-shared':
         specifier: workspace:*
-        version: link:../../packages/docs-shared
+        version: link:../packages/docs-shared
       '@neokapi/flow-editor':
         specifier: '*'
-        version: link:../../packages/flow-editor
+        version: link:../packages/flow-editor
       '@neokapi/kapi-lab':
         specifier: '*'
-        version: link:../../packages/kapi-lab
+        version: link:../packages/kapi-lab
       '@neokapi/kapi-playground':
         specifier: '*'
-        version: link:../../packages/kapi-playground
+        version: link:../packages/kapi-playground
       '@neokapi/kapi-react':
         specifier: '*'
-        version: link:../../packages/kapi-react
+        version: link:../packages/kapi-react
       '@neokapi/reference-data':
         specifier: '*'
-        version: link:../../packages/reference-data
+        version: link:../packages/reference-data
       '@neokapi/ui-primitives':
         specifier: '*'
-        version: link:../../packages/ui
+        version: link:../packages/ui
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
