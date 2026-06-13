@@ -48,7 +48,11 @@ export default function TryNeokapi(): React.ReactElement {
       <HeroProcess onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="kapi-reference sm:!max-w-4xl">
+        {/* Cap the modal to the viewport and lay it out as a flex column so the
+            body scrolls INTERNALLY — a document with many blocks (e.g. a PPTX
+            with dozens of placeholder paragraphs) must not push the dialog past
+            the screen. */}
+        <DialogContent className="kapi-reference flex max-h-[88dvh] flex-col overflow-hidden sm:!max-w-4xl">
           <DialogHeader>
             <div className={styles.modalHead}>
               <DialogTitle asChild>

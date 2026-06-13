@@ -39,3 +39,23 @@
   flex: 1;
   min-height: 320px;
 }
+
+@media (max-width: 996px) {
+  /* On phones/tablets the app-like page flows the document instead of pinning
+     to one viewport (the desktop fill would crush the stacked toolbar +
+     walkthrough). But once the ancestor chain is no longer a definite-height
+     flex column, the editor frame's `height:auto; flex:1` never resolves to a
+     definite height — so the flow-editor's internal `height:100%` collapses the
+     canvas to zero and the nodes vanish. Give the frame an explicit, definite
+     height here so React Flow always has a real box to render into. Mirrors the
+     /lab page's `max-width: 996px` switch to content-flow. */
+  .fillRoot {
+    height: auto;
+  }
+
+  .fillRoot .editorFrameFill {
+    flex: none;
+    height: min(74vh, 640px);
+    min-height: 460px;
+  }
+}
