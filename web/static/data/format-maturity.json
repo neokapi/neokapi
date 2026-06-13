@@ -29,6 +29,10 @@
         "corpus": {
           "published": 0,
           "suppressed": 0
+        },
+        "security": {
+          "published": 0,
+          "suppressed": 0
         }
       }
     },
@@ -53,8 +57,8 @@
         "L4": 0
       },
       "vocabulary": {
-        "V0": 49,
-        "V1": 0,
+        "V0": 45,
+        "V1": 4,
         "V2": 0,
         "V3": 0
       },
@@ -67,31 +71,73 @@
       },
       "knowledge": {
         "K0": 0,
-        "K1": 38,
-        "K2": 11,
+        "K1": 37,
+        "K2": 12,
         "K3": 0
       },
       "corpus": {
-        "C0": 17,
-        "C1": 32,
+        "C0": 20,
+        "C1": 29,
         "C2": 0,
         "C3": 0
+      },
+      "security": {
+        "S0": 34,
+        "S1": 13,
+        "S2": 2,
+        "S3": 0,
+        "S4": 0
       }
     }
   },
   "axes": {
-    "engine": ["L0", "L1", "L2", "L3", "L4"],
-    "vocabulary": ["V0", "V1", "V2", "V3"],
-    "editor": ["E0", "E1", "E2", "E3", "E4"],
-    "knowledge": ["K0", "K1", "K2", "K3"],
-    "corpus": ["C0", "C1", "C2", "C3"]
+    "engine": [
+      "L0",
+      "L1",
+      "L2",
+      "L3",
+      "L4"
+    ],
+    "vocabulary": [
+      "V0",
+      "V1",
+      "V2",
+      "V3"
+    ],
+    "editor": [
+      "E0",
+      "E1",
+      "E2",
+      "E3",
+      "E4"
+    ],
+    "knowledge": [
+      "K0",
+      "K1",
+      "K2",
+      "K3"
+    ],
+    "corpus": [
+      "C0",
+      "C1",
+      "C2",
+      "C3"
+    ],
+    "security": [
+      "S0",
+      "S1",
+      "S2",
+      "S3",
+      "S4"
+    ]
   },
   "axis_labels": {
     "engine": "Engine",
     "vocabulary": "Vocabulary",
     "editor": "Editor",
     "knowledge": "Knowledge",
-    "corpus": "Corpus"
+    "corpus": "Corpus",
+    "security": "Security"
   },
   "dimensions": [
     "reader",
@@ -119,7 +165,11 @@
     "corpusmanifest",
     "fetchwiring",
     "acceptance",
-    "sweep"
+    "sweep",
+    "safeio",
+    "fuzz",
+    "sweepclean",
+    "sustained"
   ],
   "dimension_labels": {
     "reader": "Reader",
@@ -147,35 +197,104 @@
     "corpusmanifest": "Corpus manifest",
     "fetchwiring": "Fetch wiring",
     "acceptance": "Acceptance CI",
-    "sweep": "Corpus sweep"
+    "sweep": "Corpus sweep",
+    "safeio": "Bounded (core/safeio)",
+    "fuzz": "Fuzz target + seed",
+    "sweepclean": "Clean sweep",
+    "sustained": "Sustained"
   },
   "dimension_axes": {
-    "reader": ["engine"],
-    "writer": ["engine"],
-    "config": ["engine"],
-    "spec": ["engine"],
-    "parity": ["engine"],
-    "malformed": ["engine"],
-    "corpus": ["engine", "corpus"],
-    "detection": ["engine"],
-    "docs": ["engine"],
-    "vocabmap": ["vocabulary"],
-    "vocabtypes": ["vocabulary"],
-    "writecells": ["vocabulary"],
-    "equivalence": ["vocabulary"],
-    "preview": ["editor"],
-    "identity": ["editor"],
-    "embedded": ["editor"],
-    "events": ["editor"],
-    "dossier": ["knowledge"],
-    "sidecar": ["knowledge"],
-    "refs": ["knowledge"],
-    "citations": ["knowledge"],
-    "contextpack": ["knowledge"],
-    "corpusmanifest": ["corpus"],
-    "fetchwiring": ["corpus"],
-    "acceptance": ["corpus"],
-    "sweep": ["corpus"]
+    "reader": [
+      "engine"
+    ],
+    "writer": [
+      "engine"
+    ],
+    "config": [
+      "engine"
+    ],
+    "spec": [
+      "engine"
+    ],
+    "parity": [
+      "engine"
+    ],
+    "malformed": [
+      "engine"
+    ],
+    "corpus": [
+      "engine",
+      "corpus"
+    ],
+    "detection": [
+      "engine"
+    ],
+    "docs": [
+      "engine"
+    ],
+    "vocabmap": [
+      "vocabulary"
+    ],
+    "vocabtypes": [
+      "vocabulary"
+    ],
+    "writecells": [
+      "vocabulary"
+    ],
+    "equivalence": [
+      "vocabulary"
+    ],
+    "preview": [
+      "editor"
+    ],
+    "identity": [
+      "editor"
+    ],
+    "embedded": [
+      "editor"
+    ],
+    "events": [
+      "editor"
+    ],
+    "dossier": [
+      "knowledge"
+    ],
+    "sidecar": [
+      "knowledge"
+    ],
+    "refs": [
+      "knowledge"
+    ],
+    "citations": [
+      "knowledge"
+    ],
+    "contextpack": [
+      "knowledge"
+    ],
+    "corpusmanifest": [
+      "corpus"
+    ],
+    "fetchwiring": [
+      "corpus"
+    ],
+    "acceptance": [
+      "corpus"
+    ],
+    "sweep": [
+      "corpus"
+    ],
+    "safeio": [
+      "security"
+    ],
+    "fuzz": [
+      "security"
+    ],
+    "sweepclean": [
+      "security"
+    ],
+    "sustained": [
+      "security"
+    ]
   },
   "formats": [
     {
@@ -188,14 +307,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -224,7 +345,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -242,7 +367,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go"]
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -295,6 +422,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -303,7 +444,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go"],
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -317,14 +460,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -353,7 +498,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -371,7 +520,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go"]
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -424,6 +575,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -432,7 +597,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go"],
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -446,14 +613,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -482,7 +651,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -553,6 +726,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -575,14 +762,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_table (via alias 'table')",
       "dimensions": {
@@ -611,7 +800,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -667,7 +860,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -680,6 +875,19 @@
           "blocking_gaps": [
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -703,14 +911,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -739,7 +949,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -757,7 +971,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go"]
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -810,6 +1026,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -818,7 +1048,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go"],
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -832,14 +1064,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_doxygen",
       "dimensions": {
@@ -868,7 +1102,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -886,7 +1124,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -924,7 +1164,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -939,6 +1181,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -947,7 +1203,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -961,14 +1219,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_dtd",
       "dimensions": {
@@ -997,7 +1257,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1015,7 +1279,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1053,7 +1319,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -1068,6 +1336,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -1076,7 +1358,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1090,14 +1374,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L1",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_epub",
       "dimensions": {
@@ -1126,7 +1412,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -1144,7 +1434,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1182,7 +1474,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -1197,6 +1491,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -1205,7 +1512,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1219,14 +1528,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_table (via alias 'table')",
       "dimensions": {
@@ -1255,7 +1566,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1273,7 +1588,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1311,7 +1628,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -1326,6 +1645,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -1334,7 +1667,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1345,17 +1680,19 @@
       "next_level": "L2",
       "levels": {
         "engine": "L1",
-        "vocabulary": "V0",
+        "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C0",
+        "security": "S2"
       },
       "next": {
         "engine": "L2",
-        "vocabulary": "V1",
+        "vocabulary": "V2",
         "editor": "E2",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C1",
+        "security": "S3"
       },
       "okapi_counterpart": "okf_html",
       "dimensions": {
@@ -1368,10 +1705,10 @@
         "corpus": "partial",
         "detection": "complete",
         "docs": "complete",
-        "vocabmap": "none",
+        "vocabmap": "complete",
         "vocabtypes": "complete",
         "writecells": "none",
-        "equivalence": "none",
+        "equivalence": "complete",
         "preview": "complete",
         "identity": "complete",
         "embedded": "none",
@@ -1381,10 +1718,14 @@
         "refs": "partial",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "complete",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1402,20 +1743,21 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go", "add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add malformed_test.go",
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
+          "level": "V1",
+          "next": "V2",
+          "floor": "V1",
+          "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "evidence write cells (author-from-canonical)"
           ]
         },
         "editor": {
@@ -1426,7 +1768,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["ship a committed add-in/connector manifest"]
+          "blocking_gaps": [
+            "ship a committed add-in/connector manifest"
+          ]
         },
         "knowledge": {
           "level": "K1",
@@ -1436,20 +1780,34 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "replace synthetic corpus with real files"
+          ]
+        },
+        "security": {
+          "level": "S2",
+          "next": "S3",
+          "floor": "S2",
+          "ceiling": "S2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -1459,7 +1817,10 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go", "add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add malformed_test.go",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1473,14 +1834,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1509,7 +1872,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1527,7 +1894,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go"]
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1580,6 +1949,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -1588,7 +1971,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go"],
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1602,14 +1987,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_icml",
       "dimensions": {
@@ -1638,7 +2025,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -1694,7 +2085,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -1707,6 +2100,20 @@
           "blocking_gaps": [
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -1730,14 +2137,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S1"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_idml",
       "dimensions": {
@@ -1766,7 +2175,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -1822,7 +2235,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -1836,6 +2251,19 @@
             "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -1859,14 +2287,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C0",
+        "security": "S2"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C2"
+        "corpus": "C1",
+        "security": "S3"
       },
       "okapi_counterpart": "okf_json",
       "dimensions": {
@@ -1892,10 +2322,14 @@
         "refs": "complete",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "complete",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1913,7 +2347,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -1954,17 +2390,29 @@
           "blocking_gaps": []
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "replace synthetic corpus with real files"
+          ]
+        },
+        "security": {
+          "level": "S2",
+          "next": "S3",
+          "floor": "S2",
+          "ceiling": "S2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -1974,7 +2422,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1985,17 +2435,19 @@
       "next_level": "L3",
       "levels": {
         "engine": "L2",
-        "vocabulary": "V0",
+        "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
-        "vocabulary": "V1",
+        "vocabulary": "V2",
         "editor": "E2",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_markdown",
       "dimensions": {
@@ -2008,10 +2460,10 @@
         "corpus": "partial",
         "detection": "complete",
         "docs": "complete",
-        "vocabmap": "none",
+        "vocabmap": "complete",
         "vocabtypes": "complete",
         "writecells": "none",
-        "equivalence": "none",
+        "equivalence": "complete",
         "preview": "complete",
         "identity": "complete",
         "embedded": "none",
@@ -2024,7 +2476,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2042,20 +2498,20 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
+          "level": "V1",
+          "next": "V2",
+          "floor": "V1",
+          "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "evidence write cells (author-from-canonical)"
           ]
         },
         "editor": {
@@ -2066,7 +2522,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["ship a committed add-in/connector manifest"]
+          "blocking_gaps": [
+            "ship a committed add-in/connector manifest"
+          ]
         },
         "knowledge": {
           "level": "K1",
@@ -2076,7 +2534,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -2091,6 +2551,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2099,7 +2572,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2113,14 +2588,16 @@
         "vocabulary": "V0",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S1"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E2",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S2"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2149,7 +2626,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2167,7 +2648,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go"]
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -2219,6 +2702,19 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2227,7 +2723,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go"],
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2241,14 +2739,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_messageformat",
       "dimensions": {
@@ -2277,7 +2777,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2295,7 +2799,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -2333,7 +2839,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -2348,6 +2856,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2356,7 +2878,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2370,14 +2894,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_mif",
       "dimensions": {
@@ -2406,7 +2932,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -2462,7 +2992,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -2476,6 +3008,20 @@
             "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -2498,15 +3044,17 @@
         "engine": "L0",
         "vocabulary": "V0",
         "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0"
+        "knowledge": "K2",
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L1",
         "vocabulary": "V1",
         "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1"
+        "knowledge": "K3",
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2529,13 +3077,17 @@
         "events": "none",
         "dossier": "complete",
         "sidecar": "complete",
-        "refs": "none",
+        "refs": "complete",
         "citations": "none",
         "contextpack": "none",
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -2553,7 +3105,10 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add malformed_test.go", "add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add malformed_test.go",
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -2584,14 +3139,14 @@
           ]
         },
         "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
+          "level": "K2",
+          "next": "K3",
+          "floor": "K2",
+          "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": []
         },
         "corpus": {
           "level": "C0",
@@ -2606,6 +3161,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2614,7 +3183,10 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add malformed_test.go", "add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add malformed_test.go",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2628,14 +3200,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_mosestext",
       "dimensions": {
@@ -2664,7 +3238,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2682,7 +3260,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -2735,6 +3315,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2743,7 +3337,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2757,14 +3353,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S1"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S2"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2793,7 +3391,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2864,6 +3466,19 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -2883,17 +3498,19 @@
       "next_level": "L3",
       "levels": {
         "engine": "L2",
-        "vocabulary": "V0",
+        "vocabulary": "V1",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
-        "vocabulary": "V1",
+        "vocabulary": "V2",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_openxml",
       "dimensions": {
@@ -2906,9 +3523,9 @@
         "corpus": "partial",
         "detection": "complete",
         "docs": "complete",
-        "vocabmap": "none",
+        "vocabmap": "complete",
         "vocabtypes": "complete",
-        "writecells": "none",
+        "writecells": "complete",
         "equivalence": "none",
         "preview": "none",
         "identity": "none",
@@ -2922,7 +3539,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2940,19 +3561,19 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
+          "level": "V1",
+          "next": "V2",
+          "floor": "V1",
+          "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
             "add the vocab equivalence case"
           ]
         },
@@ -2978,7 +3599,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -2993,6 +3616,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3001,7 +3637,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3015,14 +3653,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_plaintext (via alias 'plaintext')",
       "dimensions": {
@@ -3051,7 +3691,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3069,7 +3713,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3122,6 +3768,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3130,7 +3789,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3144,14 +3805,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_pdf",
       "dimensions": {
@@ -3180,7 +3843,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3198,7 +3865,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3251,6 +3920,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3259,7 +3942,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3273,14 +3958,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_php (via alias 'php')",
       "dimensions": {
@@ -3309,7 +3996,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3327,7 +4018,10 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add cli/parity spec_test",
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3365,7 +4059,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -3380,6 +4076,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3388,7 +4098,10 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add cli/parity spec_test",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3402,14 +4115,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_plaintext",
       "dimensions": {
@@ -3425,7 +4140,7 @@
         "vocabmap": "none",
         "vocabtypes": "none",
         "writecells": "none",
-        "equivalence": "none",
+        "equivalence": "complete",
         "preview": "none",
         "identity": "none",
         "embedded": "none",
@@ -3438,7 +4153,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3456,7 +4175,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3494,7 +4215,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -3509,6 +4232,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3517,7 +4253,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3531,14 +4269,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_po",
       "dimensions": {
@@ -3567,7 +4307,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3585,7 +4329,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3623,7 +4369,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -3638,6 +4386,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3646,7 +4407,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3660,14 +4423,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_properties",
       "dimensions": {
@@ -3696,7 +4461,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3714,7 +4483,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3752,7 +4523,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -3767,6 +4540,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3775,7 +4561,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3789,14 +4577,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_regex",
       "dimensions": {
@@ -3825,7 +4615,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3843,7 +4637,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -3896,6 +4692,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -3904,7 +4714,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -3918,14 +4730,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3954,7 +4768,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4025,6 +4843,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4047,14 +4879,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_rtf",
       "dimensions": {
@@ -4083,7 +4917,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4101,7 +4939,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4139,7 +4979,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4154,6 +4996,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4162,7 +5018,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4176,14 +5034,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -4212,7 +5072,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -4230,7 +5094,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4268,7 +5134,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4283,6 +5151,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4291,7 +5173,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4305,14 +5189,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -4341,7 +5227,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4359,7 +5249,10 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add cli/parity spec_test",
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4397,7 +5290,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4412,6 +5307,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4420,7 +5329,10 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add cli/parity spec_test",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4434,14 +5346,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_tex",
       "dimensions": {
@@ -4470,7 +5384,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4488,7 +5406,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4526,7 +5446,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4541,6 +5463,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4549,7 +5485,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4563,14 +5501,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_tmx",
       "dimensions": {
@@ -4599,7 +5539,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4617,7 +5561,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4655,7 +5601,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4670,6 +5618,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4678,7 +5640,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4692,14 +5656,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_transtable",
       "dimensions": {
@@ -4728,7 +5694,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4746,7 +5716,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4799,6 +5771,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4807,7 +5793,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4821,14 +5809,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_ts",
       "dimensions": {
@@ -4857,7 +5847,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4875,7 +5869,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -4913,7 +5909,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -4928,6 +5926,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -4936,7 +5948,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4950,14 +5964,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -4986,7 +6002,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5004,7 +6024,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5042,7 +6064,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -5057,6 +6081,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5065,7 +6103,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5079,14 +6119,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_ttx",
       "dimensions": {
@@ -5115,7 +6157,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5133,7 +6179,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5171,7 +6219,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -5186,6 +6236,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5194,7 +6258,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5208,14 +6274,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_txml",
       "dimensions": {
@@ -5244,7 +6312,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5262,7 +6334,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5315,6 +6389,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5323,7 +6411,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5337,14 +6427,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5373,7 +6465,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -5391,7 +6487,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5444,6 +6542,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5452,7 +6564,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5466,14 +6580,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_vignette",
       "dimensions": {
@@ -5502,7 +6618,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5520,7 +6640,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5558,7 +6680,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -5573,6 +6697,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5581,7 +6719,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5595,14 +6735,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -5631,7 +6773,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5649,7 +6795,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5687,7 +6835,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -5702,6 +6852,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5710,7 +6874,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5724,14 +6890,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_wiki",
       "dimensions": {
@@ -5760,7 +6928,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5778,7 +6950,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -5831,6 +7005,20 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5839,7 +7027,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -5853,14 +7043,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L4",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5889,7 +7081,11 @@
         "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "partial",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5960,6 +7156,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -5979,17 +7189,19 @@
       "next_level": "L3",
       "levels": {
         "engine": "L2",
-        "vocabulary": "V0",
+        "vocabulary": "V1",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
-        "vocabulary": "V1",
+        "vocabulary": "V2",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_xliff",
       "dimensions": {
@@ -6002,10 +7214,10 @@
         "corpus": "partial",
         "detection": "complete",
         "docs": "complete",
-        "vocabmap": "none",
+        "vocabmap": "complete",
         "vocabtypes": "complete",
         "writecells": "none",
-        "equivalence": "none",
+        "equivalence": "complete",
         "preview": "none",
         "identity": "none",
         "embedded": "none",
@@ -6015,10 +7227,14 @@
         "refs": "partial",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "complete",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6036,20 +7252,20 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
+          "level": "V1",
+          "next": "V2",
+          "floor": "V1",
+          "ceiling": "V1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "evidence write cells (author-from-canonical)",
-            "add the vocab equivalence case"
+            "evidence write cells (author-from-canonical)"
           ]
         },
         "editor": {
@@ -6074,20 +7290,35 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "replace synthetic corpus with real files"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "record a clean corpus-sweep in the ledger (S3)"
           ]
         }
       },
@@ -6097,7 +7328,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -6111,14 +7344,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C0"
+        "corpus": "C0",
+        "security": "S0"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "okapi_counterpart": "okf_xliff2",
       "dimensions": {
@@ -6147,7 +7382,11 @@
         "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6165,7 +7404,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -6203,7 +7444,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C0",
@@ -6218,6 +7461,20 @@
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "replace synthetic corpus with real files"
           ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -6226,7 +7483,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -6240,14 +7499,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K2",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K3",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_xmlstream (via alias 'xmlstream')",
       "dimensions": {
@@ -6276,7 +7537,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6294,7 +7559,10 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add cli/parity spec_test",
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -6347,6 +7615,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -6355,7 +7636,10 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add cli/parity spec_test", "add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add cli/parity spec_test",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -6369,14 +7653,16 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1"
+        "corpus": "C1",
+        "security": "S1"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2"
+        "corpus": "C2",
+        "security": "S2"
       },
       "okapi_counterpart": "okf_yaml",
       "dimensions": {
@@ -6405,7 +7691,11 @@
         "corpusmanifest": "complete",
         "fetchwiring": "partial",
         "acceptance": "none",
-        "sweep": "none"
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6423,7 +7713,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["add a corpus/upstream test"]
+          "blocking_gaps": [
+            "add a corpus/upstream test"
+          ]
         },
         "vocabulary": {
           "level": "V0",
@@ -6461,7 +7753,9 @@
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
-          "blocking_gaps": ["populate spec_refs/native_refs + divergence_kind"]
+          "blocking_gaps": [
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
         },
         "corpus": {
           "level": "C1",
@@ -6476,6 +7770,19 @@
             "replace synthetic corpus with real files",
             "wire an external acceptance validator"
           ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
         }
       },
       "tier": {
@@ -6484,7 +7791,9 @@
         "last_certified": "2026-06-13",
         "gates": []
       },
-      "blocking_gaps": ["add a corpus/upstream test"],
+      "blocking_gaps": [
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     }

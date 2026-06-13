@@ -5,9 +5,9 @@
       "cadence_days": 14,
       "last_run": "2026-06-13",
       "watermarks": {
-        "core_formats_sha": "224ace8829e61a9665a22c2dec4a00e541906db8",
+        "core_formats_sha": "c9d5447228a8655af1944ba8deb9fc1afd8a4af2",
         "scorer_version": 3,
-        "audit_sha": "d308516388784f095da6f05afb95fe10f8825aac2582de2ffc29b425984600e4",
+        "audit_sha": "009694860e74b9d89a9b3c2bd708e6d36e54bbe5bf7c0d7d337a9bc7a480c4a6",
         "model_id": "",
         "prompt_sha": "",
         "axes_published": [
@@ -15,7 +15,8 @@
           "vocabulary",
           "editor",
           "knowledge",
-          "corpus"
+          "corpus",
+          "security"
         ]
       }
     },
@@ -138,7 +139,7 @@
         {
           "check": "audit-format.py --all --json",
           "exit": 0,
-          "output_sha": "d308516388784f095da6f05afb95fe10f8825aac2582de2ffc29b425984600e4"
+          "output_sha": "009694860e74b9d89a9b3c2bd708e6d36e54bbe5bf7c0d7d337a9bc7a480c4a6"
         }
       ],
       "followups": [
