@@ -1117,6 +1117,29 @@ fetch-corpus: ## Download Tier B format corpora from the format-corpus release (
 publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
 	@bash scripts/publish-corpus.sh
 
+# corpus-sweep (docs/internals/format-ops.md §3 ritual 8) — the out-of-band
+# Tier B sweep: every wild file read→write→read in its OWN worker subprocess
+# with wall-clock + RSS caps, classified OK/OK_ROUNDTRIP/EXPECTED_REJECT/
+# ROUNDTRIP_DRIFT/CRASH/HANG/OOM (Tika ForkParser doctrine). The Go driver
+# (cmd/corpus-sweep) runs the sweep and emits a report; record-sweep.mjs folds
+# the per-format counts into the ledger's corpus-sweep watermarks. Until
+# `make fetch-corpus` has a format-corpus-vN release, no format declares Tier B
+# files, so the driver sweeps committed Tier A testdata as a smoke corpus and
+# says so. Safety failures (CRASH/HANG/OOM) break the run (exit 3) and
+# auto-promote into core/formats/<id>/testdata/fuzz/ regardless of tier;
+# ROUNDTRIP_DRIFT is advisory (recorded for the count-delta check) and promotes
+# only for Tier B wild files. Promotions are uncommitted, for the maintainer to
+# review and add the suggested origin:bug manifest entry. FORMATS=json,po,...
+# limits the set (default: every format with a corpus.yaml). Pass NO_PROMOTE=1
+# to skip the fuzz-seed promotion.
+corpus-sweep: ## Run the Tier B corpus-sweep harness + record counts to the ledger (FORMATS=<id,id,...>)
+	@tmp=$$(mktemp); \
+	go run ./cmd/corpus-sweep --formats "$(or $(FORMATS),all)" $(if $(NO_PROMOTE),--no-promote,) --report "$$tmp"; \
+	status=$$?; \
+	node scripts/format-ops/record-sweep.mjs "$$tmp"; \
+	rm -f "$$tmp"; \
+	exit $$status
+
 # harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
 # and publishes them theme-matched (light + dark) into the docs site. Built and
 # published from your desktop — no CI required. See harness/Makefile for details.
@@ -1376,7 +1399,7 @@ help: ## Show this help
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
-        fetch-corpus publish-corpus \
+        fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
