@@ -56,7 +56,8 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
-	findings := checkVocab(input.Text, profile)
+	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
+	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, runs)
 	score := corebrand.CalculateScore(findings)
 	score.ProfileID = profile.ID
 	score.WordCount = countWords(input.Text)
@@ -93,19 +94,24 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
-	findings := checkVocab(input.Text, profile)
+	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, nil)
 	var corrections []correction
 	corrected := input.Text
 
 	for _, f := range findings {
-		if f.Suggestion != "" {
-			corrections = append(corrections, correction{
-				Original:    f.OriginalText,
-				Replacement: f.Suggestion,
-				Reason:      f.Message,
-			})
-			corrected = strings.ReplaceAll(corrected, f.OriginalText, f.Suggestion)
+		// The structured replacement (the preferred term) is the concrete swap;
+		// f.Suggestion is the human-readable "Use ... instead" message used as the
+		// reason, so it must never be substituted into the corrected text.
+		repl := f.Metadata["replacement"]
+		if repl == "" {
+			continue
 		}
+		corrections = append(corrections, correction{
+			Original:    f.OriginalText,
+			Replacement: repl,
+			Reason:      f.Message,
+		})
+		corrected = strings.ReplaceAll(corrected, f.OriginalText, repl)
 	}
 
 	return nil, suggestCorrectionsOutput{

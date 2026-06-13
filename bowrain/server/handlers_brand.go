@@ -201,8 +201,13 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	// Run vocabulary-based brand checks against the profile.
-	findings := checkVocabulary(req.Text, profile)
+	// Run vocabulary-based brand checks against the profile using the shared
+	// matcher + mapper (brand.MatchVocabulary → brand.HitsToFindings): whole-word,
+	// Unicode-aware matching (so "use" never matches inside "user") and concept_id
+	// propagation, identical to the streaming pipeline tool and the MCP tool. A
+	// single text run anchors each finding's position to the checked text.
+	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
+	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, req.Text), req.Text, runs)
 	score := corebrand.CalculateScore(findings)
 	score.ProfileID = profile.ID
 
@@ -210,76 +215,6 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 		Score:    score,
 		Findings: findings,
 	})
-}
-
-// checkVocabulary runs rule-based vocabulary checks against a brand voice profile.
-func checkVocabulary(text string, profile *corebrand.VoiceProfile) []corebrand.BrandVoiceFinding {
-	var findings []corebrand.BrandVoiceFinding
-
-	lowerText := toLower(text)
-
-	for _, term := range profile.Vocabulary.ForbiddenTerms {
-		if containsTerm(lowerText, toLower(term.Term)) {
-			sev := corebrand.SeverityMajor
-			if term.Severity != "" {
-				sev = corebrand.Severity(term.Severity)
-			}
-			findings = append(findings, corebrand.BrandVoiceFinding{
-				Category:     string(corebrand.DimensionVocabulary),
-				Severity:     sev,
-				Message:      "Forbidden term: " + term.Term,
-				Suggestion:   term.Replacement,
-				OriginalText: term.Term,
-			})
-		}
-	}
-
-	for _, term := range profile.Vocabulary.CompetitorTerms {
-		if containsTerm(lowerText, toLower(term.Term)) {
-			sev := corebrand.SeverityCritical
-			if term.Severity != "" {
-				sev = corebrand.Severity(term.Severity)
-			}
-			findings = append(findings, corebrand.BrandVoiceFinding{
-				Category:     string(corebrand.DimensionVocabulary),
-				Severity:     sev,
-				Message:      "Competitor term: " + term.Term,
-				Suggestion:   term.Replacement,
-				OriginalText: term.Term,
-			})
-		}
-	}
-
-	return findings
-}
-
-// toLower is a helper for case-insensitive matching.
-func toLower(s string) string {
-	b := make([]byte, len(s))
-	for i := range s {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			b[i] = c + 32
-		} else {
-			b[i] = c
-		}
-	}
-	return string(b)
-}
-
-// containsTerm checks if text contains a term (case-insensitive, already lowered).
-func containsTerm(lowerText, lowerTerm string) bool {
-	return len(lowerTerm) > 0 && len(lowerText) >= len(lowerTerm) &&
-		indexOf(lowerText, lowerTerm) >= 0
-}
-
-func indexOf(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
 }
 
 // HandleListStarterPacks lists available starter pack templates.

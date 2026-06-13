@@ -54,6 +54,13 @@ func ApplySuggestedRule(p *VoiceProfile, r SuggestedRule) bool {
 				p.Vocabulary.ForbiddenTerms[i].Replacement = r.Replacement
 				changed = true
 			}
+			// Carry the concept forward when the suggestion is concept-backed:
+			// a re-promotion can attach (or re-point) the concept on an existing
+			// rule that was first promoted standalone.
+			if r.ConceptID != "" && p.Vocabulary.ForbiddenTerms[i].ConceptID != r.ConceptID {
+				p.Vocabulary.ForbiddenTerms[i].ConceptID = r.ConceptID
+				changed = true
+			}
 			if p.Vocabulary.ForbiddenTerms[i].Note != note {
 				p.Vocabulary.ForbiddenTerms[i].Note = note
 				changed = true
@@ -65,6 +72,7 @@ func ApplySuggestedRule(p *VoiceProfile, r SuggestedRule) bool {
 		Term:        r.Term,
 		Replacement: r.Replacement,
 		Note:        note,
+		ConceptID:   r.ConceptID,
 	})
 	return true
 }

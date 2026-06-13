@@ -80,8 +80,13 @@ type RuleDecision struct {
 	CorrectionCount int                `json:"correction_count"` // observed at decision time
 	PromotedVersion int                `json:"promoted_version,omitempty"`
 	Auto            bool               `json:"auto,omitempty"` // promoted by autonomy, not a human
-	DecidedBy       string             `json:"decided_by,omitempty"`
-	DecidedAt       time.Time          `json:"decided_at"`
+	// ConceptID is the knowledge-graph concept the promoted rule denotes (AD-021).
+	// It is recorded at promotion time so the term→concept link survives even after
+	// the rule is demoted (and the live profile no longer carries it); empty for
+	// concept-less promotions on a standalone profile.
+	ConceptID string    `json:"concept_id,omitempty"`
+	DecidedBy string    `json:"decided_by,omitempty"`
+	DecidedAt time.Time `json:"decided_at"`
 }
 
 // CandidateRule pairs a correction-derived suggestion with the team's decision
@@ -130,6 +135,10 @@ type SuggestedRule struct {
 	Replacement     string    `json:"replacement"`
 	CorrectionCount int       `json:"correction_count"`
 	Dimension       Dimension `json:"dimension"`
+	// ConceptID is the knowledge-graph concept the promoted rule should denote.
+	// The platform sets it from a concept-backed correction; it is empty for
+	// suggestions derived outside a knowledge graph.
+	ConceptID string `json:"concept_id,omitempty"`
 }
 
 // ScoreTrend represents an aggregated score data point for trend analysis.

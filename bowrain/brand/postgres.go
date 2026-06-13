@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -322,7 +323,98 @@ func (s *PostgresBrandStore) GetSuggestedRules(ctx context.Context, workspaceID 
 		r.Dimension = corebrand.Dimension(dim)
 		result = append(result, &r)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Back-fill the knowledge-graph concept each suggested term already denotes, so
+	// the concept-backed suggestion story is visible in the candidate list (AD-021).
+	// A correction aggregate carries no concept_id of its own; the authoritative
+	// link lives on the promoted TermRule (the live profile vocabulary) and, durably
+	// across a later demote, on the rule decision.
+	if len(result) > 0 {
+		byTerm, err := s.conceptIDsByTerm(ctx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range result {
+			if r.ConceptID == "" {
+				if cid := byTerm[strings.ToLower(strings.TrimSpace(r.Term))]; cid != "" {
+					r.ConceptID = cid
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
+// conceptIDsByTerm builds a lower-cased term → knowledge-graph concept ID map for
+// a workspace, so correction-derived suggestions can surface the concept a term
+// already denotes. It draws from two authoritative sources: the durable rule
+// decisions (which retain a promoted term's concept even after it is demoted and
+// the live profile no longer carries it) and the live profiles' enforced
+// vocabulary (the current truth, which wins on conflict).
+func (s *PostgresBrandStore) conceptIDsByTerm(ctx context.Context, workspaceID string) (map[string]string, error) {
+	byTerm := map[string]string{}
+	if err := s.collectDecisionConcepts(ctx, workspaceID, byTerm); err != nil {
+		return nil, err
+	}
+	if err := s.collectVocabConcepts(ctx, workspaceID, byTerm); err != nil {
+		return nil, err
+	}
+	return byTerm, nil
+}
+
+// collectDecisionConcepts records each promoted term's concept from the durable
+// rule-decision log into byTerm (keyed lower-cased), covering terms that were
+// later demoted out of the live profile.
+func (s *PostgresBrandStore) collectDecisionConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT d.term, d.concept_id
+		 FROM brand_rule_decisions d
+		 JOIN brand_profiles p ON p.id = d.profile_id
+		 WHERE p.workspace_id = $1 AND d.concept_id <> ''`, workspaceID)
+	if err != nil {
+		return fmt.Errorf("load rule-decision concepts: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var term, conceptID string
+		if err := rows.Scan(&term, &conceptID); err != nil {
+			return fmt.Errorf("scan rule-decision concept: %w", err)
+		}
+		byTerm[strings.ToLower(strings.TrimSpace(term))] = conceptID
+	}
+	return rows.Err()
+}
+
+// collectVocabConcepts overlays the concept IDs carried by the live profiles'
+// forbidden and competitor terms — the current, authoritative link — onto byTerm.
+func (s *PostgresBrandStore) collectVocabConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT vocabulary FROM brand_profiles WHERE workspace_id = $1`, workspaceID)
+	if err != nil {
+		return fmt.Errorf("load profile vocabularies: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var vocabJSON string
+		if err := rows.Scan(&vocabJSON); err != nil {
+			return fmt.Errorf("scan profile vocabulary: %w", err)
+		}
+		var v corebrand.VocabularyRules
+		if err := json.Unmarshal([]byte(vocabJSON), &v); err != nil {
+			continue
+		}
+		for _, group := range [][]corebrand.TermRule{v.ForbiddenTerms, v.CompetitorTerms} {
+			for _, rule := range group {
+				if rule.ConceptID != "" {
+					byTerm[strings.ToLower(strings.TrimSpace(rule.Term))] = rule.ConceptID
+				}
+			}
+		}
+	}
+	return rows.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -335,8 +427,8 @@ func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *corebran
 	}
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO brand_rule_decisions
-		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		 ON CONFLICT (profile_id, term) DO UPDATE SET
 		   replacement = EXCLUDED.replacement,
 		   dimension = EXCLUDED.dimension,
@@ -344,10 +436,11 @@ func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *corebran
 		   correction_count = EXCLUDED.correction_count,
 		   promoted_version = EXCLUDED.promoted_version,
 		   auto = EXCLUDED.auto,
+		   concept_id = EXCLUDED.concept_id,
 		   decided_by = EXCLUDED.decided_by,
 		   decided_at = EXCLUDED.decided_at`,
 		d.ProfileID, d.Term, d.Replacement, string(d.Dimension), string(d.Status),
-		d.CorrectionCount, d.PromotedVersion, d.Auto, d.DecidedBy, d.DecidedAt)
+		d.CorrectionCount, d.PromotedVersion, d.Auto, d.ConceptID, d.DecidedBy, d.DecidedAt)
 	if err != nil {
 		return fmt.Errorf("record rule decision: %w", err)
 	}
@@ -356,12 +449,12 @@ func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *corebran
 
 func (s *PostgresBrandStore) GetRuleDecision(ctx context.Context, profileID, term string) (*corebrand.RuleDecision, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at
 		 FROM brand_rule_decisions WHERE profile_id = $1 AND LOWER(term) = LOWER($2)`, profileID, term)
 	var d corebrand.RuleDecision
 	var dim, status string
 	if err := row.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
-		&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.DecidedBy, &d.DecidedAt); err != nil {
+		&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.ConceptID, &d.DecidedBy, &d.DecidedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -374,7 +467,7 @@ func (s *PostgresBrandStore) GetRuleDecision(ctx context.Context, profileID, ter
 
 func (s *PostgresBrandStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*corebrand.RuleDecision, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at
 		 FROM brand_rule_decisions WHERE profile_id = $1 ORDER BY decided_at DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list rule decisions: %w", err)
@@ -385,7 +478,7 @@ func (s *PostgresBrandStore) ListRuleDecisions(ctx context.Context, profileID st
 		var d corebrand.RuleDecision
 		var dim, status string
 		if err := rows.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
-			&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.DecidedBy, &d.DecidedAt); err != nil {
+			&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.ConceptID, &d.DecidedBy, &d.DecidedAt); err != nil {
 			return nil, fmt.Errorf("scan rule decision: %w", err)
 		}
 		d.Dimension = corebrand.Dimension(dim)

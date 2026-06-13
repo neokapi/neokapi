@@ -60,6 +60,42 @@ func TestApplySuggestedRule_Idempotent(t *testing.T) {
 	assert.Equal(t, "employ", p.Vocabulary.ForbiddenTerms[0].Replacement)
 }
 
+func TestApplySuggestedRule_CarriesConceptID(t *testing.T) {
+	// A concept-backed suggestion lands as a forbidden rule that carries its concept.
+	p := &VoiceProfile{}
+	changed := ApplySuggestedRule(p, SuggestedRule{
+		Term: "utilize", Replacement: "use", CorrectionCount: 3, ConceptID: "concept-use",
+	})
+	assert.True(t, changed)
+	require.Len(t, p.Vocabulary.ForbiddenTerms, 1)
+	assert.Equal(t, "concept-use", p.Vocabulary.ForbiddenTerms[0].ConceptID)
+
+	// Standalone suggestion (no concept) leaves ConceptID empty.
+	q := &VoiceProfile{}
+	ApplySuggestedRule(q, SuggestedRule{Term: "leverage", Replacement: "use", CorrectionCount: 2})
+	require.Len(t, q.Vocabulary.ForbiddenTerms, 1)
+	assert.Empty(t, q.Vocabulary.ForbiddenTerms[0].ConceptID)
+}
+
+func TestApplySuggestedRule_UpdatesConceptIDInPlace(t *testing.T) {
+	// First promotion is standalone (no concept).
+	p := &VoiceProfile{}
+	ApplySuggestedRule(p, SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
+	require.Len(t, p.Vocabulary.ForbiddenTerms, 1)
+	require.Empty(t, p.Vocabulary.ForbiddenTerms[0].ConceptID)
+
+	// A later concept-backed re-promotion attaches the concept to the existing rule.
+	changed := ApplySuggestedRule(p, SuggestedRule{Term: "Utilize", Replacement: "use", CorrectionCount: 3, ConceptID: "concept-use"})
+	assert.True(t, changed, "attaching a concept changes the profile")
+	require.Len(t, p.Vocabulary.ForbiddenTerms, 1, "case-insensitive: still one rule")
+	assert.Equal(t, "concept-use", p.Vocabulary.ForbiddenTerms[0].ConceptID)
+
+	// Re-applying the same concept again is a no-op.
+	again := ApplySuggestedRule(p, SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3, ConceptID: "concept-use"})
+	assert.False(t, again)
+	assert.Equal(t, "concept-use", p.Vocabulary.ForbiddenTerms[0].ConceptID)
+}
+
 func TestApplySuggestedRule_EmptyTermNoop(t *testing.T) {
 	p := &VoiceProfile{}
 	assert.False(t, ApplySuggestedRule(p, SuggestedRule{}))

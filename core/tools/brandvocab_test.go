@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,6 +21,39 @@ type mockProfileResolver struct {
 func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveContext) (*brand.VoiceProfile, error) {
 	return m.profile, nil
 }
+
+// fakeTermBase serves a fixed set of LookupAll matches and is otherwise an inert
+// termbase.TermBase. It lets the brand-vocab tool's termbase branch run with a
+// concept-bearing match under full test control, without a SQLite store.
+type fakeTermBase struct {
+	matches []termbase.TermMatch
+}
+
+func (f *fakeTermBase) LookupAll(context.Context, string, termbase.LookupOptions) ([]termbase.TermMatch, error) {
+	return f.matches, nil
+}
+func (f *fakeTermBase) Lookup(context.Context, string, termbase.LookupOptions) ([]termbase.TermMatch, error) {
+	return f.matches, nil
+}
+func (f *fakeTermBase) AddConcept(context.Context, termbase.Concept) error { return nil }
+func (f *fakeTermBase) GetConcept(context.Context, string) (termbase.Concept, bool, error) {
+	return termbase.Concept{}, false, nil
+}
+func (f *fakeTermBase) DeleteConcept(context.Context, string) error { return nil }
+func (f *fakeTermBase) Search(context.Context, string, model.LocaleID, model.LocaleID, int, int) ([]termbase.Concept, int, error) {
+	return nil, 0, nil
+}
+func (f *fakeTermBase) Count(context.Context) (int, error)                          { return 0, nil }
+func (f *fakeTermBase) Concepts(context.Context) ([]termbase.Concept, error)        { return nil, nil }
+func (f *fakeTermBase) AddRelation(context.Context, termbase.ConceptRelation) error { return nil }
+func (f *fakeTermBase) DeleteRelation(context.Context, string) error                { return nil }
+func (f *fakeTermBase) RelationsOf(context.Context, string, *graph.Scope) ([]termbase.ConceptRelation, error) {
+	return nil, nil
+}
+func (f *fakeTermBase) ListRelations(context.Context, *graph.Scope) ([]termbase.ConceptRelation, error) {
+	return nil, nil
+}
+func (f *fakeTermBase) Close() error { return nil }
 
 func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	t.Parallel()
@@ -129,6 +164,145 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 	require.Len(t, findings, 1)
 
 	assert.Contains(t, findings[0].Suggestion, "customers")
+}
+
+func TestBrandVocabCheckEmitsConceptIDMetadata(t *testing.T) {
+	t.Parallel()
+	profile := &brand.VoiceProfile{
+		Vocabulary: brand.VocabularyRules{
+			ForbiddenTerms: []brand.TermRule{
+				{Term: "cheap", Replacement: "affordable", ConceptID: "concept-affordable"},
+			},
+		},
+	}
+
+	tool := tools.NewBrandVocabCheckTool(profile, nil)
+
+	ctx := t.Context()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "This is a cheap product")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	require.NoError(t, tool.Process(ctx, in, out))
+
+	resultBlock := (<-out).Resource.(*model.Block)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	require.Len(t, bvAnn.Findings, 1)
+
+	// The concept-backed rule links its finding to the concept story, alongside
+	// the existing structured replacement.
+	assert.Equal(t, "concept-affordable", bvAnn.Findings[0].Metadata["concept_id"])
+	assert.Equal(t, "affordable", bvAnn.Findings[0].Metadata["replacement"])
+}
+
+func TestBrandVocabCheckStandaloneOmitsConceptID(t *testing.T) {
+	t.Parallel()
+	// A standalone profile (no concept on the rule) emits findings without a
+	// concept_id metadata key.
+	profile := &brand.VoiceProfile{
+		Vocabulary: brand.VocabularyRules{
+			ForbiddenTerms: []brand.TermRule{
+				{Term: "cheap", Replacement: "affordable"},
+			},
+		},
+	}
+
+	tool := tools.NewBrandVocabCheckTool(profile, nil)
+
+	ctx := t.Context()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "This is a cheap product")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	require.NoError(t, tool.Process(ctx, in, out))
+
+	resultBlock := (<-out).Resource.(*model.Block)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	require.Len(t, bvAnn.Findings, 1)
+
+	_, hasConcept := bvAnn.Findings[0].Metadata["concept_id"]
+	assert.False(t, hasConcept, "standalone finding must not carry a concept_id")
+	// The structured replacement is still present.
+	assert.Equal(t, "affordable", bvAnn.Findings[0].Metadata["replacement"])
+}
+
+func TestBrandVocabCheckTermbaseConceptID(t *testing.T) {
+	t.Parallel()
+	// A forbidden brand-vocabulary term found via the termbase carries its
+	// knowledge-graph concept; when the concept holds a preferred term in the
+	// source locale, that surfaces as the structured replacement — symmetric with
+	// the profile path.
+	tb := &fakeTermBase{matches: []termbase.TermMatch{{
+		Concept: termbase.Concept{
+			ID:     "concept-cheap",
+			Source: termbase.TermSourceBrandVocabulary,
+			Terms: []termbase.Term{
+				{Text: "cheap", Locale: "", Status: model.TermForbidden},
+				{Text: "affordable", Locale: "", Status: model.TermPreferred},
+			},
+		},
+		Term:     termbase.Term{Text: "cheap", Status: model.TermForbidden},
+		Position: model.TextRange{Start: 10, End: 15},
+	}}}
+
+	tool := tools.NewBrandVocabCheckTool(nil, tb)
+
+	ctx := t.Context()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "This is a cheap product")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	require.NoError(t, tool.Process(ctx, in, out))
+
+	resultBlock := (<-out).Resource.(*model.Block)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	require.Len(t, bvAnn.Findings, 1)
+
+	f := bvAnn.Findings[0]
+	assert.Contains(t, f.Message, "cheap")
+	assert.Equal(t, "concept-cheap", f.Metadata["concept_id"],
+		"a termbase-sourced finding must carry its concept id, like the profile path")
+	assert.Equal(t, "affordable", f.Metadata["replacement"])
+	assert.Contains(t, f.Suggestion, "affordable")
+}
+
+func TestBrandVocabCheckTermbaseStandaloneConcept(t *testing.T) {
+	t.Parallel()
+	// A termbase match whose concept carries no ID (a degenerate / store that does
+	// not populate it) yields a finding without a concept_id key.
+	tb := &fakeTermBase{matches: []termbase.TermMatch{{
+		Concept:  termbase.Concept{Source: termbase.TermSourceBrandVocabulary},
+		Term:     termbase.Term{Text: "cheap", Status: model.TermForbidden},
+		Position: model.TextRange{Start: 10, End: 15},
+	}}}
+
+	tool := tools.NewBrandVocabCheckTool(nil, tb)
+
+	ctx := t.Context()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "This is a cheap product")}
+	close(in)
+
+	require.NoError(t, tool.Process(ctx, in, out))
+	resultBlock := (<-out).Resource.(*model.Block)
+	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	require.True(t, bvOK)
+	require.Len(t, bvAnn.Findings, 1)
+	_, hasConcept := bvAnn.Findings[0].Metadata["concept_id"]
+	assert.False(t, hasConcept, "a concept-less termbase match must not carry a concept_id")
 }
 
 func TestBrandVocabCheckNoViolations(t *testing.T) {

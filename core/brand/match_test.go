@@ -1,6 +1,10 @@
 package brand
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 func profileWith(forbidden, competitor []TermRule) *VoiceProfile {
 	return &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: forbidden, CompetitorTerms: competitor}}
@@ -91,6 +95,100 @@ func TestMatchVocabulary(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMatchVocabulary_PropagatesConceptID(t *testing.T) {
+	profile := profileWith(
+		[]TermRule{{Term: "utilize", Replacement: "use", ConceptID: "concept-use"}},
+		[]TermRule{{Term: "Globex", ConceptID: "concept-globex"}},
+	)
+	hits := MatchVocabulary(profile, "Please utilize unlike Globex")
+	if len(hits) != 2 {
+		t.Fatalf("got %d hits, want 2: %+v", len(hits), hits)
+	}
+	byTerm := map[string]VocabHit{}
+	for _, h := range hits {
+		byTerm[h.Term] = h
+	}
+	if got := byTerm["utilize"].ConceptID; got != "concept-use" {
+		t.Errorf("forbidden hit ConceptID = %q, want %q", got, "concept-use")
+	}
+	if got := byTerm["Globex"].ConceptID; got != "concept-globex" {
+		t.Errorf("competitor hit ConceptID = %q, want %q", got, "concept-globex")
+	}
+
+	// A concept-less rule (standalone profile) yields an empty ConceptID.
+	standalone := MatchVocabulary(profileWith([]TermRule{{Term: "utilize"}}, nil), "utilize it")
+	if len(standalone) != 1 {
+		t.Fatalf("got %d hits, want 1", len(standalone))
+	}
+	if standalone[0].ConceptID != "" {
+		t.Errorf("standalone hit ConceptID = %q, want empty", standalone[0].ConceptID)
+	}
+}
+
+func TestHitsToFindings(t *testing.T) {
+	text := "Please utilize the Globex dashboard"
+	runs := []model.Run{{Text: &model.TextRun{Text: text}}}
+	profile := profileWith(
+		[]TermRule{{Term: "utilize", Replacement: "use", Note: "prefer plain words", ConceptID: "c-use"}},
+		[]TermRule{{Term: "Globex"}},
+	)
+
+	findings := HitsToFindings(MatchVocabulary(profile, text), text, runs)
+	if len(findings) != 2 {
+		t.Fatalf("got %d findings, want 2: %+v", len(findings), findings)
+	}
+
+	// Forbidden hit: note-bearing message, structured replacement + concept link,
+	// and a run-anchored position computed from the byte range.
+	f := findings[0]
+	if f.OriginalText != "utilize" {
+		t.Errorf("original text = %q, want %q", f.OriginalText, "utilize")
+	}
+	if want := `Forbidden term "utilize" found: prefer plain words`; f.Message != want {
+		t.Errorf("message = %q, want %q", f.Message, want)
+	}
+	if want := `Use "use" instead`; f.Suggestion != want {
+		t.Errorf("suggestion = %q, want %q", f.Suggestion, want)
+	}
+	if f.Metadata["replacement"] != "use" {
+		t.Errorf("replacement metadata = %q, want %q", f.Metadata["replacement"], "use")
+	}
+	if f.Metadata["concept_id"] != "c-use" {
+		t.Errorf("concept_id metadata = %q, want %q", f.Metadata["concept_id"], "c-use")
+	}
+	if f.Position.StartRun != 0 || f.Position.StartOffset != 7 || f.Position.EndOffset != 14 {
+		t.Errorf("position = %+v, want run 0 [7,14)", f.Position)
+	}
+
+	// Competitor hit: no replacement and no concept on the rule, so the metadata
+	// map stays nil (the keys are simply absent).
+	comp := findings[1]
+	if want := `Competitor term "Globex" found`; comp.Message != want {
+		t.Errorf("competitor message = %q, want %q", comp.Message, want)
+	}
+	if comp.Metadata != nil {
+		t.Errorf("concept-less, replacement-less competitor metadata = %+v, want nil", comp.Metadata)
+	}
+
+	// No hits → nil findings.
+	if got := HitsToFindings(nil, text, runs); got != nil {
+		t.Errorf("HitsToFindings(nil hits) = %+v, want nil", got)
+	}
+
+	// Nil runs (the run-less /check + MCP path): the position is left zero but the
+	// message and concept metadata still flow through.
+	noRuns := HitsToFindings(MatchVocabulary(profile, text), text, nil)
+	if len(noRuns) != 2 {
+		t.Fatalf("got %d findings without runs, want 2", len(noRuns))
+	}
+	if noRuns[0].Position != (model.RunRange{}) {
+		t.Errorf("nil runs should yield a zero position, got %+v", noRuns[0].Position)
+	}
+	if noRuns[0].Metadata["concept_id"] != "c-use" {
+		t.Errorf("concept_id must survive a run-less mapping, got %q", noRuns[0].Metadata["concept_id"])
 	}
 }
 

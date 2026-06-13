@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -129,19 +130,39 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 	}
 
 	profileID := c.Param("id")
+	wsSlug := c.Param("ws")
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
 	rule := corebrand.SuggestedRule{
 		Term:            req.Term,
 		Replacement:     req.Replacement,
 		Dimension:       req.Dimension,
 		CorrectionCount: req.CorrectionCount,
 	}
+
+	// Link the rule into the brand knowledge graph (AD-021) before promoting, so
+	// the promoted TermRule denotes its concept. Best-effort: if the termbase is
+	// unavailable, log and still promote the flat rule rather than failing a
+	// promotion the team already reviewed.
+	conceptID, kgEvents, linkErr := s.linkRuleToConcept(c.Request().Context(), wsSlug, wsID, rule)
+	if linkErr != nil {
+		slog.Warn("brand: failed to fully link promoted rule to knowledge graph",
+			"profile_id", profileID, "term", req.Term, "error", linkErr)
+	}
+	// Stamp the concept whenever the link produced one, even on a partial failure
+	// (e.g. the forbidden concept was created but the replacement leg failed): the
+	// promoted rule then denotes the concept that the published kgEvents announce,
+	// so the creation event is never orphaned from its TermRule. Empty when nothing
+	// was created (standalone profile, or the link failed before any concept).
+	if conceptID != "" {
+		rule.ConceptID = conceptID
+	}
+
 	profile, changed, err := corebrand.PromoteAndSave(c.Request().Context(), s.BrandStore, profileID, rule)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	userID, _ := c.Get("user_id").(string)
-	wsID, _ := c.Get("workspace_id").(string)
 	if changed {
 		// Record the decision so the candidate leaves the review list and the
 		// promotion is traceable to the profile version it landed in.
@@ -153,11 +174,15 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 			Status:          corebrand.RuleDecisionPromoted,
 			CorrectionCount: req.CorrectionCount,
 			PromotedVersion: profile.Version,
+			ConceptID:       rule.ConceptID,
 			DecidedBy:       userID,
 			DecidedAt:       time.Now().UTC(),
 		})
 		s.publishBrandRuleEvent(EventBrandVoiceRulePromoted, wsID, userID, profileID, req.Term, req.Replacement, profile.Version)
 	}
+	// Announce the concept/relation creations the link produced (a no-op when the
+	// graph already held them), alongside the brand rule_promoted event.
+	s.publishKnowledgeEvents(c, kgEvents)
 
 	return c.JSON(http.StatusOK, map[string]any{"profile": profile, "promoted": changed})
 }
