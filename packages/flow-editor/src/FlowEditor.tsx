@@ -682,9 +682,11 @@ export function FlowEditor({
   const heightCache = useRef<Map<string, number>>(new Map());
   const [heightVersion, setHeightVersion] = useState(0);
 
-  // Canvas width drives how many columns the serpentine layout wraps at.
+  // Canvas width drives how many columns the serpentine layout wraps at, and
+  // (below a phone breakpoint) whether panning is bounded to the content.
   const canvasRef = useRef<HTMLDivElement>(null);
   const [columns, setColumns] = useState(4);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -692,7 +694,10 @@ export function FlowEditor({
       const w = el.clientWidth;
       // Fit as many columns as the width allows (content is anchored top-left
       // with CANVAS_MARGIN), so short flows stay on one row.
-      if (w > 0) setColumns(Math.max(1, Math.floor((w - CANVAS_MARGIN) / SERP_COL_W)));
+      if (w > 0) {
+        setColumns(Math.max(1, Math.floor((w - CANVAS_MARGIN) / SERP_COL_W)));
+        setCanvasWidth(w);
+      }
     };
     measure();
     // Defer the re-measure out of the ResizeObserver callback: setting state
@@ -1107,6 +1112,41 @@ export function FlowEditor({
       };
     });
   }, [edges, runEvents, nodeStats, transits, tracePlaying]);
+
+  // On phone-width canvases, bound panning to the laid-out content (plus
+  // breathing room) instead of the default infinite plane: a stray touch-drag
+  // can no longer slide the flow off sideways into empty space, while vertical
+  // pan still reaches a tall flow's lower rows. Only below the breakpoint — on
+  // wider canvases the content is deliberately anchored top-left and free pan
+  // is fine, so we leave the extent infinite there (a content-bounds extent
+  // would otherwise re-center the flow and fight that anchor).
+  const INFINITE_EXTENT: [[number, number], [number, number]] = [
+    [-Infinity, -Infinity],
+    [Infinity, Infinity],
+  ];
+  const translateExtent = useMemo<[[number, number], [number, number]]>(() => {
+    if (canvasWidth === 0 || canvasWidth >= 640) return INFINITE_EXTENT;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const n of nodes) {
+      const w = n.measured?.width ?? 220;
+      const h = n.measured?.height ?? 96;
+      minX = Math.min(minX, n.position.x);
+      minY = Math.min(minY, n.position.y);
+      maxX = Math.max(maxX, n.position.x + w);
+      maxY = Math.max(maxY, n.position.y + h);
+    }
+    if (!Number.isFinite(minX)) return INFINITE_EXTENT;
+    // padY is generous (room above/below + for satellite chips just outside a
+    // node's box); padX small so the single column can't drift sideways.
+    return [
+      [minX - 40, minY - 160],
+      [maxX + 40, maxY + 200],
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, canvasWidth]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
@@ -1548,6 +1588,9 @@ export function FlowEditor({
               zoomOnScroll={false}
               zoomOnPinch={false}
               zoomOnDoubleClick={false}
+              // Keep the flow pinned within its content bounds: no sideways
+              // drift into empty space (notably a stray touch-pan on mobile).
+              translateExtent={translateExtent}
               panOnScroll
               panOnDrag
               proOptions={{ hideAttribution: true }}
