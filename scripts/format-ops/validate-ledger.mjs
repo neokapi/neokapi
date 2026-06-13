@@ -261,8 +261,12 @@ if (Array.isArray(ledger.runs)) {
     if ("ritual" in run && !RITUALS[run.ritual]) {
       p.error(`${at}.ritual "${run.ritual}" is not a known ritual id`);
     }
-    if ("commit" in run && !/^[0-9a-f]{7,40}$/.test(String(run.commit))) {
-      p.error(`${at}.commit must be a 7-40 char hex sha, got ${JSON.stringify(run.commit)}`);
+    // commit is a 7-40 char hex sha, or "" / "pending" for a run recorded
+    // before its commit exists (e.g. a deterministic publish backfilled by the
+    // committing step). A future run uses it for `git diff <commit>..HEAD`.
+    if ("commit" in run && run.commit !== "" && run.commit !== "pending"
+        && !/^[0-9a-f]{7,40}$/.test(String(run.commit))) {
+      p.error(`${at}.commit must be a hex sha, "" or "pending", got ${JSON.stringify(run.commit)}`);
     }
     if ("model_id" in run && (typeof run.model_id !== "string" || run.model_id === "")) {
       p.error(`${at}.model_id must be a non-empty string`);

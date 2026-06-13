@@ -18,133 +18,133 @@ formats:
   androidxml:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   applestrings:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   arb:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   csv:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   designtokens:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   doxygen:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   dtd:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   epub:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   fixedwidth:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   html:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   i18next:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   icml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   idml:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   json:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   markdown:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   mdx:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   messageformat:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   mif:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   mo:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - make test
@@ -154,42 +154,42 @@ formats:
   mosestext:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   odf:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   openxml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   paraplaintext:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   pdf:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   phpcontent:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
@@ -199,56 +199,56 @@ formats:
   plaintext:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   po:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   properties:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   regex:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   resx:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   rtf:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   splicedlines:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   srt:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - make test
@@ -258,105 +258,105 @@ formats:
   tex:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   tmx:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   transtable:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   ts:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   ttml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   ttx:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   txml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   versifiedtext:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - make test
   vignette:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   vtt:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   wiki:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xcstrings:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   xliff:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xliff2:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
@@ -366,7 +366,7 @@ formats:
   yaml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: null
+    last_certified: "2026-06-13"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml

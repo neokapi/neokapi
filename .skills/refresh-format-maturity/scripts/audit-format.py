@@ -144,14 +144,25 @@ def okapi_counterpart(fmt: str) -> str:
     return "none found (verify manually)"
 
 
-def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str) -> str:
+def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str,
+                 ftype: str = "parity") -> str:
     kinds = test_kinds(d)
     has = lambda n: has_file(d, n)
     k = lambda n: n in kinds
     if not has("reader.go"):
         return "L0? (no reader.go -- stub/internal?)"
-    # L1 floor
-    l1 = has("writer.go") and has("config.go") and (k("roundtrip") or k("skeleton") or k("snippets"))
+    # L1 floor. Read->write fidelity is proven by a conventionally-named
+    # roundtrip/skeleton test OR, equivalently, by a head-to-head Okapi parity
+    # test or an upstream real-file round-trip (the kinds markdown/idml/odf use
+    # in place of roundtrip_test — the grandfathered set in maturity_test.go).
+    if ftype == "read-only":
+        # No writer to round-trip with; fidelity is extraction correctness,
+        # proven by a reader/spec/real-file test.
+        l1 = has("config.go") and (k("reader") or k("spec") or k("corpus") or k("upstream"))
+    else:
+        fidelity = (k("roundtrip") or k("skeleton") or k("snippets")
+                    or k("okapi_parity") or k("okapi") or k("upstream"))
+        l1 = has("writer.go") and has("config.go") and fidelity
     if not l1:
         return "L0 (missing writer/config or a fidelity test)"
     harvest = counterpart.startswith("none")
@@ -180,7 +191,13 @@ def coarse_level(d: str, fmt: str, parity_test: bool, counterpart: str) -> str:
         if not parity_test: miss.append("cli/parity/formats/%s_spec_test.go" % fmt)
         if not (k("corpus") or k("upstream")): miss.append("corpus/upstream_test")
         return f"L2 (to L3 add: {', '.join(miss)})"
-    return "L3+ (assess edge-case matrix, schema_test, xfail hygiene for L4 by hand)"
+    # L3 met. The L4 ceiling requires schema_test (rubric §2.1 L4: "schema_test
+    # asserts schema == config struct") — without it the ceiling stays L3, so a
+    # gate that would optimistically grant L4 is clamped back. The edge-case
+    # matrix + xfail hygiene remain a by-hand call within [L3, L4].
+    if k("schema"):
+        return "L3+ (assess edge-case matrix, xfail hygiene for L4 by hand)"
+    return "L3 (to L4 add: schema_test + edge-case matrix)"
 
 
 def floor_ceiling(coarse: str) -> tuple[str, str]:
@@ -200,8 +217,10 @@ def floor_ceiling(coarse: str) -> tuple[str, str]:
         return "L2", "L3"  # harvest ceiling: L3 reachable by the self-contained ladder
     if coarse.startswith("L2"):
         return "L2", "L2"
+    if coarse.startswith("L3+"):
+        return "L3", "L4"  # parity L3 met + schema_test present; L4 is a by-hand quality call
     if coarse.startswith("L3"):
-        return "L3", "L4"  # parity L3 met; L4 is a by-hand quality call
+        return "L3", "L3"  # L3 met but no schema_test => L4 ceiling not reachable
     return "L0", "L4"
 
 
@@ -867,9 +886,9 @@ def audit_one(fmt: str, ledger=None) -> dict:
     d = os.path.join(REPO, "core", "formats", fmt)
     counterpart = okapi_counterpart(fmt)
     parity_test = has_file(os.path.join(REPO, "cli", "parity", "formats"), f"{fmt}_spec_test.go")
-    coarse = coarse_level(d, fmt, parity_test, counterpart)
-    base, ceiling = floor_ceiling(coarse)
     ftype = _ftype(fmt, counterpart)
+    coarse = coarse_level(d, fmt, parity_test, counterpart, ftype)
+    base, ceiling = floor_ceiling(coarse)
     has = {
         "reader": has_file(d, "reader.go"),
         "writer": has_file(d, "writer.go"),
@@ -993,7 +1012,7 @@ def main() -> int:
     print(f"parity spec_test : {parity_test}  | bridge_config: {bridge_cfg}")
     print(f"parity-annotations.yaml : {annotations}")
     print(f"okapi counterpart : {counterpart}")
-    print(f"coarse level   : {coarse_level(d, fmt, parity_test, counterpart)}")
+    print(f"coarse level   : {coarse_level(d, fmt, parity_test, counterpart, _ftype(fmt, counterpart))}")
     print(f"axes           : {_axes_summary(audit['axes'])}")
     for hint in _axis_hints(fmt, audit["axes"]):
         print(f"  {hint}")
