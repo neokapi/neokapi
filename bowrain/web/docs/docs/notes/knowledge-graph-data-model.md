@@ -245,7 +245,7 @@ POST   /:ws/concepts                      (ordinary create; governed parts rejec
 GET    /:ws/concepts/:cid
 PUT    /:ws/concepts/:cid                 (ordinary edits only; governed → 409 + change-set hint)
 DELETE /:ws/concepts/:cid                 (governed)
-GET    /:ws/concepts/:cid/story           merged timeline (revisions, audit, scores, observations, comments, change-sets)
+GET    /:ws/concepts/:cid/story           merged timeline (revisions, observations, comments, change-sets)
 GET    /:ws/concepts/:cid/relations       ?as_of&market
 POST   /:ws/concepts/:cid/relations
 DELETE /:ws/concepts/:cid/relations/:rid
@@ -312,5 +312,10 @@ reviews + pilots, what-if wizard), Activity (brand-scoped event feed),
 Dashboard (scores, drift, coverage, pending decisions). Graph canvas renders
 with React Flow using a force-directed layout; every new component has a story
 and vitest coverage; the desktop app proxies all routes through Wails bindings
-(`governance.go` pattern) and refreshes on `concept-changed` /
-`changeset-changed` watch events.
+(`governance.go` pattern). The workspace-scoped hub has no project to watch, so
+freshness is React Query's own refetch (per-hook `staleTime` + refetch-on-focus)
+plus the mutation-driven invalidation the brand hooks already do on every write;
+there are no dedicated `concept-changed` / `changeset-changed` Wails events.
+When a project *is* being watched, its existing `brand-voice-changed` /
+`termbase-changed` events invalidate the hub's query keys for cross-client
+freshness, so no new bindings (and no binding regen) are needed.

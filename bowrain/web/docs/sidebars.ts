@@ -85,6 +85,7 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
+        "server/brand",
         "server/brand-voice",
       ],
     },
@@ -139,6 +140,9 @@ const sidebars: SidebarsConfig = {
         "cli/commands/config",
         "cli/commands/workspace",
         "cli/commands/plugins",
+        "cli/commands/concepts",
+        "cli/commands/experiments",
+        "cli/commands/terms-pull",
       ],
     },
     {
@@ -161,6 +165,7 @@ const sidebars: SidebarsConfig = {
         "cli/use-cases/website-translation",
         "cli/use-cases/github-actions",
         "cli/use-cases/source-prep",
+        "cli/use-cases/brand-terminology-ci",
       ],
     },
     {
@@ -229,6 +234,7 @@ const sidebars: SidebarsConfig = {
         "architecture-decisions/018-billing-and-plans",
         "architecture-decisions/019-correction-learning-loop",
         "architecture-decisions/020-governance-audit-rollback",
+        "architecture-decisions/021-brand-knowledge-graph",
       ],
     },
     {
@@ -247,6 +253,7 @@ const sidebars: SidebarsConfig = {
         "notes/content-store-schema",
         "notes/entity-term-extraction",
         "notes/graph-store-schema",
+        "notes/knowledge-graph-data-model",
         "notes/media-asset-storage",
         "notes/sync-protocol",
         "notes/translation-job-queue",

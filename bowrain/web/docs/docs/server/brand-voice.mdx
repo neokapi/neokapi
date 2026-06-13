@@ -19,6 +19,8 @@ test reports what broke.
 
 Bowrain adds the part a single checkout cannot: it **learns the profile from
 your team's corrections** and keeps the result versioned, shared, and enforced.
+Brand voice is the **Voice** section of the [Brand](/server/brand) hub; this page
+covers the correction loop in detail.
 
 Every correction becomes a signal: Bowrain aggregates repeated fixes into
 candidate rules, shows each rule's blast radius, and promotes it into a
@@ -52,7 +54,11 @@ loop:
 4. **Promote.** A reviewer **promotes** the candidate into the profile. It
    becomes a deterministic check, the profile version is bumped (the prior
    version is archived for audit and rollback), and the rule is enforced on every
-   future generation, in every locale the profile covers.
+   future generation, in every locale the profile covers. The promoted rule is
+   **concept-backed**: it references the [concept](/server/brand#the-concept-graph)
+   its term denotes, so the rule and the term it governs share one identity in the
+   Brand hub — promoting a voice rule is a governed edit, and a concept's
+   [story](/server/brand#the-concept-story) shows the rules that reference it.
 5. **Monitor.** After a rule lands, Bowrain watches aggregate compliance and
    raises a **drift** alert when it erodes, so a profile that was healthy does
    not quietly decay as content and models change.
@@ -105,3 +111,9 @@ The loop is drivable from three surfaces, all over the same brand engine:
 The detection and scoring are the open framework's job (`core/brand`,
 `core/check`); Bowrain owns the durable governance layer — the decisions,
 versioning, provenance, autonomy, and drift — and the surfaces that drive it.
+
+For voice changes too consequential to make in place — banning a term across the
+workspace, swapping a preferred term — the [Brand](/server/brand) hub bundles the
+voice-rule edits into a reviewable **change-set** whose
+[blast radius](/server/brand#experiments-change-sets-and-pilots) is measured before
+anyone approves it.

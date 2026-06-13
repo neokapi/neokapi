@@ -7,9 +7,20 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Terminology
 
-The Terminology Explorer provides concept-oriented term management for maintaining consistent vocabulary across translations. Each concept represents a single meaning with terms in multiple languages, lifecycle statuses, and domain classification.
+The Terminology Explorer is the **Concepts** view of the [Brand](/server/brand)
+hub: concept-oriented term management for maintaining consistent vocabulary across
+locales. Each concept represents a single meaning with terms in multiple
+languages, lifecycle statuses, and domain classification.
 
-Terminology and translation memory are kept on the server, shared across every project — one governed source of the team's approved wording.
+Terminology and translation memory are kept on the server, shared across every
+project — one governed source of the team's approved wording.
+
+A concept is more than its terms. In the Brand hub each concept also carries typed
+**relations** to other concepts (what replaced it, what to use instead, which
+competitor it stands against), per-market validity, observations, comments, and a
+[story](/server/brand#the-concept-story) of how it came to be. This page covers
+the everyday term-management surface; see [Brand](/server/brand) for the richer
+graph model and the governance around it.
 
 <ThemedVideo
   sources={{
@@ -152,4 +163,11 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 - Terms have **metadata**: lifecycle status, domain, and notes
 - Concepts are scoped to the workspace and shared across all projects
 
-For more on the terminology system architecture, see [Terminology](https://neokapi.github.io/web/neokapi/docs/features/terminology) in the User Guide.
+The framework owns this concept and term model; for its architecture, see the
+[framework terminology reference](https://neokapi.github.io/web/neokapi/framework/terminology).
+
+On the platform, the same concepts are the nodes of the [Brand](/server/brand)
+knowledge graph — with typed relations, per-market validity, observations,
+comments, and governed change-sets layered on top. When you are ready to model
+*how concepts relate* rather than just curate terms, start at
+[Brand](/server/brand).

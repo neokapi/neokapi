@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T15:54:11Z",
+  "generatedAt": "2026-06-13T18:49:13Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -1282,6 +1282,49 @@
           "name": "project",
           "shorthand": "p",
           "usage": "path to a .kapi project recipe (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "brand.validate",
+      "path": [
+        "brand",
+        "validate"
+      ],
+      "use": "validate \u003cfile.yaml|-\u003e",
+      "short": "Validate a brand voice profile YAML (structure, enums, regex, terms)",
+      "long": "Validate a brand voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize JSON output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: json, text",
           "type": "string"
         },
         {
@@ -5755,12 +5798,13 @@
       ],
       "use": "termbase",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+      "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms, and to\nmaintain the typed relations between concepts.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
       "groupID": "management",
       "examples": [
         "kapi termbase stats",
         "kapi termbase lookup \"dashboard\" -s en -t fr",
-        "kapi termbase import glossary.csv -s en -t fr"
+        "kapi termbase import glossary.csv -s en -t fr",
+        "kapi termbase relate old-name replaced-by new-name"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5967,6 +6011,110 @@
       "demoMode": false
     },
     {
+      "id": "termbase.relate",
+      "path": [
+        "termbase",
+        "relate"
+      ],
+      "use": "relate \u003csource-concept-id\u003e \u003crelation\u003e \u003ctarget-concept-id\u003e",
+      "short": "Add a typed relation between two concepts",
+      "long": "Add a typed relation between two concepts in the termbase.\n\nThe relation is one of the concept-relation vocabulary labels, written in\nlower-kebab or upper form: broader, narrower, part-of, has-part, related, replaced-by, use-instead, exact-match, close-match, competitor.\n\nA relation may carry a validity: a half-open time interval (--valid-from,\n--valid-to) plus free tags (--tag key=value) evaluated against a query-time\nscope, so the same edge can hold in one market and be absent in another.\nBoth concepts must already exist in the termbase.",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "usage": "free-form note on the relation",
+          "type": "string"
+        },
+        {
+          "name": "tag",
+          "usage": "validity tag as key=value (repeatable, e.g. --tag market=dach)",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "valid-from",
+          "usage": "start of the validity interval (RFC3339 or YYYY-MM-DD)",
+          "type": "string"
+        },
+        {
+          "name": "valid-to",
+          "usage": "end of the validity interval, exclusive (RFC3339 or YYYY-MM-DD)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi termbase relate old-name replaced-by new-name --note \"renamed at launch\"",
+        "kapi termbase relate c1 use-instead c2 --tag market=dach",
+        "kapi termbase relate c1 related c2 --valid-from 2026-01-01 --valid-to 2026-06-01"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "termbase.relations",
+      "path": [
+        "termbase",
+        "relations"
+      ],
+      "use": "relations [concept-id]",
+      "short": "List relations between concepts",
+      "long": "List the relations persisted in the termbase.\n\nWith a concept ID, only relations touching that concept are listed, in either\ndirection. Without --as-of and --tag, no validity filtering is applied and\nevery relation is shown. --as-of and --tag build a scope: only relations\nwhose validity matches the scope are listed (--tag alone evaluates at the\ncurrent time).",
+      "flags": [
+        {
+          "name": "as-of",
+          "usage": "evaluate validity as of this time (RFC3339 or YYYY-MM-DD)",
+          "type": "string"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "tag",
+          "usage": "scope tag as key=value (repeatable, e.g. --tag market=dach)",
+          "default": "[]",
+          "type": "stringArray"
+        }
+      ],
+      "examples": [
+        "kapi termbase relations",
+        "kapi termbase relations old-name",
+        "kapi termbase relations old-name --as-of 2025-12-01 --tag market=dach"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "termbase.search",
       "path": [
         "termbase",
@@ -6019,6 +6167,48 @@
       "demoMode": false
     },
     {
+      "id": "termbase.show",
+      "path": [
+        "termbase",
+        "show"
+      ],
+      "use": "show \u003cconcept-id\u003e",
+      "short": "Show a concept in full: definition, terms, and relations",
+      "long": "Show the full detail of one concept: its definition, domain, and source,\nits terms per locale with status and validity, and its relations in both\ndirections. Related concepts are labeled with their preferred term in the\nlocale given by --source-locale.",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "source-locale",
+          "shorthand": "s",
+          "usage": "locale used to label related concepts",
+          "default": "en",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi termbase show old-name",
+        "kapi termbase show old-name -s de --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "termbase.stats",
       "path": [
         "termbase",
@@ -6047,6 +6237,39 @@
       "examples": [
         "kapi termbase stats",
         "kapi termbase stats --name product-terms"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "termbase.unrelate",
+      "path": [
+        "termbase",
+        "unrelate"
+      ],
+      "use": "unrelate \u003crelation-id\u003e",
+      "short": "Remove a relation between concepts",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi termbase unrelate 4f7c2d1e-9a3b-4c8d-b1e2-0f6a5d4c3b2a"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7014,7 +7237,7 @@
       ],
       "use": "verify [files...]",
       "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot",
-      "long": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nExit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means\n\"not on-spec yet\", not a crash — in an assistant fix-loop, read the findings and fix.\nPass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating.",
+      "long": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
       "groupID": "quality",
       "flags": [
         {

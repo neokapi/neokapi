@@ -12,10 +12,11 @@ Bowrain models a workspace's brand language as a knowledge graph whose nodes
 are **concepts** — the language-neutral units already used by the termbase —
 and whose edges are typed, time- and market-scoped **relations** between them.
 Brand vocabulary rules, terminology, observations about how others use a term,
-discussion threads, audit history, and compliance scores all attach to the same
-concept, so a single page can tell the whole story of a term: where it came
-from, what it replaced, where it is banned, how it is said in every market, and
-what it would cost to change.
+discussion threads, and revision history all attach to the same concept, so a
+single page can tell the whole story of a term: where it came from, what it
+replaced, where it is banned, how it is said in every market, and what it would
+cost to change. (Compliance scores are reported per project and locale on the
+dashboard, not folded into an individual concept.)
 
 Changes to the graph follow a tiered governance model. Ordinary curation is
 direct and audited. Governed transitions — banning a term, changing a preferred
@@ -83,11 +84,13 @@ validity; a concept page renders the per-market truth side by side.
 ### The concept story
 
 Every concept has a **story**: a single chronological timeline merging its
-revision history (every edit produces an immutable revision snapshot), the
-hash-chained audit events that touched it (AD-020), status transitions of its
-terms, relations gained and lost, observations, comments, brand-score history,
-and the change-sets that affected it. The story answers "how did this term get
-here" without archaeology across systems.
+revision history (every edit produces an immutable revision snapshot whose
+summary records the term-status transitions and the relations gained or lost),
+the observations recorded against it, its comment threads, and the change-sets
+that affected it. The story answers "how did this term get here" without
+archaeology across systems. Revisions are the per-concept slice of the
+hash-chained audit trail (AD-020); compliance scores are not part of the story —
+those are aggregated per project and locale on the dashboard.
 
 ### Observations — what others say
 
@@ -161,8 +164,8 @@ the footprint of a concept before proposing anything.
   correction loop), Experiments (change-sets, reviews, pilots), Activity (the
   brand-scoped event timeline), and Dashboard (compliance, drift, coverage,
   pending decisions). The desktop app remains a working copy of the server:
-  it proxies the same REST surface and refreshes on watch events; the graph is
-  never authored offline.
+  it proxies the same REST surface, and its views stay fresh through React
+  Query's stale-time and refetch-on-focus; the graph is never authored offline.
 - **CLI and CI.** The kapi CLI gains read access to the workspace graph
   (`kapi concepts`, `kapi experiments`) through the bowrain plugin, and —
   decisive for CI — `kapi terms pull`, which snapshots the workspace's
