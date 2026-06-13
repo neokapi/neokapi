@@ -2,7 +2,6 @@ package safeio_test
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -36,7 +35,7 @@ func TestLimitedReader(t *testing.T) {
 			got, err := io.ReadAll(lr)
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.ErrorIs(t, err, safeio.ErrByteBudget)
+				require.ErrorIs(t, err, safeio.ErrByteBudget)
 				var le *safeio.LimitError
 				assert.ErrorAs(t, err, &le)
 				return
@@ -113,7 +112,7 @@ func TestLimitedWriter(t *testing.T) {
 			}
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.ErrorIs(t, err, safeio.ErrByteBudget)
+				require.ErrorIs(t, err, safeio.ErrByteBudget)
 			} else {
 				require.NoError(t, err)
 			}
@@ -145,7 +144,7 @@ func TestLimitErrorMessage(t *testing.T) {
 	require.ErrorAs(t, err, &le)
 	assert.Equal(t, int64(3), le.Limit)
 	assert.Contains(t, err.Error(), "byte budget exceeded")
-	assert.True(t, errors.Is(err, safeio.ErrByteBudget))
+	assert.ErrorIs(t, err, safeio.ErrByteBudget)
 }
 
 // iotest1ByteReader returns a reader that yields at most one byte per Read,

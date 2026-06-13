@@ -9,6 +9,7 @@
 package spectest
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -150,7 +151,7 @@ func (r *NativeRunner) read(feat spec.Feature, ex spec.Example, input []byte) ([
 	if len(cfg) > 0 {
 		c := reader.Config()
 		if c == nil {
-			return nil, fmt.Errorf("config provided but reader has no Config()")
+			return nil, errors.New("config provided but reader has no Config()")
 		}
 		if err := c.ApplyMap(cfg); err != nil {
 			return nil, fmt.Errorf("apply config %v: %w", cfg, err)

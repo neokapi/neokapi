@@ -66,15 +66,15 @@ func TestZipLimits_ZipBombRejected(t *testing.T) {
 	f := fileByName(zr, "bomb.bin")
 
 	// Header-level check (CheckReader / CheckEntry) catches the declared ratio.
-	assert.ErrorIs(t, safeio.DefaultZipLimits.CheckReader(zr), safeio.ErrInflateRatio)
-	assert.ErrorIs(t, safeio.DefaultZipLimits.CheckEntry(f), safeio.ErrInflateRatio)
+	require.ErrorIs(t, safeio.DefaultZipLimits.CheckReader(zr), safeio.ErrInflateRatio)
+	require.ErrorIs(t, safeio.DefaultZipLimits.CheckEntry(f), safeio.ErrInflateRatio)
 
 	// Opening/reading the entry also fails with the typed error.
 	_, err := safeio.DefaultZipLimits.ReadEntry(f)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, safeio.ErrInflateRatio)
+	require.ErrorIs(t, err, safeio.ErrInflateRatio)
 	var le *safeio.LimitError
-	assert.ErrorAs(t, err, &le)
+	require.ErrorAs(t, err, &le)
 	assert.Equal(t, "bomb.bin", le.Name)
 }
 
@@ -86,7 +86,7 @@ func TestZipLimits_EntryTooLarge(t *testing.T) {
 	limits := safeio.ZipLimits{MaxEntrySize: 64 << 10}
 	f := fileByName(zr, "big.txt")
 
-	assert.ErrorIs(t, limits.CheckEntry(f), safeio.ErrEntryTooLarge)
+	require.ErrorIs(t, limits.CheckEntry(f), safeio.ErrEntryTooLarge)
 	_, err := limits.ReadEntry(f)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, safeio.ErrEntryTooLarge)

@@ -69,8 +69,8 @@ func (e *LimitError) Error() string {
 	}
 	// Ratio breaches carry their numbers in Limit/Got as scaled integers that
 	// are not meaningful to print, so only append byte/depth/count figures.
-	switch e.base {
-	case ErrInflateRatio:
+	switch {
+	case errors.Is(e.base, ErrInflateRatio):
 		return b
 	default:
 		if e.Limit > 0 {

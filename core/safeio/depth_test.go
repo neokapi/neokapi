@@ -19,7 +19,7 @@ func TestDepthGuard(t *testing.T) {
 
 	err := g.Enter() // would be depth 4
 	require.Error(t, err)
-	assert.ErrorIs(t, err, safeio.ErrTooDeep)
+	require.ErrorIs(t, err, safeio.ErrTooDeep)
 	assert.Equal(t, 3, g.Depth(), "failed Enter must not change depth")
 
 	g.Leave()

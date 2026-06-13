@@ -128,7 +128,7 @@ func resolveFormats(repoRoot, arg string) ([]string, error) {
 		return manifestFormats(repoRoot)
 	}
 	var out []string
-	for _, f := range strings.Split(arg, ",") {
+	for f := range strings.SplitSeq(arg, ",") {
 		if f = strings.TrimSpace(f); f != "" {
 			out = append(out, f)
 		}

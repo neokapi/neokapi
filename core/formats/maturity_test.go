@@ -288,8 +288,8 @@ var editorDepths = map[string]bool{"E1": true, "E2": true, "E3": true, "E4": tru
 // skip-if-absent pattern for out-of-dir references.
 func evidencePathExists(evidence string) (exists, checked bool) {
 	path := evidence
-	if i := strings.Index(evidence, ":"); i >= 0 {
-		path = evidence[:i]
+	if before, _, ok := strings.Cut(evidence, ":"); ok {
+		path = before
 	}
 	if fileExists(path) || dirExists(path) {
 		return true, true // core/formats-relative

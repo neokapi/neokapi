@@ -77,7 +77,7 @@ func TestDumpBlockEvents_Deterministic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DumpBlockEvents (1): %v", err)
 	}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		again, err := DumpBlockEvents(parts)
 		if err != nil {
 			t.Fatalf("DumpBlockEvents (%d): %v", i+2, err)

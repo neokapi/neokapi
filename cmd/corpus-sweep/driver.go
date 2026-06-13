@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -158,7 +159,11 @@ func (d *Driver) runOne(formatID string, cf corpusFile) fileOutcome {
 	out := fileOutcome{Format: formatID, File: cf.RelPath, Tier: cf.Tier}
 
 	argv := append(append([]string{}, d.WorkerArgv...), "--format", formatID, "--file", cf.AbsPath)
-	cmd := exec.Command(argv[0], argv[1:]...)
+	// CommandContext so a HANG/OOM kill (below) and any caller cancellation tear
+	// the worker down through the context; the ticker decides which kill it is.
+	wctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := exec.CommandContext(wctx, argv[0], argv[1:]...)
 	cmd.Env = append(os.Environ(), d.WorkerEnv...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -196,13 +201,13 @@ func (d *Driver) runOne(formatID string, cf corpusFile) fileOutcome {
 		case <-ticker.C:
 			if d.Timeout > 0 && time.Since(start) > d.Timeout {
 				killed = "HANG"
-				_ = cmd.Process.Kill()
+				cancel() // CommandContext kills the worker
 				continue
 			}
 			if d.RSSCap > 0 {
 				if rss, ok := processRSS(cmd.Process.Pid); ok && rss > d.RSSCap {
 					killed = "OOM"
-					_ = cmd.Process.Kill()
+					cancel()
 				}
 			}
 		}
@@ -247,7 +252,9 @@ func lastWorkerResult(stdout []byte) (workerResult, bool) {
 // field cannot be parsed, ok is false and the RSS cap is simply not enforced
 // for that sample.
 func processRSS(pid int) (int64, bool) {
-	cmd := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(pid))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ps", "-o", "rss=", "-p", strconv.Itoa(pid))
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, false

@@ -217,11 +217,8 @@ func WriteParts(w format.DataFormatWriter, parts []*model.Part, original []byte)
 func FirstDiffLine(want, got string) string {
 	w := strings.Split(strings.TrimRight(want, "\n"), "\n")
 	g := strings.Split(strings.TrimRight(got, "\n"), "\n")
-	n := len(w)
-	if len(g) > n {
-		n = len(g)
-	}
-	for i := 0; i < n; i++ {
+	n := max(len(g), len(w))
+	for i := range n {
 		var wl, gl string
 		if i < len(w) {
 			wl = w[i]

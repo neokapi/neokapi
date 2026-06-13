@@ -59,7 +59,7 @@ func editorAnchorCases() []struct {
 
 func TestEditorAnchor_TypeNameMatchesOverlayKind(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, model.OverlayType("editor-anchor"), model.OverlayEditorAnchor)
+	assert.Equal(t, model.OverlayEditorAnchor, model.OverlayType("editor-anchor"))
 	assert.Equal(t, string(model.OverlayEditorAnchor), (&model.EditorAnchor{}).TypeName())
 }
 

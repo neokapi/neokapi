@@ -11,7 +11,10 @@
 // Specs live next to their format: core/formats/<name>/spec.yaml.
 package spec
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Spec is the canonical specification for one neokapi format.
 //
@@ -155,7 +158,7 @@ func (s *Spec) BridgeClass() string {
 // (majority of) specs that declare no parity block.
 func (s *Spec) validateParity() error {
 	if s.Tikal != nil && s.Tikal.Ext == "" {
-		return fmt.Errorf("tikal: ext is required when a tikal block is present")
+		return errors.New("tikal: ext is required when a tikal block is present")
 	}
 	if s.BridgeConfigID != "" && s.BridgeFilterClass == "" {
 		return fmt.Errorf("bridge_config_id %q requires bridge_filter_class (the base filter the config applies to)", s.BridgeConfigID)
