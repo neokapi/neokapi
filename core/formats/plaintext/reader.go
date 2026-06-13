@@ -11,6 +11,7 @@ import (
 	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for plain text files.
@@ -93,7 +94,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Buffer + transcode upfront so UTF-16-with-BOM fixtures (e.g.
 	// BOM_MacUTF16withBOM2.txt) get split on '\n' as UTF-8 instead of
 	// snagging the high byte of each UTF-16 codepoint.
-	raw, err := io.ReadAll(r.Doc.Reader)
+	raw, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("plaintext: reading: %w", err)}
 		return

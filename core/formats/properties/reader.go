@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for Java Properties files.
@@ -273,7 +274,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // readLogicalLines reads all lines, joining continuation lines (backslash at EOL).
 // It preserves raw line text and line endings for skeleton reconstruction.
 func (r *Reader) readLogicalLines() []logicalLine {
-	br := bufio.NewReader(r.Doc.Reader)
+	// Bound the streamed read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	var lines []logicalLine
 	var continuation strings.Builder
 	var contRawLines []string

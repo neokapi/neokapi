@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for MDX (.mdx) files.
@@ -119,7 +120,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		return nil
 	}
 
-	content, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		return fmt.Errorf("mdx: reading: %w", err)
 	}

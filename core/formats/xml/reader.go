@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/its"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for XML files.
@@ -197,7 +198,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	content, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio). The element walk itself is
+	// iterative (an explicit *elementFrame stack driven by encoding/xml's
+	// streaming Decoder, not Go recursion), so it is already stack-safe under
+	// pathological nesting and needs no DepthGuard.
+	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xml: reading: %w", err)}
 		return

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/safeio"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -43,10 +44,16 @@ type domWalker struct {
 	blockCounter int
 	dataCounter  int
 	visitor      walkVisitor
+	// depth bounds the recursive DOM/inline descent so a pathologically nested
+	// document degrades to a clean truncation instead of a Go stack-overflow
+	// panic. It uses the shared safeio default depth (see core/safeio); valid
+	// localization documents nest far below the cap, so the guard never trips
+	// for real input and behavior is unchanged.
+	depth *safeio.DepthGuard
 }
 
 func newDOMWalker(cfg *Config, v walkVisitor) *domWalker {
-	return &domWalker{cfg: cfg, visitor: v}
+	return &domWalker{cfg: cfg, visitor: v, depth: safeio.DefaultBudget().DepthGuard()}
 }
 
 func (w *domWalker) nextBlockID() string {
@@ -65,6 +72,13 @@ func (w *domWalker) walk(doc *html.Node) {
 }
 
 func (w *domWalker) walkNode(n *html.Node, translateNo bool) {
+	// Bound recursion depth: a pathologically nested tree is truncated with a
+	// clean return rather than overflowing the goroutine stack (see core/safeio).
+	if w.depth.Enter() != nil {
+		return
+	}
+	defer w.depth.Leave()
+
 	switch n.Type {
 	case html.DocumentNode:
 		for child := n.FirstChild; child != nil; child = child.NextSibling {
@@ -368,6 +382,13 @@ func (w *domWalker) inlineHasTranslatableContent(n *html.Node) bool {
 // walkInlineChildren traverses inline content, counting spans and advancing
 // attribute block counters. This mirrors collectFromNode's traversal order.
 func (w *domWalker) walkInlineChildren(n *html.Node, idCounter *int, translateNo bool) {
+	// Bound the inline-element recursion (e.g. deeply nested <b><b>…) on the
+	// same shared depth guard as walkNode (see core/safeio).
+	if w.depth.Enter() != nil {
+		return
+	}
+	defer w.depth.Leave()
+
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.CommentNode:

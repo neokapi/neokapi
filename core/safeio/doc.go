@@ -54,18 +54,44 @@
 //
 // # Adoption status
 //
-// As of this package's introduction the budget primitives are wired into a set
-// of exemplar readers, not all 49:
+// The budget primitives are wired into the genuinely high-risk readers — the
+// ones that open archives, stream the whole input into memory, or recurse —
+// not (yet) all ~49. Each is wired at the same point as its exemplar, reaching
+// for [DefaultBudget] / [DefaultZipLimits] so the limits are uniform across the
+// CLI, server, and WASM contexts.
 //
-//   - ZIP-container readers openxml, epub, idml, and odf validate the archive
-//     up front with [ZipLimits.CheckReader] and read every entry through
-//     [ZipLimits.ReadEntry] / [ZipLimits.OpenEntry].
-//   - The json streaming reader bounds its initial read with
-//     [Budget.Reader] using [DefaultBudget].
+// Archive (zip) readers — validate the archive up front with
+// [ZipLimits.CheckReader] and read every entry through [ZipLimits.ReadEntry] /
+// [ZipLimits.OpenEntry], so a lying Zip64 header, a zip bomb, or an entry
+// flood is rejected before inflation:
 //
-// Remaining readers (yaml and the other text/XML formats, the remaining
-// zip-family parsers, and the recursive descent parsers that should adopt
-// [DepthGuard]) are a follow-up: the adoption pattern is the two lines added to
-// each exemplar reader. Track per-reader adoption as part of the format
+//   - openxml, epub, idml, odf
+//
+// Whole-input streaming readers — bound the read that pulls the entire
+// document into memory with [Budget.Reader] using [DefaultBudget], so an
+// unbounded/oversized stream fails with a typed [LimitError] instead of
+// exhausting memory:
+//
+//   - json, yaml, properties, po, csv, markdown, mdx, plaintext, paraplaintext,
+//     xml, html
+//
+// Recursive-descent readers — bound the recursion with [DepthGuard] so a
+// pathologically nested document degrades to a clean truncation instead of a
+// Go stack-overflow panic:
+//
+//   - html bounds its recursive DOM and inline-element walk with a
+//     [DepthGuard] from [DefaultBudget].
+//
+// The xml reader needs no [DepthGuard]: its element walk is iterative (an
+// explicit element-frame stack driven by encoding/xml's streaming Decoder, not
+// Go recursion), so deeply nested input cannot overflow the stack; it adopts
+// only the byte budget. Likewise the odf and json subfilter recursion crosses
+// into a child reader (xml / a configured subformat) that carries its own
+// bounds, so the embedded-content path inherits the child's guards.
+//
+// Remaining readers (the smaller text/catalog formats — resx, androidxml,
+// xcstrings, arb, i18next, designtokens, ts, srt/vtt/ttml, dtd, mif, rtf, …)
+// are a follow-up: the adoption pattern is the one or two lines added to each
+// reader above. Track per-reader adoption as part of the format
 // security/hardening (S0–S4) axis.
 package safeio

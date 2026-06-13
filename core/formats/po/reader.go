@@ -13,6 +13,7 @@ import (
 	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // defaultNPlurals is the plural-form count assumed when the header
@@ -86,7 +87,10 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	// authored, exported from Trados-style tools) are routinely UTF-16
 	// LE and the scanner would otherwise see the spaces between every
 	// other byte and emit zero entries.
-	raw, err := io.ReadAll(doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	raw, err := io.ReadAll(safeio.DefaultBudget().Reader(doc.Reader))
 	if err != nil {
 		return fmt.Errorf("po: reading: %w", err)
 	}
