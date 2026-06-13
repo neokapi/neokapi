@@ -394,6 +394,7 @@ export default function FlowBuilderRunner({
       setRuns({});
       setError(null);
       setProjectOpen(false);
+      setLessonCollapsed(false);
       // Restart the lesson; scenarios without one clear any lingering focus.
       setWalkIndex(0);
       if (s.walkthrough) applyStepFocus(s.walkthrough[0]);
@@ -563,6 +564,11 @@ export default function FlowBuilderRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace]);
 
+  // The in-canvas walkthrough callout can be minimized to a corner launcher so
+  // the learner can explore the flow freely; restored from the launcher or on
+  // a new scenario.
+  const [lessonCollapsed, setLessonCollapsed] = useState(false);
+
   // The live recipe the canvas serializes to (the Project panel's source tab).
   const recipe = buildRecipe(
     { steps: (imported?.spec ?? flow).steps.filter((s) => s.tool) },
@@ -728,6 +734,7 @@ export default function FlowBuilderRunner({
             focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
             onEditPresets={imported ? undefined : () => openProject("defaults")}
+            lessonCollapsed={lessonCollapsed}
             lessonPanel={
               scenario.walkthrough && !imported ? (
                 <WalkthroughCard
@@ -736,6 +743,8 @@ export default function FlowBuilderRunner({
                   onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
                   onRun={() => void runFlow(flow)}
                   runDisabled={!runtime.ready || busy}
+                  collapsed={lessonCollapsed}
+                  onToggleCollapse={() => setLessonCollapsed((v) => !v)}
                 />
               ) : undefined
             }

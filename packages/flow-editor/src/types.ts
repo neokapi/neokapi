@@ -223,6 +223,13 @@ export interface FlowEditorProps {
    */
   endpointsReadOnly?: boolean;
   /**
+   * Render the lesson callout minimized: a small launcher in the canvas's
+   * bottom-left corner instead of the anchored card, freeing the flow. The
+   * host owns the toggle (the card's own minimize button drives it) and is
+   * responsible for rendering `lessonPanel` in its collapsed form to match.
+   */
+  lessonCollapsed?: boolean;
+  /**
    * Called when the user asks to edit a tool's project-level preset from the
    * config panel (the "Edit project defaults" affordance on the inherited
    * preset note). The host owns project scope, so it decides what opens —

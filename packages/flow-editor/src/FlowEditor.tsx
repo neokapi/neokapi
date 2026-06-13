@@ -17,7 +17,17 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flowEditor.css";
-import { Play, Plus, X, GitBranch, Zap, Loader2, Lock } from "lucide-react";
+import {
+  Play,
+  Plus,
+  X,
+  GitBranch,
+  Zap,
+  Loader2,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
 import type {
@@ -604,10 +614,16 @@ export function FlowEditor({
   running,
   endpointsReadOnly,
   onEditPresets,
+  lessonCollapsed,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
+  // The right overlay (config / run inspector / endpoint inspector) can be
+  // docked away to a thin edge tab so the flow gets the full canvas width; the
+  // selection is kept, so re-opening restores the same panel. Re-expands on a
+  // fresh selection (a newly opened panel is a fresh intent to show it).
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
   const [addOpen, setAddOpen] = useState(false);
@@ -1346,7 +1362,7 @@ export function FlowEditor({
     const nodeH = node.measured?.height ?? 84;
     // The lesson callout hangs below-left of its focused node; keep its full
     // extent (wider than the node) visible too.
-    const hasCallout = !!lessonPanel && lessonTarget === baseId;
+    const hasCallout = !!lessonPanel && lessonTarget === baseId && !lessonCollapsed;
     const extentW = hasCallout ? Math.max(nodeW, LESSON_CALLOUT_W) : nodeW;
     const extraBelow = hasCallout ? 170 : 0;
     const visibleW = host.clientWidth - panelW;
@@ -1372,17 +1388,90 @@ export function FlowEditor({
   // does a step that opened a right panel on a canvas too narrow to show the
   // callout beside it (the float sits bottom-left, never under the panel).
   const lessonAnchor = useMemo(() => {
-    if (!lessonPanel || !lessonTarget) return null;
+    // Minimized: always the bottom-left float (a small launcher), never anchored.
+    if (!lessonPanel || !lessonTarget || lessonCollapsed) return null;
     const node = nodes.find((n) => n.id === lessonTarget);
     if (!node) return null;
-    if (selectedNodeId) {
+    // A right panel that's open AND expanded covers the right of the canvas; if
+    // there isn't room for the callout beside it, float bottom-left instead.
+    if (selectedNodeId && !panelCollapsed) {
       const hostW = canvasRef.current?.clientWidth ?? 0;
       const panelW = hostW > 0 ? Math.min(320, hostW / 2) : 320;
       if (hostW > 0 && hostW - panelW < LESSON_CALLOUT_W + 2 * 48) return null;
     }
     const h = node.measured?.height ?? 84;
     return { x: node.position.x, y: node.position.y + h + 14 };
-  }, [lessonPanel, lessonTarget, nodes, selectedNodeId]);
+  }, [lessonPanel, lessonTarget, nodes, selectedNodeId, lessonCollapsed, panelCollapsed]);
+
+  // Re-expand the right panel whenever the selection changes — a freshly opened
+  // panel (a node click, or a lesson step) is a fresh intent to show its
+  // content. Within one selection the collapsed state is the user's to keep.
+  useEffect(() => {
+    setPanelCollapsed(false);
+  }, [selectedNodeId]);
+
+  // The single right-overlay body for the current selection: the endpoint
+  // inspector (source/sink), the run inspector (a node with a loaded run, in
+  // inspect mode), or the config panel. At most one applies, so we resolve it
+  // once and render it inside one collapsible container (below).
+  const rightPanel: React.ReactNode = (() => {
+    if (
+      renderEndpointPanel &&
+      (selectedNodeId === "endpoint-source" || selectedNodeId === "endpoint-sink")
+    ) {
+      const role = selectedNodeId === "endpoint-source" ? "source" : "sink";
+      return (
+        <EndpointInspectorPanel role={role} onClose={() => setSelectedNodeId(null)}>
+          {renderEndpointPanel(role, () => setSelectedNodeId(null))}
+        </EndpointInspectorPanel>
+      );
+    }
+    if (!selectedStep) return null;
+    if (trace && !traceDismissed && panelMode === "inspect" && selectedLocation) {
+      return (
+        <RunInspectorPanel
+          key={`inspect-${selectedNodeId}`}
+          trace={trace}
+          stepToolCounts={stepToolCounts(flow.steps)}
+          stepIndex={selectedLocation.index}
+          stepLabel={selectedToolName ?? `step ${selectedLocation.index + 1}`}
+          onConfigure={readOnly ? undefined : () => setPanelMode("configure")}
+          onClose={() => setSelectedNodeId(null)}
+        />
+      );
+    }
+    // A host can replace the config panel for specific tools (e.g. the lab
+    // mounts a code editor for `script`); null falls back to the default.
+    return (
+      (selectedToolName &&
+        renderStepConfigPanel?.({
+          toolName: selectedToolName,
+          step: selectedStep,
+          config: selectedStep.config || {},
+          onConfigChange: handleConfigChange,
+          onClose: () => setSelectedNodeId(null),
+          onRemove: readOnly ? undefined : handleRemoveSelected,
+        })) || (
+        <StepConfigPanel
+          key={selectedNodeId}
+          step={selectedStep}
+          toolInfo={selectedToolInfo}
+          schema={selectedSchema}
+          doc={selectedDoc}
+          config={selectedStep.config || {}}
+          preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
+          unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
+          placement={selectedNode ? placementFor(selectedNode.data) : undefined}
+          onConfigChange={handleConfigChange}
+          onClose={() => setSelectedNodeId(null)}
+          onRemove={readOnly ? undefined : handleRemoveSelected}
+          onEditPresets={
+            selectedToolName && onEditPresets ? () => onEditPresets(selectedToolName) : undefined
+          }
+        />
+      )
+    );
+  })();
 
   // Template library covers the full editor when shown.
   if (showTemplates) {
@@ -1514,7 +1603,14 @@ export function FlowEditor({
                 </ViewportPortal>
               )}
               {lessonPanel && !lessonAnchor && (
-                <Panel position="bottom-left" className="hidden w-[400px] max-w-[60%] sm:block">
+                <Panel
+                  position="bottom-left"
+                  className={cn(
+                    "hidden sm:block",
+                    // Minimized: size to the small launcher; expanded: the card width.
+                    lessonCollapsed ? "w-auto" : "w-[400px] max-w-[60%]",
+                  )}
+                >
                   {lessonPanel}
                 </Panel>
               )}
@@ -1543,76 +1639,31 @@ export function FlowEditor({
         )}
       </div>
 
-      {/* Endpoint inspector — same floating right overlay, but for the Source /
-          Sink terminals: the host renders the body (input content model,
-          written output) via renderEndpointPanel. */}
-      {renderEndpointPanel &&
-        (selectedNodeId === "endpoint-source" || selectedNodeId === "endpoint-sink") && (
-          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-            <EndpointInspectorPanel
-              role={selectedNodeId === "endpoint-source" ? "source" : "sink"}
-              onClose={() => setSelectedNodeId(null)}
-            >
-              {renderEndpointPanel(selectedNodeId === "endpoint-source" ? "source" : "sink", () =>
-                setSelectedNodeId(null),
-              )}
-            </EndpointInspectorPanel>
-          </div>
-        )}
-
       {/* Right panel — a floating overlay pinned to the right of the canvas,
-          NOT a flex sibling, so opening it never resizes the graph. With a run
-          loaded, the run inspector opens first (what passed through this step,
-          and what it attached); Configure flips to the config form. */}
-      {selectedStep &&
-        (trace && !traceDismissed && panelMode === "inspect" && selectedLocation ? (
-          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-            <RunInspectorPanel
-              key={`inspect-${selectedNodeId}`}
-              trace={trace}
-              stepToolCounts={stepToolCounts(flow.steps)}
-              stepIndex={selectedLocation.index}
-              stepLabel={selectedToolName ?? `step ${selectedLocation.index + 1}`}
-              onConfigure={readOnly ? undefined : () => setPanelMode("configure")}
-              onClose={() => setSelectedNodeId(null)}
-            />
-          </div>
-        ) : (
-          <div className="absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
-            {/* A host can replace the config panel for specific tools (e.g.
-                the lab mounts a code editor for `script`); null falls back to
-                the schema-driven default. */}
-            {(selectedToolName &&
-              renderStepConfigPanel?.({
-                toolName: selectedToolName,
-                step: selectedStep,
-                config: selectedStep.config || {},
-                onConfigChange: handleConfigChange,
-                onClose: () => setSelectedNodeId(null),
-                onRemove: readOnly ? undefined : handleRemoveSelected,
-              })) || (
-              <StepConfigPanel
-                key={selectedNodeId}
-                step={selectedStep}
-                toolInfo={selectedToolInfo}
-                schema={selectedSchema}
-                doc={selectedDoc}
-                config={selectedStep.config || {}}
-                preset={selectedToolName ? projectPresets?.[selectedToolName] : undefined}
-                unmet={selectedNode ? unmetFor(selectedNode.data) : undefined}
-                placement={selectedNode ? placementFor(selectedNode.data) : undefined}
-                onConfigChange={handleConfigChange}
-                onClose={() => setSelectedNodeId(null)}
-                onRemove={readOnly ? undefined : handleRemoveSelected}
-                onEditPresets={
-                  selectedToolName && onEditPresets
-                    ? () => onEditPresets(selectedToolName)
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        ))}
+          NOT a flex sibling, so opening it never resizes the graph. Holds the
+          endpoint inspector, the run inspector (a node with a loaded run, in
+          inspect mode — Configure flips to the form), or the config panel. The
+          edge handle docks it away (slides off-screen) to reclaim full flow
+          width; the selection is kept, so the handle slides it back. */}
+      {rightPanel && (
+        <div
+          className={cn(
+            "absolute right-0 top-0 bottom-0 z-20 shadow-[-8px_0_24px_oklch(0_0_0/0.25)] transition-transform duration-200 ease-out",
+            panelCollapsed && "translate-x-full",
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => setPanelCollapsed((v) => !v)}
+            className="nopan absolute top-1/2 left-0 flex h-12 w-6 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-border bg-background text-muted-foreground shadow-[-4px_0_12px_oklch(0_0_0/0.12)] transition-colors hover:text-foreground"
+            title={panelCollapsed ? t("Show panel") : t("Hide panel — give the flow full width")}
+            aria-label={panelCollapsed ? t("Show panel") : t("Hide panel")}
+          >
+            {panelCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
+          {rightPanel}
+        </div>
+      )}
 
       {/* Browse-and-add tools — a modal so the canvas stays full-width. */}
       {!readOnly && (
