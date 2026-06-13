@@ -123,6 +123,42 @@ func (o BrandProfilesOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// BrandValidateOutput is the result of `kapi brand validate` — whether a brand
+// voice profile YAML is structurally sound, plus the problems that made it
+// invalid. Errors is always present (an empty list when valid) so the JSON
+// shape is stable for CI: {valid, errors:[]}.
+type BrandValidateOutput struct {
+	Valid   bool                   `json:"valid"`
+	Source  string                 `json:"source,omitempty"`
+	Profile string                 `json:"profile,omitempty"`
+	Errors  []brand.ProfileProblem `json:"errors"`
+}
+
+// FormatText renders the validation verdict and any problems.
+func (o BrandValidateOutput) FormatText(w io.Writer) error {
+	src := o.Source
+	if src == "" {
+		src = "profile"
+	}
+	if o.Valid {
+		if o.Profile != "" {
+			fmt.Fprintf(w, "VALID  %s (%s)\n", src, o.Profile)
+		} else {
+			fmt.Fprintf(w, "VALID  %s\n", src)
+		}
+		return nil
+	}
+	fmt.Fprintf(w, "INVALID  %s — %d problem(s):\n", src, len(o.Errors))
+	for _, p := range o.Errors {
+		if p.Field != "" {
+			fmt.Fprintf(w, "  %s: %s\n", p.Field, p.Message)
+		} else {
+			fmt.Fprintf(w, "  %s\n", p.Message)
+		}
+	}
+	return nil
+}
+
 // BrandImportOutput is the result of `kapi brand import` / `kapi brand pack`.
 type BrandImportOutput struct {
 	ID     string `json:"id"`
