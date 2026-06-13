@@ -7,8 +7,13 @@ the design that [format-maturity.md](./format-maturity.md) references for the
 multi-view expected model (Engine L1/L3/L4 view mapping, §2.1 there), the E2
 anchor-survivability case (§2.3 there), and the citation contract (§2.4
 there); and that [format-ops.md §3](./format-ops.md) ritual 9 (`case-gen`)
-executes against. **Implementation is tracked as a GitHub issue; the
-`case-gen` ritual reports `blocked` until the multi-view runner lands.** The
+executes against. **Implementation status (#847): the multi-view runner has
+landed — the block-event dump (`core/format/spec/blockevents.go`,
+`DumpBlockEvents`), the additive case grammar + meta-schema gate
+(`spec.go`, `validate.go`), the multi-view + accept-mode runner
+(`core/format/spectest/`), and the case-gen differential-oracle hook
+(`RunNativeCase`, `core/format/spec/oracle.go`). See §10 for the entrypoints.**
+The
 research base is `docs/internals/research/format-ops/` (SYNTHESIS §3,
 `executable-specs.md`, `eval/spec-engine.md`); this document is its
 decision-ready distillation, written as end state.
@@ -382,6 +387,22 @@ https://arxiv.org/html/2510.23350v1):
    (CommonMark's `-s` per-section pass percentages; WPT's heading-id
    directories) — the ledger's `case-gen.watermarks.per_section_coverage`
    and a Knowledge-axis signal: coverage gaps make the next anchor choice.
+
+**Implementation entrypoints (the surface the ritual drives, #847).** Step 4
+(adjudicate) is `spec.RunNativeCase(spec, example, mergedConfig, newReader)
+→ spec.CaseResult{BlockEvents, Extracted, Parts, Err}`
+(`core/format/spec/oracle.go`): the native side of the §4.3 shim. The parity
+`ParityRunner` (`cli/parity/spec`, build tag `parity`) consumes the **same**
+`Spec`/`Example` and can call `spec.DumpBlockEvents` on the bridge parts, so
+the two `CaseResult` dumps compare structurally — both-agree → candidate-pass,
+disagree → divergence triage, both-reject → promote to `class: invalid`. Step 3
+(validate) is `spec.Load`/`Spec.Validate` (`core/format/spec/validate.go`, the
+§8 meta-schema gate). Step 5 (review) uses accept-mode
+(`KAPI_SPEC_UPDATE=1`, `spectest.UpdateBlocksFixture`) whose tree-sitter guard
+rail (`spectest.RefuseAcceptForCase`) refuses invalid/error-class cases. The
+external-port / WASM shim is the same two calls (registry-resolved reader →
+`ReadParts` → `DumpBlockEvents`); a thin `kapi spec-dump` CLI is its intended
+packaging and the remaining scoped-out piece.
 
 Generated cases carry full provenance and a promotion ladder:
 

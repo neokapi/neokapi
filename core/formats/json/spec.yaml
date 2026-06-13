@@ -232,3 +232,59 @@ features:
       - JSONFilterTest#testAllWithKeyWithException
     native_refs:
       - json.TestSnippets_AllWithKeyWithException
+
+  # ── Round-trip fidelity (the writer-output view) ──────────────────
+  - id: roundtrip_fidelity
+    name: Byte-exact round-trip of a source-only document
+    description: |
+      Reading then writing a source-only JSON document reproduces the
+      input byte-for-byte — the structural skeleton (keys, nesting,
+      whitespace, quoting) is preserved and the unedited source values
+      are re-emitted verbatim. This is the writer-output contract that
+      the source-text extraction view cannot express
+      (format-spec-cases.md §5, expected.roundtrip).
+    spec_refs:
+      - "RFC 8259 §2 JSON Grammar (https://www.rfc-editor.org/rfc/rfc8259)"
+    examples:
+      - name: single_pair_byte_exact
+        id: JRT1
+        class: valid
+        origin: "authored: minimal single-pair object, asserted via the roundtrip view"
+        input_xml: '{"key": "Text1"}'
+        cite:
+          spec: rfc8259
+          version: "2017"
+          url: "https://www.rfc-editor.org/rfc/rfc8259#section-2"
+          clause: "2"
+          heading: "JSON Grammar"
+        tags: [roundtrip, byte-exact]
+        expected:
+          roundtrip:
+            mode: byte_exact
+
+  # ── Malformed input (the invalid class) ───────────────────────────
+  - id: malformed_input
+    name: Unterminated string is rejected cleanly
+    description: |
+      A JSON document with an unterminated string literal is malformed
+      and must be rejected by the reader without a panic (one fault per
+      case, format-spec-cases.md §3 / §5 expected.error).
+    spec_refs:
+      - "RFC 8259 §7 Strings (https://www.rfc-editor.org/rfc/rfc8259)"
+    examples:
+      - name: unterminated_string
+        id: JBAD1
+        class: invalid
+        origin: "authored: string literal missing its closing quote"
+        input_xml: '{"key": "unterminated'
+        cite:
+          spec: rfc8259
+          version: "2017"
+          url: "https://www.rfc-editor.org/rfc/rfc8259#section-7"
+          clause: "7"
+          heading: "Strings"
+        tags: [malformed, syntax]
+        expected:
+          error:
+            category: syntax
+            message_contains: "unterminated string"

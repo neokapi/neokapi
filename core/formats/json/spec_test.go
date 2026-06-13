@@ -20,6 +20,9 @@ func TestSpec(t *testing.T) {
 	r := &spectest.NativeRunner{
 		Spec:      s,
 		NewReader: func(_ string) format.DataFormatReader { return jsonfmt.NewReader() },
+		// NewWriter wires the roundtrip view (expected.roundtrip) — see the
+		// roundtrip_fidelity feature in spec.yaml.
+		NewWriter: func(_ string) format.DataFormatWriter { return jsonfmt.NewWriter() },
 	}
 	r.Run(t)
 }

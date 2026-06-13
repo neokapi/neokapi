@@ -1,0 +1,3 @@
+{"layer_start":{"id":"doc1","format":"html","locale":"en","mime_type":"text/html","encoding":"UTF-8"}}
+{"block":{"id":"tu1","name":"p","type":"paragraph","translatable":true,"source":[{"type":"text","text":"Click "},{"type":"pcOpen","id":"1","semantic":"fmt:bold","subtype":"html:b","data":"<b>"},{"type":"text","text":"here"},{"type":"pcClose","id":"1","semantic":"fmt:bold","subtype":"html:b","data":"</b>"},{"type":"text","text":" for "},{"type":"pcOpen","id":"2","semantic":"link:hyperlink","subtype":"html:a","data":"<a href=\"http://example.com\">"},{"type":"text","text":"more info"},{"type":"pcClose","id":"2","semantic":"link:hyperlink","subtype":"html:a","data":"</a>"}]}}
+{"layer_end":{"id":"doc1"}}

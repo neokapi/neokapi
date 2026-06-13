@@ -181,6 +181,61 @@ func ReadParts(reader format.DataFormatReader, input []byte) ([]*model.Part, err
 	return parts, nil
 }
 
+// WriteParts drives a writer through SetOutputWriter → Write → Close and
+// returns the produced bytes. Used by the spec runner's roundtrip view. When
+// the writer implements format.OriginalContentSetter, the original input is
+// supplied as the skeleton source (skeleton-based writers — html, json — need
+// it for faithful reconstruction).
+func WriteParts(w format.DataFormatWriter, parts []*model.Part, original []byte) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if oc, ok := w.(format.OriginalContentSetter); ok && len(original) > 0 {
+		oc.SetOriginalContent(original)
+	}
+	var buf bytes.Buffer
+	if err := w.SetOutputWriter(&buf); err != nil {
+		return nil, fmt.Errorf("set output: %w", err)
+	}
+	ch := make(chan *model.Part, len(parts)+1)
+	for _, p := range parts {
+		ch <- p
+	}
+	close(ch)
+	if err := w.Write(ctx, ch); err != nil {
+		return nil, fmt.Errorf("write: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("close writer: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// FirstDiffLine compares two block-event dumps line-by-line and returns a
+// short human-readable description of the first divergence, or "" when equal
+// (after trimming trailing newlines). Used by the runner to report a blocks
+// or roundtrip mismatch without a heavyweight diff dependency.
+func FirstDiffLine(want, got string) string {
+	w := strings.Split(strings.TrimRight(want, "\n"), "\n")
+	g := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	n := len(w)
+	if len(g) > n {
+		n = len(g)
+	}
+	for i := 0; i < n; i++ {
+		var wl, gl string
+		if i < len(w) {
+			wl = w[i]
+		}
+		if i < len(g) {
+			gl = g[i]
+		}
+		if wl != gl {
+			return fmt.Sprintf("line %d:\n  want: %s\n  got:  %s", i+1, wl, gl)
+		}
+	}
+	return ""
+}
+
 // BlockTexts extracts the joined source text of every translatable
 // Block in parts, skipping non-Block parts and untranslatable blocks.
 func BlockTexts(parts []*model.Part) []string {

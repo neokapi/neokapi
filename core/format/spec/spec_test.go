@@ -170,6 +170,150 @@ func TestDivergenceKindRoundTrip(t *testing.T) {
 	}
 }
 
+// specWithExample is a tiny helper: a one-feature spec wrapping a single
+// example, used by the meta-schema validation tests.
+func specWithExample(ex Example) *Spec {
+	return &Spec{
+		Format:   "okf_x",
+		Features: []Feature{{ID: "f", Examples: []Example{ex}}},
+	}
+}
+
+// TestValidateRejectsDuplicateCaseID proves the §8 id-uniqueness gate: two
+// cases sharing an id within one spec is a malformed corpus.
+func TestValidateRejectsDuplicateCaseID(t *testing.T) {
+	s := &Spec{
+		Format: "okf_x",
+		Features: []Feature{{
+			ID: "f",
+			Examples: []Example{
+				{Name: "a", ID: "AB12", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}},
+				{Name: "b", ID: "AB12", InputXML: "y", Assertions: Assertions{BlockCount: new(1)}},
+			},
+		}},
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject a duplicate case id")
+	}
+}
+
+// TestValidateRejectsBadCaseID enforces the 4–6 alphanumeric id contract.
+func TestValidateRejectsBadCaseID(t *testing.T) {
+	for _, bad := range []string{"ab", "toolongid", "ab-2", "ab 2"} {
+		s := specWithExample(Example{Name: "a", ID: bad, InputXML: "x"})
+		if err := s.Validate(); err == nil {
+			t.Errorf("Validate should reject malformed case id %q", bad)
+		}
+	}
+}
+
+// TestValidateRejectsUnknownClass enforces the class enum.
+func TestValidateRejectsUnknownClass(t *testing.T) {
+	s := specWithExample(Example{Name: "a", Class: "weird", InputXML: "x"})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject an unknown class")
+	}
+}
+
+// TestValidateInvalidCaseRequiresError proves a class: invalid case must
+// carry exactly an expected.error view (one fault per case).
+func TestValidateInvalidCaseRequiresError(t *testing.T) {
+	// invalid without expected.error → rejected
+	s := specWithExample(Example{Name: "bad", Class: ClassInvalid, InputXML: "x"})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject class: invalid with no expected.error")
+	}
+	// invalid carrying a second view → rejected (one fault per case)
+	s = specWithExample(Example{
+		Name: "bad", Class: ClassInvalid, InputXML: "x",
+		Expected: &Expected{Error: &ErrorExpect{Category: "syntax"}, Blocks: `{"x":1}`},
+	})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject a class: invalid case carrying a second view")
+	}
+	// invalid done right → accepted
+	s = specWithExample(Example{
+		Name: "bad", Class: ClassInvalid, InputXML: "x",
+		Expected: &Expected{Error: &ErrorExpect{Category: "syntax"}},
+	})
+	if err := s.Validate(); err != nil {
+		t.Fatalf("well-formed invalid case rejected: %v", err)
+	}
+}
+
+// TestValidateRejectsErrorOnValidCase proves expected.error is invalid-only.
+func TestValidateRejectsErrorOnValidCase(t *testing.T) {
+	s := specWithExample(Example{
+		Name: "a", Class: ClassValid, InputXML: "x",
+		Expected: &Expected{Error: &ErrorExpect{Category: "syntax"}},
+	})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject expected.error on a valid case")
+	}
+}
+
+// TestValidateCiteRequiresSpecAndURL enforces the citation completeness gate.
+func TestValidateCiteRequiresSpecAndURL(t *testing.T) {
+	s := specWithExample(Example{Name: "a", InputXML: "x", Cite: &Citation{Spec: "whatwg-html"}})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject a cite missing url")
+	}
+	s = specWithExample(Example{Name: "a", InputXML: "x", Cite: &Citation{URL: "https://x"}})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject a cite missing spec")
+	}
+	s = specWithExample(Example{Name: "a", InputXML: "x", Cite: &Citation{Spec: "whatwg-html", URL: "https://x#y"}})
+	if err := s.Validate(); err != nil {
+		t.Fatalf("complete cite rejected: %v", err)
+	}
+}
+
+// TestValidateRejectsBadRoundtripMode enforces the roundtrip mode enum.
+func TestValidateRejectsBadRoundtripMode(t *testing.T) {
+	s := specWithExample(Example{
+		Name: "a", InputXML: "x",
+		Expected: &Expected{Roundtrip: &Roundtrip{Mode: "loose"}},
+	})
+	if err := s.Validate(); err == nil {
+		t.Fatal("Validate should reject an unknown roundtrip mode")
+	}
+}
+
+// TestExtractedAssertionsBackCompat confirms a legacy inline-assertion example
+// is reachable through ExtractedAssertions, and that expected.extracted wins
+// when present.
+func TestExtractedAssertionsBackCompat(t *testing.T) {
+	legacy := Example{Name: "a", InputXML: "x", Assertions: Assertions{BlockCount: new(2)}}
+	got := legacy.ExtractedAssertions()
+	if got.BlockCount == nil || *got.BlockCount != 2 {
+		t.Fatalf("legacy inline assertions not surfaced: %+v", got)
+	}
+	multi := Example{
+		Name: "b", InputXML: "x",
+		Assertions: Assertions{BlockCount: new(2)},
+		Expected:   &Expected{Extracted: &Assertions{BlockCount: new(9)}},
+	}
+	got = multi.ExtractedAssertions()
+	if got.BlockCount == nil || *got.BlockCount != 9 {
+		t.Fatalf("expected.extracted should win over inline: %+v", got)
+	}
+}
+
+// TestCaseClassAndIDDefaults confirms the effective-value helpers.
+func TestCaseClassAndIDDefaults(t *testing.T) {
+	ex := Example{Name: "human-name"}
+	if ex.CaseClass() != ClassValid {
+		t.Errorf("empty class should default to valid, got %q", ex.CaseClass())
+	}
+	if ex.CaseID() != "human-name" {
+		t.Errorf("CaseID should fall back to Name, got %q", ex.CaseID())
+	}
+	ex.ID = "QF7K"
+	if ex.CaseID() != "QF7K" {
+		t.Errorf("CaseID should prefer ID, got %q", ex.CaseID())
+	}
+}
+
 // TestOriginAndSpecRefsAreOptional confirms that omitting both new
 // fields keeps a spec valid — existing specs without them still load.
 func TestOriginAndSpecRefsAreOptional(t *testing.T) {

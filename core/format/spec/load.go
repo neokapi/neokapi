@@ -133,6 +133,11 @@ func (s *Spec) Validate() error {
 			}
 		}
 	}
+	// Case-level meta-schema (format-spec-cases.md §8): id/class/cite/view
+	// shape. Additive — no-op for legacy examples that omit the new fields.
+	if err := s.validateCases(); err != nil {
+		return err
+	}
 	return nil
 }
 

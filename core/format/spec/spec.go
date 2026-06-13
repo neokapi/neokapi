@@ -148,6 +148,43 @@ type Example struct {
 	Description string `yaml:"description,omitempty"`
 	Variant     string `yaml:"variant,omitempty"`
 
+	// ID is the stable, 4–6 char alphanumeric case identifier
+	// (format-spec-cases.md §2). Optional and never reused after
+	// deletion so results stay comparable across corpus revisions.
+	// Legacy examples omit it and are addressed by Name; CaseID()
+	// returns ID when set, else falls back to Name.
+	ID string `yaml:"id,omitempty"`
+
+	// Class is the validity class (§3): "valid" (default — the input
+	// parses and extraction produces the asserted model), "invalid"
+	// (the input must be rejected cleanly, one fault per case), or
+	// "operation" (an in-out pair). Empty means "valid". Use
+	// CaseClass() to read the effective value.
+	Class string `yaml:"class,omitempty"`
+
+	// Cite is the machine-checkable citation (§6) anchoring the case to
+	// a pinned spec section. Required for valid/invalid cases of
+	// spec-backed formats; behavioral conventions may omit it with a
+	// tags: [convention] marker.
+	Cite *Citation `yaml:"cite,omitempty"`
+
+	// Tags are free-form selectors (§2).
+	Tags []string `yaml:"tags,omitempty"`
+
+	// Since / Until bound the format versions the case applies to (§9);
+	// omit when version-independent.
+	Since string `yaml:"since,omitempty"`
+	Until string `yaml:"until,omitempty"`
+
+	// Expected carries the multi-view expected model (§5):
+	// blocks (the §4 event dump), extracted (today's source-text
+	// Assertions), roundtrip (writer output), and error (invalid-class
+	// rejection). When nil, the inline top-level Assertions below remain
+	// the (extracted) view — full YAML back-compat for the ~41 existing
+	// specs. Use ExtractedAssertions() to read the effective extracted
+	// view regardless of which form a case uses.
+	Expected *Expected `yaml:"expected,omitempty"`
+
 	// Input shape — pick one. For binary formats, prefer
 	// `input_file: okapi:...` over synthetic `testdata/*` fixtures
 	// (see Example doc comment).
@@ -218,6 +255,124 @@ type Example struct {
 	// Assertions evaluated against the read parts. Inlined so spec
 	// authors write assertion fields directly under the example.
 	Assertions `yaml:",inline"`
+}
+
+// Case validity classes (format-spec-cases.md §3).
+const (
+	// ClassValid is the default: the input parses and extraction
+	// produces the asserted model.
+	ClassValid = "valid"
+	// ClassInvalid: the input must be rejected cleanly (no panic,
+	// bounded resources), one fault per case, named after the fault.
+	ClassInvalid = "invalid"
+	// ClassOperation: an in-out pair (input + named operation → output).
+	ClassOperation = "operation"
+)
+
+// Round-trip modes for Expected.Roundtrip.Mode (§5).
+const (
+	// RoundtripByteExact asserts the writer output equals the input bytes.
+	RoundtripByteExact = "byte_exact"
+	// RoundtripIdempotent asserts read→write→read→write reaches a fixpoint:
+	// the second write equals the first.
+	RoundtripIdempotent = "idempotent"
+	// RoundtripNormalized asserts the writer output equals a committed
+	// normalized fixture (Expected.Roundtrip.OutputFile).
+	RoundtripNormalized = "normalized"
+)
+
+// Expected is the multi-view expected model for a case (§5). Every view is
+// optional; an absent view is simply not checked. The legacy inline
+// Assertions on Example remain the extracted view when Expected is nil.
+type Expected struct {
+	// Blocks is the canonical block-event dump (§4) the read parts must
+	// match. Either an inline JSONL string (recognised by containing a
+	// `{`) or a sibling file reference like "cases/<id>.events.jsonl"
+	// resolved relative to the spec dir.
+	Blocks string `yaml:"blocks,omitempty"`
+
+	// Extracted is today's source-text Assertions vocabulary, unchanged
+	// (§5). When set it is the extracted view; when nil the runner falls
+	// back to Example's inline Assertions.
+	Extracted *Assertions `yaml:"extracted,omitempty"`
+
+	// Roundtrip asserts writer output (§5). Requires the runner be wired
+	// with a NewWriter factory.
+	Roundtrip *Roundtrip `yaml:"roundtrip,omitempty"`
+
+	// Error is the rejection assertion for class: invalid cases (§3, §5):
+	// the reader must surface a clean error. Never auto-updated (§8).
+	Error *ErrorExpect `yaml:"error,omitempty"`
+
+	// ValidBy names an external validator the writer output must pass
+	// (§5). Recorded on the case; enforcement is the acceptance harness's
+	// concern, not this in-process runner.
+	ValidBy string `yaml:"valid_by,omitempty"`
+}
+
+// Roundtrip describes a writer-output expectation (§5).
+type Roundtrip struct {
+	// Mode is byte_exact | idempotent | normalized.
+	Mode string `yaml:"mode"`
+	// OutputContains optionally asserts substrings present in the writer
+	// output, independent of Mode — a lightweight signal when an exact
+	// fixture is overkill.
+	OutputContains []string `yaml:"output_contains,omitempty"`
+	// OutputFile names the committed normalized fixture for mode:
+	// normalized (spec-relative path).
+	OutputFile string `yaml:"output_file,omitempty"`
+}
+
+// ErrorExpect is the clean-rejection assertion for class: invalid cases.
+type ErrorExpect struct {
+	// Category labels the fault (e.g. "syntax", "schema", "encoding").
+	// Readers do not emit categories today, so the category is recorded
+	// (and validated for presence) but not matched against reader output;
+	// MessageContains carries the runtime check.
+	Category string `yaml:"category"`
+	// MessageContains, when set, must be a substring of the reader's
+	// error message.
+	MessageContains string `yaml:"message_contains,omitempty"`
+}
+
+// Citation is a machine-checkable spec citation (§6).
+type Citation struct {
+	Spec        string `yaml:"spec,omitempty"`
+	Version     string `yaml:"version,omitempty"`
+	URL         string `yaml:"url,omitempty"`
+	Clause      string `yaml:"clause,omitempty"`
+	Heading     string `yaml:"heading,omitempty"`
+	Quote       string `yaml:"quote,omitempty"`
+	QuoteSHA256 string `yaml:"quote_sha256,omitempty"`
+}
+
+// CaseID returns the case's stable identifier: Example.ID when set, else the
+// human Name. Used by the runner and accept-mode to address a case.
+func (e *Example) CaseID() string {
+	if e.ID != "" {
+		return e.ID
+	}
+	return e.Name
+}
+
+// CaseClass returns the effective validity class, defaulting empty to
+// ClassValid.
+func (e *Example) CaseClass() string {
+	if e.Class == "" {
+		return ClassValid
+	}
+	return e.Class
+}
+
+// ExtractedAssertions returns the effective extracted-view assertions:
+// Expected.Extracted when present, else the inline top-level Assertions. This
+// is what keeps every legacy example's seven-field assertions reachable
+// unchanged as the extracted view.
+func (e *Example) ExtractedAssertions() Assertions {
+	if e.Expected != nil && e.Expected.Extracted != nil {
+		return *e.Expected.Extracted
+	}
+	return e.Assertions
 }
 
 // Assertions captures the checks evaluated against the read parts.
