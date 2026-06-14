@@ -222,9 +222,13 @@ jobs:
             # place so old deep links keep resolving.)
             (cd pages && find . -mindepth 1 -maxdepth 1 \
               ! -name web ! -name storybook ! -name .git \
-              ! -name README.md ! -name CNAME \
+              ! -name README.md ! -name CNAME ! -name .nojekyll \
               -exec rm -rf {} +)
             cp -r artifacts/kapi-site/* pages/
+            # Legacy (Jekyll) Pages build: a root .nojekyll keeps the Docusaurus
+            # output served verbatim. `cp ... /*` skips dotfiles, so guarantee it
+            # (also preserved by the clean above so it is never dropped).
+            touch pages/.nojekyll
           else
             rm -rf "pages/${DEST}"
             mkdir -p "pages/${DEST}"
