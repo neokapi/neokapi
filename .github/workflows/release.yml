@@ -666,6 +666,14 @@ jobs:
           sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
           rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
+      # The bowrain frontend bundles @neokapi/flow-editor, which imports
+      # @neokapi/kapi-react/runtime — a built ./dist subpath export (not
+      # committed). Build kapi-react first so the import resolves (mirrors the
+      # kapi-desktop job).
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
       - name: Build Bowrain frontend
         working-directory: bowrain/apps/bowrain/frontend
         run: vp run build
