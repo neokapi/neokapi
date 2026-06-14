@@ -54,7 +54,7 @@ func TestRegisterAllWriters(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
 		// Note: "pdf" is intentionally absent — PDF is read-only (extraction
 		// only), so it registers a reader but no writer.

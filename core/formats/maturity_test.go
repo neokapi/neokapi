@@ -36,14 +36,12 @@ var nonFormats = map[string]bool{
 // tests in roundtrip_test.go or skeleton_test.go so the floor stays checkable.
 // Removing an entry (by adding a conventionally-named test) is encouraged.
 var grandfatheredRoundtrip = map[string]bool{
-	"designtokens": true,
-	"epub":         true,
-	"i18next":      true,
-	"idml":         true,
-	"json":         true,
-	"markdown":     true,
-	"mo":           true,
-	"odf":          true,
+	"epub":     true,
+	"idml":     true,
+	"json":     true,
+	"markdown": true,
+	"mo":       true,
+	"odf":      true,
 }
 
 // realFormatDirs returns the format ids that have a reader.go and are not

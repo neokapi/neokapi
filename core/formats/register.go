@@ -114,9 +114,8 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("xml", func() format.DataFormatWriter { return xmlfmt.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "xml", func() format.DataFormatReader { return xmlfmt.NewReader() })
 
-	// DocLang (LF AI & Data open standard, v0.6). Read-only for now — the
-	// writer lands in a follow-up; like pdf, it registers a reader and no
-	// writer. The dual <doclang root check wins detection over generic xml.
+	// DocLang (LF AI & Data open standard, v0.6). The dual <doclang root check
+	// wins detection over the generic xml reader.
 	reg.RegisterReader("doclang",
 		func() format.DataFormatReader { return doclang.NewReader() },
 		format.FormatSignature{
@@ -124,6 +123,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".dclg.xml"},
 			Sniff:      func(data []byte) bool { return bytes.Contains(data, []byte("<doclang")) },
 		}, "DocLang")
+	reg.RegisterWriter("doclang", func() format.DataFormatWriter { return doclang.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "doclang", func() format.DataFormatReader { return doclang.NewReader() })
 
 	// .NET RESX / .resw (Microsoft ResX 2.0). The Sniff keys on the
