@@ -357,7 +357,7 @@ func strictDecodeProblems(err error) []brand.ProfileProblem {
 		return nil
 	}
 	var probs []brand.ProfileProblem
-	for _, line := range strings.Split(err.Error(), "\n") {
+	for line := range strings.SplitSeq(err.Error(), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "yaml: unmarshal errors:") {
 			continue
