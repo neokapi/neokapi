@@ -248,6 +248,11 @@ jobs:
       # Release gate: shared UI must type-check + pass unit tests (previously
       # run inside the GoReleaser job).
       - uses: ./.github/actions/setup-node-ui
+      # The shared UI imports @neokapi/kapi-react/runtime (a built ./dist subpath
+      # export, not committed), so build kapi-react before the type-check/tests.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
         run: vp check --no-fmt --no-lint
