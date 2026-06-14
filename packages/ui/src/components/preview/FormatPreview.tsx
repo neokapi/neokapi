@@ -168,6 +168,22 @@ function diffSpans(next: string, prev: string | undefined): DiffSpan[] {
 // annotations.
 const SLOT_OPTIONS: SlotOptions = { stagger: 24, duration: 280 };
 
+// A deterministic, same-length letter scramble of `s` (spaces preserved) — the
+// "from" value that lets a term decode/roll into place when it's annotated.
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+function scramble(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (/\s/.test(c)) {
+      out += c;
+      continue;
+    }
+    out += SCRAMBLE_CHARS[(s.charCodeAt(i) * 7 + i * 31) % SCRAMBLE_CHARS.length];
+  }
+  return out;
+}
+
 function SlotLine({
   from,
   target,
@@ -264,16 +280,23 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   // as it rolls. It falls through to the overlay path, which paints a censor bar.
   const hasRedaction = spans.some((s) => s.type === "redaction");
 
+  // A TM-leveraged line: rolls into its memory match wrapped in a "from memory"
+  // highlight. The "tm" overlay is a line-level marker (not a rendered span).
+  const tmLine =
+    !!ctx.annotations &&
+    (line.overlays?.some((o) => o.type === "tm" && o.side === ctx.side) ?? false);
+
   // Slot roll: render the line via slot-text, starting from the previous value.
   // (Reduced motion and redacted lines fall through to the instant text path.)
   if (ctx.transition === "slot" && !ctx.reducedMotion && !hasRedaction) {
-    return (
+    const roll = (
       <SlotLine
         from={prevFullText.current}
         target={fullText}
         delay={ctx.stagger > 0 ? ctx.stagger * seq : 0}
       />
     );
+    return tmLine ? <span className={styles.tmHit}>{roll}</span> : roll;
   }
 
   const showCaret = ctx.transition === "typewriter" && !done && !ctx.reducedMotion;
@@ -282,7 +305,11 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   return (
     <span
       key={fadeKey}
-      className={cn(ctx.transition === "crossfade" && styles.fade, showCaret && styles.caret)}
+      className={cn(
+        ctx.transition === "crossfade" && styles.fade,
+        showCaret && styles.caret,
+        tmLine && styles.tmHit,
+      )}
     >
       {segments.map((seg, i) =>
         seg.overlay ? (
@@ -296,6 +323,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
 }
 
 function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement {
+  const ctx = useCtx();
   const ov = segment.overlay!;
   // Redaction renders as a marker censor bar (the RedactionDiagram blackout): the
   // cleartext stays in the DOM for layout/width but is hidden under the ink bar
@@ -312,11 +340,19 @@ function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement 
       </Tooltip>
     );
   }
+  // A term decodes/rolls into place as its highlight sweeps in (the annotation
+  // "effect"). slot-text rolls from a same-length scramble to the term.
+  const content =
+    ov.type === "term" && !ctx.reducedMotion ? (
+      <SlotLine from={scramble(segment.text)} target={segment.text} />
+    ) : (
+      segment.text
+    );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <mark className={cn(styles.overlay, ov.style.className)} data-overlay-type={ov.type}>
-          {segment.text}
+          {content}
         </mark>
       </TooltipTrigger>
       <TooltipContent>{ov.tooltip}</TooltipContent>

@@ -400,20 +400,44 @@
 .heroChrome {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0 0.15rem 0.4rem;
   font-size: 0.72rem;
   color: var(--ifm-color-emphasis-600);
-}
-.heroFile {
-  font-family: var(--ifm-font-family-monospace);
 }
 .heroStageName {
   font-weight: 700;
   color: var(--ifm-color-primary);
 }
+/* Stacked deck: the active card sits on two peeking back cards (the deck of
+   slides). New target cards (pseudo, ja) slide in onto the stack. */
+.deck {
+  position: relative;
+  margin: 0 0.4rem 0.5rem 0;
+}
+.deckBackFar,
+.deckBackNear {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.deckBackNear {
+  z-index: 1;
+  transform: translate(5px, 7px) rotate(1.8deg);
+  opacity: 0.65;
+}
+.deckBackFar {
+  z-index: 0;
+  transform: translate(10px, 13px) rotate(3.4deg);
+  opacity: 0.38;
+}
+
 .heroStage {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -421,7 +445,44 @@
   padding: 0.55rem;
   border-radius: 12px;
   background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+/* A new target card dealt onto the stack (pseudo, ja). */
+.cardSlideIn {
+  animation: cardSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(26px, -15px) rotate(-3deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
+}
+
+/* The deck's file path, on the card itself: en/ → qps/ → ja/deck.pptx. */
+.deckLabel {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  background: color-mix(in srgb, var(--ifm-background-color) 86%, transparent);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.deckLabelLocale {
+  color: var(--ifm-color-primary);
+  font-weight: 700;
 }
 .heroDoc {
   font-size: 0.82rem;
@@ -518,7 +579,8 @@
   }
   .heroBadge,
   .heroFormats,
-  .heroCaption {
+  .heroCaption,
+  .cardSlideIn {
     animation: none;
   }
 }

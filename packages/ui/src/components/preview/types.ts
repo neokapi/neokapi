@@ -194,7 +194,14 @@ export interface OverlaySpan {
   ignorable?: boolean;
 }
 
-export type OverlayType = "segmentation" | "term" | "entity" | "qa" | "alignment" | "redaction";
+export type OverlayType =
+  | "segmentation"
+  | "term"
+  | "entity"
+  | "qa"
+  | "alignment"
+  | "redaction"
+  | "tm";
 
 /** A typed stand-off interpretation layered over one side of a block. */
 export interface OverlayView {

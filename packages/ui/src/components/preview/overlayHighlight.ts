@@ -169,6 +169,9 @@ export function resolveOverlaySpans(
   // texts within one overlay map to successive occurrences, not all to the first.
   for (const ov of overlays) {
     if (ov.side !== side) continue;
+    // "tm" is a line-level marker (TM leverage), not a span highlight — the
+    // renderer reads it off the line directly and styles the whole line.
+    if (ov.type === "tm") continue;
     if (filter && !filter.has(ov.type)) continue;
     let cursor = 0;
     for (const span of ov.spans) {
