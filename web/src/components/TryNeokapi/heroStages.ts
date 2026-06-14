@@ -3,7 +3,7 @@
 // Merge. STATIC RenderDoc frames so the hero pulls ZERO wasm on page load (the
 // engine only boots when the reader opens the modal); the structure mirrors a
 // real pptx slide extraction (one slide, a title + bullets). Each frame bakes
-// the exact text shown at that stage so FormatPreview's typewriter/crossfade
+// the exact text shown at that stage so FormatPreview's slot-text roll / crossfade
 // animates the source → pseudo → Japanese progression line by line.
 
 import type { RenderDoc, RenderLine } from "@neokapi/ui-primitives/preview";
@@ -79,32 +79,39 @@ export const READ_FORMATS = [
 const SLIDE = "ppt/slides/slide1.xml";
 const DUMMY_RANGE = { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 };
 
+// A secret that must never reach an MT/LLM — an API key is the canonical
+// "redact before translation" case. Kept verbatim across stages so the redaction
+// overlay can locate it and so it can be restored once translation is done.
+const SECRET = "sk_live_5fK2aR9wQ8";
+
 // Source line text (English), keyed by id so frames line up for the diff.
 const SRC = {
   t: "Welcome to Acme",
-  b1: "Reach us at hello@acme.example",
+  b1: `Your API key: ${SECRET}`,
   b2: "Acme makes every quarter count.",
   b3: "Sign up for Acme today.",
 };
 
-// Masked email for the redaction stage.
-const MASK = "•••••••••••••••••";
-
-// Pseudo-translate (accented + lightly expanded) — visual flavour only.
+// Pseudo-translate (accented + lightly expanded) — visual flavour only. The
+// secret is left verbatim (unaccented) so the redaction overlay still matches it.
 const PSEUDO = {
   t: "Ŵélçömé tö Àçmé",
-  b1: `Réàçh üs àt ${MASK}`,
+  b1: `Ýöür ÀPÌ kéy: ${SECRET}`,
   b2: "Àçmé màkés évéry qüàrtér çöünt.",
   b3: "Sîgn üp för Àçmé tödày.",
 };
 
-// Japanese translations.
+// Japanese translations. The secret is restored verbatim after translation.
 const JA = {
   t: "Acme へようこそ",
-  b1: "お問い合わせは hello@acme.example まで",
+  b1: `API キー：${SECRET}`,
   b2: "Acme は四半期ごとを大切にします。",
   b3: "今すぐ Acme に登録しましょう。",
 };
+
+// The redaction overlay covering the secret — painted as a marker censor bar.
+const redactSecret = (): OverlayView =>
+  overlay("redaction", [span(SECRET, { category: "API secret" })]);
 
 function slide(title: RenderLine, bullets: RenderLine[]): RenderDoc {
   return { kind: "slides", format: "openxml", slides: [{ name: SLIDE, title, bullets }] };
@@ -130,28 +137,27 @@ const readFrame = slide(line("t", SRC.t), [
   line("b3", SRC.b3),
 ]);
 
-// Pre-process: email masked (redaction) + "Acme" tagged as a term on each line.
+// Pre-process: the API key is redacted (censor bar) + "Acme" tagged as a term.
 const preprocessFrame = slide(
   line("t", SRC.t, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
   [
-    line("b1", `Reach us at ${MASK}`, [
-      overlay("entity", [span(MASK, { kind: "email", message: "Redacted before translation" })]),
-    ]),
+    line("b1", SRC.b1, [redactSecret()]),
     line("b2", SRC.b2, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
     line("b3", SRC.b3, [overlay("term", [span("Acme", { target: "Acme", domain: "brand" })])]),
   ],
 );
 
+// Pseudo-translate: the secret stays redacted while the rest is pseudo-translated.
 const pseudoFrame = slide(line("t", PSEUDO.t), [
-  line("b1", PSEUDO.b1),
+  line("b1", PSEUDO.b1, [redactSecret()]),
   line("b2", PSEUDO.b2),
   line("b3", PSEUDO.b3),
 ]);
 
 // Leverage: title + second bullet come back from TM (100% match); the rest still
-// awaits translation (shown in source).
+// awaits translation (shown in source), the secret still redacted.
 const leverageFrame = slide(line("t", JA.t), [
-  line("b1", SRC.b1),
+  line("b1", SRC.b1, [redactSecret()]),
   line("b2", JA.b2),
   line("b3", SRC.b3),
 ]);
@@ -167,7 +173,7 @@ const mergeFrame = translateFrame;
 export interface StageFrame {
   doc: RenderDoc;
   /** FormatPreview transition into this frame. */
-  transition: "none" | "crossfade" | "typewriter";
+  transition: "none" | "crossfade" | "typewriter" | "slot";
   /** Show overlay highlights for this frame. */
   annotations: boolean;
   /** Optional corner badge (stage-specific chrome). */
@@ -177,14 +183,16 @@ export interface StageFrame {
 export const FRAMES: Record<StageKey, StageFrame> = {
   read: { doc: readFrame, transition: "crossfade", annotations: false },
   preprocess: { doc: preprocessFrame, transition: "crossfade", annotations: true },
-  pseudo: { doc: pseudoFrame, transition: "typewriter", annotations: false },
+  // annotations on so the redaction censor bar renders; the redacted line opts out
+  // of the slot roll (it would briefly expose the secret), the rest still roll.
+  pseudo: { doc: pseudoFrame, transition: "slot", annotations: true },
   leverage: {
     doc: leverageFrame,
     transition: "crossfade",
-    annotations: false,
+    annotations: true,
     badge: "2 / 4 from memory · 100%",
   },
-  translate: { doc: translateFrame, transition: "typewriter", annotations: false },
+  translate: { doc: translateFrame, transition: "slot", annotations: false },
   merge: { doc: mergeFrame, transition: "crossfade", annotations: false, badge: "deck.pptx" },
 };
 

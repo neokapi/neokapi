@@ -7,12 +7,13 @@ import styles from "./styles.module.css";
 // The hero: an auto-playing, six-stage "show" of kapi end to end —
 // Read → Pre-process → Pseudo-translate → Leverage → Translate (ja) → Merge —
 // rendered through the shared FormatPreview on BAKED data (heroStages.ts), so the
-// page pulls ZERO wasm on load. FormatPreview's typewriter (revealed line by
-// line) and crossfade carry the source → pseudo → Japanese progression; term
-// highlights animate in at Pre-process. Prev/next arrows step through stages, a
-// counter + caption name the stage, and a CTA opens the live modal.
+// page pulls ZERO wasm on load. FormatPreview's slot-text roll (each line rolls
+// from its previous value, staggered line by line) and crossfade carry the
+// source → pseudo → Japanese progression; term highlights animate in at
+// Pre-process. Prev/next arrows step through stages, a counter + caption name the
+// stage, and a CTA opens the live modal.
 //
-// prefers-reduced-motion: no auto-advance and no typewriter; step with arrows.
+// prefers-reduced-motion: no auto-advance and no roll; step with arrows.
 
 interface HeroProcessProps {
   /** Open the full modal. */
@@ -98,7 +99,6 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
               side="source"
               annotations={frame.annotations}
               transition={reduced ? "none" : frame.transition}
-              typewriter="char"
               typewriterStagger={reduced ? 0 : LINE_STAGGER}
               reducedMotion={reduced}
               gridHeaders={false}

@@ -56,6 +56,10 @@ const OVERLAY_STYLES: Record<string, OverlayStyle> = {
   // Other model overlay types (not currently produced, but kept stable).
   entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
   entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
+  // Sensitive spans removed before translation. The className is unused — the
+  // renderer paints a marker censor bar for redaction (see FormatPreview) — but a
+  // style entry keeps the label/tooltip path consistent.
+  redaction: { className: "", label: "Redacted" },
   segmentation: {
     className: "bg-slate-400/20 text-slate-700 dark:text-slate-300",
     label: "Segment",

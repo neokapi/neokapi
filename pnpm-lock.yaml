@@ -1012,6 +1012,9 @@ importers:
       shadcn:
         specifier: ^4.11.0
         version: 4.11.0(typescript@6.0.3)
+      slot-text:
+        specifier: ^0.2.2
+        version: 0.2.2(react@19.2.7)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -10412,6 +10415,17 @@ packages:
   slash@4.0.0:
     resolution: {integrity: sha512-3dOsAHXXUkQTpOYcoAxLIorMTp4gIQr5IW3iVb7A7lFIp0VHhnynm9izx6TssdrIcVIESAlVjtnO2K8bg+Coew==, tarball: https://registry.npmjs.org/slash/-/slash-4.0.0.tgz}
     engines: {node: '>=12'}
+
+  slot-text@0.2.2:
+    resolution: {integrity: sha512-/XJR7fQKDxZQ0aA/s9kMHSz571GtiRIt0wZloHZ4yTMfIBFSwO/yGYcKZ+6YjchWEEjQ9x49s/xqTBuY+F+Vyw==, tarball: https://registry.npmjs.org/slot-text/-/slot-text-0.2.2.tgz}
+    peerDependencies:
+      react: '>=18 <20'
+      vue: '>=3.4 <4'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      vue:
+        optional: true
 
   snake-case@3.0.4:
     resolution: {integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==, tarball: https://registry.npmjs.org/snake-case/-/snake-case-3.0.4.tgz}
@@ -22816,6 +22830,10 @@ snapshots:
   slash@3.0.0: {}
 
   slash@4.0.0: {}
+
+  slot-text@0.2.2(react@19.2.7):
+    optionalDependencies:
+      react: 19.2.7
 
   snake-case@3.0.4:
     dependencies:

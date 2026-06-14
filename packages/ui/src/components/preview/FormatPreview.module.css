@@ -25,6 +25,39 @@
   color: var(--doc-fg);
 }
 
+/* ── Redaction censor bar ─────────────────────────────────────────────────── */
+/* Marker blackout, matching the RedactionDiagram: a solid ink bar (so it reads
+   black on light and inverts to a light bar on dark) with felt-tip rough edges
+   from the shared SVG turbulence filter and a small skew. The cleartext stays in
+   place for natural width but is hidden under the bar and unselectable. */
+.censor {
+  display: inline-block;
+  vertical-align: baseline;
+  background: var(--doc-fg);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0 0.15em;
+  transform: rotate(-0.55deg);
+  filter: url(#kapi-redact-marker);
+  cursor: help;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .censor {
+    transform: none;
+  }
+}
+
+/* Off-canvas holder for the redaction marker <filter> def. */
+.svgDefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 /* ── Overlay highlight ───────────────────────────────────────────────────── */
 .overlay {
   border-radius: 4px;
