@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -33,6 +34,45 @@ type dmlParser struct {
 	// gold/Transimple_chart.docx). Left false for PPTX slides where
 	// the existing behaviour preserved pPr verbatim.
 	stripEmptyParaProps bool
+
+	// Intrinsic slide geometry (WS2): when slideNum > 0 (a ppt/slides/slideN.xml
+	// part), each text-bearing shape's bounding box is derived from its
+	// DrawingML transform (<a:xfrm><a:off/><a:ext/>) and attached to the Block
+	// as a GeometryAnnotation — additive stand-off metadata, never serialized
+	// back. slideNum is set by the reader from the part path. The off/ext fields
+	// hold the current shape's transform (EMU); they are reset at each shape
+	// boundary so a shape without its own <a:xfrm> inherits no box. groupDepth
+	// tracks <p:grpSp> nesting: child shapes inside a group carry child-space
+	// coordinates that need an affine remap to slide space, so geometry is
+	// omitted inside groups (v1) rather than emitting wrong absolute boxes.
+	slideNum   int
+	hasOff     bool
+	offX, offY int64
+	hasExt     bool
+	extCx      int64
+	extCy      int64
+	groupDepth int
+}
+
+// emuToPt converts English Metric Units (914400 EMU/inch, 12700 EMU/point) to
+// points — the absolute unit the GeometryAnnotation BBox carries (Resolution 0).
+func emuToPt(v int64) float64 { return float64(v) / 12700.0 }
+
+// pptxSlideNum returns the 1-based slide number for a `ppt/slides/slideN.xml`
+// part, or 0 for any other PPTX part (notes, masters, layouts) — those have a
+// presentation-relative coordinate space, not a slide page, so they get no
+// geometry. The prefix is exact: `ppt/slideLayouts/`, `ppt/slideMasters/`, and
+// `ppt/notesSlides/` do not start with `ppt/slides/`.
+func pptxSlideNum(partPath string) int {
+	const prefix = "ppt/slides/slide"
+	if !strings.HasPrefix(partPath, prefix) || !strings.HasSuffix(partPath, ".xml") {
+		return 0
+	}
+	n, err := strconv.Atoi(partPath[len(prefix) : len(partPath)-len(".xml")])
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
 }
 
 // parsePart streams through a DrawingML XML part, emitting Blocks.
@@ -57,10 +97,14 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					return err
 				}
 			default:
+				p.captureShapeGeometry(t)
 				p.skelWriteStartElement(t)
 			}
 
 		case xml.EndElement:
+			if t.Name.Local == "grpSp" {
+				p.groupDepth--
+			}
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
@@ -74,6 +118,54 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 		}
 	}
 	return nil
+}
+
+// captureShapeGeometry tracks the current shape's transform as the top-level
+// token stream flows past (the parser writes everything outside <txBody> to the
+// skeleton verbatim, so <a:off>/<a:ext> pass through here with their attributes
+// intact). A shape-boundary element resets the pending transform so a shape
+// lacking its own <a:xfrm> inherits no box; <p:grpSp> bumps the group depth.
+func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
+	if t.Name.Space == dmlNamespace {
+		switch t.Name.Local {
+		case "off": // <a:off x= y=> — shape origin (EMU)
+			p.offX, _ = strconv.ParseInt(attrVal(t, "x"), 10, 64)
+			p.offY, _ = strconv.ParseInt(attrVal(t, "y"), 10, 64)
+			p.hasOff = true
+		case "ext": // <a:ext cx= cy=> — shape size (EMU)
+			p.extCx, _ = strconv.ParseInt(attrVal(t, "cx"), 10, 64)
+			p.extCy, _ = strconv.ParseInt(attrVal(t, "cy"), 10, 64)
+			p.hasExt = true
+		}
+		return
+	}
+	// PresentationML shape boundaries: a new shape clears the pending transform;
+	// a group raises the depth so its child shapes (child-space coords) are
+	// skipped by attachShapeGeometry.
+	switch t.Name.Local {
+	case "grpSp":
+		p.groupDepth++
+		p.hasOff, p.hasExt = false, false
+	case "sp", "pic", "graphicFrame", "cxnSp":
+		p.hasOff, p.hasExt = false, false
+	}
+}
+
+// attachShapeGeometry sets the block's page geometry from the current shape's
+// transform, when this is a slide part, we are not inside a group, and the
+// shape carried a full <a:xfrm>. DrawingML's origin is top-left, so no flip.
+func (p *dmlParser) attachShapeGeometry(b *model.Block) {
+	if p.slideNum <= 0 || p.groupDepth != 0 || !p.hasOff || !p.hasExt {
+		return
+	}
+	b.SetGeometry(&model.GeometryAnnotation{
+		Page: p.slideNum,
+		BBox: model.Rect{
+			X: emuToPt(p.offX), Y: emuToPt(p.offY),
+			W: emuToPt(p.extCx), H: emuToPt(p.extCy),
+		},
+		Origin: "top-left",
+	})
 }
 
 // parseTextBody parses an <a:txBody> element.
@@ -183,6 +275,7 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelWriteString("</a:p>")
 
 				block := p.buildBlock(blockID, merged, partPath)
+				p.attachShapeGeometry(block)
 				emitBlock(block)
 				return nil
 			}
