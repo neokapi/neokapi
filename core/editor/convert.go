@@ -201,7 +201,11 @@ func (bi *BlockIndex) BlockByID(id string) *Block {
 	return nil
 }
 
-// UpdateTarget sets the target translation for a block in the given locale.
+// UpdateTarget sets the target translation for a block in the given locale on
+// the in-memory [BlockIndex] projection. It is a test/utility helper: it is NOT
+// the production edit-commit path. The canonical target-edit operation is
+// [model.Block.SetTargetRuns]; persistence is the host's block store (see
+// AD-027: Visual Editor Data Model & Round-Trip), not this method.
 func (bi *BlockIndex) UpdateTarget(blockID, locale, text string) error {
 	b := bi.BlockByID(blockID)
 	if b == nil {

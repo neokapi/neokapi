@@ -49,8 +49,11 @@ func (w *Writer) SetOriginalContent(content []byte) {
 
 // Write consumes Parts from a channel and writes reconstructed HTML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Collect all blocks keyed by ID and capture source locale.
+	// Collect all blocks keyed by ID (for the skeleton/reparse modes) plus an
+	// ordered event stream of blocks and group brackets (for the semantic
+	// block-only mode), and capture source locale.
 	blocks := make(map[string]*model.Block)
+	var events []*model.Part
 	var sourceLocale model.LocaleID
 	for {
 		select {
@@ -65,6 +68,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				if b, ok := part.Resource.(*model.Block); ok {
 					blocks[b.ID] = b
 				}
+				events = append(events, part)
+			case model.PartGroupStart, model.PartGroupEnd:
+				events = append(events, part)
 			case model.PartLayerStart:
 				if l, ok := part.Resource.(*model.Layer); ok && !l.Locale.IsEmpty() {
 					sourceLocale = l.Locale
@@ -101,9 +107,12 @@ done:
 		// structurally on the DOM (see writerVisitor.onData).
 		return w.writeReparse(content, blocks, sourceLocale)
 	}
-	// Mode 3: Block-only output (minimal fallback). No lang attributes are
-	// emitted here, so no rewrite is needed.
-	return w.writeFallback(blocks)
+	// Mode 3: Block-only output. Reconstructs HTML from the content model +
+	// the structural layer (role-driven semantic export, WS6) — this is the
+	// cross-format path (DocLang/Docling/DOCX → clean HTML). Same-format HTML
+	// blocks carrying a fragment skeleton keep their captured surrounding
+	// markup. No lang attributes are emitted here, so no rewrite is needed.
+	return w.writeSemantic(events)
 }
 
 // loadOriginalContent returns original content bytes, or nil if unavailable.
@@ -523,53 +532,6 @@ func (w *Writer) getBlockText(block *model.Block) string {
 		return text
 	}
 	return w.renderSourceRuns(block)
-}
-
-// writeFallback writes blocks without original content (existing behavior).
-func (w *Writer) writeFallback(blocks map[string]*model.Block) error {
-	type indexedBlock struct {
-		idx   int
-		block *model.Block
-	}
-	var ordered []indexedBlock
-	for _, b := range blocks {
-		var idx int
-		if _, err := fmt.Sscanf(b.ID, "tu%d", &idx); err == nil {
-			ordered = append(ordered, indexedBlock{idx: idx, block: b})
-		}
-	}
-	for i := range ordered {
-		for j := i + 1; j < len(ordered); j++ {
-			if ordered[j].idx < ordered[i].idx {
-				ordered[i], ordered[j] = ordered[j], ordered[i]
-			}
-		}
-	}
-
-	for _, ob := range ordered {
-		block := ob.block
-		text := w.getBlockText(block)
-
-		if block.Skeleton != nil && block.Skeleton.Strategy == model.SkeletonFragmentBased {
-			for _, sp := range block.Skeleton.Parts {
-				switch p := sp.(type) {
-				case *model.SkeletonText:
-					if _, err := fmt.Fprint(w.Output, p.Text); err != nil {
-						return err
-					}
-				case *model.SkeletonRef:
-					if _, err := fmt.Fprint(w.Output, text); err != nil {
-						return err
-					}
-				}
-			}
-		} else {
-			if _, err := fmt.Fprint(w.Output, text); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // renderTargetRuns reconstructs the full text from a block's target

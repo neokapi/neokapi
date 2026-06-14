@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T15:54:11Z",
+  "generatedAt": "2026-06-14T14:19:57Z",
   "kind": "format",
   "entries": [
     {
@@ -690,6 +690,34 @@
           }
         ]
       }
+    },
+    {
+      "id": "doclang",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "DocLang",
+      "extensions": [
+        ".dclg.xml",
+        ".xml"
+      ],
+      "mimeTypes": [
+        "application/doclang+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "docling",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "DoclingDocument JSON",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "hasReader": true
     },
     {
       "id": "doxygen",

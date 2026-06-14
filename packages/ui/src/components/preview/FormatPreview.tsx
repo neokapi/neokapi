@@ -23,6 +23,9 @@ import {
   type TransitionEffect,
   type TypewriterGranularity,
 } from "./useTextTransition";
+import { SlotText } from "slot-text/react";
+import type { SlotOptions } from "slot-text";
+import "slot-text/style.css";
 import styles from "./FormatPreview.module.css";
 
 // FormatPreview — a structure-aware, annotation-aware preview that renders ANY
@@ -32,8 +35,8 @@ import styles from "./FormatPreview.module.css";
 //
 // It renders either the source runs or a chosen target locale's runs, highlights
 // each block's stand-off overlays (color-coded by type, with a tooltip), and
-// animates the source→target swap with a crossfade or typewriter effect
-// (honoring prefers-reduced-motion).
+// animates the source→target swap with a crossfade, typewriter, or slot-text
+// roll effect (honoring prefers-reduced-motion).
 
 /** Which side of each block to render. */
 export type PreviewSide = "source" | (string & {});
@@ -62,7 +65,7 @@ export interface FormatPreviewProps {
   /** Typewriter granularity when transition === "typewriter" (default "word"). */
   typewriter?: TypewriterGranularity;
   /**
-   * Stagger each line's typewriter start by `line index * this` ms, so lines
+   * Stagger each line's typewriter/slot start by `line index * this` ms, so lines
    * reveal one after another instead of all at once (default 0 = simultaneous).
    */
   typewriterStagger?: number;
@@ -114,6 +117,24 @@ function indexById(doc: RenderDoc | undefined): Map<string, string> | null {
   return map;
 }
 
+/** Whether any line in the doc carries a redaction overlay (gates the marker filter). */
+function docHasRedaction(doc: RenderDoc): boolean {
+  let found = false;
+  const check = (l?: RenderLine) => {
+    if (l?.overlays?.some((o) => o.type === "redaction")) found = true;
+  };
+  doc.slides?.forEach((s) => {
+    check(s.title);
+    s.bullets.forEach(check);
+  });
+  (doc.sheets ?? (doc.sheet ? [doc.sheet] : [])).forEach((sh) => sh.cells.forEach(check));
+  doc.paragraphs?.forEach(check);
+  doc.pages?.forEach((p) => p.lines.forEach(check));
+  doc.sections?.forEach((s) => s.lines.forEach(check));
+  doc.lines?.forEach(check);
+  return found;
+}
+
 const TOKEN_RE = /(\s+|[^\s]+)/g;
 function tokenize(text: string): string[] {
   return text.match(TOKEN_RE) ?? [];
@@ -137,18 +158,104 @@ function diffSpans(next: string, prev: string | undefined): DiffSpan[] {
   return spans;
 }
 
+// ── Slot-text roll (transition="slot") ───────────────────────────────────────
+
+// The hero "writing" effect: each line visibly rolls from its previous value to
+// the new one (source → pseudo → Japanese) via slot-text. slot-text only rolls
+// on text changes *after* mount, so SlotLine mounts showing `from` and, after an
+// optional stagger `delay`, sets `target` to trigger the roll. It renders plain
+// text (no overlay segmentation) — the stages that opt into slot carry no
+// annotations.
+const SLOT_OPTIONS: SlotOptions = { stagger: 24, duration: 280 };
+
+// A deterministic, same-length letter scramble of `s` (spaces preserved) — the
+// "from" value that lets a term decode/roll into place when it's annotated.
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+function scramble(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (/\s/.test(c)) {
+      out += c;
+      continue;
+    }
+    out += SCRAMBLE_CHARS[(s.charCodeAt(i) * 7 + i * 31) % SCRAMBLE_CHARS.length];
+  }
+  return out;
+}
+
+function SlotLine({
+  from,
+  target,
+  delay = 0,
+}: {
+  from: string;
+  target: string;
+  delay?: number;
+}): React.ReactElement {
+  const [text, setText] = React.useState(from);
+  const started = React.useRef(false);
+  React.useEffect(() => {
+    if (!started.current) {
+      started.current = true;
+      if (from === target) return; // nothing to roll
+      const t = setTimeout(() => setText(target), Math.max(0, delay));
+      return () => clearTimeout(t);
+    }
+    setText(target);
+  }, [from, target, delay]);
+  return <SlotText text={text} options={SLOT_OPTIONS} />;
+}
+
+// ── Redaction censor bar ─────────────────────────────────────────────────────
+
+// The marker-blackout filter, reused verbatim from the RedactionDiagram: an SVG
+// turbulence + displacement map gives a redaction bar rough, felt-tip edges
+// (no JS, SSR-safe). Rendered once per preview that actually carries a redaction;
+// the .censor class references it via filter: url(#REDACT_FILTER_ID).
+const REDACT_FILTER_ID = "kapi-redact-marker";
+
+function RedactMarkerFilter(): React.ReactElement {
+  return (
+    <svg className={styles.svgDefs} aria-hidden="true" focusable="false" width="0" height="0">
+      <filter id={REDACT_FILTER_ID} x="-10%" y="-30%" width="120%" height="160%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.018 0.035"
+          numOctaves={2}
+          seed={2}
+          result="noise"
+        />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="noise"
+          scale={1.8}
+          xChannelSelector="R"
+          yChannelSelector="G"
+        />
+      </filter>
+    </svg>
+  );
+}
+
 // ── Leaf text renderer: side + transition + overlays + diff ──────────────────
 
 /**
  * LineText renders one RenderLine's active-side text, applying (in order): the
- * source→target transition (typewriter reveals a growing prefix), overlay
- * highlights for the visible text, and a before/after word diff when no overlays
- * apply to a token.
+ * source→target transition (typewriter reveals a growing prefix; slot rolls the
+ * whole line), overlay highlights for the visible text, and a before/after word
+ * diff when no overlays apply to a token.
  */
 function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.ReactElement {
   const ctx = useCtx();
   const isSource = ctx.side === "source";
   const fullText = isSource ? line.text : (line.targets?.[ctx.side] ?? line.text);
+
+  // Remember the previously-rendered text so a slot roll can start from it.
+  const prevFullText = React.useRef(fullText);
+  React.useEffect(() => {
+    prevFullText.current = fullText;
+  }, [fullText]);
 
   const { visible, done, cycle } = useTextTransition(fullText, {
     effect: ctx.transition,
@@ -169,13 +276,40 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   // before/after diff only when there are no overlays (overlays own the styling).
   const prev = spans.length === 0 ? ctx.beforeIndex?.get(line.id) : undefined;
 
+  // A redacted line is never rolled — slot-text would briefly expose the cleartext
+  // as it rolls. It falls through to the overlay path, which paints a censor bar.
+  const hasRedaction = spans.some((s) => s.type === "redaction");
+
+  // A TM-leveraged line: rolls into its memory match wrapped in a "from memory"
+  // highlight. The "tm" overlay is a line-level marker (not a rendered span).
+  const tmLine =
+    !!ctx.annotations &&
+    (line.overlays?.some((o) => o.type === "tm" && o.side === ctx.side) ?? false);
+
+  // Slot roll: render the line via slot-text, starting from the previous value.
+  // (Reduced motion and redacted lines fall through to the instant text path.)
+  if (ctx.transition === "slot" && !ctx.reducedMotion && !hasRedaction) {
+    const roll = (
+      <SlotLine
+        from={prevFullText.current}
+        target={fullText}
+        delay={ctx.stagger > 0 ? ctx.stagger * seq : 0}
+      />
+    );
+    return tmLine ? <span className={styles.tmHit}>{roll}</span> : roll;
+  }
+
   const showCaret = ctx.transition === "typewriter" && !done && !ctx.reducedMotion;
   const fadeKey = ctx.transition === "crossfade" ? cycle : undefined;
 
   return (
     <span
       key={fadeKey}
-      className={cn(ctx.transition === "crossfade" && styles.fade, showCaret && styles.caret)}
+      className={cn(
+        ctx.transition === "crossfade" && styles.fade,
+        showCaret && styles.caret,
+        tmLine && styles.tmHit,
+      )}
     >
       {segments.map((seg, i) =>
         seg.overlay ? (
@@ -189,12 +323,36 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
 }
 
 function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement {
+  const ctx = useCtx();
   const ov = segment.overlay!;
+  // Redaction renders as a marker censor bar (the RedactionDiagram blackout): the
+  // cleartext stays in the DOM for layout/width but is hidden under the ink bar
+  // and masked from selection + assistive tech.
+  if (ov.type === "redaction") {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <mark className={styles.censor} data-overlay-type="redaction" aria-label={ov.tooltip}>
+            {segment.text}
+          </mark>
+        </TooltipTrigger>
+        <TooltipContent>{ov.tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  // A term decodes/rolls into place as its highlight sweeps in (the annotation
+  // "effect"). slot-text rolls from a same-length scramble to the term.
+  const content =
+    ov.type === "term" && !ctx.reducedMotion ? (
+      <SlotLine from={scramble(segment.text)} target={segment.text} />
+    ) : (
+      segment.text
+    );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <mark className={cn(styles.overlay, ov.style.className)} data-overlay-type={ov.type}>
-          {segment.text}
+          {content}
         </mark>
       </TooltipTrigger>
       <TooltipContent>{ov.tooltip}</TooltipContent>
@@ -425,6 +583,7 @@ export default function FormatPreview({
     () => (overlayTypes ? new Set(overlayTypes) : undefined),
     [overlayTypes],
   );
+  const needsMarker = useMemo(() => annotations && docHasRedaction(model), [annotations, model]);
 
   const ctx = useMemo<PreviewCtx>(
     () => ({
@@ -453,6 +612,7 @@ export default function FormatPreview({
     <TooltipProvider delayDuration={150}>
       <Ctx.Provider value={ctx}>
         <div className={cn("kapi-reference", styles.root, flush && styles.flush, className)}>
+          {needsMarker && <RedactMarkerFilter />}
           <PreviewBody doc={model} gridHeaders={gridHeaders} />
         </div>
       </Ctx.Provider>

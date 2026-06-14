@@ -1,0 +1,85 @@
+format: docling
+kind: top_level
+mime_type: application/json
+description: |
+  DoclingDocument JSON — the native, lossless JSON serialization emitted by
+  Docling (https://github.com/docling-project/docling). Reads the document's
+  reading order (body.children), resolving the $ref pointers into the
+  texts/tables/groups/pictures arrays, into the neokapi content model plus the
+  structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This is the
+  file-based "consume Docling" boundary alongside the DocLang XML reader: a tool
+  runs Docling, saves the JSON, and neokapi reads it.
+
+  Coverage: text items (title, section_header with level, paragraph/text,
+  list_item, caption, footnote, page_header/page_footer → furniture, code,
+  formula); groups (lists and inline groups); tables (the resolved cell grid,
+  column/row-header cells → table-header role) and their captions; picture
+  captions; and per-item page geometry from prov[].bbox (TOPLEFT/BOTTOMLEFT
+  coord_origin). Read-only — Docling owns the JSON; neokapi re-emits structure
+  via the DocLang writer or projects to Markdown/HTML. Inline formatting is not
+  part of the base DoclingDocument text model, so each text item is one run.
+
+features:
+  - id: block_elements
+    name: Text items → roles
+    description: |
+      Each text item yields one translatable Block whose normalized SemanticRole
+      is mapped from its DocItemLabel (section_header → heading with level,
+      paragraph → paragraph, …).
+    spec_refs:
+      - "docling-core DoclingDocument / DocItemLabel (https://github.com/docling-project/docling-core)"
+    examples:
+      - name: section_header
+        origin: "authored: minimal DoclingDocument with one section_header"
+        input_xml: "{\"schema_name\":\"DoclingDocument\",\"body\":{\"children\":[{\"$ref\":\"#/texts/0\"}]},\"texts\":[{\"self_ref\":\"#/texts/0\",\"label\":\"section_header\",\"text\":\"Overview\",\"level\":2}]}"
+        block_count: 1
+        first_block_text: "Overview"
+      - name: paragraph
+        origin: "authored: minimal DoclingDocument with one paragraph"
+        input_xml: "{\"schema_name\":\"DoclingDocument\",\"body\":{\"children\":[{\"$ref\":\"#/texts/0\"}]},\"texts\":[{\"self_ref\":\"#/texts/0\",\"label\":\"paragraph\",\"text\":\"Hello world\"}]}"
+        block_count: 1
+        first_block_text: "Hello world"
+    native_refs:
+      - docling.TestReadDoclingRolesAndGeometry
+
+  - id: lists
+    name: Groups → list items
+    description: |
+      A group (name "list"/"ordered_list") becomes a Group; each list_item text
+      inside it becomes a list-item Block.
+    spec_refs:
+      - "docling-core GroupItem / list grouping"
+    examples:
+      - name: two_item_list
+        origin: "authored: a list group with two items"
+        input_xml: "{\"schema_name\":\"DoclingDocument\",\"body\":{\"children\":[{\"$ref\":\"#/groups/0\"}]},\"groups\":[{\"self_ref\":\"#/groups/0\",\"name\":\"list\",\"children\":[{\"$ref\":\"#/texts/0\"},{\"$ref\":\"#/texts/1\"}]}],\"texts\":[{\"self_ref\":\"#/texts/0\",\"label\":\"list_item\",\"text\":\"First\"},{\"self_ref\":\"#/texts/1\",\"label\":\"list_item\",\"text\":\"Second\"}]}"
+        block_count: 2
+        block_texts:
+          - "First"
+          - "Second"
+    native_refs:
+      - docling.TestReadDoclingGroupStructure
+
+  - id: tables
+    name: Tables → cell grid
+    description: |
+      A table becomes a Group of row Groups; each non-empty grid cell becomes a
+      cell Block. column/row-header cells carry the table-header role; the rest
+      carry table-cell. Cells are ordered by (row, column) offset.
+    spec_refs:
+      - "docling-core TableItem / TableData / TableCell"
+    examples:
+      - name: header_and_data_rows
+        origin: "authored: 2-column table, one header row + one data row"
+        input_xml: "{\"schema_name\":\"DoclingDocument\",\"body\":{\"children\":[{\"$ref\":\"#/tables/0\"}]},\"tables\":[{\"self_ref\":\"#/tables/0\",\"label\":\"table\",\"data\":{\"num_rows\":2,\"num_cols\":2,\"table_cells\":[{\"text\":\"Name\",\"start_row_offset_idx\":0,\"start_col_offset_idx\":0,\"column_header\":true},{\"text\":\"Age\",\"start_row_offset_idx\":0,\"start_col_offset_idx\":1,\"column_header\":true},{\"text\":\"Ann\",\"start_row_offset_idx\":1,\"start_col_offset_idx\":0},{\"text\":\"30\",\"start_row_offset_idx\":1,\"start_col_offset_idx\":1}]}}]}"
+        block_count: 4
+        block_texts:
+          - "Name"
+          - "Age"
+          - "Ann"
+          - "30"
+    native_refs:
+      - docling.TestReadDoclingRolesAndGeometry
+
+parity:
+  skip: "DoclingDocument JSON is Docling's native serialization with no Okapi bridge filter"

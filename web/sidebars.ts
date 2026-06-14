@@ -163,7 +163,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  toolboxSidebar: ["toolbox/overview", "toolbox/kgrep", "toolbox/ksed", "toolbox/kcat"],
+  toolboxSidebar: ["toolbox/overview", "toolbox/kgrep", "toolbox/ksed", "toolbox/kcat", "toolbox/kconv"],
 
   reactSidebar: [
     "react/introduction",

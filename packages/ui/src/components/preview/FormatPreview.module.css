@@ -8,7 +8,9 @@
   --doc-muted: var(--ifm-color-emphasis-600, #6b7280);
   --doc-border: var(--ifm-color-emphasis-200, #e5e7eb);
   --doc-subtle: var(--ifm-color-emphasis-100, #f3f4f6);
-  --doc-bg: var(--ifm-background-color, #fff);
+  /* Document surface color — a host can tint it (e.g. per target locale) via
+     --kapi-preview-bg; defaults to the page background. */
+  --doc-bg: var(--kapi-preview-bg, var(--ifm-background-color, #fff));
   color: var(--doc-fg);
   font-size: 0.82rem;
   line-height: 1.45;
@@ -23,6 +25,74 @@
   -webkit-box-decoration-break: clone;
   font-weight: 600;
   color: var(--doc-fg);
+}
+
+/* ── Redaction censor bar ─────────────────────────────────────────────────── */
+/* Marker blackout, matching the RedactionDiagram: a solid ink bar (so it reads
+   black on light and inverts to a light bar on dark) with felt-tip rough edges
+   from the shared SVG turbulence filter and a small skew. The cleartext stays in
+   place for natural width but is hidden under the bar and unselectable. */
+.censor {
+  display: inline-block;
+  vertical-align: baseline;
+  background: var(--doc-fg);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0 0.15em;
+  transform: rotate(-0.55deg);
+  transform-origin: left center;
+  filter: url(#kapi-redact-marker);
+  cursor: help;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Wipe the bar on like a marker stroke when redaction is applied. */
+  animation: censorIn 0.36s ease both;
+}
+
+@keyframes censorIn {
+  from {
+    transform: rotate(-0.55deg) scaleX(0.04);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .censor {
+    transform: none;
+    animation: none;
+  }
+}
+
+/* Off-canvas holder for the redaction marker <filter> def. */
+.svgDefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ── TM-leverage highlight ────────────────────────────────────────────────── */
+/* A "from memory" tint that fades in behind a line filled from translation
+   memory, paired with the slot roll into the matched target. */
+.tmHit {
+  border-radius: 4px;
+  padding: 0 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background: color-mix(in srgb, var(--doc-accent) 16%, transparent);
+  animation: tmHitIn 0.6s ease both;
+}
+
+@keyframes tmHitIn {
+  from {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmHit {
+    animation: none;
+  }
 }
 
 /* ── Overlay highlight ───────────────────────────────────────────────────── */

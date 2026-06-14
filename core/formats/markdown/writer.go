@@ -123,10 +123,62 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 	return nil
 }
 
+// mdInlineTag maps an inline run's vocabulary type to its Markdown delimiters
+// (open, close). Used by the cross-format semantic export path so inline
+// formatting renders as Markdown (**bold**, *italic*) regardless of the source
+// format — rather than echoing the source's captured Data (e.g. DocLang's
+// "<bold>"). Mirrors the HTML writer's inlineFmtTag.
+var mdInlineTag = map[string][2]string{
+	"fmt:bold":          {"**", "**"},
+	"fmt:italic":        {"*", "*"},
+	"fmt:strikethrough": {"~~", "~~"},
+	"fmt:code":          {"`", "`"},
+}
+
+// renderInlineMarkdown renders a run sequence as Markdown inline content: text
+// verbatim, inline formatting from the run type (balanced via a tag stack),
+// placeholders as their equivalent text. This is the cross-format projection —
+// it never consults a run's Data, so the same Markdown results whatever the
+// source format.
+func renderInlineMarkdown(runs []model.Run) string {
+	var sb strings.Builder
+	var open []string // stack of closing delimiters (or "" for dropped tags)
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			sb.WriteString(r.Text.Text)
+		case r.PcOpen != nil:
+			if m, ok := mdInlineTag[r.PcOpen.Type]; ok {
+				sb.WriteString(m[0])
+				open = append(open, m[1])
+			} else {
+				open = append(open, "")
+			}
+		case r.PcClose != nil:
+			if n := len(open); n > 0 {
+				c := open[n-1]
+				open = open[:n-1]
+				sb.WriteString(c)
+			}
+		case r.Ph != nil:
+			if r.Ph.Equiv != "" {
+				sb.WriteString(r.Ph.Equiv)
+			}
+		}
+	}
+	for i := len(open) - 1; i >= 0; i-- {
+		sb.WriteString(open[i])
+	}
+	return sb.String()
+}
+
 // writeFromBlocks reconstructs markdown from blocks without a skeleton store.
+// This is the cross-format semantic export path (any source → clean Markdown),
+// so inline formatting renders from each run's vocabulary type, not its
+// source-format Data.
 func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 	for _, block := range blocks {
-		text := w.blockText(block)
+		text := renderInlineMarkdown(w.blockRuns(block))
 
 		if !w.firstBlock {
 			if _, err := fmt.Fprint(out, "\n\n"); err != nil {
@@ -135,30 +187,50 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 		}
 		w.firstBlock = false
 
-		// Reconstruct heading prefix
-		if block.Type == "heading" {
-			if level, ok := block.Properties["level"]; ok {
-				n := 0
-				_, _ = fmt.Sscanf(level, "%d", &n)
-				prefix := strings.Repeat("#", n) + " "
-				if _, err := fmt.Fprint(out, prefix); err != nil {
-					return err
-				}
+		// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
+		// SemanticRole drives clean cross-format export (any source → Markdown);
+		// it falls back to the format-specific block.Type so same-format
+		// round-trips are unchanged.
+		role := block.SemanticRole()
+		if role == "" {
+			role = block.Type
+		}
+		var prefix, suffix string
+		switch role {
+		case model.RoleTitle:
+			prefix = "# "
+		case model.RoleHeading:
+			if n := headingLevel(block); n > 0 {
+				prefix = strings.Repeat("#", n) + " "
 			}
+		case model.RoleListItem:
+			prefix = "- "
+		case model.RoleCode:
+			prefix, suffix = "```\n", "\n```"
+		case model.RoleCaption:
+			prefix, suffix = "*", "*"
 		}
 
-		// Reconstruct list item prefix
-		if block.Type == "list-item" {
-			if _, err := fmt.Fprint(out, "- "); err != nil {
-				return err
-			}
-		}
-
-		if _, err := fmt.Fprint(out, text); err != nil {
+		if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// headingLevel returns a block's heading level, preferring the normalized
+// structural annotation (WS1) and falling back to the legacy "level" property;
+// 0 when neither is present.
+func headingLevel(block *model.Block) int {
+	if s, ok := block.Structure(); ok && s != nil && s.Level > 0 {
+		return s.Level
+	}
+	if level, ok := block.Properties["level"]; ok {
+		n := 0
+		_, _ = fmt.Sscanf(level, "%d", &n)
+		return n
+	}
+	return 0
 }
 
 // trailSpaceTrimmer is an io.Writer that mirrors upstream Okapi's

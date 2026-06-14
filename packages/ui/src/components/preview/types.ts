@@ -194,7 +194,14 @@ export interface OverlaySpan {
   ignorable?: boolean;
 }
 
-export type OverlayType = "segmentation" | "term" | "entity" | "qa" | "alignment";
+export type OverlayType =
+  | "segmentation"
+  | "term"
+  | "entity"
+  | "qa"
+  | "alignment"
+  | "redaction"
+  | "tm";
 
 /** A typed stand-off interpretation layered over one side of a block. */
 export interface OverlayView {
@@ -211,6 +218,41 @@ export interface AnnotationView {
   type: string; // alt-translation | note | <generic kind>
   summary?: string;
   fields?: Record<string, unknown>;
+}
+
+/**
+ * The block's structural role (the WS1 structural layer): what the block IS in
+ * the document — a heading (with level), a list item, a table cell, furniture
+ * (running header/footer) — and its reading order. Mirrors editor.StructureView.
+ */
+export interface StructureView {
+  /** Normalized semantic role: heading | title | paragraph | list-item | table-cell | caption | … */
+  role?: string;
+  /** Layout layer: body | furniture | background. "" = body/unspecified. */
+  layer?: string;
+  /** Heading / nesting level (1–9), 0 when not applicable. */
+  level?: number;
+  /** Explicit reading-order index when the source provides one. */
+  readingOrder?: number;
+}
+
+/**
+ * Where the block sits on a rendered page (the WS1 structural layer): page
+ * number + bounding box in the coordinate space named by origin/resolution.
+ * Mirrors editor.GeometryView. Present only for layout-aware sources (PDF,
+ * Docling/DocLang, slide/sheet coordinates).
+ */
+export interface GeometryView {
+  /** 1-based page number; 0 = unpaginated/unknown. */
+  page?: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Edge length of the normalized coordinate grid (DocLang uses 512); 0 = absolute units. */
+  resolution?: number;
+  /** "top-left" (default) or "bottom-left". */
+  origin?: string;
 }
 
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
@@ -237,6 +279,10 @@ export interface ContentNode {
   overlays?: OverlayView[];
   /** Block-level annotations. */
   annotations?: AnnotationView[];
+  /** The structural role layer (WS1): role, layout layer, level, reading order. */
+  structure?: StructureView;
+  /** Page geometry (WS1): page + bounding box, for layout-aware sources. */
+  geometry?: GeometryView;
   hasSkeleton?: boolean;
   isReferent?: boolean;
   preserveWhitespace?: boolean;
