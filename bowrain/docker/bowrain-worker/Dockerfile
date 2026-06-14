@@ -42,7 +42,7 @@ RUN CGO_ENABLED=0 cd bowrain && go build \
     -o /out/bowrain-worker ./cmd/bowrain-worker
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────
-FROM alpine:3.23
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /out/bowrain-worker /usr/local/bin/bowrain-worker
