@@ -313,6 +313,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				blockCounter:  &blockCounter,
 				skeletonStore: r.skeletonStore,
 				rels:          relsMap,
+				slideNum:      pptxSlideNum(partPath),
 			}
 			err = parser.parsePart(partData, partPath, emitBlock)
 			if err != nil {
