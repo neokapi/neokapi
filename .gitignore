@@ -166,3 +166,8 @@ platform/docker/traefik/certs
 # Compiled Go tool binaries (built into their module dirs by `go build ./...`)
 /scripts/gen-refs/gen-refs
 /scripts/contract-audit/contract-audit
+/scripts/checkeval/checkeval
+# Stray build outputs (use `make` targets, which place binaries under bin/ or
+# the wasm demo dir — these default `go build` outputs must never be committed)
+/bowrain/bowrain
+/kapi/kapi-wasm-cli
