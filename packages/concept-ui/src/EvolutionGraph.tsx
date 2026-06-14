@@ -1,19 +1,20 @@
-// EvolutionGraph — the VERTICAL "git-graph" the concept roadmap folds into on
-// narrow widths (Apache-2.0). Where the horizontal `EvolutionRoadmap` paints
-// lanes of validity spans across a time axis (and needs the width to do it), this
-// renderer has no axis and never scrolls sideways: it flattens the whole derived
-// model — global milestones, each lane's own milestones (carrying their locale),
-// the structural sibling/rename branches, and the density clusters — into one
-// time-sorted spine of rows. Sibling and rename rows grow a short branch offshoot
-// off the rail so a fork still reads as a fork; cluster rows collapse a run of
-// routine edits into one expandable "N changes" cloud. It is the same vocabulary
-// as the roadmap (the shared `./evolution-atoms`), re-laid for a ~320px column.
+// EvolutionGraph — the VERTICAL timeline (Apache-2.0). This is the DEFAULT face
+// of a concept's evolution: a continuous spine with an icon node per moment and
+// the moment's detail in a card beside it — the canonical timeline pattern, and
+// the one that reads instantly as a timeline at any width (the horizontal lane
+// "Compare languages" roadmap is the opt-in alternative). It flattens the whole
+// derived model — global milestones, each lane's own milestones (carrying their
+// locale), the structural sibling/rename branches, and the density clusters —
+// into one time-sorted, day-grouped spine. Sibling/rename cards carry a branch
+// accent so a fork still reads as a fork; cluster cards collapse a run of routine
+// edits into one expandable "N changes" cloud.
 
 import { useMemo, useState } from "react";
-import { cn } from "@neokapi/ui-primitives";
+import type { ReactNode } from "react";
+import { Avatar, AvatarFallback, cn } from "@neokapi/ui-primitives";
 import { History } from "lucide-react";
 import { EmptyHint, LocalePill, formatDate, formatRelative } from "./atoms";
-import { ClusterPill, MilestoneDot } from "./evolution-atoms";
+import { ClusterPill, MilestoneDot, toneMeta } from "./evolution-atoms";
 import type {
   EvolutionBranch,
   EvolutionCluster,
@@ -204,30 +205,28 @@ export function EvolutionGraph({
 
   return (
     <div className={cn("relative text-sm", className)}>
-      {/* The continuous spine, faded at both ends, behind every dot. */}
+      {/* The continuous spine, faded at both ends, behind every node. */}
       <span
         aria-hidden
-        className="absolute bottom-3 left-3.5 top-3 w-px bg-gradient-to-b from-transparent via-border to-transparent"
+        className="absolute bottom-2 left-3.5 top-2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-border to-transparent"
       />
-      <div className="space-y-4">
-        {days.map((day) => (
+      <div className="space-y-6">
+        {days.map((day, di) => (
           <section key={day.key}>
-            <p className="pl-10 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {day.label}
-            </p>
-            <ol className="mt-2 space-y-2.5">
+            <DayHeader label={day.label} />
+            <ol className="mt-3 space-y-3">
               {day.rows.map((row, i) =>
                 row.type === "cluster" ? (
                   <ClusterRow
                     key={row.id}
                     row={row}
-                    index={i}
+                    index={di + i}
                     expanded={expanded.has(row.id)}
                     onToggle={() => toggle(row.id)}
                     onNavigate={onNavigate}
                   />
                 ) : (
-                  <PointRow key={row.id} row={row} index={i} onNavigate={onNavigate} />
+                  <PointRow key={row.id} row={row} index={di + i} onNavigate={onNavigate} />
                 ),
               )}
             </ol>
@@ -240,11 +239,71 @@ export function EvolutionGraph({
 
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
-/** The two-column rail + body grid every row sits in (dot column is fixed). */
-const ROW_GRID = "grid grid-cols-[1.75rem_1fr] items-start gap-3";
+/** The rail + card row layout (flex, so it needs no arbitrary grid template). */
+const ROW_GRID = "flex items-stretch gap-2.5";
 /** Stagger the entrance so a long history reads as it lands, not all at once. */
 function delay(index: number): string {
-  return `${Math.min(index, 8) * 40}ms`;
+  return `${Math.min(index, 10) * 35}ms`;
+}
+
+/** A subtle month/day marker, aligned with the node column, that sits on the spine. */
+function DayHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex w-7 justify-center">
+        <span aria-hidden className="size-1.5 rounded-full bg-border ring-4 ring-card" />
+      </span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** First letters of an actor name, for the avatar fallback (max 2). */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "·";
+}
+
+/** The card chrome shared by point + cluster rows, with the spine connector. */
+function RowFrame({
+  tone,
+  index,
+  branch,
+  onNodeClick,
+  nodeTitle,
+  children,
+}: {
+  tone: EvolutionTone;
+  index: number;
+  branch?: "sibling" | "rename";
+  onNodeClick?: () => void;
+  nodeTitle?: string;
+  children: ReactNode;
+}) {
+  return (
+    <li
+      className={cn(ROW_GRID, "animate-in fade-in slide-in-from-bottom-1")}
+      style={{ animationDelay: delay(index) }}
+    >
+      <div className="relative flex w-7 shrink-0 justify-center">
+        <MilestoneDot tone={tone} title={nodeTitle} onClick={onNodeClick} className="mt-1" />
+      </div>
+      <div className="relative min-w-0 flex-1">
+        {/* A short connector tying the card to its node on the spine. */}
+        <span aria-hidden className="absolute -left-2.5 top-4 h-px w-2.5 bg-border" />
+        <div
+          className={cn(
+            "rounded-lg border bg-card px-3 py-2 shadow-sm transition-shadow hover:shadow-md",
+            branch && "border-l-2 border-l-primary",
+          )}
+        >
+          {children}
+        </div>
+      </div>
+    </li>
+  );
 }
 
 function PointRow({
@@ -258,47 +317,52 @@ function PointRow({
 }) {
   const navigable = Boolean(row.navigateId && onNavigate);
   const go = navigable ? () => onNavigate!(row.navigateId!) : undefined;
-  const isBranch = Boolean(row.branch);
+  const accent = toneMeta(row.tone).accent;
   return (
-    <li
-      className={cn(ROW_GRID, "animate-in fade-in slide-in-from-left-1")}
-      style={{ animationDelay: delay(index) }}
+    <RowFrame
+      tone={row.tone}
+      index={index}
+      branch={row.branch}
+      onNodeClick={go}
+      nodeTitle={row.summary}
     >
-      <div className="relative z-10 flex justify-center">
-        {/* A short elbow off the spine so a fork reads as a fork. */}
-        {isBranch && (
-          <span
-            aria-hidden
-            className="absolute -left-2 top-3.5 h-px w-2.5 rounded-full bg-border"
-          />
-        )}
-        <MilestoneDot tone={row.tone} title={row.summary} onClick={go} />
+      <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          disabled={!navigable}
+          onClick={go}
+          className={cn(
+            "min-w-0 text-left font-medium leading-snug text-foreground",
+            navigable &&
+              "rounded-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          )}
+        >
+          {row.summary}
+        </button>
+        {row.locale && <LocalePill locale={row.locale} className="mt-0.5 shrink-0" />}
       </div>
-      <div className="min-w-0 pt-1">
-        <p className="flex items-center gap-1.5 leading-snug text-foreground">
-          <button
-            type="button"
-            disabled={!navigable}
-            onClick={go}
-            className={cn(
-              "min-w-0 truncate text-left",
-              navigable &&
-                "rounded-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-          >
-            {row.summary}
-          </button>
-          {row.locale && <LocalePill locale={row.locale} className="shrink-0" />}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {row.actor ? `${row.actor} · ` : ""}
-          <time dateTime={row.at}>{formatRelative(row.at)}</time>
-        </p>
-        {row.detail && (
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{row.detail}</p>
-        )}
+      {row.detail && (
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{row.detail}</p>
+      )}
+      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        {row.actor ? (
+          <>
+            <Avatar className="size-4">
+              <AvatarFallback className="text-[8px] font-medium">
+                {initials(row.actor)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-foreground/80">{row.actor}</span>
+            <span aria-hidden>·</span>
+          </>
+        ) : null}
+        <span className={cn(toneMeta(row.tone).label && accent, "capitalize")}>
+          {toneMeta(row.tone).label}
+        </span>
+        <span aria-hidden>·</span>
+        <time dateTime={row.at}>{formatRelative(row.at)}</time>
       </div>
-    </li>
+    </RowFrame>
   );
 }
 
@@ -317,40 +381,31 @@ function ClusterRow({
 }) {
   const { cluster } = row;
   return (
-    <li
-      className={cn(ROW_GRID, "animate-in fade-in slide-in-from-left-1")}
-      style={{ animationDelay: delay(index) }}
-    >
-      <div className="relative z-10 flex justify-center pt-0.5">
-        {/* A muted dot keeps the cloud anchored on the spine when collapsed. */}
-        <span className="size-3 rounded-full bg-muted ring-4 ring-card" />
+    <RowFrame tone="edit" index={index} nodeTitle={`${cluster.count} routine changes`}>
+      <div className="flex items-center gap-2">
+        <ClusterPill count={cluster.count} expanded={expanded} onToggle={onToggle} />
+        {row.locale ? <LocalePill locale={row.locale} /> : null}
       </div>
-      <div className="min-w-0 pt-0.5">
-        <div className="flex items-center gap-2">
-          <ClusterPill count={cluster.count} expanded={expanded} onToggle={onToggle} />
-          {row.locale && <LocalePill locale={row.locale} />}
-        </div>
-        {expanded && (
-          <ol className="mt-2 space-y-2 border-l border-border/60 pl-3">
-            {cluster.items.map((item) => {
-              const navigable = Boolean(item.navigateId && onNavigate);
-              const go = navigable ? () => onNavigate!(item.navigateId!) : undefined;
-              return (
-                <li key={item.id} className="flex items-start gap-2">
-                  <MilestoneDot tone={item.tone} size="sm" title={item.summary} onClick={go} />
-                  <div className="min-w-0 pt-0.5">
-                    <p className="truncate text-xs leading-snug text-foreground">{item.summary}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {item.actor ? `${item.actor} · ` : ""}
-                      <time dateTime={item.at}>{formatRelative(item.at)}</time>
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
-    </li>
+      {expanded && (
+        <ol className="mt-2.5 space-y-2 border-l border-border/60 pl-3">
+          {cluster.items.map((item) => {
+            const navigable = Boolean(item.navigateId && onNavigate);
+            const go = navigable ? () => onNavigate!(item.navigateId!) : undefined;
+            return (
+              <li key={item.id} className="flex items-start gap-2">
+                <MilestoneDot tone={item.tone} size="sm" title={item.summary} onClick={go} />
+                <div className="min-w-0 pt-0.5">
+                  <p className="truncate text-xs leading-snug text-foreground">{item.summary}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {item.actor ? `${item.actor} · ` : ""}
+                    <time dateTime={item.at}>{formatRelative(item.at)}</time>
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </RowFrame>
   );
 }

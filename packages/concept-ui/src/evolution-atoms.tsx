@@ -109,14 +109,18 @@ export function toneMeta(tone: EvolutionTone): ToneMeta {
 
 // ── Status → span fill ───────────────────────────────────────────────────────
 
-/** The bar fill for a term status. Banned/deprecated read as muted + struck. */
+/**
+ * The bar fill for a term status — a SOLID, confident Gantt bar (a softly-tinted
+ * same-colour border, not a hard outline, so it reads as a filled bar rather than
+ * an empty input). Banned/deprecated read as muted + struck via the hatch.
+ */
 export const SPAN_FILL: Record<TermStatus, string> = {
-  preferred: "bg-success/70 border-success",
-  approved: "bg-primary/55 border-primary",
-  admitted: "bg-warning/60 border-warning",
-  proposed: "bg-muted-foreground/30 border-muted-foreground/40",
-  deprecated: "bg-muted-foreground/20 border-muted-foreground/30",
-  forbidden: "bg-destructive/45 border-destructive",
+  preferred: "bg-success/85 border-success/30 text-success-foreground",
+  approved: "bg-primary/80 border-primary/30 text-primary-foreground",
+  admitted: "bg-warning/80 border-warning/40 text-warning-foreground",
+  proposed: "bg-muted-foreground/35 border-muted-foreground/20 text-foreground",
+  deprecated: "bg-muted-foreground/25 border-muted-foreground/20 text-muted-foreground",
+  forbidden: "bg-destructive/70 border-destructive/30 text-destructive-foreground",
 };
 
 /** A small dot colour for a status (lane headers, legends). */
@@ -292,9 +296,9 @@ export function SpanBar({
       }}
     >
       {banned && <Ban aria-hidden className="size-3 shrink-0" />}
-      <span className={cn("truncate text-foreground/90", banned && "line-through")}>
-        {span.termText}
-      </span>
+      {/* Inherit the fill's contrast colour (set in SPAN_FILL) rather than a
+          fixed foreground, so a label reads on a solid coloured bar. */}
+      <span className={cn("truncate", banned && "line-through")}>{span.termText}</span>
       {span.cap === "open" && (
         <span
           aria-hidden

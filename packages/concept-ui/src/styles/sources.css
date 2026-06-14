@@ -1,0 +1,11 @@
+/*
+ * Registers @neokapi/concept-ui/src as a Tailwind @source so consumers of this
+ * package don't have to add the @source themselves. Without it, classes used
+ * only inside concept-ui (e.g. full-opacity bg-success on the timeline nodes, or
+ * any arbitrary value) are never generated in the consumer's CSS.
+ *
+ * Import this from any CSS file that processes Tailwind utilities and renders
+ * @neokapi/concept-ui components.
+ */
+
+@source "../";
