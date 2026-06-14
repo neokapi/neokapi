@@ -237,7 +237,10 @@ notifications, SSE, desktop watch):
 
 Workspace-scoped, AD-011 conventions. `/:ws/concepts` is the terminology API:
 it replaces the former `/:ws/terms` routes, and every consumer (web, desktop,
-Pulse, MCP) uses it.
+Pulse, MCP) uses it. There is no whole-graph endpoint: relations are read one
+concept at a time through `GET /:ws/concepts/:cid/relations` (the concept and
+its direct, 1-hop edges), which is what the per-concept dashboard's relations
+widget consumes.
 
 ```
 GET    /:ws/concepts                      ?q&status&domain&market&locale&source&offset&limit
@@ -258,7 +261,6 @@ POST   /:ws/concepts/:cid/comments        {body, parent_id?}
 POST   /:ws/concepts/:cid/comments/:id/resolve
 DELETE /:ws/concepts/:cid/comments/:id
 
-GET    /:ws/graph                         viz payload {nodes, edges} ?as_of&market&domain&status&focus&depth
 GET    /:ws/markets    POST /:ws/markets    PUT/DELETE /:ws/markets/:mid
 
 GET    /:ws/changesets                    ?status
@@ -291,28 +293,53 @@ DELETE /:ws/changesets/:id/pilots/:project/:stream
 
 ## CLI / MCP (bowrain plugin)
 
-```
-kapi concepts list|show <id>|story <id>     server-backed, --json
-kapi experiments list|show <id>|blast-radius <id>
-kapi terms pull                              snapshot workspace concepts+relations → .kapi/termbase.db
-```
+There are no dedicated `kapi concepts` / `kapi experiments` / `kapi terms pull`
+commands. Governed terminology rides ordinary project sync instead
+(`bowrain/plugin/commands/conceptsync.go`, folded into `kapi pull` / `kapi push`
+/ `kapi sync`):
 
-MCP tools: `concept_search`, `concept_story`, `experiment_status`.
+- **`kapi pull`** paginates `GET /:ws/concepts`, fetches each concept's relations
+  (`GET /:ws/concepts/:cid/relations`, bounded fan-out), writes both into the
+  project's bound termbase via the framework termbase API (`AddConcept` /
+  `AddRelation`), and records a `ConceptBaseline` in the sync cache. The snapshot
+  is identical in shape to a local termbase, so `kapi verify --terms` then gates
+  offline in CI against governed terminology.
+- **`kapi push`** diffs the local termbase against that baseline. Ordinary edits
+  (definitions, notes, non-governed terms, non-`REPLACED_BY` relations) go up
+  directly through the concept/relation endpoints; governed edits — a term
+  transition where `IsGovernedTransition` holds, a forbidden-term removal, a new
+  concept carrying a governed term, a `REPLACED_BY` relation, a concept delete —
+  are bundled into one change-set (`POST /:ws/changesets` → append ops → submit),
+  the same reviewed path the hub enforces. An ordinary concept `PUT` neutralizes
+  any pending governed term transition to its baseline status so the direct
+  endpoint never entails a governed transition the server would reject with 409.
 
-`kapi terms pull` writes through the framework termbase API so the snapshot is
-identical in shape to a local termbase; `kapi verify` then gates offline in CI
-against governed terminology.
+MCP read tools remain: `concept_search`, `concept_story`, `experiment_status`.
 
 ## Frontend
 
-One `BrandHub` shell (web + desktop, shared in `bowrain/packages/ui`) with
-sub-navigation: Concepts (list, graph canvas, concept story), Voice (existing
-pages re-homed), Experiments (list, detail with op diff + blast radius +
-reviews + pilots, what-if wizard), Activity (brand-scoped event feed),
-Dashboard (scores, drift, coverage, pending decisions). Graph canvas renders
-with React Flow using a force-directed layout; every new component has a story
-and vitest coverage; the desktop app proxies all routes through Wails bindings
-(`governance.go` pattern). The workspace-scoped hub has no project to watch, so
+The per-concept surface is the framework package `@neokapi/concept-ui`
+(`packages/concept-ui`, Apache) — a data-source-agnostic concept browser and
+dashboard. It is driven through one small `ConceptDataSource` adapter:
+kapi-desktop binds it to a local SQLite termbase (core reads plus the
+editable-core mutations), and bowrain binds it to the REST API (core plus the
+rich reads — named markets, observations, comments, the revision timeline,
+where-used). Components gate their sections on resolved capabilities
+(`resolveCapabilities`), so a minimal local source degrades to terms, relations,
+geography, constraints, and a synthesized timeline. `ConceptList` is the list
+surface; `ConceptDashboard` composes the section panels (`MarketsPanel` =
+geography, `ConstraintsPanel`, `RelationsPanel` = the local 1-hop relations
+widget with `RELATION_COLLAPSE_THRESHOLD`-driven "N related" grouping,
+`ConceptTimeline`, `ObservationsPanel`, `CommentsPanel`).
+
+One `BrandHub` shell (web + desktop, shared in `bowrain/packages/ui`) wraps it
+with sub-navigation: Concepts (the `@neokapi/concept-ui` list + dashboard), Voice
+(existing pages re-homed), Experiments (list, detail with op diff + blast radius +
+reviews + pilots, what-if wizard), Activity (brand-scoped event feed), Dashboard
+(scores, drift, coverage, pending decisions). There is no graph canvas; every new
+component has a story and vitest coverage; the desktop app proxies all routes
+through Wails bindings (`governance.go` pattern). The workspace-scoped hub has no
+project to watch, so
 freshness is React Query's own refetch (per-hook `staleTime` + refetch-on-focus)
 plus the mutation-driven invalidation the brand hooks already do on every write;
 there are no dedicated `concept-changed` / `changeset-changed` Wails events.

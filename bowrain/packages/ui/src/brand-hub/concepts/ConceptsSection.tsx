@@ -26,7 +26,7 @@ export function ConceptsSection({ onOpenConcept }: ConceptsSectionProps) {
   return (
     <BrandHub
       title="Concepts"
-      description="The language-neutral units of your brand — each with its terms, status by locale, and place in the graph."
+      description="The language-neutral units of your brand — each with its terms, status by locale, and direct relations."
       width="wide"
     >
       <ConceptList source={source} onOpen={onOpenConcept} />

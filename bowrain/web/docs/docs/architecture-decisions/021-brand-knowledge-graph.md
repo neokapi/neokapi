@@ -27,9 +27,13 @@ content is computed before anyone approves it. A change-set can optionally be
 a measured experiment rather than a leap.
 
 The navigator surfaces as a unified **Brand** hub in the web and desktop apps
-(Concepts, Voice, Experiments, Activity, Dashboard), and as commands and MCP
-tools through the kapi CLI so CI gates and AI assistants consume the same
-graph.
+(Concepts, Voice, Experiments, Activity, Dashboard). Its Concepts section is a
+searchable **concept list** that opens, per concept, a **dashboard** — terms,
+geography, constraints, a local relations widget, a timeline, observations, and
+discussion — not a whole-graph canvas. Governed terminology reaches a project's
+local files through ordinary sync (`kapi pull`/`kapi push`), and assistants read
+it through MCP tools, so CI gates and AI assistants consume the same governed
+truth the hub shows.
 
 ## Context
 
@@ -160,20 +164,30 @@ the footprint of a concept before proposing anything.
 ### Surfaces
 
 - **Web and desktop** present one **Brand** hub with five sections: Concepts
-  (graph view, list, and per-concept story), Voice (profiles and the
-  correction loop), Experiments (change-sets, reviews, pilots), Activity (the
-  brand-scoped event timeline), and Dashboard (compliance, drift, coverage,
-  pending decisions). The desktop app remains a working copy of the server:
-  it proxies the same REST surface, and its views stay fresh through React
-  Query's stale-time and refetch-on-focus; the graph is never authored offline.
-- **CLI and CI.** The kapi CLI gains read access to the workspace graph
-  (`kapi concepts`, `kapi experiments`) through the bowrain plugin, and —
-  decisive for CI — `kapi terms pull`, which snapshots the workspace's
-  governed concepts into the project's local termbase so `kapi verify` gates
-  offline against the same truth the web UI shows.
-- **MCP.** Assistants navigate the graph through MCP tools (concept search,
-  concept story, experiment status), complementing the existing brand and
-  terminology tools.
+  (a searchable concept list that opens a per-concept dashboard), Voice
+  (profiles and the correction loop), Experiments (change-sets, reviews,
+  pilots), Activity (the brand-scoped event timeline), and Dashboard
+  (compliance, drift, coverage, pending decisions). There is no whole-graph
+  visualization: a concept's relations are read and edited as a **local
+  widget** on its dashboard — the concept plus the concepts one hop away, with
+  large families collapsed to an "N related" summary and a click to navigate —
+  so the surface never has to lay out or guard an unbounded graph. The desktop
+  app remains a working copy of the server: it proxies the same REST surface,
+  and its views stay fresh through React Query's stale-time and
+  refetch-on-focus; concepts and relations are edited inline against the
+  server, never authored offline.
+- **CLI and CI.** Governed terminology rides ordinary project sync through the
+  bowrain plugin. `kapi pull` snapshots the workspace's governed concepts and
+  their relations into the project's local termbase, and — decisive for CI —
+  `kapi verify --terms` then gates offline against the same truth the hub
+  shows. `kapi push` sends local concept edits back: ordinary edits apply
+  directly through the concept endpoints, while governed edits (a banned or
+  preferred term, an un-forbidding, a `REPLACED_BY` relation, a concept delete)
+  are bundled into one submitted change-set proposal, so the separation of
+  duties holds whether an edit originates in the hub or from a project.
+- **MCP.** Assistants navigate the workspace's concepts through MCP read tools
+  (concept search, concept story, experiment status), complementing the
+  existing brand and terminology tools.
 
 ### Framework and platform split
 

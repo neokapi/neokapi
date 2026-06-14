@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 AGE uses a property graph model accessed through Cypher queries via `ag_catalog.cypher()`:
 
 ```sql
--- Graph creation (platform/graph/age.go)
+-- Graph creation (bowrain/graph/age.go)
 SELECT * FROM ag_catalog.create_graph('bowrain_graph');
 ```
 
@@ -120,7 +120,7 @@ $$) as (p agtype);
 
 ## Server: agtype Parsing
 
-AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `platform/graph/agtype.go` handles three formats:
+AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `bowrain/graph/agtype.go` handles three formats:
 
 ### Vertex format
 
@@ -190,7 +190,7 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 
 ## Server: Event-Driven Graph Sync
 
-`GraphSyncer` in `platform/graph/sync.go` subscribes to the event bus and maintains graph consistency:
+`GraphSyncer` in `bowrain/graph/sync.go` subscribes to the event bus and maintains graph consistency:
 
 | Event               | Action                                                      |
 | ------------------- | ----------------------------------------------------------- |
@@ -212,14 +212,14 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 | `core/graph/labels.go`        | SKOS-aligned edge label constants |
 | `cli/storage/graph/sqlite.go` | SQLite adjacency table backend    |
 
-### Server (`platform/`)
+### Server (`bowrain/`)
 
 | File                             | Purpose                                                  |
 | -------------------------------- | -------------------------------------------------------- |
-| `platform/graph/cypher.go`       | CypherStore sub-interface                                |
-| `platform/graph/age.go`          | Apache AGE backend (implements GraphStore + CypherStore) |
-| `platform/graph/agtype.go`       | agtype parser (vertex, edge, path, scalar)               |
-| `platform/graph/time.go`         | Time formatting helpers for AGE                          |
-| `platform/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension                  |
-| `platform/graph/factory.go`      | GraphStore factory                                       |
-| `platform/graph/sync.go`         | Event-driven graph sync                                  |
+| `bowrain/graph/cypher.go`       | CypherStore sub-interface                                |
+| `bowrain/graph/age.go`          | Apache AGE backend (implements GraphStore + CypherStore) |
+| `bowrain/graph/agtype.go`       | agtype parser (vertex, edge, path, scalar)               |
+| `bowrain/graph/time.go`         | Time formatting helpers for AGE                          |
+| `bowrain/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension                  |
+| `bowrain/graph/factory.go`      | GraphStore factory                                       |
+| `bowrain/graph/sync.go`         | Event-driven graph sync                                  |

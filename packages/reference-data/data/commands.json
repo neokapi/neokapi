@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-13T18:49:13Z",
+  "generatedAt": "2026-06-14T03:53:33Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -5798,13 +5798,12 @@
       ],
       "use": "termbase",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms, and to\nmaintain the typed relations between concepts.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+      "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
       "groupID": "management",
       "examples": [
         "kapi termbase stats",
         "kapi termbase lookup \"dashboard\" -s en -t fr",
-        "kapi termbase import glossary.csv -s en -t fr",
-        "kapi termbase relate old-name replaced-by new-name"
+        "kapi termbase import glossary.csv -s en -t fr"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -6011,110 +6010,6 @@
       "demoMode": false
     },
     {
-      "id": "termbase.relate",
-      "path": [
-        "termbase",
-        "relate"
-      ],
-      "use": "relate \u003csource-concept-id\u003e \u003crelation\u003e \u003ctarget-concept-id\u003e",
-      "short": "Add a typed relation between two concepts",
-      "long": "Add a typed relation between two concepts in the termbase.\n\nThe relation is one of the concept-relation vocabulary labels, written in\nlower-kebab or upper form: broader, narrower, part-of, has-part, related, replaced-by, use-instead, exact-match, close-match, competitor.\n\nA relation may carry a validity: a half-open time interval (--valid-from,\n--valid-to) plus free tags (--tag key=value) evaluated against a query-time\nscope, so the same edge can hold in one market and be absent in another.\nBoth concepts must already exist in the termbase.",
-      "flags": [
-        {
-          "name": "file",
-          "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "use resource in current directory",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "note",
-          "usage": "free-form note on the relation",
-          "type": "string"
-        },
-        {
-          "name": "tag",
-          "usage": "validity tag as key=value (repeatable, e.g. --tag market=dach)",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "valid-from",
-          "usage": "start of the validity interval (RFC3339 or YYYY-MM-DD)",
-          "type": "string"
-        },
-        {
-          "name": "valid-to",
-          "usage": "end of the validity interval, exclusive (RFC3339 or YYYY-MM-DD)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi termbase relate old-name replaced-by new-name --note \"renamed at launch\"",
-        "kapi termbase relate c1 use-instead c2 --tag market=dach",
-        "kapi termbase relate c1 related c2 --valid-from 2026-01-01 --valid-to 2026-06-01"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "termbase.relations",
-      "path": [
-        "termbase",
-        "relations"
-      ],
-      "use": "relations [concept-id]",
-      "short": "List relations between concepts",
-      "long": "List the relations persisted in the termbase.\n\nWith a concept ID, only relations touching that concept are listed, in either\ndirection. Without --as-of and --tag, no validity filtering is applied and\nevery relation is shown. --as-of and --tag build a scope: only relations\nwhose validity matches the scope are listed (--tag alone evaluates at the\ncurrent time).",
-      "flags": [
-        {
-          "name": "as-of",
-          "usage": "evaluate validity as of this time (RFC3339 or YYYY-MM-DD)",
-          "type": "string"
-        },
-        {
-          "name": "file",
-          "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "use resource in current directory",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "tag",
-          "usage": "scope tag as key=value (repeatable, e.g. --tag market=dach)",
-          "default": "[]",
-          "type": "stringArray"
-        }
-      ],
-      "examples": [
-        "kapi termbase relations",
-        "kapi termbase relations old-name",
-        "kapi termbase relations old-name --as-of 2025-12-01 --tag market=dach"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "termbase.search",
       "path": [
         "termbase",
@@ -6167,48 +6062,6 @@
       "demoMode": false
     },
     {
-      "id": "termbase.show",
-      "path": [
-        "termbase",
-        "show"
-      ],
-      "use": "show \u003cconcept-id\u003e",
-      "short": "Show a concept in full: definition, terms, and relations",
-      "long": "Show the full detail of one concept: its definition, domain, and source,\nits terms per locale with status and validity, and its relations in both\ndirections. Related concepts are labeled with their preferred term in the\nlocale given by --source-locale.",
-      "flags": [
-        {
-          "name": "file",
-          "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "use resource in current directory",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "source-locale",
-          "shorthand": "s",
-          "usage": "locale used to label related concepts",
-          "default": "en",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi termbase show old-name",
-        "kapi termbase show old-name -s de --json"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "termbase.stats",
       "path": [
         "termbase",
@@ -6237,39 +6090,6 @@
       "examples": [
         "kapi termbase stats",
         "kapi termbase stats --name product-terms"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "termbase.unrelate",
-      "path": [
-        "termbase",
-        "unrelate"
-      ],
-      "use": "unrelate \u003crelation-id\u003e",
-      "short": "Remove a relation between concepts",
-      "flags": [
-        {
-          "name": "file",
-          "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "use resource in current directory",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi termbase unrelate 4f7c2d1e-9a3b-4c8d-b1e2-0f6a5d4c3b2a"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

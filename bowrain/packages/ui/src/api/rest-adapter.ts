@@ -134,6 +134,16 @@ import type {
 } from "../types/brand-graph";
 
 /**
+ * Encode a value for use as a single URL path segment, preserving the colon.
+ * Concept IDs may be `term:<hash>` — `:` is path-legal (RFC 3986 pchar) and the
+ * server stores/matches IDs verbatim, so encodeURIComponent's `%3A` would 404.
+ * Everything else (notably `/`) is still encoded.
+ */
+function encodeConceptSegment(id: string): string {
+  return encodeURIComponent(id).replace(/%3A/gi, ":");
+}
+
+/**
  * RestApiAdapter talks to the neokapi REST server.
  * Used by the web apps (apps/web and apps/kapi-web).
  *
@@ -2442,7 +2452,11 @@ export class RestApiAdapter implements ApiAdapter {
   // block above; these add the graph/governance surface.
 
   private conceptEp(ws: string, conceptId: string) {
-    return `${this.termsEp(ws)}/${encodeURIComponent(conceptId)}`;
+    // Concept IDs are path segments that may carry a colon (e.g. the
+    // termbase's `term:<hash>` IDs). `:` is path-legal (RFC 3986 pchar) and the
+    // server stores/matches IDs raw, so we must NOT percent-encode it —
+    // encodeURIComponent's `%3A` would 404. Encode everything else (notably `/`).
+    return `${this.termsEp(ws)}/${encodeConceptSegment(conceptId)}`;
   }
 
   private marketsEp(ws: string) {

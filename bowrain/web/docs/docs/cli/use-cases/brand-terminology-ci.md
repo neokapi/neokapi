@@ -5,36 +5,38 @@ sidebar_label: Gate brand terminology in CI
 
 # Use case: gate brand terminology in CI
 
-A team's governed terminology lives in the [Brand](/server/brand) knowledge graph
-on the Bowrain server — preferred terms, forbidden terms, the wording approved per
+A team's governed terminology lives in the [Brand](/server/brand) hub on the
+Bowrain server — preferred terms, forbidden terms, the wording approved per
 market. This guide wires that governed terminology into a CI gate, so a pull
-request that uses a banned term or the wrong translation fails the build before it
-merges.
+request that uses a banned term or the wrong translation fails the build before
+it merges.
 
 The loop is two commands:
 
-1. [`kapi terms pull`](/cli/commands/terms-pull) snapshots the workspace's governed
-   concepts into the project's local termbase (`.kapi/termbase.db`).
+1. [`kapi pull`](/cli/commands/pull) fetches translations and, when the project
+   is claimed into a workspace, also snapshots the workspace's governed concepts
+   and their relations into the project's local termbase (`.kapi/termbase.db`).
 2. `kapi verify --terms` checks the project's target files against that termbase
    and exits non-zero when a file violates it.
 
-Pull the truth once, then verify offline — no per-file server round-trip, and the
-gate enforces exactly what the hub shows.
+Pull the truth once, then verify offline — no per-file server round-trip, and
+the gate enforces exactly what the hub shows.
 
 ## Prerequisites
 
 - The project is claimed into a workspace (its `*.kapi` recipe carries a
   [`server:` block](/cli/project-model)).
 - The project binds a termbase — `defaults.termbase` in the recipe, or the
-  conventional `.kapi/termbase.db`, which is where `kapi terms pull` writes.
+  conventional `.kapi/termbase.db`, which is where `kapi pull` writes the
+  governed concepts.
 - The runner is authenticated. In CI, set `BOWRAIN_AUTH_TOKEN`; locally, run
   [`kapi auth login`](/cli/commands/auth).
 
 ## Locally
 
 ```bash
-# 1. Snapshot governed terminology from the workspace graph.
-kapi terms pull
+# 1. Pull translations and governed terminology from the workspace.
+kapi pull
 
 # 2. Gate the project's target files against it.
 kapi verify --terms
@@ -80,16 +82,16 @@ jobs:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
-      - name: Pull governed terminology
-        run: kapi terms pull
+      - name: Pull translations and governed terminology
+        run: kapi pull
 
       - name: Gate against governed terminology
         run: kapi verify --terms
 ```
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and
-`BOWRAIN_SERVER_URL`, which `kapi terms pull` uses to reach the workspace graph.
-A failing gate exits non-zero and fails the job.
+`BOWRAIN_SERVER_URL`, which `kapi pull` uses to reach the workspace. A failing
+gate exits non-zero and fails the job.
 
 ## Exit codes
 
@@ -114,17 +116,17 @@ kapi verify --terms --json
 
 ## Keeping the snapshot fresh
 
-`kapi terms pull` refreshes the local termbase on every run, so pulling at the
-start of each CI job keeps the gate aligned with the current governed
-terminology. When the workspace changes a preferred or forbidden term — a
+`kapi pull` refreshes the local termbase on every run, so pulling at the start of
+each CI job keeps the gate aligned with the current governed terminology. When
+the workspace changes a preferred or forbidden term — a
 [governed edit](/server/brand#tiered-governance) that travels through a
-[change-set](/cli/commands/experiments) — the next CI run pulls it and gates
-against it automatically.
+[change-set](/server/brand#experiments-change-sets-and-pilots) — the next CI run
+pulls it and gates against it automatically.
 
 ## Related
 
-- [kapi terms pull](/cli/commands/terms-pull) — the snapshot command
-- [kapi concepts](/cli/commands/concepts) — browse the governed terminology online
+- [kapi pull](/cli/commands/pull) — fetches translations and governed
+  terminology into the local termbase
 - [Brand](/server/brand) — where terminology is governed
 - [GitHub Actions](/cli/use-cases/github-actions) — installing kapi in CI and CI authentication
 - [Source language preparation](/cli/use-cases/source-prep) — QA gates on source content in CI

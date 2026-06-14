@@ -8,6 +8,14 @@ sidebar_position: 4
 Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
 transfer only blocks that changed since the last pull.
 
+When the project is claimed into a workspace, pull also snapshots the
+workspace's governed concepts and their relations into the project's bound
+termbase (`.kapi/termbase.db`) and records a baseline, so a later
+[`kapi push`](/cli/commands/push) can diff local terminology edits against it
+and [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) gates offline
+against the same governed vocabulary. See
+[Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
+
 ## Usage
 
 ```bash
@@ -84,7 +92,9 @@ Pull from Bowrain Server to:
 
 - **Fetch translations** completed by team members
 - **Get AI/MT suggestions** generated on the server
-- **Sync terminology** updates from the termbase
+- **Sync governed terminology** — the workspace's concepts and relations into
+  the local termbase, so [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci)
+  can gate offline
 - **Update source content** that entered Bowrain through another connector
 
 Source content can originate from a server-side connector — a CMS, a design tool, or a git host — not only from your local files. `kapi pull` brings those upstream changes down, so kapi is the local mirror of content that may have entered Bowrain elsewhere. Think of it as `git pull` for localization content.

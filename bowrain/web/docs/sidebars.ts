@@ -140,9 +140,6 @@ const sidebars: SidebarsConfig = {
         "cli/commands/config",
         "cli/commands/workspace",
         "cli/commands/plugins",
-        "cli/commands/concepts",
-        "cli/commands/experiments",
-        "cli/commands/terms-pull",
       ],
     },
     {

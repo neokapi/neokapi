@@ -1,8 +1,8 @@
 ---
 title: Brand
 sidebar_label: Brand
-description: The Brand hub is Bowrain's front door to a team's brand language — a concept graph, each concept's story, voice and corrections, experiments with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
-keywords: [brand, knowledge graph, concepts, markets, change-sets, experiments, blast radius, pilots, governance, observations, bowrain]
+description: The Brand hub is Bowrain's front door to a team's brand language — a concept list, a per-concept dashboard with terms, geography, constraints, relations, and a timeline, voice and corrections, experiments with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
+keywords: [brand, concepts, terminology, relations, markets, change-sets, experiments, blast radius, pilots, governance, observations, bowrain]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -29,22 +29,39 @@ governance that holds them.
   }}
 />
 
-## The concept graph
+## Concepts
 
-The hub models brand language as a **knowledge graph**. Its nodes are
-**concepts** — the language-neutral units Bowrain already uses for
-[terminology](/server/terminology): each carries terms across locales, every term
-with a lifecycle status, plus a domain and a definition. A forbidden term is not
-a separate kind of object; it is a concept whose term carries the `forbidden`
-status. Brand vocabulary rules reference the same concepts, so terminology and
-voice can no longer drift apart.
+The unit the hub curates is the **concept** — the language-neutral notion
+Bowrain already uses for [terminology](/server/terminology): each carries terms
+across locales, every term with a lifecycle status, plus a domain and a
+definition. A forbidden term is not a separate kind of object; it is a concept
+whose term carries the `forbidden` status. Brand vocabulary rules reference the
+same concepts, so terminology and voice can no longer drift apart.
 
-The edges are **relations** between concepts, drawn from the framework's
-SKOS-aligned vocabulary. They fall into a few families — hierarchy (a concept is
-broader than, narrower than, or part of another), succession (one concept is
-replaced by another), guidance (use this one instead of that one), cross-scheme
-equivalence, and brand stance (this concept is a competitor's). The exact label
-set is defined by the framework's terminology model; see the
+The **Concepts** section opens on a searchable **list**: filter by term status,
+domain, market, and locale to find the concept you care about. Selecting a
+concept opens its **dashboard** — a single page that gathers everything known
+about it:
+
+- its **terms**, per locale, each with its lifecycle status;
+- its **geography**: the per-market truth, side by side;
+- its **constraints**: where each term is banned or preferred, and any validity
+  windows that bound when a designation applies;
+- its **relations**: the concepts one hop away, as a local widget;
+- its **timeline**: how the concept came to be;
+- and, on the platform, the **observations** and **discussion** attached to it.
+
+You read the brand one concept at a time, from the concept you care about
+outward — there is no whole-graph canvas to navigate.
+
+## Relations
+
+Concepts connect to one another through typed **relations**, drawn from the
+framework's SKOS-aligned vocabulary. They fall into a few families — hierarchy (a
+concept is broader than, narrower than, or part of another), succession (one
+concept is replaced by another), guidance (use this one instead of that one),
+cross-scheme equivalence, and brand stance (this concept is a competitor's). The
+exact label set is defined by the framework's terminology model; see the
 [framework terminology reference](https://neokapi.github.io/web/neokapi/framework/terminology)
 for the canonical list.
 
@@ -57,11 +74,20 @@ for the canonical list.
   caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which sits broader-than a domain concept. Guidance (use_instead) and brand-stance (competitor) relations connect concepts the same way."
 />
 
+A concept's dashboard shows its **direct relations** — this concept plus the
+concepts one hop away — grouped by family. A family with many members collapses to
+an "N related" summary so the widget stays readable, and selecting a related
+concept navigates to its dashboard. Relations are edited **inline** on the
+dashboard: add a relation to another concept, or remove one. An ordinary relation
+applies directly; a succession (`replaced_by`) relation is a governed edit that
+travels through a [change-set](#experiments-change-sets-and-pilots) before it
+lands.
+
 Every relation can carry a **validity**: a half-open time interval plus free tags
-evaluated against a query-time scope. The same edge can hold in one market and be
-absent in another, or be true only after a launch date. The graph can therefore
-be asked *as of* a date or *within* a market, and it answers with the truth that
-applied then and there.
+evaluated against a query-time scope. The same relation can hold in one market and
+be absent in another, or be true only after a launch date, so the relations a
+concept shows are the ones that apply *as of* the chosen date and *within* the
+chosen market.
 
 ## Markets
 
@@ -69,20 +95,24 @@ A **market** is a workspace-defined scope — a name plus the locales it covers
 (for example a `dach` market covering `de-DE`, `de-AT`, and `de-CH`). Markets give
 the free validity tags a stable vocabulary: a term or relation scoped with
 `market: dach` is interpreted, filtered, and rendered consistently everywhere. A
-term's status can differ per market, and a concept page shows the per-market
-truth side by side, so "banned in Germany, fine elsewhere" is a state the hub can
-represent rather than a footnote someone has to remember.
+term's status can differ per market, and the concept dashboard's **geography**
+panel shows the per-market truth side by side, so "banned in Germany, fine
+elsewhere" is a state the hub can represent rather than a footnote someone has to
+remember. The dashboard's **constraints** panel reads the same per-market
+statuses and validity windows back as a plain summary — which term is banned or
+preferred where, and for how long.
 
 ## The concept story
 
-Every concept has a **story**: a single chronological timeline that merges the
-concept's revision history (each edit produces an immutable snapshot with a
-human-readable summary, which is where term-status transitions and relation
-changes are recorded), the **observations** recorded against it, its **comment**
-threads, and the **change-sets** that touched it. The story answers "how did this
-term get here" without archaeology across systems. Compliance scores are not part
-of the story — those are reported per project and locale on the dashboard, not
-per concept.
+Every concept's dashboard carries a **story**: a visual, chronological
+**timeline** that merges the concept's revision history (each edit produces an
+immutable snapshot with a human-readable summary, which is where term-status
+transitions and relation changes are recorded), the **observations** recorded
+against it, its **comment** threads, and the **change-sets** that touched it. The
+story answers "how did this term get here" without archaeology across systems.
+Compliance scores are not part of the story — those are reported per project and
+locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
+concept.
 
 ### Observations — what others say
 
@@ -206,26 +236,28 @@ updated, statuses changed, relations gained and lost, observations and comments
 added, change-sets submitted, approved, merged, and abandoned, pilots started and
 stopped. It is the workspace-wide counterpart to a single concept's story.
 
-## One graph, many surfaces
+## One hub, many surfaces
 
 The Brand hub is the same in the web app and the desktop app. The desktop app
 remains a working copy of the server — it proxies the same REST surface, and its
-views stay fresh through React Query's stale-time and refetch-on-focus; the graph
-is never authored offline.
+views stay fresh through React Query's stale-time and refetch-on-focus; concepts
+and relations are edited inline in the hub against the server, never authored
+offline.
 
-The graph also reaches the command line and AI assistants through the bowrain
-plugin, so CI gates and assistants consult the same governed truth the hub shows:
+Terminology also reaches a project's local files and CI through ordinary sync. A
+[`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
+their relations into the project's local termbase, and
+[`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
+against exactly the terminology the hub shows — the pattern documented in
+[Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci). A
+[`kapi push`](/cli/commands/push) sends local terminology edits back: ordinary
+edits apply directly, while governed edits become a submitted change-set
+proposal, so the same separation of duties holds whether an edit is made in the
+hub or from a project.
 
-- [`kapi concepts`](/cli/commands/concepts) reads concepts, their relations, and
-  each concept's story.
-- [`kapi experiments`](/cli/commands/experiments) inspects change-sets and previews
-  their blast radius.
-- [`kapi terms pull`](/cli/commands/terms-pull) snapshots the workspace's governed
-  concepts into a project's local termbase so
-  [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) gates offline against
-  the same terminology — the pattern documented in
-  [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
-- The same operations are available to assistants over [MCP](/cli/mcp).
+AI assistants read the same governed truth through the bowrain plugin's
+[MCP](/cli/mcp) tools — concept search, a concept's story, and change-set status —
+so an assistant consults the hub's terminology rather than guessing.
 
 ## Under the hood
 

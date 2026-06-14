@@ -20,7 +20,7 @@ A concept is more than its terms. In the Brand hub each concept also carries typ
 competitor it stands against), per-market validity, observations, comments, and a
 [story](/server/brand#the-concept-story) of how it came to be. This page covers
 the everyday term-management surface; see [Brand](/server/brand) for the richer
-graph model and the governance around it.
+concept model with relations and governance around it.
 
 <ThemedVideo
   sources={{
@@ -47,9 +47,11 @@ The explorer displays concepts in a paginated table with these columns:
 | **Domain**      | Subject area classification (e.g., "legal", "medical", "UI") |
 | **Status**      | Lifecycle status badge                                       |
 | **Updated**     | Date the concept was last modified                           |
-| **Actions**     | Edit and Delete buttons                                      |
 
-The concept count badge in the header shows the total number of concepts matching current filters.
+Clicking a concept opens its [dashboard](/server/brand#concepts) — the
+per-concept page that gathers its terms, geography, constraints, direct
+relations, and timeline. The concept count badge in the header shows the total
+number of concepts matching current filters.
 
 ## Term Lifecycle Statuses
 
@@ -78,30 +80,38 @@ Use the filter controls to narrow the concept list:
 
 Filters can be combined with text search. Changing a filter resets to page 1.
 
-## Adding Concepts
+## Adding concepts
 
-1. Click **Add Concept** in the header
-2. Fill in the form:
-   - **Source term** — the term in the source language
-   - **Target term** — the translated term
-   - **Source locale** — select from available locales
-   - **Target locale** — select from available locales
-   - **Domain** (optional) — subject area classification
-   - **Status** — lifecycle status (defaults to "proposed")
-3. Click **Add** to save, or **Cancel** to discard
+Click **Add Concept** in the header to create a concept — the unit of meaning
+that terms attach to. A new concept starts with a first term and a `proposed`
+status. To round it out — terms in other languages, a domain, relations, and
+per-market constraints — open its [dashboard](/server/brand#concepts) and edit
+it there.
 
-## Editing Concepts
+## Editing concepts
 
-1. Click **Edit** on a concept row
-2. The target term becomes an inline text input
-3. Modify the translation
-4. Click **Save** to confirm, or **Cancel** to discard changes
+Clicking a concept opens its [dashboard](/server/brand#concepts): the per-concept
+page that gathers its terms, geography, constraints, a local
+[relations](/server/brand#relations) widget, and a timeline. Terms and their
+metadata are edited on the dashboard rather than inline in the table.
 
-## Deleting Concepts
+How an edit applies depends on whether it is governed:
 
-1. Click **Delete** on a concept row
-2. A confirmation dialog appears: "Are you sure you want to delete this concept?"
-3. Click **Delete** to confirm, or **Cancel** to keep the concept
+- **Ordinary edits** — adding or correcting a translation, adjusting a domain,
+  or moving a term to a non-governed status — apply directly.
+- **Governed edits** — setting or clearing a term's `forbidden` or `preferred`
+  status, recording a `replaced_by` relation, or deleting a concept — are
+  bundled into a reviewable
+  [change-set](/server/brand#experiments-change-sets-and-pilots) whose blast
+  radius is measured before anyone approves it.
+
+## Deleting concepts
+
+Deleting a concept is a governed action. From the concept
+[dashboard](/server/brand#concepts), the delete is added to a
+[change-set](/server/brand#experiments-change-sets-and-pilots) and removes the
+concept only once that change-set is approved and merged, so a concept other
+content still references cannot disappear unreviewed.
 
 ## Import and Export
 

@@ -143,20 +143,17 @@ kapi termbase lookup "authenticating users" -s en -t fr --fuzzy
 kapi termbase search "auth" -s en --limit 50
 kapi termbase stats --name project-terms
 kapi termbase list
-
-# Relate two concepts; --tag scopes the edge, --valid-from/--valid-to bound it
-kapi termbase relate old-name replaced-by new-name --note "renamed at launch"
-kapi termbase relate c1 use-instead c2 --tag market=dach
-
-# List a concept's relations (both directions), filtered by --as-of / --tag
-kapi termbase relations c1 --as-of 2026-01-01
-
-# Show a concept in full: terms by locale, statuses, and its relations
-kapi termbase show c1 -s en
-
-# Remove a relation by its ID
-kapi termbase unrelate rel-abc123
 ```
+
+The `kapi termbase` commands cover import, export, lookup, search,
+statistics, and listing. Concept **relations** are not edited from the
+command line: they are authored visually. Kapi Desktop opens a per-concept
+dashboard — the `@neokapi/concept-ui` component, which shows a concept's
+terms, geography, constraints, a local relations widget, and a timeline —
+over a local termbase, where an editor adds, retypes, scopes, and removes
+edges directly. The relation data this produces is the same
+`ConceptRelation` records persisted by the termbase and read through the [Go
+API](#go-library) below.
 
 ## Pipeline integration
 

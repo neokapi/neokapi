@@ -13,7 +13,7 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 A **brand voice profile** is a machine-readable description of how your content
 should read — the vocabulary it should use, the terms it should avoid, and the
 tone and style that make it recognizable. On its own, a profile is just a set of
-[checks](https://neokapi.github.io/web/neokapi/docs/framework/checks): kapi and
+[checks](https://neokapi.github.io/web/neokapi/framework/checks): kapi and
 Bowrain run it over content and report what drifts off-voice, the same way a
 test reports what broke.
 
@@ -55,7 +55,7 @@ loop:
    becomes a deterministic check, the profile version is bumped (the prior
    version is archived for audit and rollback), and the rule is enforced on every
    future generation, in every locale the profile covers. The promoted rule is
-   **concept-backed**: it references the [concept](/server/brand#the-concept-graph)
+   **concept-backed**: it references the [concept](/server/brand#concepts)
    its term denotes, so the rule and the term it governs share one identity in the
    Brand hub — promoting a voice rule is a governed edit, and a concept's
    [story](/server/brand#the-concept-story) shows the rules that reference it.
@@ -105,7 +105,7 @@ The loop is drivable from three surfaces, all over the same brand engine:
   preview a candidate's impact, and promote it, so the assistant participates in
   governing the voice it writes in.
 - **CLI / CI** — once a rule is promoted it is an ordinary
-  [check](https://neokapi.github.io/web/neokapi/docs/framework/checks): `kapi`
+  [check](https://neokapi.github.io/web/neokapi/framework/checks): `kapi`
   enforces it locally and in CI, gated by exit code, with no server round-trip.
 
 The detection and scoring are the open framework's job (`core/brand`,
