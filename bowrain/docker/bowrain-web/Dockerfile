@@ -29,6 +29,7 @@ RUN corepack pnpm fetch
 # members in pnpm-workspace.yaml resolve only from the dirs present here, so a
 # partial checkout is a valid (smaller) workspace.
 COPY packages/kapi-format/package.json packages/kapi-format/
+COPY packages/kapi-react/package.json packages/kapi-react/
 COPY packages/ui/package.json packages/ui/
 COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
@@ -38,14 +39,20 @@ COPY bowrain/apps/web/package.json bowrain/apps/web/
 # their own third-party deps, e.g. @codemirror/*, materialized too).
 RUN corepack pnpm install --offline
 
-# Source for the web app + its workspace deps. @neokapi/* packages are consumed
-# from source (their exports point at ./src), so there is no separate build
-# step — the Vite build follows the import graph into them.
+# Source for the web app + its workspace deps. Most @neokapi/* packages are
+# consumed from source (their exports point at ./src), so the Vite build follows
+# the import graph into them. The exception is @neokapi/kapi-react, whose
+# ./runtime export is dist-only — it must be built before the web build.
 COPY packages/kapi-format/ packages/kapi-format/
+COPY packages/kapi-react/ packages/kapi-react/
 COPY packages/ui/ packages/ui/
 COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 COPY bowrain/apps/web/ bowrain/apps/web/
+
+# @neokapi/kapi-react/runtime is a built ./dist subpath export consumed by
+# @neokapi/ui; build it before the web app so the import resolves.
+RUN corepack pnpm --filter @neokapi/kapi-react run build
 
 # Build the web app. Type safety is enforced by `vp check` in CI, not the build.
 RUN corepack pnpm --filter neokapi-web run build
