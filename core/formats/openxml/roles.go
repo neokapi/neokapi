@@ -139,11 +139,7 @@ func resolveStyleRole(id string, raws map[string]*rawStyle, visited map[string]b
 		return nr
 	}
 	if r.outlineLvl >= 0 {
-		lvl := r.outlineLvl + 1
-		if lvl > 9 {
-			lvl = 9
-		}
-		return paraRole{role: model.RoleHeading, level: lvl}
+		return paraRole{role: model.RoleHeading, level: min(r.outlineLvl+1, 9)}
 	}
 	if r.basedOn != "" {
 		return resolveStyleRole(r.basedOn, raws, visited)

@@ -83,6 +83,9 @@
           "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
           "short": "Generate shell completion script"
         },
+        "convert": {
+          "short": "Convert files between formats (use kconv)"
+        },
         "credentials": {
           "add": {
             "long": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi ai-translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential.",
