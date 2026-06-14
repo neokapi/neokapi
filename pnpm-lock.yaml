@@ -38,6 +38,9 @@ importers:
       '@lexical/react':
         specifier: ^0.45.0
         version: 0.45.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(yjs@13.6.31)
+      '@neokapi/concept-ui':
+        specifier: '*'
+        version: link:../../../packages/concept-ui
       '@neokapi/contract-types':
         specifier: '*'
         version: link:../../../packages/contract-types
@@ -665,9 +668,6 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
-      recharts:
-        specifier: ^3.8.1
-        version: 3.8.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@17.0.2)(react@19.2.7)(redux@5.0.1)
     devDependencies:
       '@storybook/react-vite':
         specifier: ^10.4.3
