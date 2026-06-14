@@ -316,5 +316,3 @@ Use `latest` (the default) for workflows where you always want the newest releas
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)
 - [Source Language Preparation](/cli/use-cases/source-prep) — QA on source content in CI
-</content>
-</invoke>
