@@ -4,8 +4,8 @@
 #
 # Replaces GoReleaser's `brews:` block (we no longer run GoReleaser for the
 # CLI). Reads the per-archive sha256 from a checksums.txt and writes two Ruby
-# formulae that download the matching release archive per OS/arch via the tap's
-# private-repo download strategy (the repo is private, same as the casks).
+# formulae that download the matching release archive per OS/arch from the
+# public GitHub release (the repo is public).
 #
 # Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir>
 #   repo   e.g. neokapi/neokapi
@@ -39,30 +39,23 @@ platform_block() {
   cat <<RUBY
   on_macos do
     on_arm do
-      url "${base_url}/${f_da}", using: GitHubPrivateRepositoryReleaseDownloadStrategy
-      sha256 "$(sha_for "$f_da")"
+      url "${base_url}/${f_da}"      sha256 "$(sha_for "$f_da")"
     end
   end
 
   on_linux do
     on_arm do
-      url "${base_url}/${f_la}", using: GitHubPrivateRepositoryReleaseDownloadStrategy
-      sha256 "$(sha_for "$f_la")"
+      url "${base_url}/${f_la}"      sha256 "$(sha_for "$f_la")"
     end
     on_intel do
-      url "${base_url}/${f_li}", using: GitHubPrivateRepositoryReleaseDownloadStrategy
-      sha256 "$(sha_for "$f_li")"
+      url "${base_url}/${f_li}"      sha256 "$(sha_for "$f_li")"
     end
   end
 RUBY
 }
 
-require_line='require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"'
-
 # ---- kapi-cli ----
 {
-  echo "$require_line"
-  echo
   echo "class KapiCli < Formula"
   echo '  desc "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
@@ -92,8 +85,6 @@ RUBY
 
 # ---- bowrain-cli ----
 {
-  echo "$require_line"
-  echo
   echo "class BowrainCli < Formula"
   echo '  desc "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"'
   echo '  homepage "https://github.com/neokapi/neokapi"'

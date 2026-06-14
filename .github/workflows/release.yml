@@ -1288,16 +1288,11 @@ jobs:
         run: |
           mkdir -p homebrew-tap/Casks
           cat > homebrew-tap/Casks/bowrain.rb << CASK
-          # Use absolute tap path so the require works even when Homebrew loads
-          # the cask from its metadata cache during upgrades.
-          require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
-
           cask "bowrain" do
             version "${VERSION}"
             sha256 "${SHA_BOWRAIN}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/bowrain-#{version}-macOS-arm64.dmg",
-                using: GitHubPrivateRepositoryReleaseDownloadStrategy
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/bowrain-#{version}-macOS-arm64.dmg"
             name "Bowrain"
             desc "AI-native translation editor"
             homepage "https://github.com/neokapi/neokapi"
@@ -1332,16 +1327,11 @@ jobs:
         run: |
           mkdir -p homebrew-tap/Casks
           cat > homebrew-tap/Casks/kapi.rb << CASK
-          # Use absolute tap path so the require works even when Homebrew loads
-          # the cask from its metadata cache during upgrades.
-          require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
-
           cask "kapi" do
             version "${VERSION}"
             sha256 "${SHA_KAPI}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-arm64.dmg",
-                using: GitHubPrivateRepositoryReleaseDownloadStrategy
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-arm64.dmg"
             name "Kapi"
             desc "Localization toolkit - powered by neokapi"
             homepage "https://github.com/neokapi/neokapi"
