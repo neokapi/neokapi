@@ -4,3 +4,6 @@
 
 # Local stack secrets (compose.full.yaml reads bowrain/.env)
 /.env
+
+# Local-dev TLS certs (mkcert; regenerate with `make -C bowrain certs`)
+docker/traefik/certs/*.pem
