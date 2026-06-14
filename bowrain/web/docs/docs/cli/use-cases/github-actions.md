@@ -9,32 +9,31 @@ This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions wor
 
 ## Overview
 
-The [`setup-bowrain`](https://github.com/neokapi/setup-bowrain) GitHub Action installs kapi and the bowrain plugin on any runner. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner and, through its `plugins` input, the bowrain plugin (`kapi-bowrain`). It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
 ## Setup
 
-Add `neokapi/setup-bowrain@v1` to your workflow:
+Add `neokapi/setup-kapi@v1` to your workflow:
 
 ```yaml
 steps:
   - uses: actions/checkout@v4
 
-  - uses: neokapi/setup-bowrain@v1
+  - uses: neokapi/setup-kapi@v1
     with:
-      token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+      plugins: kapi-bowrain
 ```
 
-The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. On subsequent runs, the binary is restored from cache.
+The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. The built-in workflow token covers public release downloads, so no `token` input is required. On subsequent runs, the binary is restored from cache.
 
 ### Action Inputs
 
-| Input        | Description                                                 | Default  |
-| ------------ | ----------------------------------------------------------- | -------- |
-| `version`    | CLI version (e.g. `0.5.0` or `latest`)                      | `latest` |
-| `token`      | GitHub token with read access to `neokapi/neokapi` releases | —        |
-| `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)       | `""`     |
-| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)       | `""`     |
-| `plugins`    | Comma or newline-separated plugin refs to install           | `""`     |
+| Input        | Description                                                | Default  |
+| ------------ | ---------------------------------------------------------- | -------- |
+| `version`    | CLI version (e.g. `0.5.0` or `latest`)                     | `latest` |
+| `plugins`    | Comma or newline-separated plugin refs to install          | `""`     |
+| `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
+| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)      | `""`     |
 
 ### Action Outputs
 
@@ -43,12 +42,12 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version`   | Installed version (e.g. `0.5.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
-## Recommended: Full Sync with `bowrain-action`
+## Recommended: Full Sync with `kapi-action`
 
 The simplest CI pattern uses two actions together:
 
-- [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs kapi and the bowrain plugin
-- [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs `kapi sync` and commits translations
+- [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi and the bowrain plugin (`kapi-bowrain`)
+- [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi sync`) and commits translations
 
 ```yaml
 name: Sync Translations
@@ -69,21 +68,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
-      - uses: neokapi/bowrain-action@v1
+      - uses: neokapi/kapi-action@v1
         id: sync
+        with:
+          command: sync
 
       - name: Summary
         if: steps.sync.outputs.committed == 'true'
         run: echo "Translations committed at ${{ steps.sync.outputs.commit-sha }}"
 ```
 
-The `bowrain-action` runs `kapi sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
+With `command: sync`, the action runs `kapi sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
 
 | Output       | Description                          |
 | ------------ | ------------------------------------ |
@@ -91,17 +92,18 @@ The `bowrain-action` runs `kapi sync` (push → wait → pull), checks for chang
 | `committed`  | `true` if a commit was created       |
 | `commit-sha` | SHA of the created commit            |
 
-### bowrain-action Inputs
+### kapi-action Inputs
 
-| Input            | Default                                | Description               |
-| ---------------- | -------------------------------------- | ------------------------- |
-| `command`        | `sync`                                 | Bowrain command to run    |
-| `args`           | `--timeout 10m`                        | Additional arguments      |
-| `commit`         | `true`                                 | Whether to commit changes |
-| `commit-message` | `chore: sync translations via Bowrain` | Commit message            |
-| `git-user-name`  | `Bowrain Bot`                          | Git committer name        |
-| `git-user-email` | `bot@bowrain.cloud`                    | Git committer email       |
-| `paths`          | `i18n/ docs/ blog/`                    | Paths to stage for commit |
+| Input            | Default                                | Description                              |
+| ---------------- | -------------------------------------- | ---------------------------------------- |
+| `command`        | `run`                                  | The `kapi` command to run (use `sync`)   |
+| `args`           | `""`                                   | Additional arguments                     |
+| `project`        | `""`                                   | Path to the `.kapi` recipe (`-p` flag)   |
+| `commit`         | `true`                                 | Whether to commit changes               |
+| `commit-message` | `chore: sync translations via Bowrain` | Commit message                          |
+| `git-user-name`  | `Bowrain Bot`                          | Git committer name                      |
+| `git-user-email` | `bot@bowrain.cloud`                    | Git committer email                     |
+| `paths`          | `i18n/ docs/ blog/`                    | Space-separated paths to stage for commit |
 
 :::note
 The workflow needs `permissions: contents: write` for the action to push commits.
@@ -127,9 +129,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
 
       - name: Run translation flow
         env:
@@ -159,9 +161,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -188,9 +190,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
 
       - name: Run translation flow
         env:
@@ -224,9 +226,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -280,13 +282,13 @@ You can list and revoke tokens with `kapi auth token list` and `kapi auth token 
 
 ## Plugins
 
-Install plugins by listing them in the `plugins` input:
+Install plugins by listing them in the `plugins` input. The bowrain plugin (`kapi-bowrain`) is required for sync, push, and pull; add any others alongside it:
 
 ```yaml
-- uses: neokapi/setup-bowrain@v1
+- uses: neokapi/setup-kapi@v1
   with:
-    token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
     plugins: |
+      kapi-bowrain
       okapi-filters
       custom-tool
 ```
@@ -298,9 +300,9 @@ Plugins are cached between runs. The cache key includes a hash of the plugin lis
 Pin the CLI version to avoid surprises from new releases:
 
 ```yaml
-- uses: neokapi/setup-bowrain@v1
+- uses: neokapi/setup-kapi@v1
   with:
-    token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+    plugins: kapi-bowrain
     version: "0.5.0"
 ```
 
@@ -314,3 +316,5 @@ Use `latest` (the default) for workflows where you always want the newest releas
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)
 - [Source Language Preparation](/cli/use-cases/source-prep) — QA on source content in CI
+</content>
+</invoke>
