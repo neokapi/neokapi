@@ -343,7 +343,7 @@ func TestEvaluateChangeSet_SampleCap(t *testing.T) {
 	bs := newFakeBlockSource()
 	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
 	var blocks []*store.StoredBlock
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		blocks = append(blocks, srcBlock("b"+string(rune('0'+i)), "home.json", "en-US", "synergy everywhere"))
 	}
 	bs.addBlocks("proj1", "main", blocks...)

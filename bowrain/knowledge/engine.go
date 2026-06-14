@@ -3,6 +3,8 @@ package knowledge
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -171,9 +173,7 @@ func applyTermbaseOp(ctx context.Context, tb termbase.TermBase, op ChangeSetOp) 
 		}
 		if p.Properties != nil {
 			props := make(map[string]string, len(p.Properties))
-			for k, v := range p.Properties {
-				props[k] = v
-			}
+			maps.Copy(props, p.Properties)
 			c.Properties = props
 		}
 		return tb.AddConcept(ctx, c)
@@ -232,7 +232,7 @@ func applyTermbaseOp(ctx context.Context, tb termbase.TermBase, op ChangeSetOp) 
 		if idx < 0 {
 			return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
 		}
-		c.Terms = append(terms[:idx], terms[idx+1:]...)
+		c.Terms = slices.Delete(terms, idx, idx+1)
 		return tb.AddConcept(ctx, c)
 
 	case OpTermStatus:
@@ -444,9 +444,7 @@ func deepCopyConcept(c termbase.Concept) termbase.Concept {
 	c.Terms = copyTerms(c.Terms)
 	if c.Properties != nil {
 		props := make(map[string]string, len(c.Properties))
-		for k, v := range c.Properties {
-			props[k] = v
-		}
+		maps.Copy(props, c.Properties)
 		c.Properties = props
 	}
 	return c

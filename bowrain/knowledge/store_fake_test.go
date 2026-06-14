@@ -2,6 +2,7 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -227,7 +228,7 @@ func (s *memStore) UpdateChangeSet(_ context.Context, cs *ChangeSet) error {
 
 func (s *memStore) SetChangeSetStatus(_ context.Context, ws, id string, to ChangeSetStatus) error {
 	if to == ChangeSetMerged {
-		return fmt.Errorf("use SetMergeResult to merge a change-set, not SetChangeSetStatus")
+		return errors.New("use SetMergeResult to merge a change-set, not SetChangeSetStatus")
 	}
 	cs, ok := s.changesets[csKey(ws, id)]
 	if !ok {

@@ -41,7 +41,7 @@ func TestListConceptsTotalKeepsDBWideCount(t *testing.T) {
 	tb := h.tb(t)
 
 	// 8 approved concepts and 2 forbidden ones — 10 in the workspace.
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		require.NoError(t, tb.AddConcept(ctx, gtConcept(fmt.Sprintf("ok%02d", i), "auth", model.TermApproved)))
 	}
 	require.NoError(t, tb.AddConcept(ctx, gtConcept("bad1", "auth", model.TermForbidden)))
@@ -67,7 +67,7 @@ func TestListConceptsTotalUnfilteredFullCount(t *testing.T) {
 	h := newKGHarness(t)
 	ctx := context.Background()
 	tb := h.tb(t)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		require.NoError(t, tb.AddConcept(ctx, gtConcept(fmt.Sprintf("c%02d", i), "auth", model.TermApproved)))
 	}
 

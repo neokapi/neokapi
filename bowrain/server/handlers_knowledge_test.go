@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -786,7 +787,7 @@ func (f *fakeKnowledgeStore) UpdateChangeSet(_ context.Context, cs *knowledge.Ch
 
 func (f *fakeKnowledgeStore) SetChangeSetStatus(_ context.Context, ws, id string, to knowledge.ChangeSetStatus) error {
 	if to == knowledge.ChangeSetMerged {
-		return fmt.Errorf("use SetMergeResult to merge a change-set")
+		return errors.New("use SetMergeResult to merge a change-set")
 	}
 	cs, ok := f.changesets[fakeKey(ws, id)]
 	if !ok {

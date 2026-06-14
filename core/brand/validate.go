@@ -1,9 +1,11 @@
 package brand
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -31,7 +33,7 @@ func DecodeProfileStrict(r io.Reader) (*VoiceProfile, error) {
 	dec := yaml.NewDecoder(r)
 	dec.KnownFields(true)
 	if err := dec.Decode(&p); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return &p, nil
 		}
 		return &p, err
@@ -123,10 +125,8 @@ func checkEnum(add func(field, msg string), field, value string, allowed []strin
 	if value == "" {
 		return
 	}
-	for _, a := range allowed {
-		if value == a {
-			return
-		}
+	if slices.Contains(allowed, value) {
+		return
 	}
 	add(field, fmt.Sprintf("unknown value %q (expected one of: %s)", value, strings.Join(allowed, ", ")))
 }

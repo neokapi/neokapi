@@ -567,8 +567,8 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 
-	events := append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
-	s.publishKnowledgeEvents(c, events)
+	pilotEvents = append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
+	s.publishKnowledgeEvents(c, pilotEvents)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 

@@ -200,7 +200,7 @@ func TestMergeChangeSet_BaseRevConflictAbortsNoWrites(t *testing.T) {
 	require.NoError(t, store.CreateChangeSet(ctx, cs))
 	// Authored against revision 1 (ordinary op, so the gate is not the blocker).
 	appendOp(t, store, ws, cs.ID, 1, OpConceptUpdate, ConceptUpdatePayload{
-		ConceptID: "c1", Definition: strPtr("new definition"),
+		ConceptID: "c1", Definition: new("new definition"),
 	})
 
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
@@ -209,7 +209,7 @@ func TestMergeChangeSet_BaseRevConflictAbortsNoWrites(t *testing.T) {
 	e := NewEngine(nil, tb, newFakeProfileStore(), store)
 	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMergeConflict)
+	require.ErrorIs(t, err, ErrMergeConflict)
 	require.Len(t, res.Conflicts, 1)
 	assert.Equal(t, "c1", res.Conflicts[0].ConceptID)
 	assert.Equal(t, int64(0), res.Conflicts[0].Seq)
@@ -369,7 +369,7 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		cs := &ChangeSet{ID: "cs-upd", WorkspaceID: ws, Name: "Stale edit", CreatedBy: "alice"}
 		require.NoError(t, store.CreateChangeSet(ctx, cs))
 		appendOp(t, store, ws, cs.ID, 1, OpConceptUpdate, ConceptUpdatePayload{
-			ConceptID: "c1", Definition: strPtr("new definition"),
+			ConceptID: "c1", Definition: new("new definition"),
 		})
 
 		loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
@@ -387,5 +387,3 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		assert.Equal(t, ChangeSetDraft, still.Status)
 	})
 }
-
-func strPtr(s string) *string { return &s }
