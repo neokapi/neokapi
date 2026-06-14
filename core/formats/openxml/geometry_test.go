@@ -63,6 +63,8 @@ func TestParseCellRefA1(t *testing.T) {
 		{"A0", 0, 0, false},  // row < 1
 		{"1A", 0, 0, false},  // digits before letters
 		{"A1B", 0, 0, false}, // trailing letters
+		{"A+1", 0, 0, false}, // signed row (Atoi would accept; regex does not)
+		{"A-1", 0, 0, false}, // signed row
 	}
 	for _, c := range cases {
 		col, row, ok := parseCellRefA1(c.ref)
