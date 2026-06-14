@@ -117,42 +117,6 @@ export interface ConceptRelation {
 }
 
 // ---------------------------------------------------------------------------
-// Graph visualization payload (GET /graph)
-// ---------------------------------------------------------------------------
-
-/** One concept node in the graph viz payload (server GraphVizNode). */
-export interface GraphVizNode {
-  id: string;
-  label: string;
-  domain?: string;
-  status?: TermStatus | "";
-  source?: TermSource | "";
-  term_count: number;
-}
-
-/** One relation edge in the graph viz payload (server GraphVizEdge). */
-export interface GraphVizEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: RelationType;
-  note?: string;
-}
-
-/** The force-directed graph payload (server GraphVizResponse). */
-export interface GraphViz {
-  nodes: GraphVizNode[];
-  edges: GraphVizEdge[];
-  /**
-   * Size of the full selection the payload was capped from: every candidate
-   * concept in the default view, or the focus neighbourhood in focus mode.
-   */
-  total: number;
-  /** Whether the node cap dropped any of the selection (total > nodes.length). */
-  truncated: boolean;
-}
-
-// ---------------------------------------------------------------------------
 // Concept story (GET /concepts/:cid/story)
 // ---------------------------------------------------------------------------
 
@@ -668,18 +632,6 @@ export interface ListConceptsParams {
   stream?: string;
   project_id?: string;
   offset?: number;
-  limit?: number;
-}
-
-/** Query params for GET /graph. focus + depth restrict to a concept neighborhood. */
-export interface GraphParams {
-  as_of?: string;
-  market?: string;
-  domain?: string;
-  status?: TermStatus;
-  focus?: string;
-  depth?: number;
-  /** Node cap (server default 60, ceiling 500). The server fills the worth-seeing subset up to it. */
   limit?: number;
 }
 

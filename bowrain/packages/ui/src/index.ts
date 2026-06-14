@@ -562,7 +562,6 @@ export {
   useResolveConceptComment,
   useDeleteConceptComment,
 } from "./hooks/useConceptsApi";
-export { useGraph } from "./hooks/useGraphApi";
 export { useWorkspaceMembers, useUserDisplayNames } from "./hooks/useMembersApi";
 export {
   useMarkets,
@@ -598,9 +597,14 @@ export {
   EmptyState as BrandHubEmptyState,
   formatDate as brandHubFormatDate,
   formatRelative as brandHubFormatRelative,
-  ConceptsView,
-  ConceptStoryView,
-  GraphPanel,
+  // Concepts section — framework concept UI (R4) on @neokapi/concept-ui.
+  ConceptsSection,
+  ConceptStorySection,
+  ConceptEditDialog,
+  createRestConceptSource,
+  GovernedEditError,
+  isGovernedEditError,
+  asGovernedEditError,
   ExperimentsView,
   ExperimentDetailView,
   ActivityView,
@@ -608,9 +612,10 @@ export {
 } from "./brand-hub";
 export type {
   BrandHubProps,
-  ConceptsViewProps,
-  ConceptStoryViewProps,
-  GraphPanelProps,
+  ConceptsSectionProps,
+  ConceptStorySectionProps,
+  ConceptEditDialogProps,
+  RestConceptSourceOptions,
   ExperimentsViewProps,
   ExperimentDetailViewProps,
   ActivityViewProps,
@@ -627,9 +632,6 @@ export type {
   Term,
   GraphConcept,
   ConceptRelation,
-  GraphVizNode,
-  GraphVizEdge,
-  GraphViz,
   ConceptStoryKind,
   ConceptStoryEntry,
   ConceptStory,
@@ -682,7 +684,6 @@ export type {
   ReviewRequest,
   StartPilotRequest,
   ListConceptsParams,
-  GraphParams,
   RelationScope,
 } from "./types/brand-graph";
 

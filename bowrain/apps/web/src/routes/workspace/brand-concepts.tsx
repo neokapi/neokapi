@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ConceptsView } from "@neokapi/ui";
+import { ConceptsSection } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function ConceptsRoute() {
@@ -15,7 +15,7 @@ export function ConceptsRoute() {
   }, [activeWorkspace]);
 
   return (
-    <ConceptsView
+    <ConceptsSection
       onOpenConcept={(cid) =>
         void navigate({
           to: "/$workspace/brand/concepts/$cid",

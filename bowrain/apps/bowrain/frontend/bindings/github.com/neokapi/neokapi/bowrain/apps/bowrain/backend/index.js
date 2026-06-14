@@ -29,7 +29,6 @@ export {
     FlowEdgeInfo,
     FlowNodeInfo,
     FormatInfo,
-    GraphArgs,
     IOPort,
     InviteInfo,
     ListConceptsArgs,

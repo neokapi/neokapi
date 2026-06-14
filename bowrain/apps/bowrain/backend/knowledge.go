@@ -30,10 +30,6 @@ func conceptPath(ws, conceptID string) string {
 	return conceptsPath(ws) + "/" + url.PathEscape(conceptID)
 }
 
-func graphPath(ws string) string {
-	return "/api/v1/" + url.PathEscape(ws) + "/graph"
-}
-
 func marketsPath(ws string) string {
 	return "/api/v1/" + url.PathEscape(ws) + "/markets"
 }
@@ -229,43 +225,6 @@ func (a *App) ResolveConceptComment(workspaceSlug, conceptID, commentID string, 
 func (a *App) DeleteConceptComment(workspaceSlug, conceptID, commentID string) error {
 	path := conceptPath(workspaceSlug, conceptID) + "/comments/" + url.PathEscape(commentID)
 	return a.govRequest(http.MethodDelete, path, nil, nil)
-}
-
-// --- Graph viz ---
-
-// GraphArgs holds the GET /graph query params (GraphParams). focus + depth
-// restrict the result to a concept neighborhood.
-type GraphArgs struct {
-	AsOf   string `json:"as_of,omitempty"`
-	Market string `json:"market,omitempty"`
-	Domain string `json:"domain,omitempty"`
-	Status string `json:"status,omitempty"`
-	Focus  string `json:"focus,omitempty"`
-	Depth  int    `json:"depth,omitempty"`
-}
-
-// GetGraph returns the force-directed graph payload for the workspace.
-func (a *App) GetGraph(workspaceSlug string, params GraphArgs) (json.RawMessage, error) {
-	q := url.Values{}
-	if params.AsOf != "" {
-		q.Set("as_of", params.AsOf)
-	}
-	if params.Market != "" {
-		q.Set("market", params.Market)
-	}
-	if params.Domain != "" {
-		q.Set("domain", params.Domain)
-	}
-	if params.Status != "" {
-		q.Set("status", params.Status)
-	}
-	if params.Focus != "" {
-		q.Set("focus", params.Focus)
-	}
-	if params.Depth > 0 {
-		q.Set("depth", strconv.Itoa(params.Depth))
-	}
-	return a.govRaw(http.MethodGet, withQuery(graphPath(workspaceSlug), q), nil)
 }
 
 // --- Markets ---

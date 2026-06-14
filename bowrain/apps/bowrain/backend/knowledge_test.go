@@ -18,9 +18,6 @@ func TestKnowledgeNotConnected(t *testing.T) {
 	_, err := app.ListConcepts("acme", ListConceptsArgs{})
 	require.ErrorIs(t, err, errNotConnected)
 
-	_, err = app.GetGraph("acme", GraphArgs{})
-	require.ErrorIs(t, err, errNotConnected)
-
 	_, err = app.ListChangesets("acme", "")
 	require.ErrorIs(t, err, errNotConnected)
 
@@ -198,8 +195,8 @@ func TestKnowledgeConceptRoutes(t *testing.T) {
 	runKnowledgeRouteTests(t, tests)
 }
 
-// TestKnowledgeGraphAndMarketRoutes covers the graph viz and market routes.
-func TestKnowledgeGraphAndMarketRoutes(t *testing.T) {
+// TestKnowledgeMarketRoutes covers the market routes.
+func TestKnowledgeMarketRoutes(t *testing.T) {
 	tests := []struct {
 		name       string
 		call       func(a *App) error
@@ -208,16 +205,6 @@ func TestKnowledgeGraphAndMarketRoutes(t *testing.T) {
 		wantQuery  string
 		wantBody   string
 	}{
-		{
-			name: "graph focused",
-			call: func(a *App) error {
-				_, err := a.GetGraph("acme", GraphArgs{Focus: "c-1", Depth: 2, Market: "dach"})
-				return err
-			},
-			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/acme/graph",
-			wantQuery:  "depth=2&focus=c-1&market=dach",
-		},
 		{
 			name: "list markets",
 			call: func(a *App) error {
@@ -412,19 +399,16 @@ func TestKnowledgeChangesetRoutes(t *testing.T) {
 // server payload faithfully for the frontend to cast into a typed shape.
 func TestKnowledgeReturnsDecodedJSON(t *testing.T) {
 	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"nodes":[{"id":"c-1","label":"Brand","term_count":2}],"edges":[]}`))
+		_, _ = w.Write([]byte(`[{"id":"m-1","name":"DACH","locales":["de-DE","de-AT"]}]`))
 	})
 
-	raw, err := app.GetGraph("acme", GraphArgs{})
+	raw, err := app.ListMarkets("acme")
 	require.NoError(t, err)
 
-	var graph struct {
-		Nodes []map[string]any `json:"nodes"`
-		Edges []map[string]any `json:"edges"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &graph))
-	require.Len(t, graph.Nodes, 1)
-	assert.Equal(t, "Brand", graph.Nodes[0]["label"])
+	var markets []map[string]any
+	require.NoError(t, json.Unmarshal(raw, &markets))
+	require.Len(t, markets, 1)
+	assert.Equal(t, "DACH", markets[0]["name"])
 }
 
 // runKnowledgeRouteTests drives a table of route assertions against a recording

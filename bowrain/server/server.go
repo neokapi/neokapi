@@ -1125,12 +1125,6 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 	g.GET("/ai-usage", s.HandleGetAIUsage)
 
-	// Graph — Bowrain AD-011: /:ws/graph
-	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
-	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
-	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
-	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
-
 	// Notifications — Bowrain AD-011: /:ws/notifications
 	g.GET("/notifications", s.HandleListNotifications)
 	g.POST("/notifications/:nid/read", s.HandleMarkNotificationRead)

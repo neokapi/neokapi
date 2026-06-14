@@ -11,7 +11,6 @@ import type {
   Comment as ConceptComment,
   ConceptStory,
   ConceptUsage,
-  GraphViz,
   Market,
   ChangeSet,
   ChangeSetDetail,
@@ -152,22 +151,6 @@ const sampleConceptUsage: ConceptUsage = {
     },
   ],
   samples: [],
-};
-
-export const sampleGraph: GraphViz = {
-  nodes: [
-    { id: "c-checkout", label: "Checkout", domain: "commerce", status: "preferred", term_count: 3 },
-    { id: "c-basket", label: "Cart", domain: "commerce", status: "preferred", term_count: 3 },
-    { id: "c-rival", label: "QuickPay", domain: "commerce", status: "forbidden", term_count: 1 },
-    { id: "c-pay", label: "Payment", domain: "commerce", status: "approved", term_count: 2 },
-  ],
-  edges: [
-    { id: "r-1", source: "c-checkout", target: "c-basket", type: "RELATED" },
-    { id: "r-2", source: "c-rival", target: "c-checkout", type: "COMPETITOR" },
-    { id: "r-3", source: "c-checkout", target: "c-pay", type: "HAS_PART" },
-  ],
-  total: 4,
-  truncated: false,
 };
 
 const sampleMarkets: Market[] = [
@@ -388,7 +371,6 @@ export const brandHubOverrides: Partial<ApiAdapter> = {
   }),
   resolveConceptComment: async () => {},
   deleteConceptComment: async () => {},
-  getGraph: async () => sampleGraph,
   listMarkets: async () => sampleMarkets,
   listChangesets: async (_ws, status) =>
     status ? sampleChangesets.filter((c) => c.status === status) : sampleChangesets,

@@ -107,8 +107,6 @@ import type {
   DriftResult,
 } from "../brand/types";
 import type {
-  GraphViz,
-  GraphParams,
   ListConceptsParams,
   ConceptStory,
   ConceptRelation,
@@ -2447,10 +2445,6 @@ export class RestApiAdapter implements ApiAdapter {
     return `${this.termsEp(ws)}/${encodeURIComponent(conceptId)}`;
   }
 
-  private graphEp(ws: string) {
-    return `/api/v1/${ws}/graph`;
-  }
-
   private marketsEp(ws: string) {
     return `/api/v1/${ws}/markets`;
   }
@@ -2602,21 +2596,6 @@ export class RestApiAdapter implements ApiAdapter {
       `${this.conceptEp(workspaceSlug, conceptId)}/comments/${encodeURIComponent(commentId)}`,
       { method: "DELETE" },
     );
-  }
-
-  // ── Brand knowledge graph — Graph viz (AD-021) ────────────────────────────
-
-  async getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz> {
-    const q = new URLSearchParams();
-    if (params?.as_of) q.set("as_of", params.as_of);
-    if (params?.market) q.set("market", params.market);
-    if (params?.domain) q.set("domain", params.domain);
-    if (params?.status) q.set("status", params.status);
-    if (params?.focus) q.set("focus", params.focus);
-    if (params?.depth !== undefined) q.set("depth", String(params.depth));
-    if (params?.limit !== undefined) q.set("limit", String(params.limit));
-    const qs = q.toString();
-    return this.fetchJSON(`${this.graphEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
   }
 
   // ── Brand knowledge graph — Markets (AD-021) ──────────────────────────────

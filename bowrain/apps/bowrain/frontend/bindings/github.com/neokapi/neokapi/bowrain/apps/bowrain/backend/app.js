@@ -587,16 +587,6 @@ export function GetFlowDefinition(projectID, id) {
 }
 
 /**
- * GetGraph returns the force-directed graph payload for the workspace.
- * @param {string} workspaceSlug
- * @param {$models.GraphArgs} params
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function GetGraph(workspaceSlug, params) {
-    return $Call.ByID(2170406408, workspaceSlug, params);
-}
-
-/**
  * GetItemBlocks returns all blocks for an item in the project.
  * When connected, blocks are fetched from the server and cached locally.
  * On connection failure, falls back to the local cache.

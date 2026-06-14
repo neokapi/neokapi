@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   useWorkspace,
-  ConceptsView,
-  ConceptStoryView,
+  ConceptsSection,
+  ConceptStorySection,
   ExperimentsView,
   ExperimentDetailView,
   ActivityView,
@@ -20,7 +20,7 @@ export type BrandSection = "concepts" | "voice" | "experiments" | "activity" | "
 
 /**
  * One React Query client for the desktop Brand hub. The shared brand-hub views
- * (ConceptsView, ExperimentsView, the dashboard, …) and their hooks drive
+ * (ConceptsSection, ExperimentsView, the dashboard, …) and their hooks drive
  * everything through React Query; the rest of the desktop app uses the
  * backend-events refetch layer instead, so the client is scoped to the hub
  * rather than the whole app. A module-level singleton keeps the cache across
@@ -72,7 +72,6 @@ function BrandHubFreshness() {
     if (!ws) return;
     void qc.invalidateQueries({ queryKey: ["concepts", ws] });
     void qc.invalidateQueries({ queryKey: ["concept", ws] });
-    void qc.invalidateQueries({ queryKey: ["graph", ws] });
     void qc.invalidateQueries({ queryKey: ["changesets", ws] });
     void qc.invalidateQueries({ queryKey: ["changeset", ws] });
     void qc.invalidateQueries({ queryKey: ["markets", ws] });
@@ -109,13 +108,14 @@ function BrandHubContent({
   switch (section) {
     case "concepts":
       return conceptId ? (
-        <ConceptStoryView
+        <ConceptStorySection
           conceptId={conceptId}
           onBack={onCloseConcept}
           onOpenConcept={onOpenConcept}
+          onOpenExperiments={() => onGotoSection("experiments")}
         />
       ) : (
-        <ConceptsView onOpenConcept={onOpenConcept} />
+        <ConceptsSection onOpenConcept={onOpenConcept} />
       );
     case "voice":
       // The desktop Voice surface is the correction-learning review loop
@@ -141,7 +141,7 @@ function BrandHubContent({
         />
       );
     default:
-      return <ConceptsView onOpenConcept={onOpenConcept} />;
+      return <ConceptsSection onOpenConcept={onOpenConcept} />;
   }
 }
 

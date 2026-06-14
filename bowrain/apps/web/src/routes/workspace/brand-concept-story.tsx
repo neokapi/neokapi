@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ConceptStoryView } from "@neokapi/ui";
+import { ConceptStorySection } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function ConceptStoryRoute() {
@@ -17,7 +17,7 @@ export function ConceptStoryRoute() {
   const ws = workspace ?? "";
 
   return (
-    <ConceptStoryView
+    <ConceptStorySection
       conceptId={cid ?? ""}
       onBack={() => void navigate({ to: "/$workspace/brand/concepts", params: { workspace: ws } })}
       onOpenConcept={(nextCid) =>
@@ -25,6 +25,9 @@ export function ConceptStoryRoute() {
           to: "/$workspace/brand/concepts/$cid",
           params: { workspace: ws, cid: nextCid },
         })
+      }
+      onOpenExperiments={() =>
+        void navigate({ to: "/$workspace/brand/experiments", params: { workspace: ws } })
       }
     />
   );

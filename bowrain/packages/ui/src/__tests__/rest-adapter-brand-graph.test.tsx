@@ -190,31 +190,6 @@ describe("RestApiAdapter — brand knowledge graph routes", () => {
     expect(url).toBe(`${BASE}/api/v1/acme/concepts/c1/comments/cm1`);
   });
 
-  // ── Graph ────────────────────────────────────────────────────────────────
-
-  it("getGraph builds the /graph query incl. focus + depth", async () => {
-    await adapter.getGraph("acme", {
-      as_of: "2026-01-01T00:00:00Z",
-      market: "dach",
-      domain: "marketing",
-      status: "preferred",
-      focus: "c1",
-      depth: 3,
-    });
-    const { url, method } = lastRequest();
-    expect(method).toBe("GET");
-    const u = new URL(url);
-    expect(u.pathname).toBe("/api/v1/acme/graph");
-    expect(u.searchParams.get("focus")).toBe("c1");
-    expect(u.searchParams.get("depth")).toBe("3");
-    expect(u.searchParams.get("status")).toBe("preferred");
-  });
-
-  it("getGraph with no params hits the bare /graph route", async () => {
-    await adapter.getGraph("acme");
-    expect(lastRequest().url).toBe(`${BASE}/api/v1/acme/graph`);
-  });
-
   // ── Markets ──────────────────────────────────────────────────────────────
 
   it("listMarkets GETs /markets", async () => {

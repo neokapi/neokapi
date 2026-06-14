@@ -17,12 +17,12 @@ vi.mock("@neokapi/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@neokapi/ui")>();
   return {
     ...actual,
-    ConceptsView: ({ onOpenConcept }: { onOpenConcept: (id: string) => void }) => (
+    ConceptsSection: ({ onOpenConcept }: { onOpenConcept: (id: string) => void }) => (
       <button data-testid="concepts-view" onClick={() => onOpenConcept("c1")}>
         concepts
       </button>
     ),
-    ConceptStoryView: ({ conceptId, onBack }: { conceptId: string; onBack: () => void }) => (
+    ConceptStorySection: ({ conceptId, onBack }: { conceptId: string; onBack: () => void }) => (
       <div data-testid="story-view">
         <span>story:{conceptId}</span>
         <button onClick={onBack}>back-concept</button>

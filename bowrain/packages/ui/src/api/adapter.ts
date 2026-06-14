@@ -98,8 +98,6 @@ import type {
   DriftResult,
 } from "../brand/types";
 import type {
-  GraphViz,
-  GraphParams,
   ListConceptsParams,
   ConceptStory,
   ConceptRelation,
@@ -916,9 +914,6 @@ export interface ApiAdapter {
     resolved?: boolean,
   ): Promise<void>;
   deleteConceptComment(workspaceSlug: string, conceptId: string, commentId: string): Promise<void>;
-
-  // Brand knowledge graph — Graph viz (AD-021)
-  getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz>;
 
   // Brand knowledge graph — Markets (AD-021)
   listMarkets(workspaceSlug: string): Promise<Market[]>;

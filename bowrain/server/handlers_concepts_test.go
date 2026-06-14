@@ -6,17 +6,28 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // These tests drive the concept list handler against the in-memory workspace
-// termbase (no database). The gtConcept / harness helpers are shared from
-// handlers_concepts_graph_test.go.
+// termbase (no database), using the newKGHarness helpers.
+
+// gtConcept builds an in-memory concept with one term per status (each term's
+// text derived from the id + status), for the handler tests above.
+func gtConcept(id, domain string, statuses ...model.TermStatus) termbase.Concept {
+	terms := make([]termbase.Term, len(statuses))
+	for i, st := range statuses {
+		terms[i] = termbase.Term{Text: id + "-" + string(st), Locale: "en", Status: st}
+	}
+	return termbase.Concept{ID: id, Domain: domain, Terms: terms, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+}
 
 // TestListConceptsTotalKeepsDBWideCount proves the page-facet post-filter
 // (status/domain/market/source) does not collapse total_count to the surviving

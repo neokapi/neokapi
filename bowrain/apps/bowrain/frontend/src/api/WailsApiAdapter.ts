@@ -85,8 +85,6 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
-  GraphViz,
-  GraphParams,
   ListConceptsParams,
   ConceptStory,
   ConceptRelation,
@@ -1364,9 +1362,6 @@ export class WailsApiAdapter implements ApiAdapter {
     commentId: string,
   ): Promise<void> {
     return Backend.DeleteConceptComment(workspaceSlug, conceptId, commentId);
-  }
-  async getGraph(workspaceSlug: string, params?: GraphParams): Promise<GraphViz> {
-    return Backend.GetGraph(workspaceSlug, params ?? {}) as Promise<GraphViz>;
   }
   async listMarkets(workspaceSlug: string): Promise<Market[]> {
     return Backend.ListMarkets(workspaceSlug) as Promise<Market[]>;

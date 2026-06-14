@@ -136,7 +136,6 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 		"POST /:ws/concepts/:cid/comments",
 		"POST /:ws/concepts/:cid/comments/:id/resolve",
 		"DELETE /:ws/concepts/:cid/comments/:id",
-		"GET /:ws/graph",
 		"GET /:ws/markets",
 		"POST /:ws/markets",
 		"PUT /:ws/markets/:mid",
@@ -540,51 +539,6 @@ func TestKnowledgeStoreUnavailable(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, call(srv.HandleListChangeSets))
 	assert.Equal(t, http.StatusServiceUnavailable, call(srv.HandleGetConceptStory, "cid", "c1"))
 	assert.Equal(t, http.StatusServiceUnavailable, call(srv.HandleListObservations, "cid", "c1"))
-}
-
-// ---------------------------------------------------------------------------
-// Graph visualization
-// ---------------------------------------------------------------------------
-
-// TestGraphVizPayload proves the graph handler renders the workspace's concepts
-// and relations as nodes and edges, picking a preferred-term label for a node.
-func TestGraphVizPayload(t *testing.T) {
-	h := newKGHarness(t)
-	ctx := context.Background()
-	tb := h.tb(t)
-
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
-		ID: "c1", Domain: "auth",
-		Terms:     []termbase.Term{{Text: "Sign in", Locale: "en", Status: model.TermPreferred}},
-		CreatedAt: time.Now(), UpdatedAt: time.Now(),
-	}))
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
-		ID: "c2", Domain: "auth",
-		Terms:     []termbase.Term{{Text: "Login", Locale: "en", Status: model.TermAdmitted}},
-		CreatedAt: time.Now(), UpdatedAt: time.Now(),
-	}))
-	require.NoError(t, tb.AddRelation(ctx, termbase.ConceptRelation{
-		ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelRelated, CreatedAt: time.Now(),
-	}))
-
-	c, rec := h.req(http.MethodGet, "/", "", platauth.PermViewContent)
-	require.NoError(t, h.srv.HandleGetGraphViz(c))
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-
-	var resp GraphVizResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp.Nodes, 2)
-	require.Len(t, resp.Edges, 1)
-	assert.Equal(t, "c1", resp.Edges[0].Source)
-	assert.Equal(t, "c2", resp.Edges[0].Target)
-	assert.Equal(t, graph.LabelRelated, resp.Edges[0].Type)
-
-	byID := map[string]GraphVizNode{}
-	for _, n := range resp.Nodes {
-		byID[n.ID] = n
-	}
-	assert.Equal(t, "Sign in", byID["c1"].Label, "preferred term labels the node")
-	assert.Equal(t, string(model.TermPreferred), byID["c1"].Status)
 }
 
 // ===========================================================================
