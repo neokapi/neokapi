@@ -14,6 +14,7 @@ import (
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doclang"
+	"github.com/neokapi/neokapi/core/formats/docling"
 	"github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
 	"github.com/neokapi/neokapi/core/formats/epub"
@@ -125,6 +126,25 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "DocLang")
 	reg.RegisterWriter("doclang", func() format.DataFormatWriter { return doclang.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "doclang", func() format.DataFormatReader { return doclang.NewReader() })
+
+	// DoclingDocument JSON — Docling's native lossless serialization. Read-only:
+	// neokapi consumes it (re-emitting structure via DocLang or projecting to
+	// Markdown/HTML). It co-claims the .json extension with the generic JSON
+	// reader and disambiguates by a precise content sniff (schema_name +
+	// DoclingDocument); a below-default priority guarantees a plain .json never
+	// resolves to docling when the sniff misses (the JSON reader wins the
+	// extension/MIME fallback).
+	reg.RegisterReader("docling",
+		func() format.DataFormatReader { return docling.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/json"},
+			Extensions: []string{".json"},
+			Sniff: func(data []byte) bool {
+				return bytes.Contains(data, []byte(`"schema_name"`)) &&
+					bytes.Contains(data, []byte("DoclingDocument"))
+			},
+		}, "DoclingDocument JSON")
+	reg.SetFormatPriority("docling", format.DefaultBuiltInPriority-10)
 
 	// .NET RESX / .resw (Microsoft ResX 2.0). The Sniff keys on the
 	// resmimetype resheader so RESX files routed without the .resx/.resw
