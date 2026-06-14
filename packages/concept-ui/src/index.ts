@@ -100,22 +100,32 @@ export type { MarketView, MarketLocaleView } from "./markets-view";
 export { buildTimeline, sortTimeline, synthesizeTimeline, dayKey } from "./timeline";
 export type { TimelineDay } from "./timeline";
 
-// ── Concept-timeline view-model (rich/core merge + display building) ──
-export {
-  TIMELINE_KIND_META,
-  timelineKindMeta,
-  synthesizeCoreTimeline,
-  resolveTimelineEvents,
-  buildDisplayTimeline,
-} from "./timeline-build";
+// ── Concept evolution timeline (lanes, branches, clusters → roadmap/git-graph) ──
+export { ConceptEvolution, ROADMAP_MIN_WIDTH } from "./ConceptEvolution";
+export { EvolutionRoadmap } from "./EvolutionRoadmap";
+export { EvolutionGraph } from "./EvolutionGraph";
+export { buildEvolutionModel, clusterMilestones, conceptDisplayName } from "./evolution-model";
+export type { EvolutionInput } from "./evolution-model";
+export { SIGNAL_IMPORTANCE, TONE_IMPORTANCE } from "./evolution-types";
 export type {
-  TimelineTone,
-  TimelineKindMeta,
-  TimelineDisplayEvent,
-  TimelineDisplayDay,
-  CoreTimelineOptions,
-  ResolveTimelineOptions,
-} from "./timeline-build";
+  EvolutionModel,
+  EvolutionLane,
+  EvolutionSpan,
+  EvolutionMilestone,
+  EvolutionBranch,
+  EvolutionCluster,
+  EvolutionContextMarker,
+  EvolutionExtent,
+  EvolutionTick,
+  EvolutionTone,
+  SpanCap,
+  MilestoneKind,
+  ExtentUnit,
+  BuildEvolutionOptions,
+} from "./evolution-types";
+export type { EvolutionViewProps, EvolutionOrder } from "./evolution-view";
+export { makeScale, useContainerWidth, toneMeta } from "./evolution-atoms";
+export type { TimeScale } from "./evolution-atoms";
 
 // ── Constraints view-model (validity → lanes + banned/preferred summary) ──
 export {

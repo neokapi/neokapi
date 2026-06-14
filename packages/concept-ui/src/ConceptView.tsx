@@ -155,15 +155,18 @@ export function ConceptView({
             icon={<Share2 />}
             description="This concept and its direct relations."
           />
-          <Region
-            slot={slots.timeline}
-            ctx={ctx}
-            title="Timeline"
-            icon={<History />}
-            description="How this concept evolved."
-          />
         </div>
       </div>
+
+      {/* Evolution timeline — full width so the horizontal roadmap has room; it
+          folds to the vertical git-graph when the container is narrow. */}
+      <Region
+        slot={slots.timeline}
+        ctx={ctx}
+        title="Timeline"
+        icon={<History />}
+        description="How this concept evolved."
+      />
 
       {/* Optional rich regions — rendered only when supplied. */}
       {(slots.observations || slots.comments) && (
