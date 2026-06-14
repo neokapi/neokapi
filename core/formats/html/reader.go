@@ -299,6 +299,7 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 			},
 		},
 	}
+	v.reader.applyStructuralRole(block, n)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -319,6 +320,7 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         v.reader.extractBlockProperties(parent),
 	}
+	v.reader.applyStructuralRole(block, parent)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -506,6 +508,50 @@ func (r *Reader) blockType(n *html.Node) string {
 		return t
 	}
 	return ""
+}
+
+// htmlRoleMap maps the internal block type (blockTypeMap) to a normalized
+// SemanticRole (WS1), so HTML content carries the same roles as any other
+// source for the structure view and cross-format export.
+var htmlRoleMap = map[string]string{
+	"heading":   model.RoleHeading,
+	"listitem":  model.RoleListItem,
+	"cell":      model.RoleTableCell,
+	"caption":   model.RoleCaption,
+	"title":     model.RoleTitle,
+	"paragraph": model.RoleParagraph,
+}
+
+// applyStructuralRole sets a block's normalized SemanticRole from its HTML
+// element: heading level from h1–h6, and th → table-header.
+func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
+	role, ok := htmlRoleMap[block.Type]
+	if !ok {
+		return
+	}
+	level := 0
+	switch role {
+	case model.RoleHeading:
+		switch strings.ToLower(n.Data) {
+		case "h1":
+			level = 1
+		case "h2":
+			level = 2
+		case "h3":
+			level = 3
+		case "h4":
+			level = 4
+		case "h5":
+			level = 5
+		case "h6":
+			level = 6
+		}
+	case model.RoleTableCell:
+		if strings.ToLower(n.Data) == "th" {
+			role = model.RoleTableHeader
+		}
+	}
+	block.SetSemanticRole(role, level)
 }
 
 // blockName returns the block name for an element, incorporating id attribute.

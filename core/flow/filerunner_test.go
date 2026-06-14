@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/model"
@@ -110,6 +111,74 @@ func TestFileRunner_BufferedOutputFlushesFully(t *testing.T) {
 // jsx writer) that emit their entire payload in Close() rather than
 // Write(). The filerunner must close the writer before flushing the
 // output buffer, otherwise the file would be empty.
+// TestFileRunner_CrossFormatSemanticExport verifies that a cross-format
+// conversion (DocLang → Markdown) does NOT wire the source's byte skeleton into
+// the foreign writer, so the Markdown writer reconstructs clean output from the
+// content model + structural layer (WS6 role-driven semantic export): headings
+// become "## ", list items become "- ". Without the format-match guard on
+// skeleton wiring, the markdown writer would receive the DocLang XML skeleton
+// and emit angle-bracket garbage.
+func TestFileRunner_CrossFormatSemanticExport(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.dclg.xml")
+	doclangSrc := `<?xml version="1.0" encoding="UTF-8"?>
+<doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6">
+  <heading level="2">Overview</heading>
+  <text>Intro paragraph.</text>
+  <list class="unordered"><ldiv><marker>-</marker></ldiv><text>First</text><ldiv><marker>-</marker></ldiv><text>Second</text></list>
+</doclang>`
+	require.NoError(t, os.WriteFile(inputPath, []byte(doclangSrc), 0o644))
+
+	reader, err := reg.NewReader("doclang")
+	require.NoError(t, err)
+	writer, err := reg.NewWriter("markdown")
+	require.NoError(t, err)
+
+	outputPath := filepath.Join(dir, "out.md")
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    reg,
+		SourceLocale: "en-US",
+	})
+	passthrough := &tool.BaseTool{ToolName: "passthrough"}
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(),
+		"convert", []tool.Tool{passthrough}, inputPath, outputPath, "", reader, writer))
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	got := string(out)
+
+	assert.Contains(t, got, "## Overview", "heading should export as a level-2 Markdown heading")
+	assert.Contains(t, got, "Intro paragraph.", "paragraph text should be present")
+	assert.Contains(t, got, "- First", "list item should export as a Markdown bullet")
+	assert.Contains(t, got, "- Second")
+	assert.NotContains(t, got, "<heading", "DocLang skeleton markup must NOT leak into the Markdown output")
+	assert.NotContains(t, got, "<doclang", "DocLang skeleton markup must NOT leak into the Markdown output")
+
+	// Same source → clean HTML (the other WS6 semantic-export target).
+	htmlWriter, err := reg.NewWriter("html")
+	require.NoError(t, err)
+	htmlOut := filepath.Join(dir, "out.html")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(),
+		"convert", []tool.Tool{&tool.BaseTool{ToolName: "passthrough"}},
+		inputPath, htmlOut, "", mustReader(t, reg, "doclang"), htmlWriter))
+	h, err := os.ReadFile(htmlOut)
+	require.NoError(t, err)
+	hs := string(h)
+	assert.Contains(t, hs, "<h2>Overview</h2>", "heading should export as <h2>")
+	assert.Contains(t, hs, "<ul><li>First</li><li>Second</li></ul>", "list should export as <ul>/<li>")
+	assert.NotContains(t, hs, "<doclang", "DocLang skeleton must NOT leak into the HTML output")
+}
+
+func mustReader(t *testing.T, reg *registry.FormatRegistry, name string) format.DataFormatReader {
+	t.Helper()
+	r, err := reg.NewReader(registry.FormatID(name))
+	require.NoError(t, err)
+	return r
+}
+
 func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)

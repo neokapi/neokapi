@@ -1,0 +1,97 @@
+format: doclang
+kind: top_level
+mime_type: application/doclang+xml
+description: |
+  DocLang — the LF AI & Data open standard for AI-native documents
+  (https://doclang.ai), pinned to spec v0.6. Reads .dclg.xml into the neokapi
+  content model plus the structural layer (SemanticRole, GeometryAnnotation,
+  LayoutLayer). This is the file-based "consume Docling" boundary: a tool runs
+  Docling, emits DocLang, and neokapi reads it.
+
+  Coverage (v0.6): document root + head; the block-level semantic elements
+  heading, text, footnote, page_header, page_footer, code, formula; list (with
+  ldiv-delimited items); group; table/index OTSL cells (fcel, ched, rhed, ecel,
+  srow, corn) with nl row terminators; the element-head properties layer and the
+  4-value location block (mapped to page geometry); and inline formatting
+  (bold, italic, underline, strikethrough, superscript, subscript).
+
+  Not yet mapped (skipped without losing surrounding content): OTSL span
+  continuations (lcel/ucel/xcel), picture/field/marker/checkbox constructs, and
+  thread/xref/href continuity. Read-only for now — the writer (model -> DocLang)
+  lands in a follow-up.
+
+features:
+  - id: block_elements
+    name: Block-level semantic elements
+    description: |
+      Each block-level semantic element (heading, text, footnote, page_header,
+      page_footer, code, formula) yields one translatable Block whose normalized
+      SemanticRole records what it is. Inline formatting nests within the text.
+    spec_refs:
+      - "DocLang v0.6 spec Appendix A — block semantic elements (https://doclang.ai)"
+    examples:
+      - name: heading
+        origin: "authored: minimal DocLang heading"
+        input_xml: "<doclang xmlns=\"https://www.doclang.ai/ns/v0\" version=\"0.6\"><heading level=\"1\">Title</heading></doclang>"
+        block_count: 1
+        first_block_text: "Title"
+      - name: text_with_inline_bold
+        origin: "authored: paragraph with nested <bold>"
+        input_xml: "<doclang xmlns=\"https://www.doclang.ai/ns/v0\" version=\"0.6\"><text>Hello <bold>bold</bold> world</text></doclang>"
+        block_count: 1
+        first_block_text: "Hello bold world"
+    native_refs:
+      - doclang.TestReadDocLangRolesAndGeometry
+
+  - id: lists
+    name: Lists with ldiv-delimited items
+    description: |
+      A <list> becomes a Group; each <text> item inside it becomes a list-item
+      Block. The <ldiv> delimiter (holding the bullet/number marker) is dropped.
+    spec_refs:
+      - "DocLang v0.6 spec — lists and ldiv (https://doclang.ai)"
+    examples:
+      - name: ordered_list
+        origin: "authored: two-item ordered list"
+        input_xml: "<doclang xmlns=\"https://www.doclang.ai/ns/v0\" version=\"0.6\"><list class=\"ordered\"><ldiv><marker>1.</marker></ldiv><text>First</text><ldiv><marker>2.</marker></ldiv><text>Second</text></list></doclang>"
+        block_count: 2
+        block_texts:
+          - "First"
+          - "Second"
+    native_refs:
+      - doclang.TestReadDocLangRolesAndGeometry
+
+  - id: tables_otsl
+    name: OTSL tables
+    description: |
+      A <table> becomes a Group of row Groups; each OTSL cell token (fcel/ched/
+      rhed/...) starts a cell Block whose content runs until the next cell token
+      or <nl/>. Header tokens carry the table-header role; fcel the table-cell
+      role. Span continuations (lcel/ucel/xcel) are not yet mapped.
+    spec_refs:
+      - "DocLang v0.6 spec — OTSL table model (https://doclang.ai)"
+    examples:
+      - name: header_and_data_rows
+        origin: "authored: 2-column OTSL table, one header row + one data row"
+        input_xml: "<doclang xmlns=\"https://www.doclang.ai/ns/v0\" version=\"0.6\"><table><ched/>Name<ched/>Age<nl/><fcel/>Ann<fcel/>30<nl/></table></doclang>"
+        block_count: 4
+        block_texts:
+          - "Name"
+          - "Age"
+          - "Ann"
+          - "30"
+    native_refs:
+      - doclang.TestReadDocLangRolesAndGeometry
+
+config:
+  - key: emitGeometry
+    type: boolean
+    default: true
+    description: |
+      Writer option (no effect on read): emit <location> blocks from a block's
+      geometry annotation. Set false to project to a geometry-less DocLang when
+      re-emitting reflowable content.
+    okapi_param: emit_geometry
+
+parity:
+  skip: "DocLang is a new LF AI & Data standard with no Okapi bridge filter"

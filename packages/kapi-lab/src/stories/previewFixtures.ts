@@ -194,6 +194,95 @@ export const genericTree = tree("acme-config", [
   ]),
 ]);
 
+// ── DocLang / Docling (the WS1 structural layer: roles + page geometry) ───────
+// A single page carrying the structural layer the editor's Structure (outline)
+// and Layout (spatial) views render: semantic roles + level, a furniture
+// running header, a list group, a table, and per-block bounding boxes on a
+// 512-grid (DocLang's default resolution, top-left origin).
+function geo(x: number, y: number, w: number, h: number) {
+  return { page: 1, x, y, w, h, resolution: 512, origin: "top-left" };
+}
+
+export const doclangTree = tree("doclang", [
+  layer("report.dclg.xml", [
+    block("ph", "page_header", "Confidential — Q1", {
+      structure: { role: "page-header", layer: "furniture" },
+      geometry: geo(40, 16, 200, 18),
+    }),
+    block("title", "title", "Annual Report", {
+      structure: { role: "title" },
+      targets: { "fr-FR": txt("Rapport annuel") },
+      geometry: geo(72, 60, 380, 36),
+    }),
+    block("h1", "heading", "Overview", {
+      structure: { role: "heading", level: 2 },
+      targets: { "fr-FR": txt("Aperçu") },
+      geometry: geo(72, 120, 200, 22),
+    }),
+    block("p1", "text", "A year of steady growth across every region.", {
+      structure: { role: "paragraph" },
+      targets: { "fr-FR": txt("Une année de croissance régulière dans toutes les régions.") },
+      geometry: geo(72, 152, 380, 40),
+    }),
+    {
+      kind: "group",
+      id: "list1",
+      name: "list",
+      type: "list",
+      children: [
+        block("li1", "text", "Revenue up 12%", {
+          structure: { role: "list-item" },
+          geometry: geo(96, 204, 300, 18),
+        }),
+        block("li2", "text", "Two new markets", {
+          structure: { role: "list-item" },
+          geometry: geo(96, 226, 300, 18),
+        }),
+      ],
+    },
+    {
+      kind: "group",
+      id: "tbl1",
+      name: "table",
+      type: "table",
+      children: [
+        {
+          kind: "group",
+          id: "tr1",
+          name: "table-row",
+          type: "table-row",
+          children: [
+            block("c1", "table-cell", "Region", {
+              structure: { role: "table-header" },
+              geometry: geo(72, 264, 150, 20),
+            }),
+            block("c2", "table-cell", "Sales", {
+              structure: { role: "table-header" },
+              geometry: geo(222, 264, 150, 20),
+            }),
+          ],
+        },
+        {
+          kind: "group",
+          id: "tr2",
+          name: "table-row",
+          type: "table-row",
+          children: [
+            block("c3", "table-cell", "EU", {
+              structure: { role: "table-cell" },
+              geometry: geo(72, 284, 150, 20),
+            }),
+            block("c4", "table-cell", "100", {
+              structure: { role: "table-cell" },
+              geometry: geo(222, 284, 150, 20),
+            }),
+          ],
+        },
+      ],
+    },
+  ]),
+]);
+
 export const ALL_TREES: { filename: string; tree: ContentTree }[] = [
   { filename: "deck.pptx", tree: pptxTree },
   { filename: "report.xlsx", tree: xlsxTree },
@@ -201,5 +290,6 @@ export const ALL_TREES: { filename: string; tree: ContentTree }[] = [
   { filename: "guide.md", tree: mdTree },
   { filename: "messages.json", tree: jsonTree },
   { filename: "brochure.pdf", tree: pdfTree },
+  { filename: "report.dclg.xml", tree: doclangTree },
   { filename: "app.acme", tree: genericTree },
 ];

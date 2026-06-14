@@ -62,6 +62,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [019](019-kapi-react.md)   | Kapi React   | React i18n runtime, build-time extraction, `__tx` re-attach  |
 | [023](023-toolbox-utilities.md) | Toolbox Utilities | kcat/kgrep/ksed busybox multi-call, block-text projection, exit codes |
 | [024](024-agent-skills.md) | Agent Skills | embedded SKILL.md routers, `.claude/skills` install, kapi-*/bowrain-* split |
+| [027](027-visual-editor-data-model.md) | Visual Editor | ContentTree→RenderDoc projection, vocabulary/overlay rendering, shared preview kit, edit→commit round-trip |
 
 ## Cross-Cutting
 

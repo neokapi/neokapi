@@ -167,3 +167,54 @@ func TestBuildContentTree_MalformedStreamDoesNotPanic(t *testing.T) {
 	require.Len(t, tree.Root[1].Children, 1)
 	assert.Equal(t, "b2", tree.Root[1].Children[0].ID)
 }
+
+func TestBuildContentTree_StructureAndGeometry(t *testing.T) {
+	// A heading block carrying the WS1 structural layer: semantic role + level,
+	// layout layer, and page geometry.
+	h := model.NewBlock("b1", "Overview")
+	h.SetSemanticRole(model.RoleHeading, 2)
+	h.SetGeometry(&model.GeometryAnnotation{
+		Page: 1, BBox: model.Rect{X: 72, Y: 60, W: 428, H: 32},
+		Origin: "top-left", Resolution: 512,
+	})
+	// A furniture block (running header).
+	ph := model.NewBlock("b2", "Confidential")
+	ph.SetSemanticRole(model.RolePageHeader, 0)
+	ph.SetLayoutLayer(model.LayerFurniture)
+
+	tree := BuildContentTree([]*model.Part{blockPart(h), blockPart(ph)}, "docling")
+	require.Len(t, tree.Root, 2)
+
+	hn := tree.Root[0]
+	require.NotNil(t, hn.Structure, "heading should carry structure")
+	assert.Equal(t, model.RoleHeading, hn.Structure.Role)
+	assert.Equal(t, 2, hn.Structure.Level)
+	require.NotNil(t, hn.Geometry, "heading should carry geometry")
+	assert.Equal(t, 1, hn.Geometry.Page)
+	assert.Equal(t, GeometryView{Page: 1, X: 72, Y: 60, W: 428, H: 32, Origin: "top-left", Resolution: 512}, *hn.Geometry)
+
+	phn := tree.Root[1]
+	require.NotNil(t, phn.Structure)
+	assert.Equal(t, model.RolePageHeader, phn.Structure.Role)
+	assert.Equal(t, model.LayerFurniture, phn.Structure.Layer)
+	assert.Nil(t, phn.Geometry, "no geometry set → nil")
+
+	// Structure/geometry are first-class fields, NOT generic annotation rows.
+	for _, a := range hn.Annotations {
+		assert.NotEqual(t, model.AnnoStructure, a.Type, "structure must not appear as a generic annotation")
+		assert.NotEqual(t, model.AnnoGeometry, a.Type, "geometry must not appear as a generic annotation")
+	}
+
+	// Round-trips through JSON with the expected field names.
+	b, err := json.Marshal(hn)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), `"structure":{"role":"heading","level":2}`)
+	assert.Contains(t, string(b), `"geometry":{"page":1,"x":72`)
+}
+
+func TestBuildContentTree_NoStructureWhenUnset(t *testing.T) {
+	tree := BuildContentTree([]*model.Part{blockPart(model.NewBlock("b", "plain"))}, "json")
+	require.Len(t, tree.Root, 1)
+	assert.Nil(t, tree.Root[0].Structure, "plain block has no structure")
+	assert.Nil(t, tree.Root[0].Geometry, "plain block has no geometry")
+}

@@ -32,6 +32,9 @@ func init() {
 	RegisterPayload("term", func() Payload { return &TermAnnotation{} })
 	RegisterPayload("term-candidate", func() Payload { return &TermCandidateAnnotation{} })
 	RegisterPayload(string(OverlayEditorAnchor), func() Payload { return &EditorAnchor{} })
+	// Structural layer (see structure.go):
+	RegisterPayload(AnnoStructure, func() Payload { return &StructureAnnotation{} })
+	RegisterPayload(AnnoGeometry, func() Payload { return &GeometryAnnotation{} })
 }
 
 // RegisterPayload registers a factory for the given stand-off payload type

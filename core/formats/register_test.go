@@ -2,6 +2,8 @@ package formats_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -28,7 +30,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "doclang", "docling", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec
@@ -54,10 +56,10 @@ func TestRegisterAllWriters(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
-		// Note: "pdf" is intentionally absent — PDF is read-only (extraction
-		// only), so it registers a reader but no writer.
+		// Note: "pdf" and "docling" are intentionally absent — both are
+		// read-only (extraction only), so they register a reader but no writer.
 	}
 
 	for _, name := range expectedFormats {
@@ -65,6 +67,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
 	assert.False(t, reg.HasWriter("pdf"), "pdf must remain read-only (no writer)")
+	assert.False(t, reg.HasWriter("docling"), "docling must remain read-only (no writer)")
 }
 
 // TestKLFFormatIDAndJSXAlias asserts the user-facing id is "klf" while
@@ -199,6 +202,53 @@ func TestFormatDetection(t *testing.T) {
 		require.NoError(t, err, "detection failed for mime=%q ext=%q", tt.mime, tt.extension)
 		assert.Equal(t, tt.expected, name, "wrong format for mime=%q ext=%q", tt.mime, tt.extension)
 	}
+}
+
+// TestDoclingContentDetection asserts the DoclingDocument JSON reader wins by
+// content sniff over the generic JSON reader, while a plain JSON object still
+// resolves to "json" (docling's below-default priority loses the fallback).
+func TestDoclingContentDetection(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	detector := reg.Detector()
+
+	docling := `{"schema_name": "DoclingDocument", "version": "1.2.0", "body": {"children": []}, "texts": []}`
+	name, err := detector.DetectByContent(strings.NewReader(docling))
+	require.NoError(t, err)
+	assert.Equal(t, "docling", name, "DoclingDocument JSON should detect as docling")
+
+	plain := `{"greeting": "hello", "items": [1, 2, 3], "nested": {"a": true}}`
+	name, err = detector.DetectByContent(strings.NewReader(plain))
+	require.NoError(t, err)
+	assert.Equal(t, "json", name, "plain JSON must not be claimed by docling")
+}
+
+// TestDoclangContentDetection asserts DocLang XML wins by content sniff over the
+// generic XML reader (a .dclg.xml file's extension is just ".xml"), while a
+// plain .xml document still resolves to "xml".
+func TestDoclangContentDetection(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	detector := reg.Detector()
+
+	doclang := `<?xml version="1.0"?><doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6"><heading level="1">Hi</heading></doclang>`
+	name, err := detector.DetectByContent(strings.NewReader(doclang))
+	require.NoError(t, err)
+	assert.Equal(t, "doclang", name, "DocLang XML should detect as doclang")
+
+	plain := `<?xml version="1.0"?><root><item>value</item></root>`
+	name, err = detector.DetectByContent(strings.NewReader(plain))
+	require.NoError(t, err)
+	assert.Equal(t, "xml", name, "plain XML must not be claimed by doclang")
+
+	// A .dclg.xml path (filepath.Ext == ".xml") resolves via the shared
+	// extension + content sniff.
+	dir := t.TempDir()
+	p := filepath.Join(dir, "report.dclg.xml")
+	require.NoError(t, os.WriteFile(p, []byte(doclang), 0o644))
+	det, err := reg.DetectFile(p, nil)
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("doclang"), det, ".dclg.xml file should detect as doclang")
 }
 
 func TestEndToEndPlaintextRoundTrip(t *testing.T) {

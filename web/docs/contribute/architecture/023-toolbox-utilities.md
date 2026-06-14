@@ -2,8 +2,8 @@
 id: 023-toolbox-utilities
 sidebar_position: 23
 title: "AD-023: Toolbox Utilities"
-description: "Architecture decision: kcat, kgrep, and ksed are format-aware reimaginings of cat/grep/sed that operate on the translatable text of any supported format. They ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
-keywords: [toolbox, kcat, kgrep, ksed, busybox, multi-call, block projection, exit codes, format-aware, architecture decision, neokapi]
+description: "Architecture decision: kcat, kgrep, and ksed are format-aware reimaginings of cat/grep/sed, and kconv converts between formats. They operate on the translatable text of any supported format, ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
+keywords: [toolbox, kcat, kgrep, ksed, kconv, busybox, multi-call, block projection, format conversion, exit codes, format-aware, architecture decision, neokapi]
 ---
 
 # AD-023: Toolbox Utilities
@@ -15,11 +15,14 @@ text utilities — `cat`, `grep`, `sed` — that operate on the **translatable
 text** of any format kapi understands (Word `.docx`, JSON catalogs, XLIFF,
 Markdown, …) rather than on raw bytes. They reuse kapi's reader/writer pipeline,
 so `kgrep` searches the prose inside a `.docx`, and `ksed` rewrites it and saves
-the document back faithfully. They ship as **busybox-style multi-call binaries**:
-the three names are symlinks to the single `kapi` binary, which dispatches on
-`argv[0]`. One binary, three extra names, no extra size. Each operates over a
-**block-text projection** of the document and follows the grep-style exit-code
-contract ([AD-013](013-kapi-cli.md)).
+the document back faithfully. A fourth utility, `kconv`, has no classic Unix
+analog: it **converts** a document into another format — a `.docx` to Markdown,
+a DocLang document to HTML, any supported format to DocLang — by handing the
+blocks (and the role each carries) to a different format's writer. They ship as
+**busybox-style multi-call binaries**: the names are symlinks to the single
+`kapi` binary, which dispatches on `argv[0]`. One binary, the extra names, no
+extra size. Each operates over a **block-text projection** of the document and
+follows the grep-style exit-code contract ([AD-013](013-kapi-cli.md)).
 
 ## Context
 
@@ -42,7 +45,8 @@ have. Two design goals shaped it:
 - **Faithful to the classics.** `kgrep`/`ksed`/`kcat` should accept the option
   surface and exit-code behavior users expect from `grep`/`sed`/`cat`, including
   the shorthand flags (`-v`, `-c`, `-i`) that kapi's global flags would
-  otherwise shadow.
+  otherwise shadow. `kconv` has no classic analog, so it takes a small, kapi-
+  native flag surface (`--to`, `-o`) instead.
 
 ## Decision
 
@@ -52,18 +56,19 @@ The toolbox commands live in the shared CLI base (`cli/toolbox*.go`) and are
 built into the `kapi` binary. They are reachable two ways:
 
 - **As multi-call symlinks.** The build (and the Homebrew formula) create
-  `kgrep`, `ksed`, and `kcat` as symlinks to `kapi`. At startup `kapi`'s
+  `kgrep`, `ksed`, `kcat`, and `kconv` as symlinks to `kapi`. At startup `kapi`'s
   `main()` calls `cli.BusyboxRoot(app, os.Args[0])`: it normalizes the program
-  name (stripping any `.exe` suffix) and, when it matches one of the three,
+  name (stripping any `.exe` suffix) and, when it matches a toolbox name,
   returns a standalone root for that utility instead of the full kapi command
   tree. The standalone root owns the app lifecycle (config load, `Init`,
   `Shutdown`) so the utility behaves identically however it is launched.
-- **As hidden kapi subcommands.** `kapi grep`, `kapi sed`, and `kapi cat` are
-  thin proxies (`NewToolboxProxies`) with `DisableFlagParsing` set, so kapi's
-  persistent flags are *not* merged into them. Each proxy delegates the raw
-  argument list to the very same standalone command the symlink runs, so
-  `kapi grep` and `kgrep` behave identically. They are hidden from `kapi --help`
-  so the help steers users to the dedicated `kgrep`/`ksed`/`kcat` names.
+- **As hidden kapi subcommands.** `kapi grep`, `kapi sed`, `kapi cat`, and
+  `kapi convert` are thin proxies (`NewToolboxProxies`) with `DisableFlagParsing`
+  set, so kapi's persistent flags are *not* merged into them. Each proxy
+  delegates the raw argument list to the very same standalone command the symlink
+  runs, so `kapi grep` and `kgrep` behave identically. They are hidden from
+  `kapi --help` so the help steers users to the dedicated
+  `kgrep`/`ksed`/`kcat`/`kconv` names.
 
 `DisableFlagParsing` on the proxies is what lets the utilities keep their full
 classic option surface — without it, kapi's global `-v`/`-c`/`-q` would shadow
@@ -95,6 +100,16 @@ text. This is the one place the toolbox decides what "the text" of a file is.
   translation; in-place editing (`-i`, optional `-i.bak` backup) requires a file
   argument and refuses stdin. A read-only format (one with no writer) returns an
   actionable error pointing at `kcat`.
+- **Convert path (`kconv`).** `convertDocument` reads the input and writes it
+  through a *different* format's writer, chosen from `--to` (a format id or
+  extension) or the `-o` extension. With no target locale it projects the
+  source; `--target LOCALE` projects a translation. The skeleton store and the
+  source bytes are wired to the writer **only when `reader.Name() ==
+  writer.Name()`** — a same-format conversion round-trips faithfully via the
+  skeleton, while a cross-format one reconstructs from the content model and the
+  block roles so the source's foreign byte skeleton is never emitted. This is
+  the same format-match guard the file runner applies
+  ([AD-005](005-format-system.md)).
 
 Because the projection is "the translatable Blocks," the utilities inherit the
 content model's notion of what is translatable — the same Blocks the rest of the
@@ -118,6 +133,9 @@ source), `--format`/`-f`, `--source-lang`, and `--encoding`.
   parser before dispatch.
 - **`kcat`** — `-n` (number blocks), `--id` (prefix each block with its source
   ID), and `--json`.
+- **`kconv`** — `-t`/`--to FORMAT` (target format id or extension) and
+  `-o`/`--output PATH` (write to a file, format inferred from its extension;
+  default stdout). `-o` takes a single input.
 
 With no `FILE`, or when `FILE` is `-`, standard input is read. A terminal stdin
 read is raced against the command context so Ctrl-C (which the CLI traps as
@@ -143,6 +161,10 @@ shell scripts and skills can branch on toolbox results reliably.
   `kapi`.
 - The utilities reuse the format readers/writers and skeleton store, so a
   faithful format round-trips structure on edit and only the prose changes.
+- `kconv` reuses the same machinery to convert *between* formats: a same-format
+  conversion round-trips faithfully, while a cross-format one projects the
+  document's structure (via block roles) into the target, so a `.docx` becomes
+  clean Markdown or HTML without its source packaging.
 - The block-text projection is defined once and shared by all three, so what
   counts as "the text" is consistent and matches the rest of the pipeline.
 - The grep-style exit-code contract, layered on the CLI's `ErrSilentExit`

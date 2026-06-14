@@ -1215,6 +1215,25 @@
         }
       }
     },
+    "doclang": {
+      "displayName": "DocLang",
+      "extensions": [
+        ".dclg.xml",
+        ".xml"
+      ],
+      "mimeTypes": [
+        "application/doclang+xml"
+      ]
+    },
+    "docling": {
+      "displayName": "DoclingDocument JSON",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ]
+    },
     "doxygen": {
       "displayName": "Doxygen Comments",
       "extensions": [
