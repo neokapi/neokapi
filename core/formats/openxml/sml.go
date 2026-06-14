@@ -283,6 +283,22 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
 						}
+						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
+						// cell lives at a single (col,row), so its position is the
+						// cell address itself. Shared-string cells are deduplicated in
+						// sharedStrings.xml — one block backs many cells — so they have
+						// no single position and get no geometry (handled there). The
+						// BBox is in cell units (W=H=1 = one cell), flagged by the
+						// "cell-grid" origin; X/Y are the zero-based column/row.
+						if col, row, ok := parseCellRefA1(cellRef); ok {
+							if sheet := sheetNumFromPath(partPath); sheet > 0 {
+								block.SetGeometry(&model.GeometryAnnotation{
+									Page:   sheet,
+									BBox:   model.Rect{X: float64(col), Y: float64(row), W: 1, H: 1},
+									Origin: "cell-grid",
+								})
+							}
+						}
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
@@ -321,6 +337,50 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 		}
 	}
 	return nil
+}
+
+// parseCellRefA1 parses an A1-style cell reference ("A1", "AB12") into a
+// zero-based (col, row). It mirrors parseCellRef in the editor's renderDoc.ts
+// so the Go-derived geometry and the JS layout view agree on the grid origin.
+// ok is false for any malformed or empty ref.
+func parseCellRefA1(ref string) (col, row int, ok bool) {
+	ref = strings.TrimSpace(ref)
+	i := 0
+	for i < len(ref) {
+		c := ref[i]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		if c < 'A' || c > 'Z' {
+			break
+		}
+		col = col*26 + int(c-'A'+1) // 'A' → 1
+		i++
+	}
+	if i == 0 || i == len(ref) {
+		return 0, 0, false // no letters, or no digits
+	}
+	n, err := strconv.Atoi(ref[i:])
+	if err != nil || col < 1 || n < 1 {
+		return 0, 0, false
+	}
+	return col - 1, n - 1, true
+}
+
+// sheetNumFromPath returns the 1-based worksheet number for an
+// `xl/worksheets/sheetN.xml` part, or 0 for any other part. The match is exact
+// (the prefix is the full worksheets dir), so xl/tables/* and the workbook part
+// get no page.
+func sheetNumFromPath(partPath string) int {
+	const prefix = "xl/worksheets/sheet"
+	if !strings.HasPrefix(partPath, prefix) || !strings.HasSuffix(partPath, ".xml") {
+		return 0
+	}
+	n, err := strconv.Atoi(partPath[len(prefix) : len(partPath)-len(".xml")])
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
 }
 
 // parseInlineString reads an inline string element <is> and returns its text.
