@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/model"
@@ -155,6 +156,27 @@ func TestFileRunner_CrossFormatSemanticExport(t *testing.T) {
 	assert.Contains(t, got, "- Second")
 	assert.NotContains(t, got, "<heading", "DocLang skeleton markup must NOT leak into the Markdown output")
 	assert.NotContains(t, got, "<doclang", "DocLang skeleton markup must NOT leak into the Markdown output")
+
+	// Same source → clean HTML (the other WS6 semantic-export target).
+	htmlWriter, err := reg.NewWriter("html")
+	require.NoError(t, err)
+	htmlOut := filepath.Join(dir, "out.html")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(),
+		"convert", []tool.Tool{&tool.BaseTool{ToolName: "passthrough"}},
+		inputPath, htmlOut, "", mustReader(t, reg, "doclang"), htmlWriter))
+	h, err := os.ReadFile(htmlOut)
+	require.NoError(t, err)
+	hs := string(h)
+	assert.Contains(t, hs, "<h2>Overview</h2>", "heading should export as <h2>")
+	assert.Contains(t, hs, "<ul><li>First</li><li>Second</li></ul>", "list should export as <ul>/<li>")
+	assert.NotContains(t, hs, "<doclang", "DocLang skeleton must NOT leak into the HTML output")
+}
+
+func mustReader(t *testing.T, reg *registry.FormatRegistry, name string) format.DataFormatReader {
+	t.Helper()
+	r, err := reg.NewReader(registry.FormatID(name))
+	require.NoError(t, err)
+	return r
 }
 
 func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {

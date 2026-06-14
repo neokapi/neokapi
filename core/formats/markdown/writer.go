@@ -135,7 +135,7 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 		}
 		w.firstBlock = false
 
-		// Structure prefix, keyed on the normalized semantic role (WS6).
+		// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
 		// SemanticRole drives clean cross-format export (any source → Markdown);
 		// it falls back to the format-specific block.Type so same-format
 		// round-trips are unchanged.
@@ -143,20 +143,23 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
 		if role == "" {
 			role = block.Type
 		}
+		var prefix, suffix string
 		switch role {
+		case model.RoleTitle:
+			prefix = "# "
 		case model.RoleHeading:
 			if n := headingLevel(block); n > 0 {
-				if _, err := fmt.Fprint(out, strings.Repeat("#", n)+" "); err != nil {
-					return err
-				}
+				prefix = strings.Repeat("#", n) + " "
 			}
 		case model.RoleListItem:
-			if _, err := fmt.Fprint(out, "- "); err != nil {
-				return err
-			}
+			prefix = "- "
+		case model.RoleCode:
+			prefix, suffix = "```\n", "\n```"
+		case model.RoleCaption:
+			prefix, suffix = "*", "*"
 		}
 
-		if _, err := fmt.Fprint(out, text); err != nil {
+		if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
 			return err
 		}
 	}

@@ -54,6 +54,28 @@ func TestExportFromSemanticRole(t *testing.T) {
 	}
 }
 
+// WS6: title, code, and caption roles export to their Markdown structures.
+func TestExportTitleCodeCaption(t *testing.T) {
+	title := model.NewBlock("t", "My Doc")
+	title.SetSemanticRole(model.RoleTitle, 0)
+	code := model.NewBlock("c", "fmt.Println(\"hi\")")
+	code.SetSemanticRole(model.RoleCode, 0)
+	caption := model.NewBlock("cap", "Figure 1")
+	caption.SetSemanticRole(model.RoleCaption, 0)
+
+	out := writeBlocks(t, title, code, caption)
+
+	if !strings.Contains(out, "# My Doc") {
+		t.Errorf("title not rendered as level-1 heading; got:\n%s", out)
+	}
+	if !strings.Contains(out, "```\nfmt.Println(\"hi\")\n```") {
+		t.Errorf("code not rendered as fenced block; got:\n%s", out)
+	}
+	if !strings.Contains(out, "*Figure 1*") {
+		t.Errorf("caption not rendered as emphasis; got:\n%s", out)
+	}
+}
+
 // WS6 fallback: a block typed the legacy way (block.Type + "level" property,
 // no SemanticRole) must still render — same-format round-trips are unchanged.
 func TestExportFallsBackToBlockType(t *testing.T) {
