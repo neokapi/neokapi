@@ -360,6 +360,13 @@ func parseCellRefA1(ref string) (col, row int, ok bool) {
 	if i == 0 || i == len(ref) {
 		return 0, 0, false // no letters, or no digits
 	}
+	// The remainder must be bare digits (no sign): the TS parseCellRef regex
+	// is /^([A-Za-z]+)(\d+)$/, but strconv.Atoi would accept a leading +/-.
+	for _, c := range ref[i:] {
+		if c < '0' || c > '9' {
+			return 0, 0, false
+		}
+	}
 	n, err := strconv.Atoi(ref[i:])
 	if err != nil || col < 1 || n < 1 {
 		return 0, 0, false
