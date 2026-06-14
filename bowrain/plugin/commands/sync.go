@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
@@ -51,6 +52,15 @@ func runSync(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "Pushed %d blocks, %d words (scanned %d files)\n",
 			pushResult.BlocksPushed, pushResult.WordCount, pushResult.FilesScanned)
+	}
+
+	// Reconcile governed terminology edits as part of the push phase.
+	if proj, perr := project.FindProject(""); perr == nil {
+		if cres, cerr := conceptPush(ctx, proj, false); cerr != nil {
+			return fmt.Errorf("concept push: %w", cerr)
+		} else if cres != nil {
+			printConceptPushSummary(cmd, cres)
+		}
 	}
 
 	// Phase 2: Wait for auto-translations.
@@ -161,6 +171,24 @@ func syncPull(cmd *cobra.Command, conn *bconn.BowrainSourceConnector) error {
 			pullResult.BlocksPulled, pullResult.LocalesCount)
 		if pullResult.FilesWritten > 0 {
 			fmt.Fprintf(cmd.OutOrStdout(), "Updated %d file(s)\n", pullResult.FilesWritten)
+		}
+	}
+
+	// Fold the workspace's governed terminology into the pull phase. The baseline
+	// is recorded on the connector's in-memory cache so the deferred conn.Close()
+	// in runSync persists it together with the block-sync state — writing it to
+	// disk here would be overwritten by that Close().
+	if proj, perr := project.FindProject(""); perr == nil {
+		cres, baseline, cerr := conceptPull(cmd.Context(), proj, false)
+		if cerr != nil {
+			return fmt.Errorf("concept pull: %w", cerr)
+		}
+		if baseline != nil {
+			conn.SetConceptBaseline(baseline)
+		}
+		if cres != nil && cres.Concepts > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "Pulled %d governed concept(s), %d relation(s) into the local termbase\n",
+				cres.Concepts, cres.Relations)
 		}
 	}
 

@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -90,30 +92,6 @@ func TestListConceptsOmitsZeroParams(t *testing.T) {
 	_, err := c.ListConcepts(context.Background(), ListConceptsParams{})
 	require.NoError(t, err)
 	assert.Empty(t, got.query, "no query params should be sent for a zero-value request")
-}
-
-func TestGetConcept(t *testing.T) {
-	body := `{"id":"c1","project_id":"","domain":"ui","definition":"def","terms":[
-		{"text":"Get started","locale":"en-US","status":"preferred"}
-	],"created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-02T10:00:00Z"}`
-	c, got := knowledgeServer(t, body)
-
-	concept, err := c.GetConcept(context.Background(), "c1")
-	require.NoError(t, err)
-	assert.Equal(t, "/api/v1/acme/concepts/c1", got.path)
-	assert.Equal(t, "c1", concept.ID)
-	assert.Equal(t, "ui", concept.Domain)
-	require.Len(t, concept.Terms, 1)
-	assert.Equal(t, "preferred", concept.Terms[0].Status)
-}
-
-func TestGetConceptEscapesID(t *testing.T) {
-	c, got := knowledgeServer(t, `{"id":"a/b","domain":"","definition":"","terms":[],"created_at":"","updated_at":""}`)
-	_, err := c.GetConcept(context.Background(), "a/b")
-	require.NoError(t, err)
-	// The slash in the ID must be percent-escaped so it stays a single path
-	// segment on the wire rather than splitting the route.
-	assert.Equal(t, "/api/v1/acme/concepts/a%2Fb", got.escapedPath)
 }
 
 func TestGetConceptStory(t *testing.T) {
@@ -268,6 +246,138 @@ func TestGetChangesetBlastRadius(t *testing.T) {
 	assert.Equal(t, 1, impact.Samples[0].NewViolations)
 }
 
+// writeCapture records a write request's method, path, and decoded JSON body.
+type writeCapture struct {
+	method string
+	path   string
+	body   map[string]any
+}
+
+// knowledgeWriteServer spins up a server that records each write and replies
+// with status and body, returning a workspace-scoped client pointed at it.
+func knowledgeWriteServer(t *testing.T, status int, body string) (*BowrainClient, *writeCapture) {
+	t.Helper()
+	got := &writeCapture{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.method = r.Method
+		got.path = r.URL.Path
+		if raw, _ := io.ReadAll(r.Body); len(raw) > 0 {
+			_ = json.Unmarshal(raw, &got.body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		if body != "" {
+			_, _ = w.Write([]byte(body))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok"), got
+}
+
+func TestCreateConcept(t *testing.T) {
+	c, got := knowledgeWriteServer(t, http.StatusCreated,
+		`{"id":"c-new","domain":"ui","definition":"def","terms":[{"text":"Widget","locale":"en","status":"proposed"}],"created_at":"","updated_at":""}`)
+
+	out, err := c.CreateConcept(context.Background(), CreateConceptParams{
+		Domain:     "ui",
+		Definition: "def",
+		Terms:      []TermInfo{{Text: "Widget", Locale: "en", Status: "proposed"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPost, got.method)
+	assert.Equal(t, "/api/v1/acme/concepts", got.path)
+	assert.Equal(t, "ui", got.body["domain"])
+	assert.Equal(t, "c-new", out.ID)
+}
+
+func TestUpdateConceptNoContent(t *testing.T) {
+	c, got := knowledgeWriteServer(t, http.StatusNoContent, "")
+
+	err := c.UpdateConcept(context.Background(), "c1", UpdateConceptParams{
+		Domain:     "ui",
+		Definition: "updated",
+		Terms:      []TermInfo{{Text: "Widget", Locale: "en", Status: "approved"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPut, got.method)
+	assert.Equal(t, "/api/v1/acme/concepts/c1", got.path)
+	assert.Equal(t, "updated", got.body["definition"])
+}
+
+func TestAddRelation(t *testing.T) {
+	c, got := knowledgeWriteServer(t, http.StatusCreated,
+		`{"id":"r-new","source_id":"c1","target_id":"c2","relation_type":"RELATED","created_at":"2026-06-01T10:00:00Z"}`)
+
+	rel, err := c.AddRelation(context.Background(), "c1", AddRelationParams{
+		TargetID:     "c2",
+		RelationType: graph.LabelRelated,
+		Note:         "see also",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPost, got.method)
+	assert.Equal(t, "/api/v1/acme/concepts/c1/relations", got.path)
+	assert.Equal(t, "c2", got.body["target_id"])
+	assert.Equal(t, "r-new", rel.ID)
+}
+
+func TestRemoveRelationNoContent(t *testing.T) {
+	c, got := knowledgeWriteServer(t, http.StatusNoContent, "")
+
+	err := c.RemoveRelation(context.Background(), "c1", "r1")
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodDelete, got.method)
+	assert.Equal(t, "/api/v1/acme/concepts/c1/relations/r1", got.path)
+}
+
+func TestChangesetLifecycle(t *testing.T) {
+	created, gotCreate := knowledgeWriteServer(t, http.StatusCreated,
+		`{"id":"cs1","workspace_id":"ws1","name":"kapi push","status":"draft","created_by":"alice","created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-01T10:00:00Z"}`)
+	cs, err := created.CreateChangeset(context.Background(), "kapi push", "governed edits")
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPost, gotCreate.method)
+	assert.Equal(t, "/api/v1/acme/changesets", gotCreate.path)
+	assert.Equal(t, "kapi push", gotCreate.body["name"])
+	assert.Equal(t, "cs1", cs.ID)
+
+	appended, gotAppend := knowledgeWriteServer(t, http.StatusCreated,
+		`{"workspace_id":"ws1","changeset_id":"cs1","seq":1,"op":"term.status","payload":{"concept_id":"c1"},"created_by":"alice","created_at":"2026-06-01T10:05:00Z"}`)
+	op, err := appended.AppendChangesetOp(context.Background(), "cs1", ChangeSetOpInput{
+		Op:      "term.status",
+		Payload: json.RawMessage(`{"concept_id":"c1","locale":"en","text":"x","from":"approved","to":"forbidden"}`),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPost, gotAppend.method)
+	assert.Equal(t, "/api/v1/acme/changesets/cs1/ops", gotAppend.path)
+	assert.Equal(t, "term.status", gotAppend.body["op"])
+	assert.Equal(t, int64(1), op.Seq)
+
+	submitted, gotSubmit := knowledgeWriteServer(t, http.StatusOK,
+		`{"id":"cs1","workspace_id":"ws1","name":"kapi push","status":"in_review","created_by":"alice","created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-01T10:10:00Z"}`)
+	done, err := submitted.SubmitChangeset(context.Background(), "cs1")
+	require.NoError(t, err)
+	assert.Equal(t, http.MethodPost, gotSubmit.method)
+	assert.Equal(t, "/api/v1/acme/changesets/cs1/submit", gotSubmit.path)
+	assert.Equal(t, "in_review", done.Status)
+}
+
+// TestKnowledgeWriteSurfacesGovernedConflict verifies the write helper surfaces
+// the 409 a governed edit draws on the direct concept path, carrying the body.
+func TestKnowledgeWriteSurfacesGovernedConflict(t *testing.T) {
+	c, _ := knowledgeWriteServer(t, http.StatusConflict, `{"error":"governed change requires a change-set"}`)
+
+	err := c.UpdateConcept(context.Background(), "c1", UpdateConceptParams{Definition: "x"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "409")
+	assert.Contains(t, err.Error(), "change-set")
+}
+
+func TestKnowledgeWriteRequiresWorkspace(t *testing.T) {
+	c := NewClaimTokenClient("http://example.invalid", "proj1", "claim")
+	_, err := c.CreateConcept(context.Background(), CreateConceptParams{Domain: "ui"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "workspace")
+}
+
 func TestKnowledgeRequiresWorkspace(t *testing.T) {
 	// A non-workspace client (claim token) must refuse the workspace-scoped
 	// knowledge surface rather than build a malformed URL.
@@ -285,7 +395,7 @@ func TestKnowledgePropagatesServerError(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
-	_, err := c.GetConcept(context.Background(), "c1")
+	_, err := c.ListConcepts(context.Background(), ListConceptsParams{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "403")
 }

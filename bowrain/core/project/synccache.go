@@ -35,6 +35,13 @@ type SyncCache struct {
 
 	// ServerMeta caches project metadata fetched from the server.
 	ServerMeta *CachedProjectMeta `json:"server_meta,omitempty"`
+
+	// ConceptBaseline snapshots the governed concepts and relations a concept
+	// pull last wrote into the project's bound termbase, so a later concept push
+	// can diff local termbase edits against what was pulled (ordinary edits go
+	// up directly, governed edits become a reviewed change-set). It is
+	// regenerable — every pull refreshes it.
+	ConceptBaseline *ConceptBaseline `json:"concept_baseline,omitempty"`
 }
 
 // CachedProjectMeta caches server-side project metadata locally.

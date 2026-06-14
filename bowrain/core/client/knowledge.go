@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/termbase"
 )
 
@@ -20,8 +22,9 @@ import (
 // (/api/v1/:ws/...), not under a project, so every method here requires a
 // workspace-scoped client (NewWorkspaceBowrainClient). It mirrors the GET-with-
 // JSON-decode pattern of the rest of the client and lets kapi read the governed
-// vocabulary through the bowrain plugin (`kapi terms pull`, MCP tools), so
-// offline `kapi verify` gates against the same truth.
+// vocabulary through the bowrain plugin — the concept pull folded into
+// `kapi pull`/`kapi sync` and the knowledge-graph MCP tools — so offline
+// `kapi verify` gates against the same truth.
 
 // ---------------------------------------------------------------------------
 // Response DTOs (mirror the server handlers' JSON shapes)
@@ -292,15 +295,6 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 	return &out, nil
 }
 
-// GetConcept returns a single concept by ID (GET /api/v1/:ws/concepts/:cid).
-func (c *BowrainClient) GetConcept(ctx context.Context, conceptID string) (*ConceptInfo, error) {
-	var out ConceptInfo
-	if err := c.getKnowledgeJSON(ctx, "/concepts/"+url.PathEscape(conceptID), nil, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
 // GetConceptStory returns a concept's merged chronological timeline
 // (GET /api/v1/:ws/concepts/:cid/story).
 func (c *BowrainClient) GetConceptStory(ctx context.Context, conceptID string) (*ConceptStory, error) {
@@ -395,8 +389,194 @@ func (c *BowrainClient) GetChangesetBlastRadius(ctx context.Context, id string) 
 }
 
 // ---------------------------------------------------------------------------
+// Write methods (concept sync push)
+//
+// These mirror the server's write surface (handlers_concepts.go,
+// handlers_changesets.go). Ordinary concept edits go up directly through the
+// concept endpoints; governed edits (a term banned/promoted, a forbidden status
+// removed, a REPLACED_BY relation, a concept delete) are refused on the direct
+// path with a 409 and must travel through a change-set, which CreateChangeset /
+// AppendChangesetOp / SubmitChangeset draft and submit for review.
+// ---------------------------------------------------------------------------
+
+// CreateConceptParams creates a concept through ordinary curation (POST
+// /api/v1/:ws/concepts). Creating a term already forbidden or preferred is a
+// governed transition the server refuses with a 409.
+type CreateConceptParams struct {
+	ProjectID  string     `json:"project_id,omitempty"`
+	Domain     string     `json:"domain"`
+	Definition string     `json:"definition"`
+	Terms      []TermInfo `json:"terms"`
+}
+
+// UpdateConceptParams applies an ordinary concept edit (PUT
+// /api/v1/:ws/concepts/:cid): domain, definition, and the full terms list.
+// The PUT must not entail a governed status transition or the server refuses it
+// with a 409 — a concept-sync push keeps the governed terms at their baseline
+// status here and routes the real transition through a change-set.
+type UpdateConceptParams struct {
+	Domain     string     `json:"domain"`
+	Definition string     `json:"definition"`
+	Terms      []TermInfo `json:"terms"`
+}
+
+// AddRelationParams adds an ordinary typed relation from the path concept to a
+// target (POST /api/v1/:ws/concepts/:cid/relations). A REPLACED_BY relation is
+// governed and refused with a 409.
+type AddRelationParams struct {
+	TargetID     string          `json:"target_id"`
+	RelationType string          `json:"relation_type"`
+	Note         string          `json:"note,omitempty"`
+	Validity     *graph.Validity `json:"validity,omitempty"`
+}
+
+// ChangeSetOpInput appends one ordered op to a draft change-set (POST
+// /api/v1/:ws/changesets/:id/ops). Op is the op-type wire string (e.g.
+// "term.status", "relation.add", "concept.delete"); Payload is the op-specific
+// JSON the server validates with knowledge.ValidateOp.
+type ChangeSetOpInput struct {
+	Op      string          `json:"op"`
+	Payload json.RawMessage `json:"payload"`
+	BaseRev int64           `json:"base_rev,omitempty"`
+}
+
+// createChangeSetBody is the POST /changesets body.
+type createChangeSetBody struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// CreateConcept creates a concept through ordinary curation and returns the
+// stored concept (POST /api/v1/:ws/concepts).
+func (c *BowrainClient) CreateConcept(ctx context.Context, params CreateConceptParams) (*ConceptInfo, error) {
+	var out ConceptInfo
+	if err := c.knowledgeWrite(ctx, http.MethodPost, "/concepts", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// UpdateConcept applies an ordinary concept edit (PUT /api/v1/:ws/concepts/:cid).
+// The server replies 204 No Content, so nothing is decoded.
+func (c *BowrainClient) UpdateConcept(ctx context.Context, conceptID string, params UpdateConceptParams) error {
+	return c.knowledgeWrite(ctx, http.MethodPut, "/concepts/"+url.PathEscape(conceptID), params, nil)
+}
+
+// DeleteConcept requests a direct concept deletion (DELETE
+// /api/v1/:ws/concepts/:cid). A concept delete is governed, so the server
+// refuses this direct path with a 409 and a change-set hint; a concept-sync
+// push therefore deletes through a change-set rather than calling this. The
+// method is provided for completeness and mirrors the route.
+func (c *BowrainClient) DeleteConcept(ctx context.Context, conceptID string) error {
+	return c.knowledgeWrite(ctx, http.MethodDelete, "/concepts/"+url.PathEscape(conceptID), nil, nil)
+}
+
+// AddRelation adds an ordinary typed relation from sourceID to params.TargetID
+// and returns the stored relation (POST /api/v1/:ws/concepts/:cid/relations).
+func (c *BowrainClient) AddRelation(ctx context.Context, sourceID string, params AddRelationParams) (*termbase.ConceptRelation, error) {
+	var out termbase.ConceptRelation
+	if err := c.knowledgeWrite(ctx, http.MethodPost, "/concepts/"+url.PathEscape(sourceID)+"/relations", params, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RemoveRelation removes a relation by ID from a concept (DELETE
+// /api/v1/:ws/concepts/:cid/relations/:rid). The server replies 204.
+func (c *BowrainClient) RemoveRelation(ctx context.Context, sourceID, relationID string) error {
+	return c.knowledgeWrite(ctx, http.MethodDelete,
+		"/concepts/"+url.PathEscape(sourceID)+"/relations/"+url.PathEscape(relationID), nil, nil)
+}
+
+// CreateChangeset opens a new draft change-set and returns its header (POST
+// /api/v1/:ws/changesets).
+func (c *BowrainClient) CreateChangeset(ctx context.Context, name, description string) (*ChangeSet, error) {
+	var out ChangeSet
+	body := createChangeSetBody{Name: name, Description: description}
+	if err := c.knowledgeWrite(ctx, http.MethodPost, "/changesets", body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// AppendChangesetOp appends one validated op to a draft change-set and returns
+// the stored op (POST /api/v1/:ws/changesets/:id/ops).
+func (c *BowrainClient) AppendChangesetOp(ctx context.Context, changesetID string, op ChangeSetOpInput) (*ChangeSetOp, error) {
+	var out ChangeSetOp
+	if err := c.knowledgeWrite(ctx, http.MethodPost, "/changesets/"+url.PathEscape(changesetID)+"/ops", op, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// SubmitChangeset moves a draft change-set into review and returns its refreshed
+// header (POST /api/v1/:ws/changesets/:id/submit).
+func (c *BowrainClient) SubmitChangeset(ctx context.Context, changesetID string) (*ChangeSet, error) {
+	var out ChangeSet
+	if err := c.knowledgeWrite(ctx, http.MethodPost, "/changesets/"+url.PathEscape(changesetID)+"/submit", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// knowledgeWrite issues a workspace-scoped write (POST/PUT/DELETE) against the
+// knowledge-graph surface, marshaling body (when non-nil) as the JSON request
+// body and decoding the JSON response into out (when non-nil). It accepts the
+// 2xx success codes the write handlers return (200/201 with a body, 204 with
+// none) and surfaces any other status as an error carrying the server body —
+// notably the 409 a governed edit draws on the direct path. It requires a
+// workspace-scoped client.
+func (c *BowrainClient) knowledgeWrite(ctx context.Context, method, path string, body, out any) error {
+	if c.workspace == "" {
+		return errors.New("knowledge graph requires a workspace-scoped client (use NewWorkspaceBowrainClient)")
+	}
+	u, err := url.Parse(c.wsPrefix() + path)
+	if err != nil {
+		return fmt.Errorf("parse URL: %w", err)
+	}
+
+	var reader io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("marshal %s request: %w", strings.TrimPrefix(path, "/"), err)
+		}
+		reader = bytes.NewReader(b)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), reader)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return fmt.Errorf("request %s: %w", strings.TrimPrefix(path, "/"), err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated:
+		if out != nil {
+			if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+				return fmt.Errorf("decode %s response: %w", strings.TrimPrefix(path, "/"), err)
+			}
+		}
+		return nil
+	case http.StatusNoContent:
+		return nil
+	default:
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("%s failed (HTTP %d): %s", strings.TrimPrefix(path, "/"), resp.StatusCode, string(respBody))
+	}
+}
 
 // wsPrefix returns the URL prefix for workspace content endpoints
 // (/api/v1/:ws). Unlike projectPrefix it carries no project segment — the

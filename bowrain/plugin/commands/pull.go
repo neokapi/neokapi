@@ -22,10 +22,16 @@ var (
 
 var pullCmd = &cobra.Command{
 	Use:   "pull",
-	Short: "Download translations from the server",
+	Short: "Download translations and governed terminology from the server",
 	Long: `Download translations from the server and update local files.
 
-Only changed blocks are transferred. Runs post-pull hooks if configured.`,
+Only changed blocks are transferred. Runs post-pull hooks if configured.
+
+When the project is claimed into a workspace, pull also snapshots the
+workspace's governed concepts and their relations into the project's bound
+termbase (.kapi/termbase.db) and records a baseline, so a later 'kapi push'
+can diff local terminology edits against it and 'kapi verify --terms' gates
+offline against the same governed vocabulary.`,
 	RunE: runPull,
 }
 
@@ -117,6 +123,24 @@ func runPull(cmd *cobra.Command, args []string) error {
 		Stream:       conn.Stream(),
 		DryRun:       result.DryRun,
 		UpToDate:     result.UpToDate,
+	}
+
+	// Fold the workspace's governed terminology into the pull: fetch the
+	// concepts + relations into the project's bound termbase (skipped silently
+	// when the project is not workspace-claimed). The baseline is recorded on the
+	// connector's in-memory cache so the single deferred conn.Close() below
+	// persists it together with the block-sync state — writing it to disk here
+	// would be overwritten by that Close().
+	cres, baseline, cerr := conceptPull(cmd.Context(), proj, pullDryRun)
+	if cerr != nil {
+		return cerr
+	}
+	if baseline != nil {
+		conn.SetConceptBaseline(baseline)
+	}
+	if cres != nil {
+		out.ConceptsPulled = cres.Concepts
+		out.ConceptRelationsPulled = cres.Relations
 	}
 
 	if err := output.Print(cmd, out); err != nil {
