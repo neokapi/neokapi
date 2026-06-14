@@ -301,14 +301,23 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 // defaults) before calling. This is the primary integration point for CLI
 // and MCP which need to apply format presets and project config.
 func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
-	// Wire skeleton store if both support it.
+	// Wire skeleton store if both support it AND reader and writer are the
+	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
+	// WordprocessingML XML fragments an openxml reader captures); feeding it to
+	// a different writer would dump that foreign markup verbatim. For a
+	// cross-format conversion (e.g. report.docx → report.md) we deliberately
+	// leave the skeleton unwired so the writer reconstructs output from the
+	// content model + the structural layer (SemanticRole/role-driven semantic
+	// export, WS6) rather than the source's byte skeleton.
 	var skeletonStore *format.SkeletonStore
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
-				skeletonStore = store
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
+	if reader.Name() == writer.Name() {
+		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+				if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
+					skeletonStore = store
+					emitter.SetSkeletonStore(store)
+					consumer.SetSkeletonStore(store)
+				}
 			}
 		}
 	}
