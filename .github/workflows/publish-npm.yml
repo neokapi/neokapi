@@ -55,7 +55,9 @@ jobs:
           if npm view "@neokapi/kapi-format@${VER}" version >/dev/null 2>&1; then
             echo "@neokapi/kapi-format@${VER} already published — skipping"
           else
-            npm publish --provenance --access public
+            # Force the public npm registry for the @neokapi scope (the repo root
+            # .npmrc maps it to GitHub Packages for installs).
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
           fi
 
       - name: Publish @neokapi/kapi-react
@@ -65,5 +67,5 @@ jobs:
           if npm view "@neokapi/kapi-react@${VER}" version >/dev/null 2>&1; then
             echo "@neokapi/kapi-react@${VER} already published — skipping"
           else
-            npm publish --provenance --access public
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
           fi
