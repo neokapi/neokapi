@@ -117,6 +117,17 @@ func (r *ParityRunner) runExample(t *testing.T, feat formatspec.Feature, ex form
 		})
 	}()
 
+	// class: invalid cases assert the NATIVE reader rejects malformed input
+	// cleanly (NativeRunner.runInvalid). There is no successful extraction to
+	// compare head-to-head, so the bridge parity runner skips them — robustness
+	// is the native runner's concern, not a cross-implementation parity claim.
+	if ex.CaseClass() == formatspec.ClassInvalid {
+		status = "skip"
+		detail = "class: invalid — native-only robustness case (no head-to-head extraction)"
+		t.Skipf("class: invalid case %q — parity skips (native-only)", ex.CaseID())
+		return
+	}
+
 	input, err := formatspec.ResolveInput(r.Spec, ex)
 	if err != nil {
 		if strings.HasPrefix(ex.InputFile, "okapi:") {
