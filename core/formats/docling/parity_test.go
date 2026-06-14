@@ -41,12 +41,18 @@ import (
 //	  4. key : value join — Docling joins a key node and its value node onto one
 //	     line ("What it is : ..."); neokapi keeps them as separate blocks (two
 //	     lines). Same text. (Split on " : " and colon-stripped before compare.)
-//	  5. Image / page-break — Docling emits "<!-- image -->" / "<!-- page break -->"
-//	     comments; neokapi emits neither. (Comment lines dropped before compare.)
+//	  5. Image / page-break — for fixtures with pictures or tables, Docling emits
+//	     "<!-- image -->" / "<!-- page break -->" comments and GFM table rows that
+//	     neokapi does not; those lines are dropped before compare. polymers.json
+//	     has no pictures or tables, so this rule is inert here — it is defensive
+//	     for richer fixtures, not an active divergence of this one.
 //
-// Anything OUTSIDE this ledger — dropped/added content, reordered headings — is
-// a real regression and fails the test. (Wiring this up is what caught a reader
-// bug that dropped all nested list content; see emitText child recursion.)
+// Beyond the ledger the comparison only folds internal whitespace (each tool
+// spaces the key:value join differently); case is NOT folded, so a casing
+// regression would fail. Anything else — dropped/added content, reordered
+// headings — is a real regression and fails the test. (Wiring this up is what
+// caught a reader bug that dropped all nested list content; see emitText child
+// recursion.)
 
 var headingRE = regexp.MustCompile(`^#{1,6}\s+(.+?)\s*$`)
 
@@ -113,7 +119,7 @@ func contentUnits(md string) []string {
 		s = strings.NewReplacer("**", "", "*", "", "`", "", "_", "").Replace(s) // ledger #2 (emphasis)
 		for piece := range strings.SplitSeq(s, " : ") {                         // ledger #4 (key:value join)
 			p := strings.TrimSpace(strings.Trim(strings.TrimSpace(piece), ":"))
-			p = strings.ToLower(strings.Join(strings.Fields(p), " "))
+			p = strings.Join(strings.Fields(p), " ") // collapse internal whitespace only
 			if p != "" {
 				out = append(out, p)
 			}

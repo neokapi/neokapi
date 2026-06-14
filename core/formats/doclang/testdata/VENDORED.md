@@ -4,7 +4,9 @@ These files are **vendored unmodified from upstream** for neokapi's DocLang
 conformance tests. They are not neokapi's own work.
 
 - **Source:** https://github.com/doclang-project/doclang (commit `1395de6`)
-- **License:** Apache-2.0 (© the DocLang authors / LF AI & Data)
+- **License:** Apache-2.0 (© the DocLang authors / LF AI & Data) — the upstream
+  license text is vendored verbatim as `UPSTREAM-LICENSE.txt` (Apache-2.0 §4(a)).
+  Upstream ships no NOTICE file. All files here are byte-identical copies.
 - **Pinned to:** DocLang spec v0.6 (the version neokapi targets)
 
 ## Contents

@@ -4,7 +4,13 @@ These files are **vendored unmodified from upstream** for neokapi's Docling
 ingestion + cross-implementation parity tests. They are not neokapi's own work.
 
 - **Source:** https://github.com/docling-project/docling-core (commit `e3360a0`)
-- **License:** MIT (© the Docling authors / IBM)
+- **License:** MIT (© 2024 International Business Machines) — the upstream
+  license text is vendored verbatim as `UPSTREAM-LICENSE.txt`.
+
+File contents are byte-identical to upstream `test/data/doc/`. One file is
+renamed for the `*.json` glob: `corpus/page_without_pic.json` is upstream's
+`page_without_pic.dt.json` (content unmodified). `parity/polymers.{json,gt.md}`
+are upstream's `polymers.json` + `polymers.gt.md`.
 
 ## Contents
 

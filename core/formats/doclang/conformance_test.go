@@ -115,6 +115,9 @@ func TestDocLangWriter_NativeProjectionIsSchemaValid(t *testing.T) {
 		"../docling/testdata/sample.docling.json",
 		"../docling/testdata/corpus/flattened.json",
 		"../docling/testdata/corpus/page_without_pic.json",
+		// Deeply nested lists (groups + sub-lists as list children) — the shape
+		// that must emit <ldiv/>-wrapped list_items to stay schema-valid.
+		"../docling/testdata/parity/polymers.json",
 	}
 	for _, in := range inputs {
 		t.Run(filepath.Base(in), func(t *testing.T) {

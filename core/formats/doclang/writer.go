@@ -23,6 +23,11 @@ type Writer struct {
 	format.BaseFormatWriter
 	cfg        *Config
 	groupStack []string
+	// tableCaption buffers caption text inside the current <table>/<index>. The
+	// schema's element_head permits at most one <caption>, but a Docling table
+	// can carry several caption refs; we fold them into a single <caption>
+	// emitted before the first cell (flushTableCaption).
+	tableCaption []string
 }
 
 // NewWriter creates a new DocLang writer.
@@ -114,6 +119,18 @@ func (w *Writer) parentGroup() string {
 }
 
 func (w *Writer) openGroup(b *strings.Builder, g *model.GroupStart) {
+	// A nested group/list that is a direct child of a <list> is the body of a
+	// list_item and must be preceded by <ldiv/> (schema: list = element_head +
+	// list_item*, each item starting with <ldiv/>). Text children get their
+	// <ldiv/> in writeBlock; group/list/table children get it here.
+	if w.parentGroup() == "list" {
+		b.WriteString("<ldiv/>")
+	}
+	// A table/index caption must precede its cells; flush the buffered caption
+	// before the first OTSL row opens.
+	if g.Type == "table-row" {
+		w.flushTableCaption(b)
+	}
 	w.groupStack = append(w.groupStack, g.Type)
 	switch g.Type {
 	case "list":
@@ -141,8 +158,22 @@ func (w *Writer) closeGroup(b *strings.Builder) {
 	case "table-row":
 		b.WriteString("<nl/>\n")
 	case "list", "table", "index", "group", "field_region", "picture":
+		// A table/index with a caption but no rows still emits its caption.
+		if t == "table" || t == "index" {
+			w.flushTableCaption(b)
+		}
 		fmt.Fprintf(b, "</%s>\n", t)
 	}
+}
+
+// flushTableCaption emits the buffered caption(s) of the current table/index as
+// a single <caption> (the schema permits at most one), then clears the buffer.
+func (w *Writer) flushTableCaption(b *strings.Builder) {
+	if len(w.tableCaption) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "<caption>%s</caption>\n", strings.Join(w.tableCaption, " "))
+	w.tableCaption = nil
 }
 
 func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
@@ -160,10 +191,14 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 	}
 
 	// A <table>/<index> may contain only element-head content + OTSL cell
-	// tokens — never a body <text>/<heading>. The only block we emit directly
-	// under one is a caption, which belongs in the element head as <caption>.
+	// tokens — never a body <text>/<heading>. A caption block is buffered and
+	// emitted as a single <caption> in the element head (flushTableCaption);
+	// any other (non-caption) block directly under a table/index is dropped
+	// rather than emitted as illegal content. No reader produces the latter.
 	if pg := w.parentGroup(); pg == "table" || pg == "index" {
-		fmt.Fprintf(b, "<caption>%s</caption>\n", body)
+		if role == model.RoleCaption {
+			w.tableCaption = append(w.tableCaption, body)
+		}
 		return
 	}
 
