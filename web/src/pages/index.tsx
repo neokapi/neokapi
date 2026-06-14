@@ -7,6 +7,7 @@ import Heading from "@theme/Heading";
 import { Sparkles } from "lucide-react";
 import TryNeokapi from "../components/TryNeokapi";
 import StructuredData from "../components/home/StructuredData";
+import AuthorsNote from "../components/home/AuthorsNote";
 
 import styles from "./index.module.css";
 
@@ -41,6 +42,9 @@ function HomepageHeader() {
         <div className={styles.heroAside}>
           <TryNeokapi />
         </div>
+      </div>
+      <div className="container">
+        <AuthorsNote />
       </div>
     </header>
   );
@@ -152,7 +156,7 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">One engine, two ways to use it</Heading>
+          <Heading as="h2">One engine, many applications</Heading>
           <p className={styles.sectionSubtitle}>
             neokapi is a Go framework. Use it directly as a library, or through{" "}
             <strong>kapi</strong> — the CLI and desktop app built on it.

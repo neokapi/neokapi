@@ -409,10 +409,11 @@
   font-weight: 700;
   color: var(--ifm-color-primary);
 }
-/* Stacked deck: the active card sits on two peeking back cards (the deck of
-   slides). New target cards (pseudo, ja) slide in onto the stack. The deck tints
-   by locale via --kapi-preview-bg (also flows into the flush slide surface), so
-   the source deck (en, neutral) visibly becomes the pseudo and Japanese decks. */
+/* Stacked deck: one persistent active card sits on two peeking back cards (the
+   deck of slides). The deck tints by the current stage's locale via
+   --kapi-preview-bg (also flows into the flush slide surface), so the source deck
+   (en, neutral) recolors into the pseudo and Japanese decks at each stage
+   boundary — a smooth background transition, not a card swap. */
 .deck {
   position: relative;
   margin: 0 0.4rem 0.5rem 0;
@@ -431,6 +432,7 @@
   background: var(--kapi-preview-bg, var(--ifm-color-emphasis-100));
   border: 1px solid var(--ifm-color-emphasis-200);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transition: background 0.45s ease;
 }
 .deckBackNear {
   z-index: 1;
@@ -456,25 +458,12 @@
   border: 1px solid var(--ifm-color-emphasis-200);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  /* Recolor smoothly at each stage boundary (en → qps → ja). */
+  transition: background 0.45s ease;
 }
 /* Read reserves room at the bottom for the formats strip. */
 .heroStageRead {
   padding-bottom: 2.7rem;
-}
-
-/* A new target card dealt onto the stack (pseudo, ja). */
-.cardSlideIn {
-  animation: cardSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes cardSlideIn {
-  from {
-    opacity: 0;
-    transform: translate(26px, -15px) rotate(-3deg) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0) rotate(0) scale(1);
-  }
 }
 
 /* The deck's file path, on the card itself: en/ → qps/ → ja/deck.pptx. */
@@ -603,8 +592,12 @@
   }
   .heroBadge,
   .heroFormats,
-  .heroCaption,
-  .cardSlideIn {
+  .heroCaption {
     animation: none;
+  }
+  .heroStage,
+  .deckBackFar,
+  .deckBackNear {
+    transition: none;
   }
 }

@@ -4,10 +4,11 @@
 // engine only boots when the reader opens the modal); the structure mirrors a
 // real pptx slide extraction — an Acme pitch-deck financials slide (title +
 // bullets). Each frame bakes the exact text and overlays for its stage so
-// FormatPreview animates the source → target deck progression: terms decode in
-// when annotated, confidential figures stay redacted (a marker censor bar) all
-// the way through, translation-memory hits roll in with a "from memory" highlight,
-// and the pseudo + Japanese target cards slide in onto the deck.
+// FormatPreview animates the source → target progression in place on one card:
+// terms decode in when annotated, confidential figures stay redacted (a marker
+// censor bar) all the way through, the text rolls to the accented pseudo form and
+// then to Japanese, and translation-memory hits roll in with a "from memory"
+// highlight. The card tints by locale (en → qps → ja) to track the progression.
 
 import type { RenderDoc, RenderLine } from "@neokapi/ui-primitives/preview";
 import type { OverlayView } from "@neokapi/ui-primitives/preview";
@@ -143,7 +144,11 @@ const ACCENT: Record<string, string> = {
   Z: "Ž",
 };
 const accent = (s: string): string => s.replace(/[A-Za-z]/g, (c) => ACCENT[c] ?? c);
-const pseudo = (s: string): string => `▒ ${accent(s)} ▒`;
+// The brand name is a protected term: pseudo-translation leaves it verbatim, so it
+// stays "Acme" (never accented) even as the surrounding text is pseudo-translated.
+const BRAND = "Acme";
+const accentKeepBrand = (s: string): string => s.split(BRAND).map(accent).join(BRAND);
+const pseudo = (s: string): string => `▒ ${accentKeepBrand(s)} ▒`;
 
 // Pseudo-translate (real accent map + shade markers). The figures are accented
 // like everything else; the redaction overlay locates the accented form.
@@ -167,7 +172,8 @@ const JA = {
 // pseudo), so the overlay can locate it.
 const redact = (figure: string, category: string): OverlayView =>
   overlay("redaction", [span(figure, { category })]);
-// A term annotation for the "Acme" brand name — decodes in when annotated.
+// A term annotation for the "Acme" brand name — decodes in when annotated, and
+// stays marked through pseudo/translation since the brand term is preserved verbatim.
 const acmeTerm = (): OverlayView =>
   overlay("term", [span("Acme", { target: "Acme", domain: "brand" })]);
 // A line-level marker: this line was filled from translation memory.
@@ -205,11 +211,12 @@ const preprocessFrame = slide(line("t", SRC.t, [acmeTerm()]), [
   line("b3", SRC.b3, [acmeTerm()]),
 ]);
 
-// Pseudo-translate: target card slides in; figures stay redacted (accented form).
-const pseudoFrame = slide(line("t", PSEUDO.t), [
+// Pseudo-translate: the text rolls in place from source to accented; the brand
+// term stays marked and the figures stay redacted (accented form) throughout.
+const pseudoFrame = slide(line("t", PSEUDO.t, [acmeTerm()]), [
   line("b1", PSEUDO.b1, [redact(accent(REVENUE), "Projected revenue")]),
   line("b2", PSEUDO.b2, [redact(accent(BURN), "Burn rate")]),
-  line("b3", PSEUDO.b3),
+  line("b3", PSEUDO.b3, [acmeTerm()]),
 ]);
 
 // Leverage: title + last bullet come back from TM (100% match) — they roll in with
@@ -237,15 +244,13 @@ const mergeFrame = slide(line("t", JA.t), [
 
 export interface StageFrame {
   doc: RenderDoc;
-  /** FormatPreview transition into this frame. */
+  /** FormatPreview transition into this frame (animated in place). */
   transition: "none" | "crossfade" | "typewriter" | "slot";
   /** Show overlay highlights for this frame. */
   annotations: boolean;
-  /** Slide a fresh card in onto the deck (the target deck arriving). */
-  slideIn?: boolean;
   /**
-   * Locale folder shown in the on-deck file label (en → qps → ja) — the source
-   * deck becomes the pseudo deck becomes the Japanese target deck.
+   * Locale folder shown in the on-deck file label (en → qps → ja) — and the card
+   * tint: the source deck becomes the pseudo deck becomes the Japanese target deck.
    */
   locale: "en" | "qps" | "ja";
   /** Optional corner badge (stage-specific chrome). */
@@ -256,8 +261,8 @@ export const FRAMES: Record<StageKey, StageFrame> = {
   read: { doc: readFrame, transition: "crossfade", annotations: false, locale: "en" },
   // Terms decode in + figures redacted; annotations on so both render.
   preprocess: { doc: preprocessFrame, transition: "crossfade", annotations: true, locale: "en" },
-  // The pseudo target deck slides in; figures stay redacted (annotations on).
-  pseudo: { doc: pseudoFrame, transition: "none", annotations: true, slideIn: true, locale: "qps" },
+  // The text rolls in place to the accented pseudo form; figures stay redacted.
+  pseudo: { doc: pseudoFrame, transition: "slot", annotations: true, locale: "qps" },
   // TM hits roll in (slot) with a "from memory" highlight; figures redacted.
   leverage: {
     doc: leverageFrame,
@@ -266,12 +271,11 @@ export const FRAMES: Record<StageKey, StageFrame> = {
     badge: "2 / 4 from memory · 100%",
     locale: "ja",
   },
-  // The Japanese target deck slides in; figures still redacted (annotations on).
+  // The remaining lines roll in place to Japanese; figures still redacted.
   translate: {
     doc: translateFrame,
-    transition: "none",
+    transition: "slot",
     annotations: true,
-    slideIn: true,
     locale: "ja",
     badge: "AI or human · reviewed",
   },

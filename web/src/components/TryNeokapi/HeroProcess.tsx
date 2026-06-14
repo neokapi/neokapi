@@ -8,33 +8,35 @@ import styles from "./styles.module.css";
 // The hero: an auto-playing, six-stage "show" of kapi end to end —
 // Read → Pre-process → Pseudo-translate → Leverage → Translate (ja) → Merge —
 // rendered through the shared FormatPreview on BAKED data (heroStages.ts), so the
-// page pulls ZERO wasm on load. The slide is an Acme pitch deck localized as a
-// STACKED DECK: source cards on a peeking stack, then the pseudo and Japanese
-// target cards slide in onto it. Within the cards, FormatPreview decodes terms in
-// at Pre-process, keeps the confidential figures redacted throughout, and rolls
-// translation-memory hits in at Leverage. Prev/next arrows step through stages, a
+// page pulls ZERO wasm on load. The slide is an Acme pitch deck on ONE persistent
+// card (on a peeking stack) — it never re-mounts, so prior results (redaction,
+// terms, earlier text) stay put while each stage animates its own change in place.
+//
+// Each stage plays in two beats: it first HOLDS the previous stage's result (the
+// "before" view) for ~2s, then animates into its own target ("after") view — so
+// e.g. Pseudo-translate shows the source (already redacted, terms marked) for 2s,
+// then the text rolls to the accented pseudo form. The card tints by the CURRENT
+// stage's locale, so the background stays consistent for the whole stage and only
+// changes at the boundary between stages. Prev/next arrows step through stages, a
 // counter + caption name the stage, and a CTA opens the live modal.
 //
-// prefers-reduced-motion: no auto-advance, no slide-in, no roll; step with arrows.
+// prefers-reduced-motion: no auto-advance, no hold, no roll; step with arrows.
 
 interface HeroProcessProps {
   /** Open the full modal. */
   onOpen: () => void;
 }
 
-// Per-stage dwell time (ms) before auto-advancing.
-const DWELL = [2400, 3600, 3200, 3400, 3400, 2800];
+// How long each stage holds its "before" view (the previous stage's result)
+// before animating into its own target view.
+const HOLD = 2000;
+
+// Per-stage time (ms) spent showing the animated "after" result before advancing.
+// Stage 0 (Read) has no "before" to hold, so it simply shows for this long.
+const AFTER = [2400, 2200, 2400, 2600, 2800, 2400];
 
 // Stagger between line reveals on roll stages (ms per line index).
 const LINE_STAGGER = 260;
-
-// How many target cards have slid in by stage `i` — bumps only at the slide-in
-// stages (pseudo, translate). Used as the card's key so it re-mounts (and the
-// slide-in animation re-fires) exactly when a new target deck arrives, while the
-// preview persists across the other stages so its line rolls have a "from" value.
-function deckKey(i: number): number {
-  return STAGES.slice(0, i + 1).filter((s) => FRAMES[s.key].slideIn).length;
-}
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -51,17 +53,42 @@ function usePrefersReducedMotion(): boolean {
 export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactElement {
   const reduced = usePrefersReducedMotion();
   const [i, setI] = useState(0);
+  // The stage index whose "after" view has been revealed. Derived `revealed`
+  // compares it to the current stage, so a stage reads as NOT revealed on its very
+  // first render (revealedFor still points at the previous stage) — no one-frame
+  // flash of the target view, which would otherwise replay the before animation.
+  const [revealedFor, setRevealedFor] = useState(0);
   const [paused, setPaused] = useState(false);
-  const stage = STAGES[i];
-  const frame = FRAMES[stage.key];
   const n = STAGES.length;
+
+  // Stage 0 (Read) and reduced motion have no "before" hold; otherwise a stage is
+  // revealed only once its hold timer has fired for it.
+  const revealed = reduced || i === 0 || revealedFor === i;
+
+  // The current stage names the chrome + caption and sets the card tint (constant
+  // for the whole stage); the displayed CONTENT is the previous stage's result
+  // while holding "before", then this stage's frame once revealed.
+  const stage = STAGES[i];
+  const shownStage = revealed ? stage : STAGES[(i - 1 + n) % n];
+  const frame = FRAMES[shownStage.key];
+  const stageLocale = FRAMES[stage.key].locale;
 
   const go = (delta: number) => setI((p) => (p + delta + n) % n);
 
-  // Auto-advance, looping; paused on hover/focus and under reduced motion.
+  // Hold the "before" view for HOLD ms, then mark this stage revealed so it
+  // animates into its target. Read/reduced motion need no timer (always revealed).
+  useEffect(() => {
+    if (reduced || i === 0) return;
+    const t = setTimeout(() => setRevealedFor(i), HOLD);
+    return () => clearTimeout(t);
+  }, [i, reduced]);
+
+  // Auto-advance, looping; paused on hover/focus and under reduced motion. Each
+  // stage gets its "before" hold (HOLD, except Read) plus its "after" view time.
   useEffect(() => {
     if (reduced || paused) return;
-    const t = setTimeout(() => setI((p) => (p + 1) % n), DWELL[i]);
+    const dwell = i === 0 ? AFTER[0] : HOLD + AFTER[i];
+    const t = setTimeout(() => setI((p) => (p + 1) % n), dwell);
     return () => clearTimeout(t);
   }, [i, reduced, paused, n]);
 
@@ -94,27 +121,26 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
             </span>
           </div>
 
-          {/* Stacked deck: two peeking back cards, then the active card. The
-              deck tints by locale (en source → qps → ja target). */}
-          <div className={styles.deck} data-locale={frame.locale}>
+          {/* Stacked deck: two peeking back cards, then ONE persistent active
+              card. The deck tints by the current stage's locale (en source → qps
+              → ja target), constant for the whole stage. */}
+          <div className={styles.deck} data-locale={stageLocale}>
             <span className={styles.deckBackFar} aria-hidden="true" />
             <span className={styles.deckBackNear} aria-hidden="true" />
             <div
-              key={deckKey(i)}
               className={clsx(
                 styles.heroStage,
-                stage.key === "read" && styles.heroStageRead,
-                !reduced && frame.slideIn && styles.cardSlideIn,
+                shownStage.key === "read" && styles.heroStageRead,
               )}
             >
               <span className={styles.deckLabel} aria-hidden="true">
-                <span className={styles.deckLabelLocale}>{frame.locale}</span>/{HERO_FILENAME}
+                <span className={styles.deckLabelLocale}>{stageLocale}</span>/{HERO_FILENAME}
               </span>
               <span className={styles.srOnly} aria-live="polite">
                 {stage.label}: {stage.caption}
               </span>
               {frame.badge && (
-                <span className={styles.heroBadge} key={`${stage.key}-badge`}>
+                <span className={styles.heroBadge} key={`${shownStage.key}-badge`}>
                   {frame.badge}
                 </span>
               )}
@@ -129,7 +155,7 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
                 flush
                 className={styles.heroDoc}
               />
-              {stage.key === "read" && (
+              {shownStage.key === "read" && (
                 <div className={styles.heroFormats} aria-hidden="true">
                   <span className={styles.heroFormatsLabel}>reads</span>
                   {READ_FORMATS.map((f) => (
