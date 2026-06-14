@@ -3,7 +3,7 @@ name: Pages Deploy
 # Combines artifacts from multiple build sources into a single deployment
 # to the neokapi.github.io org pages repo, under a path-based layout:
 #
-#   /web/neokapi/            kapi/framework Docusaurus site (production)
+#   /                        kapi/framework Docusaurus site (production, SITE ROOT)
 #   /web/bowrain/            bowrain-web Vite app (production)
 #   /web/bowrain/docs/       bowrain Docusaurus site (production)
 #   /storybook/kapi/         kapi storybook (production)
@@ -12,9 +12,10 @@ name: Pages Deploy
 #   /storybook/prs/{N}/...   PR previews
 #
 # The neokapi Docusaurus site is the product landing page AND the docs; it owns
-# the /web/neokapi/ root directly (a separate Vite landing app was retired and
-# folded into the docs home). bowrain still has a Vite landing at /web/bowrain/
-# with its Docusaurus docs one level deeper at /web/bowrain/docs/.
+# the SITE ROOT (/) directly (a separate Vite landing app was retired and
+# folded into the docs home). It is laid down at the repo root, preserving the
+# path-mounted sub-apps (web/, storybook/). bowrain still has a Vite landing at
+# /web/bowrain/ with its Docusaurus docs one level deeper at /web/bowrain/docs/.
 #
 # Artifact names this workflow looks for:
 #   kapi-site, bowrain-site           — Docusaurus build outputs
@@ -131,7 +132,7 @@ jobs:
           else
             {
               echo "bowrain_app_dest=web/bowrain"
-              echo "kapi_docs_dest=web/neokapi"
+              echo "kapi_docs_dest=."
               echo "bowrain_docs_dest=web/bowrain/docs"
               echo "kapi_storybook_dest=storybook/kapi"
               echo "bowrain_storybook_dest=storybook/bowrain"
@@ -204,7 +205,7 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts/kapi-site
 
-      - name: Slot kapi Docusaurus at /web/neokapi/ root
+      - name: Slot kapi Docusaurus (production = site root; PR = preview subdir)
         if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_docs_dest }}
@@ -212,9 +213,23 @@ jobs:
           if [ ! -d artifacts/kapi-site ] || [ -z "$(ls -A artifacts/kapi-site 2>/dev/null)" ]; then
             echo "no kapi-site artifact — skipping"; exit 0
           fi
-          rm -rf "pages/${DEST}"
-          mkdir -p "pages/${DEST}"
-          cp -r artifacts/kapi-site/* "pages/${DEST}/"
+          if [ "$DEST" = "." ]; then
+            # Production: the neokapi site owns the repo ROOT. Clean every
+            # top-level entry EXCEPT the path-mounted sub-apps and repo metadata,
+            # then lay the Docusaurus output at the root. Docusaurus emits
+            # index.html, assets/, img/, etc. — none collide with the keep-list.
+            # (The legacy /web/neokapi/ copy under web/ is intentionally left in
+            # place so old deep links keep resolving.)
+            (cd pages && find . -mindepth 1 -maxdepth 1 \
+              ! -name web ! -name storybook ! -name .git \
+              ! -name README.md ! -name CNAME \
+              -exec rm -rf {} +)
+            cp -r artifacts/kapi-site/* pages/
+          else
+            rm -rf "pages/${DEST}"
+            mkdir -p "pages/${DEST}"
+            cp -r artifacts/kapi-site/* "pages/${DEST}/"
+          fi
 
       - name: Download bowrain-site artifact
         if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_site != 'false' }}
