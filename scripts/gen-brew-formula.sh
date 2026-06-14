@@ -65,14 +65,15 @@ RUBY
   platform_block "kapi"
   cat <<'RUBY'
 
-  # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat are
-  # symlinks to the kapi binary, which dispatches on its invocation name
+  # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat / kconv
+  # are symlinks to the kapi binary, which dispatches on its invocation name
   # (busybox-style) — no extra binaries, no extra download size.
   def install
     bin.install "kapi"
     bin.install_symlink bin/"kapi" => "kgrep"
     bin.install_symlink bin/"kapi" => "ksed"
     bin.install_symlink bin/"kapi" => "kcat"
+    bin.install_symlink bin/"kapi" => "kconv"
   end
 
   test do
