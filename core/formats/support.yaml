@@ -11,7 +11,7 @@
 # triage-score run. `grandfathered: true` suspends the under-run rule and
 # certification decay per format until its first multi-axis publish.
 #
-# Universe: exactly the 49 real format dirs under core/formats/
+# Universe: exactly the real format dirs under core/formats/
 # (exec/jsx/memorytest excluded). Validated by TestSupportYAML in
 # core/formats/maturity_test.go and scripts/format-ops/check-support-gates.mjs.
 formats:
@@ -48,6 +48,20 @@ formats:
     tier_since: "2026-06-12"
     last_certified: "2026-06-13"
     grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
+  doclang:
+    tier: available
+    tier_since: "2026-06-14"
+    grandfathered: true
+    notes: "DocLang v0.6 reader + writer (LF AI & Data standard); awaits first multi-axis certification."
+    gates:
+      - .github/workflows/format-acceptance.yml
+  docling:
+    tier: available
+    tier_since: "2026-06-14"
+    grandfathered: true
+    notes: "DoclingDocument JSON reader (read-only consume-Docling boundary); awaits first multi-axis certification."
     gates:
       - .github/workflows/format-acceptance.yml
   doxygen:
