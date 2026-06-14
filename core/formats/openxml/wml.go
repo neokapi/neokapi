@@ -181,6 +181,13 @@ type wmlParser struct {
 	rels          map[string]relationship // hyperlink rels for this part
 	codeFinder    *codeFinder             // regex-based inline code detection
 	styles        *styleMap               // resolved style inheritance (nil if not enabled)
+	// roleStyles maps a paragraph styleId to the semantic role it implies
+	// (heading/title), resolved from word/styles.xml (WS2). It is additive
+	// stand-off metadata recorded on each Block via SetSemanticRole — never
+	// serialized back into the .docx, so byte-faithful round-trip is
+	// unaffected. nil when styles.xml is absent; the built-in styleId
+	// heuristic in roleForParaStyle still applies.
+	roleStyles styleRoleMap
 	// currentStyleChainNames is the resolved set of rPr-child element
 	// local names contributed by docDefaults + the current paragraph's
 	// basedOn chain. It is recomputed on each <w:pPr> we encounter
@@ -615,6 +622,7 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 	p.skelRef(blockID)
 	p.skelWriteString("</w:p>")
 	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
+	p.applyParagraphRole(block, pm.paraStyleID, pm.paraProps)
 	emitBlock(block)
 	return nil
 }
@@ -723,6 +731,7 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 		block.Properties = map[string]string{}
 	}
 	block.Properties["openxml:field-straddle"] = "true"
+	p.applyParagraphRole(block, pf.paraStyleID, pf.paraProps)
 	emitBlock(block)
 	return nil
 }
@@ -3120,6 +3129,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelWriteString("</w:p>")
 
 				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
+				p.applyParagraphRole(block, paraStyleID, paraProps)
 				emitBlock(block)
 				return nil
 			}

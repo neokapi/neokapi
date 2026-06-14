@@ -187,6 +187,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// effective-rPr resolution and unit tests.
 	var styles *styleMap
 
+	// Build the paragraph-style → semantic-role map from word/styles.xml
+	// (WS2). This is additive stand-off metadata used by semantic export
+	// (e.g. DOCX → clean Markdown) and the visual editor; it is NEVER
+	// serialized back, so byte-faithful round-trip is unaffected. It is
+	// deliberately kept separate from the rPr `styles` map (which stays nil
+	// so the faithful writer does no style subtraction). Absent/unreadable
+	// styles.xml leaves the map nil; roleForParaStyle's built-in styleId
+	// heuristic still resolves headings.
+	var roleStyles styleRoleMap
+	if info.docType == docTypeDOCX {
+		if zf := zipFileByName(zr, stylesPartPath(info.mainDocumentPart)); zf != nil {
+			if data, err := readZipFile(zf); err == nil {
+				roleStyles = buildStyleRoleMap(data)
+			}
+		}
+	}
+
 	// Process each translatable part
 	for _, partPath := range info.translatableParts {
 		zf := zipFileByName(zr, partPath)
@@ -271,6 +288,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				rels:          relsMap,
 				codeFinder:    cf,
 				styles:        styles,
+				roleStyles:    roleStyles,
 				// Detect Strict OOXML conformance by searching the
 				// part bytes for the strict WPML namespace URI.
 				// Every WPML XML part declares the prefix binding on
@@ -519,6 +537,18 @@ func (r *Reader) Close() error {
 		return r.Doc.Reader.Close()
 	}
 	return nil
+}
+
+// stylesPartPath returns the conventional styles.xml part path for a package,
+// derived from the main document part's directory (e.g. "word/document.xml" →
+// "word/styles.xml"). Word always co-locates styles.xml with the main
+// document; an absent entry simply yields no role map.
+func stylesPartPath(mainDocumentPart string) string {
+	dir := ""
+	if idx := strings.LastIndex(mainDocumentPart, "/"); idx >= 0 {
+		dir = mainDocumentPart[:idx+1]
+	}
+	return dir + "styles.xml"
 }
 
 // readZipFile reads the contents of a ZIP file entry, bounded by the shared
