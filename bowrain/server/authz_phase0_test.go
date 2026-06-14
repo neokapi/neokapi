@@ -59,7 +59,7 @@ func TestPhase0_WorkspaceResourceAuthorization(t *testing.T) {
 		{"tm-add", http.MethodPost, "/api/v1/test/translation-memory", tmBody},
 		{"connector-add", http.MethodPost, "/api/v1/test/connectors", connBody},
 		{"provider-save", http.MethodPost, "/api/v1/test/providers", provBody},
-		{"term-add", http.MethodPost, "/api/v1/test/terms", termBody},
+		{"concept-add", http.MethodPost, "/api/v1/test/concepts", termBody},
 		{"audit-read", http.MethodGet, "/api/v1/test/audit-log", ""},
 	}
 
@@ -88,7 +88,7 @@ func TestPhase0_MemberRetainsReadAndContribute(t *testing.T) {
 	code := do(t, s, http.MethodGet, "/api/v1/test/translation-memory", memberToken, "")
 	assert.NotEqual(t, http.StatusForbidden, code, "member should be able to read the TM")
 
-	// Listing terms is allowed for any member.
-	code = do(t, s, http.MethodGet, "/api/v1/test/terms", memberToken, "")
-	assert.NotEqual(t, http.StatusForbidden, code, "member should be able to read terms")
+	// Listing concepts is allowed for any member.
+	code = do(t, s, http.MethodGet, "/api/v1/test/concepts", memberToken, "")
+	assert.NotEqual(t, http.StatusForbidden, code, "member should be able to read concepts")
 }

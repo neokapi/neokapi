@@ -2,6 +2,8 @@ package termbase
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
@@ -25,6 +27,7 @@ type Term struct {
 	Gender         string           `json:"gender,omitempty"`          // grammatical gender (if applicable)
 	Note           string           `json:"note,omitempty"`            // usage note or context
 	CompetitorTerm bool             `json:"competitor_term,omitempty"` // true if this is a competitor brand term
+	Validity       *graph.Validity  `json:"validity,omitempty"`        // time/tag scoping; nil = always valid
 }
 
 // Concept is the central unit of a termbase — a language-neutral concept
@@ -110,19 +113,89 @@ type LookupOptions struct {
 	SourceFilter  []TermSource       // filter by term source (empty = all)
 	ProjectID     string             // project context for scope filtering
 	ProjectScope  ProjectScope       // project filtering mode (default: all)
+	Scope         *graph.Scope       // validity scope; nil = no validity filtering
 }
 
-// ConceptRelation represents a relationship between two concepts for graph import/export.
+// ConceptRelation is a persisted, typed relationship between two concepts —
+// the edge of the brand knowledge graph (AD-021). Each relation may carry a
+// Validity: a half-open time interval plus free tags evaluated against a
+// query-time scope, so the same edge can hold in one market and be absent in
+// another.
 type ConceptRelation struct {
-	SourceID     string `json:"source_id"`
-	TargetID     string `json:"target_id"`
-	RelationType string `json:"relation_type"` // Uses graph.Label* constants
+	ID           string          `json:"id"`
+	SourceID     string          `json:"source_id"`
+	TargetID     string          `json:"target_id"`
+	RelationType string          `json:"relation_type"` // Uses graph.Label* constants
+	Note         string          `json:"note,omitempty"`
+	Validity     *graph.Validity `json:"validity,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 // TermDesignation represents a term with temporal validity for the status-on-edge model.
 type TermDesignation struct {
 	Term     Term            `json:"term"`
 	Validity *graph.Validity `json:"validity,omitempty"`
+}
+
+// knownRelationTypes is the concept-to-concept relation vocabulary (AD-021):
+// hierarchy, succession, guidance, cross-scheme equivalence, and brand stance.
+// Concept-to-term edge labels (HAS_TERM, FORBIDDEN, PREFERRED) are deliberately
+// excluded — those are modeled as term statuses, not relations.
+var knownRelationTypes = map[string]bool{
+	graph.LabelBroader:    true,
+	graph.LabelNarrower:   true,
+	graph.LabelPartOf:     true,
+	graph.LabelHasPart:    true,
+	graph.LabelRelated:    true,
+	graph.LabelReplacedBy: true,
+	graph.LabelUseInstead: true,
+	graph.LabelExactMatch: true,
+	graph.LabelCloseMatch: true,
+	graph.LabelCompetitor: true,
+}
+
+// KnownRelationType reports whether relationType is part of the
+// concept-relation vocabulary accepted by AddRelation.
+func KnownRelationType(relationType string) bool {
+	return knownRelationTypes[relationType]
+}
+
+// ValidateRelation checks the structural invariants of a relation: a non-empty
+// ID, non-empty source and target concept IDs, and a known relation type.
+// Backends additionally verify that the referenced concepts exist.
+func ValidateRelation(rel ConceptRelation) error {
+	if rel.ID == "" {
+		return errors.New("relation ID is required")
+	}
+	if rel.SourceID == "" || rel.TargetID == "" {
+		return errors.New("relation source and target concept IDs are required")
+	}
+	if !KnownRelationType(rel.RelationType) {
+		return fmt.Errorf("unknown relation type: %q", rel.RelationType)
+	}
+	return nil
+}
+
+// MatchesScope reports whether a validity is active at the given scope.
+// A nil scope means no validity filtering: everything matches.
+func MatchesScope(v *graph.Validity, scope *graph.Scope) bool {
+	if scope == nil {
+		return true
+	}
+	return v.Matches(*scope)
+}
+
+// validateConceptTermStatuses rejects terms whose Status is set to a value
+// outside the model.Term* lifecycle vocabulary. An empty status is allowed
+// (callers may leave it unset). Transitions between statuses are deliberately
+// not enforced here — see ValidateTransition.
+func validateConceptTermStatuses(concept Concept) error {
+	for _, t := range concept.Terms {
+		if t.Status != "" && !KnownTermStatus(t.Status) {
+			return fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
+		}
+	}
+	return nil
 }
 
 // TermBase defines the interface for a terminology database.
@@ -151,6 +224,22 @@ type TermBase interface {
 
 	// Concepts returns all concepts (for export).
 	Concepts(ctx context.Context) ([]Concept, error)
+
+	// AddRelation inserts or updates (by ID) a relation between two concepts.
+	// The relation type must be a known graph label and both concepts must exist.
+	AddRelation(ctx context.Context, rel ConceptRelation) error
+
+	// DeleteRelation removes a relation by ID.
+	DeleteRelation(ctx context.Context, id string) error
+
+	// RelationsOf returns all relations touching the concept, in either
+	// direction. When scope is non-nil, relations whose validity does not
+	// match the scope are filtered out.
+	RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]ConceptRelation, error)
+
+	// ListRelations returns all relations (for export). When scope is non-nil,
+	// relations whose validity does not match the scope are filtered out.
+	ListRelations(ctx context.Context, scope *graph.Scope) ([]ConceptRelation, error)
 
 	// Close releases resources.
 	Close() error

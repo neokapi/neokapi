@@ -70,6 +70,27 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
 		return handleBowrainListFlows(a)
 	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "concept_search",
+		Description: "Search the workspace brand knowledge graph for governed concepts (terms, status, domain) matching a query",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
+		return handleConceptSearch(ctx, input)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "concept_story",
+		Description: "Show the chronological timeline of a governed concept (revisions, observations, comments, change-sets)",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPConceptStoryInput) (*mcp.CallToolResult, MCPConceptStoryOutput, error) {
+		return handleConceptStory(ctx, input)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "experiment_status",
+		Description: "Report brand knowledge-graph change-sets; with a changeset_id, include its detail and a blast-radius summary",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
+		return handleExperimentStatus(ctx, input)
+	})
 }
 
 // --- Input/Output types ---

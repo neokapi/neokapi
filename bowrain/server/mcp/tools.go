@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -57,7 +56,8 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
 	}
 
-	findings := checkVocab(input.Text, profile)
+	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
+	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, runs)
 	score := corebrand.CalculateScore(findings)
 	score.ProfileID = profile.ID
 
@@ -134,45 +134,4 @@ func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRe
 // truth shared with the kapi CLI and the AI translate prompt.
 func formatVoiceGuide(p *corebrand.VoiceProfile) string {
 	return corebrand.RenderVoiceGuide(p)
-}
-
-// checkVocab runs rule-based vocabulary checks against a brand voice profile.
-// This mirrors the server's checkVocabulary function.
-func checkVocab(text string, profile *corebrand.VoiceProfile) []corebrand.BrandVoiceFinding {
-	var findings []corebrand.BrandVoiceFinding
-	lowerText := strings.ToLower(text)
-
-	for _, term := range profile.Vocabulary.ForbiddenTerms {
-		if strings.Contains(lowerText, strings.ToLower(term.Term)) {
-			sev := corebrand.SeverityMajor
-			if term.Severity != "" {
-				sev = corebrand.Severity(term.Severity)
-			}
-			findings = append(findings, corebrand.BrandVoiceFinding{
-				Category:     string(corebrand.DimensionVocabulary),
-				Severity:     sev,
-				Message:      "Forbidden term: " + term.Term,
-				Suggestion:   term.Replacement,
-				OriginalText: term.Term,
-			})
-		}
-	}
-
-	for _, term := range profile.Vocabulary.CompetitorTerms {
-		if strings.Contains(lowerText, strings.ToLower(term.Term)) {
-			sev := corebrand.SeverityCritical
-			if term.Severity != "" {
-				sev = corebrand.Severity(term.Severity)
-			}
-			findings = append(findings, corebrand.BrandVoiceFinding{
-				Category:     string(corebrand.DimensionVocabulary),
-				Severity:     sev,
-				Message:      "Competitor term: " + term.Term,
-				Suggestion:   term.Replacement,
-				OriginalText: term.Term,
-			})
-		}
-	}
-
-	return findings
 }

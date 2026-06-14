@@ -429,17 +429,33 @@ func TestSQLiteTermBase_CompetitorTermField(t *testing.T) {
 }
 
 func TestConceptRelation_JSON(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
 	rel := termbase.ConceptRelation{
+		ID:           "rel-1",
 		SourceID:     "concept-1",
 		TargetID:     "concept-2",
-		RelationType: "related",
+		RelationType: graph.LabelReplacedBy,
+		Note:         "renamed at launch",
+		Validity: &graph.Validity{
+			ValidFrom: &now,
+			Tags:      map[string]string{"market": "dach"},
+		},
+		CreatedAt: now,
 	}
 	data, err := json.Marshal(rel)
 	require.NoError(t, err)
 
 	var decoded termbase.ConceptRelation
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	assert.Equal(t, rel, decoded)
+	assert.Equal(t, rel.ID, decoded.ID)
+	assert.Equal(t, rel.SourceID, decoded.SourceID)
+	assert.Equal(t, rel.TargetID, decoded.TargetID)
+	assert.Equal(t, rel.RelationType, decoded.RelationType)
+	assert.Equal(t, rel.Note, decoded.Note)
+	require.NotNil(t, decoded.Validity)
+	assert.True(t, decoded.Validity.ValidFrom.Equal(now))
+	assert.Equal(t, rel.Validity.Tags, decoded.Validity.Tags)
+	assert.True(t, decoded.CreatedAt.Equal(now))
 }
 
 func TestTermDesignation_WithValidity(t *testing.T) {

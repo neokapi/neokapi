@@ -136,6 +136,11 @@ type TermRule struct {
 	Replacement string `json:"replacement,omitempty" yaml:"replacement,omitempty"`
 	Note        string `json:"note,omitempty" yaml:"note,omitempty"`
 	Severity    string `json:"severity,omitempty" yaml:"severity,omitempty"` // "minor", "major", "critical"
+	// ConceptID is the knowledge-graph concept this rule denotes (one node type:
+	// the concept). It is populated when the platform promotes a rule from a
+	// concept-backed correction; it stays empty for standalone profiles (a
+	// shareable profile.yaml with no backing knowledge graph), which remain valid.
+	ConceptID string `json:"concept_id,omitempty" yaml:"concept_id,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for brand voice.

@@ -365,31 +365,69 @@ const translationDashboardRoute = createRoute({
   },
 });
 
+// ── Brand hub (AD-021) ───────────────────────────────────────────────────────
+// One workspace surface with five sections: Concepts (graph + list + per-concept
+// story), Voice (profiles + correction loop), Experiments (change-sets), Activity,
+// and Dashboard. The old standalone Termbase is absorbed into Concepts.
+
 const brandRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "brand",
   component: Outlet,
 });
 
+// /brand → /brand/concepts (Concepts is the hub's landing section).
 const brandIndexRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "/",
-  pendingComponent: BrandProfilesSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-profiles"), "BrandProfilesRoute"),
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/$workspace/brand/concepts",
+      params: { workspace: params.workspace },
+      replace: true,
+    });
+  },
 });
 
-const brandEditorRoute = createRoute({
+const brandConceptsRoute = createRoute({
   getParentRoute: () => brandRoute,
-  path: "$profileId",
-  pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
+  path: "concepts",
+  pendingComponent: ExplorerSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-concepts"), "ConceptsRoute"),
 });
 
-const brandReviewRoute = createRoute({
+const brandConceptStoryRoute = createRoute({
   getParentRoute: () => brandRoute,
-  path: "review/$profileId",
-  pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-review"), "BrandReviewRoute"),
+  path: "concepts/$cid",
+  pendingComponent: ExplorerSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-concept-story"),
+    "ConceptStoryRoute",
+  ),
+});
+
+const brandExperimentsRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "experiments",
+  pendingComponent: TablePageSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-experiments"), "ExperimentsRoute"),
+});
+
+const brandExperimentDetailRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "experiments/$id",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-experiment-detail"),
+    "ExperimentDetailRoute",
+  ),
+});
+
+const brandActivityRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "activity",
+  pendingComponent: ActivityFeedSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-activity"), "BrandActivityRoute"),
 });
 
 const brandDashboardRoute = createRoute({
@@ -399,18 +437,52 @@ const brandDashboardRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/brand-dashboard"), "BrandDashboardRoute"),
 });
 
-const brandMCPGuideRoute = createRoute({
+// Voice — the brand-voice profiles + correction loop, re-homed under the hub.
+const brandVoiceRoute = createRoute({
   getParentRoute: () => brandRoute,
+  path: "voice",
+  component: Outlet,
+});
+
+const brandVoiceIndexRoute = createRoute({
+  getParentRoute: () => brandVoiceRoute,
+  path: "/",
+  pendingComponent: BrandProfilesSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-profiles"), "BrandProfilesRoute"),
+});
+
+const brandVoiceEditorRoute = createRoute({
+  getParentRoute: () => brandVoiceRoute,
+  path: "$profileId",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
+});
+
+const brandVoiceReviewRoute = createRoute({
+  getParentRoute: () => brandVoiceRoute,
+  path: "review/$profileId",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-review"), "BrandReviewRoute"),
+});
+
+const brandVoiceMCPGuideRoute = createRoute({
+  getParentRoute: () => brandVoiceRoute,
   path: "mcp-guide",
   pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(() => import("./workspace/brand-mcp-guide"), "BrandMCPGuideRoute"),
 });
 
+// Legacy /termbase → Brand · Concepts. Terminology now lives inside the graph.
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
-  pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/termbase"), "TermbaseRoute"),
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/$workspace/brand/concepts",
+      params: { workspace: params.workspace },
+      replace: true,
+    });
+  },
 });
 
 const memoryRoute = createRoute({
@@ -578,10 +650,18 @@ const routeTree = rootRoute.addChildren([
     translationDashboardRoute,
     brandRoute.addChildren([
       brandIndexRoute,
+      brandConceptsRoute,
+      brandConceptStoryRoute,
+      brandExperimentsRoute,
+      brandExperimentDetailRoute,
+      brandActivityRoute,
       brandDashboardRoute,
-      brandMCPGuideRoute,
-      brandReviewRoute,
-      brandEditorRoute,
+      brandVoiceRoute.addChildren([
+        brandVoiceIndexRoute,
+        brandVoiceEditorRoute,
+        brandVoiceReviewRoute,
+        brandVoiceMCPGuideRoute,
+      ]),
     ]),
     termbaseRoute,
     memoryRoute,

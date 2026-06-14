@@ -7,6 +7,153 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * AddChangesetOpArgs is the body of POST /changesets/:id/ops
+ * (AddChangeSetOpRequest). Payload is the op-specific union, forwarded as-is.
+ */
+export class AddChangesetOpArgs {
+    /**
+     * Creates a new AddChangesetOpArgs instance.
+     * @param {Partial<AddChangesetOpArgs>} [$$source = {}] - The source object to create the AddChangesetOpArgs.
+     */
+    constructor($$source = {}) {
+        if (!("op" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["op"] = "";
+        }
+        if (!("payload" in $$source)) {
+            /**
+             * @member
+             * @type {any}
+             */
+            this["payload"] = null;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["base_rev"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AddChangesetOpArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AddChangesetOpArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AddChangesetOpArgs(/** @type {Partial<AddChangesetOpArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * AddCommentArgs is the body of POST /concepts/:cid/comments.
+ */
+export class AddCommentArgs {
+    /**
+     * Creates a new AddCommentArgs instance.
+     * @param {Partial<AddCommentArgs>} [$$source = {}] - The source object to create the AddCommentArgs.
+     */
+    constructor($$source = {}) {
+        if (!("body" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["body"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["parent_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["changeset_id"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AddCommentArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AddCommentArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AddCommentArgs(/** @type {Partial<AddCommentArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * AddConceptRelationArgs is the body of POST /concepts/:cid/relations.
+ */
+export class AddConceptRelationArgs {
+    /**
+     * Creates a new AddConceptRelationArgs instance.
+     * @param {Partial<AddConceptRelationArgs>} [$$source = {}] - The source object to create the AddConceptRelationArgs.
+     */
+    constructor($$source = {}) {
+        if (!("target_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_id"] = "";
+        }
+        if (!("relation_type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["relation_type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {Validity | null | undefined}
+             */
+            this["validity"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AddConceptRelationArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AddConceptRelationArgs}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("validity" in $$parsedSource) {
+            $$parsedSource["validity"] = $$createField3_0($$parsedSource["validity"]);
+        }
+        return new AddConceptRelationArgs(/** @type {Partial<AddConceptRelationArgs>} */($$parsedSource));
+    }
+}
+
+/**
  * AddConceptRequest holds parameters for adding a concept.
  */
 export class AddConceptRequest {
@@ -53,12 +200,85 @@ export class AddConceptRequest {
      * @returns {AddConceptRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType1;
+        const $$createField3_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
         }
         return new AddConceptRequest(/** @type {Partial<AddConceptRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * AddObservationArgs is the body of POST /concepts/:cid/observations.
+ */
+export class AddObservationArgs {
+    /**
+     * Creates a new AddObservationArgs instance.
+     * @param {Partial<AddObservationArgs>} [$$source = {}] - The source object to create the AddObservationArgs.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("quote" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["quote"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["url"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["market"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AddObservationArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AddObservationArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AddObservationArgs(/** @type {Partial<AddObservationArgs>} */($$parsedSource));
     }
 }
 
@@ -116,9 +336,9 @@ export class BlockInfo {
      * @returns {BlockInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType4;
-        const $$createField4_0 = $$createType5;
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sourceRuns" in $$parsedSource) {
             $$parsedSource["sourceRuns"] = $$createField1_0($$parsedSource["sourceRuns"]);
@@ -194,7 +414,7 @@ export class BlockTermMatch {
      * @returns {BlockTermMatch}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_terms" in $$parsedSource) {
             $$parsedSource["target_terms"] = $$createField1_0($$parsedSource["target_terms"]);
@@ -304,7 +524,7 @@ export class CollabSession {
      * @returns {CollabSession}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
@@ -427,8 +647,8 @@ export class ConceptInfo {
      * @returns {ConceptInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType5;
+        const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
@@ -621,6 +841,44 @@ export class ContentItemInfo {
 }
 
 /**
+ * CreateChangesetArgs is the body of POST /changesets (CreateChangeSetRequest).
+ */
+export class CreateChangesetArgs {
+    /**
+     * Creates a new CreateChangesetArgs instance.
+     * @param {Partial<CreateChangesetArgs>} [$$source = {}] - The source object to create the CreateChangesetArgs.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["description"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateChangesetArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CreateChangesetArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CreateChangesetArgs(/** @type {Partial<CreateChangesetArgs>} */($$parsedSource));
+    }
+}
+
+/**
  * EvaluateRuleArgs is the body for the blast-radius evaluation.
  */
 export class EvaluateRuleArgs {
@@ -749,8 +1007,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType9;
-        const $$createField4_0 = $$createType11;
+        const $$createField3_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -808,7 +1066,8 @@ export class FlowEdgeInfo {
 }
 
 /**
- * FlowNodeInfo is the frontend-facing flow node type.
+ * FlowNodeInfo is the frontend-facing flow node type. Tool nodes are one
+ * ordered list — transformers are ordinary steps (AD-006).
  */
 export class FlowNodeInfo {
     /**
@@ -846,15 +1105,6 @@ export class FlowNodeInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Stage is the pipeline stage for this node. Empty means the main stage;
-             * "source-transform" means the leading source-rewrite stage.
-             * @member
-             * @type {string | undefined}
-             */
-            this["stage"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * @member
              * @type {{ [_ in string]?: any } | undefined}
              */
@@ -877,14 +1127,14 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType12;
-        const $$createField6_0 = $$createType13;
+        const $$createField4_0 = $$createType14;
+        const $$createField5_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField5_0($$parsedSource["config"]);
+            $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
         }
         if ("position" in $$parsedSource) {
-            $$parsedSource["position"] = $$createField6_0($$parsedSource["position"]);
+            $$parsedSource["position"] = $$createField5_0($$parsedSource["position"]);
         }
         return new FlowNodeInfo(/** @type {Partial<FlowNodeInfo>} */($$parsedSource));
     }
@@ -958,8 +1208,8 @@ export class FormatInfo {
      * @returns {FormatInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mime_types" in $$parsedSource) {
             $$parsedSource["mime_types"] = $$createField2_0($$parsedSource["mime_types"]);
@@ -968,6 +1218,58 @@ export class FormatInfo {
             $$parsedSource["extensions"] = $$createField3_0($$parsedSource["extensions"]);
         }
         return new FormatInfo(/** @type {Partial<FormatInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * IOPort is one entry of a tool's IO contract (mirrors core/schema.IOPort).
+ */
+export class IOPort {
+    /**
+     * Creates a new IOPort instance.
+     * @param {Partial<IOPort>} [$$source = {}] - The source object to create the IOPort.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["side"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["optional"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["layer"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new IOPort instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {IOPort}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new IOPort(/** @type {Partial<IOPort>} */($$parsedSource));
     }
 }
 
@@ -1048,6 +1350,149 @@ export class InviteInfo {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new InviteInfo(/** @type {Partial<InviteInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * ListConceptsArgs holds the GET /concepts query params (ListConceptsParams).
+ */
+export class ListConceptsArgs {
+    /**
+     * Creates a new ListConceptsArgs instance.
+     * @param {Partial<ListConceptsArgs>} [$$source = {}] - The source object to create the ListConceptsArgs.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["q"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["domain"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["market"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["stream"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["project_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["offset"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["limit"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListConceptsArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ListConceptsArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListConceptsArgs(/** @type {Partial<ListConceptsArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * MarketArgs is the body of POST/PUT /markets (MarketRequest).
+ */
+export class MarketArgs {
+    /**
+     * Creates a new MarketArgs instance.
+     * @param {Partial<MarketArgs>} [$$source = {}] - The source object to create the MarketArgs.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["description"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["locales"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MarketArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MarketArgs}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField2_0($$parsedSource["locales"]);
+        }
+        return new MarketArgs(/** @type {Partial<MarketArgs>} */($$parsedSource));
     }
 }
 
@@ -1230,7 +1675,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType15;
+        const $$createField6_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1307,7 +1752,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType15;
+        const $$createField6_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1363,7 +1808,7 @@ export class PluginInfo {
      * @returns {PluginInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField3_0($$parsedSource["formats"]);
@@ -1405,7 +1850,7 @@ export class PluralRunInfo {
      * @returns {PluralRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
@@ -1527,8 +1972,8 @@ export class ProjectInfo {
      * @returns {ProjectInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        const $$createField5_0 = $$createType17;
+        const $$createField3_0 = $$createType8;
+        const $$createField5_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -1674,6 +2119,37 @@ export class ProviderConfigInfo {
 }
 
 /**
+ * ReviewArgs is the body of POST /changesets/:id/approve|reject (ReviewRequest).
+ */
+export class ReviewArgs {
+    /**
+     * Creates a new ReviewArgs instance.
+     * @param {Partial<ReviewArgs>} [$$source = {}] - The source object to create the ReviewArgs.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["comment"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReviewArgs(/** @type {Partial<ReviewArgs>} */($$parsedSource));
+    }
+}
+
+/**
  * RunConstraintsInfo mirrors model.RunConstraints for the frontend.
  */
 export class RunConstraintsInfo {
@@ -1787,13 +2263,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType19;
-        const $$createField1_0 = $$createType21;
-        const $$createField2_0 = $$createType23;
-        const $$createField3_0 = $$createType25;
-        const $$createField4_0 = $$createType27;
-        const $$createField5_0 = $$createType29;
-        const $$createField6_0 = $$createType31;
+        const $$createField0_0 = $$createType21;
+        const $$createField1_0 = $$createType23;
+        const $$createField2_0 = $$createType25;
+        const $$createField3_0 = $$createType27;
+        const $$createField4_0 = $$createType29;
+        const $$createField5_0 = $$createType31;
+        const $$createField6_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -1919,12 +2395,50 @@ export class SelectRunInfo {
      * @returns {SelectRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cases" in $$parsedSource) {
             $$parsedSource["cases"] = $$createField1_0($$parsedSource["cases"]);
         }
         return new SelectRunInfo(/** @type {Partial<SelectRunInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * StartPilotArgs is the body of POST /changesets/:id/pilots (StartPilotRequest).
+ */
+export class StartPilotArgs {
+    /**
+     * Creates a new StartPilotArgs instance.
+     * @param {Partial<StartPilotArgs>} [$$source = {}] - The source object to create the StartPilotArgs.
+     */
+    constructor($$source = {}) {
+        if (!("project_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_id"] = "";
+        }
+        if (!("stream" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["stream"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StartPilotArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StartPilotArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StartPilotArgs(/** @type {Partial<StartPilotArgs>} */($$parsedSource));
     }
 }
 
@@ -2178,7 +2692,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType33;
+        const $$createField0_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2328,7 +2842,7 @@ export class TermEnforceResult {
      * @returns {TermEnforceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("expected" in $$parsedSource) {
             $$parsedSource["expected"] = $$createField3_0($$parsedSource["expected"]);
@@ -2429,7 +2943,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType35;
+        const $$createField0_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -2513,7 +3027,7 @@ export class TermMatchInfo {
      * @returns {TermMatchInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType1;
+        const $$createField6_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_terms" in $$parsedSource) {
             $$parsedSource["target_terms"] = $$createField6_0($$parsedSource["target_terms"]);
@@ -2555,7 +3069,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType37;
+        const $$createField0_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2627,12 +3141,67 @@ export class ToolInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * IsSourceTransform reports whether this tool may be placed in the
-             * source-transform stage of a flow (i.e. it rewrites the source model).
+             * Cardinality / DefaultLocale / Requires / SideEffects are the rest of the
+             * tool's metadata (AD-006), surfaced to the flow editor for its badges.
+             * @member
+             * @type {string | undefined}
+             */
+            this["cardinality"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["default_locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["requires"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["side_effects"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Consumes / Produces are the tool's IO contract (AD-006), surfaced
+             * to the flow editor so it can type ports and validate connections.
+             * @member
+             * @type {IOPort[] | undefined}
+             */
+            this["consumes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {IOPort[] | undefined}
+             */
+            this["produces"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * IsSourceTransform reports whether this tool is a transformer — it may
+             * rewrite source (AD-006); the placement pass validates its position.
              * @member
              * @type {boolean | undefined}
              */
             this["is_source_transform"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Recoverable marks a transformer that vaults originals for later restore
+             * (redaction); the placement pass holds it to the remote-egress rule.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["recoverable"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -2644,7 +3213,23 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType8;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType41;
+        const $$createField8_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("requires" in $$parsedSource) {
+            $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
+        }
+        if ("side_effects" in $$parsedSource) {
+            $$parsedSource["side_effects"] = $$createField6_0($$parsedSource["side_effects"]);
+        }
+        if ("consumes" in $$parsedSource) {
+            $$parsedSource["consumes"] = $$createField7_0($$parsedSource["consumes"]);
+        }
+        if ("produces" in $$parsedSource) {
+            $$parsedSource["produces"] = $$createField8_0($$parsedSource["produces"]);
+        }
         return new ToolInfo(/** @type {Partial<ToolInfo>} */($$parsedSource));
     }
 }
@@ -2808,12 +3393,50 @@ export class UpdateBlockTargetRunsRequest {
      * @returns {UpdateBlockTargetRunsRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType3;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField4_0($$parsedSource["runs"]);
         }
         return new UpdateBlockTargetRunsRequest(/** @type {Partial<UpdateBlockTargetRunsRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * UpdateChangesetArgs is the body of PATCH /changesets/:id (UpdateChangeSetRequest).
+ */
+export class UpdateChangesetArgs {
+    /**
+     * Creates a new UpdateChangesetArgs instance.
+     * @param {Partial<UpdateChangesetArgs>} [$$source = {}] - The source object to create the UpdateChangesetArgs.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["description"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateChangesetArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpdateChangesetArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateChangesetArgs(/** @type {Partial<UpdateChangesetArgs>} */($$parsedSource));
     }
 }
 
@@ -2871,12 +3494,61 @@ export class UpdateConceptRequest {
      * @returns {UpdateConceptRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType1;
+        const $$createField4_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
         }
         return new UpdateConceptRequest(/** @type {Partial<UpdateConceptRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * Validity is the temporal + tag scope on a relation (core/graph.Validity).
+ */
+export class Validity {
+    /**
+     * Creates a new Validity instance.
+     * @param {Partial<Validity>} [$$source = {}] - The source object to create the Validity.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_to"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["tags"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Validity instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Validity}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField2_0($$parsedSource["tags"]);
+        }
+        return new Validity(/** @type {Partial<Validity>} */($$parsedSource));
     }
 }
 
@@ -2972,8 +3644,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType38;
-        const $$createField3_0 = $$createType38;
+        const $$createField2_0 = $$createType42;
+        const $$createField3_0 = $$createType42;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -3052,42 +3724,46 @@ export class WorkspaceInfo {
 }
 
 // Private type creation functions
-const $$createType0 = TermInfo.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = RunInfo.createFrom;
+const $$createType0 = Validity.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = TermInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $Create.Map($Create.Any, $$createType3);
-const $$createType5 = $Create.Map($Create.Any, $Create.Any);
-const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = CollabUser.createFrom;
-const $$createType8 = FlowNodeInfo.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = FlowEdgeInfo.createFrom;
+const $$createType4 = RunInfo.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Map($Create.Any, $$createType5);
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = CollabUser.createFrom;
+const $$createType10 = FlowNodeInfo.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $Create.Map($Create.Any, $Create.Any);
-const $$createType13 = PositionInfo.createFrom;
-const $$createType14 = RunConstraintsInfo.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = ProjectItem.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = TextRunInfo.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = PlaceholderRunInfo.createFrom;
+const $$createType12 = FlowEdgeInfo.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $Create.Map($Create.Any, $Create.Any);
+const $$createType15 = PositionInfo.createFrom;
+const $$createType16 = RunConstraintsInfo.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = ProjectItem.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = TextRunInfo.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = PcOpenRunInfo.createFrom;
+const $$createType22 = PlaceholderRunInfo.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = PcCloseRunInfo.createFrom;
+const $$createType24 = PcOpenRunInfo.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = SubRunInfo.createFrom;
+const $$createType26 = PcCloseRunInfo.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = PluralRunInfo.createFrom;
+const $$createType28 = SubRunInfo.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = SelectRunInfo.createFrom;
+const $$createType30 = PluralRunInfo.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = TMEntryInfo.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = TermMatchInfo.createFrom;
+const $$createType32 = SelectRunInfo.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = TMEntryInfo.createFrom;
 const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = ConceptInfo.createFrom;
+const $$createType36 = TermMatchInfo.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = $Create.Map($Create.Any, $Create.Any);
+const $$createType38 = ConceptInfo.createFrom;
+const $$createType39 = $Create.Array($$createType38);
+const $$createType40 = IOPort.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = $Create.Map($Create.Any, $Create.Any);

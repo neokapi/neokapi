@@ -106,7 +106,7 @@ type BrandStore interface {
     ListProfiles(ctx context.Context, workspaceID string) ([]*VoiceProfile, error)
 
     StoreScore(ctx context.Context, score *StoredScore) error
-    GetScores(ctx context.Context, projectID, locale string) ([]*StoredScore, error)
+    GetScores(ctx context.Context, projectID string, locale model.LocaleID) ([]*StoredScore, error)
     GetScoreTrends(ctx context.Context, projectID string, days int) ([]*ScoreTrend, error)
 
     StoreCorrection(ctx context.Context, correction *Correction) error

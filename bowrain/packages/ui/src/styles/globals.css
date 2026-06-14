@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@neokapi/ui-primitives/styles/theme-tokens.css";
+@import "@neokapi/concept-ui/styles/sources.css";
 
 @source "../";
 

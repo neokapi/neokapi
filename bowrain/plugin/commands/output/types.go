@@ -156,23 +156,34 @@ type PullOutput struct {
 	Stream       string `json:"stream,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	UpToDate     bool   `json:"up_to_date,omitempty"`
+
+	// Concept sync (governed terminology pulled into the local termbase).
+	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
+	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
 	if o.Stream != "" && o.Stream != "main" {
 		fmt.Fprintf(w, "Stream: %s\n", o.Stream)
 	}
-	if o.DryRun {
+	switch {
+	case o.DryRun:
 		fmt.Fprintf(w, "Would pull %d blocks for %d locales\n", o.BlocksPulled, o.LocalesCount)
-		return nil
-	}
-	if o.UpToDate {
+	case o.UpToDate:
 		fmt.Fprintln(w, "Already up to date.")
-		return nil
+	default:
+		fmt.Fprintf(w, "Pulled %d blocks for %d locales\n", o.BlocksPulled, o.LocalesCount)
+		if o.FilesWritten > 0 {
+			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
+		}
 	}
-	fmt.Fprintf(w, "Pulled %d blocks for %d locales\n", o.BlocksPulled, o.LocalesCount)
-	if o.FilesWritten > 0 {
-		fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
+	if o.ConceptsPulled > 0 {
+		verb := "Pulled"
+		if o.DryRun {
+			verb = "Would pull"
+		}
+		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local termbase\n",
+			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
 	}
 	return nil
 }
@@ -185,22 +196,57 @@ type PushOutput struct {
 	Stream       string `json:"stream,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	UpToDate     bool   `json:"up_to_date,omitempty"`
+
+	// Concept sync (governed terminology reconciled against the pulled baseline).
+	ConceptsApplied  int    `json:"concepts_applied,omitempty"`
+	RelationsApplied int    `json:"concept_relations_applied,omitempty"`
+	ConceptsProposed int    `json:"concepts_proposed,omitempty"`
+	ChangesetID      string `json:"changeset_id,omitempty"`
+	ChangesetURL     string `json:"changeset_url,omitempty"`
 }
 
 func (o PushOutput) FormatText(w io.Writer) error {
 	if o.Stream != "" && o.Stream != "main" {
 		fmt.Fprintf(w, "Stream: %s\n", o.Stream)
 	}
-	if o.DryRun {
+	switch {
+	case o.DryRun:
 		fmt.Fprintf(w, "Would push %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
-		return nil
-	}
-	if o.UpToDate {
+	case o.UpToDate:
 		fmt.Fprintln(w, "Already up to date.")
-		return nil
+	default:
+		fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
 	}
-	fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
+	o.formatConcepts(w)
 	return nil
+}
+
+// formatConcepts appends the concept-sync summary: ordinary edits applied
+// directly, and any governed edits proposed in a change-set (with its review
+// link).
+func (o PushOutput) formatConcepts(w io.Writer) {
+	if o.ConceptsApplied > 0 || o.RelationsApplied > 0 {
+		verb := "Applied"
+		if o.DryRun {
+			verb = "Would apply"
+		}
+		fmt.Fprintf(w, "%s %d concept edit(s) and %d relation edit(s) directly\n",
+			verb, o.ConceptsApplied, o.RelationsApplied)
+	}
+	if o.ConceptsProposed > 0 {
+		verb := "Proposed"
+		if o.DryRun {
+			verb = "Would propose"
+		}
+		fmt.Fprintf(w, "%s %d governed edit(s) in a change-set", verb, o.ConceptsProposed)
+		if o.ChangesetID != "" {
+			fmt.Fprintf(w, " (%s)", o.ChangesetID)
+		}
+		fmt.Fprintln(w)
+		if o.ChangesetURL != "" {
+			fmt.Fprintf(w, "Review it at %s\n", o.ChangesetURL)
+		}
+	}
 }
 
 // ConfigOutput represents the result of kapi config.

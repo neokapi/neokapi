@@ -8,6 +8,7 @@
     "storybook:build": "vpx storybook build -o storybook-static"
   },
   "devDependencies": {
+    "@neokapi/concept-ui": "*",
     "@neokapi/flow-editor": "*",
     "@neokapi/storybook-config": "*",
     "@neokapi/ui-primitives": "*",

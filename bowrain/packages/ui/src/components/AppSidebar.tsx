@@ -14,7 +14,6 @@ import {
 import { useMemo } from "react";
 import type { Workspace, User, ProjectInfo, StreamInfo } from "../types/api";
 import {
-  BookOpen,
   Brain,
   Settings,
   Palette,
@@ -31,6 +30,9 @@ import {
   CreditCard,
   Shield,
   Lock,
+  Network,
+  FlaskConical,
+  Activity,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -103,8 +105,7 @@ export interface AppSidebarProps<V extends string = string> {
 
 const workspaceNavItems: NavItem[] = [
   { id: "translate", label: "Projects", icon: <Home /> },
-  { id: "brand", label: "Brand Voice", icon: <Palette /> },
-  { id: "termbase", label: "Termbase", icon: <BookOpen /> },
+  { id: "brand", label: "Brand", icon: <Palette /> },
   { id: "memory", label: "Memory", icon: <Brain /> },
 ];
 
@@ -112,6 +113,13 @@ const workspaceBottomItems: NavItem[] = [{ id: "settings", label: "Settings", ic
 
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig: Record<string, SubNavItem[]> = {
+  brand: [
+    { id: "concepts", label: "Concepts", icon: <Network /> },
+    { id: "voice", label: "Voice", icon: <Palette /> },
+    { id: "experiments", label: "Experiments", icon: <FlaskConical /> },
+    { id: "activity", label: "Activity", icon: <Activity /> },
+    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
+  ],
   settings: [
     { id: "general", label: "General", icon: <Settings /> },
     { id: "languages", label: "Languages", icon: <Globe /> },

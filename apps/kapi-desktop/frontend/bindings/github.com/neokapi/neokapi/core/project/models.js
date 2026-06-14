@@ -374,6 +374,21 @@ export class Defaults {
              */
             this["termbase"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Tools holds project-level tool presets: per-tool config defaults applied
+             * wherever the tool runs in a project flow. A flow step's own config
+             * overrides the preset per key (step wins), so a project can pin, say,
+             * redaction rules or a pseudo-translate prefix once while an individual
+             * flow refines them. Resolution happens at tool construction and feeds the
+             * same merged config to data-flow and placement validation, so a preset
+             * that enables redact's entity detection makes the entity port required
+             * exactly as an inline config would.
+             * @member
+             * @type {{ [_ in string]?: { [_ in string]?: any } } | undefined}
+             */
+            this["tools"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -392,6 +407,7 @@ export class Defaults {
         const $$createField10_0 = $$createType12;
         const $$createField11_0 = $$createType6;
         const $$createField12_0 = $$createType14;
+        const $$createField14_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -416,6 +432,9 @@ export class Defaults {
         }
         if ("brand_voice" in $$parsedSource) {
             $$parsedSource["brand_voice"] = $$createField12_0($$parsedSource["brand_voice"]);
+        }
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField14_0($$parsedSource["tools"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -673,11 +692,11 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType17;
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType20;
-        const $$createField6_0 = $$createType23;
-        const $$createField7_0 = $$createType24;
+        const $$createField2_0 = $$createType18;
+        const $$createField3_0 = $$createType19;
+        const $$createField4_0 = $$createType21;
+        const $$createField6_0 = $$createType24;
+        const $$createField7_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -873,7 +892,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType27;
+        const $$createField1_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1058,20 +1077,21 @@ const $$createType12 = SegmentationDefaults.createFrom;
 const $$createType13 = BrandVoiceBinding.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
 const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = PluginSpec.createFrom;
-const $$createType17 = $Create.Map($Create.Any, $$createType16);
-const $$createType18 = Defaults.createFrom;
-const $$createType19 = ContentCollection.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = flow$0.StepsSpec.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $Create.Map($Create.Any, $$createType22);
-var $$createType24 = /** @type {(...args: any[]) => any} */(function $$initCreateType24(...args) {
-    if ($$createType24 === $$initCreateType24) {
-        $$createType24 = $$createType25;
+const $$createType16 = $Create.Map($Create.Any, $$createType15);
+const $$createType17 = PluginSpec.createFrom;
+const $$createType18 = $Create.Map($Create.Any, $$createType17);
+const $$createType19 = Defaults.createFrom;
+const $$createType20 = ContentCollection.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = flow$0.StepsSpec.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = $Create.Map($Create.Any, $$createType23);
+var $$createType25 = /** @type {(...args: any[]) => any} */(function $$initCreateType25(...args) {
+    if ($$createType25 === $$initCreateType25) {
+        $$createType25 = $$createType26;
     }
-    return $$createType24(...args);
+    return $$createType25(...args);
 });
-const $$createType25 = $Create.Map($Create.Any, $Create.Any);
-const $$createType26 = PluginIssue.createFrom;
-const $$createType27 = $Create.Array($$createType26);
+const $$createType26 = $Create.Map($Create.Any, $Create.Any);
+const $$createType27 = PluginIssue.createFrom;
+const $$createType28 = $Create.Array($$createType27);

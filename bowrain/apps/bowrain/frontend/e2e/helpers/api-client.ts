@@ -253,7 +253,7 @@ export async function seedConcepts(
     conceptsPath || path.resolve(__dirname, "../../../../web/e2e/seed/concepts.json");
   const concepts: Concept[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const concept of concepts) {
-    await apiPost(`/workspaces/${wsSlug}/terms`, token, concept);
+    await apiPost(`/workspaces/${wsSlug}/concepts`, token, concept);
   }
   return concepts.length;
 }

@@ -42,6 +42,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/event"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
@@ -124,6 +125,11 @@ type Server struct {
 
 	// BrandStore manages brand voice profiles. Nil when not configured.
 	BrandStore corebrand.BrandStore
+
+	// KnowledgeStore persists the governance and collaboration layer of the
+	// brand knowledge graph (AD-021): markets, observations, comments, concept
+	// revisions, and change-sets with reviews and pilots. Nil when not configured.
+	KnowledgeStore knowledge.Store
 
 	// GraphStore provides graph-based concept management. Nil when not configured.
 	GraphStore coreg.GraphStore
@@ -390,6 +396,7 @@ func NewServer(cfg Config) *Server {
 			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
+			s.KnowledgeStore = pg.Knowledge
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
 			s.BillingStore = pg.Billing
@@ -1074,15 +1081,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/translation-memory/:eid", s.HandleUpdateTMEntry)
 	g.DELETE("/translation-memory/:eid", s.HandleDeleteTMEntry)
 
-	// Terminology CRUD — Bowrain AD-011: /:ws/terms
-	g.GET("/terms", s.HandleGetTerms)
-	g.GET("/terms/count", s.HandleGetTermCount)
-	g.POST("/terms", s.HandleAddConcept)
-	g.PUT("/terms/:cid", s.HandleUpdateConcept)
-	g.DELETE("/terms/:cid", s.HandleDeleteConcept)
-	g.POST("/terms/import/csv", s.HandleImportTermsCSV)
-	g.POST("/terms/import/json", s.HandleImportTermsJSON)
-	g.GET("/terms/export/json", s.HandleExportTermsJSON)
+	// Brand knowledge graph — Bowrain AD-021. The concept API (/:ws/concepts)
+	// is the workspace terminology surface; it replaces the former /:ws/terms
+	// routes, and every consumer (web, desktop, Pulse, MCP) uses it. Change-sets
+	// (/:ws/changesets) carry the governed-edit lifecycle.
+	s.registerConceptRoutes(g)
+	s.registerChangesetRoutes(g)
 
 	// Provider configs — Bowrain AD-011: /:ws/providers
 	g.GET("/providers", s.HandleListProviderConfigs)
@@ -1120,12 +1124,6 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 	g.GET("/ai-usage", s.HandleGetAIUsage)
-
-	// Graph — Bowrain AD-011: /:ws/graph
-	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
-	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
-	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
-	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
 
 	// Notifications — Bowrain AD-011: /:ws/notifications
 	g.GET("/notifications", s.HandleListNotifications)

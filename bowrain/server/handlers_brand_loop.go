@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -284,7 +285,24 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *corebrand.VoiceProf
 		if existing, _ := s.BrandStore.GetRuleDecision(rctx, profile.ID, sug.Term); existing != nil {
 			return "", false
 		}
-		updated, changed, err := corebrand.PromoteAndSave(rctx, s.BrandStore, profile.ID, *sug)
+
+		// Link the rule into the brand knowledge graph (AD-021) before promoting,
+		// so the auto-promoted TermRule denotes its concept. Best-effort: a
+		// termbase hiccup must not cost the loop an auto-promotion it earned.
+		rule := *sug
+		conceptID, kgEvents, linkErr := s.linkRuleToConcept(rctx, ctx.Param("ws"), wsID, rule)
+		if linkErr != nil {
+			slog.Warn("brand: failed to fully link auto-promoted rule to knowledge graph",
+				"profile_id", profile.ID, "term", sug.Term, "error", linkErr)
+		}
+		// Stamp the concept whenever the link produced one, even on a partial
+		// failure, so the rule denotes the concept the published kgEvents announce
+		// (no orphaned creation event). Empty when nothing was created.
+		if conceptID != "" {
+			rule.ConceptID = conceptID
+		}
+
+		updated, changed, err := corebrand.PromoteAndSave(rctx, s.BrandStore, profile.ID, rule)
 		if err != nil || !changed {
 			return "", false
 		}
@@ -297,9 +315,11 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *corebrand.VoiceProf
 			CorrectionCount: sug.CorrectionCount,
 			PromotedVersion: updated.Version,
 			Auto:            true,
+			ConceptID:       rule.ConceptID,
 			DecidedAt:       time.Now().UTC(),
 		})
 		s.publishBrandRuleEvent(EventBrandVoiceRuleAutoPromoted, wsID, userID, profile.ID, sug.Term, sug.Replacement, updated.Version)
+		s.publishKnowledgeEvents(ctx, kgEvents)
 		return sug.Term, true
 	}
 	return "", false

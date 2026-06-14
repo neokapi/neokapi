@@ -344,4 +344,4 @@ plan transitions without destructive updates.
 
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-005: Streams](005-streams.md)
-- [AD-framework-010: Terminology](https://neokapi.github.io/web/neokapi/docs/architecture/010-terminology)
+- [Framework terminology](https://neokapi.github.io/web/neokapi/framework/terminology)

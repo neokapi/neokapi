@@ -19,6 +19,7 @@ const preview = createPreview({
     "Resource Browser",
     "Schema Form",
     "Flow Editor",
+    "Concept UI",
     "Formats & Tools",
     "Pages",
     "Components",

@@ -11,19 +11,12 @@ import {
   EmptyState,
   ChartContainer,
   type ChartConfig,
-  type FilterField,
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
-import { useLocales } from "../hooks/useLocales";
-import {
-  TermbaseBrowser,
-  ResourceCard,
-  ImportProgress,
-  type ResourceInfo,
-} from "@neokapi/ui-primitives";
+import { ConceptsView } from "./ConceptsView";
+import { ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export interface TermbasesPageProps {
   /** Project tab ID — when set, shows the project-scoped termbase. */
@@ -64,12 +57,9 @@ export function TermbasesPage({
   const [projectHandle, setProjectHandle] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
-  const [localeList, setLocaleList] = useState<Array<{ locale: string; count: number }>>([]);
 
   const { showError } = useError();
-  const { locales, getDisplayName } = useLocales();
   const activeHandle = projectHandle || handle;
-  const adapter = useTermbaseAdapter(activeHandle);
 
   // Load the project-scoped termbase handle when opened from a project tab so
   // the project's own termbase is auto-selected (and marked) rather than a
@@ -91,7 +81,6 @@ export function TermbasesPage({
     if (!activeHandle) {
       setProjectStats(null);
       setActivityStats([]);
-      setLocaleList([]);
       return;
     }
     void api.getTermbaseStats(activeHandle).then((s) => {
@@ -99,9 +88,6 @@ export function TermbasesPage({
     });
     void api.getTermbaseActivityStats(activeHandle).then((stats) => {
       if (stats) setActivityStats(stats);
-    });
-    void api.getTermbaseLocaleStats(activeHandle).then((stats) => {
-      if (stats) setLocaleList(stats);
     });
   }, [activeHandle]);
 
@@ -228,10 +214,10 @@ export function TermbasesPage({
     }
   }, [activeHandle, tbName, showError]);
 
-  // Open termbase view — identical dashboard (stats + activity chart + filters +
-  // browser) whether the termbase is project-scoped or a named/ad-hoc one. Only
-  // the header (title, back button) differs.
-  if (activeHandle && adapter) {
+  // Open termbase view — identical dashboard (stats + activity chart + the
+  // visual concept/relation workspace) whether the termbase is project-scoped or
+  // a named/ad-hoc one. Only the header (title, back button) differs.
+  if (activeHandle) {
     const isProject = !!projectHandle;
     return (
       <div className="p-6">
@@ -299,38 +285,8 @@ export function TermbasesPage({
           </Card>
         )}
 
-        {/* Browser with integrated filter bar */}
-        <TermbaseBrowser
-          adapter={adapter}
-          locales={locales}
-          onError={showError}
-          filterFields={(() => {
-            const fields: FilterField[] = [];
-            if (localeList.length > 0) {
-              fields.push({
-                key: "locale",
-                label: "Language",
-                hint: "filter by term locale",
-                values: localeList.map((l) => ({
-                  value: l.locale,
-                  label: `${getDisplayName(l.locale)} (${l.locale})`,
-                })),
-              });
-            }
-            fields.push({
-              key: "status",
-              label: "Term Status",
-              hint: "filter by approval status",
-              values: [
-                { value: "preferred", label: "Preferred" },
-                { value: "approved", label: "Approved" },
-                { value: "proposed", label: "Proposed" },
-                { value: "deprecated", label: "Deprecated" },
-              ],
-            });
-            return fields;
-          })()}
-        />
+        {/* Visual concept/relation workspace (browse → open → relate / re-status) */}
+        <ConceptsView handle={activeHandle} />
         <ImportProgress active={importing} />
       </div>
     );

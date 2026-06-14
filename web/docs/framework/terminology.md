@@ -46,6 +46,59 @@ attached to a single language-neutral concept.
 | `proposed`   | Under review, not yet approved | Show as suggestion with caveat |
 | `forbidden`  | Must not be used              | Flag as error in QA             |
 
+## Concept relations
+
+Concepts are not islands. A termbase persists typed, directed **relations**
+between concepts, so a renamed product points at its replacement and a
+deprecated term points at the one to use instead. The relation vocabulary is
+aligned with [SKOS](https://www.w3.org/2004/02/skos/):
+
+| Category        | Labels                          | Meaning                              |
+| --------------- | ------------------------------- | ------------------------------------ |
+| Hierarchy       | `broader`, `narrower`           | A parent/child concept relationship  |
+| Composition     | `part-of`, `has-part`           | A whole/component relationship       |
+| Association     | `related`                       | A non-hierarchical association       |
+| Succession      | `replaced-by`                   | A concept superseded by another      |
+| Guidance        | `use-instead`                   | A discouraged term points at a preferred one |
+| Cross-scheme    | `exact-match`, `close-match`    | Equivalence across schemes           |
+| Stance          | `competitor`                    | A competitor's term                  |
+
+```mermaid
+graph LR
+  utilize["utilize (forbidden)"] -->|use-instead| use["use (preferred)"]
+  webstore["web store (deprecated)"] -->|replaced-by| marketplace["marketplace"]
+  storage["cloud storage"] -->|broader| infra["infrastructure"]
+```
+
+A relation is a first-class record with an ID, a source and target concept, a
+type from the vocabulary above, an optional note, and an optional validity
+(below). The termbase validates that the type is known and that both concepts
+exist before persisting an edge.
+
+### Relation and term validity
+
+A relation, and an individual term, may carry a **validity**: a half-open time
+interval `[valid-from, valid-to)` plus a set of free-form tags. A query supplies
+a **scope** — a point in time and a set of tags — and only edges and terms whose
+validity matches the scope are returned. A nil validity is unbounded (it matches
+every scope); a nil scope applies no filtering.
+
+This makes the same termbase answer scope-dependent questions: which terms were
+preferred *as of* last quarter, or which relations hold *within* a given market.
+Tags are open-ended (the framework assigns them no meaning); a caller chooses a
+tag vocabulary — for example a `market` key — and uses it consistently. A nil
+validity matches every scope; a nil scope filters nothing.
+
+### Status transitions
+
+A term's status changes over its lifetime. `ValidateTransition(from, to)`
+accepts any transition between known statuses — history is the guard, not a
+trap — while `IsGovernedTransition(from, to)` reports whether a change is
+consequential enough to deserve review: any transition **to** `forbidden` or
+`preferred`, or any transition **from** `forbidden`. The framework only
+classifies; a platform built on it decides what governance a governed transition
+requires.
+
 ## Storage backends
 
 Two backends ship in the `termbase/` package, both thread-safe
@@ -92,6 +145,16 @@ kapi termbase stats --name project-terms
 kapi termbase list
 ```
 
+The `kapi termbase` commands cover import, export, lookup, search,
+statistics, and listing. Concept **relations** are not edited from the
+command line: they are authored visually. Kapi Desktop opens a per-concept
+dashboard — the `@neokapi/concept-ui` component, which shows a concept's
+terms, geography, constraints, a local relations widget, and a timeline —
+over a local termbase, where an editor adds, retypes, scopes, and removes
+edges directly. The relation data this produces is the same
+`ConceptRelation` records persisted by the termbase and read through the [Go
+API](#go-library) below.
+
 ## Pipeline integration
 
 Two pipeline tools bring terminology into the translation flow:
@@ -116,11 +179,21 @@ type TermBase interface {
     Lookup(sourceText string, opts LookupOptions) []TermMatch
     LookupAll(sourceText string, opts LookupOptions) []TermMatch
     Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int)
+
+    // Relations between concepts, optionally validity-scoped.
+    AddRelation(rel ConceptRelation) error
+    DeleteRelation(id string) error
+    RelationsOf(conceptID string, scope *graph.Scope) []ConceptRelation // both directions
+    ListRelations(scope *graph.Scope) []ConceptRelation
+
     Count() int
     Concepts() []Concept
     Close() error
 }
 ```
+
+(Methods take a `context.Context` in the real interface; it is elided here for
+readability.)
 
 `Lookup` finds the best match for a single term. `LookupAll` scans running text
 and returns every term occurrence with positions — this is what powers the
@@ -148,6 +221,17 @@ type Term struct {
     PartOfSpeech string
     Gender       string
     Note         string
+    Validity     *graph.Validity // optional time + tag scope (nil = unbounded)
+}
+
+type ConceptRelation struct {
+    ID           string
+    SourceID     string
+    TargetID     string
+    RelationType string          // a SKOS-aligned label: broader, use-instead, replaced-by, …
+    Note         string
+    Validity     *graph.Validity // optional time + tag scope (nil = unbounded)
+    CreatedAt    time.Time
 }
 
 type TermMatch struct {

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +42,30 @@ func richConcepts() []termbase.Concept {
 	}
 }
 
+// richRelations builds relations exercising the optional fields: a note, a
+// market-tagged validity, and a time-bounded validity authored in a non-UTC
+// zone (so canonicalization has something to normalize). Built id-sorted so
+// the UTC-normalized form equals the deterministic round-trip output.
+func richRelations() []termbase.ConceptRelation {
+	t0 := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	oslo := time.FixedZone("Europe/Oslo", 2*60*60)
+	from := time.Date(2026, 7, 1, 12, 0, 0, 0, oslo)
+	return []termbase.ConceptRelation{
+		{
+			ID: "r-1", SourceID: "c-2", TargetID: "c-1",
+			RelationType: graph.LabelUseInstead, Note: "renamed at launch",
+			Validity:  &graph.Validity{Tags: map[string]string{"market": "dach"}},
+			CreatedAt: t0,
+		},
+		{
+			ID: "r-2", SourceID: "c-1", TargetID: "c-2",
+			RelationType: graph.LabelCompetitor,
+			Validity:     &graph.Validity{ValidFrom: &from},
+			CreatedAt:    t0.In(oslo),
+		},
+	}
+}
+
 func TestRoundTripLossless(t *testing.T) {
 	concepts := richConcepts()
 	data, err := Marshal(FromConcepts(concepts))
@@ -72,6 +97,81 @@ func TestMarshalIsDeterministic(t *testing.T) {
 	b, err := Marshal(FromConcepts(reversed))
 	require.NoError(t, err)
 	assert.Equal(t, string(a), string(b), "Marshal must be order-independent and deterministic")
+}
+
+func TestRoundTripWithRelations(t *testing.T) {
+	file := FromConcepts(richConcepts())
+	file.Relations = richRelations()
+	data, err := Marshal(file)
+	require.NoError(t, err)
+
+	got, err := Unmarshal(data)
+	require.NoError(t, err)
+	assert.Equal(t, SchemaVersion, got.SchemaVersion)
+	require.Equal(t, canonicalRelations(richRelations()), got.Relations, "relations must round-trip losslessly")
+
+	// Byte-stable: re-encoding the decoded file reproduces the exact bytes.
+	again, err := Marshal(got)
+	require.NoError(t, err)
+	assert.Equal(t, string(data), string(again), "relations round-trip must be byte-identical")
+
+	// The note, the market tag, and the UTC-normalized bound all survive.
+	out := string(data)
+	assert.Contains(t, out, `"relation_type": "USE_INSTEAD"`)
+	assert.Contains(t, out, `"note": "renamed at launch"`)
+	assert.Contains(t, out, `"market": "dach"`)
+	assert.Contains(t, out, `"valid_from": "2026-07-01T10:00:00Z"`, "validity bounds normalize to UTC")
+}
+
+func TestMarshalRelationsDeterministic(t *testing.T) {
+	rels := richRelations()
+	fileA := FromConcepts(richConcepts())
+	fileA.Relations = rels
+	a, err := Marshal(fileA)
+	require.NoError(t, err)
+
+	fileB := FromConcepts(richConcepts())
+	fileB.Relations = []termbase.ConceptRelation{rels[1], rels[0]}
+	b, err := Marshal(fileB)
+	require.NoError(t, err)
+	assert.Equal(t, string(a), string(b), "relation order must not affect the bytes")
+
+	// No relations: nil and empty marshal identically, with the key omitted.
+	fileNil := FromConcepts(richConcepts())
+	c, err := Marshal(fileNil)
+	require.NoError(t, err)
+	fileEmpty := FromConcepts(richConcepts())
+	fileEmpty.Relations = []termbase.ConceptRelation{}
+	d, err := Marshal(fileEmpty)
+	require.NoError(t, err)
+	assert.Equal(t, string(c), string(d))
+	assert.NotContains(t, string(c), `"relations"`)
+}
+
+func TestUnmarshalAcceptsNoRelationsKey(t *testing.T) {
+	// A document with no relations — the array is omitted, not empty.
+	fixture := `{
+  "schemaVersion": "1.0",
+  "kind": "kapi-termbase-format",
+  "concepts": [
+    {
+      "id": "c-1",
+      "domain": "software",
+      "terms": [
+        {"text": "Get started", "locale": "en", "status": "preferred"}
+      ],
+      "created_at": "2026-06-01T09:00:00Z",
+      "updated_at": "2026-06-01T09:00:00Z"
+    }
+  ]
+}
+`
+	got, err := Unmarshal([]byte(fixture))
+	require.NoError(t, err)
+	assert.Equal(t, "1.0", got.SchemaVersion)
+	require.Len(t, got.Concepts, 1)
+	assert.Equal(t, "c-1", got.Concepts[0].ID)
+	assert.Nil(t, got.Relations)
 }
 
 func TestUnmarshalRejectsBadEnvelope(t *testing.T) {

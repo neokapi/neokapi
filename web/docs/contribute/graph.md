@@ -209,7 +209,7 @@ defer store.Close()
 
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
 
-The SQLite backend has no native Cypher support, so `CypherQuery` and `CypherExec` return the sentinel `graph.ErrCypherNotSupported`. The server-side Apache AGE backend (`bowrain/graph/`) implements both natively.
+The SQLite backend has no native Cypher support, so `CypherQuery` and `CypherExec` return the sentinel `graph.ErrCypherNotSupported`. A server-side deployment can supply a backend with native Cypher support behind the same interface.
 
 The `GraphStore` interface is designed for extension — server deployments can add their own backend behind the same interface.
 

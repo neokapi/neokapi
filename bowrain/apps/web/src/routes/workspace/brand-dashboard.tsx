@@ -1,18 +1,38 @@
 import { useEffect } from "react";
-import { useRouteContext } from "@tanstack/react-router";
-import { BrandDashboard } from "@neokapi/ui";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { BrandDashboardView } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function BrandDashboardRoute() {
+  const navigate = useNavigate();
+  const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Brand Dashboard — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Dashboard — Brand — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
 
-  // Dashboard renders without a specific project selected — show empty state.
-  // In future, this will accept a project selector.
-  return <BrandDashboard score={null} trends={[]} recentScores={[]} />;
+  const ws = workspace ?? "";
+
+  return (
+    <BrandDashboardView
+      onOpenExperiment={(id) =>
+        void navigate({
+          to: "/$workspace/brand/experiments/$id",
+          params: { workspace: ws, id },
+        })
+      }
+      onViewExperiments={() =>
+        void navigate({ to: "/$workspace/brand/experiments", params: { workspace: ws } })
+      }
+      onViewConcepts={() =>
+        void navigate({ to: "/$workspace/brand/concepts", params: { workspace: ws } })
+      }
+      onViewVoice={() =>
+        void navigate({ to: "/$workspace/brand/voice", params: { workspace: ws } })
+      }
+    />
+  );
 }

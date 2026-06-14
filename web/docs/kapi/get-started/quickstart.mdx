@@ -92,11 +92,11 @@ non-zero when the score is below the threshold:
 kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
 ```
 
-Input can be a file argument, `--text "…"`, or piped via stdin. Rewrite off-voice
-content — forbidden terms, competitor mentions, jargon:
+Input can be a file argument, `--input-text "…"`, or piped via stdin. Rewrite
+off-voice content — forbidden terms, competitor mentions, jargon:
 
 ```bash
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution to drive synergy."
+kapi brand rewrite --profile-file brand.yaml --input-text "Leverage our solution to drive synergy."
 ```
 
 Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,

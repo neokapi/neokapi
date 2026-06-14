@@ -85,6 +85,30 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
+  ListConceptsParams,
+  ConceptStory,
+  ConceptRelation,
+  ConceptUsage,
+  AddConceptRelationRequest,
+  RelationScope,
+  Observation,
+  AddObservationRequest,
+  Comment,
+  AddCommentRequest,
+  Market,
+  MarketRequest,
+  ChangeSet,
+  ChangeSetDetail,
+  ChangeSetStatus,
+  ChangeSetOp,
+  AddChangeSetOpRequest,
+  CreateChangeSetRequest,
+  UpdateChangeSetRequest,
+  ReviewRequest,
+  ChangeSetImpact,
+  MergeResult,
+  Pilot,
+  StartPilotRequest,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -1241,6 +1265,185 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async billingGetLedger(_ws: string, _from?: string, _to?: string): Promise<CreditLedgerEntry[]> {
     return [];
+  }
+
+  // --- Brand knowledge graph (AD-021) ---
+  // The desktop app is a working copy of the server (AD-021): these proxy the
+  // workspace REST surface through the Go backend's knowledge.go (Bearer
+  // keychain auth, govRequest), exactly like the Brand Voice methods above. The
+  // graph is never authored offline. The backend returns json.RawMessage, which
+  // the bindings surface untyped, so cast at the boundary to the typed shapes
+  // the ApiAdapter promises. Ordinary concept terminology edits keep using the
+  // gRPC editor methods (addConcept/updateConcept/deleteConcept) above.
+  async listConcepts(
+    workspaceSlug: string,
+    params?: ListConceptsParams,
+  ): Promise<TermSearchResult> {
+    return Backend.ListConcepts(workspaceSlug, params ?? {}) as Promise<TermSearchResult>;
+  }
+  async getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo> {
+    return Backend.GetConcept(workspaceSlug, conceptId) as Promise<ConceptInfo>;
+  }
+  async createConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo> {
+    return Backend.CreateConcept(workspaceSlug, req) as Promise<ConceptInfo>;
+  }
+  async getConceptStory(workspaceSlug: string, conceptId: string): Promise<ConceptStory> {
+    return Backend.GetConceptStory(workspaceSlug, conceptId) as Promise<ConceptStory>;
+  }
+  async listConceptRelations(
+    workspaceSlug: string,
+    conceptId: string,
+    scope?: RelationScope,
+  ): Promise<ConceptRelation[]> {
+    return Backend.ListConceptRelations(
+      workspaceSlug,
+      conceptId,
+      scope?.as_of ?? "",
+      scope?.market ?? "",
+    ) as Promise<ConceptRelation[]>;
+  }
+  async addConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddConceptRelationRequest,
+  ): Promise<ConceptRelation> {
+    return Backend.AddConceptRelation(workspaceSlug, conceptId, req) as Promise<ConceptRelation>;
+  }
+  async deleteConceptRelation(
+    workspaceSlug: string,
+    conceptId: string,
+    relationId: string,
+  ): Promise<void> {
+    return Backend.DeleteConceptRelation(workspaceSlug, conceptId, relationId);
+  }
+  async getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage> {
+    return Backend.GetConceptBlastRadius(workspaceSlug, conceptId) as Promise<ConceptUsage>;
+  }
+  async listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]> {
+    return Backend.ListObservations(workspaceSlug, conceptId) as Promise<Observation[]>;
+  }
+  async addObservation(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddObservationRequest,
+  ): Promise<Observation> {
+    return Backend.AddObservation(workspaceSlug, conceptId, req) as Promise<Observation>;
+  }
+  async deleteObservation(
+    workspaceSlug: string,
+    conceptId: string,
+    observationId: string,
+  ): Promise<void> {
+    return Backend.DeleteObservation(workspaceSlug, conceptId, observationId);
+  }
+  async listConceptComments(workspaceSlug: string, conceptId: string): Promise<Comment[]> {
+    return Backend.ListConceptComments(workspaceSlug, conceptId) as Promise<Comment[]>;
+  }
+  async addConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    req: AddCommentRequest,
+  ): Promise<Comment> {
+    return Backend.AddConceptComment(workspaceSlug, conceptId, req) as Promise<Comment>;
+  }
+  async resolveConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+    resolved?: boolean,
+  ): Promise<void> {
+    // The Go proxy always sends an explicit bool; the resolve action defaults to
+    // marking resolved when the caller doesn't pass an explicit toggle value.
+    return Backend.ResolveConceptComment(workspaceSlug, conceptId, commentId, resolved ?? true);
+  }
+  async deleteConceptComment(
+    workspaceSlug: string,
+    conceptId: string,
+    commentId: string,
+  ): Promise<void> {
+    return Backend.DeleteConceptComment(workspaceSlug, conceptId, commentId);
+  }
+  async listMarkets(workspaceSlug: string): Promise<Market[]> {
+    return Backend.ListMarkets(workspaceSlug) as Promise<Market[]>;
+  }
+  async createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market> {
+    return Backend.CreateMarket(workspaceSlug, req) as Promise<Market>;
+  }
+  async updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market> {
+    return Backend.UpdateMarket(workspaceSlug, marketId, req) as Promise<Market>;
+  }
+  async deleteMarket(workspaceSlug: string, marketId: string): Promise<void> {
+    return Backend.DeleteMarket(workspaceSlug, marketId);
+  }
+  async listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]> {
+    return Backend.ListChangesets(workspaceSlug, status ?? "") as Promise<ChangeSet[]>;
+  }
+  async getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail> {
+    return Backend.GetChangeset(workspaceSlug, changesetId) as Promise<ChangeSetDetail>;
+  }
+  async createChangeset(workspaceSlug: string, req: CreateChangeSetRequest): Promise<ChangeSet> {
+    return Backend.CreateChangeset(workspaceSlug, req) as Promise<ChangeSet>;
+  }
+  async patchChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req: UpdateChangeSetRequest,
+  ): Promise<ChangeSet> {
+    return Backend.PatchChangeset(workspaceSlug, changesetId, req) as Promise<ChangeSet>;
+  }
+  async appendChangesetOp(
+    workspaceSlug: string,
+    changesetId: string,
+    req: AddChangeSetOpRequest,
+  ): Promise<ChangeSetOp> {
+    return Backend.AppendChangesetOp(workspaceSlug, changesetId, req) as Promise<ChangeSetOp>;
+  }
+  async removeChangesetOp(workspaceSlug: string, changesetId: string, seq: number): Promise<void> {
+    return Backend.RemoveChangesetOp(workspaceSlug, changesetId, seq);
+  }
+  async submitChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return Backend.SubmitChangeset(workspaceSlug, changesetId) as Promise<ChangeSet>;
+  }
+  async approveChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    return Backend.ApproveChangeset(workspaceSlug, changesetId, req ?? {}) as Promise<ChangeSet>;
+  }
+  async rejectChangeset(
+    workspaceSlug: string,
+    changesetId: string,
+    req?: ReviewRequest,
+  ): Promise<ChangeSet> {
+    return Backend.RejectChangeset(workspaceSlug, changesetId, req ?? {}) as Promise<ChangeSet>;
+  }
+  async mergeChangeset(workspaceSlug: string, changesetId: string): Promise<MergeResult> {
+    return Backend.MergeChangeset(workspaceSlug, changesetId) as Promise<MergeResult>;
+  }
+  async abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet> {
+    return Backend.AbandonChangeset(workspaceSlug, changesetId) as Promise<ChangeSet>;
+  }
+  async getChangesetBlastRadius(
+    workspaceSlug: string,
+    changesetId: string,
+  ): Promise<ChangeSetImpact> {
+    return Backend.GetChangesetBlastRadius(workspaceSlug, changesetId) as Promise<ChangeSetImpact>;
+  }
+  async addPilot(
+    workspaceSlug: string,
+    changesetId: string,
+    req: StartPilotRequest,
+  ): Promise<Pilot> {
+    return Backend.AddPilot(workspaceSlug, changesetId, req) as Promise<Pilot>;
+  }
+  async removePilot(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<void> {
+    return Backend.RemovePilot(workspaceSlug, changesetId, projectId, stream);
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

@@ -20,10 +20,18 @@ var (
 
 var pushCmd = &cobra.Command{
 	Use:   "push [paths...]",
-	Short: "Upload local changes to the server",
+	Short: "Upload local changes and terminology edits to the server",
 	Long: `Upload local changes to the server.
 
-Only changed blocks are sent. Runs pre-push hooks if configured.`,
+Only changed blocks are sent. Runs pre-push hooks if configured.
+
+When the project is claimed into a workspace and a baseline was pulled, push
+also reconciles local terminology edits against that baseline. Ordinary edits
+(definitions, notes, proposed terms, non-governed relations) apply directly,
+while governed edits (a term set to forbidden/preferred, a REPLACED_BY
+relation, a concept delete) are bundled into a single change-set proposal for
+review — the same separation of duties the web hub enforces. Push reports what
+applied directly versus what was proposed.`,
 	RunE: runPush,
 }
 
@@ -103,6 +111,22 @@ func runPush(cmd *cobra.Command, args []string) error {
 		Stream:       conn.Stream(),
 		DryRun:       pr.DryRun,
 		UpToDate:     pr.UpToDate,
+	}
+
+	// Fold the workspace's governed terminology into the push: reconcile local
+	// concept/relation edits against the pulled baseline (ordinary edits go up
+	// directly, governed edits become a submitted change-set). Skipped silently
+	// when the project is not workspace-claimed or has no pulled baseline.
+	if proj, perr := project.FindProject(""); perr == nil {
+		if cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun); cerr != nil {
+			return cerr
+		} else if cres != nil {
+			out.ConceptsApplied = cres.ConceptsApplied
+			out.RelationsApplied = cres.RelationsApplied
+			out.ConceptsProposed = cres.ConceptsProposed
+			out.ChangesetID = cres.ChangesetID
+			out.ChangesetURL = cres.ChangesetURL
+		}
 	}
 
 	if err := output.Print(cmd, out); err != nil {

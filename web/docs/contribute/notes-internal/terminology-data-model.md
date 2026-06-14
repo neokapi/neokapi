@@ -104,19 +104,49 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 
 ## Concept relations
 
-Concepts can be linked for graph import and export. A `ConceptRelation` records
-a typed, directed edge between two concepts:
+Concepts are linked by persisted, typed, directed edges. A `ConceptRelation`
+records the edge with an identity, an optional note, and an optional validity:
 
 ```go
 type ConceptRelation struct {
-    SourceID     string // origin concept ID
-    TargetID     string // target concept ID
-    RelationType string // uses graph.Label* constants
+    ID           string          // edge identity (caller-assigned; required)
+    SourceID     string          // origin concept ID
+    TargetID     string          // target concept ID
+    RelationType string          // a graph.Label* constant
+    Note         string          // optional human note
+    Validity     *graph.Validity // optional time + tag scope (nil = unbounded)
+    CreatedAt    time.Time
 }
 ```
 
 `RelationType` draws its values from the `graph.Label*` constants, so relation
 edges share the vocabulary used by the rest of the graph layer.
+`KnownRelationType` and `ValidateRelation` reject an unknown type or a missing
+ID before a write. The `TermBase` interface persists and queries edges:
+
+```go
+AddRelation(ctx, rel ConceptRelation) error            // upsert by ID
+DeleteRelation(ctx, id string) error
+RelationsOf(ctx, conceptID string, scope *graph.Scope) ([]ConceptRelation, error) // both directions
+ListRelations(ctx, scope *graph.Scope) ([]ConceptRelation, error)
+```
+
+## Temporal and tag validity
+
+A `Term` and a `ConceptRelation` each carry an optional `*graph.Validity`: a
+half-open `[ValidFrom, ValidTo)` interval plus a `map[string]string` of tags.
+`LookupOptions.Scope` and the relation read methods take a `*graph.Scope` (a
+time plus tags); a term or edge is returned only when its validity matches the
+scope (a nil validity always matches; a nil scope filters nothing). Tags are
+open-ended — a caller picks a vocabulary, such as a `market` key.
+
+## Status transitions
+
+`ValidateTransition(from, to model.TermStatus) error` accepts any transition
+between known statuses (it rejects only unknown statuses), and
+`IsGovernedTransition(from, to) bool` reports whether a transition is
+consequential: any transition to `forbidden` or `preferred`, or from
+`forbidden`. The framework classifies; it imposes no review workflow.
 
 ## Content model extensions
 

@@ -28,12 +28,12 @@ import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DesktopTranslateView } from "./components/DesktopTranslateView";
 import { MembersPage } from "./components/MembersPage";
-import { BrandPage } from "./components/BrandPage";
+import { BrandHubPage, type BrandSection } from "./components/BrandHubPage";
 import { useConnection } from "./hooks/useApi";
 import { BackendEventsProvider, useBackendEvents } from "./hooks/useBackendEvents";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
-import { Shuffle, Link, Loader2, Users, ShieldCheck } from "lucide-react";
+import { Shuffle, Link, Loader2, Users } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 import { Backend } from "./api/backend";
 
@@ -55,11 +55,11 @@ const baseNavItems: NavItem[] = [
   { id: "connectors", label: "Connectors", icon: <Link className="w-4 h-4" /> },
 ];
 
-// Governance nav entries (members, brand) require a connected server +
-// workspace, so they only appear in server mode.
+// Governance nav entries require a connected server + workspace, so they only
+// appear in server mode. The Brand hub is contributed by the shared sidebar's
+// workspace nav, so it is not repeated here.
 const governanceNavItems: NavItem[] = [
   { id: "members", label: "Members", icon: <Users className="w-4 h-4" /> },
-  { id: "brand", label: "Brand", icon: <ShieldCheck className="w-4 h-4" /> },
 ];
 
 /**
@@ -124,6 +124,13 @@ function App() {
   // App state
   const [activeView, setActiveView] = useState<AppView>("translate");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Brand hub state (AD-021). The desktop has no router, so the active section
+  // (AppShell brand sub-nav) and the concept/change-set drill-down selection are
+  // React state here, passed down to BrandHubPage.
+  const [brandSection, setBrandSection] = useState<BrandSection>("concepts");
+  const [brandConceptId, setBrandConceptId] = useState("");
+  const [brandChangesetId, setBrandChangesetId] = useState("");
 
   // Project state
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -499,6 +506,37 @@ function App() {
     }
   }, []);
 
+  // --- Brand hub callbacks (AD-021) ---
+
+  // A brand sub-nav click switches section and drops any drill-down selection so
+  // the section opens on its list (not a stale concept/change-set detail).
+  const handleBrandSubNavChange = useCallback((id: string) => {
+    setBrandSection(id as BrandSection);
+    setBrandConceptId("");
+    setBrandChangesetId("");
+  }, []);
+
+  const brandGotoSection = useCallback((section: BrandSection) => {
+    setBrandSection(section);
+    setBrandConceptId("");
+    setBrandChangesetId("");
+  }, []);
+
+  const brandOpenConcept = useCallback((conceptId: string) => {
+    setBrandSection("concepts");
+    setBrandConceptId(conceptId);
+    setBrandChangesetId("");
+  }, []);
+
+  const brandOpenExperiment = useCallback((changesetId: string) => {
+    setBrandSection("experiments");
+    setBrandChangesetId(changesetId);
+    setBrandConceptId("");
+  }, []);
+
+  const brandCloseConcept = useCallback(() => setBrandConceptId(""), []);
+  const brandCloseExperiment = useCallback(() => setBrandChangesetId(""), []);
+
   const handleDesktopExport = useCallback((_blob: Blob, _fileName: string) => {
     // No-op: WailsApiAdapter.exportTranslatedFile already exported to disk and opened in OS
   }, []);
@@ -687,7 +725,19 @@ function App() {
       case "members":
         return <MembersPage />;
       case "brand":
-        return <BrandPage projects={projects} />;
+        return (
+          <BrandHubPage
+            projects={projects}
+            section={brandSection}
+            conceptId={brandConceptId}
+            changesetId={brandChangesetId}
+            onOpenConcept={brandOpenConcept}
+            onCloseConcept={brandCloseConcept}
+            onOpenExperiment={brandOpenExperiment}
+            onCloseExperiment={brandCloseExperiment}
+            onGotoSection={brandGotoSection}
+          />
+        );
     }
   };
 
@@ -705,50 +755,57 @@ function App() {
                 reloadActiveProject={reloadActiveProject}
                 reloadOpenEditor={reloadOpenEditor}
               />
-            </BackendEventsProvider>
-            <AppShell
-              workspaces={allWorkspaces}
-              activeWorkspace={workspace}
-              onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
-              activeView={activeView}
-              onViewChange={handleViewChange}
-              extraNavItems={desktopNavItems}
-              user={sidebarUser}
-              onSignOut={isServerMode ? handleSignOut : undefined}
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
-              topBar
-              connectionState={connectionState}
-              pendingChanges={pendingChanges}
-              showThemeToggle={false}
-              sidebarContext={sidebarContext}
-              headerSlot={
-                <TopBar
-                  user={sidebarUser}
-                  onSignOut={isServerMode ? handleSignOut : undefined}
-                  connectionState={
-                    isServerMode
-                      ? (connection.info.state as
-                          | "disconnected"
-                          | "connecting"
-                          | "connected"
-                          | "offline")
-                      : undefined
-                  }
-                  pendingChanges={pendingChanges}
-                />
-              }
-              contentClassName={cn(isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto")}
-            >
-              {renderView()}
-            </AppShell>
+              <AppShell
+                workspaces={allWorkspaces}
+                activeWorkspace={workspace}
+                onSelectWorkspace={handleSelectWorkspace}
+                onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
+                activeView={activeView}
+                onViewChange={handleViewChange}
+                extraNavItems={desktopNavItems}
+                user={sidebarUser}
+                onSignOut={isServerMode ? handleSignOut : undefined}
+                collapsed={sidebarCollapsed}
+                onCollapsedChange={setSidebarCollapsed}
+                topBar
+                connectionState={connectionState}
+                pendingChanges={pendingChanges}
+                showThemeToggle={false}
+                sidebarContext={sidebarContext}
+                // Surface the shared Brand sub-nav (subNavConfig.brand) only on
+                // the Brand hub; passing onSubNavChange for other views would
+                // wrongly render their secondary panels (e.g. Settings).
+                activeSubNav={activeView === "brand" ? brandSection : undefined}
+                onSubNavChange={activeView === "brand" ? handleBrandSubNavChange : undefined}
+                headerSlot={
+                  <TopBar
+                    user={sidebarUser}
+                    onSignOut={isServerMode ? handleSignOut : undefined}
+                    connectionState={
+                      isServerMode
+                        ? (connection.info.state as
+                            | "disconnected"
+                            | "connecting"
+                            | "connected"
+                            | "offline")
+                        : undefined
+                    }
+                    pendingChanges={pendingChanges}
+                  />
+                }
+                contentClassName={cn(
+                  isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
+                )}
+              >
+                {renderView()}
+              </AppShell>
 
-            <CreateWorkspaceDialog
-              open={showCreateWs}
-              onOpenChange={setShowCreateWs}
-              onCreate={handleWorkspaceCreated}
-            />
+              <CreateWorkspaceDialog
+                open={showCreateWs}
+                onOpenChange={setShowCreateWs}
+                onCreate={handleWorkspaceCreated}
+              />
+            </BackendEventsProvider>
           </WorkspaceProvider>
         </ApiProvider>
       </TooltipProvider>

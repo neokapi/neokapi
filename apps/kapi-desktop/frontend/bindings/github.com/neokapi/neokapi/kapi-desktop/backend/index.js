@@ -9,6 +9,7 @@ export {
 
 export {
     AddConceptRequest,
+    AddRelationRequest,
     AddTMEntryRequest,
     AdoptFlowResult,
     AnnotateEntitiesRequest,
@@ -38,6 +39,7 @@ export {
     FormatInfo,
     FormatPartInfo,
     FormatPresetInfo,
+    IOPort,
     ImportResult,
     ImportSessionDTO,
     ImportSessionFacetDTO,
@@ -57,10 +59,12 @@ export {
     ProviderSaveRequest,
     ProviderTypeInfo,
     RecentFile,
+    RelationDTO,
     ResourceInfo,
     RunEvent,
     SaveUserFlowRequest,
     SessionState,
+    SetTermStatusRequest,
     TMEntryDTO,
     TMFacets,
     TMMatchDTO,
@@ -76,6 +80,7 @@ export {
     UpdateTMEntryRequest,
     UserFlowDetail,
     UserFlowInfo,
+    ValidityDTO,
     VariantDTO,
     VariantInputDTO
 } from "./models.js";

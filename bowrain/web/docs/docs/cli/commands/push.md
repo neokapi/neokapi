@@ -8,6 +8,17 @@ sidebar_position: 5
 Send local file changes to Bowrain Server. Only transfers modified blocks
 (incremental sync using content hashing).
 
+When the project is claimed into a workspace and a baseline was pulled (see
+[`kapi pull`](/cli/commands/pull)), push also reconciles local terminology edits
+in the bound termbase against that baseline. Ordinary edits — definitions, notes,
+proposed terms, non-governed relations — apply directly through the concept
+endpoints. Governed edits — a term set to `forbidden` or `preferred`, an
+un-forbidding, a `replaced_by` relation, a concept delete — are bundled into a
+single submitted change-set **proposal** for review, the same separation of
+duties the [Brand](/server/brand#tiered-governance) hub enforces. Push reports
+what applied directly versus what was proposed, with a link to review the
+change-set.
+
 ## Usage
 
 ```bash
@@ -104,6 +115,9 @@ Push to Bowrain Server to:
 
 - **Share translations** with your team
 - **Trigger workflows** (AI translation, QA, terminology extraction)
+- **Send terminology edits** — ordinary edits land directly; governed edits
+  travel up as a [change-set](/server/brand#experiments-change-sets-and-pilots)
+  proposal
 - **Backup content** to the server
 - **Integrate with CI/CD** pipelines
 

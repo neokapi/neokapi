@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	fw "github.com/neokapi/neokapi/termbase"
@@ -94,6 +95,82 @@ var tbMigrationsPg = []storage.Migration{
 			FOR EACH ROW EXECUTE FUNCTION tb_terms_search_tsv_update();
 		`,
 	},
+	{
+		Version:     4,
+		Description: "brand knowledge graph: concept source, term competitor/validity, persisted relations",
+		// Schema parity with the framework SQLite backend (AD-021): the source
+		// column on concepts, the competitor flag and validity columns on terms,
+		// and the workspace-scoped relations table. The stream column mirrors
+		// the tb_concepts stream pattern so relations can participate in
+		// stream-scoped shadows (pilots) like concepts do.
+		SQL: `
+		ALTER TABLE tb_concepts ADD COLUMN source TEXT NOT NULL DEFAULT 'terminology';
+
+		ALTER TABLE tb_terms ADD COLUMN competitor_term BOOLEAN NOT NULL DEFAULT FALSE;
+		ALTER TABLE tb_terms ADD COLUMN valid_from TIMESTAMPTZ;
+		ALTER TABLE tb_terms ADD COLUMN valid_to TIMESTAMPTZ;
+		ALTER TABLE tb_terms ADD COLUMN tags JSONB NOT NULL DEFAULT '{}';
+
+		CREATE TABLE IF NOT EXISTS tb_relations (
+			id           TEXT NOT NULL,
+			workspace_id TEXT NOT NULL,
+			source_id    TEXT NOT NULL,
+			target_id    TEXT NOT NULL,
+			relation     TEXT NOT NULL,
+			note         TEXT NOT NULL DEFAULT '',
+			stream       TEXT NOT NULL DEFAULT '',
+			valid_from   TIMESTAMPTZ,
+			valid_to     TIMESTAMPTZ,
+			tags         JSONB NOT NULL DEFAULT '{}',
+			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (workspace_id, id),
+			FOREIGN KEY (workspace_id, source_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE,
+			FOREIGN KEY (workspace_id, target_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_source ON tb_relations(workspace_id, source_id);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_target ON tb_relations(workspace_id, target_id);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_stream ON tb_relations(workspace_id, stream);
+		`,
+	},
+}
+
+// pgValidityColumns flattens a validity into its three column values:
+// nullable TIMESTAMPTZ bounds and a JSON object of tags ('{}' when empty).
+func pgValidityColumns(v *graph.Validity) (validFrom, validTo *time.Time, tags string) {
+	tags = "{}"
+	if v == nil {
+		return nil, nil, tags
+	}
+	validFrom = v.ValidFrom
+	validTo = v.ValidTo
+	if len(v.Tags) > 0 {
+		if b, err := json.Marshal(v.Tags); err == nil {
+			tags = string(b)
+		}
+	}
+	return validFrom, validTo, tags
+}
+
+// pgValidityFromColumns rebuilds a validity from its column values. An entirely
+// unbounded, tagless validity round-trips to nil (semantically identical:
+// it matches every scope).
+func pgValidityFromColumns(validFrom, validTo sql.NullTime, tags string) *graph.Validity {
+	var v graph.Validity
+	if validFrom.Valid {
+		t := validFrom.Time
+		v.ValidFrom = &t
+	}
+	if validTo.Valid {
+		t := validTo.Time
+		v.ValidTo = &t
+	}
+	if tags != "" && tags != "{}" {
+		_ = json.Unmarshal([]byte(tags), &v.Tags)
+	}
+	if v.ValidFrom == nil && v.ValidTo == nil && len(v.Tags) == 0 {
+		return nil
+	}
+	return &v
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
@@ -105,6 +182,13 @@ func (tb *PostgresTermBase) AddConcept(ctx context.Context, concept fw.Concept) 
 func (tb *PostgresTermBase) AddConceptWithStream(ctx context.Context, concept fw.Concept, stream string) error {
 	if concept.ID == "" {
 		return errors.New("concept ID is required")
+	}
+	// Mirror the framework backends: each term status must be a known
+	// lifecycle value (an empty status is allowed — callers may leave it unset).
+	for _, t := range concept.Terms {
+		if t.Status != "" && !fw.KnownTermStatus(t.Status) {
+			return fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
+		}
 	}
 
 	now := time.Now()
@@ -126,17 +210,23 @@ func (tb *PostgresTermBase) AddConceptWithStream(ctx context.Context, concept fw
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	source := concept.Source
+	if source == "" {
+		source = fw.TermSourceTerminology
+	}
+
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, source, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			stream = EXCLUDED.stream,
 			domain = EXCLUDED.domain,
 			definition = EXCLUDED.definition,
 			properties = EXCLUDED.properties,
+			source = EXCLUDED.source,
 			updated_at = EXCLUDED.updated_at
 	`, concept.ID, tb.workspaceID, stream, concept.Domain, concept.Definition,
-		nullableString(propsJSON),
+		nullableString(propsJSON), string(source),
 		concept.CreatedAt, concept.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert concept: %w", err)
@@ -149,12 +239,14 @@ func (tb *PostgresTermBase) AddConceptWithStream(ctx context.Context, concept fw
 	}
 
 	for _, term := range concept.Terms {
+		validFrom, validTo, tags := pgValidityColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		`, tb.workspaceID, concept.ID, term.Text, strings.ToLower(term.Text),
 			string(term.Locale), string(term.Status),
-			term.PartOfSpeech, term.Gender, term.Note)
+			term.PartOfSpeech, term.Gender, term.Note, term.CompetitorTerm,
+			validFrom, validTo, tags)
 		if err != nil {
 			return fmt.Errorf("insert term: %w", err)
 		}
@@ -189,6 +281,169 @@ func (tb *PostgresTermBase) DeleteConcept(ctx context.Context, id string) error 
 		return fmt.Errorf("concept not found: %s", id)
 	}
 	return nil
+}
+
+// AddRelation inserts or updates (by ID) a relation between two concepts
+// using an empty stream.
+func (tb *PostgresTermBase) AddRelation(ctx context.Context, rel fw.ConceptRelation) error {
+	return tb.AddRelationWithStream(ctx, rel, "")
+}
+
+// AddRelationWithStream inserts or updates a relation associated with a stream.
+func (tb *PostgresTermBase) AddRelationWithStream(ctx context.Context, rel fw.ConceptRelation, stream string) error {
+	if err := fw.ValidateRelation(rel); err != nil {
+		return err
+	}
+	if err := tb.requireConcept(ctx, "source", rel.SourceID); err != nil {
+		return err
+	}
+	if err := tb.requireConcept(ctx, "target", rel.TargetID); err != nil {
+		return err
+	}
+
+	if rel.CreatedAt.IsZero() {
+		rel.CreatedAt = time.Now()
+	}
+	validFrom, validTo, tags := pgValidityColumns(rel.Validity)
+
+	// created_at is deliberately not updated on conflict: an upsert preserves
+	// the original creation time, like AddConcept does for concepts.
+	_, err := tb.db.ExecContext(ctx, `
+		INSERT INTO tb_relations (id, workspace_id, source_id, target_id, relation, note, stream, valid_from, valid_to, tags, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (workspace_id, id) DO UPDATE SET
+			source_id = EXCLUDED.source_id,
+			target_id = EXCLUDED.target_id,
+			relation = EXCLUDED.relation,
+			note = EXCLUDED.note,
+			stream = EXCLUDED.stream,
+			valid_from = EXCLUDED.valid_from,
+			valid_to = EXCLUDED.valid_to,
+			tags = EXCLUDED.tags
+	`, rel.ID, tb.workspaceID, rel.SourceID, rel.TargetID, rel.RelationType, rel.Note, stream,
+		validFrom, validTo, tags, rel.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("upsert relation: %w", err)
+	}
+	return nil
+}
+
+// requireConcept returns an error if the concept does not exist.
+func (tb *PostgresTermBase) requireConcept(ctx context.Context, role, id string) error {
+	var n int
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id).Scan(&n); err != nil {
+		return fmt.Errorf("check %s concept: %w", role, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%s concept not found: %s", role, id)
+	}
+	return nil
+}
+
+// DeleteRelation removes a relation by ID.
+func (tb *PostgresTermBase) DeleteRelation(ctx context.Context, id string) error {
+	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_relations WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+	if err != nil {
+		return fmt.Errorf("delete relation: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("relation not found: %s", id)
+	}
+	return nil
+}
+
+// RelationsOf returns all relations touching the concept, in either direction,
+// filtered by the validity scope when one is given.
+func (tb *PostgresTermBase) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	rows, err := tb.db.QueryContext(ctx, `
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) ORDER BY id
+	`, tb.workspaceID, conceptID)
+	if err != nil {
+		return nil, fmt.Errorf("query relations: %w", err)
+	}
+	defer rows.Close()
+	return pgScanRelations(rows, scope)
+}
+
+// ListRelations returns all relations, filtered by the validity scope when one
+// is given.
+func (tb *PostgresTermBase) ListRelations(ctx context.Context, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	rows, err := tb.db.QueryContext(ctx, `
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations WHERE workspace_id = $1 ORDER BY id
+	`, tb.workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list relations: %w", err)
+	}
+	defer rows.Close()
+	return pgScanRelations(rows, scope)
+}
+
+// RelationsForStream returns the relations touching the concept (either
+// direction) whose stream is the given stream or one of its ancestors, with
+// the same chain semantics as SearchForStream: relations from earlier streams
+// in the chain sort first. When scope is non-nil, relations whose validity
+// does not match the scope are filtered out.
+func (tb *PostgresTermBase) RelationsForStream(ctx context.Context, conceptID string, stream string, streamChain []string, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	args := []any{tb.workspaceID, conceptID}
+	argN := 3
+
+	placeholders := make([]string, len(streams))
+	for i, s := range streams {
+		placeholders[i] = fmt.Sprintf("$%d", argN)
+		args = append(args, s)
+		argN++
+	}
+
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
+		args = append(args, s)
+		argN++
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations
+		WHERE workspace_id = $1 AND (source_id = $2 OR target_id = $2) AND stream IN (%s)
+		ORDER BY %s, id
+	`, strings.Join(placeholders, ","), caseExpr.String())
+	rows, err := tb.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query relations for stream: %w", err)
+	}
+	defer rows.Close()
+	return pgScanRelations(rows, scope)
+}
+
+// pgScanRelations reads relation rows, rebuilding validity and applying the
+// optional scope filter.
+func pgScanRelations(rows *sql.Rows, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	var out []fw.ConceptRelation
+	for rows.Next() {
+		var rel fw.ConceptRelation
+		var tags string
+		var validFrom, validTo sql.NullTime
+		if err := rows.Scan(&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.Note, &validFrom, &validTo, &tags, &rel.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan relation: %w", err)
+		}
+		rel.Validity = pgValidityFromColumns(validFrom, validTo, tags)
+		if !fw.MatchesScope(rel.Validity, scope) {
+			continue
+		}
+		out = append(out, rel)
+	}
+	return out, rows.Err()
 }
 
 // Lookup finds terms matching the source text.
@@ -641,21 +896,24 @@ func (tb *PostgresTermBase) Close() error {
 func (tb *PostgresTermBase) scanConcept(ctx context.Context, id string) (fw.Concept, error) {
 	var c fw.Concept
 	var propsJSON *string
+	var source string
 
 	err := tb.db.QueryRowContext(ctx, `
-		SELECT id, domain, definition, properties, created_at, updated_at
+		SELECT id, domain, definition, properties, source, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id = $2
-	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &c.CreatedAt, &c.UpdatedAt)
+	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return fw.Concept{}, err
 	}
+
+	c.Source = fw.TermSource(source)
 
 	if propsJSON != nil && *propsJSON != "" {
 		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT text, locale, status, part_of_speech, gender, note
+		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2
 	`, tb.workspaceID, id)
 	if err != nil {
@@ -665,12 +923,14 @@ func (tb *PostgresTermBase) scanConcept(ctx context.Context, id string) (fw.Conc
 
 	for rows.Next() {
 		var t fw.Term
-		var locale, status string
-		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note); err != nil {
+		var locale, status, tags string
+		var validFrom, validTo sql.NullTime
+		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags); err != nil {
 			continue
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
+		t.Validity = pgValidityFromColumns(validFrom, validTo, tags)
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {

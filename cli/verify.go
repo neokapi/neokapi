@@ -140,9 +140,18 @@ content item's target template and the project target languages.
 
 Pass file paths to verify just those files instead.
 
-Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means
-"not on-spec yet", not a crash — in an assistant fix-loop, read the findings and fix.
-Pass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating.`,
+Selecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,
+every gate runs and a gate whose binding is missing (no defaults.brand_voice, no
+defaults.termbase) is skipped silently — there is nothing to check. But when you
+explicitly request a gate whose binding is missing, verify does not skip it: it
+fails the gate with a clear "misconfigured" finding, so a CI run that asked for
+--brand or --terms cannot pass by silently doing nothing. Bind the resource in
+the .kapi project, drop the flag, or pass --no-fail to keep it report-only.
+
+Exit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound
+gate), 1 for operational errors. Exit 3 means "not on-spec yet", not a crash — in
+an assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0
+(report mode) when looping; omit it for CI gating.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runVerify(cmd, args)
 		},
@@ -162,11 +171,16 @@ Pass --no-fail to always exit 0 (report mode) when looping; omit it for CI gatin
 }
 
 // gateSelection records which gates the user asked to run. When no gate flag
-// is set, every gate runs.
+// is set, every gate runs (explicit is false). When at least one gate flag is
+// set, only the named gates run and explicit is true — which turns a gate whose
+// project binding is missing from a silent skip into a reported failure, so a CI
+// user who wrote `--brand`/`--terms` learns the gate is misconfigured rather
+// than seeing a false pass.
 type gateSelection struct {
-	brand bool
-	terms bool
-	qa    bool
+	brand    bool
+	terms    bool
+	qa       bool
+	explicit bool
 }
 
 // cmdContext returns the command's context, or context.Background() when the
@@ -186,9 +200,9 @@ func resolveGateSelection(cmd *cobra.Command) gateSelection {
 	t, _ := cmd.Flags().GetBool("terms")
 	q, _ := cmd.Flags().GetBool("qa")
 	if !b && !t && !q {
-		return gateSelection{brand: true, terms: true, qa: true}
+		return gateSelection{brand: true, terms: true, qa: true, explicit: false}
 	}
-	return gateSelection{brand: b, terms: t, qa: q}
+	return gateSelection{brand: b, terms: t, qa: q, explicit: true}
 }
 
 // runVerify orchestrates the verify gates, emits the structured result, and
@@ -265,13 +279,36 @@ func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, er
 		if err != nil {
 			return VerifyOutput{}, err
 		}
-		if gate != nil {
+		switch {
+		case gate != nil:
 			gates = append(gates, *gate)
+		case sel.explicit:
+			// --brand was requested but the project binds no brand voice. Fail
+			// loudly rather than skip, so the misconfiguration is visible.
+			gates = append(gates, unboundGate(gateBrand, "defaults.brand_voice", "--brand"))
+		}
+	}
+
+	// --- terminology gate binding check ----------------------------------
+	// The terminology gate needs a bound termbase to enforce against. When one
+	// is bound it runs; when not, an explicitly requested gate fails (loud
+	// misconfiguration) while a default run skips it silently.
+	runTerms := false
+	if sel.terms {
+		bound, err := a.projectTermbaseBound(cmd)
+		if err != nil {
+			return VerifyOutput{}, err
+		}
+		switch {
+		case bound:
+			runTerms = true
+		case sel.explicit:
+			gates = append(gates, unboundGate(gateTerms, "defaults.termbase", "--terms"))
 		}
 	}
 
 	// --- terminology + qa gates ------------------------------------------
-	if sel.terms || sel.qa {
+	if runTerms || sel.qa {
 		// Resolve the (source, target, locale) units to inspect: either the
 		// explicit file args, or the project's content × target languages.
 		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
@@ -279,7 +316,7 @@ func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, er
 			return VerifyOutput{}, err
 		}
 
-		if sel.terms {
+		if runTerms {
 			termGate, err := a.verifyTerminology(cmd, units)
 			if err != nil {
 				return VerifyOutput{}, err
@@ -327,6 +364,36 @@ func buildVerifyOutput(gates []VerifyGateResult) VerifyOutput {
 		out.Gates = []VerifyGateResult{}
 	}
 	return out
+}
+
+// unboundGate returns a failing gate result for a gate the user explicitly
+// requested (e.g. --brand) whose required project binding is missing. Surfacing
+// it as a failure — rather than silently skipping — means a CI user learns the
+// gate is misconfigured instead of seeing a false pass. The verdict is a normal
+// gate failure, so --no-fail still downgrades it to report-only (exit 0).
+func unboundGate(gate, binding, flag string) VerifyGateResult {
+	return VerifyGateResult{
+		Gate: gate,
+		Pass: false,
+		Findings: []VerifyFinding{{
+			Gate:       gate,
+			Severity:   "error",
+			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s — nothing to check", gate, flag, binding),
+			Suggestion: fmt.Sprintf("add %s to the .kapi project, or drop %s to skip this gate", binding, flag),
+		}},
+	}
+}
+
+// projectTermbaseBound reports whether the terminology gate has a termbase to
+// enforce against: a --termbase flag, a defaults.termbase binding, or the
+// convention .kapi/termbase.db. It mirrors the resolution the gate itself uses
+// (resolveProjectTermbasePath), so "bound" means the same thing here and there.
+func (a *App) projectTermbaseBound(cmd *cobra.Command) (bool, error) {
+	tbPath, err := a.resolveProjectTermbasePath(cmd)
+	if err != nil {
+		return false, err
+	}
+	return tbPath != "", nil
 }
 
 // --- brand gate -------------------------------------------------------------

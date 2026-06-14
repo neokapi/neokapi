@@ -89,6 +89,7 @@ var brandMigrations = []storage.Migration{
 				correction_count INTEGER NOT NULL DEFAULT 0,
 				promoted_version INTEGER NOT NULL DEFAULT 0,
 				auto             BOOLEAN NOT NULL DEFAULT FALSE,
+				concept_id       TEXT NOT NULL DEFAULT '',
 				decided_by       TEXT NOT NULL DEFAULT '',
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)

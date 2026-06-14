@@ -180,19 +180,46 @@ Blocks.
 
 ### Concept relations
 
-Concepts carry relations to other concepts:
+The termbase persists typed, directed `ConceptRelation` edges between concepts.
+Each edge has an ID, a source and target concept, a type drawn from the
+SKOS-aligned vocabulary, an optional note, and an optional validity:
 
 - **broader** / **narrower** — taxonomic relationships
   (`skos:broader` / `skos:narrower`).
 - **part-of** / **has-part** — compositional meronymy/holonymy.
 - **related** — the associative relationship (`skos:related`).
 - **replaced-by** — a superseded concept points to its replacement.
+- **use-instead** — a discouraged term points at the preferred one.
 - **exact-match** / **close-match** — cross-scheme equivalence
   (`skos:exactMatch` / `skos:closeMatch`).
+- **competitor** — a competitor's term.
 
-Relations enable graph navigation in UIs and support terminology
-deprecation workflows where a superseded concept's terms are
-automatically flagged in new content.
+`KnownRelationType` and `ValidateRelation` gate writes: a relation is rejected
+unless its type is in the vocabulary and both concepts exist. The interface
+exposes `AddRelation`, `DeleteRelation`, `RelationsOf` (both directions), and
+`ListRelations`; the read methods take an optional `*graph.Scope` and return
+only edges whose validity matches. Relations enable graph navigation in UIs and
+deprecation workflows where a superseded concept's terms are flagged in new
+content; the `term-enforce` tool resolves `use-instead` / `replaced-by` to name
+the replacement.
+
+### Term and relation validity
+
+A term and a relation each carry an optional `*graph.Validity` — a half-open
+`[valid-from, valid-to)` interval plus free-form tags. `LookupOptions.Scope`
+and the relation read methods accept a `*graph.Scope` (a point in time plus
+tags) and return only the terms and edges active at that scope. This is how the
+termbase answers as-of-time and within-a-tag-scope (for example, per-market)
+questions; the framework assigns tags no meaning, leaving the vocabulary to the
+caller.
+
+### Status transitions
+
+`ValidateTransition(from, to)` accepts any transition between known statuses,
+and `IsGovernedTransition(from, to)` flags the consequential ones — any
+transition to `forbidden` or `preferred`, or from `forbidden`. The framework
+classifies transitions; it does not impose a review workflow, leaving that to a
+platform built on it.
 
 ### Competitor terms
 

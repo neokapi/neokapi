@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,6 +57,7 @@ omitted or set to "-".`,
 		a.newBrandGuideCmd(),
 		a.newBrandCheckCmd(),
 		a.newBrandRewriteCmd(),
+		a.newBrandValidateCmd(),
 		a.newBrandProfilesCmd(),
 		a.newBrandShowCmd(),
 		a.newBrandImportCmd(),
@@ -240,6 +242,136 @@ func (a *App) newBrandRewriteCmd() *cobra.Command {
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd
+}
+
+// ---------------------------------------------------------------------------
+// validate
+// ---------------------------------------------------------------------------
+
+func (a *App) newBrandValidateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validate <file.yaml|->",
+		Short: "Validate a brand voice profile YAML (structure, enums, regex, terms)",
+		Long: `Validate a brand voice profile YAML and report structural problems.
+
+Pass a file path, or "-" to read the profile from stdin. Validation reports:
+
+  - YAML syntax or type errors that stop the profile from parsing
+  - unknown fields (typo'd or unsupported keys)
+  - missing required fields (only 'name' is required)
+  - invalid enum values (tone formality/emotion/humor, style sentence_length/
+    person_pov/contractions, example category, rule severity)
+  - regex in style prohibited_patterns/required_patterns that does not compile
+  - vocabulary term rules with an empty term
+
+Exit codes: 0 when the profile is valid, 1 when it has any problem. With --json
+the result is {"valid": bool, "errors": [{"field", "message"}]}.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			src := args[0]
+			data, err := readProfileInput(src)
+			if err != nil {
+				// Operational: the file could not be opened/read.
+				return err
+			}
+
+			out := output.BrandValidateOutput{
+				Source: validateSourceLabel(src),
+				Errors: []brand.ProfileProblem{},
+			}
+
+			// 1. Lenient parse catches YAML syntax and type errors. A document
+			// that does not parse cannot be checked further.
+			profile, perr := brand.LoadProfileYAML(bytes.NewReader(data))
+			if perr != nil {
+				out.Errors = append(out.Errors, brand.ProfileProblem{Message: perr.Error()})
+				return emitValidate(cmd, out)
+			}
+			out.Profile = profile.Name
+
+			// 2. Strict parse catches unknown/typo'd fields that the lenient
+			// loader silently ignores.
+			if _, serr := brand.DecodeProfileStrict(bytes.NewReader(data)); serr != nil {
+				out.Errors = append(out.Errors, strictDecodeProblems(serr)...)
+			}
+
+			// 3. Semantic validation (required fields, enums, regex, terms).
+			out.Errors = append(out.Errors, brand.ValidateProfile(profile)...)
+
+			return emitValidate(cmd, out)
+		},
+	}
+	output.AddFlags(cmd)
+	return cmd
+}
+
+// emitValidate finalizes the validation verdict, prints it, and maps an invalid
+// profile to a non-zero (silent) exit so CI fails on a misconfigured profile
+// while the structured output stays the result channel.
+func emitValidate(cmd *cobra.Command, out output.BrandValidateOutput) error {
+	out.Valid = len(out.Errors) == 0
+	if err := output.Print(cmd, out); err != nil {
+		return err
+	}
+	if !out.Valid {
+		return ErrSilentExit
+	}
+	return nil
+}
+
+// readProfileInput reads the profile bytes from a file path, or from stdin when
+// src is "-".
+func readProfileInput(src string) ([]byte, error) {
+	if src == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, fmt.Errorf("read stdin: %w", err)
+		}
+		return data, nil
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil, fmt.Errorf("read profile: %w", err)
+	}
+	return data, nil
+}
+
+// validateSourceLabel is the human/JSON label for the validated source.
+func validateSourceLabel(src string) string {
+	if src == "-" {
+		return "stdin"
+	}
+	return src
+}
+
+// unknownFieldRe extracts the line number and field name from a yaml.v3
+// KnownFields(true) "field X not found in type ..." error line.
+var unknownFieldRe = regexp.MustCompile(`line (\d+): field (\S+) not found in type`)
+
+// strictDecodeProblems turns a strict-decode error (from DecodeProfileStrict)
+// into per-field problems. It recognises yaml.v3's unknown-field lines and
+// rewrites them without the leaking Go type name; any unrecognised remainder is
+// surfaced verbatim so no decode error is swallowed.
+func strictDecodeProblems(err error) []brand.ProfileProblem {
+	if err == nil {
+		return nil
+	}
+	var probs []brand.ProfileProblem
+	for line := range strings.SplitSeq(err.Error(), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "yaml: unmarshal errors:") {
+			continue
+		}
+		if m := unknownFieldRe.FindStringSubmatch(line); m != nil {
+			probs = append(probs, brand.ProfileProblem{
+				Field:   m[2],
+				Message: fmt.Sprintf("unknown field %q (line %s)", m[2], m[1]),
+			})
+			continue
+		}
+		probs = append(probs, brand.ProfileProblem{Message: line})
+	}
+	return probs
 }
 
 // ---------------------------------------------------------------------------
@@ -741,7 +873,7 @@ func readSubjectText(cmd *cobra.Command, args []string) (string, error) {
 		return "", fmt.Errorf("read stdin: %w", err)
 	}
 	if strings.TrimSpace(string(data)) == "" {
-		return "", errors.New("no text provided (use --text or pipe via stdin)")
+		return "", errors.New("no text provided (use --input-text or pipe via stdin)")
 	}
 	return string(data), nil
 }

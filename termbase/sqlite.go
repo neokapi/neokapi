@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/sievepen"
@@ -115,6 +116,80 @@ var tbMigrations = []storage.Migration{
 		ALTER TABLE tb_terms ADD COLUMN competitor_term INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
+	{
+		Version:     3,
+		Description: "persisted concept relations and term validity columns",
+		// The stream column mirrors the tb_concepts stream pattern so relations
+		// can participate in stream-scoped shadows (pilots) like concepts do.
+		SQL: `
+		CREATE TABLE IF NOT EXISTS tb_relations (
+			id          TEXT PRIMARY KEY,
+			source_id   TEXT NOT NULL REFERENCES tb_concepts(id) ON DELETE CASCADE,
+			target_id   TEXT NOT NULL REFERENCES tb_concepts(id) ON DELETE CASCADE,
+			relation    TEXT NOT NULL,
+			note        TEXT NOT NULL DEFAULT '',
+			stream      TEXT NOT NULL DEFAULT '',
+			valid_from  TEXT,            -- RFC3339, NULL = unbounded
+			valid_to    TEXT,
+			tags        TEXT NOT NULL DEFAULT '{}',  -- JSON object
+			created_at  TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_source ON tb_relations(source_id);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_target ON tb_relations(target_id);
+		CREATE INDEX IF NOT EXISTS idx_tb_relations_stream ON tb_relations(stream);
+
+		ALTER TABLE tb_terms ADD COLUMN valid_from TEXT;
+		ALTER TABLE tb_terms ADD COLUMN valid_to TEXT;
+		ALTER TABLE tb_terms ADD COLUMN tags TEXT NOT NULL DEFAULT '{}';
+		`,
+	},
+}
+
+// validityToColumns flattens a validity into its three column values:
+// nullable RFC3339 bounds and a JSON object of tags ('{}' when empty).
+func validityToColumns(v *graph.Validity) (validFrom, validTo *string, tags string) {
+	tags = "{}"
+	if v == nil {
+		return nil, nil, tags
+	}
+	if v.ValidFrom != nil {
+		s := v.ValidFrom.Format(time.RFC3339Nano)
+		validFrom = &s
+	}
+	if v.ValidTo != nil {
+		s := v.ValidTo.Format(time.RFC3339Nano)
+		validTo = &s
+	}
+	if len(v.Tags) > 0 {
+		if b, err := json.Marshal(v.Tags); err == nil {
+			tags = string(b)
+		}
+	}
+	return validFrom, validTo, tags
+}
+
+// validityFromColumns rebuilds a validity from its column values. An entirely
+// unbounded, tagless validity round-trips to nil (semantically identical:
+// it matches every scope).
+func validityFromColumns(validFrom, validTo sql.NullString, tags string) *graph.Validity {
+	var v graph.Validity
+	if validFrom.Valid && validFrom.String != "" {
+		if t, err := time.Parse(time.RFC3339Nano, validFrom.String); err == nil {
+			v.ValidFrom = &t
+		}
+	}
+	if validTo.Valid && validTo.String != "" {
+		if t, err := time.Parse(time.RFC3339Nano, validTo.String); err == nil {
+			v.ValidTo = &t
+		}
+	}
+	if tags != "" && tags != "{}" {
+		_ = json.Unmarshal([]byte(tags), &v.Tags)
+	}
+	if v.ValidFrom == nil && v.ValidTo == nil && len(v.Tags) == 0 {
+		return nil
+	}
+	return &v
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
@@ -126,6 +201,9 @@ func (tb *SQLiteTermBase) AddConcept(ctx context.Context, concept Concept) error
 func (tb *SQLiteTermBase) AddConceptWithStream(ctx context.Context, concept Concept, stream string) error {
 	if concept.ID == "" {
 		return ErrConceptIDRequired
+	}
+	if err := validateConceptTermStatuses(concept); err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -181,12 +259,14 @@ func (tb *SQLiteTermBase) AddConceptWithStream(ctx context.Context, concept Conc
 		if term.CompetitorTerm {
 			competitorInt = 1
 		}
+		validFrom, validTo, tags := validityToColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, concept.ID, term.Text, strings.ToLower(term.Text),
 			string(term.Locale), string(term.Status),
-			term.PartOfSpeech, term.Gender, term.Note, competitorInt)
+			term.PartOfSpeech, term.Gender, term.Note, competitorInt,
+			validFrom, validTo, tags)
 		if err != nil {
 			return fmt.Errorf("insert term: %w", err)
 		}
@@ -221,6 +301,166 @@ func (tb *SQLiteTermBase) DeleteConcept(ctx context.Context, id string) error {
 		return fmt.Errorf("concept not found: %s", id)
 	}
 	return nil
+}
+
+// AddRelation inserts or updates (by ID) a relation between two concepts
+// using an empty stream.
+func (tb *SQLiteTermBase) AddRelation(ctx context.Context, rel ConceptRelation) error {
+	return tb.AddRelationWithStream(ctx, rel, "")
+}
+
+// AddRelationWithStream inserts or updates a relation associated with a stream.
+func (tb *SQLiteTermBase) AddRelationWithStream(ctx context.Context, rel ConceptRelation, stream string) error {
+	if err := ValidateRelation(rel); err != nil {
+		return err
+	}
+	if err := tb.requireConcept(ctx, "source", rel.SourceID); err != nil {
+		return err
+	}
+	if err := tb.requireConcept(ctx, "target", rel.TargetID); err != nil {
+		return err
+	}
+
+	if rel.CreatedAt.IsZero() {
+		rel.CreatedAt = time.Now()
+	}
+	validFrom, validTo, tags := validityToColumns(rel.Validity)
+
+	// created_at is deliberately not updated on conflict: an upsert preserves
+	// the original creation time, like AddConcept does for concepts.
+	_, err := tb.db.ExecContext(ctx, `
+		INSERT INTO tb_relations (id, source_id, target_id, relation, note, stream, valid_from, valid_to, tags, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			source_id = excluded.source_id,
+			target_id = excluded.target_id,
+			relation = excluded.relation,
+			note = excluded.note,
+			stream = excluded.stream,
+			valid_from = excluded.valid_from,
+			valid_to = excluded.valid_to,
+			tags = excluded.tags
+	`, rel.ID, rel.SourceID, rel.TargetID, rel.RelationType, rel.Note, stream,
+		validFrom, validTo, tags, rel.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("upsert relation: %w", err)
+	}
+	return nil
+}
+
+// requireConcept returns an error if the concept does not exist.
+func (tb *SQLiteTermBase) requireConcept(ctx context.Context, role, id string) error {
+	var n int
+	if err := tb.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tb_concepts WHERE id = ?", id).Scan(&n); err != nil {
+		return fmt.Errorf("check %s concept: %w", role, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%s concept not found: %s", role, id)
+	}
+	return nil
+}
+
+// DeleteRelation removes a relation by ID.
+func (tb *SQLiteTermBase) DeleteRelation(ctx context.Context, id string) error {
+	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_relations WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete relation: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("relation not found: %s", id)
+	}
+	return nil
+}
+
+// RelationsOf returns all relations touching the concept, in either direction,
+// filtered by the validity scope when one is given.
+func (tb *SQLiteTermBase) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]ConceptRelation, error) {
+	rows, err := tb.db.QueryContext(ctx, `
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations WHERE source_id = ? OR target_id = ? ORDER BY id
+	`, conceptID, conceptID)
+	if err != nil {
+		return nil, fmt.Errorf("query relations: %w", err)
+	}
+	defer rows.Close()
+	return scanRelations(rows, scope)
+}
+
+// ListRelations returns all relations, filtered by the validity scope when one
+// is given.
+func (tb *SQLiteTermBase) ListRelations(ctx context.Context, scope *graph.Scope) ([]ConceptRelation, error) {
+	rows, err := tb.db.QueryContext(ctx, `
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations ORDER BY id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list relations: %w", err)
+	}
+	defer rows.Close()
+	return scanRelations(rows, scope)
+}
+
+// RelationsForStream returns the relations touching the concept (either
+// direction) whose stream is the given stream or one of its ancestors, with
+// the same chain semantics as SearchForStream: relations from earlier streams
+// in the chain sort first. When scope is non-nil, relations whose validity
+// does not match the scope are filtered out.
+func (tb *SQLiteTermBase) RelationsForStream(ctx context.Context, conceptID string, stream string, streamChain []string, scope *graph.Scope) ([]ConceptRelation, error) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	placeholders := make([]string, len(streams))
+	args := []any{conceptID, conceptID}
+	for i, s := range streams {
+		placeholders[i] = "?"
+		args = append(args, s)
+	}
+
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN ? THEN %d", i))
+		args = append(args, s)
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`
+		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
+		FROM tb_relations
+		WHERE (source_id = ? OR target_id = ?) AND stream IN (%s)
+		ORDER BY %s, id
+	`, strings.Join(placeholders, ","), caseExpr.String())
+	rows, err := tb.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query relations for stream: %w", err)
+	}
+	defer rows.Close()
+	return scanRelations(rows, scope)
+}
+
+// scanRelations reads relation rows, rebuilding validity and applying the
+// optional scope filter.
+func scanRelations(rows *sql.Rows, scope *graph.Scope) ([]ConceptRelation, error) {
+	var out []ConceptRelation
+	for rows.Next() {
+		var rel ConceptRelation
+		var tags, createdStr string
+		var validFrom, validTo sql.NullString
+		if err := rows.Scan(&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType, &rel.Note, &validFrom, &validTo, &tags, &createdStr); err != nil {
+			return nil, fmt.Errorf("scan relation: %w", err)
+		}
+		rel.Validity = validityFromColumns(validFrom, validTo, tags)
+		rel.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		if !MatchesScope(rel.Validity, scope) {
+			continue
+		}
+		out = append(out, rel)
+	}
+	return out, rows.Err()
 }
 
 // Lookup finds terms matching the source text.
@@ -737,7 +977,7 @@ func (tb *SQLiteTermBase) scanConcept(ctx context.Context, id string) (Concept, 
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT text, locale, status, part_of_speech, gender, note, competitor_term
+		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
@@ -747,14 +987,16 @@ func (tb *SQLiteTermBase) scanConcept(ctx context.Context, id string) (Concept, 
 
 	for rows.Next() {
 		var t Term
-		var locale, status string
+		var locale, status, tags string
 		var competitorInt int
-		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt); err != nil {
+		var validFrom, validTo sql.NullString
+		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt, &validFrom, &validTo, &tags); err != nil {
 			continue
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		t.CompetitorTerm = competitorInt != 0
+		t.Validity = validityFromColumns(validFrom, validTo, tags)
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -799,13 +1041,13 @@ func (tb *SQLiteTermBase) queryExactTerms(ctx context.Context, sourceText string
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t
 			WHERE %s
 		`, where)
@@ -843,13 +1085,13 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(ctx context.Context, normalizedSo
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t
 			WHERE %s
 		`, where)
@@ -901,13 +1143,13 @@ func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(ctx context.Context, norma
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s LIMIT 200
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t
 			WHERE %s LIMIT 200
 		`, where)
@@ -954,13 +1196,13 @@ func (tb *SQLiteTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSour
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s LIMIT 500
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 			FROM tb_terms t
 			WHERE %s LIMIT 500
 		`, where)
@@ -988,7 +1230,10 @@ func (tb *SQLiteTermBase) scoreFuzzyCandidates(ctx context.Context, rows interfa
 	var candidates []fuzzyCandidate
 	for rows.Next() {
 		var r scanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
+			continue
+		}
+		if !MatchesScope(r.validity(), opts.Scope) {
 			continue
 		}
 
@@ -1013,6 +1258,7 @@ func (tb *SQLiteTermBase) scoreFuzzyCandidates(ctx context.Context, rows interfa
 				PartOfSpeech: c.row.pos,
 				Gender:       c.row.gender,
 				Note:         c.row.note,
+				Validity:     c.row.validity(),
 			},
 			Score:     c.score,
 			MatchType: model.MatchStrategyFuzzy,
@@ -1056,7 +1302,7 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 	where, args, _ = sourceFilterSQL(where, args, opts.SourceFilter)
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term
+		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
 	`, where), args...)
@@ -1067,9 +1313,14 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 
 	var results []termWithConcept
 	for rows.Next() {
-		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note string
+		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note, tags string
 		var competitorInt int
-		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt); err != nil {
+		var validFrom, validTo sql.NullString
+		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags); err != nil {
+			continue
+		}
+		validity := validityFromColumns(validFrom, validTo, tags)
+		if !MatchesScope(validity, opts.Scope) {
 			continue
 		}
 		results = append(results, termWithConcept{
@@ -1082,6 +1333,7 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 				Gender:         gender,
 				Note:           note,
 				CompetitorTerm: competitorInt != 0,
+				Validity:       validity,
 			},
 		})
 	}
@@ -1093,6 +1345,13 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 
 type scanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
+	validFrom, validTo                                 sql.NullString
+	tags                                               string
+}
+
+// validity rebuilds the term validity from the scanned columns.
+func (r scanTermRow) validity() *graph.Validity {
+	return validityFromColumns(r.validFrom, r.validTo, r.tags)
 }
 
 func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
@@ -1102,7 +1361,10 @@ func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
 	var raw []scanTermRow
 	for rows.Next() {
 		var r scanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
+			continue
+		}
+		if !MatchesScope(r.validity(), opts.Scope) {
 			continue
 		}
 		if MatchesStatus(model.TermStatus(r.status), opts.StatusFilter) {
@@ -1125,6 +1387,7 @@ func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
 				PartOfSpeech: r.pos,
 				Gender:       r.gender,
 				Note:         r.note,
+				Validity:     r.validity(),
 			},
 			Score:     score,
 			MatchType: matchType,

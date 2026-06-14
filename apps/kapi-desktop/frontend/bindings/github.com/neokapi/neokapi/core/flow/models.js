@@ -11,6 +11,44 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as model$0 from "../model/models.js";
 
 /**
+ * AnnotationSnapshot is one block-scoped annotation (key + compact summary).
+ */
+export class AnnotationSnapshot {
+    /**
+     * Creates a new AnnotationSnapshot instance.
+     * @param {Partial<AnnotationSnapshot>} [$$source = {}] - The source object to create the AnnotationSnapshot.
+     */
+    constructor($$source = {}) {
+        if (!("key" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["summary"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnnotationSnapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AnnotationSnapshot}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AnnotationSnapshot(/** @type {Partial<AnnotationSnapshot>} */($$parsedSource));
+    }
+}
+
+/**
  * FlowStep represents a single step in the human-authored steps format.
  * Steps are sequential by default. Use Parallel for fan-out branches.
  */
@@ -195,9 +233,76 @@ export const NodeType = {
 };
 
 /**
+ * OverlaySnapshot summarizes one stand-off overlay (AD-002) at snapshot time:
+ * its type, the side it annotates, and each span projected to rune offsets in
+ * that side's flattened text (with the covered text, so an inspector can
+ * highlight without re-deriving run anchoring).
+ */
+export class OverlaySnapshot {
+    /**
+     * Creates a new OverlaySnapshot instance.
+     * @param {Partial<OverlaySnapshot>} [$$source = {}] - The source object to create the OverlaySnapshot.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * "segmentation", "term", "entity", "qa", …
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (!("side" in $$source)) {
+            /**
+             * "source" or the target variant key
+             * @member
+             * @type {string}
+             */
+            this["side"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * segmentation layer; "" = primary
+             * @member
+             * @type {string | undefined}
+             */
+            this["layer"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {SpanSnapshot[] | undefined}
+             */
+            this["spans"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OverlaySnapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OverlaySnapshot}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spans" in $$parsedSource) {
+            $$parsedSource["spans"] = $$createField3_0($$parsedSource["spans"]);
+        }
+        return new OverlaySnapshot(/** @type {Partial<OverlaySnapshot>} */($$parsedSource));
+    }
+}
+
+/**
  * PartDetail is the run-native, full view of a Block at a point in time, for the
  * "drill into a part" inspector. Source/Targets are run sequences (not flattened
- * strings) so inline placeholders and paired codes survive.
+ * strings) so inline placeholders and paired codes survive. Overlays and
+ * Annotations carry the block's stand-off state so an inspector can show what
+ * each tool attached (AD-002): segmentation spans, term/entity tags, QA
+ * findings, the redaction secret annotation. They are summarized eagerly at
+ * snapshot time — blocks mutate in place as they flow, so a snapshot must not
+ * alias live maps.
  */
 export class PartDetail {
     /**
@@ -247,6 +352,20 @@ export class PartDetail {
              */
             this["hasSkeleton"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OverlaySnapshot[] | undefined}
+             */
+            this["overlays"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {AnnotationSnapshot[] | undefined}
+             */
+            this["annotations"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -257,9 +376,11 @@ export class PartDetail {
      * @returns {PartDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType11;
-        const $$createField3_0 = $$createType12;
-        const $$createField4_0 = $$createType13;
+        const $$createField2_0 = $$createType13;
+        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType15;
+        const $$createField6_0 = $$createType17;
+        const $$createField7_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
@@ -269,6 +390,12 @@ export class PartDetail {
         }
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
+        }
+        if ("overlays" in $$parsedSource) {
+            $$parsedSource["overlays"] = $$createField6_0($$parsedSource["overlays"]);
+        }
+        if ("annotations" in $$parsedSource) {
+            $$parsedSource["annotations"] = $$createField7_0($$parsedSource["annotations"]);
         }
         return new PartDetail(/** @type {Partial<PartDetail>} */($$parsedSource));
     }
@@ -342,7 +469,7 @@ export class PartSnapshot {
      * @returns {PartSnapshot}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType15;
+        const $$createField5_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detail" in $$parsedSource) {
             $$parsedSource["detail"] = $$createField5_0($$parsedSource["detail"]);
@@ -384,8 +511,8 @@ export class PartSnapshotSet {
      * @returns {PartSnapshotSet}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType16;
-        const $$createField1_0 = $$createType17;
+        const $$createField0_0 = $$createType22;
+        const $$createField1_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("initial" in $$parsedSource) {
             $$parsedSource["initial"] = $$createField0_0($$parsedSource["initial"]);
@@ -394,6 +521,61 @@ export class PartSnapshotSet {
             $$parsedSource["afterNode"] = $$createField1_0($$parsedSource["afterNode"]);
         }
         return new PartSnapshotSet(/** @type {Partial<PartSnapshotSet>} */($$parsedSource));
+    }
+}
+
+/**
+ * SpanSnapshot is one overlay span projected to the flattened text.
+ */
+export class SpanSnapshot {
+    /**
+     * Creates a new SpanSnapshot instance.
+     * @param {Partial<SpanSnapshot>} [$$source = {}] - The source object to create the SpanSnapshot.
+     */
+    constructor($$source = {}) {
+        if (!("start" in $$source)) {
+            /**
+             * rune offset, half-open [Start, End)
+             * @member
+             * @type {number}
+             */
+            this["start"] = 0;
+        }
+        if (!("end" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["end"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * covered text (clipped to 80 runes)
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * compact payload summary (entity type, QA message, …)
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SpanSnapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SpanSnapshot}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SpanSnapshot(/** @type {Partial<SpanSnapshot>} */($$parsedSource));
     }
 }
 
@@ -491,9 +673,10 @@ export class StepsSpec {
         }
         if (/** @type {any} */(false)) {
             /**
-             * SourceTransforms is the leading source-transform stage: tools that settle
-             * the source/model (redaction, simplification, normalization) before the
-             * main steps run. Each must be a source-transform-capable tool. See AD-006.
+             * SourceTransforms is the retired source-transform stage (AD-006 removed
+             * it; transformers are ordinary ordered steps). The field exists only so a
+             * flow that still uses it gets an actionable error from StepsToGraph
+             * instead of a silently dropped stage.
              * @member
              * @type {FlowStep[] | undefined}
              */
@@ -722,10 +905,16 @@ const $$createType7 = PartSnapshotSet.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
 const $$createType9 = $Create.Map($Create.Any, $$createType8);
 const $$createType10 = TraceFile.createFrom;
-const $$createType11 = $Create.Array($Create.Any);
-const $$createType12 = $Create.Map($Create.Any, $$createType11);
-const $$createType13 = $Create.Map($Create.Any, $Create.Any);
-const $$createType14 = PartDetail.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = PartSnapshot.createFrom;
-const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType11 = SpanSnapshot.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $Create.Array($Create.Any);
+const $$createType14 = $Create.Map($Create.Any, $$createType13);
+const $$createType15 = $Create.Map($Create.Any, $Create.Any);
+const $$createType16 = OverlaySnapshot.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = AnnotationSnapshot.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = PartDetail.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = PartSnapshot.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $$createType22);

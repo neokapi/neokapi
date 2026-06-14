@@ -289,7 +289,7 @@ export function BrandEditorRoute() {
 
   const handleCancel = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand",
+      to: "/$workspace/brand/voice",
       params: { workspace: workspace ?? "" },
     });
   }, [navigate, workspace]);
@@ -302,7 +302,7 @@ export function BrandEditorRoute() {
         await updateMutation.mutateAsync({ ...data, id: profileId ?? "" });
       }
       void navigate({
-        to: "/$workspace/brand",
+        to: "/$workspace/brand/voice",
         params: { workspace: workspace ?? "" },
       });
     },

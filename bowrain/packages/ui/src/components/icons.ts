@@ -78,4 +78,9 @@ export {
   Headset,
   FileCode2,
   Wand2,
+  Network,
+  FlaskConical,
+  ScrollText,
+  Quote,
+  GitFork,
 } from "lucide-react";

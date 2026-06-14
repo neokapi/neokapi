@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -26,6 +27,7 @@ type pgStores struct {
 	Extraction jobs.ExtractionJobStore
 	Quota      jobs.QuotaStore
 	Brand      corebrand.BrandStore
+	Knowledge  knowledge.Store
 	GraphStore coreg.GraphStore
 	Agent      platagent.AgentStore
 	Billing    billing.BillingStore
@@ -78,12 +80,21 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		slog.Warn("failed to init brand store (brand voice features disabled)", "error", err)
 	}
 
+	ks, err := knowledge.NewPostgresKnowledgeStore(db)
+	if err != nil {
+		slog.Warn("failed to init knowledge store (brand knowledge graph disabled)", "error", err)
+		ks = nil
+	}
+
 	es, err := jobs.NewExtractionJobStore(db)
 	if err != nil {
 		return nil, fmt.Errorf("init PostgreSQL extraction job store: %w", err)
 	}
 
 	stores := &pgStores{Content: cs, Auth: as, Job: js, Extraction: es, Quota: qs, Brand: bs, DB: db}
+	if ks != nil {
+		stores.Knowledge = ks
+	}
 
 	// Initialize graph store if pgxpool is available (AfterConnect was wired).
 	if pool := db.Pool(); pool != nil {

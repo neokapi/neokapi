@@ -1,0 +1,270 @@
+---
+title: Brand
+sidebar_label: Brand
+description: The Brand hub is Bowrain's front door to a team's brand language — a concept list, a per-concept dashboard with terms, geography, constraints, relations, and a timeline, voice and corrections, experiments with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
+keywords: [brand, concepts, terminology, relations, markets, change-sets, experiments, blast radius, pilots, governance, observations, bowrain]
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
+
+# Brand
+
+The **Brand** hub is where a team curates the language its content is written in.
+It gathers the pieces that used to live apart — the terminology, the voice rules,
+the discussions, the history, and the consequences of a change — onto one
+surface, so a single page can tell the whole story of a term: where it came from,
+what it replaced, where it is banned, how it is said in each market, and what it
+would cost to change.
+
+The hub is the front door. The deeper pages on
+[brand voice](/server/brand-voice) and [terminology](/server/terminology) cover
+their corners in detail; this page explains how they fit together and the
+governance that holds them.
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-web/bowrain-web-governance-light.webm",
+    dark: "/video/bowrain-web/bowrain-web-governance-dark.webm",
+  }}
+/>
+
+## Concepts
+
+The unit the hub curates is the **concept** — the language-neutral notion
+Bowrain already uses for [terminology](/server/terminology): each carries terms
+across locales, every term with a lifecycle status, plus a domain and a
+definition. A forbidden term is not a separate kind of object; it is a concept
+whose term carries the `forbidden` status. Brand vocabulary rules reference the
+same concepts, so terminology and voice can no longer drift apart.
+
+The **Concepts** section opens on a searchable **list**: filter by term status,
+domain, market, and locale to find the concept you care about. Selecting a
+concept opens its **dashboard** — a single page that gathers everything known
+about it:
+
+- its **terms**, per locale, each with its lifecycle status;
+- its **geography**: the per-market truth, side by side;
+- its **constraints**: where each term is banned or preferred, and any validity
+  windows that bound when a designation applies;
+- its **relations**: the concepts one hop away, as a local widget;
+- its **timeline**: how the concept came to be;
+- and, on the platform, the **observations** and **discussion** attached to it.
+
+You read the brand one concept at a time, from the concept you care about
+outward — there is no whole-graph canvas to navigate.
+
+## Relations
+
+Concepts connect to one another through typed **relations**, drawn from the
+framework's SKOS-aligned vocabulary. They fall into a few families — hierarchy (a
+concept is broader than, narrower than, or part of another), succession (one
+concept is replaced by another), guidance (use this one instead of that one),
+cross-scheme equivalence, and brand stance (this concept is a competitor's). The
+exact label set is defined by the framework's terminology model; see the
+[framework terminology reference](https://neokapi.github.io/web/neokapi/framework/terminology)
+for the canonical list.
+
+<PhaseFlow
+  nodes={[
+    { label: "e-shop", sub: "forbidden term", role: "qa" },
+    { label: "Store", sub: "preferred term", edge: "replaced_by", role: "translate" },
+    { label: "Commerce", sub: "broader concept", edge: "broader", role: "annotate" },
+  ]}
+  caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which sits broader-than a domain concept. Guidance (use_instead) and brand-stance (competitor) relations connect concepts the same way."
+/>
+
+A concept's dashboard shows its **direct relations** — this concept plus the
+concepts one hop away — grouped by family. A family with many members collapses to
+an "N related" summary so the widget stays readable, and selecting a related
+concept navigates to its dashboard. Relations are edited **inline** on the
+dashboard: add a relation to another concept, or remove one. An ordinary relation
+applies directly; a succession (`replaced_by`) relation is a governed edit that
+travels through a [change-set](#experiments-change-sets-and-pilots) before it
+lands.
+
+Every relation can carry a **validity**: a half-open time interval plus free tags
+evaluated against a query-time scope. The same relation can hold in one market and
+be absent in another, or be true only after a launch date, so the relations a
+concept shows are the ones that apply *as of* the chosen date and *within* the
+chosen market.
+
+## Markets
+
+A **market** is a workspace-defined scope — a name plus the locales it covers
+(for example a `dach` market covering `de-DE`, `de-AT`, and `de-CH`). Markets give
+the free validity tags a stable vocabulary: a term or relation scoped with
+`market: dach` is interpreted, filtered, and rendered consistently everywhere. A
+term's status can differ per market, and the concept dashboard's **geography**
+panel shows the per-market truth side by side, so "banned in Germany, fine
+elsewhere" is a state the hub can represent rather than a footnote someone has to
+remember. The dashboard's **constraints** panel reads the same per-market
+statuses and validity windows back as a plain summary — which term is banned or
+preferred where, and for how long.
+
+## The concept story
+
+Every concept's dashboard carries a **story**: a visual, chronological
+**timeline** that merges the concept's revision history (each edit produces an
+immutable snapshot with a human-readable summary, which is where term-status
+transitions and relation changes are recorded), the **observations** recorded
+against it, its **comment** threads, and the **change-sets** that touched it. The
+story answers "how did this term get here" without archaeology across systems.
+Compliance scores are not part of the story — those are reported per project and
+locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
+concept.
+
+### Observations — what others say
+
+An **observation** attaches external evidence to a concept: a competitor's
+phrasing, customer language from a support ticket, a style-guide citation, a
+regulatory requirement. Observations carry a kind, a quote, a source, and an
+optional locale and market. They are evidence, not rules — they inform proposals
+and appear in the story, but they enforce nothing.
+
+### Comments
+
+Concepts carry threaded comments with @mentions, reusing the platform's
+mention-notification machinery. Discussion lives where the decision will be made —
+on the concept, or on the change-set under review — and resolved threads remain
+part of the story.
+
+## Voice and corrections
+
+The hub's **Voice** section is the team's brand voice profiles and the
+correction-learning loop: correct content once and the rule that prevents the
+mistake from recurring is authored, versioned, and enforced. On the platform,
+every promoted rule is **concept-backed** — a promotion references the concept its
+term denotes, so a rule and the term it governs share one identity. The loop, its
+blast-radius preview, and progressive autonomy are covered in full on
+[Brand voice & corrections](/server/brand-voice).
+
+## Experiments: change-sets and pilots
+
+Some changes are too consequential to make in place. The hub's **Experiments**
+section turns them into reviewable drafts.
+
+A **change-set** is a named draft of edits to the graph and to brand vocabulary:
+create or update concepts, add or remove terms, change a term's status, add or
+remove relations, add or remove concept-backed voice rules. Operations accumulate
+in the draft; nothing touches the live graph until the change-set merges. Two
+capabilities make a change-set an experiment rather than paperwork:
+
+- **Blast radius — a what-if you can see.** At any point the platform evaluates
+  the draft against stored content across the workspace and reports which blocks,
+  in which projects, collections, streams, and locales, would be newly flagged or
+  resolved, with a source word count as a proxy for re-translation effort and a
+  sample of affected blocks to inspect. Nothing is persisted by the preview; it
+  is a measurement, not a change.
+- **Pilots — a what-if you can run.** A change-set can be bound to one or more
+  content [streams](/server/workspaces) as a pilot. While the pilot is active,
+  term lookups, enforcement, and brand checks in those streams resolve through the
+  draft — a stream-scoped shadow over the workspace graph — so real content and
+  real checks exercise the proposal before anyone commits to it. Merging applies
+  the operations and retires the shadows; abandoning retires the shadows
+  untouched.
+
+## Tiered governance
+
+Not every edit needs review, and the hub does not pretend otherwise. Edits are
+classified as **ordinary** or **governed**.
+
+**Ordinary edits** — definitions, notes, observations, comments, proposed terms,
+non-status term metadata — apply directly, produce a revision, and land in the
+audit trail. This is most curation, and it stays fast.
+
+**Governed edits** — setting a term's status to `forbidden` or `preferred`,
+removing such a status, succession (`replaced_by`) relations, concept-backed voice
+rule changes, and merging any change-set — travel through a change-set and require
+at least one approval from **someone other than the author** (separation of
+duties). Term-status transitions are additionally checked against the framework's
+status-transition policy, so a forbidden term cannot quietly return to preferred
+without passing through a governed transition.
+
+<SwimlaneDiagram
+  actors={[
+    { label: "Author", sub: "manage_terms", role: "io" },
+    { label: "Reviewer", sub: "manage_brand", role: "qa" },
+    { label: "Workspace graph", sub: "system of record", role: "translate" },
+  ]}
+  messages={[
+    { from: 0, to: 0, label: "open change-set, add governed op" },
+    { from: 0, to: 0, label: "preview blast radius", detail: "nothing persisted" },
+    { from: 0, to: 1, label: "submit for review" },
+    { from: 1, to: 1, label: "approve", detail: "reviewer ≠ author" },
+    { from: 1, to: 2, label: "merge", detail: "ops applied, pilots retired" },
+  ]}
+  caption="A governed change travels through review by someone other than its author before it touches the graph."
+/>
+
+A change-set with only ordinary operations merges directly from `draft` by its
+author. A change-set containing any governed operation must be submitted, approved
+by a second person, and only then merged. The lifecycle is the same in either
+case:
+
+<PhaseFlow
+  nodes={[
+    {
+      label: "Draft",
+      sub: "accumulate ops",
+      role: "io",
+      loop: ["preview blast radius", "pilot on a stream"],
+    },
+    { label: "In review", sub: "submitted", edge: "submit", role: "annotate" },
+    {
+      label: "Approved",
+      sub: "≥1 approval, approver ≠ author",
+      edge: "approve",
+      role: "qa",
+    },
+    { label: "Merged", sub: "ops applied, pilots retired", edge: "merge", role: "translate" },
+  ]}
+  caption="A change-set moves draft → in review → approved → merged, or is abandoned. Merge re-validates each op against the current revision, so a stale draft conflicts loudly instead of clobbering."
+/>
+
+## The dashboard and the decision inbox
+
+The **Dashboard** rolls the hub up into the questions a steward asks daily:
+aggregate compliance, drift, coverage, and the pending decisions. The decision
+inbox is deliberately plain — a list of proposals, each with a human-readable
+summary, its blast radius, and an approve-or-reject choice. That simplicity is the
+contract a future lightweight stakeholder-review surface would consume; see
+[AD-021](/architecture-decisions/021-brand-knowledge-graph) for the design.
+
+The **Activity** section is the brand-scoped event timeline: concepts created and
+updated, statuses changed, relations gained and lost, observations and comments
+added, change-sets submitted, approved, merged, and abandoned, pilots started and
+stopped. It is the workspace-wide counterpart to a single concept's story.
+
+## One hub, many surfaces
+
+The Brand hub is the same in the web app and the desktop app. The desktop app
+remains a working copy of the server — it proxies the same REST surface, and its
+views stay fresh through React Query's stale-time and refetch-on-focus; concepts
+and relations are edited inline in the hub against the server, never authored
+offline.
+
+Terminology also reaches a project's local files and CI through ordinary sync. A
+[`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
+their relations into the project's local termbase, and
+[`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
+against exactly the terminology the hub shows — the pattern documented in
+[Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci). A
+[`kapi push`](/cli/commands/push) sends local terminology edits back: ordinary
+edits apply directly, while governed edits become a submitted change-set
+proposal, so the same separation of duties holds whether an edit is made in the
+hub or from a project.
+
+AI assistants read the same governed truth through the bowrain plugin's
+[MCP](/cli/mcp) tools — concept search, a concept's story, and change-set status —
+so an assistant consults the hub's terminology rather than guessing.
+
+## Under the hood
+
+- [AD-021: The brand knowledge graph](/architecture-decisions/021-brand-knowledge-graph) —
+  the architectural decision behind the hub.
+- [Knowledge graph data model](/notes/knowledge-graph-data-model) — schemas, REST
+  routes, change-set operation types, and permission mapping.
+- [AD-019: The correction-learning loop](/architecture-decisions/019-correction-learning-loop)
+  and [AD-020: Governance, audit, and rollback](/architecture-decisions/020-governance-audit-rollback) —
+  the loop that feeds Voice and the separation-of-duties machinery governance reuses.

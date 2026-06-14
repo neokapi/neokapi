@@ -1,13 +1,13 @@
 ---
 sidebar_position: 3
-title: Brand Voice
+title: Brand voice
 description: Brand voice is one checkset over neokapi's content-verification engine — a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check.
 keywords: [brand voice, content checks, writing style, terminology, MCP, AI assistant]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# Brand Voice
+# Brand voice
 
 Where [terminology](/framework/terminology) ensures you use the right words,
 brand voice describes how you say them — the personality, formality, and
@@ -36,11 +36,11 @@ git-shareable YAML file (`--profile-file`):
 # Print the rendered guide (paste into an assistant, or pipe to a file)
 kapi brand guide --pack friendly-dtc
 
-# Score text: file argument, --text, or stdin. --min-score gates CI (exit 3).
+# Score text: file argument, --input-text, or stdin. --min-score gates CI (exit 3).
 kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
 
 # Rewrite off-voice content (add --ai for tone/style as well as vocabulary)
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+kapi brand rewrite --profile-file brand.yaml --input-text "Leverage our solution"
 
 # Manage profiles in the local store
 kapi brand profiles
@@ -172,7 +172,7 @@ type BrandStore interface {
     ListProfiles(ctx context.Context, workspaceID string) ([]*VoiceProfile, error)
 
     StoreScore(ctx context.Context, score *StoredScore) error
-    GetScores(ctx context.Context, projectID, locale string) ([]*StoredScore, error)
+    GetScores(ctx context.Context, projectID string, locale model.LocaleID) ([]*StoredScore, error)
     GetScoreTrends(ctx context.Context, projectID string, days int) ([]*ScoreTrend, error)
 
     StoreCorrection(ctx context.Context, correction *Correction) error
@@ -181,6 +181,10 @@ type BrandStore interface {
     Close() error
 }
 ```
+
+`StoredScore`, `ScoreTrend`, and the other unqualified types are declared in the
+`brand` package; `model.LocaleID` is the BCP-47 locale type from
+`github.com/neokapi/neokapi/core/model`.
 
 The framework ships a SQLite backend (`cli/storage/brand/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex

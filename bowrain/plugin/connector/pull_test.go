@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -163,6 +164,50 @@ func TestPull_WriteFailureDoesNotAdvanceCursor(t *testing.T) {
 	frBytes, readErr := os.ReadFile(frPath)
 	require.NoError(t, readErr, "successful locale write must persist")
 	assert.Contains(t, string(frBytes), "Hello-fr")
+}
+
+// TestSetConceptBaseline_PersistsThroughCloseWithPullState pins the fix for the
+// pull-ordering bug: a concept baseline recorded on the connector via
+// SetConceptBaseline must survive the connector's single deferred Close()
+// alongside the block-sync cursor that a real Pull advanced. The bug was that a
+// concept pull saved the baseline to disk independently, only for the deferred
+// conn.Close() to re-save the connector's own cache (which never carried the
+// baseline) and erase it — leaving the next push permanently inert.
+func TestSetConceptBaseline_PersistsThroughCloseWithPullState(t *testing.T) {
+	const startCursor = int64(5)
+	const serverCursor = int64(42)
+	targetLangs := []string{"fr", "de"}
+
+	srv := pullTestServer(t, "proj123", targetLangs, serverCursor)
+	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
+
+	baseline := &bproject.ConceptBaseline{
+		PulledAt: time.Now().UTC(),
+		Concepts: map[string]bproject.BaselineConcept{
+			"c-greeting": {Domain: "ui", Definition: "A salutation."},
+		},
+		Relations: map[string]bproject.BaselineRelation{
+			"r-1": {SourceID: "c-greeting", TargetID: "c-cta", RelationType: "RELATED"},
+		},
+	}
+
+	// Reproduce the runPull ordering exactly: a real block Pull advances + saves
+	// the connector's in-memory cursor, then the folded concept pull records its
+	// baseline on the same connector, and a single deferred Close() flushes both.
+	func() {
+		defer conn.Close()
+		_, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})
+		require.NoError(t, err)
+		conn.SetConceptBaseline(baseline)
+	}()
+
+	reloaded := bproject.LoadSyncCache(conn.project.Layout)
+	assert.Equal(t, serverCursor, reloaded.GetStreamCursor("main"),
+		"block-sync cursor must persist through the deferred Close")
+	require.NotNil(t, reloaded.ConceptBaseline,
+		"concept baseline must survive the deferred conn.Close(), not be erased by it")
+	assert.Len(t, reloaded.ConceptBaseline.Concepts, 1)
+	assert.Len(t, reloaded.ConceptBaseline.Relations, 1)
 }
 
 // TestPull_AllWritesSucceedAdvancesCursor is the happy-path counterpart: when

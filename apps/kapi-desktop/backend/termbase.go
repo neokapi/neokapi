@@ -37,6 +37,9 @@ type TermDTO struct {
 	Gender         string `json:"gender,omitempty"`
 	Note           string `json:"note,omitempty"`
 	CompetitorTerm bool   `json:"competitor_term,omitempty"`
+	// Validity carries the term's temporal/tag scoping (the constraints +
+	// derived-geography axis the concept dashboard renders). nil = always valid.
+	Validity *ValidityDTO `json:"validity,omitempty"`
 }
 
 // TermSearchResult is the paginated result from SearchTerms.
@@ -81,6 +84,7 @@ func conceptToDTO(c termbase.Concept) ConceptDTO {
 			Gender:         t.Gender,
 			Note:           t.Note,
 			CompetitorTerm: t.CompetitorTerm,
+			Validity:       validityToDTO(t.Validity),
 		})
 	}
 	return ConceptDTO{
@@ -107,6 +111,7 @@ func dtoToTerms(dtos []TermDTO) []termbase.Term {
 			Gender:         d.Gender,
 			Note:           d.Note,
 			CompetitorTerm: d.CompetitorTerm,
+			Validity:       validityFromDTO(d.Validity),
 		})
 	}
 	return terms

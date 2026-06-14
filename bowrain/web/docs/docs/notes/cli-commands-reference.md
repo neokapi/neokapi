@@ -7,10 +7,13 @@ title: "CLI Commands Reference"
 
 This note provides implementation details for [AD-010](/architecture-decisions/010-bowrain-cli-and-project-model) and [AD-011](/architecture-decisions/011-rest-api).
 
-## Bowrain plugin command tree
+## kapi (with bowrain plugin) command tree
+
+The standalone `bowrain` binary is retired; once the `kapi-bowrain` plugin is
+installed, every command below runs as `kapi <command>`.
 
 ```
-bowrain
+kapi
 +-- init             # Initialize a new .kapi project (recipe + state dir)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
 +-- config           # View or set configuration values
@@ -102,8 +105,14 @@ All paths support `--json` output for CI/CD integration.
    - Response: changes since cursor, new cursor, has_more
    - Paginated: follow has_more until all changes consumed
 4. Write blocks to local files via FormatRegistry
-5. Run `post-pull` hooks (if configured)
-6. Update `.kapi/cache/sync-cache.json`
+5. If the project is workspace-claimed, snapshot governed terminology: paginate
+   `GET /api/v1/:ws/concepts`, fetch each concept's relations via
+   `GET /api/v1/:ws/concepts/:cid/relations`, and write both into the project
+   termbase (`.kapi/termbase.db`) through `AddConcept`/`AddRelation`. Record a
+   `ConceptBaseline` in the sync cache so a later `kapi push` can diff local
+   terminology edits against it.
+6. Run `post-pull` hooks (if configured)
+7. Update `.kapi/cache/sync-cache.json`
 
 **Conflict handling:**
 

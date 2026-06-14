@@ -79,43 +79,14 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	sourceRuns := v.SourceRuns()
-	var findings []brand.BrandVoiceFinding
 
 	// Forbidden and competitor terms are matched by the shared vocabulary matcher
 	// (brand.MatchVocabulary) — whole-word, Unicode-aware (check.FindTerm), so
-	// "use" never matches inside "user". The same matcher backs the blast-radius
-	// evaluator, so the streaming check and the governance preview never diverge.
-	// Here we map each hit's byte range onto run-anchored positions and build the
-	// presentation message; preferred terms are surfaced via a forbidden rule's
-	// replacement suggestion.
-	for _, hit := range brand.MatchVocabulary(t.profile, sourceText) {
-		f := brand.BrandVoiceFinding{
-			Category:     string(hit.Category),
-			Severity:     hit.Severity,
-			Position:     model.RunRangeForBytes(sourceRuns, hit.Start, hit.End),
-			OriginalText: sourceText[hit.Start:hit.End],
-		}
-		switch hit.Kind {
-		case brand.VocabCompetitor:
-			f.Message = fmt.Sprintf("Competitor term %q found", hit.Term)
-		default:
-			f.Message = fmt.Sprintf("Forbidden term %q found", hit.Term)
-			if hit.Note != "" {
-				f.Message = fmt.Sprintf("Forbidden term %q found: %s", hit.Term, hit.Note)
-			}
-		}
-		if hit.Replacement != "" {
-			f.Suggestion = fmt.Sprintf("Use %q instead", hit.Replacement)
-			// Carry the preferred term as a structured replacement so a
-			// host (the desktop Checks panel) can offer a one-click fix in
-			// addition to the human-readable suggestion above.
-			if f.Metadata == nil {
-				f.Metadata = make(map[string]string)
-			}
-			f.Metadata["replacement"] = hit.Replacement
-		}
-		findings = append(findings, f)
-	}
+	// "use" never matches inside "user" — and mapped to findings by the shared
+	// brand.HitsToFindings (message, structured replacement, concept_id). The same
+	// matcher + mapper back the blast-radius evaluator, the /check endpoint, and
+	// the check_vocabulary MCP tool, so none of these paths diverge.
+	findings := brand.HitsToFindings(brand.MatchVocabulary(t.profile, sourceText), sourceText, sourceRuns)
 
 	// If termBase is available, also look up brand vocabulary terms.
 	if t.termBase != nil {
@@ -126,23 +97,46 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 			return err
 		}
 		for _, m := range matches {
-			if m.Term.CompetitorTerm {
-				findings = append(findings, brand.BrandVoiceFinding{
+			var f brand.BrandVoiceFinding
+			switch {
+			case m.Term.CompetitorTerm:
+				f = brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
-				})
-			} else if m.Term.Status == model.TermForbidden {
-				findings = append(findings, brand.BrandVoiceFinding{
+				}
+			case m.Term.Status == model.TermForbidden:
+				f = brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
-				})
+				}
+			default:
+				continue
 			}
+			// When the matched concept carries a preferred term in the source
+			// locale, surface it as the structured replacement — symmetric with the
+			// profile path, which carries the rule's replacement.
+			if pref := m.Concept.PreferredTerm(v.SourceLocale()); pref != nil && pref.Text != "" {
+				f.Suggestion = fmt.Sprintf("Use %q instead", pref.Text)
+				if f.Metadata == nil {
+					f.Metadata = make(map[string]string)
+				}
+				f.Metadata["replacement"] = pref.Text
+			}
+			// Link the finding to its knowledge-graph concept, mirroring the profile
+			// path so a termbase-sourced hit pivots to the concept story too.
+			if m.Concept.ID != "" {
+				if f.Metadata == nil {
+					f.Metadata = make(map[string]string)
+				}
+				f.Metadata["concept_id"] = m.Concept.ID
+			}
+			findings = append(findings, f)
 		}
 	}
 
