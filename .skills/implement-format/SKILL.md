@@ -193,7 +193,12 @@ the target Engine level against
 [format-maturity.md](../../docs/internals/format-maturity.md) and state which
 level you reached per axis. The `format-ops` runbook
 ([format-ops.md](../../docs/internals/format-ops.md)) picks the new format up
-automatically on its next `triage-score` run — no manual dashboard step.
+automatically on its next `triage-score` run — no manual dashboard step. The
+scored universe is derived from the `audit-format.py` dir-walk of
+`core/formats/` (minus `exec`/`jsx`/`memorytest`), so there is **no format
+list to edit** in `format-triage.js`; the one registry that does need the new
+entry is `core/formats/support.yaml` (guarded by `check-support-gates` +
+`TestSupportYAML`).
 
 ## Footguns
 

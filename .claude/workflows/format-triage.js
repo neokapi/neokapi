@@ -30,6 +30,12 @@ const LIMIT = typeof cfg.limit === 'number' ? cfg.limit : 0 // 0 = no cap in rem
 const SAMPLES = Math.max(1, typeof cfg.samples === 'number' ? cfg.samples : 1) // ensemble size per format
 const ANCHOR = cfg.anchor !== false // sticky to the prior committed level unless a cited delta
 
+// FALLBACK ONLY. The scored universe is normally derived from the Prep audit
+// (audit-format.py dir-walks core/formats/ minus exec/jsx/memorytest), so a new
+// format is picked up automatically — no edit here, matching bootstrap-publish
+// and the dir-walk validators. This list is used only when the audit can't be
+// parsed (Prep failed) and no explicit `cfg.formats` was given. Workflow scripts
+// have no filesystem access, so it can't readdir directly — hence the audit JSON.
 const ALL_FORMATS = [
   'androidxml', 'applestrings', 'arb', 'csv', 'designtokens', 'doxygen', 'dtd',
   'epub', 'fixedwidth', 'html', 'i18next', 'icml', 'idml', 'json', 'markdown',
@@ -39,7 +45,8 @@ const ALL_FORMATS = [
   'ttx', 'txml', 'versifiedtext', 'vignette', 'vtt', 'wiki', 'xcstrings', 'xliff',
   'xliff2', 'xml', 'yaml',
 ]
-const FORMATS = (Array.isArray(cfg.formats) && cfg.formats.length) ? cfg.formats : ALL_FORMATS
+// Resolved after Prep: explicit override → audit universe (dynamic) → fallback.
+let FORMATS = (Array.isArray(cfg.formats) && cfg.formats.length) ? cfg.formats : ALL_FORMATS
 
 // The agents run with cwd = the neokapi repo root (the worktree this workflow is
 // triggered from). Paths are repo-relative so the audit script + dashboard the
@@ -728,6 +735,20 @@ let floorByFmt = {}, priorByFmt = {}, tierByFmt = {}
     try { tierByFmt = parseSupportYaml(prep.support_yaml) } catch (e) { log('Prep: could not parse support.yaml — rows publish tier: null.') }
   }
   log(`Prep: floor for ${Object.keys(floorByFmt).length} formats, priors for ${Object.keys(priorByFmt).length}, tiers for ${Object.keys(tierByFmt).length}.`)
+  // Derive the scored universe from the dir-walk audit so a newly added format
+  // is picked up automatically (no ALL_FORMATS edit). An explicit cfg.formats
+  // always wins; the static list is the fallback only when Prep yields no floor.
+  if (!(Array.isArray(cfg.formats) && cfg.formats.length)) {
+    const discovered = Object.keys(floorByFmt).sort()
+    if (discovered.length) {
+      const added = discovered.filter((f) => !ALL_FORMATS.includes(f))
+      const dropped = ALL_FORMATS.filter((f) => !discovered.includes(f))
+      FORMATS = discovered
+      if (added.length || dropped.length) log(`Prep: universe from audit (${discovered.length}); +[${added.join(',')}] -[${dropped.join(',')}] vs the static fallback.`)
+    } else {
+      log(`Prep: no audit floor — scoring the static ALL_FORMATS fallback (${FORMATS.length}).`)
+    }
+  }
 }
 
 // ── Phase: Score (ensemble of evidence-cited grids; levels COMPUTED per axis, not picked) ──
