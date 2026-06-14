@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import FormatPreview, { type PreviewSide } from "./FormatPreview";
 import BlockInspector from "./BlockInspector";
+import StructureView from "./StructureView";
+import LayoutView from "./LayoutView";
 import CodeView from "./CodeView";
 import { FileIcon, fileType } from "./fileTypes";
 import { downloadBytes, formatBytes } from "./download";
@@ -32,7 +34,7 @@ export interface DocumentViewerProps {
   /** Original file bytes, enabling the Download tab/button (optional). */
   bytes?: Uint8Array | null;
   /** Tab shown first (default "preview"). */
-  defaultTab?: "preview" | "blocks" | "raw" | "stats" | "download";
+  defaultTab?: "preview" | "structure" | "layout" | "blocks" | "raw" | "stats" | "download";
   /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
   changedIds?: ReadonlySet<string>;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
@@ -68,6 +70,10 @@ export default function DocumentViewer({
   const doc = useMemo(() => treeToRenderDoc(tree), [tree]);
   const blocks = useMemo(() => flattenBlocks(tree), [tree]);
   const locales = doc.locales ?? [];
+  // The structure layer (WS1): show the Structure outline whenever any block
+  // carries a role, and the spatial Layout tab only when page geometry exists.
+  const hasStructure = useMemo(() => blocks.some((b) => b.structure?.role), [blocks]);
+  const hasGeometry = useMemo(() => blocks.some((b) => b.geometry), [blocks]);
 
   // Decode the raw source for the Raw tab (text formats only; binary stays a
   // notice — its bytes are a zip/blob, not readable source).
@@ -164,6 +170,8 @@ export default function DocumentViewer({
         {/* Compact segmented control (w-fit), not a full-width tab bar. */}
         <TabsList>
           <TabsTrigger value="preview">Preview</TabsTrigger>
+          {hasStructure && <TabsTrigger value="structure">Structure</TabsTrigger>}
+          {hasGeometry && <TabsTrigger value="layout">Layout</TabsTrigger>}
           <TabsTrigger value="blocks">
             Blocks{" "}
             {blocks.length > 0 && (
@@ -182,6 +190,20 @@ export default function DocumentViewer({
         <TabsContent value="preview" className="pt-3">
           <FormatPreview tree={tree} side={side} transition="crossfade" annotations />
         </TabsContent>
+
+        {/* Structure — the role-driven outline (WS1/WS5). */}
+        {hasStructure && (
+          <TabsContent value="structure" className="pt-2">
+            <StructureView tree={tree} side={side} />
+          </TabsContent>
+        )}
+
+        {/* Layout — the spatial page view, when geometry exists (WS1/WS5). */}
+        {hasGeometry && (
+          <TabsContent value="layout" className="pt-3">
+            <LayoutView tree={tree} side={side} />
+          </TabsContent>
+        )}
 
         {/* Blocks */}
         <TabsContent value="blocks" className="pt-2">

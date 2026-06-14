@@ -67,11 +67,16 @@ type ContentNode struct {
 	// entities, QA findings, alignment), each with its spans' extracted text.
 	Overlays []OverlayView `json:"overlays,omitempty"`
 	// Annotations are block-level metadata (alt-translations, notes, generic).
-	Annotations        []AnnotationView `json:"annotations,omitempty"`
-	HasSkeleton        bool             `json:"hasSkeleton,omitempty"`
-	IsReferent         bool             `json:"isReferent,omitempty"`
-	PreserveWhitespace bool             `json:"preserveWhitespace,omitempty"`
-	Identity           string           `json:"identity,omitempty"`
+	Annotations []AnnotationView `json:"annotations,omitempty"`
+	// Structure and Geometry are the WS1 structural layer, surfaced as
+	// first-class fields (not generic annotations) so the editor's structure
+	// and layout views render them directly.
+	Structure          *StructureView `json:"structure,omitempty"`
+	Geometry           *GeometryView  `json:"geometry,omitempty"`
+	HasSkeleton        bool           `json:"hasSkeleton,omitempty"`
+	IsReferent         bool           `json:"isReferent,omitempty"`
+	PreserveWhitespace bool           `json:"preserveWhitespace,omitempty"`
+	Identity           string         `json:"identity,omitempty"`
 
 	// Leaf summary (data / media): a short human-readable label.
 	MimeType string `json:"mimeType,omitempty"`
@@ -131,6 +136,30 @@ type AnnotationView struct {
 	Type    string         `json:"type"`
 	Summary string         `json:"summary,omitempty"`
 	Fields  map[string]any `json:"fields,omitempty"`
+}
+
+// StructureView is the wire view of a block's structural role (the WS1 layer:
+// semantic role, layout layer, heading/nesting level, reading order). Surfaced
+// as a first-class node field so the editor's structure/outline view renders it
+// directly rather than parsing a generic annotation.
+type StructureView struct {
+	Role         string `json:"role,omitempty"`
+	Layer        string `json:"layer,omitempty"`
+	Level        int    `json:"level,omitempty"`
+	ReadingOrder int    `json:"readingOrder,omitempty"`
+}
+
+// GeometryView is the wire view of a block's page geometry (the WS1 layer:
+// page number + bounding box). Surfaced as a first-class node field so the
+// editor's spatial layout view can position the block on a page image.
+type GeometryView struct {
+	Page       int     `json:"page,omitempty"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	W          float64 `json:"w"`
+	H          float64 `json:"h"`
+	Resolution int     `json:"resolution,omitempty"`
+	Origin     string  `json:"origin,omitempty"`
 }
 
 // BuildContentTree walks a Part stream (in document order, as emitted by a
@@ -271,6 +300,15 @@ func blockNode(b *model.Block) *ContentNode {
 	if b.Identity != nil {
 		n.Identity = b.Identity.ContentHash
 	}
+	if s, ok := b.Structure(); ok && s != nil && (s.Role != "" || s.Layer != "" || s.Level != 0 || s.ReadingOrder != 0) {
+		n.Structure = &StructureView{Role: s.Role, Layer: s.Layer, Level: s.Level, ReadingOrder: s.ReadingOrder}
+	}
+	if g, ok := b.Geometry(); ok && g != nil {
+		n.Geometry = &GeometryView{
+			Page: g.Page, X: g.BBox.X, Y: g.BBox.Y, W: g.BBox.W, H: g.BBox.H,
+			Resolution: g.Resolution, Origin: g.Origin,
+		}
+	}
 	if len(b.Targets) > 0 {
 		n.Targets = make(map[string][]model.Run, len(b.Targets))
 		n.TargetMeta = make(map[string]*TargetMeta, len(b.Targets))
@@ -364,6 +402,11 @@ func annotationViews(b *model.Block) []AnnotationView {
 	sort.Strings(keys)
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
+		// The WS1 structural layer is surfaced as first-class node fields
+		// (Structure / Geometry), not generic annotation rows.
+		if k == model.AnnoStructure || k == model.AnnoGeometry {
+			continue
+		}
 		// Collection annotations expand to one view per item so each renders
 		// individually (keyed "alt-translation[i]" / "note[i]").
 		if alts, ok := annos[k].(*model.AltTranslations); ok {
