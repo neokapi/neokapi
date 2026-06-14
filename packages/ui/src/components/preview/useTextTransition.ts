@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 
-// useTextTransition — drive a source→target text change as one of three effects:
+// useTextTransition — drive a source→target text change as one of these effects:
 //
 //   • "none"       — instant swap (also used when prefers-reduced-motion is set).
 //   • "crossfade"  — instant value, but a changing `cycle` key lets the renderer
 //                    re-mount + CSS-fade the new text (the renderer owns the CSS).
 //   • "typewriter" — reveal the active text progressively (word- or char-by-word)
 //                    so the target appears to be typed out.
+//   • "slot"       — the renderer rolls each line from its previous value to the
+//                    new one (slot-text); this hook treats it as instant and the
+//                    renderer (FormatPreview) owns the roll.
 //
 // The hook is content-agnostic: it takes the *full* active text and returns the
 // portion to render right now plus a `done` flag and a `cycle` counter. The
 // caller maps the visible text to segments/overlays, so highlights appear as the
 // words are revealed.
 
-export type TransitionEffect = "none" | "crossfade" | "typewriter";
+export type TransitionEffect = "none" | "crossfade" | "typewriter" | "slot";
 export type TypewriterGranularity = "word" | "char";
 
 export interface UseTextTransitionOptions {

@@ -56,6 +56,10 @@ const OVERLAY_STYLES: Record<string, OverlayStyle> = {
   // Other model overlay types (not currently produced, but kept stable).
   entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
   entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
+  // Sensitive spans removed before translation. The className is unused — the
+  // renderer paints a marker censor bar for redaction (see FormatPreview) — but a
+  // style entry keeps the label/tooltip path consistent.
+  redaction: { className: "", label: "Redacted" },
   segmentation: {
     className: "bg-slate-400/20 text-slate-700 dark:text-slate-300",
     label: "Segment",
@@ -165,6 +169,9 @@ export function resolveOverlaySpans(
   // texts within one overlay map to successive occurrences, not all to the first.
   for (const ov of overlays) {
     if (ov.side !== side) continue;
+    // "tm" is a line-level marker (TM leverage), not a span highlight — the
+    // renderer reads it off the line directly and styles the whole line.
+    if (ov.type === "tm") continue;
     if (filter && !filter.has(ov.type)) continue;
     let cursor = 0;
     for (const span of ov.spans) {

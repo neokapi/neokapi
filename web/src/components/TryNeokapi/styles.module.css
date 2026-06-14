@@ -400,28 +400,101 @@
 .heroChrome {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0 0.15rem 0.4rem;
   font-size: 0.72rem;
   color: var(--ifm-color-emphasis-600);
-}
-.heroFile {
-  font-family: var(--ifm-font-family-monospace);
 }
 .heroStageName {
   font-weight: 700;
   color: var(--ifm-color-primary);
 }
+/* Stacked deck: the active card sits on two peeking back cards (the deck of
+   slides). New target cards (pseudo, ja) slide in onto the stack. The deck tints
+   by locale via --kapi-preview-bg (also flows into the flush slide surface), so
+   the source deck (en, neutral) visibly becomes the pseudo and Japanese decks. */
+.deck {
+  position: relative;
+  margin: 0 0.4rem 0.5rem 0;
+}
+.deck[data-locale="qps"] {
+  --kapi-preview-bg: color-mix(in srgb, #d98c00 8%, var(--ifm-background-color));
+}
+.deck[data-locale="ja"] {
+  --kapi-preview-bg: color-mix(in srgb, var(--ifm-color-primary) 10%, var(--ifm-background-color));
+}
+.deckBackFar,
+.deckBackNear {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: var(--kapi-preview-bg, var(--ifm-color-emphasis-100));
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.deckBackNear {
+  z-index: 1;
+  transform: translate(5px, 7px) rotate(1.8deg);
+  opacity: 0.65;
+}
+.deckBackFar {
+  z-index: 0;
+  transform: translate(10px, 13px) rotate(3.4deg);
+  opacity: 0.38;
+}
+
 .heroStage {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 12.5rem;
-  padding: 0.55rem;
+  padding: 0;
   border-radius: 12px;
-  background: var(--ifm-color-emphasis-100);
+  background: var(--kapi-preview-bg, var(--ifm-background-color));
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+/* Read reserves room at the bottom for the formats strip. */
+.heroStageRead {
+  padding-bottom: 2.7rem;
+}
+
+/* A new target card dealt onto the stack (pseudo, ja). */
+.cardSlideIn {
+  animation: cardSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(26px, -15px) rotate(-3deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
+}
+
+/* The deck's file path, on the card itself: en/ → qps/ → ja/deck.pptx. */
+.deckLabel {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  background: color-mix(in srgb, var(--ifm-background-color) 86%, transparent);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.deckLabelLocale {
+  color: var(--ifm-color-primary);
+  font-weight: 700;
 }
 .heroDoc {
   font-size: 0.82rem;
@@ -441,18 +514,30 @@
   animation: heroReveal 0.4s ease;
 }
 
-/* Format chips, surfaced during the Read stage */
+/* Formats strip, surfaced during the Read stage — a distinct footer with a
+   divider so it reads as "this slide could be any of these formats", separate
+   from the slide content above it. */
 .heroFormats {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  padding: 0.6rem 0.5rem 0.5rem;
-  background: linear-gradient(to top, var(--ifm-color-emphasis-100) 55%, transparent);
+  gap: 0.3rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--ifm-background-color);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
   animation: heroReveal 0.4s ease;
+}
+.heroFormatsLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+  margin-right: 0.15rem;
 }
 .heroFormatChip {
   padding: 0.08rem 0.4rem;
@@ -518,7 +603,8 @@
   }
   .heroBadge,
   .heroFormats,
-  .heroCaption {
+  .heroCaption,
+  .cardSlideIn {
     animation: none;
   }
 }
