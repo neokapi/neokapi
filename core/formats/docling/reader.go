@@ -180,7 +180,7 @@ func (r *Reader) walkRef(ctx context.Context, ch chan<- model.PartResult, idx *d
 
 	switch {
 	case idx.texts[ref] != nil:
-		return r.emitText(ctx, ch, idx.texts[ref])
+		return r.emitText(ctx, ch, idx, idx.texts[ref])
 	case idx.tables[ref] != nil:
 		return r.emitTable(ctx, ch, idx, idx.tables[ref])
 	case idx.pictures[ref] != nil:
@@ -193,38 +193,52 @@ func (r *Reader) walkRef(ctx context.Context, ch chan<- model.PartResult, idx *d
 }
 
 // emitText emits one Block for a text item, carrying its role, level, layout
-// layer, and geometry.
-func (r *Reader) emitText(ctx context.Context, ch chan<- model.PartResult, t *docText) bool {
+// layer, and geometry — then recurses into the item's own children. In a
+// DoclingDocument the tree hangs off every node, not just groups/body: a
+// list_item's sub-bullets are nested groups referenced from the item's
+// `children`, and a container node may carry no text of its own. Walking
+// children here is what keeps nested lists (and any child content) from being
+// dropped.
+func (r *Reader) emitText(ctx context.Context, ch chan<- model.PartResult, idx *docIndex, t *docText) bool {
 	text := t.Text
 	if text == "" {
 		text = t.Orig
 	}
-	if strings.TrimSpace(text) == "" {
-		return true // structural-only node (no translatable content)
-	}
-	r.blockCounter++
-	block := model.NewBlock(fmt.Sprintf("b%d", r.blockCounter), text)
-	block.SourceLocale = r.locale()
-	block.Type = t.Label
+	if strings.TrimSpace(text) != "" {
+		r.blockCounter++
+		block := model.NewBlock(fmt.Sprintf("b%d", r.blockCounter), text)
+		block.SourceLocale = r.locale()
+		block.Type = t.Label
 
-	role := labelRole[t.Label]
-	if role != "" {
-		level := 0
-		if role == model.RoleHeading {
-			level = t.Level
-			if level == 0 {
-				level = 1
+		role := labelRole[t.Label]
+		if role != "" {
+			level := 0
+			if role == model.RoleHeading {
+				level = t.Level
+				if level == 0 {
+					level = 1
+				}
 			}
+			block.SetSemanticRole(role, level)
 		}
-		block.SetSemanticRole(role, level)
+		if furnitureLabel[t.Label] {
+			block.SetLayoutLayer(model.LayerFurniture)
+		}
+		if g := geometryFromProv(t.Prov, t.SelfRef); g != nil {
+			block.SetGeometry(g)
+		}
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return false
+		}
 	}
-	if furnitureLabel[t.Label] {
-		block.SetLayoutLayer(model.LayerFurniture)
+	// Recurse into nested children (sub-lists, grouped sub-content) even when
+	// this node has no text of its own — it may be a pure container.
+	for _, c := range t.Children {
+		if !r.walkRef(ctx, ch, idx, c.Ref) {
+			return false
+		}
 	}
-	if g := geometryFromProv(t.Prov, t.SelfRef); g != nil {
-		block.SetGeometry(g)
-	}
-	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	return true
 }
 
 // emitGroup emits a Group bracketing the group's children (lists, inline groups).

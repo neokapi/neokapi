@@ -39,7 +39,10 @@ func NewWriter() *Writer {
 // whether the element carries a level attribute.
 func roleElem(role string) (elem string, hasLevel bool) {
 	switch role {
-	case model.RoleHeading:
+	case model.RoleHeading, model.RoleTitle:
+		// DocLang has no <title> body element (a <title> is only legal inside
+		// <head>); a document title projects to a level-1 <heading>, matching
+		// the HTML projection (RoleTitle → <h1>).
 		return "heading", true
 	case model.RoleFootnote:
 		return "footnote", false
@@ -51,8 +54,6 @@ func roleElem(role string) (elem string, hasLevel bool) {
 		return "page_header", false
 	case model.RolePageFooter:
 		return "page_footer", false
-	case model.RoleTitle:
-		return "title", false
 	default: // paragraph, list-item, or unset
 		return "text", false
 	}
@@ -158,10 +159,19 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 		return
 	}
 
+	// A <table>/<index> may contain only element-head content + OTSL cell
+	// tokens — never a body <text>/<heading>. The only block we emit directly
+	// under one is a caption, which belongs in the element head as <caption>.
+	if pg := w.parentGroup(); pg == "table" || pg == "index" {
+		fmt.Fprintf(b, "<caption>%s</caption>\n", body)
+		return
+	}
+
 	elem, hasLevel := roleElem(role)
 
-	// A list item is delimited by <ldiv/> then a <text>.
-	if w.parentGroup() == "list" && role == model.RoleListItem {
+	// Every direct child of a <list> is a list_item and MUST begin with
+	// <ldiv/> (per the schema's list content model), whatever its role.
+	if w.parentGroup() == "list" {
 		b.WriteString("<ldiv/>")
 	}
 
