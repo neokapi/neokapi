@@ -426,6 +426,10 @@ jobs:
       - name: Upload all assets to the release
         uses: softprops/action-gh-release@v3
         with:
+          # The SaT plugin has its own tag line (sat-v*); it must NOT become the
+          # repo's "latest" release, or setup-kapi's resolve-version (which reads
+          # releases/latest) would pick up the SaT tag instead of the kapi CLI.
+          make_latest: false
           files: |
             sat-release/*.tar.gz
             sat-release/*.tar.gz.sigstore.json
