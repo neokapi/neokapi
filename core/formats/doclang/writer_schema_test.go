@@ -154,3 +154,43 @@ func TestWriterSchema_ListItemLdiv(t *testing.T) {
 		t.Errorf("nested <list> emitted as a bare list child (no <ldiv/>):\n%s", out)
 	}
 }
+
+// TestWriterSingleRootNestedLayers pins that a source emitting nested layers
+// (e.g. openxml's root document layer plus body/header/footer sub-document
+// layers) projects to a SINGLE DocLang document root — the writer flattens
+// inner layers rather than emitting a second <?xml?>/<doclang> root.
+func TestWriterSingleRootNestedLayers(t *testing.T) {
+	w := doclangfmt.NewWriter()
+	var buf bytes.Buffer
+	if err := w.SetOutputWriter(&buf); err != nil {
+		t.Fatal(err)
+	}
+	root := &model.Layer{ID: "root", Format: "doclang"}
+	child := &model.Layer{ID: "child", Format: "doclang"}
+	parts := []*model.Part{
+		{Type: model.PartLayerStart, Resource: root},
+		advBlock("b1", "body text", model.RoleParagraph, 0),
+		{Type: model.PartLayerStart, Resource: child}, // sub-document layer
+		advBlock("b2", "header text", model.RolePageHeader, 0),
+		{Type: model.PartLayerEnd, Resource: child},
+		{Type: model.PartLayerEnd, Resource: root},
+	}
+	ch := make(chan *model.Part, len(parts))
+	for _, p := range parts {
+		ch <- p
+	}
+	close(ch)
+	if err := w.Write(context.Background(), ch); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	out := buf.String()
+	if got := strings.Count(out, "<doclang "); got != 1 {
+		t.Errorf("expected exactly 1 <doclang> root across nested layers, got %d:\n%s", got, out)
+	}
+	if got := strings.Count(out, "</doclang>"); got != 1 {
+		t.Errorf("expected exactly 1 </doclang> close, got %d:\n%s", got, out)
+	}
+	if got := strings.Count(out, "<?xml"); got != 1 {
+		t.Errorf("expected exactly 1 XML declaration, got %d:\n%s", got, out)
+	}
+}

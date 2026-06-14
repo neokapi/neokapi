@@ -23,6 +23,11 @@ type Writer struct {
 	format.BaseFormatWriter
 	cfg        *Config
 	groupStack []string
+	// layerDepth tracks layer nesting. A source format may emit nested layers
+	// (e.g. openxml's root document layer plus body/header/footer sub-document
+	// layers); DocLang has a single document root, so the root element is
+	// emitted only at the outermost boundary and inner layers are flattened.
+	layerDepth int
 	// tableCaption buffers caption text inside the current <table>/<index>. The
 	// schema's element_head permits at most one <caption>, but a Docling table
 	// can carry several caption refs; we fold them into a single <caption>
@@ -92,10 +97,18 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 			switch part.Type {
 			case model.PartLayerStart:
-				b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-				fmt.Fprintf(&b, "<doclang xmlns=%q version=\"0.6\">\n", Namespace)
+				if w.layerDepth == 0 {
+					b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+					fmt.Fprintf(&b, "<doclang xmlns=%q version=\"0.6\">\n", Namespace)
+				}
+				w.layerDepth++
 			case model.PartLayerEnd:
-				b.WriteString("</doclang>\n")
+				if w.layerDepth > 0 {
+					w.layerDepth--
+				}
+				if w.layerDepth == 0 {
+					b.WriteString("</doclang>\n")
+				}
 			case model.PartGroupStart:
 				if g, ok := part.Resource.(*model.GroupStart); ok {
 					w.openGroup(&b, g)
