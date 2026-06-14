@@ -53,7 +53,8 @@ export const STAGES: ProcessStage[] = [
     key: "translate",
     label: "Translate · 日本語",
     short: "日本語",
-    caption: "Translate the remainder — terminology and inline tags preserved.",
+    caption:
+      "Translate the rest with AI or human linguists, then review — terminology and inline tags preserved.",
   },
   {
     key: "merge",
@@ -64,20 +65,7 @@ export const STAGES: ProcessStage[] = [
 ];
 
 // A few of the formats kapi reads, surfaced as chips during the Read stage.
-export const READ_FORMATS = [
-  "PPTX",
-  "DOCX",
-  "XLSX",
-  "XLIFF",
-  "JSON",
-  "YAML",
-  "HTML",
-  "Markdown",
-  "PO",
-  "CSV",
-  "ARB",
-  "RESX",
-];
+export const READ_FORMATS = ["PPTX", "DOCX", "XLSX", "XLIFF", "JSON", "Markdown"];
 
 const SLIDE = "ppt/slides/slide1.xml";
 const DUMMY_RANGE = { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 };
@@ -97,13 +85,73 @@ const SRC = {
   b3: "Acme owns the category.",
 };
 
-// Pseudo-translate (accented + lightly expanded) — visual flavour only. The
-// figures are left verbatim (unaccented) so the redaction overlay still matches.
+// Pseudo-translate exactly like `kapi pseudo-translate`: the accent map +
+// ▒ shade markers from core/tools/pseudo.go, so the hero matches the real tool
+// (every ASCII letter is accented; digits/punctuation pass through).
+const ACCENT: Record<string, string> = {
+  a: "à",
+  b: "ƃ",
+  c: "ç",
+  d: "đ",
+  e: "é",
+  f: "ƒ",
+  g: "ĝ",
+  h: "ĥ",
+  i: "î",
+  j: "ĵ",
+  k: "ķ",
+  l: "ļ",
+  m: "ḿ",
+  n: "ñ",
+  o: "ö",
+  p: "þ",
+  q: "ǫ",
+  r: "ŕ",
+  s: "š",
+  t: "ţ",
+  u: "ü",
+  v: "ṽ",
+  w: "ŵ",
+  x: "ẋ",
+  y: "ý",
+  z: "ž",
+  A: "À",
+  B: "Ƃ",
+  C: "Ç",
+  D: "Đ",
+  E: "É",
+  F: "Ƒ",
+  G: "Ĝ",
+  H: "Ĥ",
+  I: "Î",
+  J: "Ĵ",
+  K: "Ķ",
+  L: "Ļ",
+  M: "Ḿ",
+  N: "Ñ",
+  O: "Ö",
+  P: "Þ",
+  Q: "Ǫ",
+  R: "Ŕ",
+  S: "Š",
+  T: "Ţ",
+  U: "Ü",
+  V: "Ṽ",
+  W: "Ŵ",
+  X: "Ẋ",
+  Y: "Ý",
+  Z: "Ž",
+};
+const accent = (s: string): string => s.replace(/[A-Za-z]/g, (c) => ACCENT[c] ?? c);
+const pseudo = (s: string): string => `▒ ${accent(s)} ▒`;
+
+// Pseudo-translate (real accent map + shade markers). The figures are accented
+// like everything else; the redaction overlay locates the accented form.
 const PSEUDO = {
-  t: "Àçmé — Sérîés B",
-  b1: `FÝ27 révénüé: ${REVENUE}`,
-  b2: `Nét bürn: ${BURN}/mö`,
-  b3: "Àçmé öwns thé çàtégöry.",
+  t: pseudo(SRC.t),
+  b1: pseudo(SRC.b1),
+  b2: pseudo(SRC.b2),
+  b3: pseudo(SRC.b3),
 };
 
 // Japanese translations. The figures stay masked through translation, restored at merge.
@@ -115,9 +163,10 @@ const JA = {
 };
 
 // Redaction overlays covering the confidential figures — painted as censor bars.
-const redactRevenue = (): OverlayView =>
-  overlay("redaction", [span(REVENUE, { category: "Projected revenue" })]);
-const redactBurn = (): OverlayView => overlay("redaction", [span(BURN, { category: "Burn rate" })]);
+// `figure` must be the exact substring as it appears in the line (accented under
+// pseudo), so the overlay can locate it.
+const redact = (figure: string, category: string): OverlayView =>
+  overlay("redaction", [span(figure, { category })]);
 // A term annotation for the "Acme" brand name — decodes in when annotated.
 const acmeTerm = (): OverlayView =>
   overlay("term", [span("Acme", { target: "Acme", domain: "brand" })]);
@@ -151,30 +200,30 @@ const readFrame = slide(line("t", SRC.t), [
 // Pre-process: "Acme" tagged as a term (decodes in) + the revenue and burn
 // figures redacted (censor bars).
 const preprocessFrame = slide(line("t", SRC.t, [acmeTerm()]), [
-  line("b1", SRC.b1, [redactRevenue()]),
-  line("b2", SRC.b2, [redactBurn()]),
+  line("b1", SRC.b1, [redact(REVENUE, "Projected revenue")]),
+  line("b2", SRC.b2, [redact(BURN, "Burn rate")]),
   line("b3", SRC.b3, [acmeTerm()]),
 ]);
 
-// Pseudo-translate: target card slides in; figures stay redacted.
+// Pseudo-translate: target card slides in; figures stay redacted (accented form).
 const pseudoFrame = slide(line("t", PSEUDO.t), [
-  line("b1", PSEUDO.b1, [redactRevenue()]),
-  line("b2", PSEUDO.b2, [redactBurn()]),
+  line("b1", PSEUDO.b1, [redact(accent(REVENUE), "Projected revenue")]),
+  line("b2", PSEUDO.b2, [redact(accent(BURN), "Burn rate")]),
   line("b3", PSEUDO.b3),
 ]);
 
 // Leverage: title + last bullet come back from TM (100% match) — they roll in with
 // a "from memory" highlight; the financial lines await translation, still redacted.
 const leverageFrame = slide(line("t", JA.t, [fromMemory()]), [
-  line("b1", SRC.b1, [redactRevenue()]),
-  line("b2", SRC.b2, [redactBurn()]),
+  line("b1", SRC.b1, [redact(REVENUE, "Projected revenue")]),
+  line("b2", SRC.b2, [redact(BURN, "Burn rate")]),
   line("b3", JA.b3, [fromMemory()]),
 ]);
 
 // Translate: the Japanese target card slides in; the figures remain redacted.
 const translateFrame = slide(line("t", JA.t), [
-  line("b1", JA.b1, [redactRevenue()]),
-  line("b2", JA.b2, [redactBurn()]),
+  line("b1", JA.b1, [redact(REVENUE, "Projected revenue")]),
+  line("b2", JA.b2, [redact(BURN, "Burn rate")]),
   line("b3", JA.b3),
 ]);
 
@@ -224,6 +273,7 @@ export const FRAMES: Record<StageKey, StageFrame> = {
     annotations: true,
     slideIn: true,
     locale: "ja",
+    badge: "AI or human · reviewed",
   },
   // Merge restores the figures — the crossfade reveals the real numbers again.
   merge: { doc: mergeFrame, transition: "crossfade", annotations: false, locale: "ja" },

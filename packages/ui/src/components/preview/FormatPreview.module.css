@@ -8,7 +8,9 @@
   --doc-muted: var(--ifm-color-emphasis-600, #6b7280);
   --doc-border: var(--ifm-color-emphasis-200, #e5e7eb);
   --doc-subtle: var(--ifm-color-emphasis-100, #f3f4f6);
-  --doc-bg: var(--ifm-background-color, #fff);
+  /* Document surface color — a host can tint it (e.g. per target locale) via
+     --kapi-preview-bg; defaults to the page background. */
+  --doc-bg: var(--kapi-preview-bg, var(--ifm-background-color, #fff));
   color: var(--doc-fg);
   font-size: 0.82rem;
   line-height: 1.45;

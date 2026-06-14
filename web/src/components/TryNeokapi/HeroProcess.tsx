@@ -94,13 +94,18 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
             </span>
           </div>
 
-          {/* Stacked deck: two peeking back cards, then the active card. */}
-          <div className={styles.deck}>
+          {/* Stacked deck: two peeking back cards, then the active card. The
+              deck tints by locale (en source → qps → ja target). */}
+          <div className={styles.deck} data-locale={frame.locale}>
             <span className={styles.deckBackFar} aria-hidden="true" />
             <span className={styles.deckBackNear} aria-hidden="true" />
             <div
               key={deckKey(i)}
-              className={clsx(styles.heroStage, !reduced && frame.slideIn && styles.cardSlideIn)}
+              className={clsx(
+                styles.heroStage,
+                stage.key === "read" && styles.heroStageRead,
+                !reduced && frame.slideIn && styles.cardSlideIn,
+              )}
             >
               <span className={styles.deckLabel} aria-hidden="true">
                 <span className={styles.deckLabelLocale}>{frame.locale}</span>/{HERO_FILENAME}
@@ -121,10 +126,12 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
                 typewriterStagger={reduced ? 0 : LINE_STAGGER}
                 reducedMotion={reduced}
                 gridHeaders={false}
+                flush
                 className={styles.heroDoc}
               />
               {stage.key === "read" && (
                 <div className={styles.heroFormats} aria-hidden="true">
+                  <span className={styles.heroFormatsLabel}>reads</span>
                   {READ_FORMATS.map((f) => (
                     <span key={f} className={styles.heroFormatChip}>
                       {f}
