@@ -15,33 +15,33 @@ exposes its capabilities to AI assistants over MCP.
 
 ## Getting started
 
-- [Kapi overview](https://neokapi.github.io/web/neokapi/kapi/overview): what kapi is and how it relates to the engine
-- [Quickstart](https://neokapi.github.io/web/neokapi/kapi/get-started/quickstart): install and run the first commands
-- [Installation](https://neokapi.github.io/web/neokapi/kapi/get-started/installation): Homebrew, WinGet, binary, desktop app
-- [First project](https://neokapi.github.io/web/neokapi/kapi/get-started/first-project): the `.kapi` recipe and project model
-- [Use with Claude](https://neokapi.github.io/web/neokapi/kapi/get-started/use-with-claude): drive the engine from an AI assistant over MCP
+- [Kapi overview](https://neokapi.github.io/kapi/overview): what kapi is and how it relates to the engine
+- [Quickstart](https://neokapi.github.io/kapi/get-started/quickstart): install and run the first commands
+- [Installation](https://neokapi.github.io/kapi/get-started/installation): Homebrew, WinGet, binary, desktop app
+- [First project](https://neokapi.github.io/kapi/get-started/first-project): the `.kapi` recipe and project model
+- [Use with Claude](https://neokapi.github.io/kapi/get-started/use-with-claude): drive the engine from an AI assistant over MCP
 
 ## Framework (Go library)
 
-- [Go quickstart](https://neokapi.github.io/web/neokapi/framework/go-quickstart): embed the engine in a Go program
-- [Architecture](https://neokapi.github.io/web/neokapi/framework/architecture): streaming pipeline, content model, executor
-- [Formats](https://neokapi.github.io/web/neokapi/framework/formats): format-aware readers and writers, plugins, okapi-bridge
-- [AI translation](https://neokapi.github.io/web/neokapi/framework/ai-translation): LLM and MT backends, composed in the pipeline
-- [Tools](https://neokapi.github.io/web/neokapi/framework/tools): the built-in processing tools
+- [Go quickstart](https://neokapi.github.io/framework/go-quickstart): embed the engine in a Go program
+- [Architecture](https://neokapi.github.io/framework/architecture): streaming pipeline, content model, executor
+- [Formats](https://neokapi.github.io/framework/formats): format-aware readers and writers, plugins, okapi-bridge
+- [AI translation](https://neokapi.github.io/framework/ai-translation): LLM and MT backends, composed in the pipeline
+- [Tools](https://neokapi.github.io/framework/tools): the built-in processing tools
 
 ## Reference
 
-- [Reference overview](https://neokapi.github.io/web/neokapi/reference): generated and interactive references
-- [CLI commands](https://neokapi.github.io/web/neokapi/commands): every kapi command
-- [Format reference](https://neokapi.github.io/web/neokapi/formats): the full, generated list of supported formats
-- [Tool reference](https://neokapi.github.io/web/neokapi/tools): the full, generated list of tools
-- [Project file](https://neokapi.github.io/web/neokapi/reference/project-file): the `.kapi` recipe format
-- [MCP server](https://neokapi.github.io/web/neokapi/reference/mcp): the engine's MCP tools
+- [Reference overview](https://neokapi.github.io/reference): generated and interactive references
+- [CLI commands](https://neokapi.github.io/commands): every kapi command
+- [Format reference](https://neokapi.github.io/formats): the full, generated list of supported formats
+- [Tool reference](https://neokapi.github.io/tools): the full, generated list of tools
+- [Project file](https://neokapi.github.io/reference/project-file): the `.kapi` recipe format
+- [MCP server](https://neokapi.github.io/reference/mcp): the engine's MCP tools
 
 ## Toolbox and React
 
-- [CLI toolbox](https://neokapi.github.io/web/neokapi/toolbox/overview): kgrep, ksed, kcat — format-aware grep/sed/cat
-- [Kapi React](https://neokapi.github.io/web/neokapi/react/introduction): zero-config i18n library for React
+- [CLI toolbox](https://neokapi.github.io/toolbox/overview): kgrep, ksed, kcat — format-aware grep/sed/cat
+- [Kapi React](https://neokapi.github.io/react/introduction): zero-config i18n library for React
 
 ## Source
 

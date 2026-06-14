@@ -20,15 +20,17 @@ const buildStamp = (() => {
 })();
 
 // This Docusaurus instance IS the neokapi site: in production it sits at the
-// /web/neokapi/ root and its home page (src/pages/index.tsx) is the product
-// landing page. (A separate Vite landing app previously occupied this root; it
+// site root (/) of neokapi.github.io and its home page (src/pages/index.tsx)
+// is the product landing page. (A separate Vite landing app previously
+// occupied this root; it
 // was retired and its content folded into the docs home — see
-// src/components/home/.) PR previews are instead served from
+// src/components/home/.) Production serves at the site ROOT ("/") of
+// neokapi.github.io; PR previews are instead served from
 // /web/prs/<N>/neokapi/docs/ (the deploy step runs from the default branch and
 // slots PR docs there), so the deploy workflow overrides the base path via
-// DOCS_BASE_URL — without it, internal links would carry the production prefix
+// DOCS_BASE_URL — without it, internal links would carry the wrong prefix
 // and navigate out of the preview.
-const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/";
+const baseUrl = process.env.DOCS_BASE_URL ?? "/";
 
 const config: Config = {
   title: "neokapi",
@@ -167,9 +169,9 @@ const config: Config = {
       {
         docs: {
           // routeBasePath "/" puts docs at the root of the Docusaurus
-          // instance, which itself is mounted at baseUrl. So URLs end up
-          // as /web/neokapi/{topic}, and the home page (src/pages/index.tsx)
-          // sits at /web/neokapi/.
+          // instance, which itself is mounted at baseUrl. In production
+          // (baseUrl "/") URLs end up as /{topic}, and the home page
+          // (src/pages/index.tsx) sits at the site root /.
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/neokapi/neokapi/tree/main/web/",

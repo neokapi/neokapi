@@ -132,16 +132,17 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Production serves the docs at the /web/neokapi/ ROOT (the docs home is
-          # the product landing page). PR previews keep the legacy
-          # /web/prs/<N>/neokapi/docs/ slot, because the deploy step
-          # (pages-deploy.yml) runs as a workflow_run from the DEFAULT branch and
-          # slots PR docs there — the build base must match that slot or the
-          # preview's assets 404. The two paths are each internally consistent.
+          # Production serves the docs at the SITE ROOT ("/") of
+          # neokapi.github.io (the docs home is the product landing page). PR
+          # previews keep the /web/prs/<N>/neokapi/docs/ slot, because the deploy
+          # step (pages-deploy.yml) runs as a workflow_run from the DEFAULT
+          # branch and slots PR docs there — the build base must match that slot
+          # or the preview's assets 404. The two paths are each internally
+          # consistent.
           if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
             echo "docs_base=/web/prs/${PR_NUMBER}/neokapi/docs/" >> "$GITHUB_OUTPUT"
           else
-            echo "docs_base=/web/neokapi/" >> "$GITHUB_OUTPUT"
+            echo "docs_base=/" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build kapi Docusaurus site
