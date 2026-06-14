@@ -1,7 +1,7 @@
 {
   "name": "@neokapi/kapi-format",
-  "version": "0.1.1",
-  "private": true,
+  "version": "1.0.0",
+  "private": false,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
   "type": "module",
   "main": "src/index.ts",
@@ -20,15 +20,37 @@
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
-      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "./block": { "types": "./dist/block.d.ts", "default": "./dist/block.js" },
-      "./vocabulary": { "types": "./dist/vocabulary.d.ts", "default": "./dist/vocabulary.js" },
-      "./preview": { "types": "./dist/preview.d.ts", "default": "./dist/preview.js" },
-      "./annotation": { "types": "./dist/annotation.d.ts", "default": "./dist/annotation.js" },
-      "./klf": { "types": "./dist/klf.d.ts", "default": "./dist/klf.js" },
-      "./target-plural": { "types": "./dist/target-plural.d.ts", "default": "./dist/target-plural.js" },
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./block": {
+        "types": "./dist/block.d.ts",
+        "default": "./dist/block.js"
+      },
+      "./vocabulary": {
+        "types": "./dist/vocabulary.d.ts",
+        "default": "./dist/vocabulary.js"
+      },
+      "./preview": {
+        "types": "./dist/preview.d.ts",
+        "default": "./dist/preview.js"
+      },
+      "./annotation": {
+        "types": "./dist/annotation.d.ts",
+        "default": "./dist/annotation.js"
+      },
+      "./klf": {
+        "types": "./dist/klf.d.ts",
+        "default": "./dist/klf.js"
+      },
+      "./target-plural": {
+        "types": "./dist/target-plural.d.ts",
+        "default": "./dist/target-plural.js"
+      },
       "./package.json": "./package.json"
-    }
+    },
+    "access": "public"
   },
   "files": [
     "dist",

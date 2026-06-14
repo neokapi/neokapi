@@ -1,0 +1,71 @@
+name: Publish npm packages
+
+# Publishes the public @neokapi npm packages via npm Trusted Publishers (OIDC) —
+# no NPM_TOKEN. Each package's trusted-publisher config on npmjs.com must point
+# at THIS workflow file (publish-npm.yml) in neokapi/neokapi.
+#
+# Versions come from each package.json; a guard skips any version already on npm,
+# so re-runs are safe. Bump the version in package.json to publish a new release.
+#
+# First publish of a brand-new package must be bootstrapped once (npm login +
+# npm publish locally), because a trusted publisher is configured on an existing
+# package's settings page. Subsequent releases run here, tokenless.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # required: lets npm exchange the GitHub OIDC token
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing (OIDC) needs npm >= 11.5.1.
+      - name: Ensure recent npm
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install workspace dependencies
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+
+      # kapi-react consumes @neokapi/kapi-format; build the dependency first.
+      - name: Build packages
+        run: |
+          (cd packages/kapi-format && npm run build)
+          (cd packages/kapi-react && npm run build)
+
+      # Publish in dependency order. Skip a package whose current version is
+      # already on npm so re-running the workflow is idempotent.
+      - name: Publish @neokapi/kapi-format
+        working-directory: packages/kapi-format
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@neokapi/kapi-format@${VER}" version >/dev/null 2>&1; then
+            echo "@neokapi/kapi-format@${VER} already published — skipping"
+          else
+            # Force the public npm registry for the @neokapi scope (the repo root
+            # .npmrc maps it to GitHub Packages for installs).
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
+          fi
+
+      - name: Publish @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@neokapi/kapi-react@${VER}" version >/dev/null 2>&1; then
+            echo "@neokapi/kapi-react@${VER} already published — skipping"
+          else
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
+          fi
