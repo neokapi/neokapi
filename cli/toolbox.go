@@ -1,17 +1,19 @@
 package cli
 
 // Toolbox: format-aware reimaginings of the classic Unix text utilities —
-// cat, grep, sed — that operate on the *translatable text* of any format kapi
-// understands (Word .docx, JSON catalogs, XLIFF, Markdown, …) rather than raw
-// bytes. They share kapi's reader/writer pipeline, so `kgrep` greps the prose
-// inside a .docx and `ksed` rewrites it and saves the document back faithfully.
+// cat, grep, sed, plus a convert (conv) verb — that operate on the
+// *translatable text* of any format kapi understands (Word .docx, JSON
+// catalogs, XLIFF, Markdown, …) rather than raw bytes. They share kapi's
+// reader/writer pipeline, so `kgrep` greps the prose inside a .docx, `ksed`
+// rewrites it and saves the document back faithfully, and `kconv` re-expresses
+// it in another format.
 //
 // Each is exposed two ways:
-//   - as a kapi subcommand: `kapi grep`, `kapi sed`, `kapi cat`
+//   - as a kapi subcommand: `kapi grep`, `kapi sed`, `kapi cat`, `kapi convert`
 //   - as a multi-call ("busybox") binary: the kapi binary, when invoked through
-//     a `kgrep` / `ksed` / `kcat` symlink, dispatches to the matching command
-//     as a standalone root (see BusyboxRoot). One binary, three extra names, no
-//     extra size.
+//     a `kgrep` / `ksed` / `kcat` / `kconv` symlink, dispatches to the matching
+//     command as a standalone root (see BusyboxRoot). One binary, four extra
+//     names, no extra size.
 //
 // In standalone form the commands carry the full classic option surface
 // (including the -v / -c shorthands kapi's persistent flags otherwise reserve);
@@ -59,7 +61,7 @@ func mapToolboxErr(err error) error {
 }
 
 // BusyboxRoot returns a standalone root command when prog names a multi-call
-// toolbox utility (kgrep / ksed / kcat, with an optional .exe suffix), or nil
+// toolbox utility (kgrep / ksed / kcat / kconv, with an optional .exe suffix), or nil
 // when it does not — signalling the caller to run the normal kapi root. The
 // returned command owns the app lifecycle (config load, Init, Shutdown) so the
 // utility behaves identically whether launched as `kgrep` or `kapi grep`.
@@ -75,6 +77,8 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 		cmd.SetArgs(NormalizeSedInPlaceArgs(os.Args[1:]))
 	case "kcat":
 		cmd = app.newCatCmd()
+	case "kconv":
+		cmd = app.newConvCmd()
 	default:
 		return nil
 	}
@@ -135,6 +139,7 @@ func (a *App) NewToolboxProxies() []*cobra.Command {
 		proxy("grep", "Search the translatable text of files (use kgrep)", a.newGrepCmd, nil),
 		proxy("sed", "Stream-edit the translatable text of files (use ksed)", a.newSedCmd, NormalizeSedInPlaceArgs),
 		proxy("cat", "Print the translatable text of files (use kcat)", a.newCatCmd, nil),
+		proxy("convert", "Convert files between formats (use kconv)", a.newConvCmd, nil),
 	}
 }
 
