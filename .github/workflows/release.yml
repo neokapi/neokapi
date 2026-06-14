@@ -1381,20 +1381,6 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Bump setup-bowrain
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          gh api repos/neokapi/setup-bowrain/contents/action.yml --jq '.content' | \
-            base64 -d | sed "s/default: \"latest\"/default: \"${VERSION}\"/" > /tmp/action.yml
-          CURRENT_SHA=$(gh api repos/neokapi/setup-bowrain/contents/action.yml --jq '.sha')
-          gh api repos/neokapi/setup-bowrain/contents/action.yml \
-            -X PUT \
-            -f message="chore: bump default version to ${VERSION}" \
-            -f content="$(base64 -w0 /tmp/action.yml)" \
-            -f sha="${CURRENT_SHA}" || echo "setup-bowrain: no version default to update"
-
       - name: Bump setup-kapi
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -1414,7 +1400,7 @@ jobs:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          for repo in setup-bowrain setup-kapi bowrain-action kapi-action; do
+          for repo in setup-kapi kapi-action; do
             MAIN_SHA=$(gh api "repos/neokapi/${repo}/git/ref/heads/main" --jq '.object.sha')
             # Create the version tag
             gh api "repos/neokapi/${repo}/git/refs" \
