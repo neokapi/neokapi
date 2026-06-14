@@ -76,6 +76,31 @@ func TestExportTitleCodeCaption(t *testing.T) {
 	}
 }
 
+// WS6: inline formatting renders from each run's vocabulary TYPE (not its
+// source-format Data), so a DocLang/Docling source's "<bold>" projects to
+// Markdown "**bold**" rather than leaking the literal tag.
+func TestExportInlineFromType(t *testing.T) {
+	b := &model.Block{ID: "p", Translatable: true, Source: []model.Run{
+		{Text: &model.TextRun{Text: "see "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<bold>"}},
+		{Text: &model.TextRun{Text: "this"}},
+		{PcClose: &model.PcCloseRun{Data: "</bold>"}},
+		{Text: &model.TextRun{Text: " and "}},
+		{PcOpen: &model.PcOpenRun{ID: "2", Type: "fmt:italic", Data: "<italic>"}},
+		{Text: &model.TextRun{Text: "that"}},
+		{PcClose: &model.PcCloseRun{Data: "</italic>"}},
+	}}
+	b.SetSemanticRole(model.RoleParagraph, 0)
+
+	out := writeBlocks(t, b)
+	if !strings.Contains(out, "see **this** and *that*") {
+		t.Errorf("inline formatting not rendered from type; got:\n%s", out)
+	}
+	if strings.Contains(out, "<bold>") || strings.Contains(out, "<italic>") {
+		t.Errorf("source-format inline Data leaked into Markdown; got:\n%s", out)
+	}
+}
+
 // WS6 fallback: a block typed the legacy way (block.Type + "level" property,
 // no SemanticRole) must still render — same-format round-trips are unchanged.
 func TestExportFallsBackToBlockType(t *testing.T) {

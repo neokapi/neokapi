@@ -389,8 +389,14 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("read %s: %w", filePath, err)
 	}
 
-	// Wire skeleton store if both reader and writer support it.
-	if writer != nil {
+	// Wire skeleton store ONLY for a same-format round trip. The skeleton holds
+	// opaque, format-specific bytes; handing a reader's skeleton to a
+	// different-format writer (a cross-format conversion like DocLang → .md)
+	// would make the writer emit foreign markup, or fail outright. For a
+	// conversion we leave it unwired so the writer reconstructs from the content
+	// model + structural layer (role-driven semantic export). Mirrors the
+	// guard in core/flow.FileRunner.RunFileWithReaderWriter.
+	if writer != nil && reader.Name() == writer.Name() {
 		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
 				store, err := format.NewSkeletonStore()
@@ -585,10 +591,16 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 		// Prefer passing the file path over loading content bytes when the writer
 		// supports it. This avoids duplicating the file in memory for gRPC transfer.
-		if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(filePath) {
-			sps.SetSourcePath(filePath)
-		} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-			ocs.SetOriginalContent(content)
+		// As with the skeleton store, only hand the source to the writer for a
+		// same-format round trip — for a cross-format conversion the source bytes
+		// are in the reader's format and would be echoed/re-parsed by a foreign
+		// writer, so the writer reconstructs from the content model instead.
+		if reader.Name() == writer.Name() {
+			if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(filePath) {
+				sps.SetSourcePath(filePath)
+			} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
+				ocs.SetOriginalContent(content)
+			}
 		}
 
 		locale := model.LocaleID(cfg.TargetLang)

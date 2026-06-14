@@ -2,6 +2,8 @@ package formats_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -219,6 +221,34 @@ func TestDoclingContentDetection(t *testing.T) {
 	name, err = detector.DetectByContent(strings.NewReader(plain))
 	require.NoError(t, err)
 	assert.Equal(t, "json", name, "plain JSON must not be claimed by docling")
+}
+
+// TestDoclangContentDetection asserts DocLang XML wins by content sniff over the
+// generic XML reader (a .dclg.xml file's extension is just ".xml"), while a
+// plain .xml document still resolves to "xml".
+func TestDoclangContentDetection(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	detector := reg.Detector()
+
+	doclang := `<?xml version="1.0"?><doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6"><heading level="1">Hi</heading></doclang>`
+	name, err := detector.DetectByContent(strings.NewReader(doclang))
+	require.NoError(t, err)
+	assert.Equal(t, "doclang", name, "DocLang XML should detect as doclang")
+
+	plain := `<?xml version="1.0"?><root><item>value</item></root>`
+	name, err = detector.DetectByContent(strings.NewReader(plain))
+	require.NoError(t, err)
+	assert.Equal(t, "xml", name, "plain XML must not be claimed by doclang")
+
+	// A .dclg.xml path (filepath.Ext == ".xml") resolves via the shared
+	// extension + content sniff.
+	dir := t.TempDir()
+	p := filepath.Join(dir, "report.dclg.xml")
+	require.NoError(t, os.WriteFile(p, []byte(doclang), 0o644))
+	det, err := reg.DetectFile(p, nil)
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("doclang"), det, ".dclg.xml file should detect as doclang")
 }
 
 func TestEndToEndPlaintextRoundTrip(t *testing.T) {
