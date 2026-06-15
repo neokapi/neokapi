@@ -6,18 +6,21 @@ name: Publish to WinGet
 # release event (the signed asset isn't on the release yet at CI publish time).
 # The publish script triggers this with:  gh workflow run winget.yml -f tag=<tag>
 #
+# Updates two winget packages from one release:
+#   • Neokapi.KapiCli — the CLI (moniker `kapi`), from the portable kapi_*.zip
+#   • Neokapi.Kapi    — the Kapi desktop app, from the NSIS *-setup.exe
+# The bare "Kapi" name belongs to the desktop on every channel, mirroring the
+# Homebrew split (formula kapi-cli / cask kapi).
+#
 # One-time prerequisites:
 #   • The neokapi org forks microsoft/winget-pkgs → neokapi/winget-pkgs. The
 #     action submits PRs from that org fork (see fork-user: neokapi below).
 #   • WINGET_TOKEN repo secret — a CLASSIC PAT with `public_repo` scope, owned by
 #     a neokapi org member with write access to neokapi/winget-pkgs (fine-grained
 #     PATs are not supported by the action).
-#   • The package must already exist in winget-pkgs. Bootstrap it once with:
-#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.KapiCli
-#
-# Note: the CLI is Neokapi.KapiCli (moniker `kapi`); the bare Neokapi.Kapi is
-# reserved for the Kapi *desktop* app, mirroring the Homebrew split (formula
-# kapi-cli / cask kapi).
+#   • Each package must already exist in winget-pkgs. Bootstrap once (CLI first):
+#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.KapiCli   # portable, nested kapi.exe
+#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.Kapi      # nullsoft *-setup.exe
 on:
   workflow_dispatch:
     inputs:
@@ -27,8 +30,19 @@ on:
 
 jobs:
   publish:
-    name: Submit kapi CLI to winget-pkgs
+    name: Submit ${{ matrix.identifier }} to winget-pkgs
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CLI — the signed portable zips (kapi_<ver>_windows_<arch>.zip). The
+          # leading underscore excludes kapi-bowrain and kapi-desktop assets.
+          - identifier: Neokapi.KapiCli
+            installers-regex: '^kapi_.*_windows_.*\.zip$'
+          # Desktop app — the signed NSIS installers (kapi-desktop-..-setup.exe).
+          - identifier: Neokapi.Kapi
+            installers-regex: '^kapi-desktop-.*-windows-.*-setup\.exe$'
     steps:
       - name: Derive package version (strip leading v)
         id: ver
@@ -39,12 +53,10 @@ jobs:
       - name: Publish to WinGet
         uses: vedantmgoyal9/winget-releaser@v2
         with:
-          identifier: Neokapi.KapiCli
+          identifier: ${{ matrix.identifier }}
           version: ${{ steps.ver.outputs.num }}
           release-tag: ${{ inputs.tag }}
-          # Only the signed CLI zips (kapi_<ver>_windows_<arch>.zip) — the
-          # leading underscore excludes kapi-bowrain and kapi-desktop assets.
-          installers-regex: '^kapi_.*_windows_.*\.zip$'
+          installers-regex: ${{ matrix.installers-regex }}
           # Submit the PR from the neokapi org fork of winget-pkgs (maps to
           # KOMAC_FORK_OWNER), not the token owner's personal fork.
           fork-user: neokapi
