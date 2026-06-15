@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,6 +132,42 @@ func TestCreateSampleProjectInvalidName(t *testing.T) {
 	app := NewApp()
 	_, err := app.CreateSampleProject("nonexistent")
 	assert.Error(t, err)
+}
+
+// A sample left on disk by an older app version may carry a recipe that no
+// longer parses (legacy top-level languages, list-form `plugins:`). Opening it
+// must recover by re-scaffolding rather than failing (issue #4 follow-up).
+func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("KAPI_HOME_DIR", home)
+
+	targetDir := filepath.Join(home, "KapiProjects", sample.DisplayName["okapimart"])
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+	// Legacy schema: top-level languages + list-form plugins (the exact shape
+	// that triggered "cannot unmarshal !!seq into map[string]project.PluginSpec").
+	stale := "version: v1\nname: OkapiMart\nsource_language: en-US\ntarget_languages:\n  - fr-FR\nplugins:\n  - okapi-bridge\ncontent:\n  - path: \"input/*.json\"\n    format: okf_json\n"
+	kapiPath := filepath.Join(targetDir, "project.kapi")
+	require.NoError(t, os.WriteFile(kapiPath, []byte(stale), 0o644))
+
+	// Plant a stale/corrupt state dir: a tm.db with an incompatible schema would
+	// break re-seeding ("apply migration N: no such table ..."). Recovery must
+	// wipe .kapi so Scaffold reseeds cleanly. A non-DB file reproduces the class.
+	staleKapi := filepath.Join(targetDir, ".kapi")
+	require.NoError(t, os.MkdirAll(staleKapi, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(staleKapi, "tm.db"), []byte("not a database"), 0o644))
+
+	// The stale recipe must not parse...
+	_, err := project.Load(kapiPath)
+	require.Error(t, err, "precondition: stale recipe should fail to parse")
+
+	app := NewApp()
+	tab, err := app.CreateSampleProject("okapimart")
+	require.NoError(t, err, "CreateSampleProject should recover a stale sample recipe")
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	// ...and after recovery the on-disk recipe parses cleanly.
+	_, err = project.Load(kapiPath)
+	require.NoError(t, err, "recipe should parse after re-scaffold")
 }
 
 func TestSampleProjectFilesExist(t *testing.T) {

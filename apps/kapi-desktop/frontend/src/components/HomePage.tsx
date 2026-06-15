@@ -12,7 +12,7 @@ import {
   PackageOpen,
   RefreshCw,
 } from "lucide-react";
-import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
@@ -123,12 +123,19 @@ export function HomePage({
       <div className="mb-6">
         <h1 className="text-xl font-semibold">{displayName}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
+          <span className="flex flex-wrap items-center gap-1.5">
             <Globe size={14} />
-            {defaults.source_language || t("No source")} &rarr;{" "}
-            {defaults.target_languages?.length
-              ? defaults.target_languages.join(", ")
-              : t("No targets")}
+            {defaults.source_language ? (
+              <LocalePill locale={String(defaults.source_language)} />
+            ) : (
+              <span>{t("No source")}</span>
+            )}
+            <span>&rarr;</span>
+            {defaults.target_languages?.length ? (
+              defaults.target_languages.map((l) => <LocalePill key={String(l)} locale={String(l)} />)
+            ) : (
+              <span>{t("No targets")}</span>
+            )}
           </span>
           {project.preset && (
             <Badge variant="secondary" className="text-xs">

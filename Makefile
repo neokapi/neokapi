@@ -852,6 +852,9 @@ kapi-desktop-compile: ## Compile i18n/ → public/translations/<locale>.json for
 
 kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
 
+kapi-desktop-l10n-verify: kapi-desktop-translations ## CI gate: the desktop qps catalog regenerates byte-identically from source (a stale catalog would leak {=mN} placeholders in pseudo/translated UI)
+	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/public/translations/qps.json
+
 kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go registries
 	go generate ./core/i18n/...
 

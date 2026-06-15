@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -57,6 +59,20 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 			if err != nil {
 				continue
 			}
+			ofiFor := func(lang, outPath string) OutputFileInfo {
+				ofi := OutputFileInfo{
+					Lang:     lang,
+					Path:     outPath,
+					Relative: filepath.ToSlash(relOrSelf(basePath, outPath)),
+					Format:   ctx.DetectFormat(a.formatReg, outPath),
+				}
+				if st, err := os.Stat(outPath); err == nil && !st.IsDir() {
+					ofi.Exists = true
+					ofi.Size = st.Size()
+					ofi.ModTime = st.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00")
+				}
+				return ofi
+			}
 			for _, src := range matches {
 				info, statErr := os.Stat(src)
 				if statErr != nil || info.IsDir() {
@@ -67,25 +83,79 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 					continue
 				}
 				rel = filepath.ToSlash(rel)
+
+				seen := make(map[string]bool)
+				// Declared target languages — shown even when not yet generated,
+				// so the source advertises the outputs a run will produce.
 				for _, lang := range langs {
-					outPath := outputPathFor(basePath, rel, item.Target, string(lang))
-					ofi := OutputFileInfo{
-						Lang:     string(lang),
-						Path:     outPath,
-						Relative: filepath.ToSlash(relOrSelf(basePath, outPath)),
-						Format:   ctx.DetectFormat(a.formatReg, outPath),
+					ls := string(lang)
+					out[rel] = append(out[rel], ofiFor(ls, outputPathFor(basePath, rel, item.Target, ls)))
+					seen[ls] = true
+				}
+				// Discover already-generated outputs for any *other* language too
+				// (e.g. a pseudo-translate run wrote output/qps/* though qps isn't a
+				// declared target), so they appear under their source instead of
+				// being dumped into "Other files".
+				for _, lang := range discoverOutputLangs(basePath, rel, item.Target) {
+					if seen[lang] {
+						continue
 					}
-					if st, err := os.Stat(outPath); err == nil && !st.IsDir() {
-						ofi.Exists = true
-						ofi.Size = st.Size()
-						ofi.ModTime = st.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00")
-					}
-					out[rel] = append(out[rel], ofi)
+					out[rel] = append(out[rel], ofiFor(lang, outputPathFor(basePath, rel, item.Target, lang)))
+					seen[lang] = true
 				}
 			}
 		}
 	}
 	return out, nil
+}
+
+// langPlaceholder is an unlikely sentinel that stands in for {lang} while we
+// build a glob and a capture regex from a target template.
+const langPlaceholder = "\x00LANG\x00"
+
+// discoverOutputLangs finds the languages for which an output file already
+// exists on disk for sourceRel under the given target template, by globbing the
+// template with {lang} treated as a wildcard and capturing the matched segment.
+// Returns a sorted, de-duplicated list of language codes (e.g. ["qps"]). Targets
+// without a {lang} placeholder yield nothing — those are handled by the caller's
+// declared-language pass.
+func discoverOutputLangs(basePath, sourceRel, target string) []string {
+	if !strings.Contains(target, "{lang}") {
+		return nil
+	}
+	// Fill the filename wildcard with the concrete source name; keep {lang}.
+	tmpl := strings.ReplaceAll(target, "{lang}", langPlaceholder)
+	tmpl = strings.ReplaceAll(tmpl, "*", filepath.Base(sourceRel))
+
+	globPat := filepath.Join(basePath, filepath.FromSlash(strings.ReplaceAll(tmpl, langPlaceholder, "*")))
+	hits, err := filepath.Glob(globPat)
+	if err != nil || len(hits) == 0 {
+		return nil
+	}
+	re, err := regexp.Compile("^" + strings.ReplaceAll(regexp.QuoteMeta(filepath.ToSlash(tmpl)), langPlaceholder, "([^/]+)") + "$")
+	if err != nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var langs []string
+	for _, h := range hits {
+		st, err := os.Stat(h)
+		if err != nil || st.IsDir() {
+			continue
+		}
+		rel, err := filepath.Rel(basePath, h)
+		if err != nil {
+			continue
+		}
+		m := re.FindStringSubmatch(filepath.ToSlash(rel))
+		if m == nil || seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		langs = append(langs, m[1])
+	}
+	sort.Strings(langs)
+	return langs
 }
 
 // relOrSelf returns path relative to base, or the original path if it can't be

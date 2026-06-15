@@ -99,6 +99,44 @@ func TestListOutputs(t *testing.T) {
 	assert.Equal(t, "output/de-DE/en.json", de.Relative)
 }
 
+func TestListOutputsDiscoversUndeclaredLang(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "input"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "input", "en.json"), []byte(`{"a":"b"}`), 0o644))
+	// A pseudo-translate run produced output/qps/en.json even though qps is not
+	// a declared target language.
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "output", "qps"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "output", "qps", "en.json"), []byte(`{"a":"x"}`), 0o644))
+
+	kapiPath := filepath.Join(dir, "test.kapi")
+	proj := &project.KapiProject{
+		Version:  "v1",
+		Name:     "Test",
+		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR"}},
+		Content: []project.ContentCollection{
+			{Path: "input/*.json", Target: "output/{lang}/*", Format: &project.FormatSpec{Name: "json"}},
+		},
+	}
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	app := NewApp()
+	tab := openTestProjectFile(t, app, kapiPath)
+
+	outs, err := app.ListOutputs(tab.ID)
+	require.NoError(t, err)
+
+	byLang := map[string]OutputFileInfo{}
+	for _, o := range outs["input/en.json"] {
+		byLang[o.Lang] = o
+	}
+	// Declared fr-FR is shown as pending; discovered qps is shown as existing.
+	require.Contains(t, byLang, "fr-FR")
+	assert.False(t, byLang["fr-FR"].Exists)
+	require.Contains(t, byLang, "qps", "undeclared qps output should be discovered")
+	assert.True(t, byLang["qps"].Exists)
+	assert.Equal(t, "output/qps/en.json", byLang["qps"].Relative)
+}
+
 func TestListOutputsNoTarget(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "input"), 0o755))
