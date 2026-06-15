@@ -28,6 +28,13 @@ import (
 //   - make dev-server (terminal 1)
 //   - make dev-worker (terminal 2)
 func TestSyncPushE2E(t *testing.T) {
+	// Quarantined (#867): the push commits but never completes because the E2E
+	// docker stack (bowrain/e2e/server/compose.yaml) runs no async bowrain-worker
+	// (+ redis) to process it — it stays in_progress until the 15s timeout. The
+	// URL routing is correct (init/diff/chunk/commit all 2xx). Re-enable once the
+	// worker is built into Build E2E Images and added to the E2E compose.
+	t.Skip("Quarantined (#867): E2E stack runs no async worker; push never completes")
+
 	token := getTestToken(t)
 
 	// 1. Create workspace + project.
