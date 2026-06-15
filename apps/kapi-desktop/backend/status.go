@@ -97,11 +97,10 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 		return out, nil
 	}
 
-	store, err := sqlitestore.New(storePath)
+	store, err := a.projectBlockStore(op)
 	if err != nil {
 		return nil, fmt.Errorf("open project block store: %w", err)
 	}
-	defer store.Close()
 
 	ctx := context.Background()
 	sess, err := store.Begin(ctx)
@@ -185,6 +184,31 @@ func (a *App) projectBlockStorePath(op *openProject) (string, bool) {
 	return layout.BlockStorePath(), true
 }
 
+// projectBlockStore returns the project's block store, opening it once and
+// caching it on the openProject for reuse. Opening (and migrating) a fresh
+// SQLite pool on every call let concurrent operations collide on blocks.db with
+// "database is locked"; a single shared pool lets SQLite/WAL serialize access.
+// The store is closed in CloseProject. Concurrent callers within the process
+// share the one pool; other processes (e.g. the kapi CLI) open their own pool
+// and coordinate via WAL.
+func (a *App) projectBlockStore(op *openProject) (blockstore.Store, error) {
+	storePath, ok := a.projectBlockStorePath(op)
+	if !ok {
+		return nil, errors.New("project has no block store path")
+	}
+	op.blockStoreMu.Lock()
+	defer op.blockStoreMu.Unlock()
+	if op.blockStore != nil {
+		return op.blockStore, nil
+	}
+	store, err := sqlitestore.New(storePath)
+	if err != nil {
+		return nil, err
+	}
+	op.blockStore = store
+	return store, nil
+}
+
 // ExtractResult summarises one extraction request from the UI.
 type ExtractResult struct {
 	// Files is the number of source files successfully extracted.
@@ -246,11 +270,10 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return nil, fmt.Errorf("create cache dir: %w", err)
 	}
 
-	store, err := sqlitestore.New(storePath)
+	store, err := a.projectBlockStore(op)
 	if err != nil {
 		return nil, fmt.Errorf("open project block store: %w", err)
 	}
-	defer store.Close()
 
 	ctx := context.Background()
 	sess, err := store.Begin(ctx)
