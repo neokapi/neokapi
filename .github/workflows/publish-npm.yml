@@ -92,16 +92,20 @@ jobs:
       # Publish in dependency order. Skip a package whose current version is
       # already on npm so re-running the workflow is idempotent.
       #
-      # The actual publish stays on `npm` (not `pnpm publish`): npm's OIDC
-      # trusted-publishing token exchange is only implemented by the npm CLI —
-      # pnpm doesn't support it yet (pnpm#9812). Everything else uses pnpm. The
-      # `--registry` override forces the public npm registry for the @neokapi
-      # scope (the repo root .npmrc maps it to GitHub Packages for installs).
+      # The publish (and the existence check that gates it) stay on `npm`, with a
+      # SCOPE-specific registry override (`--@neokapi:registry=...`). The repo
+      # root .npmrc maps the @neokapi scope to GitHub Packages for installs, and
+      # a scope registry takes precedence over a plain `--registry`, so the check
+      # must use the same `--@neokapi:registry` the publish uses or it queries the
+      # wrong registry and tries to republish an existing version. The publish
+      # itself also has to be npm (not pnpm): npm's OIDC trusted-publishing token
+      # exchange is only implemented by the npm CLI (pnpm#9812). Build/install use
+      # pnpm. The guard keeps re-runs idempotent.
       - name: Publish @neokapi/kapi-format
         working-directory: packages/kapi-format
         run: |
           VER=$(node -p "require('./package.json').version")
-          if pnpm view "@neokapi/kapi-format@${VER}" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+          if npm view "@neokapi/kapi-format@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
             echo "@neokapi/kapi-format@${VER} already published — skipping"
           else
             npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
@@ -111,7 +115,7 @@ jobs:
         working-directory: packages/kapi-react
         run: |
           VER=$(node -p "require('./package.json').version")
-          if pnpm view "@neokapi/kapi-react@${VER}" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+          if npm view "@neokapi/kapi-react@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
             echo "@neokapi/kapi-react@${VER} already published — skipping"
           else
             npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
