@@ -38,13 +38,13 @@ func TestSyncPushE2E(t *testing.T) {
 	resp.Body.Close()
 
 	projBody := `{"name":"Sync Test","default_source_language":"en","target_languages":["fr"]}`
-	resp = apiRequest(t, http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/projects", token, projBody)
+	resp = apiRequest(t, http.MethodPost, "/api/v1/"+wsSlug+"/projects", token, projBody)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	proj := readJSON(t, resp)
 	projectID := proj["id"].(string)
 	t.Logf("Created project %s in workspace %s", projectID, wsSlug)
 
-	basePath := "/api/v1/workspaces/" + wsSlug + "/projects/" + projectID
+	basePath := "/api/v1/" + wsSlug + "/projects/" + projectID
 
 	// 2. Build blocks to push.
 	b1 := &model.Block{ID: "greeting", Translatable: true}
