@@ -7,11 +7,13 @@ name: Publish to WinGet
 # The publish script triggers this with:  gh workflow run winget.yml -f tag=<tag>
 #
 # One-time prerequisites:
-#   • WINGET_TOKEN repo secret — a CLASSIC PAT with `public_repo` scope, on an
-#     account that has forked microsoft/winget-pkgs (fine-grained PATs are not
-#     supported by the action).
+#   • The neokapi org forks microsoft/winget-pkgs → neokapi/winget-pkgs. The
+#     action submits PRs from that org fork (see fork-user: neokapi below).
+#   • WINGET_TOKEN repo secret — a CLASSIC PAT with `public_repo` scope, owned by
+#     a neokapi org member with write access to neokapi/winget-pkgs (fine-grained
+#     PATs are not supported by the action).
 #   • The package must already exist in winget-pkgs. Bootstrap it once with:
-#       komac new Neokapi.Kapi
+#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.Kapi
 on:
   workflow_dispatch:
     inputs:
@@ -39,4 +41,7 @@ jobs:
           # Only the signed CLI zips (kapi_<ver>_windows_<arch>.zip) — the
           # leading underscore excludes kapi-bowrain and kapi-desktop assets.
           installers-regex: '^kapi_.*_windows_.*\.zip$'
+          # Submit the PR from the neokapi org fork of winget-pkgs (maps to
+          # KOMAC_FORK_OWNER), not the token owner's personal fork.
+          fork-user: neokapi
           token: ${{ secrets.WINGET_TOKEN }}
