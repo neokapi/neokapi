@@ -30,8 +30,12 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: stable
+      # The bowrain module includes the Wails desktop backend, whose cgo links
+      # GTK/WebKit on Linux. Without these dev headers govulncheck's loader can't
+      # import C in those packages ("could not import C"). Mirrors the full-suite
+      # job's deps.
       - name: Install Linux system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: Scan framework module
         run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags fts5 ./...
       - name: Scan bowrain module
