@@ -892,7 +892,7 @@ importers:
   packages/kapi-react:
     dependencies:
       '@neokapi/kapi-format':
-        specifier: '*'
+        specifier: ^1.0.0
         version: link:../kapi-format
       '@swc/core':
         specifier: ^1.15.41
