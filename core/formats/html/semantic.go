@@ -65,7 +65,18 @@ func (s *semanticState) inContainer(tag string) bool {
 	return slices.Contains(s.stack, tag)
 }
 
-func (w *Writer) writeSemantic(events []*model.Part) error {
+func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID) error {
+	// The cross-format export path projects a foreign document (CSV, DocLang,
+	// Docling, DOCX, …) to clean HTML. The role/group stream carries only
+	// body-level content — no <html>/<head>/<body> scaffold ever appears in it
+	// — so wrap the rendered body in a minimal, valid HTML5 document. (DocLang's
+	// writer emits its own <?xml?>/<doclang> root for the same reason; Markdown
+	// needs no wrapper.) Without this, `kconv x.csv --to html` produced a bare
+	// fragment with no document element.
+	if err := w.openDocument(events, sourceLocale); err != nil {
+		return err
+	}
+
 	st := &semanticState{}
 	for _, part := range events {
 		switch part.Type {
@@ -101,7 +112,54 @@ func (w *Writer) writeSemantic(events []*model.Part) error {
 			return err
 		}
 	}
-	return nil
+	return w.closeDocument()
+}
+
+// openDocument writes the HTML5 document scaffold up to (and including) the
+// opening <body> tag. The <html> element carries a lang attribute derived from
+// the writer's target locale (when retargeting) or the document's declared
+// source locale; <title> is taken from the document's first title/heading block
+// so the output is a self-describing standalone page.
+func (w *Writer) openDocument(events []*model.Part, sourceLocale model.LocaleID) error {
+	lang := sourceLocale
+	if !w.Locale.IsEmpty() {
+		lang = w.Locale
+	}
+	openHTML := "<html>"
+	if !lang.IsEmpty() {
+		openHTML = `<html lang="` + html.EscapeString(lang.String()) + `">`
+	}
+	title := html.EscapeString(documentTitle(events))
+	return w.print("<!DOCTYPE html>\n" + openHTML + "\n<head>\n<meta charset=\"utf-8\">\n<title>" + title + "</title>\n</head>\n<body>\n")
+}
+
+// closeDocument writes the closing </body></html> tags that balance
+// openDocument.
+func (w *Writer) closeDocument() error {
+	return w.print("\n</body>\n</html>\n")
+}
+
+// documentTitle returns the page title for the exported document: the plain
+// text of the first title or top-level heading block, or "Document" when the
+// content has no heading. Inline formatting is flattened to text since <title>
+// holds character data only.
+func documentTitle(events []*model.Part) string {
+	for _, part := range events {
+		if part.Type != model.PartBlock {
+			continue
+		}
+		b, ok := part.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		switch b.SemanticRole() {
+		case model.RoleTitle, model.RoleHeading:
+			if t := strings.TrimSpace(b.SourceText()); t != "" {
+				return t
+			}
+		}
+	}
+	return "Document"
 }
 
 func (w *Writer) openSemGroup(st *semanticState, g *model.GroupStart) error {
