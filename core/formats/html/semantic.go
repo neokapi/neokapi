@@ -44,6 +44,14 @@ var inlineFmtTag = map[string]string{
 type semanticState struct {
 	stack    []string // open HTML container tags ("ul"/"ol"/"table"/"tr"/"figure"/"" for transparent)
 	autoList bool     // an auto-opened <ul> wrapping bare list-item blocks (no list group)
+
+	// Table grid tracking for column-gap padding. CSV cells carry an explicit
+	// "column" property and skip empty cells, so a row can have holes; the
+	// first row establishes the width and later rows pad missing columns with
+	// empty cells to keep the grid rectangular.
+	tableCols int // column count from the first row; 0 until known
+	rowsSeen  int // table-rows opened in the current table
+	colCursor int // next column index within the current row
 }
 
 func (s *semanticState) top() string {
@@ -110,8 +118,12 @@ func (w *Writer) openSemGroup(st *semanticState, g *model.GroupStart) error {
 		}
 	case "table", "index":
 		tag = "table"
+		st.tableCols = 0
+		st.rowsSeen = 0
 	case "table-row":
 		tag = "tr"
+		st.rowsSeen++
+		st.colCursor = 0
 	case "picture":
 		tag = "figure"
 	default:
@@ -130,6 +142,25 @@ func (w *Writer) closeSemGroup(st *semanticState) error {
 	}
 	tag := st.stack[len(st.stack)-1]
 	st.stack = st.stack[:len(st.stack)-1]
+	if tag == "tr" {
+		// Pad any trailing columns missing from this row, then close it. The
+		// first row establishes the table width.
+		if st.tableCols > 0 {
+			for st.colCursor < st.tableCols {
+				if err := w.print("<td></td>"); err != nil {
+					return err
+				}
+				st.colCursor++
+			}
+		}
+		if err := w.print("</tr>"); err != nil {
+			return err
+		}
+		if st.rowsSeen == 1 && st.tableCols == 0 {
+			st.tableCols = st.colCursor
+		}
+		return nil
+	}
 	if tag != "" {
 		return w.print("</" + tag + ">")
 	}
@@ -209,10 +240,21 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 		return w.print("<" + tag + ">" + body + "</" + tag + ">")
 	case model.RoleTableCell, model.RoleTableHeader:
 		if st.inContainer("table") || st.inContainer("tr") {
+			// Pad the gap before this cell when it carries an explicit column
+			// index (CSV skips empty cells), so the grid stays aligned.
+			if col, ok := cellColumn(b); ok {
+				for st.colCursor < col {
+					if err := w.print("<td></td>"); err != nil {
+						return err
+					}
+					st.colCursor++
+				}
+			}
 			cell := "td"
 			if role == model.RoleTableHeader {
 				cell = "th"
 			}
+			st.colCursor++
 			return w.print("<" + cell + ">" + body + "</" + cell + ">")
 		}
 		return w.print("<p>" + body + "</p>") // bare cell, no table context
@@ -223,6 +265,21 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 		}
 		return w.print("<" + tag + ">" + body + "</" + tag + ">")
 	}
+}
+
+// cellColumn returns a table cell's explicit 0-based column index from its
+// "column" property, or (0, false) when none is set (e.g. DocLang/Docling
+// cells, which are emitted sequentially with no holes).
+func cellColumn(b *model.Block) (int, bool) {
+	v, ok := b.Properties["column"]
+	if !ok {
+		return 0, false
+	}
+	n := 0
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 // headingLevel returns a block's heading level from the structural annotation,
