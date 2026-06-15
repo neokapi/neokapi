@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && curl -fsSL https://viteplus.dev/install.sh | bash \
     && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
     && chmod +x /usr/local/bin/vp \
+    && ln -sf vp /usr/local/bin/vpx \
     && corepack enable \
     && rm -rf /var/lib/apt/lists/*
 
