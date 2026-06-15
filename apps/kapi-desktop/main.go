@@ -44,77 +44,20 @@ func main() {
 	appService.SetApplication(app)
 
 	// --- Application menu ---
+	//
+	// The whole menu is rebuilt by buildAppMenu so the Recent Projects submenu
+	// always reflects the current recent-projects list. The menu is set once
+	// here, again once the app has started, and on every "recent:changed"
+	// event the backend emits when a project is opened/created/cleared.
+	app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
 
-	menu := application.NewMenu()
-
-	// App menu (macOS standard)
-	menu.AddRole(application.AppMenu)
-
-	// File menu
-	fileMenu := menu.AddSubmenu("File")
-	fileMenu.Add("New Project").
-		SetAccelerator("CmdOrCtrl+N").
-		OnClick(func(ctx *application.Context) {
-			app.Event.Emit("menu:new-project", nil)
+	// Rebuild the menu whenever the recent-projects list changes so newly
+	// opened projects appear under File → Recent Projects without a restart.
+	app.Event.On("recent:changed", func(*application.CustomEvent) {
+		application.InvokeSync(func() {
+			app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
 		})
-	fileMenu.Add("Open...").
-		SetAccelerator("CmdOrCtrl+O").
-		OnClick(func(ctx *application.Context) {
-			app.Event.Emit("menu:open-project", nil)
-		})
-	fileMenu.AddSeparator()
-
-	// Recent Projects submenu — populated dynamically from the recent store.
-	recentMenu := fileMenu.AddSubmenu("Recent Projects")
-	home, _ := os.UserHomeDir()
-	for _, recent := range appService.ListRecentFiles() {
-		r := recent // capture
-		// Format: ~/path (Name) — include filename if not "project.kapi".
-		dir := filepath.Dir(r.Path)
-		if home != "" && strings.HasPrefix(dir, home) {
-			dir = "~" + dir[len(home):]
-		}
-		var label string
-		if filepath.Base(r.Path) != "project.kapi" {
-			label = dir + "/" + filepath.Base(r.Path) + " (" + r.Name + ")"
-		} else {
-			label = dir + " (" + r.Name + ")"
-		}
-		recentMenu.Add(label).
-			SetTooltip(r.Path).
-			OnClick(func(ctx *application.Context) {
-				app.Event.Emit("menu:open-recent", r.Path)
-			})
-	}
-	if len(appService.ListRecentFiles()) == 0 {
-		recentMenu.Add("No Recent Projects").SetEnabled(false)
-	}
-
-	fileMenu.AddSeparator()
-	fileMenu.Add("Save").
-		SetAccelerator("CmdOrCtrl+S").
-		OnClick(func(ctx *application.Context) {
-			app.Event.Emit("menu:save-project", nil)
-		})
-	fileMenu.Add("Save As...").
-		SetAccelerator("CmdOrCtrl+Shift+S").
-		OnClick(func(ctx *application.Context) {
-			app.Event.Emit("menu:save-project-as", nil)
-		})
-
-	// Edit menu (macOS standard)
-	menu.AddRole(application.EditMenu)
-
-	// View menu
-	menu.AddRole(application.ViewMenu)
-
-	// Window menu (macOS standard)
-	menu.AddRole(application.WindowMenu)
-
-	// Help menu
-	menu.AddRole(application.HelpMenu)
-
-	app.Menu.SetApplicationMenu(menu)
+	})
 
 	// --- Window ---
 
@@ -159,8 +102,13 @@ func main() {
 		}
 	})
 
-	// Load plugins in the background after all services have started.
+	// Load plugins in the background after all services have started, and
+	// rebuild the menu once the app is fully up so Recent Projects reflects the
+	// persisted list even on the very first frame.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
+		application.InvokeSync(func() {
+			app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
+		})
 		go appService.LoadPlugins()
 	})
 
@@ -168,4 +116,86 @@ func main() {
 		slog.Error("application failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// buildAppMenu constructs the full native application menu. It is called at
+// startup and rebuilt whenever the recent-projects list changes, so the
+// Recent Projects submenu always mirrors the live list from appService.
+func buildAppMenu(app *application.App, appService *backend.App) *application.Menu {
+	menu := application.NewMenu()
+
+	// App menu (macOS standard)
+	menu.AddRole(application.AppMenu)
+
+	// File menu
+	fileMenu := menu.AddSubmenu("File")
+	fileMenu.Add("New Project").
+		SetAccelerator("CmdOrCtrl+N").
+		OnClick(func(ctx *application.Context) {
+			app.Event.Emit("menu:new-project", nil)
+		})
+	fileMenu.Add("Open...").
+		SetAccelerator("CmdOrCtrl+O").
+		OnClick(func(ctx *application.Context) {
+			app.Event.Emit("menu:open-project", nil)
+		})
+	fileMenu.AddSeparator()
+
+	// Recent Projects submenu — populated from the live recent store.
+	recentMenu := fileMenu.AddSubmenu("Recent Projects")
+	home, _ := os.UserHomeDir()
+	recents := appService.ListRecentFiles()
+	for _, recent := range recents {
+		r := recent // capture
+		// Format: ~/path (Name) — include filename if not "project.kapi".
+		dir := filepath.Dir(r.Path)
+		if home != "" && strings.HasPrefix(dir, home) {
+			dir = "~" + dir[len(home):]
+		}
+		var label string
+		if filepath.Base(r.Path) != "project.kapi" {
+			label = dir + "/" + filepath.Base(r.Path) + " (" + r.Name + ")"
+		} else {
+			label = dir + " (" + r.Name + ")"
+		}
+		recentMenu.Add(label).
+			SetTooltip(r.Path).
+			OnClick(func(ctx *application.Context) {
+				app.Event.Emit("menu:open-recent", r.Path)
+			})
+	}
+	if len(recents) == 0 {
+		recentMenu.Add("No Recent Projects").SetEnabled(false)
+	} else {
+		recentMenu.AddSeparator()
+		recentMenu.Add("Clear Recent Projects").OnClick(func(ctx *application.Context) {
+			appService.ClearRecentFiles()
+		})
+	}
+
+	fileMenu.AddSeparator()
+	fileMenu.Add("Save").
+		SetAccelerator("CmdOrCtrl+S").
+		OnClick(func(ctx *application.Context) {
+			app.Event.Emit("menu:save-project", nil)
+		})
+	fileMenu.Add("Save As...").
+		SetAccelerator("CmdOrCtrl+Shift+S").
+		OnClick(func(ctx *application.Context) {
+			app.Event.Emit("menu:save-project-as", nil)
+		})
+
+	// Edit menu (macOS standard)
+	menu.AddRole(application.EditMenu)
+
+	// View menu
+	menu.AddRole(application.ViewMenu)
+
+	// Window menu (macOS standard)
+	menu.AddRole(application.WindowMenu)
+
+	// Help menu
+	menu.AddRole(application.HelpMenu)
+
+	return menu
 }

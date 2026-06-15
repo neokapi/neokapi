@@ -12,6 +12,14 @@ vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
 
+  # Version info injected into the bundle Info.plist at package time, so the
+  # native macOS About dialog shows the real release version (matching the Go
+  # ldflags) instead of the static placeholder in build/darwin/Info.plist.
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev"
+  COPYRIGHT_YEAR:
+    sh: date +%Y
+
 tasks:
   build:
     summary: Builds the application
@@ -148,6 +156,11 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      # Inject the real version + current copyright year so the macOS About
+      # dialog matches the built binary instead of the static placeholder.
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-{{.COPYRIGHT_YEAR}} neokapi" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
@@ -173,6 +186,10 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      # Inject the real version + current copyright year (matches package build).
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-{{.COPYRIGHT_YEAR}} neokapi" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - '{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}'
 

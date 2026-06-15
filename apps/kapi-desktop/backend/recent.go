@@ -22,6 +22,10 @@ type recentStore struct {
 	mu       sync.Mutex
 	filePath string
 	files    []RecentFile
+	// onChange, when set, is invoked after the list is mutated (add/clear/prune)
+	// so the native application menu can rebuild its Recent Projects submenu.
+	// It runs outside the store lock.
+	onChange func()
 }
 
 func newRecentStore() *recentStore {
@@ -32,9 +36,15 @@ func newRecentStore() *recentStore {
 	return s
 }
 
+// notifyChange fires the onChange hook if one is registered.
+func (s *recentStore) notifyChange() {
+	if s.onChange != nil {
+		s.onChange()
+	}
+}
+
 func (s *recentStore) add(path, name string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	// Remove existing entry for this path.
 	filtered := make([]RecentFile, 0, len(s.files))
 	for _, f := range s.files {
@@ -57,6 +67,8 @@ func (s *recentStore) add(path, name string) {
 	}
 
 	s.save()
+	s.mu.Unlock()
+	s.notifyChange()
 }
 
 func (s *recentStore) list() []RecentFile {
@@ -81,9 +93,10 @@ func (s *recentStore) list() []RecentFile {
 
 func (s *recentStore) clear() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.files = nil
 	s.save()
+	s.mu.Unlock()
+	s.notifyChange()
 }
 
 func (s *recentStore) load() {

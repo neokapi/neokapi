@@ -207,15 +207,18 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
   }, [updates]);
 
   const handleRemove = useCallback(
-    async (pluginId: string) => {
+    // pluginId keys the per-row UI state; pluginName is what the backend
+    // uninstall resolves against. Passing the composite id here was the cause
+    // of the failed-uninstall crash (issue #8).
+    async (pluginId: string, pluginName: string) => {
       setRemoving(pluginId);
       setConfirmRemove(null);
       try {
-        await api.removePlugin(pluginId);
+        await api.removePlugin(pluginName);
         // Optimistically remove from local state immediately.
         setPlugins((prev) => prev.filter((p) => p.id !== pluginId));
         setAvailable((prev) =>
-          prev.map((p) => (p.name === pluginId ? { ...p, installed: false } : p)),
+          prev.map((p) => (p.name === pluginName ? { ...p, installed: false } : p)),
         );
       } catch (e) {
         showError("Failed to remove plugin", e);
@@ -304,7 +307,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                     confirmRemove={confirmRemove === plugin.id}
                     onConfirmRemove={() => setConfirmRemove(plugin.id)}
                     onCancelRemove={() => setConfirmRemove(null)}
-                    onRemove={() => void handleRemove(plugin.id)}
+                    onRemove={() => void handleRemove(plugin.id, plugin.name)}
                     updateAvailable={updateInfo}
                     updateStatus={updateStatus}
                     onUpdate={() => handleUpdate(plugin.name)}

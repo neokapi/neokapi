@@ -19,25 +19,42 @@
 // library) rather than pulling in the full cosign CLI, which would
 // drag in a much larger dep graph.
 //
-// We support a single transport: the Sigstore JSON bundle. Newer cosign
-// (v2.2+) emits a `*.sigstore.json` bundle by default that carries both
-// the signing cert and the signature in one document — much simpler to
-// distribute than a `.sig` + `.pem` pair. If a publisher has only the
-// legacy split files they can wrap them into a bundle at release time.
+// We accept two on-the-wire transports for the signature:
+//
+//   - New-format Sigstore bundle (media type application/vnd.dev.sigstore.bundle…).
+//     Newer cosign (v2.2+) emits this with `--new-bundle-format`; it carries the
+//     signing cert, signature, and Rekor entry in one self-describing document.
+//     This is the format every plugin SHOULD publish going forward.
+//
+//   - Legacy cosign bundle. `cosign sign-blob --bundle` (without
+//     `--new-bundle-format`) emits a JSON object of the shape
+//     {"base64Signature": …, "cert": <base64 PEM>, "rekorBundle": {…}}.
+//     This predates the Sigstore protobuf bundle and is NOT parseable by
+//     sigstore-go's bundle.Bundle (it rejects the unknown "base64Signature"
+//     field). Some already-released artifacts (e.g. early kapi-sat builds) only
+//     have this legacy bundle, and we cannot re-sign published releases, so the
+//     verifier converts a legacy bundle into an equivalent *bundle.Bundle and
+//     verifies it with the same security policy as the new format.
 
 package registry
 
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
 
+	protobundle "github.com/sigstore/protobuf-specs/gen/pb-go/bundle/v1"
+	protocommon "github.com/sigstore/protobuf-specs/gen/pb-go/common/v1"
+	protorekor "github.com/sigstore/protobuf-specs/gen/pb-go/rekor/v1"
 	"github.com/sigstore/sigstore-go/pkg/bundle"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/tuf"
@@ -122,7 +139,16 @@ func VerifyBundle(ctx context.Context, bundleURL, artifactSHA256Hex, certIdentit
 		return &SignatureVerificationError{Reason: "download signature", Err: err}
 	}
 
-	b, err := parseBundle(bundleData)
+	// A legacy `cosign sign-blob --bundle` document carries the artifact
+	// signature in a "base64Signature" field that sigstore-go's bundle parser
+	// rejects. Detect it up front and convert it to a *bundle.Bundle, binding
+	// in the artifact digest the message signature needs.
+	var b *bundle.Bundle
+	if looksLikeLegacyCosignBundle(bundleData) {
+		b, err = convertLegacyCosignBundle(bundleData, digest)
+	} else {
+		b, err = parseBundle(bundleData)
+	}
 	if err != nil {
 		return &SignatureVerificationError{Reason: "parse signature bundle", Err: err}
 	}
@@ -187,6 +213,175 @@ func parseBundle(data []byte) (*bundle.Bundle, error) {
 		return nil, err
 	}
 	return &b, nil
+}
+
+// ---- legacy cosign `sign-blob --bundle` support ----
+//
+// The legacy bundle predates the Sigstore protobuf bundle. It is what
+// `cosign sign-blob --bundle FILE` writes (without `--new-bundle-format`).
+// See sigstore/cosign's cosign.LocalSignedPayload / bundle.RekorBundle.
+
+// legacyCosignBundle mirrors cosign.LocalSignedPayload.
+type legacyCosignBundle struct {
+	// Base64Signature is the base64-encoded raw signature over the artifact.
+	Base64Signature string `json:"base64Signature"`
+	// Cert is the base64-encoded PEM block of the signing (leaf) certificate.
+	Cert string `json:"cert"`
+	// RekorBundle is the transparency-log inclusion bundle (SET + payload).
+	RekorBundle *legacyRekorBundle `json:"rekorBundle"`
+}
+
+// legacyRekorBundle mirrors cosign/pkg/cosign/bundle.RekorBundle. Field names
+// (SignedEntryTimestamp, Payload) match cosign's struct, which has no JSON tags.
+type legacyRekorBundle struct {
+	// SignedEntryTimestamp is the base64-encoded SET (inclusion promise).
+	SignedEntryTimestamp string `json:"SignedEntryTimestamp"`
+	Payload              struct {
+		// Body is the base64-encoded canonicalized Rekor entry body.
+		Body           string `json:"body"`
+		IntegratedTime int64  `json:"integratedTime"`
+		LogIndex       int64  `json:"logIndex"`
+		LogID          string `json:"logID"` //nolint:tagliatelle // matches cosign wire format
+	} `json:"Payload"`
+}
+
+// looksLikeLegacyCosignBundle reports whether data is a legacy cosign bundle
+// rather than a new-format Sigstore protobuf bundle. A legacy bundle carries a
+// non-empty "base64Signature"; a Sigstore bundle never has that field.
+func looksLikeLegacyCosignBundle(data []byte) bool {
+	var probe struct {
+		Base64Signature string `json:"base64Signature"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return false
+	}
+	return probe.Base64Signature != ""
+}
+
+// convertLegacyCosignBundle converts a legacy cosign bundle into an equivalent
+// sigstore-go *bundle.Bundle so the standard verifier can consume it. It
+// produces a v0.1 bundle (single leaf certificate, message signature, one
+// Rekor v1 transparency-log entry with an inclusion promise / SET).
+//
+// artifactDigest is the SHA-256 of the artifact; the legacy bundle does not
+// carry the message digest, so we supply it here. The verifier checks this
+// digest both against the policy's expected digest and against the Rekor entry
+// body, so binding the wrong digest cannot pass verification.
+func convertLegacyCosignBundle(data, artifactDigest []byte) (*bundle.Bundle, error) {
+	var legacy legacyCosignBundle
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return nil, fmt.Errorf("decode legacy cosign bundle: %w", err)
+	}
+	if legacy.Base64Signature == "" {
+		return nil, errors.New("legacy cosign bundle: empty base64Signature")
+	}
+	if legacy.Cert == "" {
+		return nil, errors.New("legacy cosign bundle: missing signing certificate")
+	}
+	if legacy.RekorBundle == nil {
+		return nil, errors.New("legacy cosign bundle: missing rekorBundle (transparency-log entry)")
+	}
+
+	sig, err := base64.StdEncoding.DecodeString(legacy.Base64Signature)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: decode base64Signature: %w", err)
+	}
+
+	certDER, err := decodeLegacyCert(legacy.Cert)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: %w", err)
+	}
+
+	set, err := base64.StdEncoding.DecodeString(legacy.RekorBundle.SignedEntryTimestamp)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: decode SignedEntryTimestamp: %w", err)
+	}
+	if len(set) == 0 {
+		return nil, errors.New("legacy cosign bundle: empty SignedEntryTimestamp (no inclusion promise)")
+	}
+
+	canonicalBody, err := base64.StdEncoding.DecodeString(legacy.RekorBundle.Payload.Body)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: decode rekor body: %w", err)
+	}
+	logID, err := hex.DecodeString(legacy.RekorBundle.Payload.LogID)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: decode logID: %w", err)
+	}
+
+	kind, version, err := rekorBodyKindVersion(canonicalBody)
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: %w", err)
+	}
+
+	mediaType, err := bundle.MediaTypeString("0.1")
+	if err != nil {
+		return nil, fmt.Errorf("legacy cosign bundle: media type: %w", err)
+	}
+
+	pb := &protobundle.Bundle{
+		MediaType: mediaType,
+		VerificationMaterial: &protobundle.VerificationMaterial{
+			Content: &protobundle.VerificationMaterial_Certificate{
+				Certificate: &protocommon.X509Certificate{RawBytes: certDER},
+			},
+			TlogEntries: []*protorekor.TransparencyLogEntry{
+				{
+					LogIndex:          legacy.RekorBundle.Payload.LogIndex,
+					LogId:             &protocommon.LogId{KeyId: logID},
+					KindVersion:       &protorekor.KindVersion{Kind: kind, Version: version},
+					IntegratedTime:    legacy.RekorBundle.Payload.IntegratedTime,
+					InclusionPromise:  &protorekor.InclusionPromise{SignedEntryTimestamp: set},
+					CanonicalizedBody: canonicalBody,
+				},
+			},
+		},
+		Content: &protobundle.Bundle_MessageSignature{
+			MessageSignature: &protocommon.MessageSignature{
+				MessageDigest: &protocommon.HashOutput{
+					Algorithm: protocommon.HashAlgorithm_SHA2_256,
+					Digest:    artifactDigest,
+				},
+				Signature: sig,
+			},
+		},
+	}
+
+	return bundle.NewBundle(pb)
+}
+
+// decodeLegacyCert decodes the legacy bundle "cert" field (base64-encoded PEM)
+// into DER certificate bytes for protocommon.X509Certificate.
+func decodeLegacyCert(certField string) ([]byte, error) {
+	pemBytes, err := base64.StdEncoding.DecodeString(certField)
+	if err != nil {
+		return nil, fmt.Errorf("decode cert base64: %w", err)
+	}
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, errors.New("cert is not valid PEM")
+	}
+	if block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("cert PEM block is %q, want CERTIFICATE", block.Type)
+	}
+	return block.Bytes, nil
+}
+
+// rekorBodyKindVersion extracts the kind + apiVersion from a canonicalized
+// Rekor entry body. The Sigstore bundle requires these on each tlog entry to
+// reconstruct the entry during verification.
+func rekorBodyKindVersion(canonicalBody []byte) (kind, version string, err error) {
+	var head struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+	}
+	if err := json.Unmarshal(canonicalBody, &head); err != nil {
+		return "", "", fmt.Errorf("parse rekor body kind/version: %w", err)
+	}
+	if head.Kind == "" || head.APIVersion == "" {
+		return "", "", errors.New("rekor body missing kind/apiVersion")
+	}
+	return head.Kind, head.APIVersion, nil
 }
 
 func decodeSHA256Hex(s string) ([]byte, error) {

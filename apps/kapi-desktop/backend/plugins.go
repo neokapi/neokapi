@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
@@ -100,17 +101,43 @@ func (a *App) UpdatePlugin(name string) {
 
 // RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
 // the directory it was discovered in — the same one InstallPlugin installs into.
-func (a *App) RemovePlugin(name string) error {
-	if a.pluginHost == nil {
-		return fmt.Errorf("remove %s: plugins not loaded", name)
+//
+// The frontend may pass either a plugin name ("okapi-bridge") or the composite
+// installation ID surfaced by ListPlugins ("okapi-bridge/1.39.0"). We resolve
+// whichever was given to the plugin's declared name before delegating, so the
+// uninstall button works regardless of which identifier the UI threads through.
+func (a *App) RemovePlugin(idOrName string) error {
+	if a.host() == nil {
+		return fmt.Errorf("remove %s: plugins not loaded", idOrName)
 	}
-	if err := a.pluginHost.Remove(name); err != nil {
+	name := a.resolvePluginName(idOrName)
+	if err := a.host().Remove(name); err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
 	a.rescanPlugins()
 	a.emitEvent("plugins-changed", nil)
 	a.emitEvent("registries-changed", nil)
 	return nil
+}
+
+// resolvePluginName maps an installation ID (parentdir/dir, as built by
+// ListPlugins) or a plain name to the plugin's declared manifest name. It
+// returns the input unchanged when no installed plugin matches, so callers
+// still surface a clear "not installed" error from the host.
+func (a *App) resolvePluginName(idOrName string) string {
+	if a.host() == nil {
+		return idOrName
+	}
+	for _, p := range a.host().Plugins() {
+		id := p.Name()
+		if p.Dir != "" {
+			id = filepath.Base(filepath.Dir(p.Dir)) + "/" + filepath.Base(p.Dir)
+		}
+		if idOrName == p.Name() || idOrName == id {
+			return p.Name()
+		}
+	}
+	return idOrName
 }
 
 // CheckPluginUpdates compares installed plugins against the registry
@@ -121,12 +148,12 @@ func (a *App) CheckPluginUpdates() ([]PluginUpdate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("check updates: %w", err)
 	}
-	if a.pluginHost == nil {
+	if a.host() == nil {
 		return nil, nil
 	}
 
 	var result []PluginUpdate
-	for _, p := range a.pluginHost.Plugins() {
+	for _, p := range a.host().Plugins() {
 		entry, ok := idx.Plugins[p.Name()]
 		if !ok {
 			continue
@@ -201,10 +228,10 @@ func highestVersion(entry pluginhostreg.PluginEntry) string {
 
 func (a *App) installedNames() map[string]bool {
 	names := make(map[string]bool)
-	if a.pluginHost == nil {
+	if a.host() == nil {
 		return names
 	}
-	for _, p := range a.pluginHost.Plugins() {
+	for _, p := range a.host().Plugins() {
 		names[p.Name()] = true
 	}
 	return names
@@ -225,10 +252,10 @@ func (a *App) CheckProjectPlugins(tabID string) *project.PluginStatus {
 
 // installedPluginList returns installed plugins as project.InstalledPlugin values.
 func (a *App) installedPluginList() []project.InstalledPlugin {
-	if a.pluginHost == nil {
+	if a.host() == nil {
 		return nil
 	}
-	plugins := a.pluginHost.Plugins()
+	plugins := a.host().Plugins()
 	result := make([]project.InstalledPlugin, 0, len(plugins))
 	for _, p := range plugins {
 		result = append(result, project.InstalledPlugin{

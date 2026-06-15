@@ -46,6 +46,7 @@ export {
     LocaleFacetDTO,
     LookupTMRequest,
     OriginDTO,
+    OutputFileInfo,
     PluginCapability,
     PluginInfo,
     PluginUpdate,
@@ -82,5 +83,6 @@ export {
     UserFlowInfo,
     ValidityDTO,
     VariantDTO,
-    VariantInputDTO
+    VariantInputDTO,
+    VersionInfo
 } from "./models.js";

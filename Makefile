@@ -838,8 +838,20 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
-kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks to i18n/ (per-file .klf)
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
+# Invoke the kapi-react CLI by its built entrypoint rather than `vpx kapi-react`,
+# which resolves the bin via the workspace and falls back to an npm fetch (404)
+# in a fresh CI checkout where the bin isn't linked. node-on-dist is environment
+# independent — it only needs the package built (the kapi-react-build prereq).
+KAPI_REACT_CLI := node $(CURDIR)/packages/kapi-react/dist/cli.js
+# Keep these globs in sync with the `extract` script in
+# apps/kapi-desktop/frontend/package.json.
+KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
+
+kapi-react-build: ## Build @neokapi/kapi-react (runtime + vite plugin + CLI) into dist/
+	cd packages/kapi-react && vp run build
+
+kapi-desktop-extract: kapi-desktop-frontend-deps kapi-react-build ## Extract translatable blocks to i18n/ (per-file .klf)
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(KAPI_REACT_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
@@ -847,10 +859,13 @@ kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate
 		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
 		-q
 
-kapi-desktop-compile: ## Compile i18n/ → public/translations/<locale>.json for the kapi-react runtime
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile
+kapi-desktop-compile: kapi-react-build ## Compile i18n/ → public/translations/<locale>.json for the kapi-react runtime
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
 
 kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
+
+kapi-desktop-l10n-verify: kapi-desktop-translations ## CI gate: the desktop qps catalog regenerates byte-identically from source (a stale catalog would leak {=mN} placeholders in pseudo/translated UI)
+	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/public/translations/qps.json
 
 kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go registries
 	go generate ./core/i18n/...

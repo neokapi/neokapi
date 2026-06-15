@@ -126,6 +126,13 @@ jobs:
       - name: Run Kapi Desktop Go backend tests
         run: make kapi-desktop-test
 
+      # Regenerate the pseudo-translation catalog from source and fail on drift.
+      # A stale catalog leaks raw {=mN} element markers into the pseudo/translated
+      # UI (the runtime now degrades to source, but a stale catalog still ships
+      # wrong/old translations), so keep it in lockstep with the UI strings.
+      - name: Kapi Desktop l10n catalog is fresh
+        run: make kapi-desktop-l10n-verify
+
   # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
   bowrain-desktop:
     name: Bowrain Desktop

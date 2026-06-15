@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { KapiProject, FlowSpec } from "../types/api";
+import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
 import { AppHome } from "./AppHome";
@@ -150,110 +151,126 @@ export function ViewSwitch({
 
   const tabID = activeTab.info.id;
 
-  switch (effectiveView) {
-    case "project-home":
-      if (activeTab.isEmpty) {
+  // Render the active project view, guarded by an error boundary so a single
+  // un-openable project (e.g. OkapiMart without okapi-bridge — issue #4) shows
+  // a recoverable install prompt instead of crashing the webview. The boundary
+  // key includes pluginsResolved so a successful install remounts the view.
+  const projectView = ((): ReactNode => {
+    switch (effectiveView) {
+      case "project-home":
+        if (activeTab.isEmpty) {
+          return (
+            <ProjectSetupPage
+              tabID={tabID}
+              onDone={() => updateTab(tabID, { isEmpty: false, detectedPreset: undefined })}
+            />
+          );
+        }
+        if (activeTab.detectedPreset) {
+          return (
+            <ProjectPresetPage
+              tabID={tabID}
+              detectedPreset={activeTab.detectedPreset}
+              onApplied={(updated) => {
+                history.replace(updated);
+                updateTab(tabID, { project: updated, detectedPreset: undefined });
+              }}
+              onSkip={() => updateTab(tabID, { detectedPreset: undefined })}
+            />
+          );
+        }
         return (
-          <ProjectSetupPage
-            tabID={tabID}
-            onDone={() => updateTab(tabID, { isEmpty: false, detectedPreset: undefined })}
-          />
-        );
-      }
-      if (activeTab.detectedPreset) {
-        return (
-          <ProjectPresetPage
-            tabID={tabID}
-            detectedPreset={activeTab.detectedPreset}
-            onApplied={(updated) => {
-              history.replace(updated);
-              updateTab(tabID, { project: updated, detectedPreset: undefined });
-            }}
-            onSkip={() => updateTab(tabID, { detectedPreset: undefined })}
-          />
-        );
-      }
-      return (
-        <HomePage
-          project={history.project}
-          displayName={activeTab.info.name}
-          tabID={tabID}
-          onRunFlow={handleRunFlow}
-          onNavigate={navigate}
-          pluginsResolved={activeTab.pluginsResolved}
-          pluginIssues={activeTab.pluginIssues}
-        />
-      );
-
-    case "content":
-      return (
-        <ContentPage
-          project={history.project}
-          projectPath={activeTab.info.path}
-          onUpdate={updateProject}
-          tabID={tabID}
-        />
-      );
-
-    case "flows":
-      return (
-        <FlowsPage
-          tabID={tabID}
-          projectFlows={history.project.flows}
-          onFlowChange={(name, spec) => {
-            updateProject({
-              ...history.project,
-              flows: { ...history.project.flows, [name]: spec },
-            });
-          }}
-          onFlowDelete={(name) => {
-            const { [name]: _, ...rest } = history.project.flows ?? {};
-            updateProject({ ...history.project, flows: rest });
-          }}
-        />
-      );
-
-    case "runner":
-      if (runnerState) {
-        return (
-          <RunnerPage
-            tabID={tabID}
-            flowName={runnerState.flowName}
-            flow={runnerState.flow}
+          <HomePage
             project={history.project}
-            autoRun
-            onClose={() => {
-              setRunnerState(null);
-              navigate("project-home");
+            displayName={activeTab.info.name}
+            tabID={tabID}
+            onRunFlow={handleRunFlow}
+            onNavigate={navigate}
+            pluginsResolved={activeTab.pluginsResolved}
+            pluginIssues={activeTab.pluginIssues}
+          />
+        );
+
+      case "content":
+        return (
+          <ContentPage
+            project={history.project}
+            projectPath={activeTab.info.path}
+            onUpdate={updateProject}
+            tabID={tabID}
+          />
+        );
+
+      case "flows":
+        return (
+          <FlowsPage
+            tabID={tabID}
+            projectFlows={history.project.flows}
+            onFlowChange={(name, spec) => {
+              updateProject({
+                ...history.project,
+                flows: { ...history.project.flows, [name]: spec },
+              });
+            }}
+            onFlowDelete={(name) => {
+              const { [name]: _, ...rest } = history.project.flows ?? {};
+              updateProject({ ...history.project, flows: rest });
             }}
           />
         );
-      }
-      // View-only runner for a job selected from the feed (no runnerState).
-      return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
 
-    case "tools":
-      return <ToolRunnerPage tabID={tabID} />;
+      case "runner":
+        if (runnerState) {
+          return (
+            <RunnerPage
+              tabID={tabID}
+              flowName={runnerState.flowName}
+              flow={runnerState.flow}
+              project={history.project}
+              autoRun
+              onClose={() => {
+                setRunnerState(null);
+                navigate("project-home");
+              }}
+            />
+          );
+        }
+        // View-only runner for a job selected from the feed (no runnerState).
+        return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
 
-    case "checks":
-      return <ChecksPanel tabID={tabID} />;
+      case "tools":
+        return <ToolRunnerPage tabID={tabID} />;
 
-    case "termbases":
-      return <TermbasesPage tabID={tabID} />;
+      case "checks":
+        return <ChecksPanel tabID={tabID} />;
 
-    case "memories":
-      return <MemoriesPage tabID={tabID} />;
+      case "termbases":
+        return <TermbasesPage tabID={tabID} />;
 
-    case "project-settings":
-      return (
-        <ProjectSettingsPage
-          project={history.project}
-          onUpdate={updateProject}
-          pluginIssues={activeTab.pluginIssues}
-        />
-      );
+      case "memories":
+        return <MemoriesPage tabID={tabID} />;
 
-    default:
-      return null;
-  }
+      case "project-settings":
+        return (
+          <ProjectSettingsPage
+            project={history.project}
+            onUpdate={updateProject}
+            pluginIssues={activeTab.pluginIssues}
+          />
+        );
+
+      default:
+        return null;
+    }
+  })();
+
+  return (
+    <ProjectErrorBoundary
+      key={`${tabID}:${effectiveView}:${activeTab.pluginsResolved}`}
+      pluginIssues={activeTab.pluginIssues}
+      onNavigate={navigate}
+    >
+      {projectView}
+    </ProjectErrorBoundary>
+  );
 }

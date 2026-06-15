@@ -42,12 +42,21 @@ import (
 
 // App is the Wails service that bridges Go backend to the React frontend.
 type App struct {
-	app        *application.App
-	formatReg  *registry.FormatRegistry
-	toolReg    *registry.ToolRegistry
-	schemaReg  *fmtschema.SchemaRegistry
-	pluginDir  string
-	pluginHost *pluginhost.Host
+	app       *application.App
+	formatReg *registry.FormatRegistry
+	toolReg   *registry.ToolRegistry
+	schemaReg *fmtschema.SchemaRegistry
+	pluginDir string
+
+	// pluginRuntime owns the live plugin host, the Mode-C daemon pool that backs
+	// plugin-provided formats (e.g. okapi-bridge's okf_*), and the discover→wire
+	// sequence — the same pluginhost.Runtime the CLI uses, so the lifecycle logic
+	// lives in one place. watchCancel stops the directory watcher that picks up
+	// plugins installed or removed by another process (e.g. `kapi plugins
+	// install` run in a terminal). The daemon pool is torn down in
+	// ServiceShutdown.
+	pluginRuntime *pluginhost.Runtime
+	watchCancel   context.CancelFunc
 
 	// i18n — localizes metadata on the way out of Wails methods so the
 	// React frontend's tool palette and schema forms render in the
@@ -109,7 +118,7 @@ func NewApp() *App {
 		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
-	return &App{
+	app := &App{
 		formatReg:   formatReg,
 		toolReg:     toolReg,
 		schemaReg:   schemaReg,
@@ -122,6 +131,24 @@ func NewApp() *App {
 		settings:    newSettingsStore(),
 		logger:      logger,
 	}
+	// Emit recent:changed whenever the recent-projects list mutates so the
+	// native File → Recent Projects menu can rebuild itself (the menu is built
+	// once at startup and otherwise never sees later opens — issue #3).
+	app.recent.onChange = func() { app.emitEvent("recent:changed", nil) }
+
+	// The plugin runtime owns discovery, the host, the daemon pool, and the
+	// schema/format wiring — the same pluginhost.Runtime the CLI uses. Cache is
+	// off so a rescan always reflects on-disk truth (live installs); connectors
+	// are off because the desktop doesn't source through plugin connectors.
+	app.pluginRuntime = pluginhost.NewRuntime(pluginhost.RuntimeOptions{
+		Discover:  pluginhost.DiscoverOptions{EnvPluginsDir: pluginDir, OnWarn: func(msg string) { logger.Printf("plugin: %s", msg) }},
+		FormatReg: formatReg,
+		OnWarn:    func(msg string) { logger.Printf("plugin: %s", msg) },
+		PoolLogger: func(format string, args ...any) {
+			logger.Printf("[daemon] "+format, args...)
+		},
+	})
+	return app
 }
 
 // openProject holds the state for a single open project tab.
@@ -195,6 +222,10 @@ func (a *App) ServiceShutdown() error {
 	a.logger.Println("service shutting down")
 	a.tmHandles.CloseAll()
 	a.tbHandles.CloseAll()
+	if a.watchCancel != nil {
+		a.watchCancel()
+	}
+	a.pluginRuntime.Shutdown()
 	return nil
 }
 
@@ -203,9 +234,18 @@ func (a *App) SetApplication(app *application.App) {
 	a.app = app
 }
 
-// LoadPlugins discovers manifest-driven plugins and registers their
-// schema extensions on the app's registries. Runs in the foreground —
-// callers needing async startup wrap with a goroutine.
+// host returns the live plugin host, or nil before plugins are first loaded.
+// All host reads go through the runtime so a background rescan (the directory
+// watcher) can swap the host in safely.
+func (a *App) host() *pluginhost.Host {
+	return a.pluginRuntime.Host()
+}
+
+// LoadPlugins discovers manifest-driven plugins and registers their schema
+// extensions and formats on the app's registries, then starts watching the
+// plugin directories so plugins installed or removed by another process (e.g.
+// the kapi CLI) are picked up live. Runs in the foreground — callers needing
+// async startup wrap with a goroutine.
 func (a *App) LoadPlugins() {
 	a.rescanPlugins()
 	// Prime the metadata Translator from the persisted UI language so
@@ -214,26 +254,33 @@ func (a *App) LoadPlugins() {
 	// invoke SetLocale.
 	a.SetLocale(a.GetUILanguage())
 	a.emitEvent("plugins-loaded", nil)
+	a.startPluginWatch()
 }
 
-// rescanPlugins re-reads manifest plugins from disk and rebuilds the
-// pluginhost. Schema extensions from manifests register themselves via
-// init() against core/project, so the bridge between pluginhost
-// discoveries and the app's schema registry is implicit — no additional
-// wiring required for this code path.
+// rescanPlugins re-discovers manifest plugins and rebuilds the host via the
+// shared runtime, which wires schema extensions and registers the formats
+// plugins provide (e.g. okapi-bridge's okf_* filters) as daemon-backed
+// readers/writers. A project using plugin formats therefore becomes readable as
+// soon as the plugin is installed — no app restart needed (issue #4).
 func (a *App) rescanPlugins() {
-	opts := pluginhost.DiscoverOptions{
-		EnvPluginsDir: a.pluginDir,
-		OnWarn: func(msg string) {
-			a.logger.Printf("plugin: %s", msg)
-		},
+	a.pluginRuntime.Rescan()
+}
+
+// startPluginWatch begins watching the plugin directories. When the installed
+// set changes out-of-band (a CLI install/remove, or another desktop window),
+// the runtime rebuilds the host + formats and we notify the frontend so open
+// projects re-check their plugin requirements and reload. In-app install/remove
+// already rescans synchronously, so the watcher only fires for external change.
+func (a *App) startPluginWatch() {
+	if a.watchCancel != nil {
+		return // already watching
 	}
-	plugins := pluginhost.Discover(opts)
-	a.pluginHost = pluginhost.NewHost(plugins, func(msg string) {
-		a.logger.Printf("plugin conflict: %s", msg)
-	})
-	pluginhost.RegisterSchemaExtensions(a.pluginHost, func(msg string) {
-		a.logger.Printf("plugin schema: %s", msg)
+	ctx, cancel := context.WithCancel(context.Background())
+	a.watchCancel = cancel
+	go a.pluginRuntime.Watch(ctx, 3*time.Second, func(*pluginhost.Host) {
+		a.logger.Println("plugin change detected on disk — rescanned")
+		a.emitEvent("plugins-changed", nil)
+		a.emitEvent("registries-changed", nil)
 	})
 }
 
@@ -1399,12 +1446,12 @@ type PluginInfo struct {
 // ListPlugins returns installed manifest-driven plugins with metadata.
 // Plugins are sourced from the pluginhost (populated by LoadPlugins).
 func (a *App) ListPlugins() []PluginInfo {
-	if a.pluginHost == nil {
+	if a.host() == nil {
 		return nil
 	}
 
 	var infos []PluginInfo
-	for _, p := range a.pluginHost.Plugins() {
+	for _, p := range a.host().Plugins() {
 		m := p.Manifest
 		// Derive a unique installation ID from the install dir; this
 		// matches the on-disk layout {name}/{version} so the frontend
@@ -1473,9 +1520,21 @@ func pluginTypeFromManifest(m *pluginmanifest.Manifest) string {
 
 // --- Utility ---
 
-// GetVersion returns the kapi version string.
-func (a *App) GetVersion() string {
-	return version.Version
+// VersionInfo describes the application version, mirroring the CLI's
+// `kapi version` output (semantic version + git commit + build date).
+type VersionInfo struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
+}
+
+// GetVersion returns the application version information.
+func (a *App) GetVersion() VersionInfo {
+	return VersionInfo{
+		Version:   version.Version,
+		Commit:    version.Commit,
+		BuildDate: version.BuildDate,
+	}
 }
 
 // GetHomeDir returns the user's home directory path.

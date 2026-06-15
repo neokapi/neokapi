@@ -7,7 +7,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -279,6 +278,10 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 
 			filesDone++
 			_ = fileIdx
+
+			// Notify the Content view that a new output file landed so it can
+			// refresh the outputs shown beneath each source (issue #5).
+			a.emitEvent("outputs-changed", map[string]any{"path": outputPath})
 		}
 	}
 
@@ -496,13 +499,8 @@ func (a *App) resolveOutputPath(inputPath, targetLang string) string {
 				if !matched {
 					continue
 				}
-				// Resolve {lang} in the target pattern.
-				target := strings.ReplaceAll(item.Target, "{lang}", targetLang)
-				// Replace the wildcard with the actual filename.
-				if strings.Contains(target, "*") {
-					target = strings.ReplaceAll(target, "*", filepath.Base(rel))
-				}
-				return filepath.Join(basePath, target)
+				// Resolve {lang} and the wildcard in the target pattern.
+				return outputPathFor(basePath, rel, item.Target, targetLang)
 			}
 		}
 	}

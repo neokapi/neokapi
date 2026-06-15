@@ -698,7 +698,21 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: bowrain/apps/bowrain
         shell: bash
-        run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
+        env:
+          VERSION: ${{ steps.meta.outputs.VERSION }}
+          ARCH: ${{ matrix.build.arch }}
+        run: |
+          # Render a version-stamped info.json so the .exe version resource
+          # (shown in the app's About dialog / file Properties) matches the
+          # built binary and carries a current copyright year.
+          [ -n "$VERSION" ] || VERSION="0.0.0-dev"
+          NUM="$(printf '%s' "$VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          [ -n "$NUM" ] || NUM="0.0.0"
+          jq --arg pv "$VERSION" --arg fv "${NUM}.0" --arg cr "© 2025-$(date +%Y) neokapi" \
+            '.fixed.file_version=$fv | .info["0000"].ProductVersion=$pv | .info["0000"].LegalCopyright=$cr' \
+            build/windows/info.json > build/windows/info.gen.json
+          wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
+          rm -f build/windows/info.gen.json
 
       - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
@@ -757,6 +771,15 @@ jobs:
           cp build/darwin/icons.icns bin/Bowrain.app/Contents/Resources
           cp bin/Bowrain bin/Bowrain.app/Contents/MacOS
           cp build/darwin/Info.plist bin/Bowrain.app/Contents
+          # Stamp the bundle with the real release version + current copyright
+          # year so the native macOS About dialog matches the built binary
+          # instead of the static placeholder in build/darwin/Info.plist.
+          VERSION="${{ steps.meta.outputs.VERSION }}"
+          [ -n "$VERSION" ] || VERSION="0.0.0-dev"
+          PLIST=bin/Bowrain.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-$(date +%Y) neokapi" "$PLIST"
 
       - name: Extract version
         id: version
@@ -1034,7 +1057,21 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: apps/kapi-desktop
         shell: bash
-        run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
+        env:
+          VERSION: ${{ steps.meta.outputs.VERSION }}
+          ARCH: ${{ matrix.build.arch }}
+        run: |
+          # Render a version-stamped info.json so the .exe version resource
+          # (shown in the app's About dialog / file Properties) matches the
+          # built binary and carries a current copyright year.
+          [ -n "$VERSION" ] || VERSION="0.0.0-dev"
+          NUM="$(printf '%s' "$VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          [ -n "$NUM" ] || NUM="0.0.0"
+          jq --arg pv "$VERSION" --arg fv "${NUM}.0" --arg cr "© 2025-$(date +%Y) neokapi" \
+            '.fixed.file_version=$fv | .info["0000"].ProductVersion=$pv | .info["0000"].LegalCopyright=$cr' \
+            build/windows/info.json > build/windows/info.gen.json
+          wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
+          rm -f build/windows/info.gen.json
 
       - name: Build Kapi Desktop (Linux)
         if: runner.os == 'Linux'
@@ -1090,6 +1127,15 @@ jobs:
           cp build/darwin/icons.icns bin/Kapi.app/Contents/Resources
           cp bin/Kapi bin/Kapi.app/Contents/MacOS
           cp build/darwin/Info.plist bin/Kapi.app/Contents
+          # Stamp the bundle with the real release version + current copyright
+          # year so the native macOS About dialog matches the built binary
+          # instead of the static placeholder in build/darwin/Info.plist.
+          VERSION="${{ steps.meta.outputs.VERSION }}"
+          [ -n "$VERSION" ] || VERSION="0.0.0-dev"
+          PLIST=bin/Kapi.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-$(date +%Y) neokapi" "$PLIST"
 
       - name: Extract version
         id: version

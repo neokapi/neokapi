@@ -268,7 +268,25 @@ export function __tx(
   elements: Record<string, ReactNode>,
   params?: Record<string, string | number>,
 ): ReactNode {
-  let text = dict[hash] ?? fallback;
+  // Use a translation only when it's structurally compatible with this call
+  // site — every element marker it carries must be bound by `elements`. A stale
+  // catalog (a translation compiled against an older JSX shape) would otherwise
+  // leave a raw {=mN} token in the DOM; fall back to the source text instead,
+  // whose markers always match the elements the compiler emitted. This keeps
+  // placeholder tokens from ever reaching the UI even when a catalog is stale.
+  const translated = dict[hash];
+  let text = translated !== undefined && markersBound(translated, elements) ? translated : fallback;
+  if (
+    translated !== undefined &&
+    text !== translated &&
+    typeof process !== "undefined" &&
+    process.env?.NODE_ENV !== "production"
+  ) {
+    console.warn(
+      `[kapi-react] translation for "${hash}" has element markers that don't match the call site; ` +
+        `using source text. Recompile the translation catalog.`,
+    );
+  }
 
   // Resolve ICU
   if (text.includes(", plural,") || text.includes(", select,")) {
@@ -356,14 +374,14 @@ export function __tx(
         if (bound !== undefined) {
           out.push(bound);
           sawElement = true;
-        } else {
-          out.push(text.slice(tok.start, tok.end));
         }
+        // else: an unbound standalone token — drop it. Emitting the raw
+        // {=mN} text would leak an internal marker into the UI. The
+        // compatibility guard above means this only ever fires on the
+        // source-fallback path for a genuinely malformed message.
         cursor = tok.end;
       } else {
-        // Unmatched close — render literally so it surfaces in
-        // dev rather than disappearing silently.
-        out.push(text.slice(tok.start, tok.end));
+        // Unmatched close — drop it rather than leak a raw {/=mN} token.
         cursor = tok.end;
       }
       i++;
@@ -405,6 +423,18 @@ export function __tx(
  * and `{/=mN}` (close), returning a positional list. Used by `__tx`
  * to build the open/close pair table before rendering.
  */
+// markersBound reports whether every element marker ({=mN} / {/=mN}) in text is
+// bound by elements. Used by __tx to reject a stale translation whose markers
+// don't line up with the call site, so a raw token can't reach the UI.
+function markersBound(text: string, elements: Record<string, ReactNode>): boolean {
+  const re = /\{\/?(=[^}]+)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (!(m[1] in elements)) return false;
+  }
+  return true;
+}
+
 function collectTokens(
   text: string,
 ): Array<{ start: number; end: number; key: string; kind: "open" | "close" }> {

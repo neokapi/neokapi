@@ -5,9 +5,9 @@ info:
   productName: "Kapi"
   productIdentifier: "io.github.neokapi.kapi-desktop"
   description: "Localization Toolkit - powered by neokapi"
-  copyright: "(c) 2025, neokapi"
+  copyright: "© 2025-2026 neokapi"
   comments: "Desktop companion for the kapi localization CLI"
-  version: "0.1.0"
+  version: "0.0.0-dev"
 
 dev_mode:
   root_path: .

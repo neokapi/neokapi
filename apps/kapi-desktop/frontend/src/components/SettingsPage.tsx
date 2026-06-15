@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
 import { loadTranslations, setTranslations, t } from "@neokapi/kapi-react/runtime";
-import { api } from "../hooks/useApi";
+import { api, type VersionInfo } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import {
   Card,
@@ -47,6 +47,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
   const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
   const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
+  const [version, setVersion] = useState<VersionInfo | null>(null);
 
   const { showError } = useError();
 
@@ -80,6 +81,19 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
         setLoading(false);
       });
   }, [showError, propTheme]);
+
+  // Load build version info for the About card. Best-effort: outside Wails
+  // (Storybook) the call returns null and the card simply doesn't render.
+  useEffect(() => {
+    api
+      .getVersion()
+      .then((v) => {
+        if (v) setVersion(v);
+      })
+      .catch(() => {
+        /* version is non-essential; ignore */
+      });
+  }, []);
 
   const handleThemeChange = useCallback(
     async (next: ThemeMode) => {
@@ -184,6 +198,28 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
             </Card>
 
             <DevPseudoCard />
+
+            {version && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="mb-3 text-sm font-medium">{t("About")}</div>
+                  <dl
+                    className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-1.5 text-sm"
+                    data-testid="version-info"
+                  >
+                    <dt className="text-muted-foreground">{t("Version")}</dt>
+                    <dd className="font-mono text-xs">{version.version || "dev"}</dd>
+                    <dt className="text-muted-foreground">{t("Commit")}</dt>
+                    <dd className="font-mono text-xs">{version.commit || "unknown"}</dd>
+                    <dt className="text-muted-foreground">{t("Build date")}</dt>
+                    <dd className="font-mono text-xs">{version.build_date || "unknown"}</dd>
+                  </dl>
+                  <p className="mt-3 text-[10px] text-muted-foreground">
+                    © {new Date().getFullYear()} neokapi
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </TabsContent>

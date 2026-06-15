@@ -6,6 +6,18 @@ beforeEach(() => {
   setTranslations("", {});
 });
 
+// flattenText collects all string content from a __tx result (string, array, or
+// React element tree) so a test can assert no internal {=mN} marker leaked.
+function flattenText(node: unknown): string {
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.map(flattenText).join("");
+  if (isValidElement(node)) {
+    const children = (node as { props?: { children?: unknown } }).props?.children;
+    return children === undefined ? "" : flattenText(children);
+  }
+  return "";
+}
+
 describe("__t() — hash-based string lookup", () => {
   it("returns fallback when no translation", () => {
     expect(__t("hash1", "Hello")).toBe("Hello");
@@ -60,6 +72,24 @@ describe("__tx() — hash-based JSX lookup", () => {
     setTranslations("de", { hash1: "Einfacher Text" });
     const result = __tx("hash1", "Simple text", { "=m0": "<b>bold</b>" });
     expect(result).toBe("Einfacher Text");
+  });
+
+  it("falls back to source — never a raw token — when a translation has an unbound marker", () => {
+    // Stale catalog: the translation references {=m1}, but the current call site
+    // only binds {=m0}. The translation must be rejected in favour of the source.
+    const icon = createElement("svg", { key: "i" });
+    setTranslations("de", { hash1: "Klick {=m0} und {=m1} jetzt." });
+    const result = __tx("hash1", "Click {=m0} now.", { "=m0": icon });
+    const text = flattenText(result);
+    expect(text).not.toContain("{=m"); // no internal marker leaks to the UI
+    expect(text).toContain("now"); // used the source, not the stale translation
+    expect(text).not.toContain("jetzt");
+  });
+
+  it("drops an unbound standalone token rather than rendering it literally", () => {
+    setTranslations("", {});
+    const result = __tx("hashX", "A {=m0} B", {});
+    expect(result).toBe("A  B"); // {=m0} dropped, not emitted as text
   });
 
   it("substitutes string params alongside elements", () => {
