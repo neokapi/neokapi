@@ -69,6 +69,17 @@ brew install neokapi/tap/kapi-cli  # macOS/Linux
 winget install Neokapi.Kapi        # Windows
 ```
 
+Every utility is also reachable as a `kapi` subcommand —
+`kapi grep`, `kapi sed`, `kapi cat`, `kapi convert` — which behaves identically
+to the matching short name on every platform.
+
+:::note Windows
+The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kconv`) as
+aliases of the `kapi` binary. The winget package installs the single `kapi`
+command, so on Windows use the subcommand form — `kapi grep`, `kapi sed`,
+`kapi cat`, `kapi convert` — which is exactly equivalent.
+:::
+
 ## Conventions shared across the toolbox
 
 - **Standard input.** With no file argument, or when the file is `-`, input is
