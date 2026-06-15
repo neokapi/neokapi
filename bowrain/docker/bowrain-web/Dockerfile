@@ -35,6 +35,8 @@ RUN corepack pnpm fetch
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/kapi-react/package.json packages/kapi-react/
 COPY packages/ui/package.json packages/ui/
+COPY packages/concept-ui/package.json packages/concept-ui/
+COPY packages/contract-types/package.json packages/contract-types/
 COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
@@ -50,6 +52,8 @@ RUN corepack pnpm install --offline
 COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/kapi-react/ packages/kapi-react/
 COPY packages/ui/ packages/ui/
+COPY packages/concept-ui/ packages/concept-ui/
+COPY packages/contract-types/ packages/contract-types/
 COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 COPY bowrain/apps/web/ bowrain/apps/web/
