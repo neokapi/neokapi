@@ -50,6 +50,14 @@ export function HomePage({
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   const [extracting, setExtracting] = useState(false);
+  const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
+
+  // Install a missing project plugin directly from the banner. The backend
+  // emits plugins-changed, which re-checks the project and clears the banner.
+  const handleInstallPlugin = useCallback((plugin: string) => {
+    setInstallingPlugin(plugin);
+    void api.installPlugin(plugin);
+  }, []);
 
   const refreshStatus = useCallback(() => {
     if (!tabID || propStatus) return;
@@ -160,7 +168,23 @@ export function HomePage({
                       {issue.plugin}
                     </Badge>
                     {issue.type === "missing" ? (
-                      <span className="text-muted-foreground">not installed</span>
+                      <>
+                        <span className="text-muted-foreground">not installed</span>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="ml-auto"
+                          onClick={() => handleInstallPlugin(issue.plugin)}
+                          disabled={installingPlugin === issue.plugin}
+                        >
+                          {installingPlugin === issue.plugin ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Plug size={11} />
+                          )}
+                          {t("Install")}
+                        </Button>
+                      </>
                     ) : (
                       <span className="text-muted-foreground">
                         requires {issue.required}, installed {issue.installed_version}
@@ -176,7 +200,7 @@ export function HomePage({
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => onNavigate("app-settings")}>
                   <Plug size={12} />
-                  Install Plugins
+                  Manage Plugins
                 </Button>
               </div>
             </div>

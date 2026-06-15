@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, DragEvent, useMemo } from "react";
+import { useState, useEffect, useCallback, DragEvent, useMemo, Fragment } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
   Plus,
@@ -13,6 +13,8 @@ import {
   Settings2,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  ArrowRight,
   Layers,
 } from "lucide-react";
 import {
@@ -27,6 +29,7 @@ import {
   FormatSelect,
   ItemCard,
   ConfirmDeleteButton,
+  LocalePill,
   Select,
   SelectTrigger,
   SelectValue,
@@ -41,7 +44,7 @@ import type {
   FormatInfo,
 } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
-import { api } from "../hooks/useApi";
+import { api, type OutputFileInfo } from "../hooks/useApi";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
 import { FilePreview } from "./FilePreview";
 import { useError } from "./ErrorBanner";
@@ -110,6 +113,10 @@ export function ContentPage({
   >({});
   const [expandedConfig, setExpandedConfig] = useState<Set<string>>(new Set());
   const [expandedLangs, setExpandedLangs] = useState<Set<number>>(new Set());
+  // Generated output files keyed by their source file's relative path (issue #5),
+  // plus the set of source rows whose outputs are expanded.
+  const [outputs, setOutputs] = useState<Record<string, OutputFileInfo[]>>({});
+  const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(new Set());
   // Preview target: the file whose content is shown in the PreviewKit sheet.
   const [preview, setPreview] = useState<{ path: string; relative: string } | null>(null);
 
@@ -167,18 +174,32 @@ export function ContentPage({
     setScanning(true);
     try {
       await api.updateProject(tabID, project);
-      const [matched, allFiles] = await Promise.all([
+      const [matched, allFiles, outs] = await Promise.all([
         api.matchContent(tabID),
         api.listProjectFiles(tabID),
+        api.listOutputs(tabID),
       ]);
       setMatches(matched ?? []);
       setProjectFiles(allFiles ?? []);
+      setOutputs(outs ?? {});
     } catch (err) {
       showError("Failed to scan files", err);
     } finally {
       setScanning(false);
     }
   }, [tabID, project, showError, hasPreloadedData]);
+
+  const refreshOutputs = useCallback(() => {
+    if (hasPreloadedData) return;
+    void api
+      .listOutputs(tabID)
+      .then((outs) => {
+        if (outs) setOutputs(outs);
+      })
+      .catch(() => {
+        /* outputs are best-effort */
+      });
+  }, [tabID, hasPreloadedData]);
 
   useEffect(() => {
     void rescanFiles();
@@ -187,6 +208,10 @@ export function ContentPage({
   useWailsEvent("project-files-changed", (data) => {
     if (data === tabID) void rescanFiles();
   });
+
+  // A flow run wrote an output file — refresh so it appears beneath its source
+  // immediately, even while the run is still in progress (issue #5).
+  useWailsEvent("outputs-changed", () => refreshOutputs());
 
   // --- Project update helpers ---
   const updateContent = (newContent: ContentCollection[]) => {
@@ -249,7 +274,15 @@ export function ContentPage({
     arr.push(m);
     collectionMap.set(key, arr);
   }
-  const unmatchedFiles = projectFiles.filter((f) => !f.is_dir && !matchedSet.has(f.relative));
+  // Relative paths of every known output file, so they surface as children of
+  // their source rather than getting dumped into "Other files" (issue #5).
+  const outputSet = new Set<string>();
+  for (const list of Object.values(outputs)) {
+    for (const o of list) outputSet.add(o.relative);
+  }
+  const unmatchedFiles = projectFiles.filter(
+    (f) => !f.is_dir && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
+  );
   const collectionNames = [...collectionMap.keys()].sort((a, b) => {
     if (!a) return 1;
     if (!b) return -1;
@@ -535,22 +568,49 @@ export function ContentPage({
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                           title="Edit language overrides"
                         >
-                          <Globe size={10} />
-                          <span>
-                            {coll.source_language || project.defaults?.source_language || "?"}
-                          </span>
+                          <Globe size={10} className="shrink-0" />
+                          <LocalePill
+                            locale={String(
+                              coll.source_language || project.defaults?.source_language || "?",
+                            )}
+                          />
                           <span>&rarr;</span>
-                          <span>
-                            {(coll.target_languages ?? project.defaults?.target_languages)?.join(
-                              ", ",
-                            ) || "?"}
-                          </span>
+                          {(() => {
+                            const targets = (
+                              coll.target_languages ??
+                              project.defaults?.target_languages ??
+                              []
+                            ).map(String);
+                            if (targets.length === 0) {
+                              return <span className="text-muted-foreground">?</span>;
+                            }
+                            // Few targets: show them as pills. Many: collapse to a
+                            // count with the full list available on hover (issue #6).
+                            if (targets.length <= 2) {
+                              return (
+                                <span className="flex items-center gap-1">
+                                  {targets.map((l) => (
+                                    <LocalePill key={l} locale={l} />
+                                  ))}
+                                </span>
+                              );
+                            }
+                            return (
+                              <Badge
+                                variant="secondary"
+                                className="px-1.5 py-0 text-[10px] font-normal"
+                                title={targets.join(", ")}
+                              >
+                                {t("{count} languages", { count: targets.length })}
+                              </Badge>
+                            );
+                          })()}
                           {(coll.source_language || coll.target_languages) && (
                             <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-[9px]">
                               override
                             </Badge>
                           )}
-                          <Pencil size={8} className="ml-0.5" />
+                          <Pencil size={8} className="ml-0.5 shrink-0" />
                         </button>
                         <div className="opacity-0 group-hover:opacity-100">
                           <ConfirmDeleteButton
@@ -756,28 +816,121 @@ export function ContentPage({
                             </tr>
                           </thead>
                           <tbody>
-                            {collFiles.map((m, i) => (
-                              <tr
-                                key={i}
-                                onClick={() => setPreview({ path: m.path, relative: m.relative })}
-                                className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                                title={t("Preview {file}", { file: m.relative })}
-                              >
-                                <td className="px-3 py-1.5">
-                                  <span className="flex items-center gap-1.5 font-mono">
-                                    <FileText
-                                      size={12}
-                                      className="shrink-0 text-muted-foreground"
-                                    />
-                                    {m.relative}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-1.5">
-                                  <Badge variant="secondary">{m.format || "unknown"}</Badge>
-                                </td>
-                                <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
-                              </tr>
-                            ))}
+                            {collFiles.map((m, i) => {
+                              const outs = outputs[m.relative] ?? [];
+                              const isOpen = expandedOutputs.has(m.relative);
+                              const present = outs.filter((o) => o.exists).length;
+                              return (
+                                <Fragment key={i}>
+                                  <tr
+                                    onClick={() =>
+                                      setPreview({ path: m.path, relative: m.relative })
+                                    }
+                                    className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                                    title={t("Preview {file}", { file: m.relative })}
+                                  >
+                                    <td className="px-3 py-1.5">
+                                      <span className="flex items-center gap-1.5 font-mono">
+                                        {outs.length > 0 ? (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setExpandedOutputs((prev) => {
+                                                const next = new Set(prev);
+                                                if (next.has(m.relative)) next.delete(m.relative);
+                                                else next.add(m.relative);
+                                                return next;
+                                              });
+                                            }}
+                                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                                            title={isOpen ? t("Hide outputs") : t("Show outputs")}
+                                            aria-label={
+                                              isOpen ? t("Hide outputs") : t("Show outputs")
+                                            }
+                                          >
+                                            {isOpen ? (
+                                              <ChevronDown size={12} />
+                                            ) : (
+                                              <ChevronRight size={12} />
+                                            )}
+                                          </button>
+                                        ) : (
+                                          <FileText
+                                            size={12}
+                                            className="shrink-0 text-muted-foreground"
+                                          />
+                                        )}
+                                        {m.relative}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-1.5">
+                                      <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                                    </td>
+                                    <td className="px-3 py-1.5 text-muted-foreground">
+                                      <span className="flex items-center justify-between gap-2">
+                                        <span>{m.pattern}</span>
+                                        {outs.length > 0 && (
+                                          <Badge
+                                            variant="outline"
+                                            className="shrink-0 text-[10px] font-normal"
+                                          >
+                                            {t("{present}/{total} outputs", {
+                                              present,
+                                              total: outs.length,
+                                            })}
+                                          </Badge>
+                                        )}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                  {isOpen &&
+                                    outs.map((o) => (
+                                      <tr
+                                        key={`${i}-${o.relative}`}
+                                        onClick={
+                                          o.exists
+                                            ? () =>
+                                                setPreview({
+                                                  path: o.path,
+                                                  relative: o.relative,
+                                                })
+                                            : undefined
+                                        }
+                                        className={`border-b border-border last:border-0 ${
+                                          o.exists
+                                            ? "cursor-pointer hover:bg-accent/30"
+                                            : "opacity-60"
+                                        }`}
+                                        title={
+                                          o.exists
+                                            ? t("Inspect {file}", { file: o.relative })
+                                            : t("Not generated yet — run a flow to create it")
+                                        }
+                                      >
+                                        <td className="py-1 pl-9 pr-3">
+                                          <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                                            <ArrowRight size={10} className="shrink-0 opacity-50" />
+                                            <LocalePill locale={o.lang} />
+                                            <span>{o.relative}</span>
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-1">
+                                          {o.exists ? (
+                                            <Badge variant="secondary">{o.format || "—"}</Badge>
+                                          ) : (
+                                            <span className="text-[10px] text-muted-foreground">
+                                              {t("pending")}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-1 text-right text-muted-foreground">
+                                          {o.exists ? formatSize(o.size) : ""}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                </Fragment>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </Card>

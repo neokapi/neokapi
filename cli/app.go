@@ -102,10 +102,43 @@ type App struct {
 	// so T() calls are always safe.
 	translator i18n.Translator
 
-	// daemonPool is the lazily-initialized Mode-C daemon pool. Built on
-	// first DaemonPool() call; torn down by Shutdown.
-	daemonPoolMu sync.Mutex
-	daemonPool   *pluginhost.DaemonPool
+	// pluginRuntime owns the live plugin host + Mode-C daemon pool and the
+	// shared discover→wire sequence. Built lazily (InitPluginHost or the first
+	// DaemonPool call); the daemon pool it holds is torn down by Shutdown.
+	pluginRuntimeOnce sync.Once
+	pluginRuntime     *pluginhost.Runtime
+}
+
+// ensurePluginRuntime lazily builds the shared plugin Runtime from the current
+// flags/env. It performs no discovery itself — callers Rescan when they need
+// the host. Safe to call from InitPluginHost or DaemonPool.
+func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
+	a.pluginRuntimeOnce.Do(func() {
+		warn := func(s string) {
+			if !a.Quiet {
+				fmt.Fprintln(os.Stderr, "Warning: "+s)
+			}
+		}
+		// Honor --plugin-dir: when set it takes precedence over KAPI_PLUGINS_DIR
+		// so a developer can point at a custom directory without touching env.
+		envPluginsDir := os.Getenv("KAPI_PLUGINS_DIR")
+		if a.PluginDir != "" {
+			envPluginsDir = a.PluginDir
+		}
+		a.pluginRuntime = pluginhost.NewRuntime(pluginhost.RuntimeOptions{
+			Discover:           pluginhost.DiscoverOptions{EnvPluginsDir: envPluginsDir, OnWarn: warn},
+			FormatReg:          a.FormatReg,
+			OnWarn:             warn,
+			RegisterConnectors: true,
+			UseCache:           true,
+			PoolLogger: func(format string, args ...any) {
+				if a.Verbose {
+					fmt.Fprintf(os.Stderr, "[daemon] "+format+"\n", args...)
+				}
+			},
+		})
+	})
+	return a.pluginRuntime
 }
 
 // T returns the active metadata Translator. Safe to call before Init —
@@ -177,69 +210,11 @@ func (a *App) InitPluginHost() {
 	if a.PluginHost != nil {
 		return
 	}
-	// Honor --plugin-dir: when set it takes precedence over KAPI_PLUGINS_DIR
-	// so a developer can point at a custom directory without touching env.
-	envPluginsDir := os.Getenv("KAPI_PLUGINS_DIR")
-	if a.PluginDir != "" {
-		envPluginsDir = a.PluginDir
-	}
-	opts := pluginhost.DiscoverOptions{
-		EnvPluginsDir: envPluginsDir,
-		OnWarn: func(s string) {
-			if !a.Quiet {
-				fmt.Fprintln(os.Stderr, "Warning: "+s)
-			}
-		},
-	}
-
-	var plugins []*pluginhost.Plugin
-	if cache, err := pluginhost.LoadCache(pluginhost.CacheLocation()); err == nil && pluginhost.IsFresh(cache, opts) {
-		plugins = pluginhost.PluginsFromCache(cache)
-	} else {
-		plugins = pluginhost.Discover(opts)
-		// Best-effort cache write; ignore errors so an unwritable
-		// cache dir doesn't break startup.
-		_ = pluginhost.SaveCache(pluginhost.CacheLocation(), pluginhost.BuildCache(opts, plugins))
-	}
-
-	a.PluginHost = pluginhost.NewHost(plugins, func(s string) {
-		if !a.Quiet {
-			fmt.Fprintln(os.Stderr, "Warning: "+s)
-		}
-	})
-
-	pluginhost.RegisterSchemaExtensions(a.PluginHost, func(s string) {
-		if !a.Quiet {
-			fmt.Fprintln(os.Stderr, "Warning: "+s)
-		}
-	})
-
-	// Auto-register a generic source-connector dispatcher for every
-	// Mode-C plugin that declares source_connectors. Plugins that need
-	// custom dispatch can override this by re-registering after Init.
-	for _, p := range a.PluginHost.Plugins() {
-		if !p.Manifest.IsModeC() {
-			continue
-		}
-		if len(p.Manifest.Capabilities.SourceConnectors) == 0 {
-			continue
-		}
-		pluginhost.RegisterSourceConnectorDispatcher(
-			pluginhost.NewGenericSourceConnectorDispatcher(p.Name()),
-			pluginhost.SourceConnectorOpsClaimed...,
-		)
-	}
-
-	// Register daemon-backed format readers and writers from every
-	// Mode-C plugin that declares formats. This makes plugin-provided
-	// formats first-class participants in format detection, reader /
-	// writer construction, and `kapi formats list`. The daemon pool is
-	// constructed eagerly here so the factories close over a non-nil
-	// pool reference; daemon processes themselves stay lazy and only
-	// spawn on first format use.
-	if a.FormatReg != nil {
-		pluginhost.RegisterModeCFormats(a.PluginHost, a.DaemonPool(), a.FormatReg)
-	}
+	// The Runtime owns the discover→build→wire sequence (schema extensions,
+	// source-connector dispatchers, and daemon-backed Mode-C formats) plus the
+	// lazy daemon pool — the same path the desktop app uses, so the logic lives
+	// in one place (pluginhost.Runtime).
+	a.PluginHost = a.ensurePluginRuntime().Rescan()
 }
 
 // Init finishes app initialization after flag parsing: credentials,
@@ -359,12 +334,8 @@ func (a *App) AddCommandGroups(cmd *cobra.Command) {
 // Execute() returns, to ensure cleanup runs even when RunE returns an
 // error.
 func (a *App) Shutdown() {
-	a.daemonPoolMu.Lock()
-	pool := a.daemonPool
-	a.daemonPool = nil
-	a.daemonPoolMu.Unlock()
-	if pool != nil {
-		pool.Shutdown()
+	if a.pluginRuntime != nil {
+		a.pluginRuntime.Shutdown()
 	}
 }
 
@@ -376,16 +347,5 @@ func (a *App) Shutdown() {
 // hold a *DaemonPool reference for the lifetime of the App; the pool
 // is torn down by App.Shutdown.
 func (a *App) DaemonPool() *pluginhost.DaemonPool {
-	a.daemonPoolMu.Lock()
-	defer a.daemonPoolMu.Unlock()
-	if a.daemonPool == nil {
-		a.daemonPool = pluginhost.NewDaemonPool(pluginhost.DaemonPoolOptions{
-			Logger: func(format string, args ...any) {
-				if a.Verbose {
-					fmt.Fprintf(os.Stderr, "[daemon] "+format+"\n", args...)
-				}
-			},
-		})
-	}
-	return a.daemonPool
+	return a.ensurePluginRuntime().DaemonPool()
 }

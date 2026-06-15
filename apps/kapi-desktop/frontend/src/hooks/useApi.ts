@@ -430,9 +430,30 @@ export const api = {
   // Trace
   getLastTrace: () => call<unknown>("GetLastTrace"),
 
+  // Outputs — generated target files per source file in a content collection.
+  listOutputs: (tabID: string) => call<Record<string, OutputFileInfo[]>>("ListOutputs", tabID),
+  inspectOutput: (tabID: string, relative: string) =>
+    call<string>("InspectOutput", tabID, relative),
+
   // System
-  getVersion: () => call<string>("GetVersion"),
+  getVersion: () => call<VersionInfo>("GetVersion"),
   getHomeDir: () => call<string>("GetHomeDir"),
 } as const;
+
+export interface VersionInfo {
+  version: string;
+  commit: string;
+  build_date: string;
+}
+
+export interface OutputFileInfo {
+  lang: string;
+  path: string;
+  relative: string;
+  format?: string;
+  exists: boolean;
+  size: number;
+  mod_time?: string;
+}
 
 export type Api = typeof api;

@@ -21,6 +21,8 @@ vars:
     sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
   GIT_BUILD_DATE:
     sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  COPYRIGHT_YEAR:
+    sh: date +%Y
 
 tasks:
   build:
@@ -152,9 +154,11 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
-      # Inject git version into the plist so macOS About dialog shows real version
+      # Inject the real version + current copyright year so the macOS About
+      # dialog matches the built binary instead of the static placeholder.
       - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
-      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_COMMIT}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-{{.COPYRIGHT_YEAR}} neokapi" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
@@ -176,9 +180,10 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      # Inject git version into the plist so macOS About dialog shows real version
+      # Inject the real version + current copyright year (matches package build).
       - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_COMMIT}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-{{.COPYRIGHT_YEAR}} neokapi" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       # Register the .app bundle with Launch Services so macOS recognises the
       # bowrain:// URL scheme handler during development.

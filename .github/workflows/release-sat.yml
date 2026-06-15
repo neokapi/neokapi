@@ -359,7 +359,21 @@ jobs:
           TARBALL: ${{ steps.package.outputs.tarball }}
         run: |
           set -euo pipefail
-          cosign sign-blob --yes --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
+          # --new-bundle-format emits a real Sigstore protobuf bundle
+          # (media type application/vnd.dev.sigstore.bundle…), consistent with
+          # how other plugins (bowrain, okapi-bridge) are signed. WITHOUT this
+          # flag, `cosign sign-blob --bundle` writes the LEGACY cosign bundle
+          # ({"base64Signature","cert","rekorBundle"}), which sigstore-go's
+          # bundle parser rejects ("unknown field base64Signature") — the bug
+          # that broke `kapi plugins install sat`.
+          #
+          # NOTE: the installer's verifier still accepts legacy bundles
+          # (cli/pluginhost/registry/cosign.go: convertLegacyCosignBundle)
+          # because already-published sat releases shipped the legacy format and
+          # cannot be re-signed. Keep that path until no legacy artifacts remain
+          # referenced by the registry.
+          cosign sign-blob --yes --new-bundle-format \
+            --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
 
       # Upload the tarball + signature as a workflow ARTIFACT (not directly to
       # the GitHub release): the matrix legs run concurrently, and several

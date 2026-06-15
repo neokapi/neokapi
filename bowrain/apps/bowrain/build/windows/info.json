@@ -1,15 +1,15 @@
 {
   "fixed": {
-    "file_version": "0.1.0"
+    "file_version": "0.0.0.0"
   },
   "info": {
     "0000": {
-      "ProductVersion": "0.1.0",
-      "CompanyName": "My Company",
-      "FileDescription": "My Product Description",
-      "LegalCopyright": "© now, My Company",
-      "ProductName": "My Product",
-      "Comments": "This is a comment"
+      "ProductVersion": "0.0.0-dev",
+      "CompanyName": "neokapi",
+      "FileDescription": "Bowrain - AI-native translation editor",
+      "LegalCopyright": "© 2025-2026 neokapi",
+      "ProductName": "Bowrain",
+      "Comments": "AI-native translation editor"
     }
   }
 }
