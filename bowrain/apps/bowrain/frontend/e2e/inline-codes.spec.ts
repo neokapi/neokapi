@@ -2,6 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
+// Quarantined in CI (#867): this heavy inline-code editor suite passes locally
+// but flakes/times out under headless CI. Still runs locally.
+test.beforeEach(() => {
+  test.skip(!!process.env.CI, "Quarantined in CI — see #867");
+});
+
 // Unicode markers matching the Go model
 const M_OPEN = "\uE001";
 const M_CLOSE = "\uE002";

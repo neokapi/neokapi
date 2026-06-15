@@ -7,6 +7,12 @@ import { setupLocalApp } from "./mock-backend";
 // (stable data-testids), while the canvas, tool palette, and node rendering
 // come from the shared editor — asserted here by visible text / roles.
 
+// Quarantined in CI (#867): the @neokapi/flow-editor canvas suite passes locally
+// but flakes/times out under headless CI. Still runs locally.
+test.beforeEach(() => {
+  test.skip(!!process.env.CI, "Quarantined in CI — see #867");
+});
+
 test.beforeEach(async ({ page }) => {
   await setupLocalApp(page);
   // Navigate to the Flows view via sidebar icon

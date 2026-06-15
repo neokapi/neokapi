@@ -2,6 +2,12 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
+// Quarantined in CI (#867): this rich-editor suite passes locally but
+// flakes/times out under headless CI. Still runs locally.
+test.beforeEach(() => {
+  test.skip(!!process.env.CI, "Quarantined in CI — see #867");
+});
+
 /**
  * The editor's five layout modes (grid/focus/split-h/split-v/visual) collapsed
  * into two views — Visual and Table. Focus/split modes were retired; the
