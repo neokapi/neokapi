@@ -15,8 +15,14 @@
     "webpack"
   ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neokapi/neokapi.git",
+    "directory": "packages/kapi-react"
+  },
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/packages/kapi-react#readme",
   "bin": {
-    "kapi-react": "./dist/cli.js"
+    "kapi-react": "dist/cli.js"
   },
   "files": [
     "dist",

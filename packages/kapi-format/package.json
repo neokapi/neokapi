@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": false,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neokapi/neokapi.git",
+    "directory": "packages/kapi-format"
+  },
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/packages/kapi-format#readme",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
