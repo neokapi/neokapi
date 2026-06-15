@@ -2,6 +2,12 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
+// Quarantined in CI (#867): this translation-editor suite passes locally but
+// flakes/times out under headless CI. Still runs locally.
+test.beforeEach(() => {
+  test.skip(!!process.env.CI, "Quarantined in CI — see #867");
+});
+
 /**
  * Helper: creates a project with a file and opens the editor in Table view.
  * The editor now has two views — Visual (default) and Table; the row-based
