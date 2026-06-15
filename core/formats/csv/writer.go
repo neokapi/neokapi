@@ -17,7 +17,8 @@ type Writer struct {
 	format.BaseFormatWriter
 	separator     rune
 	headers       []string
-	preambleRows  [][]string              // rows before data (header, preamble)
+	headerByCol   map[int]string          // header cell text keyed by column index
+	preambleRows  [][]string              // rows before the header row
 	blocks        map[string]*model.Block // keyed by "col.row"
 	dataCells     map[string]string       // keyed by "col.row"
 	maxCol        int
@@ -34,9 +35,10 @@ func NewWriter() *Writer {
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "csv",
 		},
-		separator: ',',
-		blocks:    make(map[string]*model.Block),
-		dataCells: make(map[string]string),
+		separator:   ',',
+		headerByCol: make(map[int]string),
+		blocks:      make(map[string]*model.Block),
+		dataCells:   make(map[string]string),
 	}
 }
 
@@ -46,9 +48,10 @@ func NewTSVWriter() *Writer {
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "tsv",
 		},
-		separator: '\t',
-		blocks:    make(map[string]*model.Block),
-		dataCells: make(map[string]string),
+		separator:   '\t',
+		headerByCol: make(map[int]string),
+		blocks:      make(map[string]*model.Block),
+		dataCells:   make(map[string]string),
 	}
 }
 
@@ -155,12 +158,17 @@ func (w *Writer) collectPart(part *model.Part) error {
 		if !ok {
 			return errors.New("csv writer: expected Block resource")
 		}
-		w.blocks[block.Name] = block
-		// Track max row/col
 		col := 0
 		row := 0
 		_, _ = fmt.Sscanf(block.Properties["column"], "%d", &col)
 		_, _ = fmt.Sscanf(block.Properties["row"], "%d", &row)
+		// Header cells carry the column labels and rebuild the header row;
+		// data cells fill the grid keyed by "col.row".
+		if block.SemanticRole() == model.RoleTableHeader || block.Properties["header"] == "true" {
+			w.headerByCol[col] = w.blockText(block)
+		} else {
+			w.blocks[block.Name] = block
+		}
 		if col > w.maxCol {
 			w.maxCol = col
 		}
@@ -204,15 +212,42 @@ func (w *Writer) flush() error {
 	csvWriter := csv.NewWriter(w.Output)
 	csvWriter.Comma = w.separator
 
-	// Write preamble rows (headers and any rows before data)
+	// Write preamble rows (any rows before the header row).
 	for _, row := range w.preambleRows {
 		if err := csvWriter.Write(row); err != nil {
 			return fmt.Errorf("csv writer: writing preamble: %w", err)
 		}
 	}
 
+	// Rebuild the header row from the collected header cells. headerByCol is
+	// empty when the source had no header (headerless CSV) or carried the
+	// header as preamble Data (legacy stream).
+	if len(w.headerByCol) > 0 {
+		hcols := 0
+		for c := range w.headerByCol {
+			if c+1 > hcols {
+				hcols = c + 1
+			}
+		}
+		w.headers = make([]string, hcols)
+		for c, v := range w.headerByCol {
+			w.headers[c] = v
+		}
+	}
+
 	// Calculate dimensions
 	numCols := max(len(w.headers), w.maxCol+1)
+
+	// Write the header row reconstructed from header cells.
+	if len(w.headerByCol) > 0 {
+		record := make([]string, numCols)
+		for c := range numCols {
+			record[c] = w.headerByCol[c]
+		}
+		if err := csvWriter.Write(record); err != nil {
+			return fmt.Errorf("csv writer: writing header: %w", err)
+		}
+	}
 
 	// Write data rows
 	for rowNum := 1; rowNum <= w.maxRow; rowNum++ {

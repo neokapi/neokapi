@@ -34,8 +34,19 @@ func readCSVWithConfig(t *testing.T, input string, cfgFn func(*csvfmt.Config)) [
 	return testutil.CollectParts(t, reader.Read(ctx))
 }
 
+// collectBlocks returns the translatable content cells. The reader now also
+// emits the header row and other structural cells as non-translatable Blocks
+// (RoleTableHeader / RoleTableCell) so cross-format writers can render a table;
+// those are excluded here since they are not translatable content.
 func collectBlocks(parts []*model.Part) []*model.Block {
-	return testutil.FilterBlocks(parts)
+	all := testutil.FilterBlocks(parts)
+	out := make([]*model.Block, 0, len(all))
+	for _, b := range all {
+		if b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 func blockTexts(blocks []*model.Block) []string {
@@ -100,6 +111,54 @@ func TestCSV_EmptyInput(t *testing.T) {
 	require.GreaterOrEqual(t, len(parts), 2)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+}
+
+// The reader models the grid as a table: a `table` group wrapping per-row
+// `table-row` groups, with header cells (RoleTableHeader) and data cells
+// (RoleTableCell). This is the structure cross-format writers project as a
+// real table.
+func TestReadTableStructure(t *testing.T) {
+	t.Parallel()
+	parts := readCSV(t, "name,price\nApple,1.20\nBanana,0.50")
+
+	var (
+		tableGroups, rowGroups int
+		headerCells, dataCells []string
+		depth                  int
+	)
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartGroupStart:
+			g := p.Resource.(*model.GroupStart)
+			depth++
+			switch g.Type {
+			case "table":
+				tableGroups++
+			case "table-row":
+				rowGroups++
+			}
+		case model.PartGroupEnd:
+			depth--
+		case model.PartBlock:
+			assert.Positive(t, depth, "every cell block must sit inside the table group")
+			b := p.Resource.(*model.Block)
+			switch b.SemanticRole() {
+			case model.RoleTableHeader:
+				assert.False(t, b.Translatable, "header cells are non-translatable")
+				headerCells = append(headerCells, b.SourceText())
+			case model.RoleTableCell:
+				assert.True(t, b.Translatable, "data cells are translatable")
+				assert.Equal(t, "table-cell", b.Type)
+				dataCells = append(dataCells, b.SourceText())
+			}
+		}
+	}
+
+	assert.Equal(t, 1, tableGroups, "one table group")
+	assert.Equal(t, 3, rowGroups, "one header row + two data rows")
+	assert.Equal(t, []string{"name", "price"}, headerCells)
+	assert.Equal(t, []string{"Apple", "1.20", "Banana", "0.50"}, dataCells)
+	assert.Equal(t, 0, depth, "table/row groups are balanced")
 }
 
 func TestReadSimpleCSV(t *testing.T) {

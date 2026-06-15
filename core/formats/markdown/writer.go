@@ -43,7 +43,7 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // Write consumes Parts from a channel and writes reconstructed Markdown.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	blocksByID := make(map[string]*model.Block)
-	var orderedBlocks []*model.Block
+	var events []*model.Part // blocks + group brackets, in stream order
 
 	for {
 		select {
@@ -57,8 +57,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
 					blocksByID[block.ID] = block
-					orderedBlocks = append(orderedBlocks, block)
+					events = append(events, part)
 				}
+			case model.PartGroupStart, model.PartGroupEnd:
+				events = append(events, part)
 			}
 		}
 	}
@@ -89,8 +91,9 @@ done:
 		return tw.Flush()
 	}
 
-	// Mode 2: Build from blocks (fallback).
-	if err := w.writeFromBlocks(orderedBlocks, tw); err != nil {
+	// Mode 2: Build from the ordered event stream (cross-format export). Table
+	// groups render as GFM tables; everything else renders block-by-block.
+	if err := w.writeFromEvents(events, tw); err != nil {
 		return err
 	}
 	return tw.Flush()
@@ -172,50 +175,262 @@ func renderInlineMarkdown(runs []model.Run) string {
 	return sb.String()
 }
 
-// writeFromBlocks reconstructs markdown from blocks without a skeleton store.
-// This is the cross-format semantic export path (any source → clean Markdown),
-// so inline formatting renders from each run's vocabulary type, not its
-// source-format Data.
-func (w *Writer) writeFromBlocks(blocks []*model.Block, out io.Writer) error {
-	for _, block := range blocks {
-		text := renderInlineMarkdown(w.blockRuns(block))
-
-		if !w.firstBlock {
-			if _, err := fmt.Fprint(out, "\n\n"); err != nil {
-				return err
+// writeFromEvents reconstructs markdown from the ordered block + group event
+// stream (cross-format semantic export). A `table` group and its `table-row`
+// children render as a GFM table; every other block renders individually.
+// Non-table group brackets are transparent — their child blocks render in
+// place exactly as the block-only path did.
+func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
+	for i := 0; i < len(events); i++ {
+		part := events[i]
+		switch part.Type {
+		case model.PartGroupStart:
+			if g, ok := part.Resource.(*model.GroupStart); ok && g.Type == "table" {
+				end, rows := w.collectTable(events, i)
+				if err := w.writeTable(rows, out); err != nil {
+					return err
+				}
+				i = end
 			}
-		}
-		w.firstBlock = false
-
-		// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
-		// SemanticRole drives clean cross-format export (any source → Markdown);
-		// it falls back to the format-specific block.Type so same-format
-		// round-trips are unchanged.
-		role := block.SemanticRole()
-		if role == "" {
-			role = block.Type
-		}
-		var prefix, suffix string
-		switch role {
-		case model.RoleTitle:
-			prefix = "# "
-		case model.RoleHeading:
-			if n := headingLevel(block); n > 0 {
-				prefix = strings.Repeat("#", n) + " "
+		case model.PartBlock:
+			if block, ok := part.Resource.(*model.Block); ok {
+				if err := w.writeBlockMarkdown(block, out); err != nil {
+					return err
+				}
 			}
-		case model.RoleListItem:
-			prefix = "- "
-		case model.RoleCode:
-			prefix, suffix = "```\n", "\n```"
-		case model.RoleCaption:
-			prefix, suffix = "*", "*"
-		}
-
-		if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
-			return err
 		}
 	}
 	return nil
+}
+
+// writeBlockMarkdown renders one block, role-prefixed, separated from prior
+// output by a blank line. Inline formatting renders from each run's vocabulary
+// type, not its source-format Data, so the same Markdown results whatever the
+// source format.
+func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
+	text := renderInlineMarkdown(w.blockRuns(block))
+
+	if !w.firstBlock {
+		if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+			return err
+		}
+	}
+	w.firstBlock = false
+
+	// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
+	// SemanticRole drives clean cross-format export (any source → Markdown);
+	// it falls back to the format-specific block.Type so same-format
+	// round-trips are unchanged.
+	role := block.SemanticRole()
+	if role == "" {
+		role = block.Type
+	}
+	var prefix, suffix string
+	switch role {
+	case model.RoleTitle:
+		prefix = "# "
+	case model.RoleHeading:
+		if n := headingLevel(block); n > 0 {
+			prefix = strings.Repeat("#", n) + " "
+		}
+	case model.RoleListItem:
+		prefix = "- "
+	case model.RoleCode:
+		prefix, suffix = "```\n", "\n```"
+	case model.RoleCaption:
+		prefix, suffix = "*", "*"
+	}
+
+	if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
+		return err
+	}
+	return nil
+}
+
+// mdCell is one table cell: its rendered text and the column it occupies
+// (-1 when the source gave no explicit column index, so it is placed
+// sequentially).
+type mdCell struct {
+	col  int
+	text string
+}
+
+// mdRow is one accumulated table row.
+type mdRow struct {
+	header bool
+	cells  []mdCell
+}
+
+// collectTable walks from the `table` GroupStart at index start to its matching
+// GroupEnd, gathering each `table-row` group's cell blocks. It returns the
+// index of the matching GroupEnd (so the caller can resume after it) and the
+// accumulated rows.
+func (w *Writer) collectTable(events []*model.Part, start int) (end int, rows []mdRow) {
+	depth := 0
+	inRow := false
+	for j := start; j < len(events); j++ {
+		p := events[j]
+		switch p.Type {
+		case model.PartGroupStart:
+			depth++
+			g, _ := p.Resource.(*model.GroupStart)
+			if depth >= 2 && g != nil && g.Type == "table-row" {
+				rows = append(rows, mdRow{header: g.Properties["header"] == "true"})
+				inRow = true
+			}
+		case model.PartGroupEnd:
+			depth--
+			if depth == 0 {
+				return j, rows
+			}
+			if depth == 1 {
+				inRow = false
+			}
+		case model.PartBlock:
+			if !inRow || len(rows) == 0 {
+				continue
+			}
+			b, ok := p.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
+			col := -1
+			if v, ok := b.Properties["column"]; ok {
+				n := 0
+				if _, err := fmt.Sscanf(v, "%d", &n); err == nil {
+					col = n
+				}
+			}
+			if b.SemanticRole() == model.RoleTableHeader {
+				rows[len(rows)-1].header = true
+			}
+			text := escapeTableCell(renderInlineMarkdown(w.blockRuns(b)))
+			rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
+		}
+	}
+	return len(events) - 1, rows
+}
+
+// writeTable renders accumulated rows as a GFM table. The header row is the
+// first row flagged as a header (or carrying header cells); when none is
+// present a blank header is synthesised so the output is valid GFM.
+func (w *Writer) writeTable(rows []mdRow, out io.Writer) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	numCols := 0
+	for _, r := range rows {
+		if n := rowWidth(r.cells); n > numCols {
+			numCols = n
+		}
+	}
+	if numCols == 0 {
+		return nil
+	}
+
+	// Pick the header row; everything else is body, in order.
+	headerIdx := -1
+	for i, r := range rows {
+		if r.header {
+			headerIdx = i
+			break
+		}
+	}
+	var header []string
+	var body []mdRow
+	if headerIdx >= 0 {
+		header = placeCells(rows[headerIdx].cells, numCols)
+		for i, r := range rows {
+			if i != headerIdx {
+				body = append(body, r)
+			}
+		}
+	} else {
+		header = make([]string, numCols) // blank header keeps the GFM valid
+		body = rows
+	}
+
+	if !w.firstBlock {
+		if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+			return err
+		}
+	}
+	w.firstBlock = false
+
+	var sb strings.Builder
+	sb.WriteString(tableRowLine(header))
+	sb.WriteByte('\n')
+	sep := make([]string, numCols)
+	for i := range sep {
+		sep[i] = "---"
+	}
+	sb.WriteString(tableRowLine(sep))
+	for _, r := range body {
+		sb.WriteByte('\n')
+		sb.WriteString(tableRowLine(placeCells(r.cells, numCols)))
+	}
+
+	_, err := io.WriteString(out, sb.String())
+	return err
+}
+
+// rowWidth returns the column count a row occupies: the max explicit column
+// index + 1, or the cell count when columns are unlabelled.
+func rowWidth(cells []mdCell) int {
+	width := 0
+	seq := 0
+	for _, c := range cells {
+		idx := c.col
+		if idx < 0 {
+			idx = seq
+		}
+		if idx+1 > width {
+			width = idx + 1
+		}
+		seq = idx + 1
+	}
+	return width
+}
+
+// placeCells lays cells into a fixed-width row by column index, filling unset
+// columns with empty strings. Unlabelled cells (col < 0) flow into the next
+// free slot.
+func placeCells(cells []mdCell, numCols int) []string {
+	out := make([]string, numCols)
+	seq := 0
+	for _, c := range cells {
+		idx := c.col
+		if idx < 0 {
+			idx = seq
+		}
+		if idx >= 0 && idx < numCols {
+			out[idx] = c.text
+		}
+		seq = idx + 1
+	}
+	return out
+}
+
+// tableRowLine formats one GFM table line: "| a | b | c |".
+func tableRowLine(cells []string) string {
+	var sb strings.Builder
+	sb.WriteByte('|')
+	for _, c := range cells {
+		sb.WriteByte(' ')
+		sb.WriteString(c)
+		sb.WriteString(" |")
+	}
+	return sb.String()
+}
+
+// escapeTableCell makes cell text safe inside a GFM table cell: pipes are
+// escaped and newlines collapse to <br> so a multi-line value stays on one row.
+func escapeTableCell(s string) string {
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\n", "<br>")
+	return s
 }
 
 // headingLevel returns a block's heading level, preferring the normalized
