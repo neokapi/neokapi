@@ -361,7 +361,11 @@ func modelBlockToKLF(b *model.Block) *klf.Block {
 		hash = b.Identity.ContentHash
 	}
 	if hash == "" {
-		hash = b.ID
+		// Daemon-backed readers (okapi-bridge okf_*) deliver blocks without an
+		// ID or a populated Identity, so derive the content hash here — the same
+		// value the native path stores — guaranteeing PutBlock gets a non-empty,
+		// content-addressed Hash.
+		hash = model.ComputeContentHash(b.SourceText())
 	}
 	return &klf.Block{
 		ID:           b.ID,
