@@ -24,7 +24,7 @@ the binary to run it locally against your own files.
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install neokapi/tap/kapi
+brew install neokapi/tap/kapi-cli
 ```
 
 ### WinGet (Windows)

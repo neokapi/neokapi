@@ -37,7 +37,7 @@ outside a project, or if they cannot run, the assistant proceeds normally.
 
 ## Prerequisites
 
-Install the `kapi` CLI (e.g. `brew install neokapi/tap/kapi`). The optional
+Install the `kapi` CLI (e.g. `brew install neokapi/tap/kapi-cli`). The optional
 cloud-governance path additionally needs the `kapi-bowrain` plugin and a bowrain
 account.
 

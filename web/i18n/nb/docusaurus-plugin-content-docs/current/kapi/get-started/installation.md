@@ -24,7 +24,7 @@ binærfilen for å kjøre den lokalt mot dine egne filer.
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install neokapi/tap/kapi
+brew install neokapi/tap/kapi-cli
 ```
 
 ### WinGet (Windows)

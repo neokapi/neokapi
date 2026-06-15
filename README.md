@@ -13,7 +13,7 @@ The bowrain platform — a full-stack localization platform built on top of neok
 ## Install
 
 ```bash
-brew install neokapi/tap/kapi      # macOS/Linux
+brew install neokapi/tap/kapi-cli      # macOS/Linux
 winget install Neokapi.Kapi        # Windows
 ```
 
