@@ -361,6 +361,13 @@ func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, w
 // args means "read standard input" ([stdinName]). With recursive, directory
 // arguments are walked (skipping hidden dirs and junk); without it, a directory
 // argument is reported as skipped, mirroring `grep` / `cat` on a directory.
+//
+// Junk files (editor lock/metadata stubs such as Office's "~$…" owner files and
+// macOS "._…" AppleDouble files) are silently dropped however they arrive —
+// explicitly named, glob-expanded by the shell, or found during a recursive
+// walk. They are never valid content, so processing them only ever yields a
+// parse error; skipping keeps `kcat ~/Downloads/*` from tripping over a stray
+// "~$report.docx" that Word left behind.
 func expandInputs(args []string, recursive bool, onSkip func(path string, err error)) ([]string, error) {
 	if len(args) == 0 {
 		return []string{stdinName}, nil
@@ -390,6 +397,12 @@ func expandInputs(args []string, recursive bool, onSkip func(path string, err er
 				return nil, werr
 			}
 			files = append(files, walked...)
+			continue
+		}
+		// Drop editor lock/metadata stubs silently — they are never content, so
+		// skipping is not an error (exit status stays 0). walkDirFiles applies
+		// the same filter to recursively discovered files.
+		if isJunkFile(filepath.Base(arg)) {
 			continue
 		}
 		files = append(files, arg)

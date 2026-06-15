@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -96,7 +97,16 @@ func (a *App) runCat(ctx context.Context, cmd *cobra.Command, args []string, opt
 			return nil
 		})
 		if ferr != nil {
-			return fmt.Errorf("%s: %w", displayName(file), ferr)
+			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
+			// error: stop now and let cli.Run map it to exit 130 with no message.
+			if errors.Is(ferr, context.Canceled) {
+				return ferr
+			}
+			// Otherwise report the bad file and carry on, so one unparseable file
+			// doesn't abort the rest — matching kgrep/ksed and GNU `cat`.
+			hadError = true
+			fmt.Fprintf(os.Stderr, "kcat: %s: %v\n", displayName(file), ferr)
+			continue
 		}
 	}
 
