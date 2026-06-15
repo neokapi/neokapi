@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -161,6 +162,14 @@ type openProject struct {
 	// Project-scoped TM and termbase (auto-opened from .kapi/tm.db and .kapi/termbase.db).
 	tmHandle string // handle ID in App.tmHandles, empty if none
 	tbHandle string // handle ID in App.tbHandles, empty if none
+
+	// blockStore is the project's .kapi/cache/blocks.db, opened once and reused
+	// across calls. Opening it per call created a fresh connection pool (plus a
+	// migration write) each time, so two concurrent operations on the same file
+	// could trip "database is locked". One shared pool lets SQLite/WAL serialize
+	// internally. Guarded by blockStoreMu; closed in CloseProject.
+	blockStoreMu sync.Mutex
+	blockStore   blockstore.Store
 }
 
 // GetProjectTMHandle returns the auto-opened TM handle for a project tab,
@@ -445,6 +454,12 @@ func (a *App) CloseProject(tabID string) {
 	if op.tbHandle != "" {
 		a.tbHandles.Close(op.tbHandle)
 	}
+	op.blockStoreMu.Lock()
+	if op.blockStore != nil {
+		_ = op.blockStore.Close()
+		op.blockStore = nil
+	}
+	op.blockStoreMu.Unlock()
 }
 
 // autoOpenProjectResources checks for convention-based .kapi/tm.db and

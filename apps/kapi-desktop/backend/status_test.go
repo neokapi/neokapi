@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -207,4 +208,58 @@ func TestModelBlockToKLF_PrefersIdentityContentHash(t *testing.T) {
 	got := modelBlockToKLF(b)
 	assert.Equal(t, "deadbeef", got.Hash)
 	assert.Equal(t, "blk-1", got.ID)
+}
+
+// The project block store is opened once and reused across calls (rather than a
+// fresh connection pool per call, which let concurrent operations collide on
+// blocks.db with "database is locked"). Verify the cached identity, that the
+// shared pool serves concurrent sessions without error, and that CloseProject
+// releases it.
+func TestProjectBlockStoreCachedAndConcurrent(t *testing.T) {
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "test.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1", Name: "Test"}))
+
+	app := NewApp()
+	tab := openTestProjectFile(t, app, kapiPath)
+	op := app.getOpenProject(tab.ID)
+	require.NotNil(t, op)
+
+	// sqlitestore.New doesn't create parent dirs — ensure .kapi/cache/ exists.
+	storePath, ok := app.projectBlockStorePath(op)
+	require.True(t, ok)
+	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
+
+	s1, err := app.projectBlockStore(op)
+	require.NoError(t, err)
+	s2, err := app.projectBlockStore(op)
+	require.NoError(t, err)
+	require.True(t, s1 == s2, "projectBlockStore should return the cached instance")
+
+	// Concurrent sessions on the one shared pool must not deadlock or lock.
+	var wg sync.WaitGroup
+	errs := make(chan error, 24)
+	for i := 0; i < 24; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sess, err := s1.Begin(context.Background())
+			if err != nil {
+				errs <- err
+				return
+			}
+			_ = sess.Close()
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		require.NoError(t, e, "concurrent block-store session")
+	}
+
+	// CloseProject releases the cached store.
+	app.CloseProject(tab.ID)
+	op.blockStoreMu.Lock()
+	assert.Nil(t, op.blockStore, "CloseProject should clear the cached block store")
+	op.blockStoreMu.Unlock()
 }
