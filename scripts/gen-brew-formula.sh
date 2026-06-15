@@ -39,16 +39,19 @@ platform_block() {
   cat <<RUBY
   on_macos do
     on_arm do
-      url "${base_url}/${f_da}"      sha256 "$(sha_for "$f_da")"
+      url "${base_url}/${f_da}"
+      sha256 "$(sha_for "$f_da")"
     end
   end
 
   on_linux do
     on_arm do
-      url "${base_url}/${f_la}"      sha256 "$(sha_for "$f_la")"
+      url "${base_url}/${f_la}"
+      sha256 "$(sha_for "$f_la")"
     end
     on_intel do
-      url "${base_url}/${f_li}"      sha256 "$(sha_for "$f_li")"
+      url "${base_url}/${f_li}"
+      sha256 "$(sha_for "$f_li")"
     end
   end
 RUBY
