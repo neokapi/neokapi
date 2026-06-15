@@ -98,8 +98,16 @@ func (a *App) runConv(ctx context.Context, args []string, toFmt registry.FormatI
 	}
 
 	for _, file := range files {
-		if err := a.convertDocument(ctx, file, toFmt, targetLoc, outPath); err != nil {
-			return fmt.Errorf("%s: %w", displayName(file), err)
+		if cerr := a.convertDocument(ctx, file, toFmt, targetLoc, outPath); cerr != nil {
+			// Ctrl-C is a global interrupt: stop and let cli.Run map it to exit 130.
+			if errors.Is(cerr, context.Canceled) {
+				return cerr
+			}
+			// Report the bad file and continue, so one failure doesn't abort the
+			// rest — matching kgrep/ksed/kcat.
+			hadError = true
+			fmt.Fprintf(os.Stderr, "kconv: %s: %v\n", displayName(file), cerr)
+			continue
 		}
 	}
 	if hadError {
