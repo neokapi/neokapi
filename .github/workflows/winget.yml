@@ -13,7 +13,11 @@ name: Publish to WinGet
 #     a neokapi org member with write access to neokapi/winget-pkgs (fine-grained
 #     PATs are not supported by the action).
 #   • The package must already exist in winget-pkgs. Bootstrap it once with:
-#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.Kapi
+#       KOMAC_FORK_OWNER=neokapi komac new Neokapi.KapiCli
+#
+# Note: the CLI is Neokapi.KapiCli (moniker `kapi`); the bare Neokapi.Kapi is
+# reserved for the Kapi *desktop* app, mirroring the Homebrew split (formula
+# kapi-cli / cask kapi).
 on:
   workflow_dispatch:
     inputs:
@@ -35,7 +39,7 @@ jobs:
       - name: Publish to WinGet
         uses: vedantmgoyal9/winget-releaser@v2
         with:
-          identifier: Neokapi.Kapi
+          identifier: Neokapi.KapiCli
           version: ${{ steps.ver.outputs.num }}
           release-tag: ${{ inputs.tag }}
           # Only the signed CLI zips (kapi_<ver>_windows_<arch>.zip) — the
