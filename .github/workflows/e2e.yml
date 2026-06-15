@@ -140,6 +140,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # The keycloak theme bundles @neokapi/ui → @neokapi/kapi-react/runtime
+      # (dist-only export); build kapi-react first so its vite build resolves it.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
       - name: Build Keycloak theme
         run: make -C bowrain keycloak-theme
 
