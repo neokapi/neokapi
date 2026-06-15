@@ -44,7 +44,9 @@ func TestSyncPushE2E(t *testing.T) {
 	projectID := proj["id"].(string)
 	t.Logf("Created project %s in workspace %s", projectID, wsSlug)
 
-	basePath := "/api/v1/" + wsSlug + "/projects/" + projectID
+	// Sync routes are flat-by-project-id with a ref segment:
+	// /api/v1/projects/:id/sync/:ref/... (AD-011), not workspace-scoped.
+	basePath := "/api/v1/projects/" + projectID
 
 	// 2. Build blocks to push.
 	b1 := &model.Block{ID: "greeting", Translatable: true}
@@ -67,7 +69,7 @@ func TestSyncPushE2E(t *testing.T) {
 		"item_hashes": map[string]string{"en.json": itemHash},
 		"root_hash":   rootHash,
 	})
-	resp = apiRequest(t, http.MethodPost, basePath+"/sync/push/init", token, string(initBody))
+	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/init", token, string(initBody))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	initResp := readJSON(t, resp)
 	t.Logf("Init response: status=%s", initResp["status"])
@@ -82,7 +84,7 @@ func TestSyncPushE2E(t *testing.T) {
 		"item_name":    "en.json",
 		"block_hashes": blockHashes,
 	})
-	resp = apiRequest(t, http.MethodPost, basePath+"/sync/push/diff", token, string(diffBody))
+	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/diff", token, string(diffBody))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	diffResp := readJSON(t, resp)
 	needed := diffResp["needed"].([]any)
@@ -102,7 +104,7 @@ func TestSyncPushE2E(t *testing.T) {
 	chunkData, err := proto.Marshal(chunk)
 	require.NoError(t, err)
 
-	chunkURL := fmt.Sprintf("%s/sync/push/chunks/%s/0", basePath, uploadID)
+	chunkURL := fmt.Sprintf("%s/sync/main/push/chunks/%s/0", basePath, uploadID)
 	req, _ := http.NewRequest(http.MethodPut, serverURL+chunkURL, nil)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -133,7 +135,7 @@ func TestSyncPushE2E(t *testing.T) {
 		}},
 		"items": json.RawMessage(itemsJSON),
 	})
-	resp = apiRequest(t, http.MethodPost, basePath+"/sync/push/commit", token, string(commitBody))
+	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/commit", token, string(commitBody))
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
@@ -148,7 +150,7 @@ func TestSyncPushE2E(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		time.Sleep(500 * time.Millisecond)
 		statusResp := apiRequest(t, http.MethodGet,
-			basePath+"/sync/status?push_id="+pushID, token, "")
+			basePath+"/sync/main/status?push_id="+pushID, token, "")
 		if statusResp.StatusCode != http.StatusOK {
 			statusResp.Body.Close()
 			continue
@@ -165,7 +167,7 @@ func TestSyncPushE2E(t *testing.T) {
 
 	// 8. Verify blocks via sync/blocks endpoint.
 	blocksResp := apiRequest(t, http.MethodGet,
-		basePath+"/sync/blocks?item_name=en.json", token, "")
+		basePath+"/sync/main/blocks?item_name=en.json", token, "")
 	require.Equal(t, http.StatusOK, blocksResp.StatusCode)
 	defer blocksResp.Body.Close()
 	data, _ := io.ReadAll(blocksResp.Body)
@@ -175,7 +177,7 @@ func TestSyncPushE2E(t *testing.T) {
 	t.Logf("Verified: %d blocks stored in en.json", len(storedBlocks))
 
 	// 9. Second push with same hashes → should be unchanged.
-	resp = apiRequest(t, http.MethodPost, basePath+"/sync/push/init", token, string(initBody))
+	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/init", token, string(initBody))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	initResp2 := readJSON(t, resp)
 	assert.Equal(t, "unchanged", initResp2["status"], "second push with same hashes should be unchanged")
