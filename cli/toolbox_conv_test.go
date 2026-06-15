@@ -84,6 +84,12 @@ func TestConvDocLangToHTML(t *testing.T) {
 		return app.runConv(context.Background(), []string{path}, "html", "", "")
 	})
 	require.NoError(t, err)
+	// The export is a complete, standalone HTML document, not a bare fragment.
+	assert.Contains(t, out, "<!DOCTYPE html>")
+	assert.Contains(t, out, "<html")
+	assert.Contains(t, out, "<title>Title</title>")
+	assert.Contains(t, out, "<body>")
+	assert.Contains(t, out, "</html>")
 	assert.Contains(t, out, "<h1>Title</h1>")
 	assert.Contains(t, out, "<table>")
 	assert.Contains(t, out, "<th>Region</th>")

@@ -111,8 +111,10 @@ done:
 	// the structural layer (role-driven semantic export, WS6) — this is the
 	// cross-format path (DocLang/Docling/DOCX → clean HTML). Same-format HTML
 	// blocks carrying a fragment skeleton keep their captured surrounding
-	// markup. No lang attributes are emitted here, so no rewrite is needed.
-	return w.writeSemantic(events)
+	// markup. The body is wrapped in a full HTML5 document scaffold whose
+	// <html lang> is emitted directly from the target (or source) locale, so
+	// no post-serialization lang rewrite is needed here.
+	return w.writeSemantic(events, sourceLocale)
 }
 
 // loadOriginalContent returns original content bytes, or nil if unavailable.

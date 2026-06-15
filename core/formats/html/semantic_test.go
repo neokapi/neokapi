@@ -47,6 +47,12 @@ func groupEnd(id string) *model.Part {
 	return &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: id}}
 }
 
+// layerStart declares the document's source locale, as a reader emits before
+// the block stream; the writer uses it for the exported <html lang> attribute.
+func layerStart(loc model.LocaleID) *model.Part {
+	return &model.Part{Type: model.PartLayerStart, Resource: &model.Layer{Locale: loc}}
+}
+
 // TestSemanticExport_Structure verifies a role/group event stream (as a
 // DocLang/Docling/DOCX source would produce) renders clean structured HTML.
 func TestSemanticExport_Structure(t *testing.T) {
@@ -85,6 +91,49 @@ func TestSemanticExport_Structure(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in output; got:\n%s", want, out)
 		}
+	}
+}
+
+// TestSemanticExport_DocumentScaffold verifies the cross-format export wraps
+// its body content in a complete, valid HTML5 document — doctype, <html> with a
+// lang attribute, a <head> with charset + <title>, and a <body> — rather than
+// emitting a bare fragment (so `kconv x.csv --to html` yields a standalone page).
+func TestSemanticExport_DocumentScaffold(t *testing.T) {
+	out := writeSemanticParts(t,
+		layerStart(model.LocaleEnglish),
+		roleBlock("h", "My Report", model.RoleTitle, 0),
+		roleBlock("p", "Body text.", model.RoleParagraph, 0),
+	)
+	for _, want := range []string{
+		"<!DOCTYPE html>",
+		"<html lang=\"en\">",
+		"<meta charset=\"utf-8\">",
+		"<title>My Report</title>", // title taken from the first heading/title block
+		"<body>",
+		"<h1>My Report</h1>",
+		"<p>Body text.</p>",
+		"</body>",
+		"</html>",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output; got:\n%s", want, out)
+		}
+	}
+	// Body content must sit between <body> and </body>.
+	if !(strings.Index(out, "<body>") < strings.Index(out, "<h1>My Report</h1>") &&
+		strings.Index(out, "<h1>My Report</h1>") < strings.Index(out, "</body>")) {
+		t.Errorf("body content not enclosed in <body>; got:\n%s", out)
+	}
+}
+
+// TestSemanticExport_DocumentTitleFallback verifies the <title> falls back to a
+// generic value when the content carries no heading (e.g. a headerless CSV).
+func TestSemanticExport_DocumentTitleFallback(t *testing.T) {
+	out := writeSemanticParts(t,
+		roleBlock("p", "Just a paragraph.", model.RoleParagraph, 0),
+	)
+	if !strings.Contains(out, "<title>Document</title>") {
+		t.Errorf("expected fallback <title>Document</title>; got:\n%s", out)
 	}
 }
 
