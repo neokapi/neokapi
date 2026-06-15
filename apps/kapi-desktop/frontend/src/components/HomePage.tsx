@@ -132,7 +132,9 @@ export function HomePage({
             )}
             <span>&rarr;</span>
             {defaults.target_languages?.length ? (
-              defaults.target_languages.map((l) => <LocalePill key={String(l)} locale={String(l)} />)
+              defaults.target_languages.map((l) => (
+                <LocalePill key={String(l)} locale={String(l)} />
+              ))
             ) : (
               <span>{t("No targets")}</span>
             )}
