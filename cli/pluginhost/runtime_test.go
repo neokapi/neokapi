@@ -73,8 +73,7 @@ func TestRuntime_WatchDetectsExternalInstall(t *testing.T) {
 	rt.Rescan()
 	require.Empty(t, rt.Host().Plugins(), "no plugins installed yet")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	changed := make(chan *pluginhost.Host, 1)
 	go rt.Watch(ctx, 50*time.Millisecond, func(h *pluginhost.Host) {
 		select {

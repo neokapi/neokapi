@@ -45,6 +45,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -272,13 +273,13 @@ func convertLegacyCosignBundle(data, artifactDigest []byte) (*bundle.Bundle, err
 		return nil, fmt.Errorf("decode legacy cosign bundle: %w", err)
 	}
 	if legacy.Base64Signature == "" {
-		return nil, fmt.Errorf("legacy cosign bundle: empty base64Signature")
+		return nil, errors.New("legacy cosign bundle: empty base64Signature")
 	}
 	if legacy.Cert == "" {
-		return nil, fmt.Errorf("legacy cosign bundle: missing signing certificate")
+		return nil, errors.New("legacy cosign bundle: missing signing certificate")
 	}
 	if legacy.RekorBundle == nil {
-		return nil, fmt.Errorf("legacy cosign bundle: missing rekorBundle (transparency-log entry)")
+		return nil, errors.New("legacy cosign bundle: missing rekorBundle (transparency-log entry)")
 	}
 
 	sig, err := base64.StdEncoding.DecodeString(legacy.Base64Signature)
@@ -296,7 +297,7 @@ func convertLegacyCosignBundle(data, artifactDigest []byte) (*bundle.Bundle, err
 		return nil, fmt.Errorf("legacy cosign bundle: decode SignedEntryTimestamp: %w", err)
 	}
 	if len(set) == 0 {
-		return nil, fmt.Errorf("legacy cosign bundle: empty SignedEntryTimestamp (no inclusion promise)")
+		return nil, errors.New("legacy cosign bundle: empty SignedEntryTimestamp (no inclusion promise)")
 	}
 
 	canonicalBody, err := base64.StdEncoding.DecodeString(legacy.RekorBundle.Payload.Body)
@@ -358,7 +359,7 @@ func decodeLegacyCert(certField string) ([]byte, error) {
 	}
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
-		return nil, fmt.Errorf("cert is not valid PEM")
+		return nil, errors.New("cert is not valid PEM")
 	}
 	if block.Type != "CERTIFICATE" {
 		return nil, fmt.Errorf("cert PEM block is %q, want CERTIFICATE", block.Type)
@@ -378,7 +379,7 @@ func rekorBodyKindVersion(canonicalBody []byte) (kind, version string, err error
 		return "", "", fmt.Errorf("parse rekor body kind/version: %w", err)
 	}
 	if head.Kind == "" || head.APIVersion == "" {
-		return "", "", fmt.Errorf("rekor body missing kind/apiVersion")
+		return "", "", errors.New("rekor body missing kind/apiVersion")
 	}
 	return head.Kind, head.APIVersion, nil
 }

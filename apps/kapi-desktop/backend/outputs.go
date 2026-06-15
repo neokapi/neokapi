@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,12 +119,12 @@ func (a *App) InspectOutput(tabID, relative string) (string, error) {
 		return "", fmt.Errorf("tab %q not found", tabID)
 	}
 	if strings.Contains(relative, "..") {
-		return "", fmt.Errorf("path must not contain '..'")
+		return "", errors.New("path must not contain '..'")
 	}
 	basePath := filepath.Dir(op.Path)
 	abs := filepath.Join(basePath, filepath.FromSlash(relative))
 	if !strings.HasPrefix(abs, basePath) {
-		return "", fmt.Errorf("path escapes project root")
+		return "", errors.New("path escapes project root")
 	}
 	if _, err := os.Stat(abs); err != nil {
 		return "", fmt.Errorf("output not found: %w", err)
