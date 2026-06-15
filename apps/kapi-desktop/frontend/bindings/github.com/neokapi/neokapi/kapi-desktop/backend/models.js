@@ -2327,6 +2327,85 @@ export class OriginDTO {
 }
 
 /**
+ * OutputFileInfo describes a single generated output file for a source file in
+ * a content collection. Outputs are derived from each collection item's
+ * `target` template (with {lang} and `*` resolved), then stat-ed on disk so
+ * the UI can show which target files exist and let the user inspect them.
+ */
+export class OutputFileInfo {
+    /**
+     * Creates a new OutputFileInfo instance.
+     * @param {Partial<OutputFileInfo>} [$$source = {}] - The source object to create the OutputFileInfo.
+     */
+    constructor($$source = {}) {
+        if (!("lang" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["lang"] = "";
+        }
+        if (!("path" in $$source)) {
+            /**
+             * absolute path on disk
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("relative" in $$source)) {
+            /**
+             * path relative to the project root
+             * @member
+             * @type {string}
+             */
+            this["relative"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["format"] = undefined;
+        }
+        if (!("exists" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["exists"] = false;
+        }
+        if (!("size" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["size"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RFC3339, empty when the file is absent
+             * @member
+             * @type {string | undefined}
+             */
+            this["mod_time"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OutputFileInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OutputFileInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OutputFileInfo(/** @type {Partial<OutputFileInfo>} */($$parsedSource));
+    }
+}
+
+/**
  * PluginCapability describes a format or tool provided by a plugin.
  */
 export class PluginCapability {
@@ -4656,6 +4735,52 @@ export class VariantInputDTO {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
         }
         return new VariantInputDTO(/** @type {Partial<VariantInputDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VersionInfo describes the application version, mirroring the CLI's
+ * `kapi version` output (semantic version + git commit + build date).
+ */
+export class VersionInfo {
+    /**
+     * Creates a new VersionInfo instance.
+     * @param {Partial<VersionInfo>} [$$source = {}] - The source object to create the VersionInfo.
+     */
+    constructor($$source = {}) {
+        if (!("version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["version"] = "";
+        }
+        if (!("commit" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["commit"] = "";
+        }
+        if (!("build_date" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["build_date"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VersionInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VersionInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VersionInfo(/** @type {Partial<VersionInfo>} */($$parsedSource));
     }
 }
 
