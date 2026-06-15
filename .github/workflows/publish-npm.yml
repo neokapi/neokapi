@@ -35,6 +35,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Install vp + vpx, mirroring the setup-node-ui composite the rest of CI
+      # uses. The kapi-format / kapi-react build.mjs shell out to `vpx` (e.g.
+      # `vpx tsc`), so it must be on PATH for the build step below.
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          version: "0.1.23"
+          node-version: "24"
+          cache: true
+
+      # setup-node with registry-url is applied last so npm's registry/OIDC
+      # config is the final node setup in effect for the publish step.
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
