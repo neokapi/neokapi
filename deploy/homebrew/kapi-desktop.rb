@@ -13,7 +13,7 @@ cask "kapi-desktop" do
   desc "Desktop companion for the kapi localization CLI"
   homepage "https://github.com/neokapi/neokapi"
 
-  depends_on formula: "neokapi/tap/kapi"
+  depends_on formula: "neokapi/tap/kapi-cli"
 
   app "Kapi.app"
 
@@ -24,7 +24,7 @@ cask "kapi-desktop" do
   end
 
   caveats <<~EOS
-    The kapi CLI is provided by the kapi formula (installed automatically).
+    The kapi CLI is provided by the kapi-cli formula (installed automatically).
 
     Double-click Kapi projects to open them in Kapi.
 
