@@ -120,19 +120,20 @@ func TestTSV_HeaderRow(t *testing.T) {
 	input := "key\tvalue\nid1\tHello\n"
 	parts := readTSV(t, input)
 
-	// Header row should be Data
-	hasHeaderData := false
+	// The header row is emitted as a table-row of non-translatable header
+	// cells (RoleTableHeader) so cross-format writers can render a table header.
+	var headerTexts []string
 	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if data.Name == "header-row" {
-				hasHeaderData = true
-				assert.Contains(t, data.Properties["content"], "key")
-				assert.Contains(t, data.Properties["content"], "value")
-			}
+		if p.Type != model.PartBlock {
+			continue
+		}
+		block := p.Resource.(*model.Block)
+		if block.SemanticRole() == model.RoleTableHeader {
+			assert.False(t, block.Translatable, "header cells should be non-translatable")
+			headerTexts = append(headerTexts, block.SourceText())
 		}
 	}
-	assert.True(t, hasHeaderData, "header row should be emitted as Data")
+	assert.Equal(t, []string{"key", "value"}, headerTexts, "header row should be emitted as header cells")
 }
 
 func TestTSV_NoHeader(t *testing.T) {

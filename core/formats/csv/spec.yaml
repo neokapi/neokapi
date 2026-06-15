@@ -66,6 +66,16 @@ description: |
     - empty cells are skipped (no Block emitted),
     - LayerStart/LayerEnd wrap the document.
 
+  Grid structure (cross-format projection): the reader models the CSV
+  as a table — a `table` group wraps per-row `table-row` groups whose
+  children are cell Blocks (RoleTableHeader for the header row,
+  RoleTableCell for data rows). This lets cross-format writers (Markdown,
+  HTML) render a real table; the header cells and any non-translatable
+  column cells are marked non-translatable so extraction is unchanged.
+  The same-format localization round-trip runs on the separate skeleton
+  path and is byte-exact: there the header is emitted as a `header-row`
+  Data part and only translatable cells become Blocks.
+
   Configuration knobs cover header detection (`hasHeader`,
   `columnNamesRow`, `valuesStartRow`), per-column roles
   (`translatableColumns` for source-only extraction, `keyColumns` for

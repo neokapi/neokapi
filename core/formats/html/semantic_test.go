@@ -3,6 +3,7 @@ package html_test
 import (
 	"bytes"
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -84,6 +85,60 @@ func TestSemanticExport_Structure(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in output; got:\n%s", want, out)
 		}
+	}
+}
+
+// colCell builds a table cell carrying an explicit 0-based column index, as
+// the CSV reader produces (it skips empty cells, leaving holes in a row).
+func colCell(id, text, role string, col int) *model.Part {
+	b := model.NewBlock(id, text)
+	b.SetSemanticRole(role, 0)
+	b.Properties["column"] = strconv.Itoa(col)
+	return &model.Part{Type: model.PartBlock, Resource: b}
+}
+
+// TestSemanticExport_TableColumnGaps verifies that a row missing a column (a
+// skipped empty CSV cell) is padded so the grid stays rectangular. The header
+// row establishes the width.
+func TestSemanticExport_TableColumnGaps(t *testing.T) {
+	out := writeSemanticParts(t,
+		groupStart("tbl", "table"),
+		groupStart("trh", "table-row"),
+		colCell("h0", "a", model.RoleTableHeader, 0),
+		colCell("h1", "b", model.RoleTableHeader, 1),
+		colCell("h2", "c", model.RoleTableHeader, 2),
+		groupEnd("trh"),
+		groupStart("tr1", "table-row"),
+		colCell("c0", "x", model.RoleTableCell, 0),
+		colCell("c2", "z", model.RoleTableCell, 2), // column 1 missing
+		groupEnd("tr1"),
+		groupEnd("tbl"),
+	)
+
+	if !strings.Contains(out, "<tr><th>a</th><th>b</th><th>c</th></tr>") {
+		t.Errorf("header row not rendered; got:\n%s", out)
+	}
+	if !strings.Contains(out, "<tr><td>x</td><td></td><td>z</td></tr>") {
+		t.Errorf("missing middle column not padded; got:\n%s", out)
+	}
+}
+
+// TestSemanticExport_TableShortRowPadded verifies a trailing-short row is padded
+// out to the table width.
+func TestSemanticExport_TableShortRowPadded(t *testing.T) {
+	out := writeSemanticParts(t,
+		groupStart("tbl", "table"),
+		groupStart("trh", "table-row"),
+		colCell("h0", "a", model.RoleTableHeader, 0),
+		colCell("h1", "b", model.RoleTableHeader, 1),
+		groupEnd("trh"),
+		groupStart("tr1", "table-row"),
+		colCell("c0", "x", model.RoleTableCell, 0), // column 1 absent at the end
+		groupEnd("tr1"),
+		groupEnd("tbl"),
+	)
+	if !strings.Contains(out, "<tr><td>x</td><td></td></tr>") {
+		t.Errorf("trailing missing column not padded; got:\n%s", out)
 	}
 }
 

@@ -16,6 +16,13 @@ import (
 	"github.com/neokapi/neokapi/core/safeio"
 )
 
+// Stable group IDs for the table structure emitted by the non-skeleton
+// (cross-format projection) read path.
+const (
+	tableGroupID     = "tbl1"
+	headerRowGroupID = "trh"
+)
+
 // Reader implements DataFormatReader for CSV files.
 type Reader struct {
 	format.BaseFormatReader
@@ -182,22 +189,56 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	// Emit rows before the data start as Data parts (headers, preamble, etc.)
+	// Emit rows before the data start (other than the header row itself) as
+	// Data parts (preamble). The header row becomes a table-row of header
+	// cells inside the table group below so cross-format writers can render a
+	// real table header.
 	for rowIdx := 0; rowIdx < startRow && rowIdx < len(records); rowIdx++ {
+		if rowIdx == headerRow {
+			continue
+		}
 		dataCounter++
 		row := records[rowIdx]
-		name := "header-row"
-		if rowIdx != headerRow {
-			name = fmt.Sprintf("preamble-row%d", rowIdx+1)
-		}
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: name,
+			Name: fmt.Sprintf("preamble-row%d", rowIdx+1),
 			Properties: map[string]string{
 				"content": strings.Join(row, string(r.cfg.Separator)),
 			},
 		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+			return
+		}
+	}
+
+	// Model the CSV grid as a table: a `table` group wraps per-row `table-row`
+	// groups whose children are cell Blocks (RoleTableHeader for the header
+	// row, RoleTableCell for data rows). This carries the cell/row/column
+	// structure so cross-format writers (Markdown, HTML) can project a real
+	// table. The localization round-trip is unaffected: it runs on the separate
+	// skeleton path (readContentSkeleton), which still emits the header as
+	// non-translatable text and one Block per translatable cell.
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tableGroupID, Name: "table", Type: "table"}}) {
+		return
+	}
+
+	// Header row -> a table-row of non-translatable header cells.
+	if headerRow >= 0 && headerRow < len(records) {
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: headerRowGroupID, Name: "table-row", Type: "table-row", Properties: map[string]string{"header": "true"}}}) {
+			return
+		}
+		for colIdx, cell := range records[headerRow] {
+			hb := model.NewBlock(fmt.Sprintf("h%d", colIdx), cell)
+			hb.Type = "table-cell"
+			hb.Translatable = false
+			hb.SetSemanticRole(model.RoleTableHeader, 0)
+			hb.Properties["column"] = strconv.Itoa(colIdx)
+			hb.Properties["header"] = "true"
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: hb}) {
+				return
+			}
+		}
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: headerRowGroupID}}) {
 			return
 		}
 	}
@@ -230,16 +271,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			rowComment = strings.Join(commentParts, "; ")
 		}
 
+		rowGroupID := fmt.Sprintf("tr%d", rowNum)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rowGroupID, Name: "table-row", Type: "table-row"}}) {
+			return
+		}
+
 		for colIdx, cell := range row {
 			// Skip key and comment columns (they are metadata, not content)
 			if r.isKeyColumn(colIdx) || r.isCommentColumn(colIdx) {
 				continue
 			}
 
+			colName := r.columnName(headers, colIdx)
+
 			if !r.isTranslatable(colIdx) {
 				// Non-translatable column -> Data
 				dataCounter++
-				colName := r.columnName(headers, colIdx)
 				data := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
 					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
@@ -265,7 +312,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 
 			blockCounter++
-			colName := r.columnName(headers, colIdx)
 
 			blockID := fmt.Sprintf("tu%d", blockCounter)
 			if rowKey != "" {
@@ -278,6 +324,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			block := model.NewBlock(blockID, cellValue)
 			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
+			block.Type = "table-cell"
+			block.SetSemanticRole(model.RoleTableCell, 0)
 			block.Properties["column"] = strconv.Itoa(colIdx)
 			block.Properties["row"] = strconv.Itoa(rowNum)
 			if rowComment != "" {
@@ -287,6 +335,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				return
 			}
 		}
+
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rowGroupID}}) {
+			return
+		}
+	}
+
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tableGroupID}}) {
+		return
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -654,9 +710,10 @@ func (r *Reader) skelFlush() {
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
-	// Apply inline code finder to blocks if enabled
+	// Apply inline code finder to translatable blocks if enabled. Header and
+	// other non-translatable cells carry verbatim metadata, not content.
 	if part.Type == model.PartBlock && r.cfg.UseCodeFinder {
-		if block, ok := part.Resource.(*model.Block); ok {
+		if block, ok := part.Resource.(*model.Block); ok && block.Translatable {
 			r.applyCodeFinder(block)
 		}
 	}
