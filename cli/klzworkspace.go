@@ -414,7 +414,34 @@ func (a *App) runCacheSource(ctx context.Context, c *klzCache, src klzCacheSourc
 		DetectFormat:    a.klzDetectFormat(src.Path),
 		ConfigureReader: a.klzConfigureReader(),
 	})
-	return runner.RunFile(ctx, flowName, tools, c.sourcePath(src.Name), docOut, targetLang)
+
+	// When the cache holds the raw source bytes (the runtime default, or a
+	// .klz packed --with-source), run the normal read → process → write
+	// pipeline over them.
+	if c.hasSource(src) {
+		return runner.RunFile(ctx, flowName, tools, c.sourcePath(src.Name), docOut, targetLang)
+	}
+
+	// Skeleton-only handoff (AD-025 §6): the shipped .klz dropped the raw
+	// source, so reconstruct the document from its round-trip skeleton +
+	// cached overlays instead of reading a source file that isn't there.
+	if src.Skeleton == "" {
+		return fmt.Errorf("klz: source %q has neither raw bytes nor a skeleton to reconstruct from", src.Name)
+	}
+	skelBytes, err := os.ReadFile(c.skeletonPath(src.Skeleton))
+	if err != nil {
+		return fmt.Errorf("klz: read skeleton: %w", err)
+	}
+	formatID := registry.FormatID(src.FormatID)
+	if formatID == "" {
+		if det := a.klzDetectFormat(src.Path); det != nil {
+			formatID = det(src.Path)
+		}
+	}
+	if formatID == "" {
+		return fmt.Errorf("klz: cannot determine format for %q to reconstruct from its skeleton", src.Name)
+	}
+	return runner.RunSkeletonReconstruct(ctx, flowName, tools, formatID, skelBytes, docOut, targetLang)
 }
 
 // ─── helpers ────────────────────────────────────────────────────

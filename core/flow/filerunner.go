@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
@@ -331,6 +332,88 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		return err
 	}
 
+	// Hand the source path/bytes to the writer only for same-format
+	// conversions; a cross-format writer must reconstruct from the content
+	// model, not re-parse foreign source bytes.
+	srcPath, srcContent := "", []byte(nil)
+	if reader.Name() == writer.Name() {
+		srcPath, srcContent = inputPath, inputContent
+	}
+	return r.runPipelineToWriter(ctx, flowName, tools, parts, outputPath, targetLang, writer, skeletonStore, srcPath, srcContent)
+}
+
+// RunSkeletonReconstruct runs the tool chain when the raw source is absent but
+// a round-trip skeleton is present — the skeleton-only .klz handoff case
+// (AD-025 §6). The source's blocks are rebuilt from the skeleton's block refs
+// (so their identities match the cached overlays and the merge hydrate step),
+// the tool chain runs against the configured Store, and a writer of the given
+// format reconstructs byte-exact output from the skeleton. For a transform the
+// caller points outputPath at a throwaway file (the persisted work is the
+// overlays); for a merge it is the localized destination.
+func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string, tools []tool.Tool, formatID registry.FormatID, skelBytes []byte, outputPath, targetLang string) error {
+	writer, err := r.cfg.FormatReg.NewWriter(formatID)
+	if err != nil {
+		return fmt.Errorf("no writer for %q: %w", formatID, err)
+	}
+	consumer, ok := writer.(format.SkeletonStoreConsumer)
+	if !ok {
+		return fmt.Errorf("format %q cannot reconstruct from a skeleton (no skeleton consumer)", formatID)
+	}
+	if r.cfg.ConfigureWriter != nil {
+		r.cfg.ConfigureWriter(writer)
+	}
+
+	parts, err := partsFromSkeleton(skelBytes)
+	if err != nil {
+		return err
+	}
+
+	// A fresh read-mode store drives the writer; partsFromSkeleton consumed its
+	// own copy enumerating the block refs.
+	skeletonStore := format.NewSkeletonStoreFromBytes(skelBytes)
+	consumer.SetSkeletonStore(skeletonStore)
+
+	return r.runPipelineToWriter(ctx, flowName, tools, parts, outputPath, targetLang, writer, skeletonStore, "", nil)
+}
+
+// partsFromSkeleton rebuilds the translatable blocks a skeleton references,
+// one Part per distinct SkeletonRef (layer refs are skipped — embedded layers
+// are not reconstructed from overlays). The blocks carry only their identity
+// (ID); their source text is unknown (it lived in the dropped raw source), so
+// callers rely on cached target overlays to supply content.
+func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
+	store := format.NewSkeletonStoreFromBytes(skelBytes)
+	defer store.Close()
+	var parts []*model.Part
+	seen := make(map[string]bool)
+	for {
+		entry, err := store.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("reconstruct from skeleton: %w", err)
+		}
+		if entry.Type != format.SkeletonRef {
+			continue
+		}
+		id := string(entry.Data)
+		if id == "" || strings.HasPrefix(id, "layer:") || seen[id] {
+			continue
+		}
+		seen[id] = true
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: model.NewBlock(id, "")})
+	}
+	return parts, nil
+}
+
+// runPipelineToWriter executes the tool chain over the given parts and writes
+// the result through writer, finalizing output atomically (temp file then
+// rename) so a tool/writer error never leaves a partial destination. When
+// skeletonStore is non-nil it is closed before returning. sourcePath/
+// inputContent are handed to the writer only when non-empty (same-format
+// runs); skeleton-reconstructed runs pass them empty.
+func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, parts []*model.Part, outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
 	// Build and execute tool pipeline.
 	fb := NewFlow(flowName)
 	for _, t := range tools {
@@ -398,14 +481,13 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// skeleton-rebuild). The source is in the READER's format; handing it to a
 	// different-format writer (e.g. DocLang → HTML) would make the writer
 	// re-parse foreign bytes and echo the source markup. For a cross-format
-	// conversion we withhold it so the writer reconstructs from the content
-	// model + structural layer (role-driven semantic export, WS6).
-	if reader.Name() == writer.Name() {
-		if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
-			sps.SetSourcePath(inputPath)
-		} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-			ocs.SetOriginalContent(inputContent)
-		}
+	// conversion — or a skeleton-reconstructed run with no source — the caller
+	// passes these empty so the writer reconstructs from the content model +
+	// structural layer (role-driven semantic export, WS6) / the skeleton.
+	if sps, ok := writer.(format.SourcePathSetter); ok && sourcePath != "" && filepath.IsAbs(sourcePath) {
+		sps.SetSourcePath(sourcePath)
+	} else if ocs, ok := writer.(format.OriginalContentSetter); ok && len(inputContent) > 0 {
+		ocs.SetOriginalContent(inputContent)
 	}
 
 	writer.SetLocale(model.LocaleID(targetLang))
