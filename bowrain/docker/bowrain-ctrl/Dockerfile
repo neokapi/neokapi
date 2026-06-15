@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 # Populate the pnpm store from the lockfile alone (cached until pnpm-lock.yaml
 # changes). The packageManager field in package.json pins the pnpm version.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# patchedDependencies in pnpm-workspace.yaml reference patches/*.patch — needed
+# by `pnpm fetch` to resolve the patched packages.
+COPY patches/ patches/
 RUN corepack pnpm fetch
 
 # Workspace manifests for ctrl's dependency closure; glob workspace members

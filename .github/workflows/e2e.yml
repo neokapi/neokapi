@@ -35,6 +35,13 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
+      # The Playwright dev WebServer bundles @neokapi/ui, which imports
+      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build it
+      # first so the WebServer's vite build resolves the import.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
       # Bindings are committed and already patched (sed fix for $0. bug).
       # Do NOT regenerate with wails3 — it would overwrite the fixed files.
 

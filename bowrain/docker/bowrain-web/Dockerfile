@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 # pnpm-lock.yaml changes (the network-heavy step). The packageManager field in
 # package.json pins the exact pnpm version corepack runs.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# pnpm-workspace.yaml references patchedDependencies (patches/*.patch); they must
+# be present for `pnpm fetch` to resolve the patched packages.
+COPY patches/ patches/
 RUN corepack pnpm fetch
 
 # Workspace manifests for the web app's dependency closure. The glob workspace
