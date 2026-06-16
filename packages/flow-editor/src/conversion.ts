@@ -146,7 +146,7 @@ export function stepsToGraph(
   let prevIds: string[] = [];
 
   spec.steps.forEach((step, stepIndex) => {
-    if (step.parallel && step.parallel.length > 0) {
+    if (step.parallel) {
       // A parallel group is ONE composite node listing its branches inside, with
       // a single input and single output — no fan-out/merge edges. It occupies a
       // single slot like any other station.

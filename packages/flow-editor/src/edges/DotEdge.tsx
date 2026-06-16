@@ -68,16 +68,20 @@ export function DotEdge({
       <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
       {onInsert && traversed === 0 && (
         <EdgeLabelRenderer>
+          {/* A stable, always-legible click target at the edge midpoint — it reads
+              as a button at rest, so you click it instead of discovering it on
+              hover. Hover only tints it (no scale/position jump, which used to
+              make it look like two different controls switching). */}
           <button
             type="button"
-            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-50 shadow-sm transition-[opacity,scale,border-color,color] duration-150 hover:scale-125 hover:border-primary hover:text-primary hover:opacity-100 focus-visible:opacity-100"
+            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors duration-150 hover:border-primary hover:bg-primary/10 hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             onClick={(e) => {
               e.stopPropagation();
               onInsert();
             }}
-            title="Insert a tool here"
-            aria-label="Insert a tool here"
+            title="Add a tool here"
+            aria-label="Add a tool here"
           >
             <Plus size={14} aria-hidden />
           </button>

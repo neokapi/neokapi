@@ -77,7 +77,7 @@ import {
   type NodeStepData,
 } from "./stepResolve";
 import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
-import { computeUnmet } from "./ioGraph";
+import { computeUnmet, slotContext, type SlotContext } from "./ioGraph";
 import { computePlacement, type PlacementDiagnostic } from "./placement";
 import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactionWrap";
 import { getCategoryStyle } from "./category";
@@ -631,6 +631,18 @@ export function FlowEditor({
   // (insert between two stations), cleared when the dialog closes (the global
   // Add button appends).
   const insertIndexRef = useRef<number | null>(null);
+  // Branch-add mode: when a parallel route's "+ Add branch" opens the dialog,
+  // this holds the route's step index, and the picked tool becomes a new branch
+  // of that route instead of a top-level step. Cleared on close / after add.
+  const branchTargetRef = useRef<number | null>(null);
+  // The slot the Add dialog is targeting, kept in state (not just the ref) so the
+  // palette can show what data is available there and rank tools by fit. A route's
+  // branches share the upstream before the route, so branch-add uses the route's
+  // own step index as the slot.
+  const [addSlot, setAddSlot] = useState<number | null>(null);
+  // True while the Add dialog is adding a branch to an existing route, where the
+  // flow-level compose actions (new route, protect) don't apply.
+  const [addBranchMode, setAddBranchMode] = useState(false);
 
   // Run review: the trace from running THIS flow plays back on the canvas.
   // The cursor windows the (editor-remapped) events; a selected node shows the
@@ -775,6 +787,8 @@ export function FlowEditor({
 
   // Refs for per-node handlers -- break the circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
+  const addBranchRef = useRef<(nodeId: string) => void>(() => {});
+  const removeBranchRef = useRef<(nodeId: string, branchIndex: number) => void>(() => {});
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
@@ -853,6 +867,8 @@ export function FlowEditor({
         extra.onRemove = () => removeNodeRef.current(n.id);
         extra.onSelectBranch = (branchIndex: number) =>
           setSelectedNodeId(`${n.id}::b${branchIndex}`);
+        extra.onAddBranch = () => addBranchRef.current(n.id);
+        extra.onRemoveBranch = (branchIndex: number) => removeBranchRef.current(n.id, branchIndex);
       }
       // A lesson step pointing at this node draws a highlight ring (a branch
       // selection like `tool-2::b1` highlights its parent group node).
@@ -1029,6 +1045,9 @@ export function FlowEditor({
           ...e.data,
           onInsert: () => {
             insertIndexRef.current = slot;
+            branchTargetRef.current = null;
+            setAddBranchMode(false);
+            setAddSlot(slot);
             setAddOpen(true);
           },
         },
@@ -1186,9 +1205,25 @@ export function FlowEditor({
   const handleAddTool = useCallback(
     (toolName: string) => {
       if (readOnly) return;
+      // Branch-add mode: the tool becomes a new branch of the targeted route
+      // (parallel group) instead of a top-level step.
+      const branchTarget = branchTargetRef.current;
+      branchTargetRef.current = null;
+      if (branchTarget !== null) {
+        const steps = flow.steps.map((s, i) =>
+          i === branchTarget && s.parallel
+            ? { ...s, parallel: [...s.parallel, { tool: toolName }] }
+            : s,
+        );
+        onChange({ ...flow, steps });
+        setAddOpen(false);
+        setAddSlot(null);
+        return;
+      }
       // An edge's "+" pins the insertion slot; the Add button appends.
       const at = Math.min(insertIndexRef.current ?? flow.steps.length, flow.steps.length);
       insertIndexRef.current = null;
+      setAddSlot(null);
       const steps = [...flow.steps];
       steps.splice(at, 0, { tool: toolName });
       onChange({ ...flow, steps });
@@ -1206,6 +1241,56 @@ export function FlowEditor({
     },
     [flow, onChange, readOnly],
   );
+
+  // Insert an empty parallel route at the current slot — a control you fill with
+  // branches (and remove) in place. Picked from the Add panel's compose actions.
+  const handleAddRoute = useCallback(() => {
+    if (readOnly) return;
+    const at = Math.min(insertIndexRef.current ?? flow.steps.length, flow.steps.length);
+    insertIndexRef.current = null;
+    branchTargetRef.current = null;
+    setAddSlot(null);
+    const steps = [...flow.steps];
+    steps.splice(at, 0, { tool: "", parallel: [] });
+    onChange({ ...flow, steps });
+    setAddOpen(false);
+  }, [flow, onChange, readOnly]);
+
+  // Route branch handlers (driven via refs from enrichedNodes).
+  const handleAddBranch = useCallback(
+    (nodeId: string) => {
+      if (readOnly) return;
+      const node = nodes.find((n) => n.id === nodeId);
+      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
+      if (!loc) return;
+      branchTargetRef.current = loc.index;
+      insertIndexRef.current = null;
+      setAddBranchMode(true);
+      setAddSlot(loc.index);
+      setAddOpen(true);
+    },
+    [nodes, readOnly],
+  );
+  addBranchRef.current = handleAddBranch;
+
+  const handleRemoveBranch = useCallback(
+    (nodeId: string, branchIndex: number) => {
+      if (readOnly) return;
+      const node = nodes.find((n) => n.id === nodeId);
+      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
+      if (!loc) return;
+      onChange(removeStepAtLocation(flow, { index: loc.index, branchIndex }));
+    },
+    [flow, nodes, onChange, readOnly],
+  );
+  removeBranchRef.current = handleRemoveBranch;
+
+  // What data is available where the Add dialog is targeting — drives the
+  // palette's "available here" strip and per-tool fit marking.
+  const addSlotContext = useMemo<SlotContext | undefined>(() => {
+    if (!addOpen || addSlot === null) return undefined;
+    return slotContext(flow, toolMap, addSlot);
+  }, [addOpen, addSlot, flow, toolMap]);
 
   const handleRemoveNode = useCallback(
     (nodeId: string) => {
@@ -1612,9 +1697,19 @@ export function FlowEditor({
                   full-width (no permanent palette sidebar). */}
               {!readOnly && (
                 <Panel position="top-left">
-                  <Button size="sm" onClick={() => setAddOpen(true)} aria-label="Add tool">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      insertIndexRef.current = null;
+                      branchTargetRef.current = null;
+                      setAddBranchMode(false);
+                      setAddSlot(flow.steps.length);
+                      setAddOpen(true);
+                    }}
+                    aria-label="Add tool"
+                  >
                     <Plus size={14} />
-                    Add tool
+                    Add
                   </Button>
                 </Panel>
               )}
@@ -1708,51 +1803,101 @@ export function FlowEditor({
         </div>
       )}
 
-      {/* Browse-and-add tools — a modal so the canvas stays full-width. */}
+      {/* Browse-and-add — a modal so the canvas stays full-width. You pick a tool
+          from the list, or a compose action (a parallel route, or protect). */}
       {!readOnly && (
         <Dialog
           open={addOpen}
           onOpenChange={(open) => {
             setAddOpen(open);
-            if (!open) insertIndexRef.current = null;
+            if (!open) {
+              insertIndexRef.current = null;
+              branchTargetRef.current = null;
+              setAddBranchMode(false);
+              setAddSlot(null);
+            }
           }}
         >
           <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
             <DialogHeader className="px-4 pb-2 pt-4">
-              <DialogTitle className="text-sm">Add a tool</DialogTitle>
+              <DialogTitle className="text-sm">
+                {addBranchMode ? t("Add a parallel branch") : t("Add")}
+              </DialogTitle>
             </DialogHeader>
-            <div className="h-[60vh]">
-              <ToolPalette tools={tools} onAddTool={handleAddTool} embedded />
-            </div>
-            {/* Flow-level composition action: the redaction wrap lives with the
-                other add actions instead of as a primary toolbar button. */}
-            {!hasRedactionWrap(flow) && (
-              <button
-                type="button"
-                className="flex w-full cursor-pointer items-start gap-2.5 border-t border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
-                onClick={() => {
-                  onChange(wrapWithRedaction(flow));
-                  insertIndexRef.current = null;
-                  setAddOpen(false);
-                }}
-              >
-                <Lock size={14} className="mt-0.5 shrink-0 text-[oklch(0.6_0.2_15)]" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-xs font-medium text-foreground">
-                    {t("Protect sensitive content")}
-                  </span>
-                  <span className="text-[11px] leading-snug text-muted-foreground">
-                    {t(
+            {/* Compose actions sit above the tool list as first-class "Add"
+                choices — not for a branch pick (a route can't nest as a branch,
+                and protect is flow-level). */}
+            {!addBranchMode && (
+              <div className="flex flex-col border-b border-border">
+                <ComposeAction
+                  icon={
+                    <GitBranch size={14} className="mt-0.5 shrink-0 text-[oklch(0.62_0.15_300)]" />
+                  }
+                  title={t("Run tools in parallel")}
+                  description={t(
+                    "Adds a route: a node whose tools all run on the same input. Add branches to it after.",
+                  )}
+                  onClick={handleAddRoute}
+                />
+                {!hasRedactionWrap(flow) && (
+                  <ComposeAction
+                    icon={<Lock size={14} className="mt-0.5 shrink-0 text-[oklch(0.6_0.2_15)]" />}
+                    title={t("Protect sensitive content")}
+                    description={t(
                       "Wraps the flow with redact … unredact: sensitive spans are replaced with placeholders before the tools run and restored at the end.",
                     )}
-                  </span>
-                </span>
-              </button>
+                    onClick={() => {
+                      onChange(wrapWithRedaction(flow));
+                      insertIndexRef.current = null;
+                      setAddSlot(null);
+                      setAddOpen(false);
+                    }}
+                  />
+                )}
+              </div>
             )}
+            <div className="h-[55vh]">
+              <ToolPalette
+                tools={tools}
+                onAddTool={handleAddTool}
+                slotContext={addSlotContext}
+                embedded
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Compose action — a non-tool "Add" choice (a parallel route, protect, …)
+// ---------------------------------------------------------------------------
+
+function ComposeAction({
+  icon,
+  title,
+  description,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flex w-full cursor-pointer items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted"
+      onClick={onClick}
+    >
+      {icon}
+      <span className="flex flex-col gap-0.5">
+        <span className="text-xs font-medium text-foreground">{title}</span>
+        <span className="text-[11px] leading-snug text-muted-foreground">{description}</span>
+      </span>
+    </button>
   );
 }
 
