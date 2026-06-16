@@ -976,7 +976,7 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 				if item.Target == "" {
 					break
 				}
-				tmpl := project.ResolveTargetPath(item.Path, item.Target, entry.Source, string(locale))
+				tmpl := project.ResolveTargetPath(item.Path, item.Base, item.Target, entry.Source, string(locale))
 				if !filepath.IsAbs(tmpl) {
 					tmpl = filepath.Join(root, tmpl)
 				}
