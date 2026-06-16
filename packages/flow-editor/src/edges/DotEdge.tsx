@@ -74,7 +74,7 @@ export function DotEdge({
               make it look like two different controls switching). */}
           <button
             type="button"
-            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors duration-150 hover:border-primary hover:bg-primary/10 hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none"
+            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors duration-150 hover:border-primary hover:bg-accent hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             onClick={(e) => {
               e.stopPropagation();
