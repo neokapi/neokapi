@@ -208,6 +208,26 @@ describe("stepsToGraph IO contract fields", () => {
     expect(branches.map((b) => b.toolName)).toEqual(["ai-translate", "pseudo-translate"]);
   });
 
+  it("renders an empty parallel route as a composite node with no branches", () => {
+    // The empty route is a transient authoring state: dropped in, then filled.
+    const spec: FlowSpec = { steps: [{ tool: "", parallel: [] }] };
+    const { nodes } = stepsToGraph(spec);
+
+    const group = nodes.find((n) => n.type === "parallel")!;
+    expect(group).toBeDefined();
+    expect(group.data.branches).toEqual([]);
+    // It must not collapse into an empty-named tool node.
+    expect(nodes.some((n) => n.type === "tool")).toBe(false);
+  });
+
+  it("round-trips an empty parallel route through graphToSteps", () => {
+    const spec: FlowSpec = { steps: [{ tool: "", parallel: [] }] };
+    const { nodes } = stepsToGraph(spec);
+    const back = graphToSteps(nodes);
+    expect(back.steps).toHaveLength(1);
+    expect(back.steps[0].parallel).toEqual([]);
+  });
+
   it("handles tools without IO contract fields", () => {
     const { nodes } = stepsToGraph({ steps: [{ tool: "unknown-tool" }] });
     const toolNode = nodes.find((n) => n.type === "tool");

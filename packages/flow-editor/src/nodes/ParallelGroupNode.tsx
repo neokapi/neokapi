@@ -1,11 +1,13 @@
-// ParallelGroupNode — a parallel step rendered as ONE composite node with its
-// branch tools listed inside, a single input and a single output. This keeps the
-// graph readable: a parallel group occupies a single slot in the layout instead
-// of fanning out into branch nodes with crossing merge edges. Clicking a branch
-// row selects that branch for configuration.
+// ParallelGroupNode — a parallel step ("route") rendered as ONE composite node
+// with its branch tools listed inside, a single input and a single output. This
+// keeps the graph readable: a parallel group occupies a single slot in the
+// layout instead of fanning out into branch nodes with crossing merge edges.
+// Clicking a branch row selects that branch for configuration. The node is a
+// lightweight control you drop in and remove: empty it invites its first branch,
+// and every branch (and the route itself) can be removed in place.
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { GitBranch, X, AlertCircle } from "lucide-react";
+import { GitBranch, X, AlertCircle, Plus } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import { PortChip } from "./PortChip";
@@ -20,10 +22,13 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const outPosition = (data.outPosition as Position) ?? Position.Right;
   const onSelectBranch = data.onSelectBranch as ((index: number) => void) | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
+  const onAddBranch = data.onAddBranch as (() => void) | undefined;
+  const onRemoveBranch = data.onRemoveBranch as ((index: number) => void) | undefined;
   const selectedBranch = data.selectedBranch as number | undefined;
   const unmet = data.unmet as string[] | undefined;
   // A guided lesson step is pointing at this group (FlowEditor focusRequest).
   const lessonFocus = !!data.lessonFocus;
+  const empty = branches.length === 0;
 
   // Handles sit at the group's own center; the serpentine layout center-aligns
   // every node in a row on a shared lane, so this still lines up with the
@@ -37,9 +42,10 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative flex w-[220px] flex-col rounded-lg bg-card overflow-visible"
+      className="group/par relative flex w-[220px] flex-col rounded-lg bg-card overflow-visible"
       style={{
         border: selected ? `2px solid ${PARALLEL_COLOR}` : "2px solid var(--border)",
+        borderStyle: empty ? "dashed" : "solid",
         boxShadow: lessonFocus
           ? `0 0 0 3px var(--primary), 0 0 18px 2px color-mix(in oklch, var(--primary) 45%, transparent), 0 4px 12px oklch(0 0 0 / 0.3)`
           : selected
@@ -59,57 +65,104 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
           Parallel
         </span>
         <span className="ml-auto text-[8px] font-medium text-muted-foreground">
-          {branches.length} branches
+          {empty ? "route" : `${branches.length} branches`}
         </span>
       </div>
 
+      {/* Empty route: invite the first branch. */}
+      {empty && (
+        <div className="px-3 pb-1 pt-1">
+          <p className="text-[9px] leading-snug text-muted-foreground">
+            Tools added here run in parallel on the same input.
+          </p>
+        </div>
+      )}
+
       {/* Branch rows */}
-      <div className="flex flex-col gap-1 px-2 pb-2 pt-1.5">
-        {branches.map((b, i) => {
-          const style = getCategoryStyle(b.category);
-          const isSel = selectedBranch === i;
-          return (
-            <button
-              key={`${b.toolName}-${i}`}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectBranch?.(i);
-              }}
-              className={cn(
-                "nodrag flex w-full items-center gap-1.5 rounded-md border px-1.5 py-1 text-left transition-colors",
-                isSel ? "bg-secondary" : "bg-card hover:bg-secondary/60",
-              )}
-              style={{ borderColor: isSel ? PARALLEL_COLOR : "var(--border)" }}
-            >
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ background: style.color }}
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1 leading-tight">
-                <span
-                  className={cn(
-                    "block truncate text-[11px] font-semibold",
-                    b.valid ? "text-foreground" : "text-foreground/50 line-through",
-                  )}
-                >
-                  {b.label}
-                </span>
-                {b.toolName !== b.label && (
-                  <span className="block truncate font-mono text-[8px] text-muted-foreground">
-                    {b.toolName}
-                  </span>
+      {!empty && (
+        <div className="flex flex-col gap-1 px-2 pb-1 pt-1.5">
+          {branches.map((b, i) => {
+            const style = getCategoryStyle(b.category);
+            const isSel = selectedBranch === i;
+            return (
+              <div
+                key={`${b.toolName}-${i}`}
+                className={cn(
+                  "nodrag group/branch relative flex w-full items-center gap-1.5 rounded-md border px-1.5 py-1 transition-colors",
+                  isSel ? "bg-secondary" : "bg-card hover:bg-secondary/60",
                 )}
-              </span>
-              {!b.valid && <AlertCircle size={11} style={{ color: "oklch(0.7 0.15 85)" }} />}
-              {(b.produces ?? []).slice(0, 2).map((p: IOPort, pi) => (
-                <PortChip key={`${p.type}-${pi}`} type={p.type} side={p.side} verb="produces" />
-              ))}
-            </button>
-          );
-        })}
-      </div>
+                style={{ borderColor: isSel ? PARALLEL_COLOR : "var(--border)" }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectBranch?.(i);
+                  }}
+                  className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                >
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: style.color }}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span
+                      className={cn(
+                        "block truncate text-[11px] font-semibold",
+                        b.valid ? "text-foreground" : "text-foreground/50 line-through",
+                      )}
+                    >
+                      {b.label}
+                    </span>
+                    {b.toolName !== b.label && (
+                      <span className="block truncate font-mono text-[8px] text-muted-foreground">
+                        {b.toolName}
+                      </span>
+                    )}
+                  </span>
+                  {!b.valid && <AlertCircle size={11} style={{ color: "oklch(0.7 0.15 85)" }} />}
+                  {(b.produces ?? []).slice(0, 2).map((p: IOPort, pi) => (
+                    <PortChip key={`${p.type}-${pi}`} type={p.type} side={p.side} verb="produces" />
+                  ))}
+                </button>
+                {onRemoveBranch && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveBranch(i);
+                    }}
+                    className="nopan flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/branch:opacity-100"
+                    title="Remove this branch"
+                    aria-label={`Remove branch ${b.label}`}
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add-branch affordance — the route's own "+", same gesture as the edge. */}
+      {onAddBranch && (
+        <div className={cn("px-2", empty ? "pb-2 pt-0.5" : "pb-2")}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddBranch();
+            }}
+            className="nodrag flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
+            title="Add a tool that runs in parallel here"
+          >
+            <Plus size={11} />
+            Add branch
+          </button>
+        </div>
+      )}
 
       {unmet && unmet.length > 0 && (
         <div
@@ -133,10 +186,10 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
           className={cn(
             "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full bg-secondary border border-border",
             "flex items-center justify-center cursor-pointer z-[2] transition-opacity duration-150",
-            selected ? "opacity-100" : "opacity-0",
+            selected ? "opacity-100" : "opacity-0 group-hover/par:opacity-100",
           )}
-          title="Remove parallel group (Delete)"
-          aria-label="Remove parallel group"
+          title="Remove parallel route (Delete)"
+          aria-label="Remove parallel route"
         >
           <X size={10} className="text-muted-foreground" />
         </button>

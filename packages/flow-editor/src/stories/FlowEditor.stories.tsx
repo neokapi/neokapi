@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { fn } from "storybook/test";
 import { FlowEditor } from "../FlowEditor";
-import type { ToolInfo, ToolDoc, ComponentSchema } from "../types";
+import type { ToolInfo, ToolDoc, ComponentSchema, FlowSpec } from "../types";
 import toolsData from "../../../../apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata.json";
 
 const tools = toolsData as ToolInfo[];
@@ -267,6 +268,22 @@ export const MultiStep: Story = {
     },
     tools,
   },
+};
+
+// A parallel "route" — a compose node you drop in from the Add panel and fill:
+// its branch tools all run on the same input. Stateful so adding a branch (via
+// the route's "+ Add branch"), removing a branch, and inserting/removing the
+// route itself all work live. Starts with one empty route (the compact "drop it
+// in, then fill it" state) between two ordinary steps.
+export const ParallelRoute: Story = {
+  name: "Parallel route (compose + edit live)",
+  render: (args) => {
+    const [flow, setFlow] = useState<FlowSpec>({
+      steps: [{ tool: "ai-translate" }, { tool: "", parallel: [] }, { tool: "word-count" }],
+    });
+    return <FlowEditor {...args} flow={flow} onChange={setFlow} />;
+  },
+  args: { tools },
 };
 
 // A lesson focus (host-driven focusRequest): the requested node is selected

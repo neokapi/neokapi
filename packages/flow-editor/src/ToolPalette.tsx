@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
-import { Search, ChevronDown, ChevronRight, GripVertical, Layers } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, GripVertical, Layers, Check } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
-import { IoContract } from "./nodes/PortChip";
+import { IoContract, PortChip } from "./nodes/PortChip";
+import { toolFit, type SlotContext, type ToolFit } from "./ioGraph";
+import { getPortType } from "./portTypes";
 
 interface ToolPaletteProps {
   tools: ToolInfo[];
@@ -12,19 +14,31 @@ interface ToolPaletteProps {
   /** When embedded (e.g. inside the add-tool modal), fill the host width with no
       side border instead of rendering as a fixed-width sidebar. */
   embedded?: boolean;
+  /** What data is available where the tool will land. When supplied, the palette
+      shows an "available here" strip, marks each tool ready/needs-input against
+      that context, and lists compatible tools first. */
+  slotContext?: SlotContext;
 }
 
-export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
+export function ToolPalette({ tools, onAddTool, embedded, slotContext }: ToolPaletteProps) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  // Pre-normalize tool fields for search (avoids per-keystroke toLowerCase)
+  // Pre-normalize tool fields for search. Port types (consumed + produced) and
+  // their human labels join the index so typing "term", "qa" or "target" finds
+  // tools by what they read/write, not just by name.
   const searchIndex = useMemo(
     () =>
-      tools.map((t) => ({
-        tool: t,
-        key: [t.name, t.description, t.category, ...(t.tags ?? [])].join(" ").toLowerCase(),
-      })),
+      tools.map((tool) => {
+        const ports = [...(tool.consumes ?? []), ...(tool.produces ?? [])];
+        const portWords = ports.flatMap((p) => [p.type, getPortType(p.type).label]);
+        return {
+          tool,
+          key: [tool.name, tool.description, tool.category, ...(tool.tags ?? []), ...portWords]
+            .join(" ")
+            .toLowerCase(),
+        };
+      }),
     [tools],
   );
 
@@ -33,6 +47,14 @@ export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
     const q = search.toLowerCase();
     return searchIndex.filter(({ key }) => key.includes(q)).map(({ tool }) => tool);
   }, [searchIndex, search, tools]);
+
+  // Resolve each tool's fit at the insertion slot once (used for marks + sort).
+  const fitOf = useMemo(() => {
+    const m = new Map<string, ToolFit>();
+    if (!slotContext) return m;
+    for (const tool of tools) m.set(tool.name, toolFit(tool, slotContext));
+    return m;
+  }, [tools, slotContext]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, ToolInfo[]> = {};
@@ -44,8 +66,15 @@ export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(tool);
     }
+    // With a slot context, surface tools that read cleanly here first; keep the
+    // original order otherwise so the list stays stable as you browse.
+    if (slotContext) {
+      for (const cat of Object.keys(groups)) {
+        groups[cat] = stableSortByReady(groups[cat], fitOf);
+      }
+    }
     return groups;
-  }, [filtered]);
+  }, [filtered, slotContext, fitOf]);
 
   const toggle = (cat: string) => setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }));
 
@@ -63,6 +92,9 @@ export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
       }
       style={embedded ? undefined : { width: 240, minWidth: 240, maxWidth: 240 }}
     >
+      {/* What's available where the tool lands — so "where I add it" is legible. */}
+      {slotContext && <AvailableHereStrip context={slotContext} />}
+
       {/* Search */}
       <PaletteSearchBar value={search} onChange={setSearch} />
 
@@ -105,6 +137,7 @@ export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
                       <PaletteItem
                         key={tool.name}
                         tool={tool}
+                        fit={fitOf.get(tool.name)}
                         onAdd={() => onAddTool(tool.name)}
                         onDragStart={(e) => handleDragStart(e, tool.name)}
                       />
@@ -125,6 +158,27 @@ export function ToolPalette({ tools, onAddTool, embedded }: ToolPaletteProps) {
   );
 }
 
+/** Ready tools first, then those needing inputs — order otherwise preserved. */
+function stableSortByReady(items: ToolInfo[], fitOf: Map<string, ToolFit>): ToolInfo[] {
+  return items
+    .map((tool, i) => ({ tool, i, ready: fitOf.get(tool.name)?.ready !== false }))
+    .sort((a, b) => Number(b.ready) - Number(a.ready) || a.i - b.i)
+    .map(({ tool }) => tool);
+}
+
+function AvailableHereStrip({ context }: { context: SlotContext }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 px-2.5 py-1.5">
+      <span className="text-[10px] font-medium text-muted-foreground">
+        {t("Available here", "ports produced upstream of the insertion point")}
+      </span>
+      {context.available.map((p, i) => (
+        <PortChip key={`${p.type}-${p.side ?? ""}-${i}`} type={p.type} side={p.side} showLabel />
+      ))}
+    </div>
+  );
+}
+
 function PaletteSearchBar({
   value,
   onChange,
@@ -139,7 +193,7 @@ function PaletteSearchBar({
           <Search size={13} />
         </InputGroupAddon>
         <InputGroupInput
-          placeholder="Search tools..."
+          placeholder="Search tools, inputs, outputs..."
           value={value}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
           className="text-xs"
@@ -151,14 +205,19 @@ function PaletteSearchBar({
 
 function PaletteItem({
   tool,
+  fit,
   onAdd,
   onDragStart,
 }: {
   tool: ToolInfo;
+  fit?: ToolFit;
   onAdd: () => void;
   onDragStart: (e: React.DragEvent<HTMLButtonElement>) => void;
 }) {
   const displayName = tool.display_name || tool.name;
+  // Only dim against a real slot context: with no context (`fit` undefined) every
+  // tool reads as neutral, never greyed.
+  const needsInput = fit ? !fit.ready : false;
 
   return (
     <button
@@ -167,11 +226,25 @@ function PaletteItem({
       onDragStart={onDragStart}
       onClick={onAdd}
       className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-muted transition-colors"
-      title={tool.description}
+      title={
+        needsInput && fit
+          ? `${tool.description}\n\nNeeds input not available here: ${fit.unmet
+              .map((p) => getPortType(p.type).label)
+              .join(", ")}`
+          : tool.description
+      }
     >
       <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 ${needsInput ? "opacity-55" : ""}`}>
         <div className="flex items-center gap-1">
+          {/* A clean fit reads at a glance — a small check, not a wall of green. */}
+          {fit?.ready && (
+            <Check
+              size={11}
+              className="shrink-0 text-emerald-600 dark:text-emerald-400"
+              aria-label="reads cleanly here"
+            />
+          )}
           <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
           {tool.isSourceTransform && (
             <span
@@ -217,6 +290,23 @@ function PaletteItem({
           (tool.produces && tool.produces.length > 0)) && (
           <div className="mt-0.5">
             <IoContract consumes={tool.consumes} produces={tool.produces} max={3} />
+          </div>
+        )}
+        {/* What's missing at this slot — names the unmet inputs, never blocks. */}
+        {needsInput && fit && fit.unmet.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
+            <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400">
+              {t("needs", "label before the inputs a tool is missing at this slot")}
+            </span>
+            {fit.unmet.map((p, i) => (
+              <PortChip
+                key={`need-${p.type}-${p.side ?? ""}-${i}`}
+                type={p.type}
+                side={p.side}
+                verb="consumes"
+                showLabel
+              />
+            ))}
           </div>
         )}
       </div>
