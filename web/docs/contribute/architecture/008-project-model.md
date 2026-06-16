@@ -177,6 +177,24 @@ Discovery is git-style: kapi tools walk up from the current directory until
 they find a `*.kapi` file. Multiple recipes at the same directory level
 require an explicit `-p <path>` flag.
 
+### Content paths
+
+Each content item's `path` is a [doublestar](https://github.com/bmatcuk/doublestar)
+glob — `**` matches across directories and `{a,b,c}` matches alternatives, so a
+single glob (`input/store/*.{json,yaml,html}` or `input/**/*`) covers a directory
+of mixed content with the format auto-detected per file. The optional `base`
+(set per item, or once on a collection and inherited) is the directory a matched
+file's path is made relative to; it defaults to the glob's fixed prefix.
+
+`target` is a path template expanded per file and language. The common case is
+**directory-mirror**: when the target names a directory (it ends with `/`, or its
+last segment has no extension and no token), the source path relative to `base`
+is reproduced under it, so `target: output/{lang}` mirrors the tree —
+`input/docs/api.md` → `output/fr-FR/docs/api.md`. For custom layouts, tokens
+(`{lang}`, `{relpath}`, `{path}`, `{dir}`, `{filename}`, `{name}`/`{basename}`,
+`{ext}`) reshape the path explicitly. The resolver is `core/project.ResolveTargetPath`;
+the full token reference lives in the [project file reference](/reference/project-file#source-and-target-paths).
+
 ### Recipe extension mechanism
 
 The framework recipe (`KapiProject`) carries an `Extras map[string]yaml.Node`

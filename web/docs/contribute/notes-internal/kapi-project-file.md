@@ -44,11 +44,14 @@ type ContentCollection struct {
     SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty"`
     TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
     Items           []ContentItem    `yaml:"items,omitempty"`
+    Base            string           `yaml:"base,omitempty"`   // dir items' paths are made relative to; items inherit it
     // Bare-entry fields (short form):
-    Path   string      `yaml:"path,omitempty"`   // glob pattern for source files
-    Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect if empty
-    Target string      `yaml:"target,omitempty"` // output path with {lang} placeholder
+    Path   string      `yaml:"path,omitempty"`   // doublestar glob for source files
+    Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect per file if empty
+    Target string      `yaml:"target,omitempty"` // output path template (tokens below)
 }
+// ContentItem additionally carries its own `base` (yaml:"base,omitempty"),
+// falling back to the collection's Base when empty.
 ```
 
 Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow-steps-format](./flow-steps-format.md)).
@@ -148,9 +151,23 @@ require it.
   `doublestar.Match`)
 - Patterns are resolved relative to the project root (the recipe's parent
   directory)
-- The `{lang}` placeholder in `target` is expanded with the target locale at
-  runtime via `core/project.ResolvePathPattern`; `ExpandTemplate` additionally
-  resolves `{path}`, `{filename}`, and `{basename}` from the source path
+- `target` is expanded per source file and target language by
+  `core/project.ResolveTargetPath(itemPath, base, target, source, lang)`:
+  - `base` is the directory the source path is made relative to. When empty it
+    defaults to `GlobFixedPrefix(path)` — the literal prefix of the glob before
+    the first `*`/`?`/`[`/`{` (so `input/docs/*.md` mirrors just filenames while
+    `input/**/*.md`, or an explicit `base`, mirrors the subtree). On a named
+    collection, an item inherits the collection's `base` when it sets none.
+  - Tokens: `{lang}`, `{relpath}` (rel path with extension), `{path}` (rel path
+    without extension), `{dir}`, `{filename}`, `{name}` (alias `{basename}`),
+    `{ext}`; a bare `*` is legacy shorthand for `{name}`. `{lang}` is handled by
+    `ResolvePathPattern`; the rest by `ExpandTemplate`.
+  - **Directory-mirror form:** when the target (after `{lang}` expansion) ends
+    with `/`, is empty, or its final segment has no extension and no
+    wildcard/token, it denotes a directory — the source's `{relpath}` (under
+    `base`) is appended. So `target: output/{lang}` mirrors the source tree under
+    each per-language root with no token and no doubled extension. See
+    `isDirectoryTarget` in `core/project/path.go`.
 
 ## Credential Resolution
 
@@ -241,18 +258,19 @@ defaults:
 
 content:
   # Bare entry — single glob, languages inherited from defaults.
+  # Directory-mirror target: src/i18n/en/app.json → src/i18n/{lang}/app.json.
   - path: "src/i18n/en/*.json"
-    format: json
-    target: "src/i18n/{lang}/*.json"
+    target: "src/i18n/{lang}"
 
-  # Named collection — groups patterns and scopes its own languages.
+  # Named collection — groups patterns, scopes languages, and shares a base.
   - name: Marketing
     target_languages: [fr-FR, de-DE]
+    base: en
     items:
-      - path: "docs/en/*.md"
-        format: markdown
-      - path: "site/en/*.html"
-        format: html
+      - path: "en/docs/**/*.md"
+        target: "{lang}/docs"
+      - path: "en/site/**/*.html"
+        target: "{lang}/site"
 
 preset: nextjs
 requires:

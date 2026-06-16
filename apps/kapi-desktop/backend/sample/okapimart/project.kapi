@@ -9,32 +9,37 @@ defaults:
     - de-DE
     - ja-JP
 content:
+  # Each item pins an Okapi Bridge format engine for its file type, so the items
+  # stay separate. The target names a directory, so every source file mirrors
+  # under output/<lang>/ keeping its name and extension — e.g.
+  # output/fr-FR/store-ui.json.
   - name: Source Files
+    base: input
     items:
       - path: "input/*.json"
         format: okf_json
-        target: "output/{lang}/*.json"
+        target: "output/{lang}"
       - path: "input/*.yaml"
         format: okf_yaml
-        target: "output/{lang}/*.yaml"
+        target: "output/{lang}"
       - path: "input/*.html"
         format: okf_html
-        target: "output/{lang}/*.html"
+        target: "output/{lang}"
       - path: "input/*.md"
         format: okf_markdown
-        target: "output/{lang}/*.md"
+        target: "output/{lang}"
       - path: "input/*.properties"
         format: okf_properties
-        target: "output/{lang}/*.properties"
+        target: "output/{lang}"
       - path: "input/*.srt"
         format: okf_vtt
-        target: "output/{lang}/*.srt"
+        target: "output/{lang}"
       - path: "input/*.xml"
         format: okf_xml
-        target: "output/{lang}/*.xml"
+        target: "output/{lang}"
       - path: "input/*.txt"
         format: okf_plaintext
-        target: "output/{lang}/*.txt"
+        target: "output/{lang}"
 flows:
   translate:
     steps:

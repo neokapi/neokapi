@@ -76,8 +76,7 @@ defaults:
   target_languages: [fr, de]
 content:
   - path: "src/locales/en/*.json"
-    format: json
-    target: "src/locales/{lang}/*.json"
+    target: "src/locales/{lang}"
 flows:
   translate:
     steps:
@@ -85,10 +84,15 @@ flows:
       - tool: ai-translate
 ```
 
-`kapi add` wrote the `content` entry's source `path` and `format`. The optional
-`target` glob — with the `{lang}` placeholder — tells `merge` where each locale's
-files go; set it for a custom layout (or let `--framework` fill it), otherwise
-kapi defaults to a locale-suffixed path beside the source. `defaults` carries the
+`kapi add` wrote the `content` entry's source `path`; the format is auto-detected
+per file. The optional `target` — with the `{lang}` placeholder — tells `merge`
+where each locale's files go. Here it names a directory, so each matched file is
+mirrored under the per-language folder (`src/locales/en/app.json` →
+`src/locales/fr/app.json`); set it for a custom layout (or let `--framework` fill
+it), otherwise kapi defaults to a locale-suffixed path beside the source. For a
+custom layout use tokens like `{name}`/`{ext}` — see the
+[project file reference](/reference/project-file#source-and-target-paths).
+`defaults` carries the
 source and target languages every command inherits, and `flows` names reusable
 tool chains. See the [project file reference](/reference/project-file) for the
 full schema.

@@ -138,8 +138,7 @@ defaults:
     source: false # opt-in SRX segmentation
 content:
   - path: src/locales/en/*.json
-    format: json
-    target: src/locales/{lang}/*.json
+    target: src/locales/{lang} # mirror each file under the per-language dir
 ```
 
 The `merge`, `tm`, and `segmentation` sections are described in detail

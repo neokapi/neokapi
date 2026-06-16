@@ -21,8 +21,7 @@ name: My App Localization
 
 content:
   - path: "src/locales/en/*.json"
-    format: json
-    target: "src/locales/{lang}/*.json"
+    target: "src/locales/{lang}" # mirror each matched file under the per-language dir
 
 preset: nextjs
 plugins:
@@ -91,11 +90,69 @@ defaults:
 
 ### ContentEntry
 
-| Field    | Type   | Description                                   |
-| -------- | ------ | --------------------------------------------- |
-| `path`   | string | Glob pattern for source files (required)      |
-| `format` | string | Format ID; auto-detected if omitted           |
-| `target` | string | Output path pattern with `{lang}` placeholder |
+| Field    | Type   | Description                                                                                   |
+| -------- | ------ | -------------------------------------------------------------------------------------------- |
+| `path`   | string | Glob pattern for source files (required)                                                      |
+| `base`   | string | Directory a matched file's path is made relative to; defaults to the glob's fixed prefix      |
+| `format` | string | Format ID; auto-detected per file if omitted                                                  |
+| `target` | string | Output path template (see [Source and target paths](#source-and-target-paths))               |
+
+In a named collection, `base` may be set once on the collection and is inherited
+by every item that does not set its own.
+
+### Source and target paths
+
+`path` is a [doublestar](https://github.com/bmatcuk/doublestar) glob: `**`
+matches across directories (e.g. `src/**/*.json`) and `{a,b,c}` matches any of
+the listed alternatives (e.g. `input/store/*.{json,yaml,html}`). One glob can
+therefore cover a whole directory of mixed content; the format is auto-detected
+per file unless you pin `format`. Patterns resolve relative to the project root.
+
+`base` is the directory a matched file's path is made relative to. It defaults to
+the glob's *fixed prefix* — the literal part of `path` before the first wildcard
+(`input/docs/` for `input/docs/**/*.md`). The relative path drives the `{relpath}`
+/ `{path}` / `{dir}` tokens and how much of the source tree a directory-mirror
+target reproduces.
+
+`target` is the output-path template, expanded per source file and target
+language. The supported tokens are:
+
+| Token       | Meaning                                                | Example (`base` `input/`, source `input/docs/api.md`) |
+| ----------- | ------------------------------------------------------ | ----------------------------------------------------- |
+| `{lang}`    | Target language                                        | `fr-FR`                                               |
+| `{relpath}` | Source path relative to `base`, **with** extension     | `docs/api.md`                                         |
+| `{path}`    | Source path relative to `base`, **without** extension  | `docs/api`                                            |
+| `{dir}`     | Directory portion of `{relpath}` (empty at the root)   | `docs`                                                |
+| `{filename}`| Filename with extension                                | `api.md`                                              |
+| `{name}`    | Filename without extension (alias `{basename}`)        | `api`                                                 |
+| `{ext}`     | Extension without the dot                               | `md`                                                  |
+
+A bare `*` is legacy shorthand for `{name}`.
+
+**Directory-mirror (the easy default).** When `target` ends with `/`, or its last
+segment has no extension and no wildcard/token, it names a *directory* and the
+source's `{relpath}` (under `base`) is mirrored beneath it. So `target:
+output/{lang}` reproduces the source tree under each per-language root —
+`input/docs/api.md` → `output/fr-FR/docs/api.md` — with no `*` and no risk of a
+doubled extension:
+
+```yaml
+content:
+  - name: Docs
+    base: input
+    items:
+      - path: "input/**/*.md"
+        target: "output/{lang}"
+```
+
+**Token template (the powerful form).** When you need to reshape the layout, use
+tokens explicitly:
+
+```yaml
+content:
+  - path: "src/locales/en/*.json"
+    target: "src/locales/{lang}/{name}.{ext}" # api.json → src/locales/fr-FR/api.json
+```
 
 ### Defaults
 
