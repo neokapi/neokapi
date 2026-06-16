@@ -51,6 +51,8 @@ export interface ContentCollection {
   path?: string;
   format?: FormatSpec;
   target?: string;
+  /** Directory the source path is made relative to for target resolution. */
+  base?: string;
 
   // Optional archived-state marker; gates the Translation-state section in
   // ContentPage (absent on most collections).
@@ -61,6 +63,10 @@ export interface ContentItem {
   path: string;
   format?: FormatSpec;
   target?: string;
+  /** Directory the source path is made relative to for target resolution
+   * ({path}/{dir}/{relpath} tokens and directory-mirror targets). Empty
+   * defaults to the glob's fixed prefix. */
+  base?: string;
   source_language?: string;
   target_languages?: string[];
 }

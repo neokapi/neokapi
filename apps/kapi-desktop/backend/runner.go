@@ -489,18 +489,19 @@ func (a *App) resolveOutputPath(inputPath, targetLang string) string {
 		if err != nil {
 			continue
 		}
+		relSlash := filepath.ToSlash(rel)
 		for _, coll := range op.Project.Content {
 			for _, item := range coll.EffectiveItems() {
 				if item.Target == "" {
 					continue
 				}
-				// Check if the input matches this pattern.
-				matched, _ := filepath.Match(item.Path, rel)
-				if !matched {
+				// Match the input against the content glob (doublestar, so `**`
+				// and `{a,b}` behave like ExpandGlob / ResolveContent).
+				if !project.MatchGlob(item.Path, relSlash) {
 					continue
 				}
-				// Resolve {lang} and the wildcard in the target pattern.
-				return outputPathFor(basePath, rel, item.Target, targetLang)
+				// Resolve the output via the shared core resolver.
+				return filepath.Join(basePath, project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, targetLang))
 			}
 		}
 	}

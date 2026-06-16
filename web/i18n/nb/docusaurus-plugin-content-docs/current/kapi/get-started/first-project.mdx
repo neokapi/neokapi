@@ -77,8 +77,7 @@ defaults:
   target_languages: [fr, de]
 content:
   - path: "src/locales/en/*.json"
-    format: json
-    target: "src/locales/{lang}/*.json"
+    target: "src/locales/{lang}"
 flows:
   translate:
     steps:

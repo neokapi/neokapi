@@ -6,6 +6,14 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
+// MatchGlob reports whether path matches the doublestar glob pattern (same
+// semantics as ExpandGlob: `**` recursive, `{a,b}` alternation). Both should be
+// slash-separated, relative to the same root.
+func MatchGlob(pattern, path string) bool {
+	ok, err := doublestar.Match(pattern, path)
+	return err == nil && ok
+}
+
 // ExpandGlob returns relative paths under root that match the given glob
 // pattern. Supports `**` for recursive directory matching via doublestar.
 // Any matches matching one of the exclude patterns are filtered out.

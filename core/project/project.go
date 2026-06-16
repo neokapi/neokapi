@@ -335,6 +335,13 @@ type ContentCollection struct {
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	Items           []ContentItem    `yaml:"items,omitempty" json:"items,omitempty"`
 
+	// Base is the directory a matched source file's path is made relative to
+	// when resolving its target — for {path}/{dir}/{relpath} tokens and the
+	// directory-mirror target form. Empty defaults to the glob's fixed prefix
+	// (the literal part of Path before the first wildcard). Collection-level
+	// Base applies to every item that doesn't set its own.
+	Base string `yaml:"base,omitempty" json:"base,omitempty"`
+
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
@@ -360,10 +367,20 @@ func (c *ContentCollection) EffectiveItems() []ContentItem {
 			Path:   c.Path,
 			Format: c.Format,
 			Target: c.Target,
+			Base:   c.Base,
 			Extras: c.Extras,
 		}}
 	}
-	return c.Items
+	// Named collection: items inherit the collection-level Base unless they set
+	// their own, so `base` can be declared once for the whole collection.
+	items := make([]ContentItem, len(c.Items))
+	copy(items, c.Items)
+	for i := range items {
+		if items[i].Base == "" {
+			items[i].Base = c.Base
+		}
+	}
+	return items
 }
 
 // ContentItem is a single content pattern within a collection.
@@ -371,6 +388,7 @@ type ContentItem struct {
 	Path            string           `yaml:"path" json:"path"`
 	Format          *FormatSpec      `yaml:"format,omitempty" json:"format,omitempty"`
 	Target          string           `yaml:"target,omitempty" json:"target,omitempty"`
+	Base            string           `yaml:"base,omitempty" json:"base,omitempty"`
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 

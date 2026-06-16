@@ -319,13 +319,12 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return nil
 	}
 
-	// Resolve output path.
-	outputPath, _ := cmd.Flags().GetString("output")
-	if outputPath == "" {
-		ext := filepath.Ext(inputPath)
-		base := inputPath[:len(inputPath)-len(ext)]
-		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
-	}
+	// Resolve output path through the unified resolver: a matched project
+	// content-item target (via core's ResolveTargetPath) when a .kapi project is
+	// in scope and no explicit -o was given, otherwise the ad-hoc template or
+	// the <basename>_<lang><ext> default.
+	outputFlag, _ := cmd.Flags().GetString("output")
+	outputPath := a.resolveOutputPath(inputPath, outputFlag)
 
 	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
 		if stopProgress != nil {
@@ -667,39 +666,134 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	return traceNodes, nil
 }
 
-// resolveOutputPath computes the output file path for a given input file.
-// If outputTemplate is empty, uses the default pattern: {base}_{lang}{ext}.
-// If outputTemplate contains template placeholders ({name}, {lang}, {ext}, {dir}),
-// they are expanded. Otherwise, outputTemplate is used as-is (single-file mode).
+// resolveOutputPath computes the output file path for one input file in a flow
+// run. Resolution, in precedence order:
+//
+//  1. No explicit -o (outputTemplate == "") and a .kapi project is in scope
+//     whose matched content item carries a target template → the per-file output
+//     comes from core's project.ResolveTargetPath (the single canonical
+//     resolver, shared with merge and the desktop). This honours {lang}, the
+//     full path-token set, the legacy bare `*`, and directory targets — and so
+//     fixes the double-extension class of bug.
+//  2. No explicit -o and no project target → the ad-hoc default
+//     <basename>_<lang><ext> beside the source.
+//  3. An explicit -o template/path → the shared ad-hoc token vocabulary
+//     (project.ResolvePathPattern + project.ExpandTemplate); a template ending
+//     in a separator or naming a directory mirrors the input beneath it. An
+//     explicit -o always wins over the project target (user override).
 func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
-	ext := filepath.Ext(inputPath)
-	name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
-	dir := filepath.Dir(inputPath)
-
 	if outputTemplate == "" {
-		return filepath.Join(dir, fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
+		if out, ok := a.projectItemTargetPath(inputPath, a.TargetLang); ok {
+			ensureParentDir(out)
+			return out
+		}
+		ext := filepath.Ext(inputPath)
+		name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
+		return filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
 	}
 
-	// Check if template contains placeholders.
-	if strings.Contains(outputTemplate, "{") {
-		extNoDot := ""
-		if len(ext) > 1 {
-			extNoDot = ext[1:]
-		}
-		out := expandOutputTemplate(outputTemplate, name, a.TargetLang, extNoDot, dir)
-		// Ensure output directory exists (template may target a new directory).
-		if outDir := filepath.Dir(out); outDir != "." {
-			_ = os.MkdirAll(outDir, 0o755)
-		}
-		return out
-	}
+	out := expandAdhocOutputTemplate(outputTemplate, inputPath, filepath.Dir(inputPath), a.TargetLang)
+	ensureParentDir(out)
+	return out
+}
 
-	// Literal path (single-file mode).
-	return outputTemplate
+// projectItemTargetPath resolves inputPath to its output path via the matched
+// project content item's target template, using the one core resolver
+// (project.ResolveTargetPath). Mirrors the desktop runner's resolution. Returns
+// ("", false) when no .kapi project is in scope, the input is outside the
+// project root, or no content item with a target matches it.
+func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
+	if a.projectContext == nil || a.projectContext.Project == nil {
+		return "", false
+	}
+	root := a.projectContext.ProjectDir
+	abs := inputPath
+	if !filepath.IsAbs(abs) {
+		if r, err := filepath.Abs(abs); err == nil {
+			abs = r
+		}
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", false
+	}
+	relSlash := filepath.ToSlash(rel)
+	if strings.HasPrefix(relSlash, "../") || relSlash == ".." {
+		return "", false
+	}
+	for _, coll := range a.projectContext.Project.Content {
+		for _, item := range coll.EffectiveItems() {
+			if item.Path == "" || item.Target == "" {
+				continue
+			}
+			if !project.MatchGlob(item.Path, relSlash) {
+				continue
+			}
+			out := project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, lang)
+			if !filepath.IsAbs(out) {
+				out = filepath.Join(root, out)
+			}
+			return out, true
+		}
+	}
+	return "", false
+}
+
+// expandAdhocOutputTemplate expands an explicit -o template/path for one input
+// file using the shared core path-token vocabulary: project.ResolvePathPattern
+// for {lang} and project.ExpandTemplate for the path tokens ({name} {basename}
+// {ext} {dir} {path} {relpath} {filename}), plus the legacy bare `*` == {name}.
+// When the template (after {lang} expansion) denotes a directory — it ends in a
+// separator, or its last segment has no extension and no wildcard/token — the
+// input is mirrored beneath it (relative to base). This keeps the ad-hoc -o
+// vocabulary identical to the project content-item target vocabulary.
+func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) string {
+	resolved := project.ResolvePathPattern(tmpl, lang)
+	if isDirTemplate(resolved) {
+		rel := filepath.Base(inputPath)
+		if base != "" {
+			if r, err := filepath.Rel(base, inputPath); err == nil && !strings.HasPrefix(filepath.ToSlash(r), "../") {
+				rel = r
+			}
+		}
+		return filepath.Join(resolved, rel)
+	}
+	out := project.ExpandTemplate(resolved, inputPath)
+	name := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+	out = strings.ReplaceAll(out, "*", name)
+	return filepath.FromSlash(out)
+}
+
+// isDirTemplate reports whether an output template (after {lang} expansion)
+// denotes a directory to mirror into rather than a filename template. Mirrors
+// core's isDirectoryTarget: true when it ends in a separator, is empty, or its
+// final segment carries no file extension and no wildcard/template token.
+func isDirTemplate(s string) bool {
+	if s == "" || strings.HasSuffix(s, "/") || strings.HasSuffix(s, string(filepath.Separator)) {
+		return true
+	}
+	last := s
+	if i := strings.LastIndexAny(s, `/\`); i >= 0 {
+		last = s[i+1:]
+	}
+	if strings.ContainsAny(last, "*?[{") {
+		return false
+	}
+	return filepath.Ext(last) == ""
+}
+
+// ensureParentDir best-effort creates the parent directory of p so a template
+// targeting a new directory writes cleanly.
+func ensureParentDir(p string) {
+	if dir := filepath.Dir(p); dir != "" && dir != "." {
+		_ = os.MkdirAll(dir, 0o755)
+	}
 }
 
 // expandOutputTemplate replaces {name}, {lang}, {ext}, and {dir} placeholders
-// in a path template. ext should be without the leading dot.
+// in a path template. ext should be without the leading dot. Retained for the
+// .klz workspace merge path (klzworkspace.go); flow/tool runs now route their
+// explicit-template expansion through expandAdhocOutputTemplate.
 func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 	r := strings.NewReplacer(
 		"{name}", name,

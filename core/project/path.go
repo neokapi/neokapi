@@ -36,33 +36,98 @@ func GlobFixedPrefix(pattern string) string {
 	return dir + string(filepath.Separator)
 }
 
-// ResolveTargetPath expands a content item's target template for one
-// source file and target language. {lang} expands to lang; {path},
-// {filename}, and {basename} expand from the source path relative to the
-// item pattern's fixed prefix, so a `docs/**/*.md` item mirrors its
-// subtree under the target root. A bare `*` expands to the source
-// basename without extension (legacy shorthand).
-func ResolveTargetPath(itemPath, target, source, lang string) string {
+// ResolveTargetPath expands a content item's target template for one source
+// file and target language, returning the output path (relative to the project
+// root, in OS-native separators).
+//
+// base is the directory the source path is made relative to — it controls
+// {path}/{dir}/{relpath} and how much of the source tree a directory-mirror
+// target reproduces. When base is "", it defaults to the glob's fixed prefix
+// (GlobFixedPrefix(itemPath)), so `input/docs/*.md` mirrors just filenames while
+// `input/**/*.md` (or an explicit base) mirrors the subtree.
+//
+// Tokens (all optional):
+//
+//	{lang}     target language
+//	{relpath}  source path relative to base, WITH extension   (docs/api.md)
+//	{path}     source path relative to base, WITHOUT extension (docs/api)
+//	{dir}      directory portion of {relpath}, "" at the root  (docs)
+//	{filename} source filename with extension                  (api.md)
+//	{name}     source filename without extension                (api)  [alias {basename}]
+//	{ext}      source extension without the dot                 (md)
+//	*          legacy shorthand for {name}
+//
+// When the target (after {lang} expansion) denotes a directory — it ends with
+// "/", or its final segment has no extension and contains no wildcard or token —
+// the source's {relpath} is appended. So `output/{lang}/` (or `output/{lang}`)
+// mirrors the source tree under that root, the intuitive zero-token form.
+func ResolveTargetPath(itemPath, base, target, source, lang string) string {
+	source = filepath.ToSlash(source)
+	if base == "" {
+		base = GlobFixedPrefix(itemPath)
+	}
+	base = filepath.ToSlash(base)
+	if base != "" && !strings.HasSuffix(base, "/") {
+		base += "/"
+	}
+	rel := strings.TrimPrefix(source, base)
+
 	out := ResolvePathPattern(target, lang)
-	rel := strings.TrimPrefix(source, GlobFixedPrefix(itemPath))
+
+	if isDirectoryTarget(out) {
+		out = strings.TrimRight(out, "/")
+		if out == "" {
+			out = rel
+		} else {
+			out += "/" + rel
+		}
+		return filepath.FromSlash(out)
+	}
+
 	out = ExpandTemplate(out, rel)
-	base := strings.TrimSuffix(filepath.Base(source), filepath.Ext(source))
-	return strings.ReplaceAll(out, "*", base)
+	name := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
+	out = strings.ReplaceAll(out, "*", name)
+	return filepath.FromSlash(out)
 }
 
-// ExpandTemplate expands path-template variables in `template` using
-// `localPath` as the source path. Supported variables:
-//
-//	{path}     — relative path without extension
-//	{filename} — filename with extension
-//	{basename} — filename without extension
+// isDirectoryTarget reports whether target (after {lang} expansion) denotes a
+// directory to mirror into rather than a filename template. True when it ends
+// with "/", is empty, or its final segment carries no file extension and no
+// wildcard/template token.
+func isDirectoryTarget(target string) bool {
+	if target == "" || strings.HasSuffix(target, "/") {
+		return true
+	}
+	last := target
+	if i := strings.LastIndex(target, "/"); i >= 0 {
+		last = target[i+1:]
+	}
+	if strings.ContainsAny(last, "*?[{") {
+		return false // glob or token segment → filename template
+	}
+	return filepath.Ext(last) == ""
+}
+
+// ExpandTemplate expands path-template tokens in `template` using `localPath`
+// (the source path relative to the resolution base, slash-separated). See
+// ResolveTargetPath for the supported token set.
 func ExpandTemplate(template, localPath string) string {
-	result := template
-	pathNoExt := strings.TrimSuffix(localPath, filepath.Ext(localPath))
-	result = strings.ReplaceAll(result, "{path}", pathNoExt)
+	localPath = filepath.ToSlash(localPath)
 	filename := filepath.Base(localPath)
-	result = strings.ReplaceAll(result, "{filename}", filename)
-	basename := strings.TrimSuffix(filename, filepath.Ext(filename))
-	result = strings.ReplaceAll(result, "{basename}", basename)
-	return result
+	ext := filepath.Ext(filename)
+	name := strings.TrimSuffix(filename, ext)
+	dir := filepath.Dir(localPath)
+	if dir == "." {
+		dir = ""
+	}
+
+	r := template
+	r = strings.ReplaceAll(r, "{relpath}", localPath)
+	r = strings.ReplaceAll(r, "{path}", strings.TrimSuffix(localPath, ext))
+	r = strings.ReplaceAll(r, "{dir}", dir)
+	r = strings.ReplaceAll(r, "{filename}", filename)
+	r = strings.ReplaceAll(r, "{name}", name)
+	r = strings.ReplaceAll(r, "{basename}", name)
+	r = strings.ReplaceAll(r, "{ext}", strings.TrimPrefix(ext, "."))
+	return r
 }

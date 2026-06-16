@@ -11,45 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOutputPathFor(t *testing.T) {
-	base := "/proj"
-	tests := []struct {
-		name      string
-		sourceRel string
-		target    string
-		lang      string
-		want      string
-	}{
-		{
-			name:      "lang and wildcard",
-			sourceRel: "input/app.json",
-			target:    "output/{lang}/*",
-			lang:      "fr-FR",
-			want:      "/proj/output/fr-FR/app.json",
-		},
-		{
-			name:      "lang only, no wildcard",
-			sourceRel: "input/app.json",
-			target:    "output/{lang}.json",
-			lang:      "de-DE",
-			want:      "/proj/output/de-DE.json",
-		},
-		{
-			name:      "wildcard only",
-			sourceRel: "src/a.txt",
-			target:    "dist/*",
-			lang:      "ja-JP",
-			want:      "/proj/dist/a.txt",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := outputPathFor(base, tt.sourceRel, tt.target, tt.lang)
-			assert.Equal(t, filepath.FromSlash(tt.want), got)
-		})
-	}
-}
-
 func TestListOutputs(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "input"), 0o755))
@@ -67,7 +28,9 @@ func TestListOutputs(t *testing.T) {
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
 		Content: []project.ContentCollection{
-			{Path: "input/*.json", Target: "output/{lang}/*", Format: &project.FormatSpec{Name: "json"}},
+			// Directory-mirror target: output path mirrors the source under the
+			// per-language root (no wildcard, no double extension).
+			{Path: "input/*.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))
@@ -114,7 +77,7 @@ func TestListOutputsDiscoversUndeclaredLang(t *testing.T) {
 		Name:     "Test",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR"}},
 		Content: []project.ContentCollection{
-			{Path: "input/*.json", Target: "output/{lang}/*", Format: &project.FormatSpec{Name: "json"}},
+			{Path: "input/*.json", Target: "output/{lang}/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))

@@ -9,32 +9,29 @@ defaults:
     - nb-NO
     - ar-SA
 content:
+  # One glob per logical group; format is auto-detected per file. The target
+  # names a directory, so each source file's path (relative to base) is mirrored
+  # under output/<lang>/... — e.g. output/de-DE/docs/api-reference.md.
   - name: Website
+    base: input/docs
     items:
-      - path: "input/docs/*.md"
-        target: "output/{lang}/docs/*.md"
+      - path: "input/docs/**/*.md"
+        target: "output/{lang}/docs"
   - name: Online Store
+    base: input/store
     items:
-      - path: "input/store/*.json"
-        target: "output/{lang}/store/*.json"
-      - path: "input/store/*.yaml"
-        target: "output/{lang}/store/*.yaml"
-      - path: "input/store/*.properties"
-        target: "output/{lang}/store/*.properties"
-      - path: "input/store/*.html"
-        target: "output/{lang}/store/*.html"
+      - path: "input/store/*.{json,yaml,properties,html}"
+        target: "output/{lang}/store"
   - name: Contracts
+    base: input/contracts
     items:
-      - path: "input/contracts/*.docx"
-        target: "output/{lang}/contracts/*.docx"
-      - path: "input/contracts/*.xlsx"
-        target: "output/{lang}/contracts/*.xlsx"
+      - path: "input/contracts/*.{docx,xlsx}"
+        target: "output/{lang}/contracts"
   - name: Templates
+    base: input/templates
     items:
-      - path: "input/templates/*.pptx"
-        target: "output/{lang}/templates/*.pptx"
-      - path: "input/templates/*.docx"
-        target: "output/{lang}/templates/*.docx"
+      - path: "input/templates/*.{pptx,docx}"
+        target: "output/{lang}/templates"
 flows:
   translate:
     steps:

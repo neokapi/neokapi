@@ -343,7 +343,15 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	case cfg.OutputTemplate != "":
 		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
 	default: // cfg.DefaultLayout
-		outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
+		// Project mode: a matched content-item target (the one core resolver)
+		// wins over the locale-swap heuristic, so tool runs honour the recipe's
+		// declared layout too. Outside a project this is a no-op and the ad-hoc
+		// locale-swap default applies.
+		if p, ok := a.projectItemTargetPath(filePath, cfg.TargetLang); ok {
+			outputPath = p
+		} else {
+			outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
+		}
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 			return fmt.Errorf("create output dir: %w", err)
 		}
@@ -747,40 +755,14 @@ func commonPath(a, b string) string {
 	return filepath.FromSlash(strings.Join(common, "/"))
 }
 
+// expandOutputPath expands an explicit -o template for one tool-run input file
+// and ensures the parent directory exists. Token expansion and directory-mirror
+// handling are delegated to the shared ad-hoc resolver (expandAdhocOutputTemplate)
+// so the -o vocabulary matches flow runs and project content-item targets — a
+// directory target mirrors the file relative to commonDir.
 func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
-	rel := filePath
-	if commonDir != "" {
-		if r, err := filepath.Rel(commonDir, filePath); err == nil {
-			rel = r
-		}
-	}
-
-	ext := filepath.Ext(rel)
-	name := strings.TrimSuffix(rel, ext)
-	extNoDot := strings.TrimPrefix(ext, ".")
-
-	result := tmpl
-	result = strings.ReplaceAll(result, "{dir}", filepath.Dir(filePath))
-	result = strings.ReplaceAll(result, "{name}", name)
-	result = strings.ReplaceAll(result, "{ext}", extNoDot)
-	result = strings.ReplaceAll(result, "{lang}", lang)
-
-	isDir := strings.HasSuffix(result, "/") || strings.HasSuffix(result, string(filepath.Separator))
-	if !isDir {
-		if info, err := os.Stat(result); err == nil && info.IsDir() {
-			isDir = true
-		}
-	}
-	if !isDir && filepath.Ext(result) == "" {
-		isDir = true
-	}
-	if isDir {
-		result = filepath.Join(result, rel)
-	}
-
-	dir := filepath.Dir(result)
-	_ = os.MkdirAll(dir, 0o755)
-
+	result := expandAdhocOutputTemplate(tmpl, filePath, commonDir, lang)
+	ensureParentDir(result)
 	return result
 }
 

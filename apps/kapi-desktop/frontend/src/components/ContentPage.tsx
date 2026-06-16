@@ -335,9 +335,23 @@ export function ContentPage({
             <TargetPathInput
               value={item.target ?? ""}
               onChange={(v) => onItemChange({ ...item, target: v || undefined })}
-              placeholder="src/locales/{lang}/*.json"
+              placeholder="output/{lang}  ·  or output/{lang}/{dir}/{name}.{ext}"
             />
           </div>
+        </div>
+        <div>
+          <Label className="mb-0.5 block text-xs text-muted-foreground">
+            Base{" "}
+            <span className="font-normal text-muted-foreground/60">
+              (optional — outputs mirror source paths relative to this; defaults to the path prefix
+              before the first wildcard)
+            </span>
+          </Label>
+          <GlobInput
+            value={item.base ?? ""}
+            onChange={(v) => onItemChange({ ...item, base: v || undefined })}
+            placeholder="auto (e.g. input/docs)"
+          />
         </div>
 
         {/* Exec extractor command — shortcut for format:exec's
