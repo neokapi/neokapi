@@ -119,6 +119,18 @@ export class ContentCollection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Base is the directory a matched source file's path is made relative to
+             * when resolving its target — for {path}/{dir}/{relpath} tokens and the
+             * directory-mirror target form. Empty defaults to the glob's fixed prefix
+             * (the literal part of Path before the first wildcard). Collection-level
+             * Base applies to every item that doesn't set its own.
+             * @member
+             * @type {string | undefined}
+             */
+            this["base"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -151,7 +163,7 @@ export class ContentCollection {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
-        const $$createField5_0 = $$createType4;
+        const $$createField6_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -160,7 +172,7 @@ export class ContentCollection {
             $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
         }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField5_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField6_0($$parsedSource["format"]);
         }
         return new ContentCollection(/** @type {Partial<ContentCollection>} */($$parsedSource));
     }
@@ -199,6 +211,13 @@ export class ContentItem {
         if (/** @type {any} */(false)) {
             /**
              * @member
+             * @type {string | undefined}
+             */
+            this["base"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
              * @type {model$0.LocaleID | undefined}
              */
             this["source_language"] = undefined;
@@ -230,17 +249,17 @@ export class ContentItem {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType4;
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $$createType6;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
         }
         if ("target_languages" in $$parsedSource) {
-            $$parsedSource["target_languages"] = $$createField4_0($$parsedSource["target_languages"]);
+            $$parsedSource["target_languages"] = $$createField5_0($$parsedSource["target_languages"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField5_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField6_0($$parsedSource["redaction"]);
         }
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }

@@ -187,3 +187,46 @@ func TestSampleProjectFilesExist(t *testing.T) {
 		assert.NoError(t, err, "missing: %s", path)
 	}
 }
+
+// Scaffolding stamps a sample manifest; an older on-disk revision is reported as
+// upgradable, Reset backs up + re-scaffolds to the current revision, and
+// Acknowledge clears the prompt without re-scaffolding.
+func TestSampleUpgradeFlow(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("KAPI_HOME_DIR", home)
+	dir := filepath.Join(home, "KapiProjects", sample.DisplayName["kapimart"])
+
+	app := NewApp()
+	tab, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	// Freshly scaffolded → current revision, no upgrade.
+	info := app.GetSampleInfo(tab.ID)
+	require.True(t, info.IsSample)
+	assert.Equal(t, "kapimart", info.Name)
+	assert.Equal(t, sample.CurrentRevision("kapimart"), info.CurrentRevision)
+	assert.False(t, info.UpgradeAvailable)
+
+	// Simulate a copy left by an older kapi (revision 1).
+	require.NoError(t, sample.SetManifestRevision(dir, 1))
+	info = app.GetSampleInfo(tab.ID)
+	assert.True(t, info.UpgradeAvailable)
+	assert.Equal(t, 1, info.OnDiskRevision)
+
+	// Reset → backs up the old dir and re-scaffolds at the current revision.
+	newTab, err := app.ResetSampleProject(tab.ID)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(newTab.ID) })
+	_, statErr := os.Stat(dir + " (backup r1)")
+	require.NoError(t, statErr, "old copy should be backed up")
+	info = app.GetSampleInfo(newTab.ID)
+	assert.False(t, info.UpgradeAvailable)
+	assert.Equal(t, sample.CurrentRevision("kapimart"), info.OnDiskRevision)
+
+	// Acknowledge clears the prompt without re-scaffolding.
+	require.NoError(t, sample.SetManifestRevision(dir, 1))
+	require.True(t, app.GetSampleInfo(newTab.ID).UpgradeAvailable)
+	require.NoError(t, app.AcknowledgeSampleRevision(newTab.ID))
+	assert.False(t, app.GetSampleInfo(newTab.ID).UpgradeAvailable)
+}

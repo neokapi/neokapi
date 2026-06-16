@@ -91,6 +91,12 @@ func Scaffold(name, targetDir string) error {
 		}
 	}
 
+	// Stamp the sample manifest (.kapi/sample.json) so the desktop can detect an
+	// out-of-date scaffolded copy on disk and offer to refresh it.
+	if err := writeManifest(name, targetDir); err != nil {
+		return fmt.Errorf("write sample manifest: %w", err)
+	}
+
 	return nil
 }
 

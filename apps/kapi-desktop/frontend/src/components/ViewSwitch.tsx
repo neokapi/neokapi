@@ -68,6 +68,8 @@ interface ViewSwitchProps {
   onOpenProject: () => void;
   onCreateSampleProject: (name: string) => void;
   onDismissSamples: () => void;
+  /** Reset an out-of-date sample project to the version bundled with this kapi. */
+  onResetSample: (tabID: string) => void;
   /** An open project tab to offer ad-hoc flow adoption into ({id,name}). */
   adoptTarget?: { id: string; name: string } | null;
 }
@@ -87,6 +89,7 @@ export function ViewSwitch({
   onOpenProject,
   onCreateSampleProject,
   onDismissSamples,
+  onResetSample,
   adoptTarget,
 }: ViewSwitchProps) {
   // State for the runner view — set when the user clicks Run on a flow.
@@ -188,6 +191,7 @@ export function ViewSwitch({
             onNavigate={navigate}
             pluginsResolved={activeTab.pluginsResolved}
             pluginIssues={activeTab.pluginIssues}
+            onResetSample={() => onResetSample(tabID)}
           />
         );
 

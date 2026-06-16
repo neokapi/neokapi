@@ -84,6 +84,9 @@ export const api = {
   openProject: (path: string) => call<TabInfo>("OpenProject", path),
   openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
   createSampleProject: (name: string) => call<TabInfo>("CreateSampleProject", name),
+  getSampleInfo: (tabID: string) => call<SampleInfo>("GetSampleInfo", tabID),
+  resetSampleProject: (tabID: string) => call<TabInfo>("ResetSampleProject", tabID),
+  acknowledgeSampleRevision: (tabID: string) => call<void>("AcknowledgeSampleRevision", tabID),
   browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
@@ -439,6 +442,15 @@ export const api = {
   getVersion: () => call<VersionInfo>("GetVersion"),
   getHomeDir: () => call<string>("GetHomeDir"),
 } as const;
+
+export interface SampleInfo {
+  is_sample: boolean;
+  name?: string;
+  display_name?: string;
+  on_disk_revision: number;
+  current_revision: number;
+  upgrade_available: boolean;
+}
 
 export interface VersionInfo {
   version: string;

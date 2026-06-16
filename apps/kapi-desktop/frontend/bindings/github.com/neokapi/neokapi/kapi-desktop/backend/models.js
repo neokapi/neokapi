@@ -2328,9 +2328,10 @@ export class OriginDTO {
 
 /**
  * OutputFileInfo describes a single generated output file for a source file in
- * a content collection. Outputs are derived from each collection item's
- * `target` template (with {lang} and `*` resolved), then stat-ed on disk so
- * the UI can show which target files exist and let the user inspect them.
+ * a content collection. Output paths are resolved from each collection item's
+ * `target` template via the shared core resolver (project.ResolveTargetPath),
+ * then stat-ed on disk so the UI can show which target files exist and let the
+ * user inspect them.
  */
 export class OutputFileInfo {
     /**
@@ -3346,6 +3347,73 @@ export class RunEvent {
             $$parsedSource["steps"] = $$createField7_0($$parsedSource["steps"]);
         }
         return new RunEvent(/** @type {Partial<RunEvent>} */($$parsedSource));
+    }
+}
+
+/**
+ * SampleInfo describes whether an open project is a scaffolded sample and
+ * whether a newer revision of that sample ships with this kapi.
+ */
+export class SampleInfo {
+    /**
+     * Creates a new SampleInfo instance.
+     * @param {Partial<SampleInfo>} [$$source = {}] - The source object to create the SampleInfo.
+     */
+    constructor($$source = {}) {
+        if (!("is_sample" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["is_sample"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["display_name"] = undefined;
+        }
+        if (!("on_disk_revision" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["on_disk_revision"] = 0;
+        }
+        if (!("current_revision" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["current_revision"] = 0;
+        }
+        if (!("upgrade_available" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["upgrade_available"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SampleInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SampleInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SampleInfo(/** @type {Partial<SampleInfo>} */($$parsedSource));
     }
 }
 

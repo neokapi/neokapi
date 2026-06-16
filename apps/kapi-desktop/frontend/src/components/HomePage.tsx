@@ -16,7 +16,7 @@ import { Button, Badge, Card, EmptyState, ActionCard, LocalePill } from "@neokap
 import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
-import { api } from "../hooks/useApi";
+import { api, type SampleInfo } from "../hooks/useApi";
 import { useJobFeed } from "../context/JobFeedContext";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useError } from "./ErrorBanner";
@@ -33,6 +33,10 @@ export interface HomePageProps {
   pluginIssues?: PluginIssue[];
   /** Pre-loaded status for Storybook — skips api.getProjectStatus(). */
   status?: ProjectStatus;
+  /** Refresh this sample to the version bundled with the current kapi. */
+  onResetSample?: () => void;
+  /** Pre-loaded sample info for Storybook — skips api.getSampleInfo(). */
+  sampleInfo?: SampleInfo;
 }
 
 export function HomePage({
@@ -44,6 +48,8 @@ export function HomePage({
   pluginsResolved,
   pluginIssues,
   status: propStatus,
+  onResetSample,
+  sampleInfo: propSampleInfo,
 }: HomePageProps) {
   const { hasActive, activeJob } = useJobFeed();
   const { showError } = useError();
@@ -51,6 +57,26 @@ export function HomePage({
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   const [extracting, setExtracting] = useState(false);
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
+  const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
+  // "Keep current" dismisses the upgrade prompt for this session.
+  const [sampleDismissed, setSampleDismissed] = useState(false);
+
+  // Detect whether this project is an out-of-date sample so we can offer a reset.
+  useEffect(() => {
+    if (!tabID || propSampleInfo) return;
+    void api
+      .getSampleInfo(tabID)
+      .then((info) => {
+        if (info) setSampleInfo(info);
+      })
+      .catch(() => {});
+  }, [tabID, propSampleInfo]);
+
+  // Acknowledge the on-disk revision so the prompt stays dismissed across reopens.
+  const handleKeepSample = useCallback(() => {
+    setSampleDismissed(true);
+    if (tabID) void api.acknowledgeSampleRevision(tabID);
+  }, [tabID]);
 
   // Install a missing project plugin directly from the banner. The backend
   // emits plugins-changed, which re-checks the project and clears the banner.
@@ -210,6 +236,34 @@ export function HomePage({
                 <Button size="sm" variant="outline" onClick={() => onNavigate("app-settings")}>
                   <Plug size={12} />
                   Manage Plugins
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sample upgrade banner — a newer revision of this sample ships with kapi */}
+      {sampleInfo?.upgrade_available && !sampleDismissed && (
+        <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <RefreshCw size={16} className="mt-0.5 shrink-0 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {t("A newer version of this sample is available")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(
+                  "This sample was created by an earlier version of kapi. Reset it to get the latest content and configuration — your current copy is backed up first.",
+                )}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" onClick={() => onResetSample?.()}>
+                  <RefreshCw size={12} />
+                  {t("Reset to latest")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleKeepSample}>
+                  {t("Keep current")}
                 </Button>
               </div>
             </div>

@@ -283,6 +283,7 @@ function AppInner() {
               onOpenProject={tm.openProject}
               onCreateSampleProject={tm.createSampleProject}
               onDismissSamples={dismissSamples}
+              onResetSample={tm.resetSample}
               adoptTarget={(() => {
                 // In ad-hoc mode, offer adoption into the active project tab, or
                 // the most recently opened one if none is active.
