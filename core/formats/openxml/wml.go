@@ -188,6 +188,13 @@ type wmlParser struct {
 	// unaffected. nil when styles.xml is absent; the built-in styleId
 	// heuristic in roleForParaStyle still applies.
 	roleStyles styleRoleMap
+	// partPlane is the layout-layer plane every block in this part inherits
+	// from the part's role (header/footer → furniture); "" for the main
+	// document body. partNoteRole is the fallback semantic role for paragraphs
+	// in a note part (footnotes/endnotes → footnote). Both are §8 structure
+	// facets — additive stand-off metadata, never serialized back.
+	partPlane    string
+	partNoteRole string
 	// currentStyleChainNames is the resolved set of rPr-child element
 	// local names contributed by docDefaults + the current paragraph's
 	// basedOn chain. It is recomputed on each <w:pPr> we encounter
@@ -622,7 +629,7 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 	p.skelRef(blockID)
 	p.skelWriteString("</w:p>")
 	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
-	p.applyParagraphRole(block, pm.paraStyleID, pm.paraProps)
+	p.applyParagraphRole(block, pm.paraStyleID, pm.paraProps, allHidden(merged, inheritedVanish))
 	emitBlock(block)
 	return nil
 }
@@ -731,7 +738,7 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 		block.Properties = map[string]string{}
 	}
 	block.Properties["openxml:field-straddle"] = "true"
-	p.applyParagraphRole(block, pf.paraStyleID, pf.paraProps)
+	p.applyParagraphRole(block, pf.paraStyleID, pf.paraProps, allHidden(merged, inheritedVanish))
 	emitBlock(block)
 	return nil
 }
@@ -3129,7 +3136,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelWriteString("</w:p>")
 
 				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
-				p.applyParagraphRole(block, paraStyleID, paraProps)
+				p.applyParagraphRole(block, paraStyleID, paraProps, allHidden(merged, inheritedVanish))
 				emitBlock(block)
 				return nil
 			}

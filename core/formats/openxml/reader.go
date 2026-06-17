@@ -300,6 +300,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				// (Namespaces.java:26-27).
 				strict: bytes.Contains(partData, []byte(wmlStrictNamespace)),
 			}
+			parser.partPlane, parser.partNoteRole = docxPartStructure(partPath)
 			err = parser.parsePart(partData, partPath, emitBlock, func() {})
 			if err != nil {
 				ch <- model.PartResult{Error: err}
