@@ -37,6 +37,14 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			Extensions: append([]string(nil), f.Extensions...),
 		}
 
+		// Precedence (AD-007): an installed plugin's format reader/writer
+		// overrides a built-in of the same name — installing a plugin for a
+		// format is an explicit signal to prefer it (e.g. kapi-pdfium replaces
+		// the core hand-rolled PDF reader). Two plugins keep first-registered-
+		// wins. Capture the prior source BEFORE re-seeding the info below.
+		prior := reg.FormatInfo(formatID)
+		overridable := prior == nil || prior.Source == "" || prior.Source == registry.SourceBuiltIn
+
 		// Always seed format metadata (so `kapi formats list` shows it
 		// and detection by extension/MIME works) — even when no factory
 		// is registered yet.
@@ -51,7 +59,7 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 		})
 		reg.SetFormatSource(formatID, plugin.Name())
 
-		if f.HasCapability("read") && !reg.HasReader(formatID) {
+		if f.HasCapability("read") && (overridable || !reg.HasReader(formatID)) {
 			displayName := f.DisplayName
 			pluginRef := plugin
 			fmtName := f.Name
@@ -60,7 +68,7 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 				return newDaemonReader(pool, pluginRef, fmtName, sigCopy, displayName)
 			}, sig, displayName)
 		}
-		if f.HasCapability("write") && !reg.HasWriter(formatID) {
+		if f.HasCapability("write") && (overridable || !reg.HasWriter(formatID)) {
 			pluginRef := plugin
 			fmtName := f.Name
 			reg.RegisterWriter(formatID, func() format.DataFormatWriter {

@@ -76,6 +76,39 @@ func daemonPoolWithBridgeEnv(t *testing.T) *DaemonPool {
 	})
 }
 
+// builtinSentinelReader is a stand-in for a core (built-in) reader, used to
+// prove a plugin overrides it.
+type builtinSentinelReader struct{ format.BaseFormatReader }
+
+func (*builtinSentinelReader) Open(context.Context, *model.RawDocument) error { return nil }
+func (*builtinSentinelReader) Read(context.Context) <-chan model.PartResult   { return nil }
+func (*builtinSentinelReader) Close() error                                   { return nil }
+func (*builtinSentinelReader) Signature() format.FormatSignature              { return format.FormatSignature{} }
+
+// AD-007 precedence: an installed plugin's format reader overrides a built-in
+// of the same name (e.g. kapi-pdfium replacing the core PDF reader).
+func TestRegisterModeCFormats_PluginOverridesBuiltin(t *testing.T) {
+	bin := buildFakeDaemon(t)
+	plugin := makePluginWithBridge(t, "fmt-plugin", bin, "fakefmt", []string{".fakefmt"})
+	host := NewHost([]*Plugin{plugin}, nil)
+	pool := daemonPoolWithBridgeEnv(t)
+	t.Cleanup(pool.Shutdown)
+
+	reg := registry.NewFormatRegistry()
+	// A built-in reader claims "fakefmt" first.
+	reg.RegisterReader("fakefmt", func() format.DataFormatReader { return &builtinSentinelReader{} },
+		format.FormatSignature{Extensions: []string{".fakefmt"}}, "Built-in")
+	reg.SetFormatSource("fakefmt", registry.SourceBuiltIn)
+
+	RegisterModeCFormats(host, pool, reg)
+
+	// The plugin's daemon reader must now own "fakefmt".
+	r := reg.ReaderFactory("fakefmt")()
+	_, isDaemon := r.(*daemonReader)
+	assert.True(t, isDaemon, "plugin reader should override the built-in")
+	assert.Equal(t, "fmt-plugin", reg.FormatInfo("fakefmt").Source)
+}
+
 func TestRegisterModeCFormats_RegistersReaderAndWriter(t *testing.T) {
 	bin := buildFakeDaemon(t)
 	plugin := makePluginWithBridge(t, "fmt-plugin", bin, "fakefmt", []string{".fakefmt"})

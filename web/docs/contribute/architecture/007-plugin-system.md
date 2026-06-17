@@ -114,6 +114,15 @@ Conflicting capabilities between two different plugins are an error
 — kapi prints both manifests and refuses to dispatch the conflicting
 capability.
 
+**Precedence over built-ins.** A plugin capability that collides with a
+*built-in* one (e.g. a plugin format reader for `pdf` when the framework
+ships a pure-Go one) **overrides the built-in** — installing a plugin for a
+format is an explicit signal to prefer it. Built-ins remain the fallback when
+the plugin is absent, so behaviour degrades gracefully. Plugin-vs-plugin
+collisions still error (above); plugin-vs-built-in is resolved in the plugin's
+favour via the format registry's source/priority (`SetFormatSource` assigns
+`DefaultPluginPriority` > `DefaultBuiltInPriority`).
+
 A consolidated dispatch cache at `$XDG_CACHE_HOME/kapi/plugins-cache.json`
 holds parsed manifests + pre-compiled JSON Schema validators. The
 cache is invalidated by an mtime check on each discovery root: if
@@ -311,6 +320,23 @@ constraint that failed.
   Built with `jpackage` (no Go shim): produces a native launcher
   - bundled JRE per platform. Cosign-signed via GitHub Actions
     keyless OIDC.
+- **kapi-pdfium** (`plugins/pdfium/`) — first-party Mode-C format plugin
+  providing a high-fidelity `pdf` reader backed by Google's PDFium
+  (go-pdfium, cgo). It extracts correct text (including CID/Type0 fonts and
+  CJK, which the built-in pure-Go reader garbles) and optional per-segment
+  geometry, and runs as an isolated daemon so a malformed-PDF crash dies with
+  the subprocess, not kapi. It overrides the built-in `pdf` reader when
+  installed (precedence, above); the built-in remains the cgo-less fallback
+  (and the only PDF path in the browser/WASM build, where PDFium can't run).
+  Built once per platform with PDFium statically linked (single self-contained
+  binary, like static ICU). **Bundled with both the kapi-cli distribution and
+  the kapi-desktop app** rather than downloaded: the CLI installs it into the
+  shared `share/kapi/plugins/pdfium/` root; the desktop bundles the same
+  artifact for self-containment and prefers the shared root when present.
+  Because both the CLI and the desktop are hosts over the same `cli/pluginhost`
+  discovery + daemon pool, there is **one engine** — they do not each compile
+  PDFium into their own binary, and a single long-lived daemon can be shared
+  across host processes (`KAPI_DAEMON_SOCKET_PDFIUM`).
 
 A minimal Go reference plugin in `examples/plugins/hello/` covers
 Mode A + B with no third-party deps.
