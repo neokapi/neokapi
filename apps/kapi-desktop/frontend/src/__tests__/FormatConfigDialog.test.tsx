@@ -11,6 +11,9 @@ vi.mock("../hooks/useApi", () => ({
   api: {
     getFormatSchema: (...a: unknown[]) => getFormatSchema(...a),
     listFormatPresets: (...a: unknown[]) => listFormatPresets(...a),
+    // useSchemaFormHost pulls these on mount; stub them out.
+    listProviders: () => Promise.resolve([]),
+    browsePath: () => Promise.resolve(""),
   },
 }));
 

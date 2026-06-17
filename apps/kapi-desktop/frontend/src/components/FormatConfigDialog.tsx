@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
   Sheet,
@@ -15,10 +15,11 @@ import {
   SelectContent,
   SelectItem,
   FormatSelect,
+  SchemaForm,
 } from "@neokapi/ui-primitives";
 import type { ComponentSchema, FormatInfo } from "../types/api";
 import { api } from "../hooks/useApi";
-import { FormatConfigEditor } from "./FormatConfigEditor";
+import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 
 /** Config + preset for a single format slot. */
@@ -38,7 +39,7 @@ interface FormatConfigDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  /** Formats shown initially in the left selector (e.g. the formats matched in the input files). */
+  /** Formats shown initially in the list (e.g. the formats matched in the input files). */
   formats: string[];
   /** All registered formats, for the "add format" picker. */
   allFormats: FormatInfo[];
@@ -55,13 +56,16 @@ interface FormatConfigDialogProps {
 }
 
 /**
- * Schema-driven format configuration in a right-side drawer. Replaces the inline
- * JSON textarea: each format is configured through its real option schema
- * (FormatConfigEditor) in an independently scrollable pane. For a single-format
- * item the drawer shows one form; for a wildcard item it shows a format picker on
- * the left (defaulted to the formats matched in the input files, optionally
- * filtered by the glob extension, with an "add format" control) and the selected
- * format's schema form on the right.
+ * Schema-driven format configuration in a right-side drawer, laid out as a
+ * master→detail flow so each level gets the full drawer width:
+ *
+ *   - **List** (wildcard / multi-format only): the formats to configure, with
+ *     config-count badges and an "add format" control. Tapping one opens its
+ *     detail.
+ *   - **Detail**: the format's option form (the framework `SchemaForm`, whose own
+ *     header names the format) plus its preset, with a back affordance.
+ *
+ * A single-format item skips the list and opens straight on its detail.
  */
 export function FormatConfigDialog({
   open,
@@ -77,6 +81,9 @@ export function FormatConfigDialog({
   scopeNote,
 }: FormatConfigDialogProps) {
   const { showError } = useError();
+  // Native file/credential pickers for SchemaForm widgets (degrades to text
+  // inputs outside Wails / in tests).
+  const host = useSchemaFormHost();
   // Formats added during this session beyond the initial set.
   const [added, setAdded] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
@@ -93,21 +100,28 @@ export function FormatConfigDialog({
     return out;
   }, [formats, added]);
 
-  const [active, setActive] = useState<string>(shown[0] ?? "");
-  useEffect(() => {
-    if (!active && shown.length > 0) setActive(shown[0]);
-  }, [shown, active]);
+  // A list level exists only when there's a choice to make (wildcard items, or
+  // more than one matched format). Single-format items go straight to detail.
+  const hasList = allowAdd || formats.length > 1;
 
-  // Reset session-added formats each time the dialog opens.
-  useEffect(() => {
-    if (open) {
-      setAdded([]);
-      setAdding(false);
-      setActive(formats[0] ?? "");
-    }
-  }, [open, formats]);
+  // master→detail: null = list level; a format name = that format's detail.
+  // Single-format items open straight on the detail (no list to show).
+  const [selected, setSelected] = useState<string | null>(hasList ? null : (formats[0] ?? null));
 
-  // Per-format schema + preset caches (loaded lazily for the active format).
+  // Reset to the entry level each time the drawer opens (rising edge only — the
+  // parent re-creates `formats` every render, so depending on it would thrash).
+  useEffect(() => {
+    if (!open) return;
+    setAdded([]);
+    setAdding(false);
+    setSelected(hasList ? null : (formats[0] ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const active = selected ?? "";
+  const inList = selected === null;
+
+  // Per-format schema + preset caches (loaded lazily for the open detail).
   const [schemas, setSchemas] = useState<Record<string, ComponentSchema | null>>({});
   const [presets, setPresets] = useState<Record<string, PresetItem[]>>({});
   const [loading, setLoading] = useState(false);
@@ -139,99 +153,113 @@ export function FormatConfigDialog({
   const handleAdd = useCallback((name: string | undefined) => {
     if (!name) return;
     setAdded((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    setActive(name);
     setAdding(false);
+    setSelected(name); // jump straight into the newly added format's detail
   }, []);
 
   const current = values[active] ?? {};
   const activeSchema = schemas[active];
   const activePresets = presets[active] ?? [];
   const presetValues = activePresets.find((p) => p.name === current.preset)?.config;
-  const multiPane = allowAdd || shown.length > 1;
+
+  function configCount(fmt: string): number {
+    return Object.keys(values[fmt]?.config ?? {}).length;
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-lg md:max-w-xl lg:max-w-2xl"
-      >
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg md:max-w-xl">
         <SheetHeader className="border-b border-border">
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>
 
-        <div className="flex min-h-0 flex-1">
-          {/* Left: format picker (wildcard / multi-format only) */}
-          {multiPane && (
-            <div className="w-44 shrink-0 space-y-1 overflow-auto border-r border-border p-3">
-              <Label className="mb-1 block text-xs text-muted-foreground">{t("Formats")}</Label>
-              {shown.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setActive(f)}
-                  className={`flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs ${
-                    f === active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
-                  }`}
-                  translate="no"
-                >
-                  <span className="truncate">{f}</span>
-                  {values[f]?.config && Object.keys(values[f].config!).length > 0 && (
-                    <span className="ml-1 rounded bg-primary/10 px-1 text-[10px] text-primary">
-                      {Object.keys(values[f].config!).length}
+        {/* LIST level — choose a format to configure */}
+        {inList ? (
+          <div className="min-h-0 flex-1 space-y-2 overflow-auto p-4">
+            <Label className="text-xs text-muted-foreground">{t("Formats")}</Label>
+            {shown.map((f) => (
+              <button
+                key={f}
+                onClick={() => setSelected(f)}
+                className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent/50"
+              >
+                <span className="font-medium" translate="no">
+                  {f}
+                </span>
+                <span className="flex items-center gap-2">
+                  {configCount(f) > 0 && (
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                      {t("{count} set", { count: configCount(f) })}
                     </span>
                   )}
-                </button>
-              ))}
-              {allowAdd &&
-                (adding ? (
-                  <div className="flex items-center gap-1 pt-1">
-                    <FormatSelect
-                      value=""
-                      onChange={handleAdd}
-                      formats={addOptions}
-                      placeholder={t("Pick a format")}
-                      className="h-7 text-xs"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setAdding(false)}
-                      aria-label={t("Cancel")}
-                    >
-                      <X size={11} />
-                    </Button>
-                  </div>
-                ) : (
+                  <ChevronRight size={15} className="text-muted-foreground" />
+                </span>
+              </button>
+            ))}
+            {shown.length === 0 && !adding && (
+              <p className="py-2 text-xs text-muted-foreground">
+                {t("No formats matched yet. Add one to configure it.")}
+              </p>
+            )}
+            {allowAdd &&
+              (adding ? (
+                <div className="flex items-center gap-2 pt-1">
+                  <FormatSelect
+                    value=""
+                    onChange={handleAdd}
+                    formats={addOptions}
+                    placeholder={t("Pick a format")}
+                    className="flex-1"
+                  />
                   <Button
                     variant="ghost"
-                    size="xs"
-                    className="mt-1 w-full justify-start text-muted-foreground"
-                    onClick={() => setAdding(true)}
+                    size="sm"
+                    onClick={() => setAdding(false)}
+                    aria-label={t("Cancel")}
                   >
-                    <Plus size={11} />
-                    {t("Add format")}
+                    <X size={14} />
                   </Button>
-                ))}
-            </div>
-          )}
-
-          {/* Right: schema form for the active format (independently scrollable) */}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-muted-foreground"
+                  onClick={() => setAdding(true)}
+                >
+                  <Plus size={14} />
+                  {t("Add format")}
+                </Button>
+              ))}
+          </div>
+        ) : (
+          /* DETAIL level — one format's options, full width */
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            {!active ? (
-              <p className="text-sm text-muted-foreground">
-                {t("No format selected. Add a format to configure it.")}
-              </p>
-            ) : loading || activeSchema === undefined ? (
+            {hasList && (
+              <button
+                onClick={() => setSelected(null)}
+                className="mb-3 flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronLeft size={14} />
+                {t("Formats")}
+              </button>
+            )}
+            {loading || activeSchema === undefined ? (
               <div className="flex h-40 items-center justify-center text-muted-foreground">
                 <Loader2 className="animate-spin" size={16} />
               </div>
             ) : activeSchema === null ? (
-              <p className="text-sm text-muted-foreground">
-                {t("No configurable options for this format.")}
-              </p>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground" translate="no">
+                  {active}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("No configurable options for this format.")}
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {/* Preset */}
                 {activePresets.length > 0 && (
                   <div>
                     <Label className="mb-0.5 block text-xs text-muted-foreground">
@@ -261,10 +289,11 @@ export function FormatConfigDialog({
                     </Select>
                   </div>
                 )}
-                <FormatConfigEditor
+                <SchemaForm
                   schema={activeSchema}
                   values={current.config ?? {}}
                   presetValues={presetValues}
+                  host={host}
                   onChange={(cfg) =>
                     onChange(active, {
                       ...current,
@@ -275,7 +304,7 @@ export function FormatConfigDialog({
               </div>
             )}
           </div>
-        </div>
+        )}
 
         <div className="flex items-center justify-between gap-3 border-t border-border p-4">
           {scopeNote ? <p className="text-xs text-muted-foreground">{scopeNote}</p> : <span />}
