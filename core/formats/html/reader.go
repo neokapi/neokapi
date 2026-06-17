@@ -265,6 +265,7 @@ func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 	}
+	v.reader.applyStructureFacets(block, n)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -300,6 +301,7 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 		},
 	}
 	v.reader.applyStructuralRole(block, n)
+	v.reader.applyStructureFacets(block, n)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -321,6 +323,7 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		Properties:         v.reader.extractBlockProperties(parent),
 	}
 	v.reader.applyStructuralRole(block, parent)
+	v.reader.applyStructureFacets(block, parent)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -552,6 +555,86 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 		}
 	}
 	block.SetSemanticRole(role, level)
+}
+
+// applyStructureFacets derives a block's plane (layout layer) and visibility
+// (presence condition) from the element and its ancestors — entirely from
+// markup, no layout engine (structure-geometry-landscape.md §8). These are
+// additive structural facets the editor/QA consume; writers ignore them.
+func (r *Reader) applyStructureFacets(block *model.Block, n *html.Node) {
+	if plane := htmlPlane(n); plane != "" {
+		block.SetLayoutLayer(plane)
+	}
+	if vis := htmlVisibility(n); vis != "" {
+		block.SetVisibility(vis)
+	}
+}
+
+// htmlPlane classifies which visual stratum an element sits on by walking its
+// ancestors (nearest wins): <head> content is metadata; a dialog/modal subtree
+// is an overlay; banner/contentinfo/navigation landmarks are furniture.
+func htmlPlane(n *html.Node) string {
+	for a := n; a != nil; a = a.Parent {
+		if a.Type != html.ElementNode {
+			continue
+		}
+		name := strings.ToLower(a.Data)
+		role := strings.ToLower(getAttr(a, "role"))
+		switch {
+		case name == "head":
+			return model.LayerMetadata
+		case name == "dialog" || role == "dialog" || role == "alertdialog" ||
+			strings.EqualFold(getAttr(a, "aria-modal"), "true"):
+			return model.LayerOverlay
+		case name == "header" || role == "banner" ||
+			name == "footer" || role == "contentinfo" ||
+			name == "nav" || role == "navigation":
+			return model.LayerFurniture
+		}
+	}
+	return ""
+}
+
+// htmlVisibility classifies an element's presence condition by walking its
+// ancestors (nearest meaningful wins): hidden/aria-hidden/display:none → hidden;
+// sr-only/visually-hidden → screen-only; a closed dialog/details subtree →
+// conditional (shown on interaction).
+func htmlVisibility(n *html.Node) string {
+	for a := n; a != nil; a = a.Parent {
+		if a.Type != html.ElementNode {
+			continue
+		}
+		if hasAttr(a, "hidden") || strings.EqualFold(getAttr(a, "aria-hidden"), "true") {
+			return model.VisibilityHidden
+		}
+		style := strings.ToLower(strings.ReplaceAll(getAttr(a, "style"), " ", ""))
+		if strings.Contains(style, "display:none") || strings.Contains(style, "visibility:hidden") {
+			return model.VisibilityHidden
+		}
+		class := " " + strings.ToLower(getAttr(a, "class")) + " "
+		if strings.Contains(class, "sr-only") || strings.Contains(class, "visually-hidden") ||
+			strings.Contains(class, "visuallyhidden") {
+			return model.VisibilityScreenOnly
+		}
+		name := strings.ToLower(a.Data)
+		role := strings.ToLower(getAttr(a, "role"))
+		if (name == "dialog" || role == "dialog" || role == "alertdialog" ||
+			name == "details") && !hasAttr(a, "open") {
+			return model.VisibilityConditional
+		}
+	}
+	return ""
+}
+
+// hasAttr reports whether the element carries the named attribute (presence,
+// regardless of value) — for boolean attributes like hidden/open.
+func hasAttr(n *html.Node, key string) bool {
+	for _, attr := range n.Attr {
+		if attr.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 // blockName returns the block name for an element, incorporating id attribute.
