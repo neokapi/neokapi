@@ -65,6 +65,11 @@ RUBY
   echo "  version \"${version}\""
   echo '  license "Apache-2.0"'
   echo
+  # Bundle the PDFium-backed PDF reader so it is installed with kapi-cli. The
+  # plugin formula drops into the shared kapi plugins root; no cycle since
+  # kapi-pdfium does not depend on kapi-cli.
+  echo '  depends_on "neokapi/tap/kapi-pdfium"'
+  echo
   platform_block "kapi"
   cat <<'RUBY'
 
