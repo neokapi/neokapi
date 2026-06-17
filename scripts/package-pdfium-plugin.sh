@@ -87,6 +87,16 @@ STAGE="$OUT_DIR/stage-${GOOS}-${GOARCH}"
 rm -rf "$STAGE"; mkdir -p "$STAGE/lib"
 
 # Dynamic pkg-config file so go-pdfium's cgo build finds PDFium headers + lib.
+# On Windows, mingw's cgo toolchain can't consume bblanchon's MSVC import lib
+# (pdfium.dll.lib); instead link the DLL DIRECTLY with GNU ld's `-l:<file>`
+# form (-l:pdfium.dll), which needs no .dll.a import library. Elsewhere use the
+# normal -lpdfium against the shared object.
+LIBDIR_FLAG="-L$(dirname "$PDFIUM_LIB")"
+if [ "$GOOS" = "windows" ]; then
+  LIBS_LINE="${LIBDIR_FLAG} -l:pdfium.dll"
+else
+  LIBS_LINE="${LIBDIR_FLAG} -lpdfium"
+fi
 PCDIR="$OUT_DIR/pc-${GOOS}-${GOARCH}"; mkdir -p "$PCDIR"
 cat > "$PCDIR/pdfium.pc" <<PC
 prefix=$PDFIUM_DIR
@@ -94,7 +104,7 @@ Name: PDFium
 Description: PDFium (shared)
 Version: 1
 Cflags: -I$PDFIUM_DIR/include
-Libs: -L$(dirname "$PDFIUM_LIB") -lpdfium
+Libs: ${LIBS_LINE}
 PC
 
 # rpath so the bundled lib is found beside the binary with no env config.

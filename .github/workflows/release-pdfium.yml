@@ -28,15 +28,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # windows/amd64 is a tracked follow-up: go-pdfium's cgo build needs a
-        # mingw import library (libpdfium.dll.a) for -lpdfium, but bblanchon ships
-        # only the MSVC import lib (pdfium.dll.lib). Generating the mingw lib
-        # (gendef/dlltool) is its own iteration; the 3 verified platforms below
-        # (macOS + both Linux — the primary targets) ship first.
+        # Windows links pdfium.dll directly via GNU ld's -l:pdfium.dll
+        # (package-pdfium-plugin.sh) — no MSVC/GNU import-lib mismatch.
         build:
-          - { platform: darwin/arm64, os: macos-latest,     goos: darwin,  goarch: arm64, asset: pdfium-mac-arm64.tgz }
-          - { platform: linux/amd64,  os: ubuntu-latest,    goos: linux,   goarch: amd64, asset: pdfium-linux-x64.tgz }
-          - { platform: linux/arm64,  os: ubuntu-24.04-arm, goos: linux,   goarch: arm64, asset: pdfium-linux-arm64.tgz }
+          - { platform: darwin/arm64,  os: macos-latest,     goos: darwin,  goarch: arm64, asset: pdfium-mac-arm64.tgz }
+          - { platform: linux/amd64,   os: ubuntu-latest,    goos: linux,   goarch: amd64, asset: pdfium-linux-x64.tgz }
+          - { platform: linux/arm64,   os: ubuntu-24.04-arm, goos: linux,   goarch: arm64, asset: pdfium-linux-arm64.tgz }
+          - { platform: windows/amd64, os: windows-2025,     goos: windows, goarch: amd64, asset: pdfium-win-x64.tgz }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +43,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Install pkg-config (Windows)
+        if: runner.os == 'Windows'
+        run: choco install -y pkgconfiglite
 
       - name: Extract version
         id: version
