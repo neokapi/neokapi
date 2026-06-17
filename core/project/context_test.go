@@ -137,6 +137,37 @@ func TestDetectFormat_EmptyExtension(t *testing.T) {
 	assert.Empty(t, ctx.DetectFormat(reg, "noext"))
 }
 
+// A recipe's defaults.formats[name].priority steers detection when several
+// formats claim the same extension at equal priority (the real .srt case where
+// okf_vtt and okf_regex collide and the alphabetical tiebreak picks okf_regex).
+func TestDetectFormat_PriorityOverride(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	for _, name := range []string{"okf_regex", "okf_vtt"} {
+		reg.RegisterFormatInfo(registry.FormatID(name), registry.FormatInfo{
+			Extensions: []string{".srt"},
+			Source:     "okapi-bridge",
+			HasReader:  true,
+		})
+		reg.SetFormatPriority(registry.FormatID(name), format.DefaultPluginPriority)
+	}
+
+	plugins := map[string]PluginSpec{"okapi-bridge": {}}
+
+	// Without an override, the tiebreak picks okf_regex.
+	ctx := NewProjectContext(&KapiProject{Version: CurrentVersion, Plugins: plugins}, "/tmp/test/project.kapi")
+	assert.Equal(t, "okf_regex", ctx.DetectFormat(reg, "clip.srt"))
+
+	// defaults.formats pins okf_vtt as the preferred engine for .srt.
+	ctx2 := NewProjectContext(&KapiProject{
+		Version: CurrentVersion,
+		Plugins: plugins,
+		Defaults: Defaults{
+			Formats: map[string]FormatDefaults{"okf_vtt": {Priority: 110}},
+		},
+	}, "/tmp/test/project.kapi")
+	assert.Equal(t, "okf_vtt", ctx2.DetectFormat(reg, "clip.srt"))
+}
+
 // --- ResolveContent ---
 
 func TestResolveContent_BasicGlob(t *testing.T) {

@@ -9,6 +9,7 @@ const meta: Meta<typeof HomePage> = {
   args: {
     onRunFlow: fn(),
     onNavigate: fn(),
+    onResetSample: fn(),
   },
 };
 
@@ -102,6 +103,22 @@ export const NeverExtracted: Story = {
       projectName: "Acme App Localization",
       hasData: false,
       collections: [],
+    },
+  },
+};
+
+/** A sample opened by a newer kapi than the one that scaffolded it. */
+export const SampleUpgradeAvailable: Story = {
+  args: {
+    ...Default.args,
+    displayName: "KapiMart",
+    sampleInfo: {
+      is_sample: true,
+      name: "kapimart",
+      display_name: "KapiMart",
+      on_disk_revision: 1,
+      current_revision: 2,
+      upgrade_available: true,
     },
   },
 };

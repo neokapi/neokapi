@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,4 +54,98 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 	}
 
 	return a.OpenProject(kapiPath)
+}
+
+// SampleInfo describes whether an open project is a scaffolded sample and
+// whether a newer revision of that sample ships with this kapi.
+type SampleInfo struct {
+	IsSample         bool   `json:"is_sample"`
+	Name             string `json:"name,omitempty"`
+	DisplayName      string `json:"display_name,omitempty"`
+	OnDiskRevision   int    `json:"on_disk_revision"`
+	CurrentRevision  int    `json:"current_revision"`
+	UpgradeAvailable bool   `json:"upgrade_available"`
+}
+
+// GetSampleInfo reports the sample status of an open project by reading its
+// .kapi/sample.json marker. Non-sample projects return IsSample=false.
+func (a *App) GetSampleInfo(tabID string) SampleInfo {
+	op := a.getOpenProject(tabID)
+	if op == nil || op.Path == "" {
+		return SampleInfo{}
+	}
+	m, ok := sample.ReadManifest(filepath.Dir(op.Path))
+	if !ok {
+		return SampleInfo{}
+	}
+	cur := sample.CurrentRevision(m.Sample)
+	return SampleInfo{
+		IsSample:         true,
+		Name:             m.Sample,
+		DisplayName:      sample.DisplayName[m.Sample],
+		OnDiskRevision:   m.Revision,
+		CurrentRevision:  cur,
+		UpgradeAvailable: cur > m.Revision,
+	}
+}
+
+// ResetSampleProject refreshes an out-of-date sample to the version embedded in
+// this kapi: it closes the project, backs up the existing directory (so nothing
+// is lost), re-scaffolds a fresh copy in place, and reopens it — returning the
+// new tab. Only valid for projects scaffolded from a sample.
+func (a *App) ResetSampleProject(tabID string) (*TabInfo, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil || op.Path == "" {
+		return nil, fmt.Errorf("tab %q not found", tabID)
+	}
+	dir := filepath.Dir(op.Path)
+	kapiPath := op.Path
+	m, ok := sample.ReadManifest(dir)
+	if !ok {
+		return nil, errors.New("not a sample project")
+	}
+
+	// Close first so file watchers, the block store, and TM/termbase handles
+	// release the directory before we move it.
+	a.CloseProject(tabID)
+
+	backup := backupSampleDir(dir, m.Revision)
+	if err := os.Rename(dir, backup); err != nil {
+		return nil, fmt.Errorf("back up sample: %w", err)
+	}
+	a.logger.Printf("sample %q reset: backed up to %s", m.Sample, backup)
+
+	if err := sample.Scaffold(m.Sample, dir); err != nil {
+		return nil, fmt.Errorf("re-scaffold sample: %w", err)
+	}
+	return a.OpenProject(kapiPath)
+}
+
+// AcknowledgeSampleRevision marks the on-disk sample as up to date with the
+// embedded revision without re-scaffolding ("keep current"), so the desktop
+// stops offering the upgrade for this copy.
+func (a *App) AcknowledgeSampleRevision(tabID string) error {
+	op := a.getOpenProject(tabID)
+	if op == nil || op.Path == "" {
+		return fmt.Errorf("tab %q not found", tabID)
+	}
+	dir := filepath.Dir(op.Path)
+	m, ok := sample.ReadManifest(dir)
+	if !ok {
+		return errors.New("not a sample project")
+	}
+	return sample.SetManifestRevision(dir, sample.CurrentRevision(m.Sample))
+}
+
+// backupSampleDir returns a non-existing sibling backup path for dir, e.g.
+// "KapiMart (backup r1)", appending a counter if that already exists.
+func backupSampleDir(dir string, rev int) string {
+	base := fmt.Sprintf("%s (backup r%d)", dir, rev)
+	candidate := base
+	for i := 2; ; i++ {
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s (%d)", base, i)
+	}
 }

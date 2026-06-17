@@ -63,6 +63,7 @@ export {
     RelationDTO,
     ResourceInfo,
     RunEvent,
+    SampleInfo,
     SaveUserFlowRequest,
     SessionState,
     SetTermStatusRequest,
