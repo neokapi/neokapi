@@ -435,6 +435,11 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	// text:tab, text:s, and the translatable wrapper itself) push a 0
 	// to keep depths aligned without emitting a code.
 	var inlineIDStack []int
+	// Intrinsic geometry (A3): the stack of enclosing draw:frame boxes and the
+	// 1-based draw:page index (presentations). A block emitted inside a frame
+	// inherits the innermost frame's box.
+	var frameStack []frameBox
+	pageNum := 0
 
 	for {
 		tok, err := d.Token()
@@ -445,6 +450,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 		switch t := tok.(type) {
 		case xml.StartElement:
 			elementStack = append(elementStack, t.Name)
+
+			if t.Name.Space == nsDraw && t.Name.Local == "frame" {
+				frameStack = append(frameStack, parseFrameBox(t))
+			} else if t.Name.Space == nsDraw && t.Name.Local == "page" {
+				pageNum++
+			}
 
 			if isTranslatableElement(t.Name) && !inTranslatable {
 				inTranslatable = true
@@ -564,6 +575,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 							block.Properties["element"] = t.Name.Local
 						}
 
+						applyFrameGeometry(block, frameStack, pageNum)
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					} else {
 						// Empty translatable element — pass through to skeleton
@@ -586,6 +598,10 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				}
 			} else {
 				p.skelWriteEndElement(t)
+			}
+
+			if t.Name.Space == nsDraw && t.Name.Local == "frame" && len(frameStack) > 0 {
+				frameStack = frameStack[:len(frameStack)-1]
 			}
 
 			if len(elementStack) > 0 {
