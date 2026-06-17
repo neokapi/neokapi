@@ -18,9 +18,9 @@ permissions:
   id-token: write # cosign keyless OIDC (tag publishes)
 
 env:
-  # bblanchon pdfium-binaries channel to bundle (shared libs). "latest" for the
-  # dry-run; pin to a chromium/<n> tag before tagging a real release.
-  PDFIUM_RELEASE: latest
+  # bblanchon pdfium-binaries release to bundle (shared libs), pinned for
+  # reproducible releases. workflow_dispatch dry-runs use this too.
+  PDFIUM_RELEASE: chromium/7891
 
 jobs:
   build-pdfium-plugin:
@@ -127,9 +127,10 @@ jobs:
           pattern: pdfium-tarball-*
           merge-multiple: true
 
-      - name: Upload all assets to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload "${GITHUB_REF#refs/tags/}" dist/* --clobber \
-            --repo "${GITHUB_REPOSITORY}"
+      # Creates the GitHub release for the tag if it doesn't exist and uploads
+      # all tarballs + sigstore bundles (softprops, same as the main release).
+      - name: Publish kapi-pdfium release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
