@@ -30,8 +30,12 @@ func TestRegisterAllReaders(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "doclang", "docling", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "docling", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		// Note: "pdf" is absent on native builds — it is read out-of-core by
+		// the kapi-pdfium plugin (registered at runtime), and only registered
+		// in-core on js builds (the PDFium-wasm reader). See register_pdf_*.go.
+		//
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec
 		// extraction runs via `kapi extract -p` (Framework AD-002).
@@ -58,15 +62,15 @@ func TestRegisterAllWriters(t *testing.T) {
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
-		// Note: "pdf" and "docling" are intentionally absent — both are
-		// read-only (extraction only), so they register a reader but no writer.
+		// Note: "docling" is intentionally absent — it is read-only (extraction
+		// only), so it registers a reader but no writer. "pdf" is absent on
+		// native builds entirely (read out-of-core by the kapi-pdfium plugin).
 	}
 
 	for _, name := range expectedFormats {
 		assert.True(t, reg.HasWriter(name), "writer not registered: %s", name)
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
-	assert.False(t, reg.HasWriter("pdf"), "pdf must remain read-only (no writer)")
 	assert.False(t, reg.HasWriter("docling"), "docling must remain read-only (no writer)")
 }
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-14T14:19:57Z",
+  "generatedAt": "2026-06-17T22:04:07Z",
   "kind": "format",
   "entries": [
     {
@@ -3065,34 +3065,6 @@
             "config": "format:\n  name: paraplaintext\n"
           }
         ]
-      }
-    },
-    {
-      "id": "pdf",
-      "source": "built-in",
-      "kind": "format",
-      "displayName": "PDF Text Extraction",
-      "description": "Scrape text content from PDF files for word counts and leverage analysis.",
-      "extensions": [
-        ".pdf"
-      ],
-      "mimeTypes": [
-        "application/pdf"
-      ],
-      "hasReader": true,
-      "doc": {
-        "overview": "PDF (Portable Document Format) is a page-description format. neokapi's PDF\nreader is a content-stream walker: it locates the text-showing operators in\neach page's content streams (inflating FlateDecode segments first) and\ncollects the literal and hex strings they draw. The literal-string scanner\nhonours the PDF string grammar, including escape sequences and balanced\nnested parentheses. Every text run inside a page becomes one Block joined\nwith single spaces; there is no paragraph segmentation.\n\nPDF support is intended for scraping text — word counts, leverage analysis,\nand quick content review — not for layout-preserving round-trips. The reader\ndoes not consult font dictionaries, so strings encoded as glyph indices\nthrough a ToUnicode CMap (some CID/Type0 fonts) are filtered out rather than\nsurfaced as garbage. PDF is **read-only**: it registers no writer, so it\ncannot be edited or merged back — `kapi formats list` reports\n`has_writer: false`, and tools such as `ksed` fail cleanly rather than\nreplacing the document with non-PDF plain text. This format has no\nconfigurable JSON schema in this reference.\n",
-        "limitations": [
-          "Read-only — PDF registers no writer, so it cannot be edited or round-tripped back to PDF.",
-          "Complex structure such as tables and multi-level lists is not reconstructed; there is no paragraph segmentation.",
-          "Text encoded as glyph indices through a ToUnicode CMap (some CID/Type0 fonts) is dropped rather than surfaced."
-        ],
-        "processingNotes": [
-          "Reads text from content streams via the text-showing operators (`Tj`, `TJ`, `'`, `\"`), inflating FlateDecode segments.",
-          "Each page's text runs are joined with single spaces into one Block; no paragraph segmentation is applied.",
-          "Read-only — PDF registers no writer, so editing or merging is rejected."
-        ],
-        "wikiUrl": "https://www.iso.org/standard/75839.html"
       }
     },
     {

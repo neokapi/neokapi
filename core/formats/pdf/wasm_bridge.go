@@ -24,11 +24,11 @@ package pdf
 //	  }>,
 //	}
 //
-// Status: scaffold. The async Promise→Go glue and the pages/rects→Part mapping
-// are TODO; until then this reader reports that the bridge is unavailable so
-// callers fail clearly rather than silently. It is NOT yet registered — the
-// hand-rolled reader remains the browser pdf reader until this is wired and
-// register.go is build-split (js → WasmReader).
+// Status: scaffold. It IS the registered browser pdf reader (register_pdf_js.go
+// wires it on js builds, replacing the retired hand-rolled in-core reader), but
+// the async Promise→Go glue and the pages/rects→Part mapping are still TODO;
+// until they land this reader reports that the bridge is unavailable/not-wired
+// so callers fail clearly rather than silently extracting nothing.
 
 import (
 	"context"
