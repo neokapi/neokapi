@@ -213,18 +213,46 @@ func attrLocalVal(start xml.StartElement, local string) string {
 
 // applyParagraphRole records the semantic role a paragraph implies on its
 // Block: a heading/title style wins (numbered headings keep their heading
-// role), otherwise a numbering declaration marks the block as a list item.
-// No-ops when the paragraph implies no role, leaving SemanticRole unset so
-// same-format round-trips fall back to block.Type.
-func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaProps string) {
+// role), otherwise a numbering declaration marks the block as a list item, and
+// failing both a note part (footnotes/endnotes) supplies a footnote role. It
+// also records the part's plane (header/footer → furniture) and per-paragraph
+// visibility (a fully hidden paragraph → hidden) — the §8 structure facets.
+// All additive stand-off metadata; never serialized back, so byte-faithful
+// round-trip is unaffected.
+func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaProps string, hidden bool) {
 	if block == nil {
 		return
 	}
 	if r := roleForParaStyle(paraStyleID, p.roleStyles); r.role != "" {
 		block.SetSemanticRole(r.role, r.level)
-		return
-	}
-	if paraHasNumbering(rawParaProps) {
+	} else if paraHasNumbering(rawParaProps) {
 		block.SetSemanticRole(model.RoleListItem, 0)
+	} else if p.partNoteRole != "" {
+		block.SetSemanticRole(p.partNoteRole, 0)
 	}
+	if p.partPlane != "" {
+		block.SetLayoutLayer(p.partPlane)
+	}
+	if hidden {
+		block.SetVisibility(model.VisibilityHidden)
+	}
+}
+
+// docxPartStructure classifies a WordprocessingML part path into the plane and
+// fallback note-role it implies: running headers/footers are furniture; the
+// footnotes/endnotes parts give their paragraphs a footnote role.
+func docxPartStructure(partPath string) (plane, noteRole string) {
+	base := partPath
+	if i := strings.LastIndex(base, "/"); i >= 0 {
+		base = base[i+1:]
+	}
+	switch {
+	case strings.HasPrefix(base, "header"):
+		return model.LayerFurniture, ""
+	case strings.HasPrefix(base, "footer"):
+		return model.LayerFurniture, ""
+	case base == "footnotes.xml" || base == "endnotes.xml":
+		return "", model.RoleFootnote
+	}
+	return "", ""
 }

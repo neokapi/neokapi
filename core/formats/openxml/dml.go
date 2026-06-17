@@ -58,6 +58,21 @@ type dmlParser struct {
 // points — the absolute unit the GeometryAnnotation BBox carries (Resolution 0).
 func emuToPt(v int64) float64 { return float64(v) / 12700.0 }
 
+// applyPPTXPartFacets records §8 structure facets a PPTX part implies: speaker
+// notes (ppt/notesSlides/) are metadata shown only to the presenter, and slide
+// masters/layouts are template furniture. Additive stand-off metadata; never
+// serialized back, so byte-faithful round-trip is unaffected.
+func applyPPTXPartFacets(block *model.Block, partPath string) {
+	switch {
+	case strings.HasPrefix(partPath, "ppt/notesSlides/"):
+		block.SetLayoutLayer(model.LayerMetadata)
+		block.SetVisibility(model.VisibilityScreenOnly)
+	case strings.HasPrefix(partPath, "ppt/slideMasters/"),
+		strings.HasPrefix(partPath, "ppt/slideLayouts/"):
+		block.SetLayoutLayer(model.LayerFurniture)
+	}
+}
+
 // pptxSlideNum returns the 1-based slide number for a `ppt/slides/slideN.xml`
 // part, or 0 for any other PPTX part (notes, masters, layouts) — those have a
 // presentation-relative coordinate space, not a slide page, so they get no
@@ -276,6 +291,7 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 
 				block := p.buildBlock(blockID, merged, partPath)
 				p.attachShapeGeometry(block)
+				applyPPTXPartFacets(block, partPath)
 				emitBlock(block)
 				return nil
 			}

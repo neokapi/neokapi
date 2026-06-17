@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -50,11 +51,47 @@ func TestGeometryAccessors(t *testing.T) {
 	}
 }
 
+func TestVisibilityAccessors(t *testing.T) {
+	b := NewBlock("b3", "modal body")
+	if got := b.Visibility(); got != VisibilityVisible {
+		t.Fatalf("new block visibility = %q, want empty", got)
+	}
+	// Visibility must upsert alongside plane without clobbering it.
+	b.SetLayoutLayer(LayerOverlay)
+	b.SetVisibility(VisibilityConditional)
+	if got := b.Visibility(); got != VisibilityConditional {
+		t.Fatalf("visibility = %q, want %q", got, VisibilityConditional)
+	}
+	if got := b.LayoutLayer(); got != LayerOverlay {
+		t.Fatalf("layer after SetVisibility = %q, want %q (must not clobber)", got, LayerOverlay)
+	}
+}
+
+func TestRelationAccessors(t *testing.T) {
+	b := NewBlock("cap1", "Figure 1: the pipeline")
+	if _, ok := b.Relations(); ok {
+		t.Fatal("new block unexpectedly has relations")
+	}
+	b.AddRelation(RelCaptionOf, "fig1")
+	b.AddRelation(RelCaptionOf, "fig1") // duplicate, must be ignored
+	b.AddRelation(RelReferences, "sec2")
+	r, ok := b.Relations()
+	if !ok || r == nil {
+		t.Fatal("Relations() returned nothing after AddRelation")
+	}
+	if len(r.Relations) != 2 {
+		t.Fatalf("relation count = %d, want 2 (dup must be deduped): %+v", len(r.Relations), r.Relations)
+	}
+	if r.Relations[0].Type != RelCaptionOf || r.Relations[0].Target != "fig1" {
+		t.Fatalf("first relation = %+v", r.Relations[0])
+	}
+}
+
 // The structural payloads must rehydrate through the global payload registry,
 // which is what lets the wire/store layers serialize them generically with no
 // schema change.
 func TestStructuralPayloadsRegistered(t *testing.T) {
-	for _, tn := range []string{AnnoStructure, AnnoGeometry} {
+	for _, tn := range []string{AnnoStructure, AnnoGeometry, AnnoRelations} {
 		p, ok := NewPayload(tn)
 		if !ok || p == nil {
 			t.Fatalf("payload %q not registered", tn)
@@ -66,7 +103,7 @@ func TestStructuralPayloadsRegistered(t *testing.T) {
 }
 
 func TestStructuralPayloadsJSONRoundTrip(t *testing.T) {
-	s := &StructureAnnotation{Role: RoleListItem, Layer: LayerBody, Level: 2, ReadingOrder: 5}
+	s := &StructureAnnotation{Role: RoleListItem, Layer: LayerOverlay, Visibility: VisibilityConditional, Level: 2, ReadingOrder: 5}
 	data, err := json.Marshal(s)
 	if err != nil {
 		t.Fatal(err)
@@ -90,5 +127,18 @@ func TestStructuralPayloadsJSONRoundTrip(t *testing.T) {
 	}
 	if gback != *g {
 		t.Fatalf("geometry round-trip: got %+v want %+v", gback, *g)
+	}
+
+	r := &RelationAnnotation{Relations: []Relation{{Type: RelCaptionOf, Target: "fig1"}, {Type: RelLabelFor, Target: "in7"}}}
+	data, err = json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rback RelationAnnotation
+	if err := json.Unmarshal(data, &rback); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(rback, *r) {
+		t.Fatalf("relation round-trip: got %+v want %+v", rback, *r)
 	}
 }

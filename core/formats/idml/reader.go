@@ -129,6 +129,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Pre-scan intrinsic geometry (A2): map each story to its anchoring
+	// TextFrame's page-space box, so parseStory can attach it to every block.
+	storyGeom, err := r.scanStoryGeometry(zr)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("idml: geometry pre-scan: %w", err)}
+		return
+	}
+
 	// Emit root layer
 	rootLayer := &model.Layer{
 		ID:       "doc1",
@@ -185,7 +193,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		r.skelPartStart(sf)
 
 		// Parse story XML and extract blocks
-		if err := r.parseStory(ctx, ch, storyData, sf, &blockCounter); err != nil {
+		if err := r.parseStory(ctx, ch, storyData, sf, &blockCounter, storyGeom); err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("idml: parsing %s: %w", sf, err)}
 			return
 		}
@@ -247,7 +255,11 @@ func (r *Reader) findStoryFiles(zr *zip.Reader) []string {
 // inside the same ParagraphStyleRange — see the upstream
 // 06-hello-world-14.idml test fixture for an example.
 func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
-	data []byte, storyPath string, blockCounter *int) error {
+	data []byte, storyPath string, blockCounter *int, storyGeom map[string]frameBox) error {
+
+	// Intrinsic geometry (A2): the anchoring frame box for this story, if any,
+	// attached to every block the story emits.
+	geom := storyGeom[storyIDFromPath(storyPath)]
 
 	d := xml.NewDecoder(bytes.NewReader(data))
 
@@ -1381,6 +1393,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 								"characterStyle": currentStyle.charStyle,
 							},
 						}
+						applyStoryGeometry(block, geom)
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return nil
 						}

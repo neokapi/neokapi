@@ -66,12 +66,50 @@ describe("StructureView", () => {
     expect(c.textContent).toContain("3");
   });
 
-  it("marks furniture blocks", () => {
+  it("marks furniture blocks with a plane chip", () => {
     const t = tree([
       block("b1", "Confidential", { structure: { role: "page-header", layer: "furniture" } }),
     ]);
     const c = renderToContainer(createElement(StructureView, { tree: t }));
-    expect(c.textContent).toContain("furniture");
+    expect(c.textContent).toContain("Furniture");
+  });
+
+  it("shows plane + visibility chips for overlay / hidden blocks", () => {
+    const t = tree([
+      block("b1", "Body", { structure: { role: "paragraph" } }),
+      block("b2", "Modal", {
+        structure: { role: "paragraph", layer: "overlay", visibility: "conditional" },
+      }),
+      block("b3", "Secret", { structure: { role: "paragraph", visibility: "hidden" } }),
+    ]);
+    const c = renderToContainer(createElement(StructureView, { tree: t }));
+    expect(c.textContent).toContain("Overlay");
+    expect(c.textContent).toContain("Conditional");
+    expect(c.textContent).toContain("Hidden");
+    // The layers panel appears when more than one facet value is present.
+    expect(c.querySelector('[data-testid="layers-panel"]')).not.toBeNull();
+  });
+
+  it("filters rows when a plane facet is toggled off", () => {
+    const t = tree([
+      block("b1", "Body para", { structure: { role: "paragraph" } }),
+      block("b2", "Modal para", { structure: { role: "paragraph", layer: "overlay" } }),
+    ]);
+    const c = renderToContainer(createElement(StructureView, { tree: t }));
+    expect(c.querySelectorAll('[data-testid="structure-row"]').length).toBe(2);
+
+    // Find the "Overlay" facet toggle and click it.
+    const toggles = Array.from(
+      c.querySelectorAll<HTMLButtonElement>('[data-testid="facet-toggle"]'),
+    );
+    const overlayToggle = toggles.find((b) => b.textContent === "Overlay");
+    expect(overlayToggle).toBeDefined();
+    act(() => {
+      overlayToggle!.click();
+    });
+    const rows = c.querySelectorAll<HTMLElement>('[data-testid="structure-row"]');
+    expect(rows.length).toBe(1);
+    expect(rows[0].getAttribute("data-plane")).toBe("body");
   });
 
   it("indents blocks nested inside groups", () => {

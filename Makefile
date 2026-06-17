@@ -742,6 +742,22 @@ build-sat-plugin-onnx: ## Build kapi-sat WITH the ONNX backend (requires onnxrun
 		CGO_LDFLAGS="-L$(SAT_TOKENIZERS_LIB)" \
 		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-sat ./cmd/kapi-sat
 
+# ── kapi-pdfium PDF reader plugin ────────────────────────────────────────────
+# A Mode-C (daemon/gRPC) plugin that reads PDFs via Google's PDFium (cgo,
+# go-pdfium). Isolated in a subprocess so a malformed PDF can't crash kapi, and
+# the heavy dependency stays out of the core binary. Needs libpdfium on
+# PKG_CONFIG_PATH: a static archive for distribution (scripts/gen-pdfium-static-pc.sh
+# — preferred, single self-contained binary like static ICU), or a dynamic
+# libpdfium for local dev (point PKG_CONFIG_PATH at its .pc and run with the lib
+# on the loader path). See plugins/pdfium/README.md.
+build-pdfium-plugin: ## Build the kapi-pdfium plugin (CGO; needs libpdfium on PKG_CONFIG_PATH)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 \
+		$(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-pdfium ./cmd/kapi-pdfium
+
+test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG_PATH + loader path)
+	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 $(GO) test ./...
+
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...
 
