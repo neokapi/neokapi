@@ -87,14 +87,29 @@ STAGE="$OUT_DIR/stage-${GOOS}-${GOARCH}"
 rm -rf "$STAGE"; mkdir -p "$STAGE/lib"
 
 # Dynamic pkg-config file so go-pdfium's cgo build finds PDFium headers + lib.
+# On Windows, mingw's cgo toolchain can't consume bblanchon's MSVC import lib
+# (pdfium.dll.lib); instead link the DLL DIRECTLY with GNU ld's `-l:<file>`
+# form (-l:pdfium.dll), which needs no .dll.a import library. Elsewhere use the
+# normal -lpdfium against the shared object.
+PC_INC="$PDFIUM_DIR/include"
+PC_LIBDIR="$(dirname "$PDFIUM_LIB")"
+if [ "$GOOS" = "windows" ] && command -v cygpath >/dev/null 2>&1; then
+  # mingw gcc/ld want mixed-style paths (D:/a/…), not git-bash POSIX (/d/a/…).
+  PC_INC="$(cygpath -m "$PC_INC")"
+  PC_LIBDIR="$(cygpath -m "$PC_LIBDIR")"
+fi
+if [ "$GOOS" = "windows" ]; then
+  LIBS_LINE="-L$PC_LIBDIR -l:pdfium.dll"
+else
+  LIBS_LINE="-L$PC_LIBDIR -lpdfium"
+fi
 PCDIR="$OUT_DIR/pc-${GOOS}-${GOARCH}"; mkdir -p "$PCDIR"
 cat > "$PCDIR/pdfium.pc" <<PC
-prefix=$PDFIUM_DIR
 Name: PDFium
 Description: PDFium (shared)
 Version: 1
-Cflags: -I$PDFIUM_DIR/include
-Libs: -L$(dirname "$PDFIUM_LIB") -lpdfium
+Cflags: -I$PC_INC
+Libs: ${LIBS_LINE}
 PC
 
 # rpath so the bundled lib is found beside the binary with no env config.
@@ -132,7 +147,12 @@ TARBALL="kapi-pdfium_${VERSION}_${GOOS}_${GOARCH}.tar.gz"
 TARBALL_PATH="$OUT_DIR/$TARBALL"
 tar -czf "$TARBALL_PATH" -C "$STAGE" .
 
-SHA="$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')"
+# sha256: Linux + Windows git-bash have sha256sum; macOS has shasum -a 256.
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA="$(sha256sum "$TARBALL_PATH" | awk '{print $1}')"
+else
+  SHA="$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')"
+fi
 echo "package-pdfium-plugin: $TARBALL_PATH"
 echo "package-pdfium-plugin: sha256 $SHA"
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
