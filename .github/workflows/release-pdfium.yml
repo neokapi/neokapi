@@ -112,6 +112,24 @@ jobs:
             pdfium-work/dist/kapi-pdfium_*.tar.gz.sigstore.json
           if-no-files-found: error
 
+      - name: Write checksum artifact
+        if: startsWith(github.ref, 'refs/tags/pdfium-v')
+        shell: bash
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+          SHA: ${{ steps.package.outputs.sha256 }}
+        run: |
+          mkdir -p checksums
+          echo "${SHA}  $(basename "$TARBALL")" > "checksums/$(basename "$TARBALL").sha256"
+
+      - name: Upload checksum artifact
+        if: startsWith(github.ref, 'refs/tags/pdfium-v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdfium-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: checksums/*.sha256
+          if-no-files-found: error
+
   publish-pdfium-plugin:
     name: Publish kapi-pdfium release
     if: startsWith(github.ref, 'refs/tags/pdfium-v')
@@ -134,3 +152,73 @@ jobs:
         with:
           files: dist/*
           fail_on_unmatched_files: true
+
+  register-pdfium-plugin:
+    name: Register kapi-pdfium in plugin registry
+    if: startsWith(github.ref, 'refs/tags/pdfium-v')
+    needs: publish-pdfium-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Download checksum artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pdfium-checksum-*
+          path: pdfium-checksums
+          merge-multiple: true
+
+      - name: Update plugin registry (pdfium)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#pdfium-v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "REGISTRY_TOKEN not set; skipping registry update"
+            exit 0
+          fi
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
+
+          declare -A SHAS
+          for f in pdfium-checksums/*.sha256; do
+            [ -f "$f" ] || continue
+            SHAS[$(awk '{print $2}' "$f")]=$(awk '{print $1}' "$f")
+          done
+
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-pdfium.yml@refs/tags/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
+            os=${plat%/*}; arch=${plat#*/}
+            file="kapi-pdfium_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}" "--signature" "${REPO_URL}/${file}.sigstore.json")
+            else
+              echo "::warning::no checksum for ${file}; skipping ${plat}"
+            fi
+          done
+          [ ${#ARGS[@]} -gt 0 ] || { echo "::error::no platform artifacts for pdfium ${VERSION}"; exit 1; }
+
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          # Requires the pdfium plugin stub to already exist in manifest-plugins.json.
+          /tmp/registry-update \
+            --registry /tmp/registry/manifest-plugins.json \
+            --plugin pdfium --version "$VERSION" --channel stable \
+            --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
+            "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"
+          git config user.name "release-bot"
+          git add manifest-plugins.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Register pdfium ${VERSION}"
+            git push
+          fi
