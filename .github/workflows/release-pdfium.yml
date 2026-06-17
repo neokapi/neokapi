@@ -28,11 +28,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # windows/amd64 is a tracked follow-up: go-pdfium's cgo build needs a
+        # mingw import library (libpdfium.dll.a) for -lpdfium, but bblanchon ships
+        # only the MSVC import lib (pdfium.dll.lib). Generating the mingw lib
+        # (gendef/dlltool) is its own iteration; the 3 verified platforms below
+        # (macOS + both Linux — the primary targets) ship first.
         build:
           - { platform: darwin/arm64, os: macos-latest,     goos: darwin,  goarch: arm64, asset: pdfium-mac-arm64.tgz }
           - { platform: linux/amd64,  os: ubuntu-latest,    goos: linux,   goarch: amd64, asset: pdfium-linux-x64.tgz }
           - { platform: linux/arm64,  os: ubuntu-24.04-arm, goos: linux,   goarch: arm64, asset: pdfium-linux-arm64.tgz }
-          - { platform: windows/amd64, os: windows-2025,    goos: windows, goarch: amd64, asset: pdfium-win-x64.tgz }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +45,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: Install pkg-config (Windows)
-        if: runner.os == 'Windows'
-        run: choco install -y pkgconfiglite
 
       - name: Extract version
         id: version
@@ -65,9 +65,11 @@ jobs:
           fi
           echo "downloading $url"
           mkdir -p "$RUNNER_TEMP/pdfium"
-          curl -sSL -o "$RUNNER_TEMP/pdfium.tgz" "$url"
-          tar xzf "$RUNNER_TEMP/pdfium.tgz" -C "$RUNNER_TEMP/pdfium"
-          find "$RUNNER_TEMP/pdfium" | head -30
+          # Pipe curl→tar (read stdin, no -f): on Windows git-bash, a -f arg like
+          # "D:\a\_temp\…" is misread as a remote host (tar: Cannot connect to D:).
+          # -C is a plain dir and is safe with a drive letter.
+          curl -sSL "$url" | tar xz -C "$RUNNER_TEMP/pdfium"
+          ls "$RUNNER_TEMP/pdfium" "$RUNNER_TEMP/pdfium/lib" "$RUNNER_TEMP/pdfium/bin" 2>/dev/null || true
 
       - name: Build + package kapi-pdfium tarball
         id: package
