@@ -442,11 +442,29 @@ func (ctx *ProjectContext) DetectFormat(
 ) string
 ```
 
-Delegates to `FormatRegistry.DetectByExtensionForSources(ext, ctx.AllowedSources)`.
-When a plugin (say `okapi-bridge`) is installed globally but the project
-does not declare it, plugin formats at higher priority are excluded and
-built-in formats are used instead. Explicitly declared formats in content
-items (`format: okf_json`) bypass detection entirely and are always honored.
+Delegates to `FormatRegistry.DetectFileWithPriorities(path, ctx.AllowedSources,
+overrides)` — content-aware (the file head disambiguates a shared extension)
+with per-call priority overrides. When a plugin (say `okapi-bridge`) is installed
+globally but the project does not declare it, plugin formats at higher priority
+are excluded and built-in formats are used instead. Explicitly declared formats
+in content items (`format: okf_json`) bypass detection entirely and are always
+honored.
+
+`overrides` come from `defaults.formats.<format>.priority`: when an extension is
+claimed by several formats at equal priority (e.g. `.srt` by both `okf_vtt` and
+`okf_regex`), a recipe steers detection by bumping the preferred engine —
+
+```yaml
+defaults:
+  formats:
+    okf_vtt:
+      priority: 110   # win .srt over okf_regex
+```
+
+This lets a single wildcard content item (`path: "input/*"`, no `format:`)
+auto-detect the right engine per file instead of pinning a format on one item
+per extension. The override is applied per detection call, not by mutating the
+registry, so concurrently open projects with different priorities don't race.
 
 ### Content resolution
 

@@ -86,11 +86,32 @@ func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path strin
 	// DetectFile is content-aware: when an extension is shared by several
 	// formats (.xliff 1.x/2.x, .xml, …) the file head disambiguates, so a 2.x
 	// XLIFF isn't read by the 1.x reader. Falls back to extension-only.
-	name, err := reg.DetectFile(path, ctx.AllowedSources)
+	// Priority overrides from `defaults.formats[name].priority` let a recipe pick
+	// the preferred engine when several formats claim an extension (e.g. okf_vtt
+	// over okf_regex for .srt).
+	name, err := reg.DetectFileWithPriorities(path, ctx.AllowedSources, ctx.formatPriorityOverrides())
 	if err != nil {
 		return ""
 	}
 	return string(name)
+}
+
+// formatPriorityOverrides returns the per-format detection priorities declared
+// in the project's defaults.formats, or nil when none are set.
+func (ctx *ProjectContext) formatPriorityOverrides() map[string]int {
+	if len(ctx.FormatDefaults) == 0 {
+		return nil
+	}
+	var overrides map[string]int
+	for name, fd := range ctx.FormatDefaults {
+		if fd.Priority != 0 {
+			if overrides == nil {
+				overrides = make(map[string]int, len(ctx.FormatDefaults))
+			}
+			overrides[name] = fd.Priority
+		}
+	}
+	return overrides
 }
 
 // --- Content resolution ---

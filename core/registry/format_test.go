@@ -673,3 +673,39 @@ func TestDetectByExtensionForSources(t *testing.T) {
 	_, err = reg.DetectByExtensionForSources(".xyz", []string{SourceBuiltIn})
 	assert.Error(t, err)
 }
+
+// Two plugin formats claim the same extension at equal priority; without an
+// override the alphabetical tiebreak picks the wrong one. A per-call priority
+// override (as supplied from a recipe's defaults.formats[name].priority) lets
+// the recipe pick the preferred engine. Mirrors the real .srt → okf_vtt vs
+// okf_regex collision.
+func TestDetectByExtensionForSourcesWithPriorities(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	for _, name := range []string{"okf_regex", "okf_vtt"} {
+		reg.RegisterFormatInfo(FormatID(name), FormatInfo{
+			DisplayName: name,
+			Extensions:  []string{".srt"},
+			Source:      "okapi-bridge",
+			HasReader:   true,
+		})
+		reg.SetFormatPriority(FormatID(name), format.DefaultPluginPriority)
+	}
+
+	sources := []string{SourceBuiltIn, "okapi-bridge"}
+
+	// Equal priority → alphabetical tiebreak picks okf_regex (the wrong engine).
+	name, err := reg.DetectByExtensionForSources(".srt", sources)
+	require.NoError(t, err)
+	assert.Equal(t, FormatID("okf_regex"), name)
+
+	// Override bumps okf_vtt so it wins, without mutating registry state.
+	name, err = reg.DetectByExtensionForSourcesWithPriorities(".srt", sources, map[string]int{"okf_vtt": 110})
+	require.NoError(t, err)
+	assert.Equal(t, FormatID("okf_vtt"), name)
+
+	// The override was per-call: the stored priorities are unchanged.
+	name, err = reg.DetectByExtensionForSources(".srt", sources)
+	require.NoError(t, err)
+	assert.Equal(t, FormatID("okf_regex"), name)
+}

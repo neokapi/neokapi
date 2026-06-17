@@ -8,37 +8,24 @@ defaults:
     - fr-FR
     - de-DE
     - ja-JP
+  # A single wildcard (below) lets the Okapi Bridge engine be auto-detected per
+  # file — okf_json, okf_yaml, okf_html, okf_markdown, okf_properties, okf_xml.
+  # Two extensions are claimed by more than one Okapi engine, so we pin the
+  # preferred one here: `priority` steers detection without naming a format on
+  # every content item. This is also where per-format `config:` overrides live.
+  formats:
+    okf_vtt:
+      priority: 110 # .srt → WebVTT engine (beats okf_regex)
+    okf_plaintext:
+      priority: 110 # .txt → plain-text engine (beats okf_basetable/…)
 content:
-  # Each item pins an Okapi Bridge format engine for its file type, so the items
-  # stay separate. The target names a directory, so every source file mirrors
-  # under output/<lang>/ keeping its name and extension — e.g.
+  # One wildcard matches every source file. The target names a directory, so each
+  # file mirrors under output/<lang>/ keeping its name and extension — e.g.
   # output/fr-FR/store-ui.json.
   - name: Source Files
     base: input
     items:
-      - path: "input/*.json"
-        format: okf_json
-        target: "output/{lang}"
-      - path: "input/*.yaml"
-        format: okf_yaml
-        target: "output/{lang}"
-      - path: "input/*.html"
-        format: okf_html
-        target: "output/{lang}"
-      - path: "input/*.md"
-        format: okf_markdown
-        target: "output/{lang}"
-      - path: "input/*.properties"
-        format: okf_properties
-        target: "output/{lang}"
-      - path: "input/*.srt"
-        format: okf_vtt
-        target: "output/{lang}"
-      - path: "input/*.xml"
-        format: okf_xml
-        target: "output/{lang}"
-      - path: "input/*.txt"
-        format: okf_plaintext
+      - path: "input/*"
         target: "output/{lang}"
 flows:
   translate:

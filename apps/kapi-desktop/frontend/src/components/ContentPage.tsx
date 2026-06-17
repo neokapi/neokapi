@@ -12,7 +12,6 @@ import {
   Pencil,
   Settings2,
   ChevronDown,
-  ChevronUp,
   ChevronRight,
   ArrowRight,
   Layers,
@@ -30,11 +29,6 @@ import {
   ItemCard,
   ConfirmDeleteButton,
   LocalePill,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -42,9 +36,11 @@ import type {
   ContentItem,
   FormatSpec,
   FormatInfo,
+  FormatDefaults,
 } from "../types/api";
-import { isBareEntry, effectiveItems } from "../types/api";
+import { isBareEntry } from "../types/api";
 import { api, type OutputFileInfo } from "../hooks/useApi";
+import { FormatConfigDialog, type FormatConfigValue } from "./FormatConfigDialog";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
 import { FilePreview } from "./FilePreview";
 import { useError } from "./ErrorBanner";
@@ -90,6 +86,17 @@ function formatName(f?: FormatSpec): string {
   return f?.name ?? "";
 }
 
+/**
+ * The single extension a glob targets (e.g. "input/*.json" → ".json"), or
+ * undefined for a bare "*"/"**" or a brace alternation. Used to pre-filter the
+ * format picker in the config modal.
+ */
+function globExtension(pattern: string): string | undefined {
+  const seg = pattern.split("/").pop() ?? pattern;
+  const m = /\*\.([A-Za-z0-9]+)$/.exec(seg);
+  return m ? "." + m[1].toLowerCase() : undefined;
+}
+
 export function ContentPage({
   project,
   projectPath: _projectPath,
@@ -108,10 +115,8 @@ export function ContentPage({
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [formatPresets, setFormatPresets] = useState<
-    Record<string, Array<{ name: string; description: string }>>
-  >({});
-  const [expandedConfig, setExpandedConfig] = useState<Set<string>>(new Set());
+  // configKey of the content item whose format-config modal is open (one at a time).
+  const [dialogKey, setDialogKey] = useState<string | null>(null);
   const [expandedLangs, setExpandedLangs] = useState<Set<number>>(new Set());
   // Generated output files keyed by their source file's relative path (issue #5),
   // plus the set of source rows whose outputs are expanded.
@@ -122,32 +127,49 @@ export function ContentPage({
 
   const content = project.content ?? [];
 
-  // Collect unique format names used across content for preset loading.
-  const usedFormats = useMemo(() => {
-    const fmts = new Set<string>();
-    for (const coll of content) {
-      for (const item of effectiveItems(coll)) {
-        const fn = formatName(item.format);
-        if (fn) fmts.add(fn);
-      }
-    }
-    return [...fmts];
-  }, [content]);
-
   const hasPreloadedData = !!(propFormats && propBasePath);
 
-  // Load format presets whenever used formats change.
-  useEffect(() => {
-    if (hasPreloadedData) return;
-    for (const fmt of usedFormats) {
-      if (formatPresets[fmt]) continue;
-      void api.listFormatPresets(fmt).then((presets) => {
-        if (presets) {
-          setFormatPresets((prev) => ({ ...prev, [fmt]: presets }));
-        }
-      });
+  // Per-format config/preset stored in the project's defaults.formats, surfaced
+  // to the modal for wildcard items (which auto-detect, so config lives once per
+  // format at the project level rather than on a single item).
+  const projectFormatValues = useMemo(() => {
+    const out: Record<string, FormatConfigValue> = {};
+    for (const [f, fd] of Object.entries(project.defaults?.formats ?? {})) {
+      out[f] = { config: fd.config, preset: fd.preset };
     }
-  }, [usedFormats, hasPreloadedData]); // eslint-disable-line react-hooks/exhaustive-deps
+    return out;
+  }, [project.defaults?.formats]);
+
+  // Persist a per-format override into project defaults.formats (wildcard items).
+  const updateProjectFormat = useCallback(
+    (fmt: string, next: FormatConfigValue) => {
+      const defaults = { ...project.defaults };
+      const formats: Record<string, FormatDefaults> = { ...defaults.formats };
+      const entry: FormatDefaults = { ...formats[fmt] };
+      if (next.preset) entry.preset = next.preset;
+      else delete entry.preset;
+      if (next.config && Object.keys(next.config).length > 0) entry.config = next.config;
+      else delete entry.config;
+      if (Object.keys(entry).length === 0) delete formats[fmt];
+      else formats[fmt] = entry;
+      defaults.formats = Object.keys(formats).length > 0 ? formats : undefined;
+      onUpdate({ ...project, defaults });
+    },
+    [project, onUpdate],
+  );
+
+  // Formats detected among the files a content item matches (for the wildcard
+  // modal's default selection), and the glob's extension if it carries one.
+  const matchedFormatsForItem = useCallback(
+    (item: ContentItem) => {
+      const set = new Set<string>();
+      for (const m of matches) {
+        if (m.pattern === item.path && m.format) set.add(m.format);
+      }
+      return [...set];
+    },
+    [matches],
+  );
 
   // Load available formats and base path on mount.
   useEffect(() => {
@@ -297,9 +319,11 @@ export function ContentPage({
     configKey: string,
   ) => {
     const fmt = formatName(item.format);
-    const presetOptions = fmt ? (formatPresets[fmt] ?? []) : [];
     const hasConfig = item.format?.config && Object.keys(item.format.config).length > 0;
-    const isExpanded = expandedConfig.has(configKey);
+    const matchedFormats = fmt ? [] : matchedFormatsForItem(item);
+    // A single explicit format → configure that format on the item. Otherwise the
+    // item auto-detects (wildcard) → configure the matched formats project-wide.
+    const isWildcard = !fmt;
 
     return (
       <div className="space-y-2">
@@ -316,17 +340,12 @@ export function ContentPage({
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format</Label>
             <FormatSelect
               value={fmt}
-              onChange={(newFmt) => {
+              onChange={(newFmt) =>
                 onItemChange({
                   ...item,
                   format: newFmt ? { name: newFmt } : undefined,
-                });
-                if (newFmt && !formatPresets[newFmt]) {
-                  void api.listFormatPresets(newFmt).then((p) => {
-                    if (p) setFormatPresets((prev) => ({ ...prev, [newFmt]: p }));
-                  });
-                }
-              }}
+                })
+              }
               formats={formats}
             />
           </div>
@@ -387,94 +406,72 @@ export function ContentPage({
           </div>
         )}
 
-        {/* Format preset */}
-        {fmt && fmt !== "exec" && (
-          <div>
-            <Label className="mb-0.5 block text-xs text-muted-foreground">Format Preset</Label>
-            <Select
-              value={item.format?.preset || "__default__"}
-              onValueChange={(v) =>
-                onItemChange({
-                  ...item,
-                  format: { ...item.format!, preset: v === "__default__" ? undefined : v },
-                })
-              }
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__default__">Default</SelectItem>
-                {presetOptions.map((p) => (
-                  <SelectItem key={p.name} value={p.name} translate="no">
-                    {p.name}
-                    {p.description ? ` \u2014 ${p.description}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Inline format config */}
-        {fmt && (
+        {/* Format configuration \u2014 schema-driven modal */}
+        {(fmt || matchedFormats.length > 0) && (
           <div>
             <Button
               variant="ghost"
               size="xs"
-              onClick={() => {
-                setExpandedConfig((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(configKey)) next.delete(configKey);
-                  else next.add(configKey);
-                  return next;
-                });
-              }}
+              onClick={() => setDialogKey(configKey)}
               className="h-auto px-0 text-muted-foreground hover:text-foreground"
             >
-              {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
               <Settings2 size={10} />
-              Format Config
-              {hasConfig && (
-                <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
-                  {Object.keys(item.format!.config!).length}
-                </span>
+              {fmt ? (
+                <>
+                  {t("Configure {fmt}", { fmt })}
+                  {(hasConfig || item.format?.preset) && (
+                    <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                      {item.format?.preset
+                        ? item.format.preset
+                        : Object.keys(item.format!.config!).length}
+                    </span>
+                  )}
+                </>
+              ) : (
+                t("Configure formats ({count})", { count: matchedFormats.length })
               )}
             </Button>
-            {isExpanded && (
-              <div className="mt-1.5">
-                <textarea
-                  value={hasConfig ? JSON.stringify(item.format!.config, null, 2) : ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (!val) {
-                      onItemChange({
-                        ...item,
-                        format: { ...item.format!, config: undefined },
-                      });
-                      return;
-                    }
-                    try {
-                      const parsed = JSON.parse(val);
-                      onItemChange({
-                        ...item,
-                        format: { ...item.format!, config: parsed },
-                      });
-                    } catch {
-                      // Don't update on invalid JSON — user is still typing.
-                    }
-                  }}
-                  placeholder='{"key": "value"}'
-                  rows={4}
-                  className="w-full rounded border border-input bg-transparent px-2 py-1 font-mono text-xs outline-none focus:ring-1 focus:ring-ring"
-                />
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  JSON config passed to the format reader/writer.
-                </p>
-              </div>
-            )}
           </div>
         )}
+
+        {dialogKey === configKey &&
+          (isWildcard ? (
+            <FormatConfigDialog
+              open
+              onOpenChange={(o) => !o && setDialogKey(null)}
+              title={t("Configure formats")}
+              description={t(
+                "This pattern auto-detects a format per file. Tune any of them here \u2014 settings apply project-wide.",
+              )}
+              formats={matchedFormats}
+              allFormats={formats}
+              allowAdd
+              filterExtension={globExtension(item.path)}
+              values={projectFormatValues}
+              onChange={updateProjectFormat}
+              scopeNote={t(
+                "Stored in the project's defaults.formats \u2014 shared by every content item.",
+              )}
+            />
+          ) : (
+            <FormatConfigDialog
+              open
+              onOpenChange={(o) => !o && setDialogKey(null)}
+              title={t("Configure {fmt}", { fmt })}
+              formats={[fmt]}
+              allFormats={formats}
+              values={{
+                [fmt]: { config: item.format?.config, preset: item.format?.preset },
+              }}
+              onChange={(f, next) =>
+                onItemChange({
+                  ...item,
+                  format: { name: f, preset: next.preset, config: next.config },
+                })
+              }
+              scopeNote={t("Applies to this content item.")}
+            />
+          ))}
       </div>
     );
   };

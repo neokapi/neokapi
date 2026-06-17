@@ -16,7 +16,7 @@ import (
 // not change.
 var Revision = map[string]int{
 	"kapimart":  2,
-	"okapimart": 2,
+	"okapimart": 3, // r3: single wildcard + auto-detected engines (was per-extension items)
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the

@@ -167,6 +167,7 @@ content:
 | `parallel_blocks`  | int                 | Number of blocks to process in parallel within a file                                                                    |
 | `encoding`         | string              | Input file encoding (default: `utf-8`)                                                                                   |
 | `exclude`          | string[]            | Glob patterns skipped during content scanning (e.g. `**/*.generated.json`)                                               |
+| `formats`          | map                 | Per-format `preset`, `config`, and detection `priority` overrides (see [formats](#formats))                              |
 | `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or TM entry (see [merge](#merge))             |
 | `tm`               | TMDefaults          | TM pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                             |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
@@ -175,6 +176,46 @@ content:
 | `termbase`         | string              | Path to a glossary/termbase, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
 
 Individual content items can override `redaction` per entry (`ContentItem.redaction`).
+
+#### formats
+
+`defaults.formats` configures formats by name, so a single wildcard content item
+(`path: "input/*"`, no `format:`) can let each file's engine be auto-detected
+while you still tune individual formats in one place. Each entry takes:
+
+| Field      | Type   | Description                                                                                          |
+| ---------- | ------ | --------------------------------------------------------------------------------------------------- |
+| `preset`   | string | A named [format preset](/reference/formats) applied to this format                                  |
+| `config`   | map    | Reader option overrides for this format (merged under, and overridable by, a content item's `format.config`) |
+| `priority` | int    | Detection priority — higher wins when several formats claim the same extension                       |
+
+`priority` is the engine-pin escape hatch. Most extensions map to one format, but
+some are claimed by several: `.srt` by both `okf_vtt` and `okf_regex`, `.txt` by
+several plain-text engines. Bumping the preferred one steers auto-detection
+without naming a format on every item:
+
+```yaml
+plugins:
+  okapi-bridge: "*"
+defaults:
+  formats:
+    okf_vtt:
+      priority: 110 # .srt → WebVTT engine (beats okf_regex)
+    okf_json:
+      config:
+        useFullKeyPath: true
+content:
+  - name: Source Files
+    base: input
+    items:
+      - path: "input/*" # every file; engine auto-detected, two pinned above
+        target: "output/{lang}"
+```
+
+Plugin formats already outrank built-in ones by default (priority 100 vs 50), so
+declaring `okapi-bridge` is enough for `input/*` to resolve to the `okf_*`
+engines; `priority` only matters to break ties between formats from the same
+source.
 
 #### merge
 

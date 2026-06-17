@@ -353,12 +353,26 @@ func (r *FormatRegistry) DetectByExtension(ext string) (FormatID, error) {
 // []string{"built-in"} to restrict to built-in formats only, or
 // []string{"built-in", "okapi-bridge"} to also include that plugin's formats.
 func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (FormatID, error) {
-	if len(allowedSources) == 0 {
+	return r.DetectByExtensionForSourcesWithPriorities(ext, allowedSources, nil)
+}
+
+// DetectByExtensionForSourcesWithPriorities is DetectByExtensionForSources with
+// per-call priority overrides. overrides maps a format name to a priority that
+// takes precedence over the registry's stored priority for the duration of this
+// detection only — used by project-scoped detection so a recipe's
+// `defaults.formats[name].priority` can pick the preferred engine for an
+// extension claimed by several formats (e.g. okf_vtt over okf_regex for .srt)
+// without mutating global registry state (which would race across open projects).
+func (r *FormatRegistry) DetectByExtensionForSourcesWithPriorities(ext string, allowedSources []string, overrides map[string]int) (FormatID, error) {
+	if len(allowedSources) == 0 && len(overrides) == 0 {
 		return r.DetectByExtension(ext)
 	}
-	allowed := make(map[string]bool, len(allowedSources))
-	for _, s := range allowedSources {
-		allowed[s] = true
+	var allowed map[string]bool
+	if len(allowedSources) > 0 {
+		allowed = make(map[string]bool, len(allowedSources))
+		for _, s := range allowedSources {
+			allowed[s] = true
+		}
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -375,12 +389,15 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 		if source == "" {
 			source = SourceBuiltIn
 		}
-		if !allowed[source] {
+		if allowed != nil && !allowed[source] {
 			continue
 		}
 		for _, e := range info.Extensions {
 			if strings.ToLower(e) == ext {
 				pri := r.detector.Priority(string(name))
+				if ov, ok := overrides[string(name)]; ok {
+					pri = ov
+				}
 				if bestName == "" || pri > bestPriority || (pri == bestPriority && string(name) < string(bestName)) {
 					bestName = name
 					bestPriority = pri
@@ -402,6 +419,14 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 // (nil/empty = all), mirroring DetectByExtensionForSources. Only the file head
 // is read; on any read error it falls back to extension-only detection.
 func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (FormatID, error) {
+	return r.DetectFileWithPriorities(path, allowedSources, nil)
+}
+
+// DetectFileWithPriorities is DetectFile with per-call priority overrides (see
+// DetectByExtensionForSourcesWithPriorities). Content sniffing still decides
+// among candidates that claim the same extension; the overrides only break the
+// deterministic extension/priority tie when sniffing is inconclusive.
+func (r *FormatRegistry) DetectFileWithPriorities(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == "" {
 		return "", fmt.Errorf("no extension to detect: %q", path)
@@ -448,7 +473,7 @@ func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (Forma
 
 	// Single claimant, unreadable file, or content didn't match a candidate:
 	// fall back to the deterministic extension/priority pick.
-	return r.DetectByExtensionForSources(ext, allowedSources)
+	return r.DetectByExtensionForSourcesWithPriorities(ext, allowedSources, overrides)
 }
 
 // NewReader creates a new reader instance for the given format name.
