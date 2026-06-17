@@ -21,6 +21,7 @@
     "fmt": "vp fmt"
   },
   "dependencies": {
+    "@embedpdf/pdfium": "^2.14.4",
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",

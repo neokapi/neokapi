@@ -11,6 +11,7 @@
 
 import { createMemFS } from "./memfs";
 import type { MemVolume } from "./memfs";
+import { installPdfiumBridge } from "./pdfiumBridge";
 
 export interface PreviewBlock {
   id: string;
@@ -288,6 +289,17 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
     const instance = await instantiate(source, go.importObject);
     void go.run(instance); // blocks forever (select{}); not awaited
     await ready;
+
+    // Install the browser PDFium-wasm bridge so the engine's wasm PDF reader can
+    // extract text + geometry. Lazy: pdfium.wasm (next to the kapi wasm) is only
+    // fetched the first time a PDF is inspected. A failure here must never break
+    // boot — non-PDF lab use is unaffected.
+    try {
+      installPdfiumBridge(wasmUrl.replace(/[^/]*$/, "pdfium.wasm"));
+    } catch {
+      /* bridge is best-effort; PDF inspection will surface a clear error */
+    }
+
     emitBootProgress({
       loaded: lastBootProgress?.loaded ?? 0,
       total: lastBootProgress?.total ?? null,
