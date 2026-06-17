@@ -228,12 +228,21 @@ export interface AnnotationView {
 export interface StructureView {
   /** Normalized semantic role: heading | title | paragraph | list-item | table-cell | caption | … */
   role?: string;
-  /** Layout layer: body | furniture | background. "" = body/unspecified. */
+  /** Layout layer / plane: body | furniture | background | overlay | metadata. */
   layer?: string;
+  /** Presence condition: "" (visible) | conditional | hidden | print-only | screen-only. */
+  visibility?: string;
   /** Heading / nesting level (1–9), 0 when not applicable. */
   level?: number;
   /** Explicit reading-order index when the source provides one. */
   readingOrder?: number;
+}
+
+/** A cross-block edge (caption-of / footnote-of / label-for / triggers /
+ * references). Mirrors editor.RelationView. */
+export interface RelationView {
+  type: string;
+  target: string;
 }
 
 /**
@@ -253,6 +262,8 @@ export interface GeometryView {
   resolution?: number;
   /** "top-left" (default) or "bottom-left". */
   origin?: string;
+  /** Stacking order within the plane (higher = nearer the viewer); 0 = base. */
+  z?: number;
 }
 
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
@@ -283,6 +294,8 @@ export interface ContentNode {
   structure?: StructureView;
   /** Page geometry (WS1): page + bounding box, for layout-aware sources. */
   geometry?: GeometryView;
+  /** Cross-block relationship edges (caption-of / footnote-of / …). */
+  relations?: RelationView[];
   hasSkeleton?: boolean;
   isReferent?: boolean;
   preserveWhitespace?: boolean;

@@ -73,6 +73,7 @@ type ContentNode struct {
 	// and layout views render them directly.
 	Structure          *StructureView `json:"structure,omitempty"`
 	Geometry           *GeometryView  `json:"geometry,omitempty"`
+	Relations          []RelationView `json:"relations,omitempty"`
 	HasSkeleton        bool           `json:"hasSkeleton,omitempty"`
 	IsReferent         bool           `json:"isReferent,omitempty"`
 	PreserveWhitespace bool           `json:"preserveWhitespace,omitempty"`
@@ -145,8 +146,17 @@ type AnnotationView struct {
 type StructureView struct {
 	Role         string `json:"role,omitempty"`
 	Layer        string `json:"layer,omitempty"`
+	Visibility   string `json:"visibility,omitempty"`
 	Level        int    `json:"level,omitempty"`
 	ReadingOrder int    `json:"readingOrder,omitempty"`
+}
+
+// RelationView is the wire view of a single cross-block edge (caption-of /
+// footnote-of / label-for / triggers / references), surfaced so the editor can
+// draw relationships the containment tree can't express.
+type RelationView struct {
+	Type   string `json:"type"`
+	Target string `json:"target"`
 }
 
 // GeometryView is the wire view of a block's page geometry (the WS1 layer:
@@ -160,6 +170,7 @@ type GeometryView struct {
 	H          float64 `json:"h"`
 	Resolution int     `json:"resolution,omitempty"`
 	Origin     string  `json:"origin,omitempty"`
+	Z          int     `json:"z,omitempty"`
 }
 
 // BuildContentTree walks a Part stream (in document order, as emitted by a
@@ -300,13 +311,19 @@ func blockNode(b *model.Block) *ContentNode {
 	if b.Identity != nil {
 		n.Identity = b.Identity.ContentHash
 	}
-	if s, ok := b.Structure(); ok && s != nil && (s.Role != "" || s.Layer != "" || s.Level != 0 || s.ReadingOrder != 0) {
-		n.Structure = &StructureView{Role: s.Role, Layer: s.Layer, Level: s.Level, ReadingOrder: s.ReadingOrder}
+	if s, ok := b.Structure(); ok && s != nil && (s.Role != "" || s.Layer != "" || s.Visibility != "" || s.Level != 0 || s.ReadingOrder != 0) {
+		n.Structure = &StructureView{Role: s.Role, Layer: s.Layer, Visibility: s.Visibility, Level: s.Level, ReadingOrder: s.ReadingOrder}
 	}
 	if g, ok := b.Geometry(); ok && g != nil {
 		n.Geometry = &GeometryView{
 			Page: g.Page, X: g.BBox.X, Y: g.BBox.Y, W: g.BBox.W, H: g.BBox.H,
-			Resolution: g.Resolution, Origin: g.Origin,
+			Resolution: g.Resolution, Origin: g.Origin, Z: g.Z,
+		}
+	}
+	if rel, ok := b.Relations(); ok && rel != nil && len(rel.Relations) > 0 {
+		n.Relations = make([]RelationView, 0, len(rel.Relations))
+		for _, e := range rel.Relations {
+			n.Relations = append(n.Relations, RelationView{Type: e.Type, Target: e.Target})
 		}
 	}
 	if len(b.Targets) > 0 {
@@ -403,8 +420,8 @@ func annotationViews(b *model.Block) []AnnotationView {
 	out := make([]AnnotationView, 0, len(keys))
 	for _, k := range keys {
 		// The WS1 structural layer is surfaced as first-class node fields
-		// (Structure / Geometry), not generic annotation rows.
-		if k == model.AnnoStructure || k == model.AnnoGeometry {
+		// (Structure / Geometry / Relations), not generic annotation rows.
+		if k == model.AnnoStructure || k == model.AnnoGeometry || k == model.AnnoRelations {
 			continue
 		}
 		// Collection annotations expand to one view per item so each renders

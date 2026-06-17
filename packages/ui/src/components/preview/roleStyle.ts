@@ -78,3 +78,46 @@ export function roleStyle(role: string | undefined, level?: number): RoleStyle {
   }
   return base;
 }
+
+// ── Plane (layout layer) facet ───────────────────────────────────────────────
+// The visual stratum a block sits on (structure.go Layer* constants). Body is
+// the implicit default; the others read as context.
+const PLANE_STYLES: Record<string, RoleStyle> = {
+  body: { label: "Body", className: "bg-slate-400/15 text-slate-700 dark:text-slate-300" },
+  furniture: { label: "Furniture", className: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400" },
+  background: { label: "Background", className: "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400" },
+  overlay: { label: "Overlay", className: "bg-violet-500/20 text-violet-700 dark:text-violet-300" },
+  metadata: { label: "Metadata", className: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+};
+
+/** planeStyle resolves a plane id to its label + accent; "" / body → body. */
+export function planeStyle(plane: string | undefined): RoleStyle {
+  const key = plane && plane !== "" ? plane : "body";
+  return PLANE_STYLES[key] ?? { ...FALLBACK, label: humanize(key) };
+}
+
+// ── Visibility (presence condition) facet ────────────────────────────────────
+// Whether a block is shown, and under what condition (structure.go Visibility*
+// constants). "" = visible (the default).
+const VISIBILITY_STYLES: Record<string, RoleStyle> = {
+  visible: { label: "Visible", className: "bg-slate-400/10 text-slate-600 dark:text-slate-300" },
+  conditional: {
+    label: "Conditional",
+    className: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
+  },
+  hidden: { label: "Hidden", className: "bg-rose-500/20 text-rose-700 dark:text-rose-300" },
+  "print-only": {
+    label: "Print only",
+    className: "bg-teal-500/20 text-teal-700 dark:text-teal-300",
+  },
+  "screen-only": {
+    label: "Screen only",
+    className: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300",
+  },
+};
+
+/** visibilityStyle resolves a visibility id to its label + accent; "" → visible. */
+export function visibilityStyle(visibility: string | undefined): RoleStyle {
+  const key = visibility && visibility !== "" ? visibility : "visible";
+  return VISIBILITY_STYLES[key] ?? { ...FALLBACK, label: humanize(key) };
+}
