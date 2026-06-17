@@ -43,6 +43,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          # Disable the build cache: cgo bakes the resolved pkg-config flags
+          # (PDFium -L/-I paths) into cached objects, so a restored cache from a
+          # run with a different pdfium dir poisons the link (stale -L, duplicate
+          # -rpath). A release lane wants deterministic, cache-free builds.
+          cache: false
 
       - name: Install pkg-config (Windows)
         if: runner.os == 'Windows'
