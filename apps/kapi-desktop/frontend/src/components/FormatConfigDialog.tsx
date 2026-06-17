@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   Button,
   Label,
   Select,
@@ -55,12 +55,13 @@ interface FormatConfigDialogProps {
 }
 
 /**
- * Schema-driven format configuration in a modal. Replaces the inline JSON
- * textarea: each format is configured through its real option schema
- * (FormatConfigEditor). For a single-format item the dialog shows one form; for
- * a wildcard item it shows a format picker on the left (defaulted to the formats
- * matched in the input files, optionally filtered by the glob extension, with an
- * "add format" control) and the selected format's schema form on the right.
+ * Schema-driven format configuration in a right-side drawer. Replaces the inline
+ * JSON textarea: each format is configured through its real option schema
+ * (FormatConfigEditor) in an independently scrollable pane. For a single-format
+ * item the drawer shows one form; for a wildcard item it shows a format picker on
+ * the left (defaulted to the formats matched in the input files, optionally
+ * filtered by the glob extension, with an "add format" control) and the selected
+ * format's schema form on the right.
  */
 export function FormatConfigDialog({
   open,
@@ -149,17 +150,20 @@ export function FormatConfigDialog({
   const multiPane = allowAdd || shown.length > 1;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-lg md:max-w-xl lg:max-w-2xl"
+      >
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>{title}</SheetTitle>
+          {description && <SheetDescription>{description}</SheetDescription>}
+        </SheetHeader>
 
-        <div className={multiPane ? "flex gap-4" : ""}>
+        <div className="flex min-h-0 flex-1">
           {/* Left: format picker (wildcard / multi-format only) */}
           {multiPane && (
-            <div className="w-44 shrink-0 space-y-1 border-r border-border pr-3">
+            <div className="w-44 shrink-0 space-y-1 overflow-auto border-r border-border p-3">
               <Label className="mb-1 block text-xs text-muted-foreground">{t("Formats")}</Label>
               {shown.map((f) => (
                 <button
@@ -211,8 +215,8 @@ export function FormatConfigDialog({
             </div>
           )}
 
-          {/* Right: schema form for the active format */}
-          <div className="min-h-[16rem] flex-1">
+          {/* Right: schema form for the active format (independently scrollable) */}
+          <div className="min-h-0 flex-1 overflow-auto p-4">
             {!active ? (
               <p className="text-sm text-muted-foreground">
                 {t("No format selected. Add a format to configure it.")}
@@ -273,13 +277,13 @@ export function FormatConfigDialog({
           </div>
         </div>
 
-        {scopeNote && <p className="text-xs text-muted-foreground">{scopeNote}</p>}
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3 border-t border-border p-4">
+          {scopeNote ? <p className="text-xs text-muted-foreground">{scopeNote}</p> : <span />}
           <Button size="sm" onClick={() => onOpenChange(false)}>
             {t("Done")}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
