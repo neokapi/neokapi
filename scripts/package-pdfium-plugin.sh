@@ -147,7 +147,12 @@ TARBALL="kapi-pdfium_${VERSION}_${GOOS}_${GOARCH}.tar.gz"
 TARBALL_PATH="$OUT_DIR/$TARBALL"
 tar -czf "$TARBALL_PATH" -C "$STAGE" .
 
-SHA="$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')"
+# sha256: Linux + Windows git-bash have sha256sum; macOS has shasum -a 256.
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA="$(sha256sum "$TARBALL_PATH" | awk '{print $1}')"
+else
+  SHA="$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')"
+fi
 echo "package-pdfium-plugin: $TARBALL_PATH"
 echo "package-pdfium-plugin: sha256 $SHA"
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
