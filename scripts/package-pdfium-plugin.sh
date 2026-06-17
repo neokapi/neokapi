@@ -91,19 +91,24 @@ rm -rf "$STAGE"; mkdir -p "$STAGE/lib"
 # (pdfium.dll.lib); instead link the DLL DIRECTLY with GNU ld's `-l:<file>`
 # form (-l:pdfium.dll), which needs no .dll.a import library. Elsewhere use the
 # normal -lpdfium against the shared object.
-LIBDIR_FLAG="-L$(dirname "$PDFIUM_LIB")"
+PC_INC="$PDFIUM_DIR/include"
+PC_LIBDIR="$(dirname "$PDFIUM_LIB")"
+if [ "$GOOS" = "windows" ] && command -v cygpath >/dev/null 2>&1; then
+  # mingw gcc/ld want mixed-style paths (D:/a/…), not git-bash POSIX (/d/a/…).
+  PC_INC="$(cygpath -m "$PC_INC")"
+  PC_LIBDIR="$(cygpath -m "$PC_LIBDIR")"
+fi
 if [ "$GOOS" = "windows" ]; then
-  LIBS_LINE="${LIBDIR_FLAG} -l:pdfium.dll"
+  LIBS_LINE="-L$PC_LIBDIR -l:pdfium.dll"
 else
-  LIBS_LINE="${LIBDIR_FLAG} -lpdfium"
+  LIBS_LINE="-L$PC_LIBDIR -lpdfium"
 fi
 PCDIR="$OUT_DIR/pc-${GOOS}-${GOARCH}"; mkdir -p "$PCDIR"
 cat > "$PCDIR/pdfium.pc" <<PC
-prefix=$PDFIUM_DIR
 Name: PDFium
 Description: PDFium (shared)
 Version: 1
-Cflags: -I$PDFIUM_DIR/include
+Cflags: -I$PC_INC
 Libs: ${LIBS_LINE}
 PC
 

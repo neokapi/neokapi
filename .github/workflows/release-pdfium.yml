@@ -66,12 +66,12 @@ jobs:
             url="https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/${{ matrix.build.asset }}"
           fi
           echo "downloading $url"
-          mkdir -p "$RUNNER_TEMP/pdfium"
-          # Pipe curl→tar (read stdin, no -f): on Windows git-bash, a -f arg like
-          # "D:\a\_temp\…" is misread as a remote host (tar: Cannot connect to D:).
-          # -C is a plain dir and is safe with a drive letter.
-          curl -sSL "$url" | tar xz -C "$RUNNER_TEMP/pdfium"
-          ls "$RUNNER_TEMP/pdfium" "$RUNNER_TEMP/pdfium/lib" "$RUNNER_TEMP/pdfium/bin" 2>/dev/null || true
+          # Use a repo-relative work dir: on Windows git-bash, an absolute
+          # $RUNNER_TEMP ("D:\a\_temp\…") confuses tar (drive letter parsed as a
+          # host) and mingw; a relative POSIX path is safe on every platform.
+          mkdir -p pdfium-work/pdfium
+          curl -sSL "$url" | tar xz -C pdfium-work/pdfium
+          ls pdfium-work/pdfium pdfium-work/pdfium/lib pdfium-work/pdfium/bin 2>/dev/null || true
 
       - name: Build + package kapi-pdfium tarball
         id: package
@@ -82,8 +82,8 @@ jobs:
         run: |
           scripts/package-pdfium-plugin.sh \
             --version "${{ steps.version.outputs.version }}" \
-            --pdfium-dir "$RUNNER_TEMP/pdfium" \
-            --out-dir "$RUNNER_TEMP/dist"
+            --pdfium-dir pdfium-work/pdfium \
+            --out-dir pdfium-work/dist
 
       - name: Install cosign (tarball signing)
         if: startsWith(github.ref, 'refs/tags/pdfium-v')
@@ -103,8 +103,8 @@ jobs:
         with:
           name: pdfium-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           path: |
-            ${{ runner.temp }}/dist/kapi-pdfium_*.tar.gz
-            ${{ runner.temp }}/dist/kapi-pdfium_*.tar.gz.sigstore.json
+            pdfium-work/dist/kapi-pdfium_*.tar.gz
+            pdfium-work/dist/kapi-pdfium_*.tar.gz.sigstore.json
           if-no-files-found: error
 
   publish-pdfium-plugin:
