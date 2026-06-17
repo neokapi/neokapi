@@ -1265,13 +1265,12 @@ mergeCaptions.b=false
 			extensions:  []string{".mif"},
 		},
 		{
-			// PDF — 3 upstream fixtures. PDF is binary; native's pdf
-			// writer is extraction-only (no synthesis path), so it
-			// produces empty output by design. Bridge runs through
-			// okapi's PDFFilter which has a (lossy) write path.
-			// minTier=TierDivergent for bridge surfaces the bridge↔
-			// okapi-reference round-trip; native engine is skipped
-			// pending a write-side implementation.
+			// PDF — 3 upstream fixtures. PDF has no in-core native engine:
+			// it is read out-of-core by the kapi-pdfium plugin (read-only,
+			// not in this harness). Bridge runs through okapi's PDFFilter
+			// which has a (lossy) write path; minTier=TierDivergent for
+			// bridge surfaces the bridge↔okapi-reference round-trip. The
+			// native engine is skipped (no in-core pdf reader/writer).
 			formatID:    "pdf",
 			filterClass: "okf_pdf",
 			sources:     []string{"okapi/filters/pdf/src/test/resources"},
@@ -1281,7 +1280,7 @@ mergeCaptions.b=false
 			},
 			formatDefaultSkip: fileSkip{
 				Engines: []string{"native"},
-				Reason:  "native pdf writer is extraction-only; no synthesis path produces output bytes",
+				Reason:  "no in-core native pdf engine (read out-of-core by the kapi-pdfium plugin)",
 			},
 		},
 		{
