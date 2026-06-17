@@ -160,7 +160,21 @@ export function FormatConfigDialog({
   const current = values[active] ?? {};
   const activeSchema = schemas[active];
   const activePresets = presets[active] ?? [];
-  const presetValues = activePresets.find((p) => p.name === current.preset)?.config;
+
+  // Baseline for the per-property "modified" dots: the format's schema defaults,
+  // overlaid with the selected preset. A property whose current value differs
+  // from this baseline renders as dirty (overridden) — without it, dots only
+  // appear when a preset is chosen, which is why edits showed no per-field state.
+  const baselineValues = useMemo(() => {
+    if (!activeSchema) return undefined;
+    const base: Record<string, unknown> = {};
+    for (const [k, p] of Object.entries(activeSchema.properties ?? {})) {
+      if (p?.default !== undefined) base[k] = p.default;
+    }
+    const preset = activePresets.find((p) => p.name === current.preset);
+    if (preset?.config) Object.assign(base, preset.config);
+    return base;
+  }, [activeSchema, activePresets, current.preset]);
 
   function configCount(fmt: string): number {
     return Object.keys(values[fmt]?.config ?? {}).length;
@@ -292,7 +306,7 @@ export function FormatConfigDialog({
                 <SchemaForm
                   schema={activeSchema}
                   values={current.config ?? {}}
-                  presetValues={presetValues}
+                  presetValues={baselineValues}
                   host={host}
                   onChange={(cfg) =>
                     onChange(active, {

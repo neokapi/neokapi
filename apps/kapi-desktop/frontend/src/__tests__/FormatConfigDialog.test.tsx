@@ -76,4 +76,36 @@ describe("FormatConfigDialog", () => {
     await screen.findByText(/no configurable options/i);
     expect(screen.queryByText("Formats")).not.toBeInTheDocument();
   });
+
+  // A property whose value differs from its schema default (the baseline) is
+  // flagged modified (border-primary accent), so the user sees each dirty field.
+  const boolSchema = {
+    title: "Test Format",
+    type: "object",
+    properties: {
+      translateCodeBlocks: {
+        type: "boolean",
+        title: "Translate Code Blocks",
+        default: false,
+      },
+    },
+  };
+
+  it("flags an overridden property as modified", async () => {
+    getFormatSchema.mockResolvedValue(boolSchema);
+    renderDialog({
+      formats: ["okf_md"],
+      values: { okf_md: { config: { translateCodeBlocks: true } } },
+    });
+    await screen.findByText("Translate Code Blocks");
+    // The field carries the modified accent (Sheet portals to document.body).
+    expect(document.querySelector(".border-primary")).toBeInTheDocument();
+  });
+
+  it("does not flag a property left at its default", async () => {
+    getFormatSchema.mockResolvedValue(boolSchema);
+    renderDialog({ formats: ["okf_md"], values: {} });
+    await screen.findByText("Translate Code Blocks");
+    expect(document.querySelector(".border-primary")).not.toBeInTheDocument();
+  });
 });
