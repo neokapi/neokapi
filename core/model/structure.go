@@ -19,10 +19,13 @@ package model
 
 // Block-scoped annotation keys for the structural layer.
 const (
-	// AnnoStructure carries a *StructureAnnotation (role, layout layer, level).
+	// AnnoStructure carries a *StructureAnnotation (role, plane, visibility, level).
 	AnnoStructure = "structure"
 	// AnnoGeometry carries a *GeometryAnnotation (page + bounding box).
 	AnnoGeometry = "geometry"
+	// AnnoRelations carries a *RelationAnnotation (cross-block edges: a caption's
+	// figure, a footnote's marker, a label's field, a trigger's modal).
+	AnnoRelations = "relations"
 )
 
 // Normalized semantic roles. Aligned with the DocLang / DoclingDocument
@@ -48,13 +51,41 @@ const (
 	RoleSection     = "section"
 )
 
-// Layout layers, aligned with DocLang's <layer> values. Body is the main
-// content; furniture is repeated/supplementary matter (running headers/footers,
-// page numbers); background is watermarks and the like.
+// Layout layers — the PLANE axis: which visual stratum a block belongs to.
+// Aligned with DocLang's <layer> values and extended for the strata reflowable
+// documents add. Body is the main content; furniture is repeated/supplementary
+// matter (running headers/footers, nav, page numbers); background is watermarks
+// and the like; overlay is content stacked above the body (modal/dialog/popover/
+// tooltip); metadata is content outside the rendered flow (HTML <title>, meta
+// description, alt text). The set is open; these are the canonical values.
 const (
 	LayerBody       = "body"
 	LayerFurniture  = "furniture"
 	LayerBackground = "background"
+	LayerOverlay    = "overlay"
+	LayerMetadata   = "metadata"
+)
+
+// Visibility — the presence-condition axis: whether a block is shown, and under
+// what condition. Orthogonal to the plane (a modal is plane=overlay,
+// visibility=conditional). The empty value means visible/unconditional. The set
+// is open; these are the canonical values.
+const (
+	VisibilityVisible     = "" // shown unconditionally (default)
+	VisibilityConditional = "conditional"
+	VisibilityHidden      = "hidden"
+	VisibilityPrintOnly   = "print-only"
+	VisibilityScreenOnly  = "screen-only"
+)
+
+// Relation types — the kinds of cross-block edges a RelationAnnotation carries.
+// The set is open; these are the canonical values.
+const (
+	RelCaptionOf  = "caption-of"  // a caption block → the figure/table it describes
+	RelFootnoteOf = "footnote-of" // a footnote body → its in-text marker
+	RelLabelFor   = "label-for"   // a label → the field/input it labels
+	RelTriggers   = "triggers"    // a button/link → the modal/panel it opens
+	RelReferences = "references"  // a generic cross-reference
 )
 
 // StructureAnnotation is the block-scoped record of a block's logical role.
@@ -62,8 +93,11 @@ const (
 type StructureAnnotation struct {
 	// Role is the normalized semantic role (see Role* constants). "" = unset.
 	Role string `json:"role,omitempty"`
-	// Layer is the layout layer (see Layer* constants). "" = body/unspecified.
+	// Layer is the layout layer / plane (see Layer* constants). "" = body/unspecified.
 	Layer string `json:"layer,omitempty"`
+	// Visibility is the presence condition (see Visibility* constants). "" =
+	// visible/unconditional.
+	Visibility string `json:"visibility,omitempty"`
 	// Level is the nesting/heading level where meaningful (heading 1–6, list
 	// nesting depth). 0 = unset/not applicable.
 	Level int `json:"level,omitempty"`
@@ -100,6 +134,9 @@ type GeometryAnnotation struct {
 	Resolution int `json:"resolution,omitempty"`
 	// Origin names the coordinate origin; "" defaults to "top-left".
 	Origin string `json:"origin,omitempty"`
+	// Z is the stacking order within the plane (higher = nearer the viewer). 0 =
+	// unset/base plane; meaningful only where strata stack (e.g. overlays).
+	Z int `json:"z,omitempty"`
 	// SourceRef is an optional provenance pointer back to the originating item
 	// (e.g. a DoclingDocument JSON pointer) for debugging/round-trip.
 	SourceRef string `json:"sourceRef,omitempty"`
@@ -107,6 +144,26 @@ type GeometryAnnotation struct {
 
 // TypeName implements Payload.
 func (*GeometryAnnotation) TypeName() string { return AnnoGeometry }
+
+// Relation is a single typed edge from the owning block to another block,
+// group, or layer (by ID). Edges capture non-containment relationships that the
+// Layer/Group tree cannot — a caption's figure, a footnote's marker, a label's
+// field, a trigger's modal.
+type Relation struct {
+	// Type is the edge kind (see Rel* constants).
+	Type string `json:"type"`
+	// Target is the ID of the related Block/Group/Layer.
+	Target string `json:"target"`
+}
+
+// RelationAnnotation is the block-scoped set of outgoing relationship edges.
+// Positionless (block-scoped), so a source rewrite never invalidates it.
+type RelationAnnotation struct {
+	Relations []Relation `json:"relations"`
+}
+
+// TypeName implements Payload.
+func (*RelationAnnotation) TypeName() string { return AnnoRelations }
 
 // --- Block accessors (field-like API over the stand-off payloads) ---
 
@@ -160,6 +217,22 @@ func (b *Block) SetLayoutLayer(layer string) {
 	b.SetStructure(s)
 }
 
+// Visibility returns the block's presence condition, or "" (visible) if unset.
+func (b *Block) Visibility() string {
+	if s, ok := b.Structure(); ok && s != nil {
+		return s.Visibility
+	}
+	return ""
+}
+
+// SetVisibility sets the block's presence condition (upserting the structure
+// annotation).
+func (b *Block) SetVisibility(v string) {
+	s := b.structureOrNew()
+	s.Visibility = v
+	b.SetStructure(s)
+}
+
 // Geometry returns the block's GeometryAnnotation, or (nil, false).
 func (b *Block) Geometry() (*GeometryAnnotation, bool) {
 	return AnnoAs[*GeometryAnnotation](b, AnnoGeometry)
@@ -167,3 +240,24 @@ func (b *Block) Geometry() (*GeometryAnnotation, bool) {
 
 // SetGeometry stores the block's GeometryAnnotation.
 func (b *Block) SetGeometry(g *GeometryAnnotation) { b.SetAnno(AnnoGeometry, g) }
+
+// Relations returns the block's relationship edges, or (nil, false).
+func (b *Block) Relations() (*RelationAnnotation, bool) {
+	return AnnoAs[*RelationAnnotation](b, AnnoRelations)
+}
+
+// AddRelation appends a typed edge from this block to the target ID (upserting
+// the relation annotation). Duplicate (type,target) pairs are ignored.
+func (b *Block) AddRelation(relType, target string) {
+	r := &RelationAnnotation{}
+	if existing, ok := b.Relations(); ok && existing != nil {
+		r = existing
+		for _, e := range r.Relations {
+			if e.Type == relType && e.Target == target {
+				return
+			}
+		}
+	}
+	r.Relations = append(r.Relations, Relation{Type: relType, Target: target})
+	b.SetAnno(AnnoRelations, r)
+}
