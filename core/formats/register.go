@@ -709,7 +709,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	// `ksed` fail cleanly rather than silently replacing the document with the
 	// extracted plain text. Translate a PDF by extracting to a bilingual format.
 	reg.RegisterReader("pdf",
-		func() format.DataFormatReader { return pdf.NewReader() },
+		func() format.DataFormatReader { return pdf.RegisteredReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"application/pdf"},
 			Extensions: []string{".pdf"},
