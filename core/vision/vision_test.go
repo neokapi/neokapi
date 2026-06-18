@@ -2,6 +2,7 @@ package vision
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +22,7 @@ func TestRegistry(t *testing.T) {
 	if Available("") {
 		t.Fatal("no engine should be available after reset")
 	}
-	if _, err := Open(""); err != ErrNoEngine {
+	if _, err := Open(""); !errors.Is(err, ErrNoEngine) {
 		t.Fatalf("Open(\"\") = %v, want ErrNoEngine", err)
 	}
 

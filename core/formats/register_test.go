@@ -32,6 +32,9 @@ func TestRegisterAllReaders(t *testing.T) {
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "docling", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		// "image" (PNG/JPEG) is read-only: text + structure come from OCR via the
+		// kapi-vision plugin when installed, else just the image as Media.
+		"image",
 		// Note: "pdf" is absent on native builds — it is read out-of-core by
 		// the kapi-pdfium plugin (registered at runtime), and only registered
 		// in-core on js builds (the PDFium-wasm reader). See register_pdf_*.go.

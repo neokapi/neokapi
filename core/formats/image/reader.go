@@ -12,6 +12,7 @@ package image
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"io"
@@ -75,7 +76,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open stores the document for reading.
 func (r *Reader) Open(_ context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("image: nil document or reader")
+		return errors.New("image: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -185,7 +186,7 @@ func (r *Reader) materialize() (string, func(), error) {
 		}
 	}
 	if r.Doc.Reader == nil {
-		return "", noop, fmt.Errorf("image: no readable source")
+		return "", noop, errors.New("image: no readable source")
 	}
 	tmp, err := os.CreateTemp("", "kapi-image-*")
 	if err != nil {
