@@ -282,7 +282,10 @@ export default function FileExplorer({
   return (
     <div
       className={cn(
-        "kapi-reference flex flex-col gap-3 rounded-lg border border-transparent text-foreground transition-colors",
+        // min-w-0 + overflow-hidden so the explorer shrinks to the dialog width
+        // on narrow/mobile viewports (it's a grid item, default min-width:auto)
+        // and long file names truncate instead of overflowing the dialog.
+        "kapi-reference flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border border-transparent text-foreground transition-colors",
         dragOver && "border-dashed border-primary bg-primary/5",
         className,
       )}
