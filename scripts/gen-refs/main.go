@@ -24,6 +24,7 @@ import (
 func main() {
 	var (
 		bridgeDir  = flag.String("bridge", "../okapi-bridge/dist/plugin", "okapi-bridge plugin dir (manifest.json + formats/ + tools/)")
+		pluginsDir = flag.String("plugins", "plugins", "in-repo Mode-C plugin dir (plugins/<name>/manifest.json) for plugin-provided formats")
 		metaPath   = flag.String("meta", "core/i18n/builtins/metadata.json", "i18n builtins metadata.json (native display names/descriptions)")
 		nativeDocs = flag.String("nativedocs", "scripts/gen-refs/nativedocs", "dir of authored native doc sidecars ({formats,tools}/<id>.yaml)")
 		outDir     = flag.String("out", "packages/reference-data/data", "output dir for formats.json, tools.json, reference-gaps.json")
@@ -32,14 +33,14 @@ func main() {
 	flag.Parse()
 
 	if *check {
-		if err := checkDrift(*bridgeDir, *metaPath, *nativeDocs, *outDir); err != nil {
+		if err := checkDrift(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir); err != nil {
 			fmt.Fprintf(os.Stderr, "gen-refs -check: %v\n", err)
 			os.Exit(1)
 		}
 		return
 	}
 
-	if err := run(*bridgeDir, *metaPath, *nativeDocs, *outDir); err != nil {
+	if err := run(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-refs: %v\n", err)
 		os.Exit(1)
 	}
@@ -49,7 +50,7 @@ func main() {
 // sidecars, and appends the okapi-bridge entries when the plugin dir is present.
 // It is the shared core of `run` (which writes the dataset) and `checkDrift`
 // (which compares it against the committed files).
-func buildEntries(bridgeDir, metaPath, nativeDocsDir string) (formats, tools []Entry, bridgePresent bool, err error) {
+func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (formats, tools []Entry, bridgePresent bool, err error) {
 	meta, err := loadNativeMeta(metaPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: native metadata unavailable (%v); descriptions may be sparse\n", err)
@@ -82,15 +83,31 @@ func buildEntries(bridgeDir, metaPath, nativeDocsDir string) (formats, tools []E
 		return nil, nil, false, fmt.Errorf("read bridge: %w", berr)
 	}
 
+	// Append in-repo Mode-C plugin formats (e.g. PDF via kapi-pdfium). Like the
+	// bridge, a missing dir is non-fatal; unlike it, these are reproducible from
+	// in-repo source.
+	pf, perr := collectPlugins(pluginsDir)
+	switch {
+	case perr == nil:
+		formatEntries = append(formatEntries, pf...)
+		if len(pf) > 0 {
+			fmt.Printf("plugins: %d formats from %s\n", len(pf), pluginsDir)
+		}
+	case errors.Is(perr, os.ErrNotExist):
+		// no in-repo plugins dir; fine
+	default:
+		return nil, nil, false, fmt.Errorf("read plugins: %w", perr)
+	}
+
 	sortEntries(formatEntries)
 	sortEntries(toolEntries)
 	return formatEntries, toolEntries, bridgePresent, nil
 }
 
-func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
+func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	formatEntries, toolEntries, _, err := buildEntries(bridgeDir, metaPath, nativeDocsDir)
+	formatEntries, toolEntries, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}

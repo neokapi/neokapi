@@ -1,10 +1,11 @@
 {
-  "generatedAt": "2026-06-14T14:19:57Z",
+  "generatedAt": "2026-06-18T06:36:48Z",
   "summary": {
     "built-in/format/description": 3,
     "built-in/format/doc.examples": 1,
     "built-in/format/doc.overview": 3,
-    "total": 7
+    "plugin/format/doc.overview": 1,
+    "total": 8
   },
   "gaps": [
     {
@@ -55,6 +56,13 @@
       "id": "mdx",
       "field": "doc.examples",
       "detail": "configurable but no worked examples"
+    },
+    {
+      "kind": "format",
+      "source": "plugin",
+      "id": "pdf",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
     }
   ]
 }

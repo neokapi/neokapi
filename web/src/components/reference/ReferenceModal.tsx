@@ -13,14 +13,10 @@ interface Props {
 }
 
 function SourceBadge({ source }: { source: ReferenceSource }) {
-  const isOkapi = source === "okapi";
-  return (
-    <span
-      className={`${styles.sourceBadge} ${isOkapi ? styles.sourceOkapi : styles.sourceBuiltin}`}
-    >
-      {isOkapi ? "Okapi bridge" : "Built-in"}
-    </span>
-  );
+  const label = source === "okapi" ? "Okapi bridge" : source === "plugin" ? "Plugin" : "Built-in";
+  const cls =
+    source === "okapi" || source === "plugin" ? styles.sourceOkapi : styles.sourceBuiltin;
+  return <span className={`${styles.sourceBadge} ${cls}`}>{label}</span>;
 }
 
 const FOCUSABLE =

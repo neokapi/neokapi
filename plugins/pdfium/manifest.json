@@ -17,7 +17,8 @@
         "description": "Text + geometry extraction via PDFium.",
         "extensions": [".pdf"],
         "mime_types": ["application/pdf"],
-        "capabilities": ["read"]
+        "capabilities": ["read"],
+        "schema": "formats/pdf/schema.json"
       }
     ]
   },

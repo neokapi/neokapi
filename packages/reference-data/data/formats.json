@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T22:04:07Z",
+  "generatedAt": "2026-06-18T06:36:48Z",
   "kind": "format",
   "entries": [
     {
@@ -3065,6 +3065,41 @@
             "config": "format:\n  name: paraplaintext\n"
           }
         ]
+      }
+    },
+    {
+      "id": "pdf",
+      "source": "plugin",
+      "kind": "format",
+      "displayName": "PDF (PDFium)",
+      "description": "Text + geometry extraction via PDFium.",
+      "extensions": [
+        ".pdf"
+      ],
+      "mimeTypes": [
+        "application/pdf"
+      ],
+      "hasReader": true,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://neokapi.dev/schemas/pdfium-pdf.json",
+        "title": "PDF (PDFium)",
+        "description": "Text and per-block geometry extraction from PDF via Google's PDFium.",
+        "type": "object",
+        "properties": {
+          "geometry": {
+            "type": "boolean",
+            "title": "Geometry",
+            "description": "Emit one block per positioned text rectangle, each carrying a bounding box (for the visual layout view), instead of one plain-text block per page.",
+            "default": false
+          },
+          "glyphs": {
+            "type": "boolean",
+            "title": "Per-glyph geometry",
+            "description": "Additionally attach per-character bounding boxes to each text block (implies geometry). Enables character-precise highlighting; slightly slower.",
+            "default": false
+          }
+        }
       }
     },
     {
