@@ -15,5 +15,8 @@ func NewEngine(_ Logf) (Engine, error) { return &stubEngine{}, nil }
 func (*stubEngine) OCR(string, string, string) (*visionproto.OCRResult, error) {
 	return nil, ErrNoONNX
 }
+func (*stubEngine) Layout(string, string, string) (*visionproto.LayoutResult, error) {
+	return nil, ErrNoONNX
+}
 func (*stubEngine) Loaded() bool { return false }
 func (*stubEngine) Close() error { return nil }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/vision"
 )
 
@@ -24,6 +25,11 @@ func (f *fakeVisionTransport) ocr(imagePath, lang, _ string) (*vision.OCRResult,
 		Width: 200, Height: 100,
 		Lines: []vision.OCRLine{{Text: "hello", Confidence: 0.9}},
 	}, nil
+}
+func (f *fakeVisionTransport) layout(imagePath, lang, _ string) ([]vision.Region, error) {
+	f.gotPath = imagePath
+	f.gotLang = lang
+	return []vision.Region{{Role: "heading", BBox: model.Rect{W: 200, H: 20}, ReadingOrder: 0, Confidence: 0.95}}, nil
 }
 func (f *fakeVisionTransport) Close() error { f.closed = true; return nil }
 

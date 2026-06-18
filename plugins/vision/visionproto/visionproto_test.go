@@ -107,3 +107,28 @@ func TestServe_ErrorResponse(t *testing.T) {
 		t.Errorf("error response = %q, want boom", resp.Error)
 	}
 }
+
+func TestRoundTrip_Layout(t *testing.T) {
+	var gotPath string
+	c, stop := serveLoopback(t, func(req Request, _ []byte) Response {
+		if req.Op != OpLayout {
+			return Response{Error: "unexpected op"}
+		}
+		gotPath = req.Path
+		return Response{Layout: &LayoutResult{Width: 200, Height: 100, Regions: []Region{
+			{Role: "heading", X: 0, Y: 0, W: 200, H: 20, ReadingOrder: 0, Confidence: 0.98},
+			{Role: "table", X: 0, Y: 30, W: 200, H: 60, ReadingOrder: 1, Confidence: 0.91},
+		}}}
+	})
+	defer stop()
+	resp, err := c.Do(Request{Op: OpLayout, Path: "/tmp/page.png"}, nil)
+	if err != nil {
+		t.Fatalf("layout err: %v", err)
+	}
+	if gotPath != "/tmp/page.png" {
+		t.Errorf("path not transported: %q", gotPath)
+	}
+	if resp.Layout == nil || len(resp.Layout.Regions) != 2 || resp.Layout.Regions[1].Role != "table" {
+		t.Fatalf("layout response = %+v", resp.Layout)
+	}
+}

@@ -33,6 +33,7 @@ const visionPluginName = "vision"
 // to the plugin, never the image bytes.
 type visionTransport interface {
 	ocr(imagePath, lang, modelName string) (*vision.OCRResult, error)
+	layout(imagePath, lang, modelName string) ([]vision.Region, error)
 	io.Closer
 }
 
@@ -61,6 +62,22 @@ func (e *visionEngine) OCR(ctx context.Context, imagePath string, opts vision.OC
 		return nil, err
 	}
 	return e.transport.ocr(imagePath, opts.Lang, "")
+}
+
+// Layout implements vision.LayoutEngine, delegating to the plugin.
+func (e *visionEngine) Layout(ctx context.Context, imagePath string, opts vision.LayoutOptions) ([]vision.Region, error) {
+	e.once.Do(func() {
+		if e.transport == nil {
+			e.transport, e.initErr = e.dial()
+		}
+	})
+	if e.initErr != nil {
+		return nil, e.initErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return e.transport.layout(imagePath, opts.Lang, "")
 }
 
 func (e *visionEngine) Close() error {
@@ -119,10 +136,27 @@ type visionRequest struct {
 }
 
 type visionResponse struct {
-	Version string            `json:"version,omitempty"`
-	Error   string            `json:"error,omitempty"`
-	OCR     *visionOCRResult  `json:"ocr,omitempty"`
-	Models  []json.RawMessage `json:"models,omitempty"`
+	Version string              `json:"version,omitempty"`
+	Error   string              `json:"error,omitempty"`
+	OCR     *visionOCRResult    `json:"ocr,omitempty"`
+	Layout  *visionLayoutResult `json:"layout,omitempty"`
+	Models  []json.RawMessage   `json:"models,omitempty"`
+}
+
+type visionLayoutResult struct {
+	Width   int            `json:"width"`
+	Height  int            `json:"height"`
+	Regions []visionRegion `json:"regions"`
+}
+
+type visionRegion struct {
+	Role         string  `json:"role"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
+	W            float64 `json:"w"`
+	H            float64 `json:"h"`
+	ReadingOrder int     `json:"readingOrder"`
+	Confidence   float64 `json:"confidence"`
 }
 
 type visionOCRResult struct {
@@ -246,6 +280,34 @@ func (p *visionProcess) ocr(imagePath, lang, modelName string) (*vision.OCRResul
 			Text:       ln.Text,
 			BBox:       model.Rect{X: ln.X, Y: ln.Y, W: ln.W, H: ln.H},
 			Confidence: ln.Confidence,
+		})
+	}
+	return out, nil
+}
+
+func (p *visionProcess) layout(imagePath, lang, modelName string) ([]vision.Region, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if err := visionWriteMessage(p.stdin, visionRequest{Op: "layout", Path: imagePath, Lang: lang, Model: modelName}, nil); err != nil {
+		return nil, err
+	}
+	resp, err := visionReadResponse(p.stdout)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("vision: %s", resp.Error)
+	}
+	if resp.Layout == nil {
+		return nil, nil
+	}
+	out := make([]vision.Region, 0, len(resp.Layout.Regions))
+	for _, rg := range resp.Layout.Regions {
+		out = append(out, vision.Region{
+			Role:         rg.Role,
+			BBox:         model.Rect{X: rg.X, Y: rg.Y, W: rg.W, H: rg.H},
+			ReadingOrder: rg.ReadingOrder,
+			Confidence:   rg.Confidence,
 		})
 	}
 	return out, nil

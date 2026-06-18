@@ -19,6 +19,9 @@ type Engine interface {
 	// opens the file itself, so the host never holds the image bytes. lang and
 	// model are advisory (empty = defaults).
 	OCR(imagePath, lang, model string) (*visionproto.OCRResult, error)
+	// Layout detects layout regions (roles + boxes + reading order) in the image
+	// at imagePath. Path-based like OCR. Returns ErrNoONNX on the stub build.
+	Layout(imagePath, lang, model string) (*visionproto.LayoutResult, error)
 	// Loaded reports whether the recognition models are resident.
 	Loaded() bool
 	// Close releases models and the runtime environment.
