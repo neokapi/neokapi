@@ -120,12 +120,15 @@ case "$GOOS" in
 esac
 
 VERSION_PKG="github.com/neokapi/neokapi/core/version"
+# -tags pdfium_experimental wires go-pdfium's experimental marked-content APIs so
+# the tagged-PDF structure path can bridge struct elements to text. The bundled
+# bblanchon libpdfium exports those symbols.
 echo "package-pdfium-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH}"
 (
   cd "$PLUGIN_DIR"
   GOWORK=off CGO_ENABLED=1 PKG_CONFIG_PATH="$PCDIR" \
     CGO_LDFLAGS="${RPATH_FLAG}" \
-    go build -trimpath -ldflags "-s -w -X ${VERSION_PKG}.Version=${VERSION}" \
+    go build -trimpath -tags pdfium_experimental -ldflags "-s -w -X ${VERSION_PKG}.Version=${VERSION}" \
       -o "$STAGE/${BIN_NAME}" ./cmd/kapi-pdfium
 )
 
