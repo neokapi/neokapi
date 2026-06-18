@@ -9,6 +9,14 @@ import (
 	"github.com/neokapi/neokapi/core/structure"
 )
 
+// PageRasterProperty is the Media.Properties key marking a part as a rendered
+// page raster that the host's vision tier-3 pass should consume (run the layout
+// model over) and then delete. A format reader/plugin that can rasterize a page
+// (e.g. kapi-pdfium under its tier3 option) sets it to "page"; the host decorator
+// keys on it. Shared here so the producer (plugin) and consumer (host) never
+// drift on the string.
+const PageRasterProperty = "kapi-vision-raster"
+
 // Region is one detected layout region on a page image, in top-left pixel
 // coordinates. Role is a model.Role* value (heading, paragraph, table, figure,
 // caption, list, …). ReadingOrder is a 0-based index in the page's reading flow.

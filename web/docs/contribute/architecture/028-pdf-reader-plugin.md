@@ -129,7 +129,7 @@ authority:
 |---|---|---|---|
 | **1 — Tagged struct tree** | The PDF's own logical structure tree (Document › H1 › P › Table › TR › TH/TD …) | Native plugin only | Authoritative (the author's own tags) |
 | **2 — Geometric inference** | Block positions: row clustering, column alignment, relative line height | Native **and** browser | Heuristic |
-| **3 — ML layout** | A vision model over the rendered page | Future ("kapi vision" plugin) | Heuristic, highest recall |
+| **3 — ML layout** | A vision model over the rendered page | Native plugin + host (kapi-vision) | Heuristic, highest recall |
 
 **Tier 1** (`internal/pdfreader/structtree.go`) reads a tagged PDF's structure
 tree directly: it builds a marked-content-ID → text/bounds map from the page's
@@ -151,12 +151,24 @@ table/heading/paragraph `Part` stream the
 HTML writers render real tables with no PDF-specific code. Both backends run
 tier 2 as their fallback.
 
-**Tier 3** is the planned third tier: a reusable, cross-format **vision** plugin
-running a layout model over the rendered page for the cases geometry cannot
-reach — borderless tables, multi-column reading order, scanned pages, figure and
-caption association. It is deliberately *not* part of the PDF format: it operates
-on a page raster plus blocks and so applies to any format that can produce them.
-It is not yet built.
+**Tier 3** runs a layout model over the rendered page for the cases geometry
+cannot reach — borderless tables, multi-column reading order, scanned pages,
+figure and caption association. It is deliberately *not* part of the PDF format:
+it operates on a page raster plus blocks and so applies to any format that can
+produce them ([AD-029](029-vision-and-image-localization.md)). Enabled with the
+`tier3` option, the plugin renders each page to a PNG at 72 DPI (so PDF points
+map 1:1 to raster pixels and the text geometry aligns) and emits it as a Media
+part marked `vision.PageRasterProperty` alongside the page's raw positioned
+blocks — applying *no* structure of its own. A host-side reader decorator
+(`cli/pluginhost`, wrapping every plugin reader as a no-op until `tier3` is
+requested) runs the kapi-vision layout model over the raster
+(`vision.StructureFromLayout`): the model's regions and reading order are
+authoritative, the blocks' own text fills them (`vision.OCRResultFromBlocks` —
+more accurate than re-OCRing a vector PDF), and `table` regions are reconstructed
+into row/column cells. The decorator deletes the rendered raster afterward and,
+when kapi-vision is not installed, strips the request so the plugin falls back to
+the geometric tier 2 — so tier 3 degrades cleanly to tier 2, never worse. Browser
+builds have no native vision engine, so tier 3 is native-only.
 
 A consequence of this design is a **native/browser asymmetry**: the browser
 `extract()` contract exposes only rects, not the struct tree, so the in-browser

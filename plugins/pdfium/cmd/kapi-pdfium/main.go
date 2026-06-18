@@ -109,8 +109,9 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 
 	params := header.GetFilterParams()
 	glyphs := params["glyphs"] == "true"
-	geometry := params["geometry"] == "true" || glyphs
-	parts, err := pdfreader.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, pdfreader.Options{Geometry: geometry, Glyphs: glyphs})
+	tier3 := params["tier3"] == "true"
+	geometry := params["geometry"] == "true" || glyphs || tier3
+	parts, err := pdfreader.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, pdfreader.Options{Geometry: geometry, Glyphs: glyphs, Tier3: tier3})
 	if err != nil {
 		return complete(stream, err.Error())
 	}
