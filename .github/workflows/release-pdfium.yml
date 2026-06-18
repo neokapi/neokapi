@@ -150,6 +150,10 @@ jobs:
       - name: Publish kapi-pdfium release
         uses: softprops/action-gh-release@v3
         with:
+          # Plugin has its own tag line (pdfium-v*); it must NOT become the repo's
+          # "latest" release, or setup-kapi's version resolver (which reads
+          # releases/latest) would pick up the plugin tag instead of the CLI.
+          make_latest: false
           files: dist/*
           fail_on_unmatched_files: true
 
