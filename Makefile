@@ -750,17 +750,21 @@ build-sat-plugin-onnx: ## Build kapi-sat WITH the ONNX backend (requires onnxrun
 # (scripts/package-pdfium-plugin.sh) — the kapi-sat pattern; no static archive,
 # no ICU-coexistence concern. For local dev, point PKG_CONFIG_PATH at a libpdfium
 # .pc and run with the lib on the loader path. See plugins/pdfium/README.md.
+# The pdfium_experimental tag wires go-pdfium's experimental marked-content APIs,
+# which the tagged-PDF structure path (internal/pdfreader/structtree.go) needs to
+# bridge struct elements to text. The bundled bblanchon libpdfium exports them;
+# without the tag the plugin still builds and falls back to geometric structure.
 build-pdfium-plugin: ## Build the kapi-pdfium plugin (CGO; needs libpdfium on PKG_CONFIG_PATH)
 	@mkdir -p $(BIN_DIR)
 	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 \
-		$(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-pdfium ./cmd/kapi-pdfium
+		$(GO) build -tags pdfium_experimental $(LDFLAGS) -o $(BIN_DIR)/kapi-pdfium ./cmd/kapi-pdfium
 
 package-pdfium-plugin: ## Package a kapi-pdfium tarball for the host platform (CGO; needs PDFIUM_DIR = extracted bblanchon pdfium)
 	@test -n "$(PDFIUM_DIR)" || { echo "set PDFIUM_DIR to an extracted bblanchon pdfium dir (include/ + lib/)"; exit 1; }
 	scripts/package-pdfium-plugin.sh --version "$(VERSION)" --pdfium-dir "$(PDFIUM_DIR)" --out-dir "$(BIN_DIR)/pdfium-dist"
 
 test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG_PATH + loader path)
-	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 $(GO) test ./...
+	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 $(GO) test -tags pdfium_experimental ./...
 
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...

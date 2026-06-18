@@ -86,11 +86,36 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 		pageNum := i + 1
 		pg := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
 
-		pageBlocks, err := readPage(inst, doc, pg, pageNum, opts, &blockCounter)
-		if err != nil {
-			return nil, err
+		// In geometry mode, prefer the tagged-PDF structure tree (tier 1): if the
+		// page carries a logical structure tree and the experimental MCID API is
+		// available, its tables/headings are authoritative. Otherwise we infer
+		// structure geometrically from the positioned blocks (tier 2). The fast
+		// (non-geometry) path emits whole-page plain text with no structure.
+		var pageParts []*model.Part
+		if opts.Geometry {
+			var pageHeight float64
+			if sz, err := inst.FPDF_GetPageSizeByIndex(&requests.FPDF_GetPageSizeByIndex{Document: doc.Document, Index: i}); err == nil {
+				pageHeight = sz.Height
+			}
+			if regions, ok := structRegions(inst, doc.Document, i, pageHeight, &blockCounter); ok {
+				pageParts = structure.ToParts(regions, &groupCounter)
+			} else {
+				pageBlocks, err := readPage(inst, doc, pg, pageNum, opts, &blockCounter)
+				if err != nil {
+					return nil, err
+				}
+				pageParts = structure.ToParts(structure.Analyze(pageBlocks), &groupCounter)
+			}
+		} else {
+			pageBlocks, err := readPage(inst, doc, pg, pageNum, opts, &blockCounter)
+			if err != nil {
+				return nil, err
+			}
+			for _, b := range pageBlocks {
+				pageParts = append(pageParts, &model.Part{Type: model.PartBlock, Resource: b})
+			}
 		}
-		if len(pageBlocks) == 0 {
+		if len(pageParts) == 0 {
 			continue
 		}
 		pageLayer := &model.Layer{
@@ -99,15 +124,7 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 			Properties: map[string]string{"page-number": strconv.Itoa(pageNum)},
 		}
 		parts = append(parts, &model.Part{Type: model.PartLayerStart, Resource: pageLayer})
-		// In geometry mode, infer structure (tables, heading/paragraph roles)
-		// from the positioned blocks; the fast path has no geometry to reason on.
-		if opts.Geometry {
-			parts = append(parts, structure.ToParts(structure.Analyze(pageBlocks), &groupCounter)...)
-		} else {
-			for _, b := range pageBlocks {
-				parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
-			}
-		}
+		parts = append(parts, pageParts...)
 		parts = append(parts, &model.Part{Type: model.PartLayerEnd, Resource: pageLayer})
 	}
 
