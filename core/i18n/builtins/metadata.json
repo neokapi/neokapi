@@ -1777,15 +1777,6 @@
     "paraplaintext": {
       "displayName": "Paragraph Plain Text"
     },
-    "pdf": {
-      "displayName": "PDF Text Extraction",
-      "extensions": [
-        ".pdf"
-      ],
-      "mimeTypes": [
-        "application/pdf"
-      ]
-    },
     "phpcontent": {
       "displayName": "PHP Content",
       "extensions": [

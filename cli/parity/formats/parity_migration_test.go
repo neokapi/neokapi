@@ -55,13 +55,16 @@ func TestParityKnowledgeFromSpecYAML(t *testing.T) {
 
 	t.Run("filter_level_skips", func(t *testing.T) {
 		// Formats whose spec.yaml carries a parity.skip — the divergence-453
-		// readers and the binary-corpus filters with a native Go port.
+		// readers and the binary-corpus filters with a native Go port. okf_pdf
+		// is NOT here: PDF lost its in-core reader (now the kapi-pdfium plugin),
+		// so it has no spec.yaml and keeps an inline SkipBinary on its
+		// formatSpecs row, like the other bridge-only rows (okf_odf, okf_archive).
 		for _, id := range []string{
 			"okf_phpcontent", "okf_doxygen", "okf_tex", "okf_transtable",
 			"okf_commaseparatedvalues", "okf_fixedwidthcolumns", "okf_ttx",
 			"okf_txml", "okf_vignette", "okf_ttml",
 			"okf_idml", "okf_icml", "okf_openxml", "okf_openoffice",
-			"okf_mif", "okf_pdf", "okf_rtf",
+			"okf_mif", "okf_rtf",
 		} {
 			got, err := resolveParity(FormatSpec{ID: id})
 			require.NoError(t, err)

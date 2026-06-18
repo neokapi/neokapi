@@ -227,14 +227,45 @@ func ReadInstalledMetadata(pluginDir string) (*InstalledMetadata, error) {
 	return &m, nil
 }
 
-// extractPluginArchive extracts a tarball or zip into target. The
-// archive is expected to contain a top-level dir matching pluginName
-// (the convention spelled out in #438 Tarball layout).
+// extractPluginArchive extracts a tarball or zip into the plugin's own dir
+// (target/<pluginName>). It accepts both archive layouts we publish: the #438
+// convention where every entry is prefixed with "<pluginName>/", and a flat
+// archive whose entries are relative to the plugin dir (optionally with a
+// leading "./", as `tar -C <dir> .` emits). The kapi-sat and kapi-pdfium
+// release tarballs are flat, so requiring the prefix would make them
+// uninstallable via `kapi plugins install` (the Homebrew path extracts
+// differently); pluginEntryDest collapses both layouts onto pluginRoot.
 func extractPluginArchive(body []byte, sourceURL, target, pluginName string) error {
 	if strings.HasSuffix(sourceURL, ".zip") {
 		return extractZip(body, target, pluginName)
 	}
 	return extractTarGz(body, target, pluginName)
+}
+
+// pluginEntryDest maps an archive entry name onto its on-disk destination
+// inside pluginRoot (target/<pluginName>). It strips an optional leading "./"
+// and an optional "<pluginName>/" prefix so the prefixed (#438) and flat
+// layouts resolve to the same place under pluginRoot.
+//
+// ok is false for the plugin-dir root entry itself ("./", ".", "<pluginName>"),
+// which needs no file written. It returns an error for any entry that would
+// escape pluginRoot via "../" or an absolute path. Note a flat entry like
+// "otherplugin/x" is a nested subdir of THIS plugin's dir, not the sibling
+// plugin — it stays safely within pluginRoot.
+func pluginEntryDest(pluginRoot, pluginName, name string) (dest string, ok bool, err error) {
+	rel := strings.TrimPrefix(filepath.ToSlash(name), "./")
+	if rel == pluginName || rel == pluginName+"/" {
+		return "", false, nil
+	}
+	rel = strings.TrimPrefix(rel, pluginName+"/")
+	dest, err = safeJoin(pluginRoot, rel) // rejects "../" escapes and absolute names
+	if err != nil {
+		return "", false, err
+	}
+	if dest == filepath.Clean(pluginRoot) {
+		return "", false, nil // "" / "." — the plugin dir root
+	}
+	return dest, true, nil
 }
 
 func extractTarGz(body []byte, target, pluginName string) error {
@@ -256,14 +287,14 @@ func extractTarGz(body []byte, target, pluginName string) error {
 		if err != nil {
 			return fmt.Errorf("tar read: %w", err)
 		}
-		// Reject path traversal and absolute paths.
-		clean, err := safeJoin(target, hdr.Name)
+		// Resolve the entry under the plugin's own dir, accepting both the
+		// prefixed and flat layouts and rejecting "../"/absolute escapes.
+		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, hdr.Name)
 		if err != nil {
 			return err
 		}
-		// Require entries to be inside <pluginName>/...
-		if !strings.HasPrefix(filepath.ToSlash(hdr.Name), pluginName+"/") && filepath.ToSlash(hdr.Name) != pluginName {
-			return fmt.Errorf("tarball entry %q is outside plugin dir %q (refusing to extract)", hdr.Name, pluginName)
+		if !ok {
+			continue // the plugin-dir root entry — nothing to write
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
@@ -313,13 +344,14 @@ func extractZip(body []byte, target, pluginName string) error {
 	if err != nil {
 		return fmt.Errorf("zip reader: %w", err)
 	}
+	pluginRoot := filepath.Join(target, pluginName)
 	for _, f := range r.File {
-		clean, err := safeJoin(target, f.Name)
+		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, f.Name)
 		if err != nil {
 			return err
 		}
-		if !strings.HasPrefix(filepath.ToSlash(f.Name), pluginName+"/") && filepath.ToSlash(f.Name) != pluginName {
-			return fmt.Errorf("zip entry %q is outside plugin dir %q (refusing to extract)", f.Name, pluginName)
+		if !ok {
+			continue // the plugin-dir root entry — nothing to write
 		}
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(clean, 0o755); err != nil {

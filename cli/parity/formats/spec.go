@@ -51,7 +51,6 @@ import (
 	odffmt "github.com/neokapi/neokapi/core/formats/odf"
 	openxmlfmt "github.com/neokapi/neokapi/core/formats/openxml"
 	paraplaintextfmt "github.com/neokapi/neokapi/core/formats/paraplaintext"
-	pdffmt "github.com/neokapi/neokapi/core/formats/pdf"
 	phpcontentfmt "github.com/neokapi/neokapi/core/formats/phpcontent"
 	plaintextfmt "github.com/neokapi/neokapi/core/formats/plaintext"
 	pofmt "github.com/neokapi/neokapi/core/formats/po"
@@ -733,11 +732,12 @@ msgstr ""
 	},
 
 	// ── Office / archive (binary, snapshotted as bridge-only) ────────
-	// The seven rows with a native Go port (idml, icml, openxml, openoffice,
-	// mif, pdf, rtf) source their binary-corpus parity skip from their
+	// The six rows with a native Go port (idml, icml, openxml, openoffice,
+	// mif, rtf) source their binary-corpus parity skip from their
 	// spec.yaml `parity.skip` (resolveParity). The remaining rows have no
-	// spec.yaml — bridge-manifest-completeness entries with no native port —
-	// so they keep the inline SkipBinary constant.
+	// spec.yaml — bridge-manifest-completeness entries with no native port
+	// (pdf is now read by the kapi-pdfium plugin, not in-core) — so they keep
+	// the inline SkipBinary constant.
 	{
 		ID:       "okf_idml",
 		MimeType: "application/vnd.adobe.indesign-idml-package",
@@ -771,6 +771,7 @@ msgstr ""
 	{
 		ID:       "okf_pdf",
 		MimeType: "application/pdf",
+		Skip:     SkipBinary, // no native port (kapi-pdfium plugin) + no spec.yaml
 	},
 	{
 		ID:       "okf_rtf",
@@ -833,7 +834,6 @@ var _ = []func() format.DataFormatReader{
 	func() format.DataFormatReader { return idmlfmt.NewReader() },
 	func() format.DataFormatReader { return icmlfmt.NewReader() },
 	func() format.DataFormatReader { return miffmt.NewReader() },
-	func() format.DataFormatReader { return pdffmt.NewReader() },
 	func() format.DataFormatReader { return rtffmt.NewReader() },
 	func() format.DataFormatReader { return odffmt.NewReader() },
 }

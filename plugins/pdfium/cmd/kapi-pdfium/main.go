@@ -26,7 +26,11 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "serve" {
+	// The Mode-C daemon pool launches the binary as `kapi-pdfium daemon`
+	// (cli/pluginhost/daemon.go, the same arg okapi-bridge uses); `serve` is
+	// kept as an alias for manual runs. Either enters the daemon + prints the
+	// stdio handshake.
+	if len(os.Args) > 1 && (os.Args[1] == "daemon" || os.Args[1] == "serve") {
 		if err := serve(); err != nil {
 			fmt.Fprintln(os.Stderr, "kapi-pdfium:", err)
 			os.Exit(1)
@@ -34,7 +38,7 @@ func main() {
 		return
 	}
 	// Bare invocation: a self-check the manifest can surface (mirrors kapi-sat).
-	fmt.Printf("kapi-pdfium %s — PDFium-backed PDF reader (run `kapi-pdfium serve` for the daemon)\n", version.Version)
+	fmt.Printf("kapi-pdfium %s — PDFium-backed PDF reader (run `kapi-pdfium daemon` for the daemon)\n", version.Version)
 }
 
 // serve binds a Unix socket, advertises it via the stdio handshake, and serves

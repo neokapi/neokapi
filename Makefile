@@ -1252,7 +1252,22 @@ web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/static/
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
 	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
 
-web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
+# Self-host @embedpdf/pdfium's wasm next to the kapi wasm so the browser PDF
+# reader's bridge (packages/kapi-playground/src/pdfiumBridge.ts) can fetch it
+# locally — no CDN, no Content-Type/streaming-compile constraints. Requires
+# `vp install` to have populated node_modules. Best-effort: warns if absent so a
+# non-PDF docs build still succeeds (PDF inspection then surfaces a clear error).
+PDFIUM_WASM_SRC := node_modules/@embedpdf/pdfium/dist/pdfium.wasm
+web-pdfium-wasm: ## Stage @embedpdf/pdfium wasm → web/static/wasm/pdfium.wasm
+	@mkdir -p $(WASM_DEMO_DIR)
+	@if [ -f "$(PDFIUM_WASM_SRC)" ]; then \
+		cp "$(PDFIUM_WASM_SRC)" $(WASM_DEMO_DIR)/pdfium.wasm; \
+		ls -lh $(WASM_DEMO_DIR)/pdfium.wasm | awk '{print "  staged",$$NF,$$5}'; \
+	else \
+		echo "  warning: $(PDFIUM_WASM_SRC) not found — run 'vp install'; browser PDF disabled"; \
+	fi
+
+web-wasm-cli: web-pdfium-wasm ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
 	@mkdir -p $(WASM_DEMO_DIR)
 	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js

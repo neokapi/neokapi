@@ -171,3 +171,6 @@ platform/docker/traefik/certs
 # the wasm demo dir — these default `go build` outputs must never be committed)
 /bowrain/bowrain
 /kapi/kapi-wasm-cli
+
+# Transient libpdfium build/work dir (release-pdfium.yml + local plugin tests)
+pdfium-work/

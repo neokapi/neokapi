@@ -155,8 +155,11 @@ families:
   binary-readonly:
     description: >-
       Binary or render-oriented formats neokapi reads but does not write
-      back natively.
-    examples: [pdf]
+      back natively. PDF — the canonical example — is now read out-of-core by
+      the kapi-pdfium plugin (cgo + PDFium), so it has no in-core
+      vocabulary.yaml; the family baseline is retained for any future in-core
+      binary-readonly format.
+    examples: []
 
 constructs:
   # ── Inline formatting ─────────────────────────────────────────────────────

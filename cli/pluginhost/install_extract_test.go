@@ -152,12 +152,43 @@ func TestExtractTarGzSecurity(t *testing.T) {
 			verify:  nil,
 		},
 		{
-			name: "entry outside plugin dir rejected",
+			// Flat archive with no "<plugin>/" prefix — the layout the
+			// kapi-sat / kapi-pdfium release tarballs ship. Entries land in
+			// the plugin's own dir.
+			name: "flat tarball (no plugin-dir prefix) extracts",
 			entries: []tarEntry{
-				{name: "otherplugin/file.txt", typeflag: tar.TypeReg, body: "x"},
+				{name: "manifest.json", typeflag: tar.TypeReg, body: `{"plugin":"myplugin"}`},
+				{name: "kapi-myplugin", typeflag: tar.TypeReg, body: "binary", mode: 0o755},
+				{name: "lib/", typeflag: tar.TypeDir},
+				{name: "lib/libfoo.so", typeflag: tar.TypeReg, body: "so"},
 			},
-			wantErr:   true,
-			errSubstr: "outside plugin dir",
+			verify: func(t *testing.T, target string) {
+				b, err := os.ReadFile(filepath.Join(target, plugin, "manifest.json"))
+				require.NoError(t, err)
+				assert.Equal(t, `{"plugin":"myplugin"}`, string(b))
+				b, err = os.ReadFile(filepath.Join(target, plugin, "lib", "libfoo.so"))
+				require.NoError(t, err)
+				assert.Equal(t, "so", string(b))
+			},
+		},
+		{
+			// Flat archive that `tar -C <dir> .` produces: a leading "./"
+			// member plus "./"-prefixed entries (the kapi-pdfium layout).
+			name: "flat tarball with ./ entries extracts",
+			entries: []tarEntry{
+				{name: "./", typeflag: tar.TypeDir},
+				{name: "./manifest.json", typeflag: tar.TypeReg, body: `{"plugin":"myplugin"}`},
+				{name: "./lib/", typeflag: tar.TypeDir},
+				{name: "./lib/libfoo.so", typeflag: tar.TypeReg, body: "so"},
+			},
+			verify: func(t *testing.T, target string) {
+				b, err := os.ReadFile(filepath.Join(target, plugin, "manifest.json"))
+				require.NoError(t, err)
+				assert.Equal(t, `{"plugin":"myplugin"}`, string(b))
+				b, err = os.ReadFile(filepath.Join(target, plugin, "lib", "libfoo.so"))
+				require.NoError(t, err)
+				assert.Equal(t, "so", string(b))
+			},
 		},
 		{
 			name: "absolute entry name rejected",

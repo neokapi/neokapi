@@ -35,7 +35,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats/odf"
 	"github.com/neokapi/neokapi/core/formats/openxml"
 	"github.com/neokapi/neokapi/core/formats/paraplaintext"
-	"github.com/neokapi/neokapi/core/formats/pdf"
 	"github.com/neokapi/neokapi/core/formats/phpcontent"
 	"github.com/neokapi/neokapi/core/formats/plaintext"
 	"github.com/neokapi/neokapi/core/formats/po"
@@ -704,17 +703,12 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })
 	reg.RegisterAlias(registry.FormatID(jsx.FormatAlias), registry.FormatID(jsx.FormatName))
 
-	// PDF is read-only: text extraction only. It registers no writer, so the
-	// format is labelled read-only (HasWriter=false) and editing tools like
-	// `ksed` fail cleanly rather than silently replacing the document with the
-	// extracted plain text. Translate a PDF by extracting to a bilingual format.
-	reg.RegisterReader("pdf",
-		func() format.DataFormatReader { return pdf.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/pdf"},
-			Extensions: []string{".pdf"},
-			MagicBytes: [][]byte{[]byte("%PDF-")},
-		}, "PDF Text Extraction")
+	// PDF is read-only and provided out-of-core: on native builds by the
+	// kapi-pdfium plugin (cgo + PDFium, crash-isolated in a subprocess), and on
+	// browser/js builds by the in-process PDFium-wasm bridge. registerPDF is the
+	// build-tagged seam — a no-op on native (the plugin registers at runtime),
+	// the wasm reader on js. See core/formats/register_pdf_*.go.
+	registerPDF(reg)
 }
 
 // registerSchemaAndDecoder registers a format's schema and config decoder

@@ -46,7 +46,6 @@ const (
 	MIF           registry.FormatID = "mif"
 	TTX           registry.FormatID = "ttx"
 	TXML          registry.FormatID = "txml"
-	PDF           registry.FormatID = "pdf"
 	XCStrings     registry.FormatID = "xcstrings"
 	ARB           registry.FormatID = "arb"
 	RESX          registry.FormatID = "resx"

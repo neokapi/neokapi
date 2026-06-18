@@ -18,6 +18,11 @@ const LazyAnatomy = React.lazy(async () => {
   return { default: mod.AnatomyExplorer };
 });
 
+const LazyPdf = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.PdfExplorer };
+});
+
 // Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
 // `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
 const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
@@ -67,6 +72,29 @@ export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement
           return (
             <Suspense fallback={<Loading />}>
               <LazyAnatomy assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface PdfExplorerProps {
+  sampleUrl?: string;
+  sampleName?: string;
+}
+
+export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyPdf assets={assets} {...props} />
             </Suspense>
           );
         }
