@@ -231,6 +231,18 @@ func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.Loca
 		return nil
 	}
 	counter, groupCounter := 0, 0
+
+	// Tier-3: if the engine supports ML layout, assign the OCR lines to layout
+	// regions (authoritative roles + reading order). Fall back to the geometric
+	// tier-2 (structure.Analyze) when layout is unavailable or yields nothing.
+	if le, ok := eng.(vision.LayoutEngine); ok {
+		if regions, lerr := le.Layout(ctx, imgPath, vision.LayoutOptions{Lang: locale.String()}); lerr == nil && len(regions) > 0 {
+			if parts := vision.PartsFromLayout(regions, res, &counter, &groupCounter); len(parts) > 0 {
+				return parts
+			}
+		}
+	}
+
 	blocks := vision.BlocksFromOCR(res, 1, &counter)
 	if len(blocks) == 0 {
 		return nil

@@ -28,9 +28,10 @@ import (
 
 // Op is a request operation.
 const (
-	OpPing = "ping" // liveness + version
-	OpInfo = "info" // capabilities + loaded models
-	OpOCR  = "ocr"  // recognize text in the payload image
+	OpPing   = "ping"   // liveness + version
+	OpInfo   = "info"   // capabilities + loaded models
+	OpOCR    = "ocr"    // recognize text in the image at Request.Path
+	OpLayout = "layout" // detect layout regions in the image at Request.Path
 )
 
 // Request is the header for one operation. For OpOCR the image is referenced by
@@ -46,11 +47,31 @@ type Request struct {
 // Response is the header for one result. Exactly one of OCR/Models/error is set
 // per the request op; OK/Version answer ping.
 type Response struct {
-	OK      string      `json:"ok,omitempty"` // unused except symmetry; ping uses Version
-	Version string      `json:"version,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	OCR     *OCRResult  `json:"ocr,omitempty"`
-	Models  []ModelInfo `json:"models,omitempty"`
+	OK      string        `json:"ok,omitempty"` // unused except symmetry; ping uses Version
+	Version string        `json:"version,omitempty"`
+	Error   string        `json:"error,omitempty"`
+	OCR     *OCRResult    `json:"ocr,omitempty"`
+	Layout  *LayoutResult `json:"layout,omitempty"`
+	Models  []ModelInfo   `json:"models,omitempty"`
+}
+
+// LayoutResult is the detected layout of one image plus its pixel size.
+type LayoutResult struct {
+	Width   int      `json:"width"`
+	Height  int      `json:"height"`
+	Regions []Region `json:"regions"`
+}
+
+// Region is one detected layout region: a semantic role, a top-left pixel box,
+// a reading-order index, and the model's confidence [0,1].
+type Region struct {
+	Role         string  `json:"role"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
+	W            float64 `json:"w"`
+	H            float64 `json:"h"`
+	ReadingOrder int     `json:"readingOrder"`
+	Confidence   float64 `json:"confidence"`
 }
 
 // OCRResult is the recognized text of one image plus its pixel size.

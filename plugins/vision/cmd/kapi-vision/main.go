@@ -87,6 +87,15 @@ func serveHandler(engine ocr.Engine, initErr error) visionproto.Handler {
 				return visionproto.Response{Error: oerr.Error()}
 			}
 			return visionproto.Response{OCR: res}
+		case visionproto.OpLayout:
+			if engine == nil {
+				return visionproto.Response{Error: fmt.Sprintf("engine unavailable: %v", initErr)}
+			}
+			res, lerr := engine.Layout(req.Path, req.Lang, req.Model)
+			if lerr != nil {
+				return visionproto.Response{Error: lerr.Error()}
+			}
+			return visionproto.Response{Layout: res}
 		case "":
 			return visionproto.Response{Error: "missing op"}
 		default:

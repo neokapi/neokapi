@@ -115,6 +115,20 @@ func openSession(path string) (*ort.DynamicAdvancedSession, error) {
 	return ort.NewDynamicAdvancedSession(path, []string{ins[0].Name}, []string{outs[0].Name}, nil)
 }
 
+// Layout would run an ML document-layout model (regions + roles). The full
+// layout stack around it is implemented and tested — the visionproto `layout`
+// op, the host transport, the reading-order heuristic (core/vision.SortReadingOrder),
+// and the region→structure mapping that assigns OCR lines to regions
+// (core/vision.PartsFromLayout) — but the model-backed detection itself is NOT
+// yet wired: a validated PP-DocLayout / RT-DETR ONNX model and its detection
+// post-processing (box decode + NMS + label→role mapping) still need to be added
+// and validated against real output, exactly as the OCR det/rec pipeline was.
+// Until then this returns an error and the image reader falls back to geometric
+// (tier-2) structure — graceful degradation rather than unvalidated numerics.
+func (e *onnxEngine) Layout(string, string, string) (*visionproto.LayoutResult, error) {
+	return nil, fmt.Errorf("vision: layout model not yet configured; falling back to geometric structure")
+}
+
 func (e *onnxEngine) Loaded() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
