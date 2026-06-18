@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/i18next"
 	"github.com/neokapi/neokapi/core/formats/icml"
 	"github.com/neokapi/neokapi/core/formats/idml"
+	imagefmt "github.com/neokapi/neokapi/core/formats/image"
 	"github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/formats/markdown"
@@ -91,6 +92,19 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Plain Text")
 	reg.RegisterWriter("plaintext", func() format.DataFormatWriter { return plaintext.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "plaintext", func() format.DataFormatReader { return plaintext.NewReader() })
+
+	// Image (PNG/JPEG) — read-only; OCR text + structure when the kapi-vision
+	// plugin is installed, otherwise the image as a Media part.
+	reg.RegisterReader("image",
+		func() format.DataFormatReader { return imagefmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"image/png", "image/jpeg"},
+			Extensions: []string{".png", ".jpg", ".jpeg"},
+			MagicBytes: [][]byte{
+				{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'},
+				{0xff, 0xd8, 0xff},
+			},
+		}, "Image (OCR)")
 
 	// HTML
 	reg.RegisterReader("html",
