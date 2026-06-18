@@ -65,12 +65,17 @@ func Get(key string) (Asset, bool) {
 }
 
 // Dir resolves the model directory in precedence order:
-//  1. $KAPI_VISION_MODELS_DIR (explicit override — local/offline/bundled);
-//  2. $KAPI_VISION_CACHE;
-//  3. $XDG_CACHE_HOME/kapi/models/vision;
-//  4. ~/.cache/kapi/models/vision.
+//  1. $KAPI_VISION_MODELS_DIR (explicit override — local/offline);
+//  2. a "models" dir beside the executable (the self-contained release tarball
+//     bundles the assets there, so an installed plugin needs no download);
+//  3. $KAPI_VISION_CACHE;
+//  4. $XDG_CACHE_HOME/kapi/models/vision;
+//  5. ~/.cache/kapi/models/vision (download target when nothing above exists).
 func Dir() string {
 	if d := os.Getenv("KAPI_VISION_MODELS_DIR"); d != "" {
+		return d
+	}
+	if d := bundledDir(); d != "" {
 		return d
 	}
 	if d := os.Getenv("KAPI_VISION_CACHE"); d != "" {
@@ -84,6 +89,20 @@ func Dir() string {
 		return filepath.Join(os.TempDir(), "kapi", "models", "vision")
 	}
 	return filepath.Join(home, ".cache", "kapi", "models", "vision")
+}
+
+// bundledDir returns "<executable-dir>/models" if it exists — the layout the
+// release tarball installs — else "".
+func bundledDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	cand := filepath.Join(filepath.Dir(exe), "models")
+	if info, err := os.Stat(cand); err == nil && info.IsDir() {
+		return cand
+	}
+	return ""
 }
 
 // Path is the on-disk path an asset resolves to (whether or not it exists yet).

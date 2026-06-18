@@ -46,7 +46,9 @@ for reproducible downloads. They download to an XDG cache on first use
 (content-hash verified), are bundled beside the binary in the release tarball, or
 are taken from `KAPI_VISION_MODELS_DIR` for offline/dev use. All Apache-2.0.
 PP-OCRv5 is the current recommended PP-OCR generation; onnxruntime is pinned to
-1.26.0 to match the `yalue/onnxruntime_go` C API.
+1.25.0 to match `yalue/onnxruntime_go` v1.30.1 (ORT_API_VERSION 25) — the same
+version the kapi-sat/kapi-check plugins bundle. (A newer runtime also works, as
+onnxruntime is backward-compatible, but the release bundles the matching 1.25.0.)
 
 ## Status
 

@@ -766,6 +766,39 @@ package-pdfium-plugin: ## Package a kapi-pdfium tarball for the host platform (C
 test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG_PATH + loader path)
 	cd plugins/pdfium && GOWORK=off CGO_ENABLED=1 $(GO) test -tags pdfium_experimental ./...
 
+# ── kapi-vision document-vision (OCR) plugin ─────────────────────────────────
+# Mirrors kapi-sat: a cgo, -tags onnx sidecar that loads the onnxruntime SHARED
+# library at runtime. The default build (no tag) is pure Go (stub engine) and
+# CI-safe; -tags onnx links the real RapidOCR/PP-OCRv5 pipeline. For DISTRIBUTION
+# the release tarball is self-contained — it bundles the onnxruntime shared lib
+# (lib/) AND the PP-OCRv5 model assets (models/) beside the binary
+# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.25.0 to match
+# yalue/onnxruntime_go (ORT_API_VERSION 25). See plugins/vision/README.md.
+build-vision-plugin: ## Build the kapi-vision plugin (no ONNX backend; pure Go)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/vision && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-vision ./cmd/kapi-vision
+
+build-vision-plugin-onnx: ## Build kapi-vision WITH the ONNX backend (CGO; loads onnxruntime at runtime)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/vision && GOWORK=off CGO_ENABLED=1 \
+		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-vision ./cmd/kapi-vision
+
+# Package a self-contained distribution tarball for the HOST platform: builds
+# kapi-vision -tags onnx, bundles the onnxruntime shared lib + PP-OCRv5 models.
+#   VISION_ORT_DIR     extracted onnxruntime release dir (microsoft/onnxruntime)
+#   VISION_MODELS_DIR  dir with ppocrv5_det.onnx / ppocrv5_rec.onnx / ppocrv5_dict.txt
+package-vision-plugin: ## Package a kapi-vision tarball for the host platform (CGO; needs VISION_ORT_DIR + VISION_MODELS_DIR)
+	@test -n "$(VISION_ORT_DIR)" || { echo "set VISION_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
+	@test -n "$(VISION_MODELS_DIR)" || { echo "set VISION_MODELS_DIR to the dir with ppocrv5_* assets"; exit 1; }
+	scripts/package-vision-plugin.sh \
+		--version "$(VERSION)" \
+		--ort-dir "$(VISION_ORT_DIR)" \
+		--models-dir "$(VISION_MODELS_DIR)" \
+		--out-dir "$(BIN_DIR)/vision-dist"
+
+test-vision-plugin: ## Run kapi-vision pure-Go tests (protocol + algorithms + models cache)
+	cd plugins/vision && GOWORK=off $(GO) test ./...
+
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...
 
