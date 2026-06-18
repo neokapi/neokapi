@@ -1,0 +1,32 @@
+// Package ocr is the OCR engine for the kapi-vision plugin. It has two builds,
+// exactly like the SaT plugin: the real engine (build tag `onnx`, engine_onnx.go)
+// links onnxruntime and runs the RapidOCR / PP-OCRv4 detection + classification +
+// recognition models; the stub engine (default build, engine_stub.go) compiles
+// with no native dependency and reports ErrNoONNX, so the module builds and the
+// protocol/plumbing tests stay green on machines without onnxruntime.
+package ocr
+
+import (
+	"errors"
+
+	"github.com/neokapi/neokapi/plugins/vision/visionproto"
+)
+
+// Engine recognizes text in a page image. Implementations load models lazily and
+// are used sequentially by the serve loop.
+type Engine interface {
+	// OCR recognizes text lines in a PNG/JPEG image. lang and model are advisory
+	// (empty = defaults).
+	OCR(image []byte, lang, model string) (*visionproto.OCRResult, error)
+	// Loaded reports whether the recognition models are resident.
+	Loaded() bool
+	// Close releases models and the runtime environment.
+	Close() error
+}
+
+// ErrNoONNX is returned by the stub engine: the binary was built without the
+// `onnx` build tag, so no real OCR backend is linked in.
+var ErrNoONNX = errors.New("vision: built without ONNX support (rebuild with -tags onnx and the onnxruntime native library)")
+
+// Logf is the plugin's stderr logger, threaded into the engine for progress.
+type Logf func(format string, args ...any)
