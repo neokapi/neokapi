@@ -173,17 +173,26 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 			pageHeight := page.Get("height").Float()
 			rects := page.Get("rects")
 
-			blocks := make([]*model.Block, 0, rects.Length())
-			for j := 0; j < rects.Length(); j++ {
-				rect := rects.Index(j)
-				text := rect.Get("text").String()
-				if text == "" {
+			// Collect rects, then merge them into line-level runs (shared with the
+			// native plugin via GroupRuns) so a font-change/lone glyph isn't a
+			// single-character block.
+			n := rects.Length()
+			rectsJS := make([]js.Value, n)
+			ins := make([]RectIn, n)
+			for j := 0; j < n; j++ {
+				rc := rects.Index(j)
+				rectsJS[j] = rc
+				ins[j] = RectIn{Text: rc.Get("text").String(), L: rc.Get("l").Float(), T: rc.Get("t").Float(), R: rc.Get("r").Float(), B: rc.Get("b").Float()}
+			}
+			blocks := make([]*model.Block, 0, n)
+			for _, run := range GroupRuns(ins) {
+				if run.Text == "" {
 					continue
 				}
 				blockCounter++
-				blk := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
+				blk := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), run.Text)
 				blk.Properties["page-number"] = strconv.Itoa(pageNum)
-				if g := geometryFromRect(rect, pageNum, pageHeight); g != nil {
+				if g := runGeometry(run, rectsJS, pageNum, pageHeight); g != nil {
 					blk.SetGeometry(g)
 				}
 				blocks = append(blocks, blk)
@@ -227,10 +236,10 @@ func flipBox(l, t, r, b, pageHeight float64) (rect model.Rect, topLeft, ok bool)
 	return model.Rect{X: x, Y: lower, W: w, H: h}, false, true
 }
 
-// geometryFromRect converts a PDFium text rect (and its per-character glyph
-// boxes, when present) to a GeometryAnnotation.
-func geometryFromRect(rect js.Value, page int, pageHeight float64) *model.GeometryAnnotation {
-	box, topLeft, ok := flipBox(rect.Get("l").Float(), rect.Get("t").Float(), rect.Get("r").Float(), rect.Get("b").Float(), pageHeight)
+// runGeometry builds a GeometryAnnotation for a grouped run: the flipped union
+// box plus the per-character glyph boxes gathered from the run's member rects.
+func runGeometry(run RunOut, rectsJS []js.Value, page int, pageHeight float64) *model.GeometryAnnotation {
+	box, topLeft, ok := flipBox(run.L, run.T, run.R, run.B, pageHeight)
 	if !ok {
 		return nil
 	}
@@ -239,7 +248,14 @@ func geometryFromRect(rect js.Value, page int, pageHeight float64) *model.Geomet
 		origin = "top-left"
 	}
 	g := &model.GeometryAnnotation{Page: page, BBox: box, Origin: origin}
-	if glyphs := rect.Get("glyphs"); !glyphs.IsUndefined() && !glyphs.IsNull() {
+	for _, mi := range run.Members {
+		if mi < 0 || mi >= len(rectsJS) {
+			continue
+		}
+		glyphs := rectsJS[mi].Get("glyphs")
+		if glyphs.IsUndefined() || glyphs.IsNull() {
+			continue
+		}
 		for i := 0; i < glyphs.Length(); i++ {
 			gl := glyphs.Index(i)
 			gbox, _, gok := flipBox(gl.Get("l").Float(), gl.Get("t").Float(), gl.Get("r").Float(), gl.Get("b").Float(), pageHeight)
