@@ -125,6 +125,36 @@ jobs:
             echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > web/static/data/test-comparison.json
           fi
 
+      # Regenerate the reference dataset WITH okapi-bridge so the deployed Format
+      # Reference includes the bridge filters (the committed dataset is built-in
+      # + in-repo plugins only — reproducible — and never carries the bridge,
+      # which lives in a separate repo). okapi-bridge's release tarball ships the
+      # runtime plugin without schemas; the gen-refs-shaped dist/plugin (manifest
+      # + per-format schemas) is produced by its pure-bash transform from
+      # committed schemagen data, so no Java build is needed. Best-effort: a
+      # failure leaves the deployed reference built-in + plugin only.
+      - name: Set up Go (reference dataset)
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+          cache: true
+      - name: Stage okapi-bridge reference data
+        run: |
+          set -uo pipefail
+          if ! git clone --depth 1 https://github.com/neokapi/okapi-bridge.git /tmp/okapi-bridge; then
+            echo "::warning::okapi-bridge clone failed; deployed reference omits bridge formats"
+            exit 0
+          fi
+          V="$(for d in /tmp/okapi-bridge/okapi-releases/[0-9]*/; do basename "$d"; done | sort -V | tail -1)"
+          ( cd /tmp/okapi-bridge && bash scripts/transform-to-plugin.sh "$V" "$V" ) || {
+            echo "::warning::okapi-bridge transform failed; deployed reference omits bridge formats"
+            exit 0
+          }
+          make generate-reference-docs BRIDGE_PLUGIN=/tmp/okapi-bridge/dist/plugin || {
+            echo "::warning::gen-refs with bridge failed; deployed reference omits bridge formats"
+            exit 0
+          }
+
       # web is a pnpm workspace member; its deps (and the @neokapi/*
       # workspace packages it consumes) are installed by the `vp install` above.
       - name: Determine base URL (production vs PR preview)
