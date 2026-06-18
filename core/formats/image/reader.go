@@ -6,8 +6,11 @@
 // reader still opens the file and emits its Media (no text) rather than failing,
 // so an image is always a valid, inspectable document.
 //
-// The reader is read-only — there is no image writer; editing tools fail cleanly
-// rather than overwriting the picture with extracted text.
+// Alt-text / caption localization: when an "<image>.alt.txt" sidecar sits beside
+// the source, its text is attached to the Media (AltText) and emitted as a
+// caption Block linked to the image (RoleCaption + RelCaptionOf). That block
+// translates through the normal block path — no special tool support — and the
+// writer folds the localized text back into a per-locale sidecar.
 package image
 
 import (
@@ -19,6 +22,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 
 	// Register PNG and JPEG decoders for image.DecodeConfig.
 	_ "image/jpeg"
@@ -169,6 +173,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		}
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
 
+		// An "<image>.alt.txt" sidecar (beside the original file) carries the
+		// image's alt text / caption — the localizable accessible text.
+		altText := readAltSidecar(r.Doc.URI)
+
 		// The image as a Media part — by URI reference, never inline bytes, so the
 		// page's binary never travels through the kapi Part stream.
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartMedia, Resource: &model.Media{
@@ -176,11 +184,23 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			MimeType: mime,
 			URI:      uri,
 			Filename: path.Base(uri),
+			AltText:  altText,
 			Properties: map[string]string{
 				"width":  strconv.Itoa(cfg.Width),
 				"height": strconv.Itoa(cfg.Height),
 			},
 		}}}
+
+		// The alt text as a translatable caption Block linked to the image. It
+		// flows through the normal Block translation path (TM, AI, brand voice,
+		// sessions) like any other content; the writer folds the localized target
+		// back into a per-locale sidecar.
+		if altText != "" {
+			capBlock := model.NewBlock("alt1", altText)
+			capBlock.SetSemanticRole(model.RoleCaption, 0)
+			capBlock.AddRelation(model.RelCaptionOf, "img1")
+			ch <- model.PartResult{Part: &model.Part{Type: model.PartBlock, Resource: capBlock}}
+		}
 
 		// OCR + structure, when enabled and a vision engine is installed. Failures
 		// are non-fatal: the image Media is already emitted, so the document is
@@ -234,6 +254,26 @@ func (r *Reader) materialize() (string, func(), error) {
 	}
 	name := tmp.Name()
 	return name, func() { _ = os.Remove(name) }, nil
+}
+
+// altSidecarPath returns the convention path for an image's alt-text/caption
+// sidecar: the image path with ".alt.txt" appended (hero.png → hero.png.alt.txt).
+// The source sidecar holds the source alt text; localized output is written to
+// the same-named sidecar beside the translated image.
+func altSidecarPath(imagePath string) string { return imagePath + ".alt.txt" }
+
+// readAltSidecar returns the trimmed contents of the image's alt-text sidecar, or
+// "" when the source has no local file path or no sidecar exists. The sidecar is
+// small accessible text, so reading it fully is fine (unlike the image bytes).
+func readAltSidecar(uri string) string {
+	if uri == "" {
+		return ""
+	}
+	b, err := os.ReadFile(altSidecarPath(uri))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // decodeConfigFile reads just the header of the image at path.
