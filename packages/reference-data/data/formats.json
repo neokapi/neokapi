@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T15:31:24Z",
+  "generatedAt": "2026-06-18T21:52:27Z",
   "kind": "format",
   "entries": [
     {
@@ -1344,7 +1344,7 @@
       "id": "image",
       "source": "built-in",
       "kind": "format",
-      "displayName": "Image (OCR)",
+      "displayName": "Image",
       "extensions": [
         ".png",
         ".jpg",

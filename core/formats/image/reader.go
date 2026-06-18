@@ -30,15 +30,39 @@ import (
 	"github.com/neokapi/neokapi/core/vision"
 )
 
-// Config is the (currently empty) image-format configuration.
-type Config struct{}
+// Config is the image-format configuration. An image is, first and foremost, a
+// localizable Media asset (emitted regardless of these toggles); OCR and layout
+// are opt-in enrichment.
+type Config struct {
+	// OCR enables in-image text recognition via the kapi-vision plugin. When
+	// false (or the plugin is absent), the image is emitted as a Media asset only
+	// — the right mode for whole-image localization flows that replace the
+	// picture rather than its text.
+	OCR bool
+	// Layout enables ML layout detection (regions + reading order) when OCR runs;
+	// when false, structure falls back to geometric inference (tier 2).
+	Layout bool
+}
+
+func defaultConfig() *Config { return &Config{OCR: true, Layout: true} }
 
 func (c *Config) FormatName() string { return "image" }
-func (c *Config) Reset()             {}
+func (c *Config) Reset()             { *c = Config{OCR: true, Layout: true} }
 func (c *Config) Validate() error    { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
-	for key := range values {
-		return fmt.Errorf("image: unknown parameter: %s", key)
+	for key, v := range values {
+		b, ok := v.(bool)
+		if !ok {
+			return fmt.Errorf("image: parameter %q must be a boolean", key)
+		}
+		switch key {
+		case "ocr":
+			c.OCR = b
+		case "layout":
+			c.Layout = b
+		default:
+			return fmt.Errorf("image: unknown parameter: %s", key)
+		}
 	}
 	return nil
 }
@@ -53,10 +77,10 @@ func NewReader() *Reader {
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "image",
-			FormatDisplayName: "Image (OCR)",
+			FormatDisplayName: "Image",
 			FormatMimeType:    "image/png",
 			FormatExtensions:  []string{".png", ".jpg", ".jpeg"},
-			Cfg:               &Config{},
+			Cfg:               defaultConfig(),
 		},
 	}
 }
@@ -158,10 +182,16 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			},
 		}}}
 
-		// OCR, if a vision engine is installed. Failures are non-fatal: the image
-		// Media is already emitted, so the document is still valid.
-		if vision.Available("") {
-			if parts := r.ocrParts(ctx, imgPath, locale); parts != nil {
+		// OCR + structure, when enabled and a vision engine is installed. Failures
+		// are non-fatal: the image Media is already emitted, so the document is
+		// still valid. With OCR off, the image is a Media asset only — the
+		// whole-image-localization mode.
+		fcfg := defaultConfig()
+		if c, ok := r.Cfg.(*Config); ok && c != nil {
+			fcfg = c
+		}
+		if fcfg.OCR && vision.Available("") {
+			if parts := r.ocrParts(ctx, imgPath, locale, fcfg.Layout); parts != nil {
 				for _, p := range parts {
 					ch <- model.PartResult{Part: p}
 				}
@@ -219,7 +249,7 @@ func decodeConfigFile(path string) (image.Config, string, error) {
 // ocrParts runs the registered vision engine over the image at imgPath and
 // returns the structured Part stream (tier-2 structure over the OCR line
 // geometry), or nil on any failure (best-effort: the Media is already emitted).
-func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID) []*model.Part {
+func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID, useLayout bool) []*model.Part {
 	eng, err := vision.Open("")
 	if err != nil {
 		return nil
@@ -232,10 +262,11 @@ func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.Loca
 	}
 	counter, groupCounter := 0, 0
 
-	// Tier-3: if the engine supports ML layout, assign the OCR lines to layout
-	// regions (authoritative roles + reading order). Fall back to the geometric
-	// tier-2 (structure.Analyze) when layout is unavailable or yields nothing.
-	if le, ok := eng.(vision.LayoutEngine); ok {
+	// Tier-3: if layout is enabled and the engine supports it, assign the OCR
+	// lines to layout regions (authoritative roles + reading order). Fall back to
+	// the geometric tier-2 (structure.Analyze) when layout is off, unavailable,
+	// or yields nothing.
+	if le, ok := eng.(vision.LayoutEngine); ok && useLayout {
 		if regions, lerr := le.Layout(ctx, imgPath, vision.LayoutOptions{Lang: locale.String()}); lerr == nil && len(regions) > 0 {
 			regions = vision.SortReadingOrder(regions)
 			if parts := vision.PartsFromLayout(regions, res, &counter, &groupCounter); len(parts) > 0 {

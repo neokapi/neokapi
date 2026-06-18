@@ -1361,7 +1361,7 @@
       ]
     },
     "image": {
-      "displayName": "Image (OCR)",
+      "displayName": "Image",
       "extensions": [
         ".png",
         ".jpg",

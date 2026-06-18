@@ -1,0 +1,144 @@
+---
+id: 029-vision-and-image-localization
+sidebar_position: 29
+title: "AD-029: Vision and Image Localization"
+description: "Architecture decision: images are first-class localizable assets, and the kapi-vision plugin adds optional document-vision enrichment — OCR (PP-OCRv5) and ML layout detection (PP-DocLayoutV3) — out-of-core, path-based, with localization modes from whole-image replacement to in-image text extraction."
+keywords: [vision, OCR, layout detection, PP-OCRv5, PP-DocLayoutV3, image localization, kapi-vision, onnxruntime, plugin, reading order, architecture decision, neokapi]
+---
+
+# AD-029: Vision and Image Localization
+
+## Summary
+
+An **image is a localizable asset**, not merely a carrier of text. The `image`
+format reads PNG/JPEG and always emits the picture as a `model.Media` part — the
+unit a localization flow can **replace wholesale** with a per-locale variant.
+On top of that base, the out-of-core **`kapi-vision`** plugin adds optional
+*document-vision* enrichment:
+
+- **OCR** — RapidOCR / PP-OCRv5 text detection + recognition (shipped v0.1.0).
+- **Layout** — PP-DocLayoutV3 (RT-DETR) region detection + reading order, yielding
+  tier-3 structure (shipped v0.2.0).
+
+Vision mirrors the `kapi-sat` and `kapi-pdfium` plugins: a cgo `-tags onnx`
+binary that loads onnxruntime at runtime, isolated from the portable `kapi`
+binary, driven over a binary-framed stdin/stdout protocol. Like the PDF reader
+([AD-028](028-pdf-reader-plugin.md)), it is **path-based** — the host passes a
+file path, never image bytes, so the picture lives only in the plugin process.
+OCR and layout are **opt-in capabilities** (`ocr`, `layout` config toggles);
+with both off, an image is a Media asset only.
+
+## Context
+
+Localizing a document that contains images is not one problem but several, and
+treating "image" as "OCR" conflates them. The distinct modes are:
+
+| Mode | What it localizes | Mechanism |
+|---|---|---|
+| **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text) |
+| **Alt-text / caption** | accessible text, not pixels | translate `Media.AltText` and caption blocks |
+| **In-image text (OCR)** | text rendered into the image | extract → translate → (optionally) re-render |
+| **Layout / structure** | the document's regions | detect regions + reading order for faithful reconstruction |
+
+Whole-image replacement is the most common and the simplest to reason about: the
+translator (or an automated pipeline) supplies a localized picture. The others
+are enrichment. The content model already carries what these need —
+`model.Media{Data│BlobKey│URI, AltText}` + `PartMedia`, and the structure/role
+annotations ([AD-002](002-content-model.md)) — so the architecture's job is to
+keep "image" generic and make vision an *optional* layer, not the identity of the
+format.
+
+The ML capabilities carry the same native-stack weight as the SaT segmenter
+([AD-021](021-sat-segmenter-plugin.md)) — onnxruntime, large model assets — so
+they live in a plugin, never in `kapi`.
+
+## Decision
+
+### The image format is a localizable asset
+
+`core/formats/image` reads PNG/JPEG and **always** emits the image as a `Media`
+part referenced by URI (never inline bytes — the binary never travels through the
+kapi part stream). This alone supports whole-image localization: the Media is the
+asset; a localized variant is a different file. The reader is read-only — there
+is no image *writer* that rewrites pixels.
+
+Two config toggles gate the enrichment, both default-on:
+
+- `ocr` — run in-image text recognition (requires the plugin). Off → Media only.
+- `layout` — run ML layout when OCR runs; off → geometric structure (tier 2).
+
+### kapi-vision — out-of-core, path-based
+
+The plugin is its own Go module (`plugins/vision`), isolated so its cgo +
+onnxruntime stack never enters another build graph. Its engine has two builds,
+like `kapi-sat`: a default pure-Go stub (so the module and the protocol/algorithm
+tests build with no native dependency) and the real `-tags onnx` engine. The
+host-side `vision` engine (`cli/vision_plugin.go`) discovers and spawns the
+plugin and drives it over `visionproto` (a length-prefixed binary frame protocol,
+not line-JSON — image references and structured results), mirroring the wire
+structs rather than importing the plugin module.
+
+`core/vision` is the framework seam: an `Engine` (OCR) interface + an optional
+`LayoutEngine` interface (type-asserted, so OCR-only backends need not implement
+it) + a name-keyed registry, exactly like `core/segment`. Both methods are
+**path-based**.
+
+### OCR — PP-OCRv5
+
+The OCR engine runs the PP-OCRv5 mobile detection (DBNet) and recognition
+(CRNN+CTC) models: it builds an MCID-free pipeline — binarize the detection
+probability map, extract connected-component boxes, "unclip" them, recognize each
+crop and CTC-decode against the PP-OCRv5 dictionary. Recognized lines carry
+top-left pixel geometry; the image reader feeds them to the geometric tier-2
+(`core/structure.Analyze`) when layout is unavailable.
+
+### Layout — PP-DocLayoutV3 (tier 3)
+
+The layout engine runs PP-DocLayoutV3, an RT-DETR detector. RT-DETR is NMS-free:
+given PaddleDetection's `image` / `scale_factor` / `im_shape` inputs it returns
+already-decoded detections in original pixel coordinates. Its 25 region classes
+map to content roles (`doc_title`→title, `paragraph_title`→heading, `table`→table,
+`figure`/`chart`/`image`→picture, formulas, footnotes, headers/footers, …). A
+deterministic column-clustering heuristic assigns reading order. The image reader
+then **assigns OCR lines to layout regions** by containment and emits role-tagged
+blocks in reading order — tier-3 structure — with the geometric tier-2 as
+fallback. (Table *cell-structure* reconstruction is a later phase; a table region
+emits its lines within a table group so writers still render a table.)
+
+### Model distribution
+
+OCR's models are small (~21 MB) and **bundled** in the release tarball beside the
+binary (resolved with no configuration), with onnxruntime 1.25.0 (matching
+`yalue/onnxruntime_go`'s C API). The layout model is large (~132 MB) and
+**download-on-demand** to the XDG cache on first use. Model resolution searches an
+override dir, the bundled dir beside the binary, then the cache; downloads of
+on-demand models go to the writable cache. All models are Apache-2.0, mirrored on
+a neokapi release asset with pinned hashes. The plugin is **not** a `kapi-cli`
+dependency — vision is opt-in (`kapi plugins install vision`).
+
+## Consequences
+
+- "Image" stays a generic, localizable format; OCR and layout are optional layers
+  that degrade gracefully (absent plugin, or toggled off) to whole-image Media.
+- The portable `kapi` binary stays pure-Go and small; the onnxruntime stack is
+  confined to the plugin, and image bytes never enter the host.
+- Tier-3 structure (authoritative roles + reading order) is available for images,
+  and — once a page rasterizer is wired — for the PDF tier-3 slot in
+  [AD-028](028-pdf-reader-plugin.md), since the vision engine is format-agnostic
+  over rasters.
+- **Whole-image replacement** is supported today at the asset level (the Media is
+  emitted as a localizable unit). The *target-asset* model — pairing a source
+  image with per-locale localized files and a flow/connector path that emits the
+  swapped image — is the planned next step (design here; implementation tracked
+  separately).
+
+## Related
+
+- [AD-002: Content Model](002-content-model.md) — Media, standoff structure/role
+  annotations, the structure stream vision produces
+- [AD-021: SaT Segmenter Plugin](021-sat-segmenter-plugin.md) — the precedent for
+  an isolated onnxruntime plugin
+- [AD-028: PDF Reader and Structure Tiers](028-pdf-reader-plugin.md) — the
+  tier-1/2/3 structure model; vision is its tier-3 engine
+- [`plugins/vision/`](https://github.com/neokapi/neokapi/tree/main/plugins/vision) —
+  plugin module, engine, protocol, and README

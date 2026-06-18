@@ -93,8 +93,9 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("plaintext", func() format.DataFormatWriter { return plaintext.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "plaintext", func() format.DataFormatReader { return plaintext.NewReader() })
 
-	// Image (PNG/JPEG) — read-only; OCR text + structure when the kapi-vision
-	// plugin is installed, otherwise the image as a Media part.
+	// Image (PNG/JPEG) — a localizable raster asset. Always emits the image as a
+	// Media part (whole-image localization); with ocr/layout enabled and the
+	// kapi-vision plugin installed, also extracts text + structure.
 	reg.RegisterReader("image",
 		func() format.DataFormatReader { return imagefmt.NewReader() },
 		format.FormatSignature{
@@ -104,7 +105,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 				{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'},
 				{0xff, 0xd8, 0xff},
 			},
-		}, "Image (OCR)")
+		}, "Image")
 
 	// HTML
 	reg.RegisterReader("html",
