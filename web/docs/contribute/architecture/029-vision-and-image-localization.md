@@ -36,9 +36,9 @@ treating "image" as "OCR" conflates them. The distinct modes are:
 | Mode | What it localizes | Mechanism |
 |---|---|---|
 | **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text); pseudo-localization (a visible watermark variant) ships today |
-| **Alt-text / caption** | accessible text, not pixels | translate `Media.AltText` and caption blocks |
+| **Alt-text / caption** | accessible text, not pixels | the alt text is emitted as a translatable caption Block linked to the image (`RoleCaption` + `RelCaptionOf`) and localized through the normal block path |
 | **In-image text (OCR)** | text rendered into the image | extract → translate → (optionally) re-render |
-| **Layout / structure** | the document's regions | detect regions + reading order for faithful reconstruction |
+| **Layout / structure** | the document's regions | detect regions + reading order, with table regions reconstructed into row/column cell structure, for faithful reconstruction |
 
 Whole-image replacement is the most common and the simplest to reason about: the
 translator (or an automated pipeline) supplies a localized picture. The others
@@ -62,6 +62,21 @@ kapi part stream). This alone supports whole-image localization: the Media is th
 asset; a localized variant is a different file. A matching **image writer** emits
 a `Media` part's bytes — the whole-image localization *sink* — so a transform
 that produces a localized image variant can be written back out.
+
+#### Alt-text / caption
+
+An image's accessible text is localized as content, not as a Media field. When an
+`<image>.alt.txt` sidecar sits beside the source, the reader attaches its text to
+the `Media` (`AltText`, for display) **and** emits it as a translatable caption
+`Block` linked to the image (`RoleCaption` + a `caption-of` relation to the Media
+ID). That block flows through the ordinary block path — TM, AI translate, brand
+voice, sessions, batching — with no special tool support, and gets per-locale
+`Targets` like any other block. The image writer folds the localized target (or
+the source text, as a round-trip fallback) back into a per-locale
+`<output>.alt.txt` sidecar beside the written image. Modeling alt-text as a
+linked block (rather than mutating the single `Media.AltText` field in place)
+keeps it per-locale and reuses the whole translation stack; `Media.AltText`
+remains the source value for display.
 
 #### Pseudo-localization
 
@@ -114,8 +129,10 @@ map to content roles (`doc_title`→title, `paragraph_title`→heading, `table`�
 deterministic column-clustering heuristic assigns reading order. The image reader
 then **assigns OCR lines to layout regions** by containment and emits role-tagged
 blocks in reading order — tier-3 structure — with the geometric tier-2 as
-fallback. (Table *cell-structure* reconstruction is a later phase; a table region
-emits its lines within a table group so writers still render a table.)
+fallback. A `table` region's lines are reconstructed into row/column **cell
+structure** (`table` → `table-row` → `table-cell`/`table-header`) by reusing the
+tier-2 grid clustering (`structure.Gridify`), so both tiers emit tables
+identically (`structure.TableToParts`) and writers render a real table.
 
 ### Model distribution
 
@@ -138,12 +155,17 @@ dependency — vision is opt-in (`kapi plugins install vision`).
   and — once a page rasterizer is wired — for the PDF tier-3 slot in
   [AD-028](028-pdf-reader-plugin.md), since the vision engine is format-agnostic
   over rasters.
-- **Whole-image replacement** is supported today at the asset level: the image is
-  emitted as a localizable Media, a writer emits localized bytes, and
-  pseudo-localization produces a visible variant end-to-end. The remaining piece
-  is the *target-asset* model — pairing a source image with per-locale localized
-  files (real translations) and a connector that resolves the right one — which is
-  the planned next step.
+- **Whole-image replacement** is supported end-to-end: the image is emitted as a
+  localizable Media, a writer emits localized bytes, pseudo-localization produces
+  a visible variant, and the **target-asset** model pairs a source image with its
+  per-locale files. `project.ResolveAssetVariants` resolves each locale's target
+  path (via the recipe's `target:` template) and reports which variants exist —
+  the local counterpart of Bowrain's server-side asset-variant model (AD-007).
+  Because kapi cannot regenerate a *real* image localization, a localized variant
+  already on disk is **authoritative**: `kapi run`/`kapi merge` keep it rather
+  than clobber it by reprocessing the source (`project.IsBinaryAssetFormat`
+  gates this for binary-asset formats), while a missing variant falls through to
+  the flow to produce a pseudo/copy fallback.
 
 ## Related
 

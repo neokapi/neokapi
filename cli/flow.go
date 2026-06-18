@@ -326,6 +326,27 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	outputFlag, _ := cmd.Flags().GetString("output")
 	outputPath := a.resolveOutputPath(inputPath, outputFlag)
 
+	// Whole-image (target-asset) replacement: when the source is a binary asset
+	// and a localized variant already exists at the target, it is authoritative —
+	// kapi can't regenerate a real image localization, so keep it rather than
+	// clobber it by reprocessing the source.
+	srcFmt := fmtName
+	if srcFmt == "" {
+		if det, derr := a.FormatReg.DetectByExtension(filepath.Ext(inputPath)); derr == nil {
+			srcFmt = string(det)
+		}
+	}
+	if preserveAssetVariant(srcFmt, inputPath, outputPath) {
+		if stopProgress != nil {
+			stopProgress()
+		}
+		if !a.Quiet {
+			out := output.FlowRunOutput{FlowName: flowName, InputPath: inputPath, OutputPath: outputPath}
+			return output.Print(cmd, out)
+		}
+		return nil
+	}
+
 	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
 		if stopProgress != nil {
 			stopProgress()

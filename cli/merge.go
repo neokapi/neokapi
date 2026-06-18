@@ -289,6 +289,14 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 			entry := &project.ExtractionFile{Source: f.Relative}
 			targetPath := resolveMergeOutputPath(entry, proj, layout.Root, locale)
 
+			// Whole-image (target-asset) replacement: an existing localized
+			// binary-asset variant is authoritative — keep it rather than clobber
+			// it by re-materializing the source.
+			if preserveAssetVariant(srcFormat, f.Path, targetPath) {
+				written++
+				continue
+			}
+
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,
