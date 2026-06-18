@@ -41,6 +41,26 @@ type daemonReader struct {
 }
 
 // newDaemonReader constructs a reader bound to a specific plugin.
+// mapConfig is a generic string-map DataFormatConfig for plugin formats: the
+// host applies a config map (CLI flags, desktop config, recipe options) onto it,
+// and the daemon reader forwards the entries verbatim as ProcessHeader
+// FilterParams. Without this, plugin-format config (e.g. PDF "geometry"/"glyphs",
+// or any okapi-bridge filter parameter) never reached the daemon.
+type mapConfig struct {
+	format string
+	params map[string]string
+}
+
+func (c *mapConfig) FormatName() string { return c.format }
+func (c *mapConfig) Reset()             { c.params = map[string]string{} }
+func (c *mapConfig) Validate() error    { return nil }
+func (c *mapConfig) ApplyMap(values map[string]any) error {
+	for k, v := range values {
+		c.params[k] = fmt.Sprint(v)
+	}
+	return nil
+}
+
 func newDaemonReader(pool *DaemonPool, plugin *Plugin, formatName string, sig format.FormatSignature, displayName string) *daemonReader {
 	r := &daemonReader{
 		pool:       pool,
@@ -55,6 +75,7 @@ func newDaemonReader(pool *DaemonPool, plugin *Plugin, formatName string, sig fo
 	if len(sig.MIMETypes) > 0 {
 		r.FormatMimeType = sig.MIMETypes[0]
 	}
+	r.Cfg = &mapConfig{format: formatName, params: map[string]string{}}
 	return r
 }
 
@@ -113,6 +134,10 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			TargetLocale: string(r.Doc.TargetLocale),
 			Encoding:     r.Doc.Encoding,
 			MimeType:     r.Doc.MimeType,
+		}
+		// Forward applied config (e.g. PDF "geometry"/"glyphs") to the daemon.
+		if cfg, ok := r.Cfg.(*mapConfig); ok && len(cfg.params) > 0 {
+			header.FilterParams = cfg.params
 		}
 		if r.sourcePath != "" {
 			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: r.sourcePath}}
