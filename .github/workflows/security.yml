@@ -1,12 +1,13 @@
 name: Security
 
 on:
+  # govulncheck across every module is too slow to gate each PR/merge, so it runs
+  # on a weekly schedule (against main) plus on-demand — not on pull_request or
+  # push. A regression surfaces within a week and via manual dispatch before a
+  # release, without adding minutes to every merge.
   schedule:
-    - cron: "0 3 * * 1" # Monday 3 AM UTC (exhaustive weekly pass)
+    - cron: "0 3 * * 1" # Monday 3 AM UTC — weekly pass on the default branch
   workflow_dispatch:
-  pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
