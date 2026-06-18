@@ -6,6 +6,14 @@ import FileSelectorField from "./FileSelectorField";
 import { resolveSelection, useFileLibrary, type FileSelection } from "./fileLibrary";
 import { useLabRuntime, type LabRuntimeAssets } from "./useLabRuntime";
 
+/** A bundled sample PDF the explorer fetches and seeds on first load. */
+export interface PdfSampleSpec {
+  /** URL to fetch the PDF bytes from (e.g. "/samples/report.pdf"). */
+  url: string;
+  /** File name shown in the switcher (defaults to the URL's basename). */
+  name?: string;
+}
+
 export interface PdfExplorerProps {
   /** WASM asset URLs from the host; null defers booting (e.g. during SSR). */
   assets: LabRuntimeAssets | null;
@@ -13,6 +21,11 @@ export interface PdfExplorerProps {
   sampleUrl?: string;
   /** File name for the fetched sample (defaults to the URL's basename). */
   sampleName?: string;
+  /**
+   * Optional set of bundled sample PDFs. All are fetched and added to the file
+   * switcher; the first is selected on load. Takes precedence over sampleUrl.
+   */
+  samples?: PdfSampleSpec[];
 }
 
 // PdfExplorer parses a PDF — a bundled sample or one the visitor uploads —
@@ -25,9 +38,10 @@ export default function PdfExplorer({
   assets,
   sampleUrl,
   sampleName,
+  samples,
 }: PdfExplorerProps): React.ReactElement {
   const runtime = useLabRuntime(assets);
-  const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed a PDF
+  const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed PDFs
 
   const [selection, setSelection] = useState<FileSelection>({ mode: "multi", paths: [] });
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -36,31 +50,41 @@ export default function PdfExplorer({
   const [busy, setBusy] = useState(false);
   const seeded = useRef(false);
 
-  // Seed the bundled sample once: fetch its bytes, add it to the in-memory
-  // library, and select it. Upload (via FileSelectorField) works the same way.
+  // Normalize the bundled samples into one list (the `samples` array wins; the
+  // single sampleUrl is the back-compat fallback).
+  const sampleList = useMemo<PdfSampleSpec[]>(
+    () => samples ?? (sampleUrl ? [{ url: sampleUrl, name: sampleName }] : []),
+    [samples, sampleUrl, sampleName],
+  );
+
+  // Seed the bundled samples once: fetch each in order, add it to the in-memory
+  // library, and select the first. Upload (via FileSelectorField) works the same way.
   useEffect(() => {
-    if (seeded.current || !sampleUrl) return;
+    if (seeded.current || sampleList.length === 0) return;
     seeded.current = true;
     let cancelled = false;
     void (async () => {
-      try {
-        const resp = await fetch(sampleUrl);
-        if (!resp.ok) return;
-        const bytes = new Uint8Array(await resp.arrayBuffer());
-        const name = sampleName ?? sampleUrl.split("/").pop() ?? "sample.pdf";
-        const path = library.addFile(name, bytes, "sample");
-        if (!cancelled) {
-          setSelection({ mode: "multi", paths: [path] });
-          setActivePath(path);
+      const paths: string[] = [];
+      for (const s of sampleList) {
+        try {
+          const resp = await fetch(s.url);
+          if (!resp.ok) continue;
+          const bytes = new Uint8Array(await resp.arrayBuffer());
+          const name = s.name ?? s.url.split("/").pop() ?? "sample.pdf";
+          paths.push(library.addFile(name, bytes, "sample"));
+        } catch {
+          /* samples are best-effort; the visitor can still upload their own */
         }
-      } catch {
-        /* sample is best-effort; the visitor can still upload their own */
+      }
+      if (!cancelled && paths.length > 0) {
+        setSelection({ mode: "multi", paths });
+        setActivePath(paths[0]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [sampleUrl, sampleName, library]);
+  }, [sampleList, library]);
 
   const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
   const file = useMemo(

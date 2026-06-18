@@ -84,6 +84,7 @@ export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement
 export interface PdfExplorerProps {
   sampleUrl?: string;
   sampleName?: string;
+  samples?: { url: string; name?: string }[];
 }
 
 export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
