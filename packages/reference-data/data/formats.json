@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T06:36:48Z",
+  "generatedAt": "2026-06-18T15:31:24Z",
   "kind": "format",
   "entries": [
     {
@@ -1339,6 +1339,22 @@
         ],
         "wikiUrl": "https://unicode-org.github.io/icu/userguide/format_parse/messages/"
       }
+    },
+    {
+      "id": "image",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Image (OCR)",
+      "extensions": [
+        ".png",
+        ".jpg",
+        ".jpeg"
+      ],
+      "mimeTypes": [
+        "image/png",
+        "image/jpeg"
+      ],
+      "hasReader": true
     },
     {
       "id": "properties",

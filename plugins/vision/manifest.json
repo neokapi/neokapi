@@ -1,0 +1,35 @@
+{
+  "manifest_version": "1",
+  "plugin": "vision",
+  "version": "0.1.0",
+  "description": "Document vision for kapi — OCR (and, in later phases, ML layout and table structure) over page images via PP-OCRv5 mobile ONNX models, run in-process and driven over a binary-framed stdin/stdout protocol.",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/vision",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-vision",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "vision",
+        "short": "Document-vision (OCR) self-check",
+        "long": "Construct the in-process vision engine and list the model assets. The host `vision` engine drives the plugin over the binary-framed stdin/stdout protocol (kapi-vision serve); this command is for interactive verification."
+      }
+    ]
+  },
+  "metadata": {
+    "vision": {
+      "protocol": "visionproto-framed-v1",
+      "transport": "stdin-stdout",
+      "invocation": ["kapi-vision", "serve"],
+      "protocol_package": "github.com/neokapi/neokapi/plugins/vision/visionproto",
+      "ops": ["ping", "info", "ocr"],
+      "engine": "ppocrv5-mobile",
+      "models": [
+        { "key": "det", "file": "ppocrv5_det.onnx", "role": "text-detection" },
+        { "key": "rec", "file": "ppocrv5_rec.onnx", "role": "recognition", "default": true }
+      ]
+    }
+  }
+}

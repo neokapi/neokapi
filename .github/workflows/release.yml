@@ -3,7 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      # CLI/desktop version tags only (v1.2.3). Must NOT be the broad "v*", which
+      # also matches plugin tags that begin with a "v" — notably "vision-v*" and
+      # the "vision-models-*" asset tag — and would wrongly trigger a full
+      # CLI+desktop release. Plugins release via their own release-<plugin>.yml.
+      - "v[0-9]*"
 
 permissions:
   contents: write

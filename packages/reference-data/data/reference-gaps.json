@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-06-18T06:36:48Z",
+  "generatedAt": "2026-06-18T15:31:24Z",
   "summary": {
-    "built-in/format/description": 3,
+    "built-in/format/description": 4,
     "built-in/format/doc.examples": 1,
-    "built-in/format/doc.overview": 3,
+    "built-in/format/doc.overview": 4,
     "plugin/format/doc.overview": 1,
-    "total": 8
+    "total": 10
   },
   "gaps": [
     {
@@ -33,6 +33,20 @@
       "kind": "format",
       "source": "built-in",
       "id": "docling",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "image",
+      "field": "description",
+      "detail": "no description or overview"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "image",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     },

@@ -64,6 +64,13 @@ formats:
     notes: "DoclingDocument JSON reader (read-only consume-Docling boundary); awaits first multi-axis certification."
     gates:
       - .github/workflows/format-acceptance.yml
+  image:
+    tier: available
+    tier_since: "2026-06-18"
+    grandfathered: true
+    notes: "PNG/JPEG reader (read-only OCR boundary); text + structure via the kapi-vision plugin. Awaits first multi-axis certification."
+    gates:
+      - .github/workflows/format-acceptance.yml
   doxygen:
     tier: maintained
     tier_since: "2026-06-12"
