@@ -9,8 +9,60 @@ import (
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginhostreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
 )
+
+// formatPluginProviders maps a format the host can't read in-core to the plugin
+// that provides it. Used for on-demand install: on macOS the kapi-pdfium plugin
+// arrives via the Homebrew Cask → kapi-cli → kapi-pdfium chain, but the
+// Linux/Windows desktop ships as a raw artifact with no package manager to
+// express that dependency, so the engine has no PDF reader until the plugin is
+// installed. Rather than bundle (and duplicate) the engine per platform, we
+// fetch it from the registry the first time the user actually opens a PDF.
+var formatPluginProviders = map[string]string{"pdf": "pdfium"}
+
+// ensureFormatPlugin installs, once and on demand, the plugin that provides a
+// format the host currently can't read (e.g. PDF via kapi-pdfium). It is a
+// best-effort, synchronous install so the immediately-following NewReader
+// succeeds, and emits the same plugin-installing / plugin-progress /
+// plugin-installed / plugin-error events the Plugin Manager uses, so the UI can
+// show a toast. A no-op when the reader already exists or no plugin is known.
+func (a *App) ensureFormatPlugin(formatName string) {
+	if a.formatReg.HasReader(registry.FormatID(formatName)) {
+		return
+	}
+	plugin, ok := formatPluginProviders[formatName]
+	if !ok {
+		return
+	}
+	a.emitEvent("plugin-installing", map[string]string{"name": plugin})
+	lastPct := -1
+	_, err := pluginhost.InstallFromRegistry(context.Background(), pluginhost.InstallOptions{
+		IndexURL:    pluginhost.DefaultIndexURL(),
+		PluginName:  plugin,
+		KapiVersion: version.Version,
+		TargetDir:   a.pluginDir,
+		LogF:        func(msg string) { a.logger.Printf("install %s: %s", plugin, msg) },
+		ProgressF: func(downloaded, total int64) {
+			if total <= 0 {
+				return
+			}
+			if pct := int(downloaded * 100 / total); pct != lastPct {
+				lastPct = pct
+				a.emitEvent("plugin-progress", map[string]any{"name": plugin, "percent": pct})
+			}
+		},
+	})
+	if err != nil {
+		a.logger.Printf("on-demand install of %s for %s failed: %v", plugin, formatName, err)
+		a.emitEvent("plugin-error", map[string]string{"name": plugin, "error": err.Error()})
+		return
+	}
+	a.rescanPlugins() // re-registers the plugin's format reader into a.formatReg
+	a.emitEvent("plugin-installed", map[string]string{"name": plugin})
+	a.emitEvent("plugins-changed", nil)
+}
 
 // AvailablePlugin represents a plugin available from the registry.
 type AvailablePlugin struct {

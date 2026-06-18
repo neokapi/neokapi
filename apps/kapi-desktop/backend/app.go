@@ -1299,6 +1299,11 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 		return nil, errors.New("file path is required")
 	}
 
+	// On-demand: if this format is read out-of-core by a plugin we don't have
+	// yet (e.g. PDF via kapi-pdfium on a Linux/Windows desktop), fetch it from
+	// the registry now so the reader below resolves. No-op once installed.
+	a.ensureFormatPlugin(formatName)
+
 	reader, err := a.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, fmt.Errorf("create reader: %w", err)
