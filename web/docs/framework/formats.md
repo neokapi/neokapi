@@ -44,6 +44,14 @@ neokapi ships built-in readers and writers spanning several families:
 - **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
 - **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
 
+PDF is read by Google's PDFium rather than a built-in reader: on the desktop and
+CLI through the `kapi-pdfium` plugin, and in the browser through PDFium compiled
+to WebAssembly. Beyond text, it recovers each fragment's position on the page
+(geometry) and the document's structure — headings, paragraphs, and tables — from
+the PDF's own tags where present and by geometric inference otherwise. You can try
+it on your own files in the [PDF Lab](/lab/pdf); the design is described in
+[AD-028](/contribute/architecture/028-pdf-reader-plugin).
+
 Each format exposes its own configuration (extraction rules, segmentation,
 inline-code handling). Rather than maintain a list by hand, the
 [Format Reference](/formats) is generated directly from the format registry —

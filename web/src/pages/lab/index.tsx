@@ -30,6 +30,7 @@ export default function LabPage(): React.ReactElement {
           </p>
           <nav className={styles.appNav} aria-label="Related labs">
             <Link to="/lab/segmentation">Segmentation Lab</Link>
+            <Link to="/lab/pdf">PDF Lab</Link>
             <Link to="/playground-cli">CLI Playground</Link>
             <Link to="/framework/architecture">Framework docs</Link>
           </nav>

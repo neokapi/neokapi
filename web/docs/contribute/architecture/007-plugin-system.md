@@ -323,20 +323,18 @@ constraint that failed.
 - **kapi-pdfium** (`plugins/pdfium/`) — first-party Mode-C format plugin
   providing a high-fidelity `pdf` reader backed by Google's PDFium
   (go-pdfium, cgo). It extracts correct text (including CID/Type0 fonts and
-  CJK, which the built-in pure-Go reader garbles) and optional per-segment
-  geometry, and runs as an isolated daemon so a malformed-PDF crash dies with
-  the subprocess, not kapi. It overrides the built-in `pdf` reader when
-  installed (precedence, above); the built-in remains the cgo-less fallback
-  (and the only PDF path in the browser/WASM build, where PDFium can't run).
-  Built once per platform with PDFium statically linked (single self-contained
-  binary, like static ICU). **Bundled with both the kapi-cli distribution and
-  the kapi-desktop app** rather than downloaded: the CLI installs it into the
-  shared `share/kapi/plugins/pdfium/` root; the desktop bundles the same
-  artifact for self-containment and prefers the shared root when present.
-  Because both the CLI and the desktop are hosts over the same `cli/pluginhost`
-  discovery + daemon pool, there is **one engine** — they do not each compile
-  PDFium into their own binary, and a single long-lived daemon can be shared
-  across host processes (`KAPI_DAEMON_SOCKET_PDFIUM`).
+  CJK), per-block and per-glyph geometry, and document structure, and runs as
+  an isolated daemon so a malformed-PDF crash dies with the subprocess, not
+  kapi. There is no in-core PDF reader on native builds, so the plugin supplies
+  the `pdf` format outright; the browser uses PDFium compiled to WebAssembly
+  instead. **Bundled with both the kapi-cli distribution and the kapi-desktop
+  app**: the CLI installs it into the shared `share/kapi/plugins/pdfium/` root,
+  and the desktop installs it on demand the first time a PDF is opened, both
+  hosting it over the same `cli/pluginhost` discovery + daemon pool — one
+  engine, not one per host. PDFium ships as a bundled shared library beside the
+  binary (found via rpath), not statically linked. The full PDF subsystem —
+  extraction modes, the geometry model, and the tagged/geometric structure
+  tiers — is described in [AD-028](028-pdf-reader-plugin.md).
 
 A minimal Go reference plugin in `examples/plugins/hello/` covers
 Mode A + B with no third-party deps.

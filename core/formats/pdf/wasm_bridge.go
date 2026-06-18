@@ -11,8 +11,8 @@ package pdf
 // as the native kapi-pdfium plugin, and letting us retire the pure-Go
 // hand-rolled reader in the browser too.
 //
-// JS contract (provided by the web app; see register_pdf_js.go and
-// strategy/doclang/pdfium-browser-bridge.md):
+// JS contract (provided by the web app; see register_pdf_js.go and the bridge
+// installer in packages/kapi-playground/src/pdfiumBridge.ts):
 //
 //	globalThis.__kapiPdfium = {
 //	  ready: Promise<void>,                   // resolves once pdfium.wasm is loaded
@@ -209,8 +209,13 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 				Properties: map[string]string{"page-number": strconv.Itoa(pageNum)},
 			}
 			ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
-			// Infer structure (tables, heading/paragraph roles) from the
-			// positioned blocks — same analysis as the native plugin.
+			// Infer structure (tables, heading/paragraph roles) from the positioned
+			// blocks — tier-2 geometric analysis, identical to the native plugin's
+			// fallback path. Note the asymmetry: for a *tagged* PDF the native
+			// plugin reads the authoritative struct tree (tier-1), but the
+			// __kapiPdfium.extract() contract exposes only rects, not the tree, so
+			// the browser always uses tier-2. Tagged-PDF structure may therefore
+			// differ between the browser lab and a native kapi run.
 			for _, p := range structure.ToParts(structure.Analyze(blocks), &groupCounter) {
 				ch <- model.PartResult{Part: p}
 			}
