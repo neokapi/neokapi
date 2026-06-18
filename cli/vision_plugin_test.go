@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
@@ -80,7 +81,7 @@ func TestVisionFraming_RoundTrip(t *testing.T) {
 	if resp.OCR == nil || len(resp.OCR.Lines) != 1 || resp.OCR.Lines[0].Text != "x" {
 		t.Fatalf("response = %+v", resp)
 	}
-	if _, err := visionReadFrame(&respBuf); err != io.EOF {
+	if _, err := visionReadFrame(&respBuf); !errors.Is(err, io.EOF) {
 		t.Errorf("expected clean EOF after response, got %v", err)
 	}
 }

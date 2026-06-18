@@ -43,6 +43,7 @@ type visionEngine struct {
 	once      sync.Once
 	transport visionTransport
 	initErr   error
+	cancel    context.CancelFunc // tears down the engine-scoped subprocess
 }
 
 func newVisionEngine() (vision.Engine, error) { return &visionEngine{}, nil }
@@ -63,6 +64,10 @@ func (e *visionEngine) OCR(ctx context.Context, imagePath string, opts vision.OC
 }
 
 func (e *visionEngine) Close() error {
+	if e.cancel != nil {
+		e.cancel()
+		e.cancel = nil
+	}
 	if e.transport != nil {
 		err := e.transport.Close()
 		e.transport = nil
@@ -71,13 +76,22 @@ func (e *visionEngine) Close() error {
 	return nil
 }
 
-// dial locates the kapi-vision plugin and starts its serve loop.
+// dial locates the kapi-vision plugin and starts its serve loop under an
+// engine-scoped context (torn down by Close), so the warm process survives
+// across calls and is not bound to any single request's context.
 func (e *visionEngine) dial() (visionTransport, error) {
 	p, err := findVisionPlugin()
 	if err != nil {
 		return nil, err
 	}
-	return startVisionProcess(p.BinaryPath)
+	ctx, cancel := context.WithCancel(context.Background())
+	proc, err := startVisionProcess(ctx, p.BinaryPath)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	e.cancel = cancel
+	return proc, nil
 }
 
 func findVisionPlugin() (*pluginhost.Plugin, error) {
@@ -193,8 +207,8 @@ type visionProcess struct {
 	once   sync.Once
 }
 
-func startVisionProcess(bin string) (*visionProcess, error) {
-	cmd := exec.Command(bin, "serve")
+func startVisionProcess(ctx context.Context, bin string) (*visionProcess, error) {
+	cmd := exec.CommandContext(ctx, bin, "serve")
 	cmd.Stderr = os.Stderr // forward first-run model-download progress
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
