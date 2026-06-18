@@ -148,6 +148,32 @@ func PartsFromLayout(regions []Region, res *OCRResult, counter, groupCounter *in
 	return parts
 }
 
+// StructureFromLayout runs a layout model over a page raster and structures the
+// page's already-positioned blocks by it: it runs le.Layout over rasterPath,
+// assigns reading order, builds an OCRResult from the blocks' text + geometry, and
+// emits role-tagged parts in reading order (PartsFromLayout) — authoritative
+// tier-3 structure (with tables reconstructed). This is format-agnostic: any
+// source that can produce a page raster plus positioned text blocks (the PDF
+// reader, an image, …) can use it. width/height are the raster's pixel dimensions
+// (the space the block geometry lives in too — render at 72 DPI for a 1:1 mapping
+// from PDF points).
+//
+// It returns (nil, nil) when the layout model yields no regions, so the caller can
+// fall back to the geometric tier-2 (core/structure.Analyze). counter and
+// groupCounter are advanced in place for IDs unique across pages.
+func StructureFromLayout(ctx context.Context, le LayoutEngine, rasterPath string, blocks []*model.Block, width, height int, opts LayoutOptions, counter, groupCounter *int) ([]*model.Part, error) {
+	regions, err := le.Layout(ctx, rasterPath, opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(regions) == 0 {
+		return nil, nil
+	}
+	regions = SortReadingOrder(regions)
+	res := OCRResultFromBlocks(blocks, width, height)
+	return PartsFromLayout(regions, res, counter, groupCounter), nil
+}
+
 // regionParts emits one region's lines. A table region reconstructs row/column
 // cell structure from the lines' geometry (reusing the tier-2 grid clustering);
 // other roles emit role-tagged blocks.
