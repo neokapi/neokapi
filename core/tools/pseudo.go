@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -155,6 +157,13 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Generates pseudo-translations for testing localization readiness",
 		Cfg:             cfg,
+	}
+	// Media: pseudo-localize images (a clearly-visible watermark + color wash) so
+	// a swapped/localized image is unmistakable in a UI or build — the visual
+	// analog of the text transform. Non-image media passes through.
+	base.HandleMediaFn = func(part *model.Part) (*model.Part, error) {
+		pseudoLocalizeMedia(part, cfg)
+		return part, nil
 	}
 	// Translate: pseudo-translate writes a target; source is read-only.
 	base.Translate = func(v tool.TargetView) error {
@@ -316,6 +325,60 @@ func pseudoOverlayKind(locale model.LocaleID) string {
 // a follow-up.
 type pseudoCache struct {
 	Target string `json:"target"`
+}
+
+// pseudoLocalizeMedia pseudo-localizes an image Media part in place: it replaces
+// the image with a clearly-visible watermarked variant (tint + border + band)
+// and pseudo-translates the alt-text. It is best-effort — non-image media, or a
+// transform/decode failure, leaves the part unchanged. Bytes come from the
+// Media's inline Data or, for a URI reference, the source file (read here
+// because pseudo-localization is an explicit pixel transform, distinct from the
+// OCR path that keeps image bytes out of the host).
+func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig) {
+	m, ok := part.Resource.(*model.Media)
+	if !ok || m == nil || !isImageMedia(m) {
+		return
+	}
+	data := m.Data
+	if len(data) == 0 && m.URI != "" {
+		b, err := os.ReadFile(m.URI)
+		if err != nil {
+			return
+		}
+		data = b
+	}
+	if len(data) == 0 {
+		return
+	}
+	out, err := imageops.PseudoLocalize(data, imageops.PseudoOptions{})
+	if err != nil {
+		return
+	}
+	m.Data = out
+	m.MimeType = "image/png"
+	m.Size = int64(len(out))
+	if m.Properties == nil {
+		m.Properties = map[string]string{}
+	}
+	m.Properties["pseudo"] = "true"
+	if m.AltText != "" {
+		m.AltText = pseudoTranslate(m.AltText, cfg)
+	}
+}
+
+// isImageMedia reports whether a Media part is a raster image (by MIME type, or
+// by filename extension as a fallback).
+func isImageMedia(m *model.Media) bool {
+	if strings.HasPrefix(m.MimeType, "image/") {
+		return true
+	}
+	name := strings.ToLower(m.Filename)
+	for _, ext := range []string{".png", ".jpg", ".jpeg", ".gif"} {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 // runsHaveInline reports whether the run sequence contains any

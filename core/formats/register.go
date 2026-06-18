@@ -106,6 +106,9 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 				{0xff, 0xd8, 0xff},
 			},
 		}, "Image")
+	// The writer emits the (possibly localized) image bytes — the whole-image
+	// localization sink, e.g. pseudo-localized variants.
+	reg.RegisterWriter("image", func() format.DataFormatWriter { return imagefmt.NewWriter() })
 
 	// HTML
 	reg.RegisterReader("html",

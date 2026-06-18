@@ -65,6 +65,9 @@ func TestRegisterAllWriters(t *testing.T) {
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		// "image" has a writer: it emits the (possibly localized, e.g.
+		// pseudo-localized) image bytes — the whole-image localization sink.
+		"image",
 		// Note: "docling" is intentionally absent — it is read-only (extraction
 		// only), so it registers a reader but no writer. "pdf" is absent on
 		// native builds entirely (read out-of-core by the kapi-pdfium plugin).

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T21:52:27Z",
+  "generatedAt": "2026-06-18T22:05:31Z",
   "kind": "format",
   "entries": [
     {
@@ -1354,7 +1354,8 @@
         "image/png",
         "image/jpeg"
       ],
-      "hasReader": true
+      "hasReader": true,
+      "hasWriter": true
     },
     {
       "id": "properties",

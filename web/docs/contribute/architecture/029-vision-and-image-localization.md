@@ -35,7 +35,7 @@ treating "image" as "OCR" conflates them. The distinct modes are:
 
 | Mode | What it localizes | Mechanism |
 |---|---|---|
-| **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text) |
+| **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text); pseudo-localization (a visible watermark variant) ships today |
 | **Alt-text / caption** | accessible text, not pixels | translate `Media.AltText` and caption blocks |
 | **In-image text (OCR)** | text rendered into the image | extract → translate → (optionally) re-render |
 | **Layout / structure** | the document's regions | detect regions + reading order for faithful reconstruction |
@@ -59,8 +59,20 @@ they live in a plugin, never in `kapi`.
 `core/formats/image` reads PNG/JPEG and **always** emits the image as a `Media`
 part referenced by URI (never inline bytes — the binary never travels through the
 kapi part stream). This alone supports whole-image localization: the Media is the
-asset; a localized variant is a different file. The reader is read-only — there
-is no image *writer* that rewrites pixels.
+asset; a localized variant is a different file. A matching **image writer** emits
+a `Media` part's bytes — the whole-image localization *sink* — so a transform
+that produces a localized image variant can be written back out.
+
+#### Pseudo-localization
+
+The first localized-image transform is **pseudo-localization** — the visual
+analog of text pseudo-translation. The `pseudo-translate` tool, on encountering
+an image `Media` part, replaces it with a clearly-visible watermarked variant (a
+color wash + a solid border + a diagonal band; `core/imageops.PseudoLocalize`)
+and pseudo-translates the alt-text. Read an image → pseudo-translate → write, and
+the output is an unmistakably-marked image — proof, in a UI or build artifact,
+that image localization actually swapped the asset. It is deterministic and
+dependency-free (standard-library raster ops only).
 
 Two config toggles gate the enrichment, both default-on:
 
@@ -126,11 +138,12 @@ dependency — vision is opt-in (`kapi plugins install vision`).
   and — once a page rasterizer is wired — for the PDF tier-3 slot in
   [AD-028](028-pdf-reader-plugin.md), since the vision engine is format-agnostic
   over rasters.
-- **Whole-image replacement** is supported today at the asset level (the Media is
-  emitted as a localizable unit). The *target-asset* model — pairing a source
-  image with per-locale localized files and a flow/connector path that emits the
-  swapped image — is the planned next step (design here; implementation tracked
-  separately).
+- **Whole-image replacement** is supported today at the asset level: the image is
+  emitted as a localizable Media, a writer emits localized bytes, and
+  pseudo-localization produces a visible variant end-to-end. The remaining piece
+  is the *target-asset* model — pairing a source image with per-locale localized
+  files (real translations) and a connector that resolves the right one — which is
+  the planned next step.
 
 ## Related
 
