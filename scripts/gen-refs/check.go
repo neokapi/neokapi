@@ -23,8 +23,8 @@ import (
 //   - It ignores the `generatedAt` timestamp, which changes on every run.
 //
 // The gate never writes; it only reads the committed files and compares.
-func checkDrift(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
-	formatEntries, toolEntries, bridgePresent, err := buildEntries(bridgeDir, metaPath, nativeDocsDir)
+func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
+	formatEntries, toolEntries, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}

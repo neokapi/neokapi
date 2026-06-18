@@ -125,7 +125,8 @@ func TestStructuralPayloadsJSONRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(data, &gback); err != nil {
 		t.Fatal(err)
 	}
-	if gback != *g {
+	// reflect.DeepEqual (not !=): GeometryAnnotation now has a Glyphs slice.
+	if !reflect.DeepEqual(gback, *g) {
 		t.Fatalf("geometry round-trip: got %+v want %+v", gback, *g)
 	}
 

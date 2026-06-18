@@ -55,9 +55,28 @@ interface PdfiumModule {
     out: number,
     outLen: number,
   ): number;
+  FPDFText_CountChars(textPage: number): number;
+  FPDFText_GetCharBox(
+    textPage: number,
+    index: number,
+    left: number,
+    right: number,
+    bottom: number,
+    top: number,
+  ): boolean;
+  FPDFText_GetUnicode(textPage: number, index: number): number;
 }
 
 export interface PdfRect {
+  text: string;
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+  /** Per-character boxes inside this rect (bottom-left coords, like the rect). */
+  glyphs?: PdfGlyph[];
+}
+export interface PdfGlyph {
   text: string;
   l: number;
   t: number;
@@ -90,6 +109,51 @@ async function loadModule(wasmUrl: string): Promise<PdfiumModule> {
   const m = await mod.init({ wasmBinary });
   m.PDFiumExt_Init(); // required before any document op
   return m;
+}
+
+// pageChars reads every character's box + text on a text page (bottom-left
+// coords, t > b). Reuses the caller's 4 scratch doubles. FPDFText_GetCharBox's
+// out-param order is (left, right, bottom, top).
+function pageChars(
+  m: PdfiumModule,
+  rt: PdfiumModule["pdfium"],
+  textPage: number,
+  dLeft: number,
+  dRight: number,
+  dBottom: number,
+  dTop: number,
+): PdfGlyph[] {
+  const out: PdfGlyph[] = [];
+  const n = m.FPDFText_CountChars(textPage);
+  for (let i = 0; i < n; i++) {
+    if (!m.FPDFText_GetCharBox(textPage, i, dLeft, dRight, dBottom, dTop)) continue;
+    const cp = m.FPDFText_GetUnicode(textPage, i);
+    const text = cp > 0 ? String.fromCodePoint(cp) : "";
+    if (text.trim() === "") continue; // skip spaces/newlines (degenerate boxes)
+    out.push({
+      text,
+      l: rt.getValue(dLeft, "double"),
+      r: rt.getValue(dRight, "double"),
+      b: rt.getValue(dBottom, "double"),
+      t: rt.getValue(dTop, "double"),
+    });
+  }
+  return out;
+}
+
+// glyphsInRect returns the chars whose center lies within the rect bounds.
+function glyphsInRect(chars: PdfGlyph[], l: number, t: number, r: number, b: number): PdfGlyph[] {
+  const rl = Math.min(l, r);
+  const rr = Math.max(l, r);
+  const rb = Math.min(t, b);
+  const rt2 = Math.max(t, b);
+  const out: PdfGlyph[] = [];
+  for (const c of chars) {
+    const cx = (c.l + c.r) / 2;
+    const cy = (c.t + c.b) / 2;
+    if (cx >= rl && cx <= rr && cy >= rb && cy <= rt2) out.push(c);
+  }
+  return out;
 }
 
 function extractDocument(m: PdfiumModule, bytes: Uint8Array): PdfExtract {
@@ -126,6 +190,10 @@ function extractDocument(m: PdfiumModule, bytes: Uint8Array): PdfExtract {
       const textPage = m.FPDFText_LoadPage(page);
       const rects: PdfRect[] = [];
 
+      // All character boxes on the page, bucketed into their rect below. Cheap
+      // for a single interactive document; the Layout view shows/hides them.
+      const chars = pageChars(m, rt, textPage, dL, dR, dB, dT);
+
       const count = m.FPDFText_CountRects(textPage, 0, -1);
       for (let r = 0; r < count; r++) {
         m.FPDFText_GetRect(textPage, r, dL, dT, dR, dB);
@@ -144,7 +212,8 @@ function extractDocument(m: PdfiumModule, bytes: Uint8Array): PdfExtract {
           text = rt.UTF16ToString(tbuf).slice(0, need);
           free(tbuf);
         }
-        rects.push({ text, l, t, r: rr, b });
+        const glyphs = glyphsInRect(chars, l, t, rr, b);
+        rects.push(glyphs.length > 0 ? { text, l, t, r: rr, b, glyphs } : { text, l, t, r: rr, b });
       }
 
       m.FPDFText_ClosePage(textPage);

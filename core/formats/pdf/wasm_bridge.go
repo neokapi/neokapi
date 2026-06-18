@@ -209,26 +209,47 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// geometryFromRect converts a PDFium text rect (bottom-left coords, where "t" is
-// the larger Y) to a top-left GeometryAnnotation when the page height is known —
-// the same flip the native kapi-pdfium plugin applies.
-func geometryFromRect(rect js.Value, page int, pageHeight float64) *model.GeometryAnnotation {
-	l := rect.Get("l").Float()
-	t := rect.Get("t").Float()
-	rr := rect.Get("r").Float()
-	bb := rect.Get("b").Float()
-	x := math.Min(l, rr)
-	w := math.Abs(rr - l)
-	upper := math.Max(t, bb)
-	lower := math.Min(t, bb)
+// flipBox converts a PDFium box (bottom-left coords, where "t" is the larger Y)
+// to a top-left Rect when the page height is known — the same flip the native
+// kapi-pdfium plugin applies. ok is false for a degenerate (zero-area) box.
+func flipBox(l, t, r, b, pageHeight float64) (rect model.Rect, topLeft, ok bool) {
+	x := math.Min(l, r)
+	w := math.Abs(r - l)
+	upper := math.Max(t, b)
+	lower := math.Min(t, b)
 	h := upper - lower
 	if w == 0 && h == 0 {
-		return nil
+		return model.Rect{}, false, false
 	}
 	if pageHeight > 0 {
-		return &model.GeometryAnnotation{Page: page, BBox: model.Rect{X: x, Y: pageHeight - upper, W: w, H: h}, Origin: "top-left"}
+		return model.Rect{X: x, Y: pageHeight - upper, W: w, H: h}, true, true
 	}
-	return &model.GeometryAnnotation{Page: page, BBox: model.Rect{X: x, Y: lower, W: w, H: h}, Origin: "bottom-left"}
+	return model.Rect{X: x, Y: lower, W: w, H: h}, false, true
+}
+
+// geometryFromRect converts a PDFium text rect (and its per-character glyph
+// boxes, when present) to a GeometryAnnotation.
+func geometryFromRect(rect js.Value, page int, pageHeight float64) *model.GeometryAnnotation {
+	box, topLeft, ok := flipBox(rect.Get("l").Float(), rect.Get("t").Float(), rect.Get("r").Float(), rect.Get("b").Float(), pageHeight)
+	if !ok {
+		return nil
+	}
+	origin := "bottom-left"
+	if topLeft {
+		origin = "top-left"
+	}
+	g := &model.GeometryAnnotation{Page: page, BBox: box, Origin: origin}
+	if glyphs := rect.Get("glyphs"); !glyphs.IsUndefined() && !glyphs.IsNull() {
+		for i := 0; i < glyphs.Length(); i++ {
+			gl := glyphs.Index(i)
+			gbox, _, gok := flipBox(gl.Get("l").Float(), gl.Get("t").Float(), gl.Get("r").Float(), gl.Get("b").Float(), pageHeight)
+			if !gok {
+				continue
+			}
+			g.Glyphs = append(g.Glyphs, model.GlyphBox{Text: gl.Get("text").String(), BBox: gbox})
+		}
+	}
+	return g
 }
 
 // Close is a no-op; the JS-side PDFium module is owned by the web app.

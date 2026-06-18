@@ -140,6 +140,19 @@ type GeometryAnnotation struct {
 	// SourceRef is an optional provenance pointer back to the originating item
 	// (e.g. a DoclingDocument JSON pointer) for debugging/round-trip.
 	SourceRef string `json:"sourceRef,omitempty"`
+	// Glyphs is the optional per-character geometry within this block, in the
+	// same coordinate space/origin as BBox. Empty by default; populated only
+	// when a reader is asked for glyph-level geometry (e.g. the PDFium reader's
+	// "glyphs" option). Lets a consumer render character-precise highlights
+	// while blocks stay meaningful text units.
+	Glyphs []GlyphBox `json:"glyphs,omitempty"`
+}
+
+// GlyphBox is one character's text and bounding box, used for per-glyph geometry
+// (GeometryAnnotation.Glyphs).
+type GlyphBox struct {
+	Text string `json:"text,omitempty"`
+	BBox Rect   `json:"bbox"`
 }
 
 // TypeName implements Payload.

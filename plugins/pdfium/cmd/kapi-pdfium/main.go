@@ -107,8 +107,10 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 		return complete(stream, err.Error())
 	}
 
-	geometry := header.GetFilterParams()["geometry"] == "true"
-	parts, err := pdfreader.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, pdfreader.Options{Geometry: geometry})
+	params := header.GetFilterParams()
+	glyphs := params["glyphs"] == "true"
+	geometry := params["geometry"] == "true" || glyphs
+	parts, err := pdfreader.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, pdfreader.Options{Geometry: geometry, Glyphs: glyphs})
 	if err != nil {
 		return complete(stream, err.Error())
 	}

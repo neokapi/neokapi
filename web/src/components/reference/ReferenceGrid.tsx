@@ -68,9 +68,13 @@ export default function ReferenceGrid({ entries, kind }: Props) {
   }, [history, location.search]);
 
   const counts = useMemo(() => {
-    const builtin = entries.filter((e) => e.source === "built-in").length;
-    const okapi = entries.filter((e) => e.source === "okapi").length;
-    return { all: entries.length, "built-in": builtin, okapi };
+    const by = (s: ReferenceSource) => entries.filter((e) => e.source === s).length;
+    return {
+      all: entries.length,
+      "built-in": by("built-in"),
+      plugin: by("plugin"),
+      okapi: by("okapi"),
+    };
   }, [entries]);
 
   // Tool slugs need the built-in id set to disambiguate cross-source collisions
@@ -109,9 +113,11 @@ export default function ReferenceGrid({ entries, kind }: Props) {
     // Formats, "All" filter: section by source, built-in first.
     if (filter === "all") {
       const builtin = filtered.filter((e) => e.source === "built-in");
+      const plugin = filtered.filter((e) => e.source === "plugin");
       const okapi = filtered.filter((e) => e.source === "okapi");
       const sections: [string, ReferenceEntry[]][] = [];
       if (builtin.length) sections.push(["Built-in", builtin]);
+      if (plugin.length) sections.push(["Plugin", plugin]);
       if (okapi.length) sections.push(["Okapi bridge", okapi]);
       return sections;
     }
@@ -147,6 +153,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
         <div className={styles.filterGroup} role="group" aria-label="Filter by source">
           {filterButton("all", "All")}
           {filterButton("built-in", "Built-in")}
+          {counts.plugin > 0 && filterButton("plugin", "Plugin")}
           {filterButton("okapi", "Okapi bridge")}
         </div>
       </div>

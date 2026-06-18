@@ -6,6 +6,10 @@ import "encoding/json"
 const (
 	SourceBuiltIn = "built-in"
 	SourceOkapi   = "okapi"
+	// SourcePlugin is an in-repo Mode-C plugin format (e.g. PDF via kapi-pdfium).
+	// Reproducible from in-repo source like SourceBuiltIn (unlike SourceOkapi,
+	// which lives in a separate repo).
+	SourcePlugin = "plugin"
 )
 
 // Kind discriminates formats from tools in the unified dataset.

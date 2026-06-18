@@ -27,7 +27,8 @@ export default function FormatReferencePage({ id }: Props) {
   }
 
   const doc = entry.doc;
-  const sourceLabel = entry.source === "okapi" ? "Okapi bridge" : "Built-in";
+  const sourceLabel =
+    entry.source === "okapi" ? "Okapi bridge" : entry.source === "plugin" ? "Plugin" : "Built-in";
   const sample = formatPreviewSample(entry);
 
   return (

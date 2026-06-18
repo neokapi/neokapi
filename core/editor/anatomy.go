@@ -171,6 +171,18 @@ type GeometryView struct {
 	Resolution int     `json:"resolution,omitempty"`
 	Origin     string  `json:"origin,omitempty"`
 	Z          int     `json:"z,omitempty"`
+	// Glyphs is optional per-character geometry within the block (same space as
+	// X/Y/W/H), present only when the reader was asked for glyph-level geometry.
+	Glyphs []GlyphView `json:"glyphs,omitempty"`
+}
+
+// GlyphView is the wire view of one character's box (GeometryView.Glyphs).
+type GlyphView struct {
+	Text string  `json:"text,omitempty"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+	W    float64 `json:"w"`
+	H    float64 `json:"h"`
 }
 
 // BuildContentTree walks a Part stream (in document order, as emitted by a
@@ -315,10 +327,17 @@ func blockNode(b *model.Block) *ContentNode {
 		n.Structure = &StructureView{Role: s.Role, Layer: s.Layer, Visibility: s.Visibility, Level: s.Level, ReadingOrder: s.ReadingOrder}
 	}
 	if g, ok := b.Geometry(); ok && g != nil {
-		n.Geometry = &GeometryView{
+		gv := &GeometryView{
 			Page: g.Page, X: g.BBox.X, Y: g.BBox.Y, W: g.BBox.W, H: g.BBox.H,
 			Resolution: g.Resolution, Origin: g.Origin, Z: g.Z,
 		}
+		if len(g.Glyphs) > 0 {
+			gv.Glyphs = make([]GlyphView, len(g.Glyphs))
+			for i, gl := range g.Glyphs {
+				gv.Glyphs[i] = GlyphView{Text: gl.Text, X: gl.BBox.X, Y: gl.BBox.Y, W: gl.BBox.W, H: gl.BBox.H}
+			}
+		}
+		n.Geometry = gv
 	}
 	if rel, ok := b.Relations(); ok && rel != nil && len(rel.Relations) > 0 {
 		n.Relations = make([]RelationView, 0, len(rel.Relations))

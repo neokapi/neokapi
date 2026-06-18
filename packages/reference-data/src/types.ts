@@ -24,7 +24,7 @@ import type { ComponentSchema, ToolDocParam } from "@neokapi/contract-types";
 // ── Reference dataset types ─────────────────────────────────────────────────
 
 /** Which engine provides an entry. */
-export type ReferenceSource = "built-in" | "okapi";
+export type ReferenceSource = "built-in" | "okapi" | "plugin";
 
 /** Whether an entry is a data format or a processing tool. */
 export type ReferenceKind = "format" | "tool";

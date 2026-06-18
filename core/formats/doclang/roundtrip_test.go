@@ -3,6 +3,7 @@ package doclang_test
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -75,7 +76,7 @@ func TestDocLangRoundTrip(t *testing.T) {
 		gb, okb := b.Geometry()
 		if oka != okb {
 			t.Errorf("block %d geometry presence changed: %v → %v", i, oka, okb)
-		} else if oka && *ga != *gb {
+		} else if oka && !reflect.DeepEqual(*ga, *gb) {
 			t.Errorf("block %d geometry: %+v → %+v", i, *ga, *gb)
 		}
 	}

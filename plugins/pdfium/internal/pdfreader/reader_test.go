@@ -137,6 +137,49 @@ func TestReadParts_Modes(t *testing.T) {
 	require.Positive(t, positioned, "geometry mode carries positioned blocks")
 }
 
+// glyph mode attaches per-character boxes to each positioned block's geometry,
+// each within the block's bbox; the default geometry mode carries none.
+func TestReadParts_Glyphs(t *testing.T) {
+	data, err := os.ReadFile("testdata/multi.pdf")
+	require.NoError(t, err)
+
+	// Default geometry mode: no glyphs.
+	geo, err := ReadParts(data, model.LocaleEnglish, "multi.pdf", Options{Geometry: true})
+	require.NoError(t, err)
+	for _, b := range collectBlocks(geo) {
+		if g, ok := b.Geometry(); ok {
+			assert.Empty(t, g.Glyphs, "geometry mode carries no per-glyph boxes")
+		}
+	}
+
+	// Glyph mode (implies geometry): blocks carry per-character boxes.
+	gl, err := ReadParts(data, model.LocaleEnglish, "multi.pdf", Options{Glyphs: true})
+	require.NoError(t, err)
+	blocks := collectBlocks(gl)
+	require.NotEmpty(t, blocks)
+	var totalGlyphs, withGlyphs int
+	for _, b := range blocks {
+		g, ok := b.Geometry()
+		if !ok || g.BBox.W == 0 {
+			continue
+		}
+		if len(g.Glyphs) == 0 {
+			continue
+		}
+		withGlyphs++
+		totalGlyphs += len(g.Glyphs)
+		// Each glyph box sits within the block's bbox (allow a small epsilon).
+		const eps = 1.5
+		for _, gb := range g.Glyphs {
+			assert.GreaterOrEqual(t, gb.BBox.X+eps, g.BBox.X, "glyph left within block")
+			assert.LessOrEqual(t, gb.BBox.X+gb.BBox.W, g.BBox.X+g.BBox.W+eps, "glyph right within block")
+			assert.Equal(t, g.Origin, "top-left")
+		}
+	}
+	require.Positive(t, withGlyphs, "at least one block has per-glyph geometry")
+	require.Positive(t, totalGlyphs, "glyph boxes extracted")
+}
+
 // an empty (but structurally valid) PDF opens cleanly and yields no text blocks
 // — no error, no panic.
 func TestReadParts_Empty(t *testing.T) {
