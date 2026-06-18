@@ -49,6 +49,13 @@ type onnxEngine struct {
 	rec    *ort.DynamicAdvancedSession
 	dict   []string
 	loaded bool
+
+	// Layout is lazily loaded on first Layout() call (separate from OCR — its
+	// model is large and downloaded on demand). See layout_onnx.go.
+	layoutMu      sync.Mutex
+	layoutSess    *ort.DynamicAdvancedSession
+	layoutInputs  []string
+	layoutOutputs []string
 }
 
 // NewEngine constructs the ONNX-backed engine: it initializes onnxruntime,
@@ -125,9 +132,6 @@ func openSession(path string) (*ort.DynamicAdvancedSession, error) {
 // and validated against real output, exactly as the OCR det/rec pipeline was.
 // Until then this returns an error and the image reader falls back to geometric
 // (tier-2) structure — graceful degradation rather than unvalidated numerics.
-func (e *onnxEngine) Layout(string, string, string) (*visionproto.LayoutResult, error) {
-	return nil, fmt.Errorf("vision: layout model not yet configured; falling back to geometric structure")
-}
 
 func (e *onnxEngine) Loaded() bool {
 	e.mu.Lock()
@@ -146,6 +150,12 @@ func (e *onnxEngine) Close() error {
 		e.rec.Destroy()
 		e.rec = nil
 	}
+	e.layoutMu.Lock()
+	if e.layoutSess != nil {
+		e.layoutSess.Destroy()
+		e.layoutSess = nil
+	}
+	e.layoutMu.Unlock()
 	e.loaded = false
 	ort.DestroyEnvironment()
 	return nil

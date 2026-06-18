@@ -237,6 +237,7 @@ func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.Loca
 	// tier-2 (structure.Analyze) when layout is unavailable or yields nothing.
 	if le, ok := eng.(vision.LayoutEngine); ok {
 		if regions, lerr := le.Layout(ctx, imgPath, vision.LayoutOptions{Lang: locale.String()}); lerr == nil && len(regions) > 0 {
+			regions = vision.SortReadingOrder(regions)
 			if parts := vision.PartsFromLayout(regions, res, &counter, &groupCounter); len(parts) > 0 {
 				return parts
 			}

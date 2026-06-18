@@ -52,6 +52,15 @@ var Registry = []Asset{
 		URL:    "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/ppocrv5_dict.txt",
 		SHA256: "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
 	},
+	{
+		// PP-DocLayoutV3 layout detector (RT-DETR, 25 region classes). ~132 MB —
+		// download-on-demand (NOT bundled in the tarball like the OCR models), so
+		// the layout capability is acquired only when first used.
+		Key:    "layout",
+		File:   "ppdoclayoutv3.onnx",
+		URL:    "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/ppdoclayoutv3.onnx",
+		SHA256: "bc307c102a52a10eedf20f36a03df384b8eb2224beb2e5e716c581901a8f0b61",
+	},
 }
 
 // Get returns the asset with the given key.
@@ -64,18 +73,18 @@ func Get(key string) (Asset, bool) {
 	return Asset{}, false
 }
 
-// Dir resolves the model directory in precedence order:
+// Dir is the WRITABLE model directory — the download target — in precedence
+// order:
 //  1. $KAPI_VISION_MODELS_DIR (explicit override — local/offline);
-//  2. a "models" dir beside the executable (the self-contained release tarball
-//     bundles the assets there, so an installed plugin needs no download);
-//  3. $KAPI_VISION_CACHE;
-//  4. $XDG_CACHE_HOME/kapi/models/vision;
-//  5. ~/.cache/kapi/models/vision (download target when nothing above exists).
+//  2. $KAPI_VISION_CACHE/models/vision;
+//  3. $XDG_CACHE_HOME/kapi/models/vision;
+//  4. ~/.cache/kapi/models/vision.
+//
+// The read-only bundled dir (beside the executable, where the release tarball
+// ships the OCR models) is NOT a download target — it is searched by Ensure but
+// downloads (e.g. the on-demand layout model) always go to this writable dir.
 func Dir() string {
 	if d := os.Getenv("KAPI_VISION_MODELS_DIR"); d != "" {
-		return d
-	}
-	if d := bundledDir(); d != "" {
 		return d
 	}
 	if d := os.Getenv("KAPI_VISION_CACHE"); d != "" {
@@ -89,6 +98,20 @@ func Dir() string {
 		return filepath.Join(os.TempDir(), "kapi", "models", "vision")
 	}
 	return filepath.Join(home, ".cache", "kapi", "models", "vision")
+}
+
+// searchDirs lists, in order, the directories Ensure looks in for an existing
+// asset: the override, the read-only bundled dir beside the binary, then the
+// writable cache. The first valid match is used; nothing is downloaded if found.
+func searchDirs() []string {
+	var ds []string
+	if o := os.Getenv("KAPI_VISION_MODELS_DIR"); o != "" {
+		ds = append(ds, o)
+	}
+	if b := bundledDir(); b != "" {
+		ds = append(ds, b)
+	}
+	return append(ds, Dir())
 }
 
 // bundledDir returns "<executable-dir>/models" if it exists — the layout the
@@ -108,14 +131,18 @@ func bundledDir() string {
 // Path is the on-disk path an asset resolves to (whether or not it exists yet).
 func Path(a Asset) string { return filepath.Join(Dir(), a.File) }
 
-// Ensure returns the local path to an asset, downloading and verifying it if it
-// is not already present. A present file with a matching pinned hash (or no
-// pinned hash) is used as-is. Downloads are written atomically.
+// Ensure returns the local path to an asset. It first searches (override,
+// bundled, cache) for an already-present file with a matching pinned hash and
+// returns it as-is; otherwise it downloads to the writable cache dir, verifying
+// the hash. Downloads are written atomically.
 func Ensure(a Asset, logf func(string, ...any)) (string, error) {
-	dst := Path(a)
-	if ok, _ := verify(dst, a.SHA256); ok {
-		return dst, nil
+	for _, d := range searchDirs() {
+		p := filepath.Join(d, a.File)
+		if ok, _ := verify(p, a.SHA256); ok {
+			return p, nil
+		}
 	}
+	dst := Path(a) // download to the writable dir
 	if a.URL == "" {
 		return "", fmt.Errorf("models: %s missing and no URL to fetch it", a.File)
 	}
