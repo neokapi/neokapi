@@ -256,9 +256,10 @@ func proseRole(it placed, medianH float64) string {
 // structure: a table becomes a GroupStart("table") wrapping GroupStart("table-row")
 // groups of cell Blocks (role table-cell / table-header), and a prose block is
 // emitted with its heading/paragraph role. The cell/prose Blocks are the same
-// objects Analyze was given, so their geometry and text are preserved; only their
-// structure role is set. groupCounter is advanced for unique group IDs across
-// pages.
+// objects Analyze was given, so their geometry and text are preserved. ToParts
+// mutates those caller-owned Blocks: it sets each block's structure role and, for
+// table cells, also sets Block.Type to "table-cell" (matching the docling reader's
+// emission). groupCounter is advanced for unique group IDs across pages.
 func ToParts(regions []Region, groupCounter *int) []*model.Part {
 	var parts []*model.Part
 	for _, reg := range regions {

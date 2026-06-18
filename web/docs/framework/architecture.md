@@ -45,7 +45,8 @@ executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
 cancellation propagates to every stage. Readers, writers, and tools can be
 supplied by [plugins](/contribute/notes-internal/plugin-model) — the Java
 [Okapi Bridge](/contribute/architecture/007-plugin-system), the `kapi-sat`
-segmenter, or any remote plugin — dispatched as subprocesses over gRPC. See
+segmenter, the [`kapi-pdfium`](/contribute/architecture/028-pdf-reader-plugin) PDF
+reader, or any remote plugin — dispatched as subprocesses over gRPC. See
 [AD-001](/contribute/architecture/001-vision-and-modules) and
 [AD-004](/contribute/architecture/004-processing-engine).
 

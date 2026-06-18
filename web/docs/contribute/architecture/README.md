@@ -36,6 +36,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [007](007-plugin-system.md)     | Plugin System     | manifest-driven out-of-process plugins, gRPC, presets, Okapi bridge |
 | [021](021-sat-segmenter-plugin.md) | SaT Segmenter Plugin | in-process ONNX SaT model, stdin/stdout protocol, native-stack isolation, `sat` engine |
 | [026](026-flow-io-binding.md)   | Flow I/O Binding  | source/sink bindings, file·store·klz·import/export, process-only runs, ingest vs run transforms |
+| [028](028-pdf-reader-plugin.md) | PDF Reader & Structure Tiers | PDFium native plugin + browser WASM, geometry/glyphs, tagged + geometric structure tiers |
 
 ## Project Model
 

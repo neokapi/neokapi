@@ -38,8 +38,14 @@ type mcEntry struct {
 	has        bool
 }
 
+// add records one text object's text and unions its bounds into the entry.
 func (e *mcEntry) add(text string, l, b, r, t float64) {
 	e.text.WriteString(text)
+	e.union(l, b, r, t)
+}
+
+// union extends the entry's bounding box to include the given bottom-left box.
+func (e *mcEntry) union(l, b, r, t float64) {
 	if !e.has {
 		e.l, e.b, e.r, e.t = l, b, r, t
 		e.has = true
@@ -121,6 +127,13 @@ func buildMCIDMap(inst pdfium.Pdfium, page requests.Page, textPage references.FP
 		}
 		switch typeRes.Type {
 		case enums.FPDF_PAGEOBJ_FORM:
+			// Recurse into form XObjects to reach their text objects. LIMITATION:
+			// FPDFPageObj_GetBounds on a sub-object returns bounds in the form's
+			// local coordinate space, so if the form carries a non-identity CTM
+			// (scale/rotate/translate) the geometry stored here is off. Text and
+			// structure are still correct; only the per-block bbox is affected.
+			// Body text in tagged PDFs rarely sits inside transformed forms, so
+			// this is a known, bounded gap (full fix = apply the form's matrix).
 			fc, err := inst.FPDFFormObj_CountObjects(&requests.FPDFFormObj_CountObjects{PageObject: obj})
 			if err != nil {
 				return
@@ -278,7 +291,7 @@ func (w *treeWalker) gather(el references.FPDF_STRUCTELEMENT, text *strings.Buil
 			}
 			if e := w.mc[idRes.MarkedContentID]; e != nil && e.has {
 				text.WriteString(e.text.String())
-				box.add(e.text.String(), e.l, e.b, e.r, e.t)
+				box.union(e.l, e.b, e.r, e.t) // bounds only; text accumulates separately
 			}
 		}
 	}

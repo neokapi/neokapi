@@ -180,6 +180,40 @@ func TestReadParts_Glyphs(t *testing.T) {
 	require.Positive(t, totalGlyphs, "glyph boxes extracted")
 }
 
+// A tagged PDF must extract its text and detect its table regardless of whether
+// the experimental marked-content API (tier-1) is compiled in. With the
+// pdfium_experimental tag the struct tree drives structure; without it,
+// structRegions returns false and ReadParts falls back to the geometric analyzer
+// (tier-2) — but either way the document's text and table survive. This is the
+// graceful-degradation contract, exercised here without a build tag so it runs in
+// both CI configurations. (The tier-1-specific assertions live in
+// structtree_test.go, gated to the experimental tag.)
+func TestReadParts_TaggedFallback(t *testing.T) {
+	data, err := os.ReadFile("testdata/tagged_table.pdf")
+	require.NoError(t, err)
+
+	parts, err := ReadParts(data, model.LocaleEnglish, "tagged_table.pdf", Options{Geometry: true})
+	require.NoError(t, err)
+	requireBalancedLayers(t, parts)
+
+	blocks := collectBlocks(parts)
+	require.NotEmpty(t, blocks, "tagged PDF must yield text blocks in either tier")
+	text := blockText(blocks)
+	assert.Contains(t, text, "Quarterly Results", "heading text extracted")
+	assert.Contains(t, text, "Metric", "table content extracted")
+
+	// A table group is emitted whichever tier ran.
+	var tableGroups int
+	for _, p := range parts {
+		if p.Type == model.PartGroupStart {
+			if g, ok := p.Resource.(*model.GroupStart); ok && g.Type == "table" {
+				tableGroups++
+			}
+		}
+	}
+	assert.Positive(t, tableGroups, "the tagged table is detected in either tier")
+}
+
 // an empty (but structurally valid) PDF opens cleanly and yields no text blocks
 // — no error, no panic.
 func TestReadParts_Empty(t *testing.T) {
