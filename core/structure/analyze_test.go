@@ -1,6 +1,7 @@
 package structure
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -78,9 +79,9 @@ func TestAnalyze_ProseNoTable(t *testing.T) {
 }
 
 func cellText(c Cell) string {
-	s := ""
+	var s strings.Builder
 	for _, b := range c.Blocks {
-		s += b.SourceText()
+		s.WriteString(b.SourceText())
 	}
-	return s
+	return s.String()
 }
