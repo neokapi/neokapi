@@ -115,6 +115,13 @@ jobs:
           name: kapi-wasm
           path: web/static/wasm
 
+      # Stage @embedpdf/pdfium's wasm next to the kapi wasm so the /lab/pdf
+      # browser PDF reader can fetch it (else it 404s on /wasm/pdfium.wasm). The
+      # build-wasm job is Go-only with no node_modules, so this runs here where
+      # `vp install` above populated @embedpdf/pdfium — no CDN, pinned dep.
+      - name: Stage PDFium wasm (browser PDF)
+        run: make web-pdfium-wasm
+
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps
         # the build green when the artifact isn't available (e.g. on PRs that
