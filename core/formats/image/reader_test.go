@@ -184,6 +184,56 @@ func TestRead_WithEngine_OCRBlocks(t *testing.T) {
 	}
 }
 
+// With OCR disabled via config, the image is emitted as a Media asset only —
+// the whole-image localization mode — even when a vision engine is registered.
+func TestRead_OCRDisabled_MediaOnly(t *testing.T) {
+	vision.ResetForTest()
+	defer vision.ResetForTest()
+	vision.RegisterEngine("fake", func() (vision.Engine, error) { return ocrFake{}, nil })
+
+	r := NewReader()
+	if err := r.SetConfig(&Config{OCR: false, Layout: false}); err != nil {
+		t.Fatalf("SetConfig: %v", err)
+	}
+	doc := &model.RawDocument{URI: "pic.png", Reader: io.NopCloser(bytes.NewReader(makePNG(t, 80, 40)))}
+	if err := r.Open(context.Background(), doc); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	var parts []*model.Part
+	for res := range r.Read(context.Background()) {
+		if res.Error != nil {
+			t.Fatalf("Read error: %v", res.Error)
+		}
+		parts = append(parts, res.Part)
+	}
+	if findMedia(parts) == nil {
+		t.Error("expected the image Media part")
+	}
+	if n := countBlocks(parts); n != 0 {
+		t.Errorf("ocr=false should yield 0 text blocks even with an engine, got %d", n)
+	}
+}
+
+// The image config accepts the ocr/layout boolean toggles and rejects others.
+func TestConfig_ApplyMap(t *testing.T) {
+	c := defaultConfig()
+	if !c.OCR || !c.Layout {
+		t.Fatal("defaults should enable ocr + layout")
+	}
+	if err := c.ApplyMap(map[string]any{"ocr": false, "layout": false}); err != nil {
+		t.Fatalf("ApplyMap: %v", err)
+	}
+	if c.OCR || c.Layout {
+		t.Error("ApplyMap did not disable ocr/layout")
+	}
+	if err := c.ApplyMap(map[string]any{"ocr": "yes"}); err == nil {
+		t.Error("non-boolean ocr should error")
+	}
+	if err := c.ApplyMap(map[string]any{"bogus": true}); err == nil {
+		t.Error("unknown key should error")
+	}
+}
+
 // Garbage bytes are reported as a clean error, never a panic.
 func TestRead_BadData(t *testing.T) {
 	vision.ResetForTest()

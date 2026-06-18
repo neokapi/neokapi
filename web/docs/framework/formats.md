@@ -42,7 +42,16 @@ neokapi ships built-in readers and writers spanning several families:
 - **Office & desktop publishing** — Office Open XML, OpenDocument, Adobe
   ICML/IDML, FrameMaker MIF, EPUB, PDF.
 - **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
+- **Images** — PNG and JPEG, as localizable assets.
 - **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
+
+An **image** is read as a localizable asset: the picture itself is the unit a
+workflow can replace with a per-locale variant. With the `kapi-vision` plugin
+installed (and the `ocr`/`layout` options on), the reader also extracts in-image
+text and document layout — regions, reading order, tables — turning a screenshot
+or scanned page into structured, translatable content. The design, and the full
+set of image-localization modes, are described in
+[AD-029](/contribute/architecture/029-vision-and-image-localization).
 
 PDF is read by Google's PDFium rather than a built-in reader: on the desktop and
 CLI through the `kapi-pdfium` plugin, and in the browser through PDFium compiled
