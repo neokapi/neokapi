@@ -18,6 +18,7 @@ import (
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/single_threaded"
 
+	pdffmt "github.com/neokapi/neokapi/core/formats/pdf"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -144,18 +145,26 @@ func readPage(inst pdfiumInstance, doc *responses.OpenDocument, pg requests.Page
 	if err != nil || st == nil {
 		return nil, nil
 	}
-	var out []*model.Block
+	// Merge PDFium's per-rect fragments into line-level runs so a font-change or
+	// lone glyph doesn't become a single-character block (shared with the wasm
+	// bridge via core/formats/pdf.GroupRuns).
+	rectIns := make([]pdffmt.RectIn, 0, len(st.Rects))
 	for _, rect := range st.Rects {
-		text := strings.TrimSpace(rect.Text)
-		if text == "" {
+		p := rect.PointPosition
+		rectIns = append(rectIns, pdffmt.RectIn{Text: rect.Text, L: p.Left, T: p.Top, R: p.Right, B: p.Bottom})
+	}
+	var out []*model.Block
+	for _, run := range pdffmt.GroupRuns(rectIns) {
+		if run.Text == "" {
 			continue
 		}
 		*counter++
-		b := model.NewBlock(fmt.Sprintf("tu%d", *counter), text)
+		b := model.NewBlock(fmt.Sprintf("tu%d", *counter), run.Text)
 		b.Properties["page-number"] = strconv.Itoa(pageNum)
-		if g := geometryFromRect(rect.PointPosition, pageNum, pageHeight); g != nil {
+		pos := responses.CharPosition{Left: run.L, Top: run.T, Right: run.R, Bottom: run.B}
+		if g := geometryFromRect(pos, pageNum, pageHeight); g != nil {
 			if opts.Glyphs {
-				g.Glyphs = glyphsInRect(st.Chars, rect.PointPosition, pageHeight)
+				g.Glyphs = glyphsInRect(st.Chars, pos, pageHeight)
 			}
 			b.SetGeometry(g)
 		}
