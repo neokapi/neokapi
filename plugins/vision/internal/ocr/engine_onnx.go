@@ -2,12 +2,12 @@
 
 // This file is the onnxruntime-backed OCR engine, compiled only with
 // `-tags onnx` (the configuration shipped in release tarballs). It runs the
-// RapidOCR / PP-OCRv4 detection and recognition ONNX models and assembles their
+// RapidOCR / PP-OCRv5 detection and recognition ONNX models and assembles their
 // output into recognized text lines, using the pure-Go algorithms in algo.go
 // (CTC decoding, connected-component box extraction) for the parts that carry no
 // native dependency.
 //
-// The pipeline is validated end-to-end against the PP-OCRv4 mobile models
+// The pipeline is validated end-to-end against the PP-OCRv5 mobile models
 // (TestOCRSmoke reads the committed hello.png). Detection binarizes the DBNet
 // probability map, extracts connected components, and "unclips" the shrunk
 // kernels; recognition normalizes in BGR (PP-OCR's training order), runs the
@@ -89,14 +89,30 @@ func (e *onnxEngine) ensure() error {
 	if e.dict, err = loadDict(dictPath); err != nil {
 		return fmt.Errorf("vision: load dict: %w", err)
 	}
-	if e.det, err = ort.NewDynamicAdvancedSession(detPath, []string{"x"}, []string{"sigmoid_0.tmp_0"}, nil); err != nil {
+	// Introspect the actual input/output tensor names rather than hardcoding
+	// them: different PP-OCR exports/conversions name the output differently
+	// (PP-OCRv4 "sigmoid_0.tmp_0"/"softmax_11.tmp_0", PP-OCRv5 "fetch_name_0", …).
+	if e.det, err = openSession(detPath); err != nil {
 		return fmt.Errorf("vision: det session: %w", err)
 	}
-	if e.rec, err = ort.NewDynamicAdvancedSession(recPath, []string{"x"}, []string{"softmax_11.tmp_0"}, nil); err != nil {
+	if e.rec, err = openSession(recPath); err != nil {
 		return fmt.Errorf("vision: rec session: %w", err)
 	}
 	e.loaded = true
 	return nil
+}
+
+// openSession opens a single-input/single-output ONNX model, reading its tensor
+// names from the model so the engine is agnostic to the export's naming.
+func openSession(path string) (*ort.DynamicAdvancedSession, error) {
+	ins, outs, err := ort.GetInputOutputInfo(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(ins) == 0 || len(outs) == 0 {
+		return nil, fmt.Errorf("vision: model %s has no inputs/outputs", path)
+	}
+	return ort.NewDynamicAdvancedSession(path, []string{ins[0].Name}, []string{outs[0].Name}, nil)
 }
 
 func (e *onnxEngine) Loaded() bool {

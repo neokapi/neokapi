@@ -17,8 +17,8 @@ import (
 //	KAPI_VISION_MODELS_DIR=/path/to/models \
 //	GOWORK=off CGO_ENABLED=1 go test -tags onnx ./internal/ocr/ -run Smoke -v
 //
-// The models dir must contain the PP-OCRv4 det/rec/cls .onnx files and
-// ppocr_keys_v1.txt (see internal/models). In normal CI (no native lib) it skips.
+// The models dir must contain the PP-OCRv5 det/rec .onnx files and
+// ppocrv5_dict.txt (see internal/models). In normal CI (no native lib) it skips.
 func TestOCRSmoke(t *testing.T) {
 	if os.Getenv("KAPI_VISION_ORT_LIB") == "" || os.Getenv("KAPI_VISION_MODELS_DIR") == "" {
 		t.Skip("set KAPI_VISION_ORT_LIB and KAPI_VISION_MODELS_DIR to run the OCR smoke test")

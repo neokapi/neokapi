@@ -2,7 +2,7 @@
 
 A kapi plugin that runs document-vision ONNX models in-process and speaks a
 binary-framed stdin/stdout protocol. Phase 1 provides **OCR** (RapidOCR /
-PP-OCRv4 detection + recognition); later phases add ML layout and table
+PP-OCRv5 detection + recognition); later phases add ML layout and table
 structure. The heavy `onnxruntime` dependency lives here, never in the portable
 `kapi` binary — the same isolation as `kapi-sat`.
 
@@ -40,10 +40,13 @@ KAPI_VISION_ORT_LIB=<libonnxruntime> KAPI_VISION_MODELS_DIR=<dir> \
 
 ## Models
 
-RapidOCR / PP-OCRv4 *mobile* ONNX assets (detection DBNet, angle classification,
-recognition CRNN+CTC) plus the PP-OCR character dictionary. They download to an
-XDG cache on first use (content-hash verified for the weights), or are taken from
-`KAPI_VISION_MODELS_DIR` for offline/bundled/dev use. All Apache-2.0.
+PP-OCRv5 *mobile* ONNX assets (detection DBNet + recognition CRNN+CTC) plus the
+PP-OCRv5 character dictionary, mirrored on the `vision-models-v1` neokapi release
+for reproducible downloads. They download to an XDG cache on first use
+(content-hash verified), are bundled beside the binary in the release tarball, or
+are taken from `KAPI_VISION_MODELS_DIR` for offline/dev use. All Apache-2.0.
+PP-OCRv5 is the current recommended PP-OCR generation; onnxruntime is pinned to
+1.26.0 to match the `yalue/onnxruntime_go` C API.
 
 ## Status
 
@@ -51,7 +54,7 @@ Phase 1 is complete and validated end-to-end: the protocol, stub engine, model
 cache, plugin process, host engine + discovery, the pure-Go OCR algorithms, and
 the ONNX engine. `TestOCRSmoke` (gated to `-tags onnx` + `KAPI_VISION_ORT_LIB`
 + `KAPI_VISION_MODELS_DIR`) reads the committed `hello.png` through the real
-PP-OCRv4 mobile models. The host (kapi) passes a file **path** to the plugin and
+PP-OCRv5 mobile models. The host (kapi) passes a file **path** to the plugin and
 never loads the image bytes itself; the plugin opens and decodes the file.
 
 Known v1 limitations (improvable later): axis-aligned detection boxes (not

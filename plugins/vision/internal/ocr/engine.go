@@ -1,6 +1,6 @@
 // Package ocr is the OCR engine for the kapi-vision plugin. It has two builds,
 // exactly like the SaT plugin: the real engine (build tag `onnx`, engine_onnx.go)
-// links onnxruntime and runs the RapidOCR / PP-OCRv4 detection + classification +
+// links onnxruntime and runs the RapidOCR / PP-OCRv5 detection and
 // recognition models; the stub engine (default build, engine_stub.go) compiles
 // with no native dependency and reports ErrNoONNX, so the module builds and the
 // protocol/plumbing tests stay green on machines without onnxruntime.

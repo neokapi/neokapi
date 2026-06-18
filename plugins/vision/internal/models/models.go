@@ -1,12 +1,12 @@
-// Package models resolves and caches the RapidOCR / PP-OCRv4 ONNX model assets
-// the OCR engine loads: text detection (DBNet), angle classification, and
+// Package models resolves and caches the RapidOCR / PP-OCRv5 ONNX model assets
+// the OCR engine loads: text detection (DBNet) and
 // recognition (CRNN+CTC), plus the recognition character dictionary. It mirrors
 // the SaT plugin's model cache: assets download on first use and live under an
 // XDG cache, with a content-hash check; a local override dir short-circuits the
 // download for development and offline/bundled use.
 //
-// Asset SHA-256s are pinned to the RapidOCR v4 *mobile* models. The dictionary
-// is the standard PP-OCR keys file.
+// Asset SHA-256s are pinned to the PP-OCRv5 mobile models. The dictionary
+// is the PP-OCRv5 character dictionary.
 package models
 
 import (
@@ -28,31 +28,29 @@ type Asset struct {
 	SHA256 string // expected content hash (hex)
 }
 
-// Registry is the default PP-OCRv4 mobile asset set.
+// Registry is the default PP-OCRv5 mobile asset set (detection, recognition, and
+// the v5 character dictionary). PP-OCRv5 is the current recommended PP-OCR
+// generation (better accuracy than v4 at the same mobile footprint). The assets
+// are mirrored on a neokapi release for reproducible, CI-reachable downloads;
+// SHAs are pinned. Angle classification is not used yet (no cls model bundled).
 var Registry = []Asset{
 	{
 		Key:    "det",
-		File:   "ch_PP-OCRv4_det_mobile.onnx",
-		URL:    "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv4/ch_PP-OCRv4_det_mobile.onnx",
-		SHA256: "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
-	},
-	{
-		Key:    "cls",
-		File:   "ch_ppocr_mobile_v2.0_cls_mobile.onnx",
-		URL:    "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv4/ch_ppocr_mobile_v2.0_cls_mobile.onnx",
-		SHA256: "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+		File:   "ppocrv5_det.onnx",
+		URL:    "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/ppocrv5_det.onnx",
+		SHA256: "1eb7b4f7ab657ebd1c66d5f79bca7497f29768a2e3c15e52daecbba1a8e4a039",
 	},
 	{
 		Key:    "rec",
-		File:   "ch_PP-OCRv4_rec_mobile.onnx",
-		URL:    "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv4/ch_PP-OCRv4_rec_mobile.onnx",
-		SHA256: "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
+		File:   "ppocrv5_rec.onnx",
+		URL:    "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/ppocrv5_rec.onnx",
+		SHA256: "243a0f06d826761323e9045e9b113ab2c191c3aa50565585e628300b8eda0224",
 	},
 	{
 		Key:    "dict",
-		File:   "ppocr_keys_v1.txt",
-		URL:    "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/ppocr_keys_v1.txt",
-		SHA256: "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
+		File:   "ppocrv5_dict.txt",
+		URL:    "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/ppocrv5_dict.txt",
+		SHA256: "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
 	},
 }
 
