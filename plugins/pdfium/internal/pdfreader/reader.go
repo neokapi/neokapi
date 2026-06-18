@@ -20,6 +20,7 @@ import (
 
 	pdffmt "github.com/neokapi/neokapi/core/formats/pdf"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/structure"
 )
 
 var (
@@ -80,6 +81,7 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	parts = append(parts, &model.Part{Type: model.PartLayerStart, Resource: root})
 
 	blockCounter := 0
+	groupCounter := 0
 	for i := 0; i < pc.PageCount; i++ {
 		pageNum := i + 1
 		pg := requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}}
@@ -97,8 +99,14 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 			Properties: map[string]string{"page-number": strconv.Itoa(pageNum)},
 		}
 		parts = append(parts, &model.Part{Type: model.PartLayerStart, Resource: pageLayer})
-		for _, b := range pageBlocks {
-			parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+		// In geometry mode, infer structure (tables, heading/paragraph roles)
+		// from the positioned blocks; the fast path has no geometry to reason on.
+		if opts.Geometry {
+			parts = append(parts, structure.ToParts(structure.Analyze(pageBlocks), &groupCounter)...)
+		} else {
+			for _, b := range pageBlocks {
+				parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+			}
 		}
 		parts = append(parts, &model.Part{Type: model.PartLayerEnd, Resource: pageLayer})
 	}

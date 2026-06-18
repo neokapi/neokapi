@@ -35,6 +35,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/structure"
 )
 
 // NewWasmReader constructs the browser PDFium bridge reader.
@@ -166,6 +167,7 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: root}}
 
 		blockCounter := 0
+		groupCounter := 0
 		pages := result.Get("pages")
 		for i := 0; i < pages.Length(); i++ {
 			page := pages.Index(i)
@@ -207,8 +209,10 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 				Properties: map[string]string{"page-number": strconv.Itoa(pageNum)},
 			}
 			ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
-			for _, blk := range blocks {
-				ch <- model.PartResult{Part: &model.Part{Type: model.PartBlock, Resource: blk}}
+			// Infer structure (tables, heading/paragraph roles) from the
+			// positioned blocks — same analysis as the native plugin.
+			for _, p := range structure.ToParts(structure.Analyze(blocks), &groupCounter) {
+				ch <- model.PartResult{Part: p}
 			}
 			ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerEnd, Resource: pageLayer}}
 		}

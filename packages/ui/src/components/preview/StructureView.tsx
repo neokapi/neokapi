@@ -38,17 +38,19 @@ function visibilityOf(node: ContentNode): string {
   return v && v !== "" ? v : "visible";
 }
 
-/** A flattened outline row carrying display + structural info for one block. */
+/** A flattened outline row: a content block, or a group container header. */
 interface Row {
   node: ContentNode;
   depth: number;
   order: number;
+  /** True for a group container header (e.g. a table / table-row), not a block. */
+  group?: boolean;
 }
 
-// flatten walks the tree in document order, producing one Row per block. Group
-// containers add a level of indentation; layers are transparent (they carry the
-// part structure, not logical nesting) so the outline reads as content, not
-// plumbing.
+// flatten walks the tree in document order. Group containers (e.g. a detected
+// table and its rows) are emitted as their own header row and indent their
+// children, so the structure reads as a real outline; layers are transparent
+// (they carry part plumbing, not logical nesting).
 function flatten(tree: ContentTree): Row[] {
   const rows: Row[] = [];
   let order = 0;
@@ -58,11 +60,38 @@ function flatten(tree: ContentTree): Row[] {
       rows.push({ node: n, depth, order });
       return;
     }
-    const childDepth = n.kind === "group" ? depth + 1 : depth;
-    n.children?.forEach((c) => walk(c, childDepth));
+    if (n.kind === "group") {
+      rows.push({ node: n, depth, order: 0, group: true });
+      n.children?.forEach((c) => walk(c, depth + 1));
+      return;
+    }
+    n.children?.forEach((c) => walk(c, depth)); // layer: transparent
   };
   tree.root.forEach((n) => walk(n, 0));
   return rows;
+}
+
+/** A group container header row (e.g. a detected table or table-row). */
+function GroupRow({ row }: { row: Row }): React.ReactElement {
+  const { node, depth } = row;
+  const name = node.name || node.type || "group";
+  const label = name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    <div
+      className="flex items-center gap-2 py-1"
+      style={{ paddingLeft: `${depth * 1.25}rem` }}
+      data-testid="structure-group"
+      data-group={name}
+    >
+      <span className="w-6 shrink-0" />
+      <Badge
+        variant="outline"
+        className={cn("shrink-0 border-current/25", roleStyle(name).className)}
+      >
+        {label}
+      </Badge>
+    </div>
+  );
 }
 
 function StructureRow({ row, side }: { row: Row; side: string }): React.ReactElement {
@@ -241,7 +270,13 @@ export default function StructureView({
             All blocks hidden by the active layer filters.
           </p>
         ) : (
-          visibleRows.map((r) => <StructureRow key={r.node.id} row={r} side={side} />)
+          visibleRows.map((r) =>
+            r.group ? (
+              <GroupRow key={r.node.id} row={r} />
+            ) : (
+              <StructureRow key={r.node.id} row={r} side={side} />
+            ),
+          )
         )}
       </div>
     </div>
