@@ -29,9 +29,10 @@ func init() {
 const visionPluginName = "vision"
 
 // visionTransport is the kapi-vision round trip, abstracted so the engine is
-// testable without spawning a subprocess.
+// testable without spawning a subprocess. OCR is by path: only the path crosses
+// to the plugin, never the image bytes.
 type visionTransport interface {
-	ocr(image []byte, lang, modelName string) (*vision.OCRResult, error)
+	ocr(imagePath, lang, modelName string) (*vision.OCRResult, error)
 	io.Closer
 }
 
@@ -46,7 +47,7 @@ type visionEngine struct {
 
 func newVisionEngine() (vision.Engine, error) { return &visionEngine{}, nil }
 
-func (e *visionEngine) OCR(ctx context.Context, image []byte, opts vision.OCROptions) (*vision.OCRResult, error) {
+func (e *visionEngine) OCR(ctx context.Context, imagePath string, opts vision.OCROptions) (*vision.OCRResult, error) {
 	e.once.Do(func() {
 		if e.transport == nil {
 			e.transport, e.initErr = e.dial()
@@ -58,7 +59,7 @@ func (e *visionEngine) OCR(ctx context.Context, image []byte, opts vision.OCROpt
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return e.transport.ocr(image, opts.Lang, "")
+	return e.transport.ocr(imagePath, opts.Lang, "")
 }
 
 func (e *visionEngine) Close() error {
@@ -98,6 +99,7 @@ func findVisionPlugin() (*pluginhost.Plugin, error) {
 
 type visionRequest struct {
 	Op    string `json:"op"`
+	Path  string `json:"path,omitempty"`
 	Lang  string `json:"lang,omitempty"`
 	Model string `json:"model,omitempty"`
 }
@@ -208,10 +210,10 @@ func startVisionProcess(bin string) (*visionProcess, error) {
 	return &visionProcess{cmd: cmd, stdin: stdin, stdout: stdout}, nil
 }
 
-func (p *visionProcess) ocr(image []byte, lang, modelName string) (*vision.OCRResult, error) {
+func (p *visionProcess) ocr(imagePath, lang, modelName string) (*vision.OCRResult, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if err := visionWriteMessage(p.stdin, visionRequest{Op: "ocr", Lang: lang, Model: modelName}, image); err != nil {
+	if err := visionWriteMessage(p.stdin, visionRequest{Op: "ocr", Path: imagePath, Lang: lang, Model: modelName}, nil); err != nil {
 		return nil, err
 	}
 	resp, err := visionReadResponse(p.stdout)

@@ -11,13 +11,13 @@ import (
 
 // fakeVisionTransport returns canned OCR without a subprocess.
 type fakeVisionTransport struct {
-	gotImage []byte
-	gotLang  string
-	closed   bool
+	gotPath string
+	gotLang string
+	closed  bool
 }
 
-func (f *fakeVisionTransport) ocr(image []byte, lang, _ string) (*vision.OCRResult, error) {
-	f.gotImage = image
+func (f *fakeVisionTransport) ocr(imagePath, lang, _ string) (*vision.OCRResult, error) {
+	f.gotPath = imagePath
 	f.gotLang = lang
 	return &vision.OCRResult{
 		Width: 200, Height: 100,
@@ -30,12 +30,12 @@ func TestVisionEngine_OCR(t *testing.T) {
 	ft := &fakeVisionTransport{}
 	e := &visionEngine{transport: ft}
 
-	res, err := e.OCR(context.Background(), []byte("imgbytes"), vision.OCROptions{Lang: "en"})
+	res, err := e.OCR(context.Background(), "/tmp/scan.png", vision.OCROptions{Lang: "en"})
 	if err != nil {
 		t.Fatalf("OCR: %v", err)
 	}
-	if string(ft.gotImage) != "imgbytes" || ft.gotLang != "en" {
-		t.Errorf("transport got image=%q lang=%q", ft.gotImage, ft.gotLang)
+	if ft.gotPath != "/tmp/scan.png" || ft.gotLang != "en" {
+		t.Errorf("transport got path=%q lang=%q", ft.gotPath, ft.gotLang)
 	}
 	if len(res.Lines) != 1 || res.Lines[0].Text != "hello" {
 		t.Fatalf("OCR result = %+v", res)

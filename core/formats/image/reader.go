@@ -11,11 +11,11 @@
 package image
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"image"
 	"io"
+	"os"
 	"path"
 	"strconv"
 
@@ -95,19 +95,28 @@ func mimeForFormat(f string) string {
 }
 
 // Read streams the document: a root Layer, a single page Layer carrying the
-// image as a Media part, then (if a vision engine is registered) OCR text Blocks
-// with tier-2 structure, then the LayerEnds.
+// image as a Media part (by reference — never inline bytes), then (if a vision
+// engine is registered) OCR text Blocks with tier-2 structure, then the
+// LayerEnds.
+//
+// The image bytes are never loaded into the kapi process: the source is resolved
+// to a local file path (the original file when it is one, else a bounded
+// streaming spill to a temp file), the Media part references it by URI, and the
+// OCR engine (the plugin) opens and decodes that path itself.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	ch := make(chan model.PartResult, 64)
 	go func() {
 		defer close(ch)
 
-		data, err := io.ReadAll(r.Doc.Reader)
+		imgPath, cleanup, err := r.materialize()
 		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("image: read document: %w", err)}
+			ch <- model.PartResult{Error: err}
 			return
 		}
-		cfg, fmtName, err := image.DecodeConfig(bytes.NewReader(data))
+		defer cleanup()
+
+		// DecodeConfig reads only the image header, not the whole file.
+		cfg, fmtName, err := decodeConfigFile(imgPath)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("image: decode: %w", err)}
 			return
@@ -115,7 +124,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 		uri := r.Doc.URI
 		if uri == "" {
-			uri = "image"
+			uri = imgPath
 		}
 		locale := r.Doc.SourceLocale
 		if locale.IsEmpty() {
@@ -135,13 +144,13 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		}
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: pageLayer}}
 
-		// The image itself, as a Media part — always emitted, OCR or not.
+		// The image as a Media part — by URI reference, never inline bytes, so the
+		// page's binary never travels through the kapi Part stream.
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartMedia, Resource: &model.Media{
 			ID:       "img1",
 			MimeType: mime,
-			Data:     data,
+			URI:      uri,
 			Filename: path.Base(uri),
-			Size:     int64(len(data)),
 			Properties: map[string]string{
 				"width":  strconv.Itoa(cfg.Width),
 				"height": strconv.Itoa(cfg.Height),
@@ -151,7 +160,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		// OCR, if a vision engine is installed. Failures are non-fatal: the image
 		// Media is already emitted, so the document is still valid.
 		if vision.Available("") {
-			if parts := r.ocrParts(ctx, data, locale); parts != nil {
+			if parts := r.ocrParts(ctx, imgPath, locale); parts != nil {
 				for _, p := range parts {
 					ch <- model.PartResult{Part: p}
 				}
@@ -164,17 +173,59 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// ocrParts runs the registered vision engine over the image and returns the
-// structured Part stream (tier-2 structure over the OCR line geometry), or nil
-// on any failure (best-effort: the caller has already emitted the Media).
-func (r *Reader) ocrParts(ctx context.Context, data []byte, locale model.LocaleID) []*model.Part {
+// materialize resolves the document to a readable local file path without ever
+// holding the whole image in memory. If the source URI is already a local file,
+// it is used directly (no copy). Otherwise the reader streams doc.Reader to a
+// temp file with a bounded buffer and returns that path; cleanup removes it.
+func (r *Reader) materialize() (string, func(), error) {
+	noop := func() {}
+	if r.Doc.URI != "" {
+		if info, err := os.Stat(r.Doc.URI); err == nil && !info.IsDir() {
+			return r.Doc.URI, noop, nil
+		}
+	}
+	if r.Doc.Reader == nil {
+		return "", noop, fmt.Errorf("image: no readable source")
+	}
+	tmp, err := os.CreateTemp("", "kapi-image-*")
+	if err != nil {
+		return "", noop, fmt.Errorf("image: temp: %w", err)
+	}
+	// io.Copy streams in ~32 KiB chunks — the full image is never buffered.
+	if _, err := io.Copy(tmp, r.Doc.Reader); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		return "", noop, fmt.Errorf("image: spill: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return "", noop, err
+	}
+	name := tmp.Name()
+	return name, func() { _ = os.Remove(name) }, nil
+}
+
+// decodeConfigFile reads just the header of the image at path.
+func decodeConfigFile(path string) (image.Config, string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return image.Config{}, "", err
+	}
+	defer func() { _ = f.Close() }()
+	return image.DecodeConfig(f)
+}
+
+// ocrParts runs the registered vision engine over the image at imgPath and
+// returns the structured Part stream (tier-2 structure over the OCR line
+// geometry), or nil on any failure (best-effort: the Media is already emitted).
+func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID) []*model.Part {
 	eng, err := vision.Open("")
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = eng.Close() }()
 
-	res, err := eng.OCR(ctx, data, vision.OCROptions{Lang: locale.String()})
+	res, err := eng.OCR(ctx, imgPath, vision.OCROptions{Lang: locale.String()})
 	if err != nil || res == nil {
 		return nil
 	}

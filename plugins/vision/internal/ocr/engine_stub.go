@@ -12,7 +12,7 @@ type stubEngine struct{}
 // NewEngine returns the stub engine on the default build.
 func NewEngine(_ Logf) (Engine, error) { return &stubEngine{}, nil }
 
-func (*stubEngine) OCR([]byte, string, string) (*visionproto.OCRResult, error) {
+func (*stubEngine) OCR(string, string, string) (*visionproto.OCRResult, error) {
 	return nil, ErrNoONNX
 }
 func (*stubEngine) Loaded() bool { return false }

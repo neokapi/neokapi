@@ -15,9 +15,10 @@ import (
 // Engine recognizes text in a page image. Implementations load models lazily and
 // are used sequentially by the serve loop.
 type Engine interface {
-	// OCR recognizes text lines in a PNG/JPEG image. lang and model are advisory
-	// (empty = defaults).
-	OCR(image []byte, lang, model string) (*visionproto.OCRResult, error)
+	// OCR recognizes text lines in the PNG/JPEG image at imagePath. The plugin
+	// opens the file itself, so the host never holds the image bytes. lang and
+	// model are advisory (empty = defaults).
+	OCR(imagePath, lang, model string) (*visionproto.OCRResult, error)
 	// Loaded reports whether the recognition models are resident.
 	Loaded() bool
 	// Close releases models and the runtime environment.

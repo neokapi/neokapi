@@ -9,10 +9,12 @@
 //
 //	[uint32 headerLen][header JSON bytes][uint32 payloadLen][payload bytes]
 //
-// The header is a Request (host→plugin) or Response (plugin→host). The payload
-// is the image bytes for an "ocr" request, and empty (payloadLen 0) otherwise.
-// The package imports only the standard library so a host can speak the protocol
-// without inheriting the plugin's native (onnxruntime) build requirements.
+// The header is a Request (host→plugin) or Response (plugin→host). An "ocr"
+// request references its image by Path (the plugin opens the file), so the
+// payload frame is empty in the current protocol and reserved for future
+// streaming use. The package imports only the standard library so a host can
+// speak the protocol without inheriting the plugin's native (onnxruntime) build
+// requirements.
 package visionproto
 
 import (
@@ -31,10 +33,12 @@ const (
 	OpOCR  = "ocr"  // recognize text in the payload image
 )
 
-// Request is the header for one operation. For OpOCR the image bytes travel in
-// the message payload frame, not here.
+// Request is the header for one operation. For OpOCR the image is referenced by
+// Path (a local filesystem path the plugin opens itself) — the host never loads
+// the image bytes. The payload frame is reserved for future streaming use.
 type Request struct {
 	Op    string `json:"op"`
+	Path  string `json:"path,omitempty"`  // image file path for OpOCR
 	Lang  string `json:"lang,omitempty"`  // advisory language hint
 	Model string `json:"model,omitempty"` // empty = default
 }

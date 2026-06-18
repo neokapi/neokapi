@@ -49,11 +49,10 @@ var Registry = []Asset{
 		SHA256: "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
 	},
 	{
-		Key:  "dict",
-		File: "ppocr_keys_v1.txt",
-		URL:  "https://raw.githubusercontent.com/RapidAI/RapidOCR/main/python/rapidocr_onnxruntime/models/ppocr_keys_v1.txt",
-		// Dictionary hash intentionally unpinned here until bundled with the
-		// release; verified-on-bundle. (The det/cls/rec weights are pinned above.)
+		Key:    "dict",
+		File:   "ppocr_keys_v1.txt",
+		URL:    "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/ppocr_keys_v1.txt",
+		SHA256: "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
 	},
 }
 

@@ -25,7 +25,7 @@ func TestServeHandler_Stub(t *testing.T) {
 	if len(info.Models) == 0 {
 		t.Error("info should list model assets")
 	}
-	ocrResp := h(visionproto.Request{Op: visionproto.OpOCR}, []byte("img"))
+	ocrResp := h(visionproto.Request{Op: visionproto.OpOCR, Path: "/tmp/x.png"}, nil)
 	if ocrResp.Error == "" || !strings.Contains(ocrResp.Error, "ONNX") {
 		t.Errorf("stub OCR should report the no-ONNX limitation, got %q", ocrResp.Error)
 	}

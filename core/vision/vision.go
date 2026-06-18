@@ -45,9 +45,14 @@ type OCROptions struct {
 // Engine runs vision models over page images. Implementations are typically
 // backed by the out-of-process kapi-vision plugin and load models lazily. An
 // Engine is used sequentially by one caller; callers Close it when done.
+//
+// OCR takes a filesystem PATH, not bytes, by design: the host (kapi) must never
+// load a large image into memory. The plugin opens and decodes the file itself,
+// so the image bytes live only in the plugin process.
 type Engine interface {
-	// OCR recognizes text lines in a single page image (PNG/JPEG bytes).
-	OCR(ctx context.Context, image []byte, opts OCROptions) (*OCRResult, error)
+	// OCR recognizes text lines in the image file at imagePath (PNG/JPEG). The
+	// path must be readable by the engine's process (the local filesystem).
+	OCR(ctx context.Context, imagePath string, opts OCROptions) (*OCRResult, error)
 	// Close releases the engine (e.g. terminates the plugin subprocess).
 	Close() error
 }

@@ -47,11 +47,14 @@ XDG cache on first use (content-hash verified for the weights), or are taken fro
 
 ## Status
 
-Phase 1 scaffold is complete and tested: the protocol, the stub engine, the
-model cache, the plugin process, the host engine + discovery, and the pure-Go OCR
-algorithms (CTC greedy decode, connected-component box extraction). The ONNX
-engine (`engine_onnx.go`) compiles; its numeric pipeline (normalization, channel
-order, detection threshold, recognition output shape) follows the standard
-PP-OCRv4 export and **needs validation against the real models on a machine with
-onnxruntime** before the end-to-end `kapi extract image.png → text` path is
-relied upon.
+Phase 1 is complete and validated end-to-end: the protocol, stub engine, model
+cache, plugin process, host engine + discovery, the pure-Go OCR algorithms, and
+the ONNX engine. `TestOCRSmoke` (gated to `-tags onnx` + `KAPI_VISION_ORT_LIB`
++ `KAPI_VISION_MODELS_DIR`) reads the committed `hello.png` through the real
+PP-OCRv4 mobile models. The host (kapi) passes a file **path** to the plugin and
+never loads the image bytes itself; the plugin opens and decodes the file.
+
+Known v1 limitations (improvable later): axis-aligned detection boxes (not
+rotated polygons) and occasional dropped inter-word spaces from the mobile
+recognizer. Remaining for the release: bundle the ORT lib + dictionary in the
+tarball (release lane mirroring `release-sat`), then registry + homebrew.

@@ -9,7 +9,7 @@ import (
 
 type fakeEngine struct{ closed bool }
 
-func (f *fakeEngine) OCR(context.Context, []byte, OCROptions) (*OCRResult, error) {
+func (f *fakeEngine) OCR(context.Context, string, OCROptions) (*OCRResult, error) {
 	return &OCRResult{Width: 100, Height: 50}, nil
 }
 func (f *fakeEngine) Close() error { f.closed = true; return nil }

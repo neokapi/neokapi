@@ -72,7 +72,7 @@ func runServe() int {
 // engine-construction error (nil engine), reported per OCR request so ping/info
 // still answer for capability probing. Extracted for testing.
 func serveHandler(engine ocr.Engine, initErr error) visionproto.Handler {
-	return func(req visionproto.Request, payload []byte) visionproto.Response {
+	return func(req visionproto.Request, _ []byte) visionproto.Response {
 		switch req.Op {
 		case visionproto.OpPing:
 			return visionproto.Response{Version: version.Version}
@@ -82,7 +82,7 @@ func serveHandler(engine ocr.Engine, initErr error) visionproto.Handler {
 			if engine == nil {
 				return visionproto.Response{Error: fmt.Sprintf("engine unavailable: %v", initErr)}
 			}
-			res, oerr := engine.OCR(payload, req.Lang, req.Model)
+			res, oerr := engine.OCR(req.Path, req.Lang, req.Model)
 			if oerr != nil {
 				return visionproto.Response{Error: oerr.Error()}
 			}

@@ -25,15 +25,15 @@ func serveLoopback(t *testing.T, h Handler) (*Client, func()) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	gotImage := []byte(nil)
-	h := func(req Request, payload []byte) Response {
+	gotPath := ""
+	h := func(req Request, _ []byte) Response {
 		switch req.Op {
 		case OpPing:
 			return Response{Version: "test-1"}
 		case OpInfo:
 			return Response{Version: "test-1", Models: []ModelInfo{{Name: "ppocrv4", Default: true, Loaded: true}}}
 		case OpOCR:
-			gotImage = payload
+			gotPath = req.Path
 			return Response{OCR: &OCRResult{
 				Width: 100, Height: 40,
 				Lines: []OCRLine{{Text: "hi " + req.Lang, X: 1, Y: 2, W: 30, H: 10, Confidence: 0.9}},
@@ -55,14 +55,13 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil || len(resp.Models) != 1 || !resp.Models[0].Default {
 		t.Fatalf("info = %+v err=%v", resp, err)
 	}
-	// ocr with a binary payload
-	img := bytes.Repeat([]byte{0x89, 0x50, 0x4e, 0x47}, 1000) // 4 KB "image"
-	resp, err = c.Do(Request{Op: OpOCR, Lang: "en"}, img)
+	// ocr by path (no image payload — the plugin opens the file itself)
+	resp, err = c.Do(Request{Op: OpOCR, Path: "/tmp/scan.png", Lang: "en"}, nil)
 	if err != nil {
 		t.Fatalf("ocr err: %v", err)
 	}
-	if !bytes.Equal(gotImage, img) {
-		t.Errorf("payload not transported intact: got %d bytes, want %d", len(gotImage), len(img))
+	if gotPath != "/tmp/scan.png" {
+		t.Errorf("path not transported: got %q", gotPath)
 	}
 	if resp.OCR == nil || len(resp.OCR.Lines) != 1 || resp.OCR.Lines[0].Text != "hi en" {
 		t.Fatalf("ocr response = %+v", resp.OCR)

@@ -119,8 +119,12 @@ func TestRead_NoEngine_MediaOnly(t *testing.T) {
 	if m.MimeType != "image/png" {
 		t.Errorf("mime = %q, want image/png", m.MimeType)
 	}
-	if m.Size == 0 || m.Properties["width"] != "64" || m.Properties["height"] != "32" {
-		t.Errorf("media size/dims wrong: size=%d props=%v", m.Size, m.Properties)
+	// Media references the image by URI; bytes are never inlined into the stream.
+	if len(m.Data) != 0 {
+		t.Errorf("Media must not carry inline bytes, got %d", len(m.Data))
+	}
+	if m.URI == "" || m.Properties["width"] != "64" || m.Properties["height"] != "32" {
+		t.Errorf("media uri/dims wrong: uri=%q props=%v", m.URI, m.Properties)
 	}
 	if n := countBlocks(parts); n != 0 {
 		t.Errorf("no-engine read should have 0 text blocks, got %d", n)
@@ -142,7 +146,10 @@ func TestRead_JPEG(t *testing.T) {
 // blocks and runs tier-2 structure.
 type ocrFake struct{}
 
-func (ocrFake) OCR(context.Context, []byte, vision.OCROptions) (*vision.OCRResult, error) {
+func (ocrFake) OCR(_ context.Context, imagePath string, _ vision.OCROptions) (*vision.OCRResult, error) {
+	if imagePath == "" {
+		return nil, nil
+	}
 	return &vision.OCRResult{
 		Width: 200, Height: 100,
 		Lines: []vision.OCRLine{
