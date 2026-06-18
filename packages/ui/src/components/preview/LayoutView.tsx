@@ -84,7 +84,21 @@ function groupPages(placed: PlacedBlock[]): Page[] {
   return pages;
 }
 
-function PageCanvas({ page, side }: { page: Page; side: string }): React.ReactElement {
+// glyphTop flips a glyph's y to top-down when the block uses a bottom-left origin
+// (glyphs share their block's coordinate space/origin).
+function glyphTop(g: GeometryView, gy: number, gh: number, extentH: number): number {
+  return g.origin === "bottom-left" ? extentH - gy - gh : gy;
+}
+
+function PageCanvas({
+  page,
+  side,
+  showGlyphs,
+}: {
+  page: Page;
+  side: string;
+  showGlyphs: boolean;
+}): React.ReactElement {
   const { extentW, extentH } = page;
   return (
     <figure className="m-0 flex flex-col gap-1">
@@ -125,6 +139,23 @@ function PageCanvas({ page, side }: { page: Page; side: string }): React.ReactEl
             </div>
           );
         })}
+        {showGlyphs &&
+          page.blocks.flatMap((b) =>
+            (b.g.glyphs ?? []).map((gl, i) => (
+              <div
+                key={`${b.node.id}-g${i}`}
+                data-testid="layout-glyph"
+                className="pointer-events-none absolute rounded-[1px] border border-sky-500/70 bg-sky-400/10"
+                style={{
+                  left: `${(gl.x / extentW) * 100}%`,
+                  top: `${(glyphTop(b.g, gl.y, gl.h, extentH) / extentH) * 100}%`,
+                  width: `${(gl.w / extentW) * 100}%`,
+                  height: `${(gl.h / extentH) * 100}%`,
+                }}
+                title={gl.text}
+              />
+            )),
+          )}
       </div>
     </figure>
   );
@@ -137,6 +168,8 @@ export default function LayoutView({
 }: LayoutViewProps): React.ReactElement {
   const { placed, unplaced } = useMemo(() => flattenGeo(tree), [tree]);
   const pages = useMemo(() => groupPages(placed), [placed]);
+  const hasGlyphs = useMemo(() => placed.some((b) => (b.g.glyphs?.length ?? 0) > 0), [placed]);
+  const [showGlyphs, setShowGlyphs] = React.useState(false);
 
   if (placed.length === 0) {
     return (
@@ -149,9 +182,19 @@ export default function LayoutView({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {hasGlyphs && (
+        <label className="flex w-fit items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showGlyphs}
+            onChange={(e) => setShowGlyphs(e.target.checked)}
+          />
+          Per-glyph geometry (show character boxes)
+        </label>
+      )}
       <div className="flex flex-wrap gap-4">
         {pages.map((p) => (
-          <PageCanvas key={p.page} page={p} side={side} />
+          <PageCanvas key={p.page} page={p} side={side} showGlyphs={showGlyphs} />
         ))}
       </div>
       {unplaced.length > 0 && (

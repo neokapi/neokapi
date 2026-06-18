@@ -264,6 +264,17 @@ export interface GeometryView {
   origin?: string;
   /** Stacking order within the plane (higher = nearer the viewer); 0 = base. */
   z?: number;
+  /** Optional per-character boxes within the block (same coord space as x/y/w/h). */
+  glyphs?: GlyphView[];
+}
+
+/** One character's text and box (GeometryView.glyphs). Mirrors editor.GlyphView. */
+export interface GlyphView {
+  text?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
