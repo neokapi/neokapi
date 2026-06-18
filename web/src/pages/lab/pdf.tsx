@@ -13,7 +13,14 @@ import styles from "./pdf.module.css";
 // Structure shows the outline, Blocks lists the extracted content.
 
 export default function PdfLabPage(): React.ReactElement {
-  const sampleUrl = useBaseUrl("/samples/anatomy.pdf");
+  // Bundled samples, fetched into the file switcher on load. report.pdf and
+  // invoice.pdf are structured documents (headings + tables) that show off the
+  // structure inference in the Structure tab; anatomy.pdf is the minimal sample.
+  const samples = [
+    { url: useBaseUrl("/samples/report.pdf"), name: "report.pdf" },
+    { url: useBaseUrl("/samples/invoice.pdf"), name: "invoice.pdf" },
+    { url: useBaseUrl("/samples/anatomy.pdf"), name: "anatomy.pdf" },
+  ];
   return (
     <Layout
       title="PDF Lab"
@@ -26,10 +33,10 @@ export default function PdfLabPage(): React.ReactElement {
             Drop in a PDF and the <Link to="/lab">Lab</Link> engine — compiled to WebAssembly —
             parses it right here in your browser. Text and per-block geometry are extracted by{" "}
             <strong>PDFium</strong> (also WebAssembly), the same engine the native{" "}
-            <code>kapi-pdfium</code> plugin uses on the desktop. Switch to the <strong>Layout</strong>{" "}
-            tab to see each block in its place on the page, <strong>Structure</strong> for the
-            document outline, and <strong>Blocks</strong> for the extracted content. Nothing is
-            mocked.
+            <code>kapi-pdfium</code> plugin uses on the desktop. Switch to the{" "}
+            <strong>Layout</strong> tab to see each block in its place on the page,{" "}
+            <strong>Structure</strong> for the document outline, and <strong>Blocks</strong> for the
+            extracted content. Nothing is mocked.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
             <Link to="/lab">Lab</Link>
@@ -37,7 +44,7 @@ export default function PdfLabPage(): React.ReactElement {
             <Link to="/framework/content-model">Content model</Link>
           </nav>
         </div>
-        <PdfExplorer sampleUrl={sampleUrl} sampleName="anatomy.pdf" />
+        <PdfExplorer samples={samples} />
       </main>
     </Layout>
   );
