@@ -157,7 +157,12 @@ func (e *onnxEngine) Close() error {
 	}
 	e.layoutMu.Unlock()
 	e.loaded = false
-	ort.DestroyEnvironment()
+	// Do NOT DestroyEnvironment here: the onnxruntime environment is
+	// process-global, initialized exactly once via initORT's sync.Once. Tearing
+	// it down on a per-engine Close would make every subsequent engine fail
+	// ("InitializeRuntime not called") since the Once will not fire again — which
+	// breaks sequential use (e.g. a second image in a batch, or OCR followed by
+	// layout). The OS reclaims the environment at process exit.
 	return nil
 }
 
