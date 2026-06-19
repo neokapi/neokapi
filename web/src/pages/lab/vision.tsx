@@ -4,6 +4,7 @@ import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { VisionExplorer } from "@site/src/components/Lab";
+import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import styles from "./pdf.module.css";
 
 // The Vision Lab: upload an image (or use a bundled sample) and run the real
@@ -24,12 +25,18 @@ export default function VisionLabPage(): React.ReactElement {
   // deduplicated to the default-locale (root) output (docusaurus.config
   // dropLocaleVisionModels), so strip any locale segment to fetch that single
   // copy — a no-op when useBaseUrl isn't locale-prefixed (default locale).
-  const { i18n } = useDocusaurusContext();
+  //
+  // When a CDN origin is configured (cdnBaseUrl customField, from $DOCS_CDN_URL)
+  // the models are served (CORS-enabled, whole — no GitHub-Pages size split) from
+  // the CDN instead, bypassing the same-origin staging and per-locale dedup.
+  const { i18n, siteConfig } = useDocusaurusContext();
+  const cdn = readCdnConfig(siteConfig);
   const localizedModels = useBaseUrl("/models/vision");
-  const modelBase =
+  const sameOriginBase =
     i18n.currentLocale === i18n.defaultLocale
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
+  const modelBase = cdnEnabled(cdn) ? cdnHref(cdn, "/models/vision") : sameOriginBase;
   return (
     <Layout
       title="Vision Lab"
@@ -49,15 +56,18 @@ export default function VisionLabPage(): React.ReactElement {
             straight from the document and run through the same models. Toggle{" "}
             <strong>handwriting fallback</strong> to re-read low-confidence lines with TrOCR (loaded
             on demand): PP-OCR handles clean text fast, TrOCR rescues the hard lines. Add a third{" "}
-            <strong>local-LLM tier</strong> (<code>🧠 Local LLM</code>) to re-read the still-uncertain
-            residual with a vision model on your own machine via <strong>Ollama</strong> — keyless and
-            on-device, no key to paste and nothing leaves your browser (start Ollama with this origin
-            allowed). Nothing is mocked — only the runtime differs.
+            <strong>local-LLM tier</strong> (<code>🧠 Local LLM</code>) to re-read the
+            still-uncertain residual with a vision model on your own machine via{" "}
+            <strong>Ollama</strong> — keyless and on-device, no key to paste and nothing leaves your
+            browser (start Ollama with this origin allowed). Nothing is mocked — only the runtime
+            differs.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
             <Link to="/lab">Lab</Link>
             <Link to="/lab/pdf">PDF Lab</Link>
-            <Link to="/contribute/architecture/029-vision-and-image-localization">Vision &amp; image localization</Link>
+            <Link to="/contribute/architecture/029-vision-and-image-localization">
+              Vision &amp; image localization
+            </Link>
           </nav>
         </div>
         <VisionExplorer samples={samples} modelBase={modelBase} />

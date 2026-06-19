@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
 import "./ThemedVideo.css";
 
 interface ThemedVideoProps {
@@ -16,7 +17,8 @@ interface ThemedVideoProps {
 // `foo-nb-dark.webm`, poster alike); theme-agnostic files get a plain suffix
 // (`foo.webm` → `foo-nb.webm`).
 function localizeAsset(p: string, locale: string): string {
-  if (/-(light|dark)\.webm$/.test(p)) return p.replace(/-(light|dark)\.webm$/, `-${locale}-$1.webm`);
+  if (/-(light|dark)\.webm$/.test(p))
+    return p.replace(/-(light|dark)\.webm$/, `-${locale}-$1.webm`);
   return p.replace(/\.webm$/, `-${locale}.webm`);
 }
 
@@ -48,19 +50,33 @@ function localizeAsset(p: string, locale: string): string {
 // re-evaluate its source). The English locale takes the original path
 // untouched — exactly the previous behavior.
 export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideoProps) {
-  const { i18n } = useDocusaurusContext();
+  const { i18n, siteConfig } = useDocusaurusContext();
   const locale = i18n?.currentLocale ?? "en";
   const [useLocalized, setUseLocalized] = useState(locale !== "en");
   const pick = (p: string) => (useLocalized ? localizeAsset(p, locale) : p);
-  const light = useBaseUrl(pick(sources.light));
-  const dark = useBaseUrl(pick(sources.dark));
+  // Resolve each source against the site base URL, or — when a CDN origin is
+  // configured (cdnBaseUrl customField) — against the CDN. Both useBaseUrl calls
+  // run unconditionally (hooks rule); the CDN form simply takes precedence.
+  const cdn = readCdnConfig(siteConfig);
+  const onCdn = cdnEnabled(cdn);
+  const lightLocal = useBaseUrl(pick(sources.light));
+  const darkLocal = useBaseUrl(pick(sources.dark));
+  const light = onCdn ? cdnHref(cdn, pick(sources.light)) : lightLocal;
+  const dark = onCdn ? cdnHref(cdn, pick(sources.dark)) : darkLocal;
   const posterLight = light.replace(/\.webm$/, ".jpg");
   const posterDark = dark.replace(/\.webm$/, ".jpg");
   const onSourceError = useLocalized ? () => setUseLocalized(false) : undefined;
 
   if (light === dark) {
     return (
-      <video key={light} controls width="100%" style={{ maxWidth }} poster={posterLight} preload="metadata">
+      <video
+        key={light}
+        controls
+        width="100%"
+        style={{ maxWidth }}
+        poster={posterLight}
+        preload="metadata"
+      >
         <source src={light} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.
       </video>

@@ -28,6 +28,12 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # CDN_URL is the R2 origin to serve videos from (DOCS_CDN_URL repo variable).
+    # Empty → videos stay same-origin (the default). Set on a push → videos load
+    # from the CDN (published to R2 from the desktop) and aren't staged here. PR
+    # previews always stay same-origin.
+    env:
+      CDN_URL: ${{ github.event_name != 'pull_request' && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: voidzero-dev/setup-vp@v1
@@ -45,18 +51,26 @@ jobs:
       # reproduce, and published to the bowrain-docs-assets release (make
       # publish-bowrain-docs-assets). CI never records; it stages the assets here,
       # mirroring docs-kapi.yml.
+      # Images are always staged (small, served same-origin). Videos are staged
+      # only when NOT serving from the CDN; with the CDN on they're published to
+      # R2 from the desktop (make publish-cdn-bowrain-videos), not bundled here.
       - name: Stage bowrain videos + images from bowrain-docs-assets
         env:
           GH_TOKEN: ${{ github.token }}
+          CDN_URL: ${{ env.CDN_URL }}
         run: |
           mkdir -p bowrain/web/docs/static/video
           if gh release download bowrain-docs-assets -p bowrain-docs-assets.tar.gz -D /tmp/bda 2>/dev/null; then
             tar xzf /tmp/bda/bowrain-docs-assets.tar.gz -C /tmp/bda
-            [ -d /tmp/bda/video ] && cp -R /tmp/bda/video/. bowrain/web/docs/static/video/
             [ -d /tmp/bda/img ] && { mkdir -p bowrain/web/docs/static/img; cp -R /tmp/bda/img/. bowrain/web/docs/static/img/; }
-            echo "Staged bowrain videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+            if [ -z "$CDN_URL" ]; then
+              [ -d /tmp/bda/video ] && cp -R /tmp/bda/video/. bowrain/web/docs/static/video/
+              echo "Staged bowrain videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+            else
+              echo "CDN enabled — videos served from R2; images staged only"
+            fi
           else
-            echo "::warning::bowrain-docs-assets release unavailable; videos will be missing"
+            echo "::warning::bowrain-docs-assets release unavailable; videos/images will be missing"
           fi
 
       # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
@@ -85,6 +99,8 @@ jobs:
         working-directory: bowrain/web/docs
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
+          # Empty → videos same-origin (unchanged). Set → videos load from the CDN.
+          DOCS_CDN_URL: ${{ env.CDN_URL }}
 
       - name: Upload bowrain site artifact
         uses: actions/upload-artifact@v7

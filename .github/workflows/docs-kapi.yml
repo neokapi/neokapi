@@ -58,6 +58,14 @@ jobs:
   build:
     needs: build-wasm
     runs-on: ubuntu-latest
+    # CDN_URL is the R2 origin to serve large assets from (the DOCS_CDN_URL repo
+    # variable). Empty → assets stay same-origin (the default; the steps below
+    # stage wasm/models/videos into the artifact exactly as before). On a push
+    # with the variable set, the wasm is synced to R2 and dropped from the
+    # artifact, and the site is built pointing at the CDN. PR previews always
+    # stay same-origin to avoid R2 churn and secret dependence.
+    env:
+      CDN_URL: ${{ github.event_name != 'pull_request' && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -97,6 +105,9 @@ jobs:
       # harness-videos / harness-videos-staged) and published to the docs-assets
       # release (make publish-docs-assets). CI never records; it stages them here.
       - name: Stage docs videos from docs-assets
+        # Skipped when serving from the CDN — videos are published to R2 from the
+        # desktop (make publish-cdn-videos), not staged into the artifact.
+        if: ${{ env.CDN_URL == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -114,6 +125,10 @@ jobs:
       # built site serves them. OCR models only — the ~132 MB layout model exceeds
       # the GitHub Pages file limit (external CORS host is a follow-up).
       - name: Stage Vision Lab OCR models
+        # Skipped when serving from the CDN — the whole models (OCR + the ~132 MB
+        # layout model, no split) are published to R2 from the desktop
+        # (make publish-cdn-vision-models).
+        if: ${{ env.CDN_URL == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: make fetch-vision-models
@@ -130,6 +145,22 @@ jobs:
       # `vp install` above populated @embedpdf/pdfium — no CDN, pinned dep.
       - name: Stage PDFium wasm (browser PDF)
         run: make web-pdfium-wasm
+
+      # When serving from the CDN: sync the freshly built wasm (kapi-cli + pdfium
+      # + wasm_exec.js, versioned by commit sha) to R2, then drop it from the
+      # site artifact so GitHub Pages stays small. The site is built below
+      # pointing at /kapi/wasm/<sha>/ on the CDN (DOCS_CDN_VERSION).
+      - name: Publish wasm to R2 + slim artifact
+        if: ${{ env.CDN_URL != '' }}
+        env:
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_VERSION: ${{ github.sha }}
+        run: |
+          bash scripts/publish-cdn-assets.sh wasm
+          rm -rf web/static/wasm
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps
@@ -196,6 +227,10 @@ jobs:
         working-directory: web
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
+          # Empty CDN_URL → assets resolve same-origin (unchanged). Set → wasm
+          # (versioned by sha), vision models, and videos load from the CDN.
+          DOCS_CDN_URL: ${{ env.CDN_URL }}
+          DOCS_CDN_VERSION: ${{ github.sha }}
 
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7

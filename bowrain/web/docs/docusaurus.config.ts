@@ -8,7 +8,9 @@ import { execFileSync } from "node:child_process";
 const buildStamp = (() => {
   let sha = process.env.GITHUB_SHA?.slice(0, 9) ?? "dev";
   try {
-    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
+    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
       .toString()
       .trim();
   } catch {
@@ -54,6 +56,13 @@ const config: Config = {
 
   customFields: {
     kapiWebSite: KAPI_WEB_SITE,
+    // Offload walkthrough videos to the shared CDN (Cloudflare R2) when
+    // configured — empty DOCS_CDN_URL keeps them same-origin (the default). This
+    // site has no wasm/models; only ThemedVideo reads these. See the kapi config
+    // and web/docs/contribute/notes-internal/cdn-assets.md.
+    cdnBaseUrl: process.env.DOCS_CDN_URL ?? "",
+    cdnSitePrefix: "bowrain",
+    cdnWasmVersion: process.env.DOCS_CDN_VERSION ?? "dev",
   },
 
   markdown: {
@@ -104,7 +113,10 @@ const config: Config = {
               rules: [
                 {
                   test: /\.tsx?$/,
-                  include: [/[\\/]@neokapi[\\/]docs-shared[\\/]/, /[\\/]packages[\\/]docs-shared[\\/]/],
+                  include: [
+                    /[\\/]@neokapi[\\/]docs-shared[\\/]/,
+                    /[\\/]packages[\\/]docs-shared[\\/]/,
+                  ],
                   use: [getJSLoader({ isServer })],
                 },
               ],
@@ -185,9 +197,7 @@ const config: Config = {
         },
         {
           title: "Framework",
-          items: [
-            { label: "Neokapi & Kapi", href: KAPI_WEB_SITE },
-          ],
+          items: [{ label: "Neokapi & Kapi", href: KAPI_WEB_SITE }],
         },
         {
           title: "More",

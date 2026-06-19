@@ -34,6 +34,15 @@ const buildStamp = (() => {
 // and navigate out of the preview.
 const baseUrl = process.env.DOCS_BASE_URL ?? "/";
 
+// Large immutable assets (the wasm engine, ONNX vision models, walkthrough
+// videos) can be offloaded to an external CDN (Cloudflare R2) to keep the
+// GitHub Pages artifact small and the deploy fast. An empty DOCS_CDN_URL — the
+// default, and the local-dev case — leaves every asset same-origin, so nothing
+// changes until the CDN is configured. DOCS_CDN_VERSION cache-busts the
+// per-build wasm under /kapi/wasm/<version>/.
+const cdnBaseUrl = process.env.DOCS_CDN_URL ?? "";
+const cdnWasmVersion = process.env.DOCS_CDN_VERSION ?? "dev";
+
 const config: Config = {
   title: "neokapi",
   tagline: "The faithful, format-aware content engine for people and AI agents",
@@ -55,6 +64,12 @@ const config: Config = {
       en: { label: "English" },
       nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
     },
+  },
+
+  customFields: {
+    cdnBaseUrl,
+    cdnSitePrefix: "kapi",
+    cdnWasmVersion,
   },
 
   markdown: {

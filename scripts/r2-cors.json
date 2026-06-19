@@ -1,0 +1,11 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://neokapi.github.io", "http://localhost:3000"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedHeaders": ["range"],
+      "ExposeHeaders": ["content-length", "content-range", "content-encoding", "etag"],
+      "MaxAgeSeconds": 86400
+    }
+  ]
+}

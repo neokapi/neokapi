@@ -1178,6 +1178,37 @@ fetch-bowrain-docs-assets: ## Download bowrain docs assets from the bowrain-docs
 publish-bowrain-docs-assets: ## Publish bowrain/web/docs/static/{img,video} to the bowrain-docs-assets release (merges, never drops)
 	@bash scripts/publish-bowrain-docs-assets.sh
 
+# ── CDN (Cloudflare R2) asset publishing ────────────────────────────────────
+# Offload the large immutable docs assets (wasm engine, ONNX vision models,
+# walkthrough videos) to the R2 bucket served at $DOCS_CDN_URL, so the GitHub
+# Pages artifact stays small and deploys fast. Inert until the sites are built
+# with DOCS_CDN_URL set (CI does this when the DOCS_CDN_URL repo variable is
+# configured). Auth via env: R2_BUCKET, R2_ENDPOINT, AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY. See web/docs/contribute/notes-internal/cdn-assets.md.
+# wasm is also published by CI on each build. The others are published out-of-band:
+# vision-models are re-uploaded from the pinned vision-models-v1 release (rerun
+# only when it changes); videos are produced on the desktop by the harness.
+publish-cdn-wasm: web-wasm-demo web-wasm-cli web-pdfium-wasm ## Build + sync the playground wasm → R2 (kapi/wasm/<version>/)
+	@bash scripts/publish-cdn-assets.sh wasm
+
+publish-cdn-vision-models: ## Sync the whole Vision Lab ONNX models → R2 (kapi/models/vision/)
+	@bash scripts/publish-cdn-assets.sh vision-models
+
+publish-cdn-videos: ## Sync kapi walkthrough videos → R2 (kapi/video/)
+	@bash scripts/publish-cdn-assets.sh video-kapi
+
+publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → R2 (bowrain/video/)
+	@bash scripts/publish-cdn-assets.sh video-bowrain
+
+# One-shot seed: publish everything that exists TODAY straight from the release
+# artifacts to R2 — no desktop-produced source needed. Fetches the kapi + bowrain
+# videos/images from their docs-assets releases and the models from
+# vision-models-v1, then syncs each to R2. Run this BEFORE setting the
+# DOCS_CDN_URL repo variable, so the assets are in place when the site flips to
+# the CDN. (wasm is published by CI on the next docs build; no seed needed.)
+seed-cdn: fetch-docs-assets publish-cdn-videos fetch-bowrain-docs-assets publish-cdn-bowrain-videos publish-cdn-vision-models ## Seed R2 with today's videos + models from the GitHub releases
+	@echo "✓ R2 seeded from release artifacts — safe to set the DOCS_CDN_URL repo variable now."
+
 # Tier B format corpora (docs/internals/format-maturity.md §2.5): one
 # corpus-<id>.tar.gz asset per format on the lexically-latest format-corpus-vN
 # release, fetched into corpus/<tag>/<id>/ (gitignored). Tests reference the

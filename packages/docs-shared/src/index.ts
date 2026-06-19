@@ -1,6 +1,8 @@
 export { default as ThemedVideo } from "./ThemedVideo";
 export { default as ThemedImage } from "./ThemedImage";
 export { KapiLink, BowrainLink } from "./CrossSiteLink";
+export { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
+export type { CdnConfig } from "./cdn";
 
 // Diagram kit — uniform, theme-aware SVG diagrams shared by both docs sites.
 // Each component imports its own `diagram.css`, so the styles ship with the
