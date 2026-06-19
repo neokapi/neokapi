@@ -18,21 +18,25 @@ import (
 const version = "0.1.0"
 
 func main() {
-	if len(os.Args) < 2 || os.Args[1] != "serve" {
-		fmt.Fprintf(os.Stderr, "kapi-asr %s\nusage: kapi-asr serve\n", version)
+	switch {
+	case len(os.Args) >= 2 && os.Args[1] == "serve":
+		if err := serve(); err != nil {
+			fmt.Fprintln(os.Stderr, "kapi-asr:", err)
+			os.Exit(1)
+		}
+	case len(os.Args) >= 2 && os.Args[1] == "asr":
+		// Mode-A self-check (declared in manifest.json).
+		fmt.Printf("kapi-asr %s\n  whisper-cli: %s\n  model: %s\n", version, resolveBin(), modelStatus(resolveModel()))
+	default:
 		// A bare invocation prints version and exits 0 so discovery probes work.
-		return
-	}
-	if err := serve(); err != nil {
-		fmt.Fprintln(os.Stderr, "kapi-asr:", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "kapi-asr %s\nusage: kapi-asr serve | kapi-asr asr\n", version)
 	}
 }
 
 func serve() error {
 	eng := &whisper.Engine{
 		Bin:   resolveBin(),
-		Model: os.Getenv("KAPI_ASR_MODEL"),
+		Model: resolveModel(),
 	}
 	return asrproto.Serve(os.Stdin, os.Stdout, func(req asrproto.Request) asrproto.Response {
 		switch req.Op {
@@ -68,6 +72,30 @@ func resolveBin() string {
 		}
 	}
 	return "whisper-cli"
+}
+
+// resolveModel finds the ggml model: $KAPI_ASR_MODEL, else the first ggml-*.bin
+// bundled beside the plugin binary (the release layout), else "".
+func resolveModel() string {
+	if m := os.Getenv("KAPI_ASR_MODEL"); m != "" {
+		return m
+	}
+	if exe, err := os.Executable(); err == nil {
+		if matches, _ := filepath.Glob(filepath.Join(filepath.Dir(exe), "ggml-*.bin")); len(matches) > 0 {
+			return matches[0]
+		}
+	}
+	return ""
+}
+
+func modelStatus(m string) string {
+	if m == "" {
+		return "(none — set KAPI_ASR_MODEL or bundle a ggml-*.bin beside the binary)"
+	}
+	if fileExists(m) {
+		return m
+	}
+	return m + " (missing)"
 }
 
 func modelInfo(model string) []asrproto.ModelInfo {
