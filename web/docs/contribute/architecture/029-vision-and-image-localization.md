@@ -172,6 +172,25 @@ on-demand models go to the writable cache. All models are Apache-2.0, mirrored o
 a neokapi release asset with pinned hashes. The plugin is **not** a `kapi-cli`
 dependency — vision is opt-in (`kapi plugins install vision`).
 
+### Browser Vision Lab
+
+The docs **Vision Lab** (`/lab/vision`) runs the *same* PP-OCRv5 and
+PP-DocLayoutV3 ONNX models in the browser via **onnxruntime-web** — the ML is the
+real model, not a mock; only the runtime differs (the native plugin's cgo
+onnxruntime can't compile to wasm). The deterministic pre/post-processing
+(`packages/kapi-playground/src/visionBridge.ts`) is a faithful TS port of the Go
+pipeline in `plugins/vision/internal/ocr`, kept in lockstep with it. Loading is
+tiered: OCR (~21 MB) on first use, layout (~132 MB) only on opt-in.
+
+GitHub release download URLs are **CORS-blocked** for browser `fetch()`, so the
+models are served **same-origin**: `make fetch-vision-models` stages the OCR
+models into `web/static/models/vision` at docs build (each under 100 MB → GitHub
+Pages-safe). The layout model (~132 MB) exceeds the Pages per-file limit, so the
+"Detect layout" path works in local dev (stage `ppdoclayoutv3.onnx` into the same
+dir) but in production needs the model on an external CORS-enabled host (e.g.
+Hugging Face / R2) — a Vision Lab follow-up. `VisionExplorer`'s `modelBase` makes
+that a one-line change once hosting exists.
+
 ## Consequences
 
 - "Image" stays a generic, localizable format; OCR and layout are optional layers

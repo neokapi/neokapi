@@ -23,6 +23,11 @@ const LazyPdf = React.lazy(async () => {
   return { default: mod.PdfExplorer };
 });
 
+const LazyVision = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.VisionExplorer };
+});
+
 // Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
 // `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
 const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
@@ -101,6 +106,23 @@ export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
         }
         return <Inner />;
       }}
+    </BrowserOnly>
+  );
+}
+
+export interface VisionExplorerProps {
+  samples?: { url: string; name: string }[];
+  modelBase?: string;
+}
+
+export function VisionExplorer(props: VisionExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => (
+        <Suspense fallback={<Loading />}>
+          <LazyVision {...props} />
+        </Suspense>
+      )}
     </BrowserOnly>
   );
 }

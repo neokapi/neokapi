@@ -11,6 +11,7 @@
     "./store": "./src/store.ts",
     "./runtime": "./src/runtime.ts",
     "./samples": "./src/samples.ts",
+    "./visionBridge": "./src/visionBridge.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -25,7 +26,8 @@
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "lucide-react": "^1.14.0"
+    "lucide-react": "^1.14.0",
+    "onnxruntime-web": "^1.23.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
