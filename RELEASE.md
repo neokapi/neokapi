@@ -21,7 +21,7 @@ A leading `v` is tolerated: `v=1.3.4` and `v=v1.3.4` both tag `v1.3.4`.
 
 | Stage | Where | What |
 |-------|-------|------|
-| Build + publish | CI (`release.yml`) | kapi CLI + `kapi-bowrain` plugin (GoReleaser), desktop apps (Wails v3), Docker images, Homebrew casks, plugin registry |
+| Build + publish | CI (`release.yml`) | kapi CLI + `kapi-bowrain` plugin, desktop apps (Wails v3), Docker images, Homebrew casks, plugin registry |
 | macOS signing | CI | Desktop `.app`/DMG — Developer ID + notarized; CLI darwin binaries — Developer ID + notarized via quill |
 | Windows signing | **local Mac** | CLI + desktop `.exe` — Authenticode via the Certum cert through SimplySign |
 | Plugin trust | CI | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/contribute/architecture/007-plugin-system.md)) |
@@ -146,7 +146,6 @@ GitHub Actions repo secrets used by `release.yml`:
 
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) — the release pipeline
 - [`.github/workflows/winget.yml`](.github/workflows/winget.yml) — winget submission (dispatch-only)
-- [`.goreleaser.yaml`](.goreleaser.yaml) — CLI + plugin build/publish, quill hook
 - [`scripts/publish-windows-signed.sh`](scripts/publish-windows-signed.sh) — local Windows signing
 - [`scripts/quill-sign-darwin.sh`](scripts/quill-sign-darwin.sh) — macOS CLI signing in CI
 - [`Brewfile`](Brewfile) — maintainer toolchain
