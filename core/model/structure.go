@@ -21,8 +21,12 @@ package model
 const (
 	// AnnoStructure carries a *StructureAnnotation (role, plane, visibility, level).
 	AnnoStructure = "structure"
-	// AnnoGeometry carries a *GeometryAnnotation (page + bounding box).
+	// AnnoGeometry carries a *GeometryAnnotation (page + bounding box) — the
+	// spatial anchor facet, for content from a rendered medium.
 	AnnoGeometry = "geometry"
+	// AnnoTiming carries a *TimingAnnotation (time span) — the temporal anchor
+	// facet, for content from timed media (audio, video).
+	AnnoTiming = "timing"
 	// AnnoRelations carries a *RelationAnnotation (cross-block edges: a caption's
 	// figure, a footnote's marker, a label's field, a trigger's modal).
 	AnnoRelations = "relations"
@@ -158,6 +162,25 @@ type GlyphBox struct {
 // TypeName implements Payload.
 func (*GeometryAnnotation) TypeName() string { return AnnoGeometry }
 
+// TimingAnnotation is the block-scoped record of where a block sits in timed
+// media — the temporal anchor facet, counterpart of GeometryAnnotation's spatial
+// facet. Times are milliseconds from the start of the media. A block carries
+// whichever facets its medium defines: on-screen text in a video frame carries
+// both a GeometryAnnotation (where on the frame) and a TimingAnnotation (when).
+// It is read-only reconstruction metadata: timed-text writers (WebVTT/SubRip/
+// TTML) consume it; non-timed writers ignore it.
+type TimingAnnotation struct {
+	// StartMS is the cue start in milliseconds from media start.
+	StartMS int64 `json:"startMs"`
+	// EndMS is the cue end in milliseconds; 0 = open/unknown.
+	EndMS int64 `json:"endMs,omitempty"`
+	// SourceRef is an optional provenance pointer (e.g. a cue id) for round-trip.
+	SourceRef string `json:"sourceRef,omitempty"`
+}
+
+// TypeName implements Payload.
+func (*TimingAnnotation) TypeName() string { return AnnoTiming }
+
 // Relation is a single typed edge from the owning block to another block,
 // group, or layer (by ID). Edges capture non-containment relationships that the
 // Layer/Group tree cannot — a caption's figure, a footnote's marker, a label's
@@ -253,6 +276,14 @@ func (b *Block) Geometry() (*GeometryAnnotation, bool) {
 
 // SetGeometry stores the block's GeometryAnnotation.
 func (b *Block) SetGeometry(g *GeometryAnnotation) { b.SetAnno(AnnoGeometry, g) }
+
+// Timing returns the block's TimingAnnotation, or (nil, false).
+func (b *Block) Timing() (*TimingAnnotation, bool) {
+	return AnnoAs[*TimingAnnotation](b, AnnoTiming)
+}
+
+// SetTiming stores the block's TimingAnnotation.
+func (b *Block) SetTiming(t *TimingAnnotation) { b.SetAnno(AnnoTiming, t) }
 
 // Relations returns the block's relationship edges, or (nil, false).
 func (b *Block) Relations() (*RelationAnnotation, bool) {
