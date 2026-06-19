@@ -995,7 +995,7 @@ func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
 	if len(m.Data) > 0 {
 		return io.NopCloser(bytes.NewReader(m.Data)), nil
 	}
-	return nil, fmt.Errorf("openxml: media replacement has no content (no URI or Data)")
+	return nil, errors.New("openxml: media replacement has no content (no URI or Data)")
 }
 
 // writeMediaReplacement streams a locale-variant media reference into the output
