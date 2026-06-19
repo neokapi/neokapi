@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { roleStyle } from "@neokapi/ui-primitives/preview";
 import {
   ocr,
   layout,
@@ -61,21 +62,40 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   // that image.
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [extractedNote, setExtractedNote] = useState<string | null>(null);
+  // Handwriting cascade: PP-OCR reads every line fast; lines below this
+  // confidence are re-read by TrOCR (loaded on first escalation).
+  const [handwriting, setHandwriting] = useState(false);
+  const [hwThreshold, setHwThreshold] = useState(0.85);
+  // Shared selection: clicking a box on the image or a block in the list
+  // highlights the other.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   const runOCR = useCallback(
     async (r: Raster) => {
       setBusy("ocr");
       setErr(null);
       try {
-        setOcrRes(await ocr(r, modelBase));
+        setOcrRes(await ocr(r, modelBase, { handwriting, hwThreshold }));
       } catch (e) {
         setErr(`OCR failed: ${(e as Error).message}`);
       } finally {
         setBusy("");
       }
     },
-    [modelBase],
+    [modelBase, handwriting, hwThreshold],
   );
+
+  // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle).
+  const rerunOCR = (hw: boolean, thr: number): void => {
+    if (!raster) return;
+    setBusy("ocr");
+    setErr(null);
+    ocr(raster, modelBase, { handwriting: hw, hwThreshold: thr })
+      .then(setOcrRes)
+      .catch((e: unknown) => setErr(`OCR failed: ${(e as Error).message}`))
+      .finally(() => setBusy(""));
+  };
 
   // Decode an image URL to a raster and run OCR.
   const processImageUrl = useCallback(
@@ -159,6 +179,12 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
     }
   };
 
+  // Toggle the handwriting cascade and re-run OCR with the new setting.
+  const onToggleHandwriting = (v: boolean): void => {
+    setHandwriting(v);
+    rerunOCR(v, hwThreshold);
+  };
+
   const runLayout = useCallback(async () => {
     if (!raster) return;
     setBusy("layout");
@@ -177,6 +203,32 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   }, [raster, modelBase]);
 
   const scale = raster && shownW ? shownW / raster.width : 1;
+
+  // View-model: OCR lines become neokapi Blocks (stable ids; role assigned from
+  // the layout region that contains the line, when layout has run).
+  const regions = useMemo(
+    () => (layoutRes?.regions ?? []).map((r, i) => ({ ...r, id: `reg${i + 1}` })),
+    [layoutRes],
+  );
+  const blocks = useMemo(
+    () =>
+      (ocrRes?.lines ?? []).map((l, i) => {
+        const cx = l.x + l.w / 2;
+        const cy = l.y + l.h / 2;
+        const reg = regions.find(
+          (r) => cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h,
+        );
+        return { ...l, id: `tu${i + 1}`, role: reg?.role };
+      }),
+    [ocrRes, regions],
+  );
+
+  // Scroll the selected block/region row into view when selection changes.
+  useEffect(() => {
+    if (selectedId && rowRefs.current[selectedId]) {
+      rowRefs.current[selectedId]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -214,6 +266,44 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             style={{ display: "none" }}
           />
         </label>
+        <label
+          title="Re-read low-confidence lines with the TrOCR handwriting model (loads on first use). PP-OCR handles clean text fast; TrOCR rescues the hard lines."
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            marginLeft: "auto",
+            cursor: raster ? "pointer" : "not-allowed",
+            fontSize: "0.85rem",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={handwriting}
+            disabled={!raster || busy !== ""}
+            onChange={(e) => onToggleHandwriting(e.target.checked)}
+          />
+          ✍ Handwriting fallback
+        </label>
+        {handwriting && (
+          <label
+            title="Lines whose PP-OCR confidence is below this are re-read by TrOCR. Higher = escalate more lines."
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8rem" }}
+          >
+            below
+            <input
+              type="range"
+              min={0.5}
+              max={0.99}
+              step={0.01}
+              value={hwThreshold}
+              disabled={busy !== ""}
+              onChange={(e) => setHwThreshold(Number(e.target.value))}
+              onPointerUp={(e) => rerunOCR(true, Number((e.target as HTMLInputElement).value))}
+            />
+            {Math.round(hwThreshold * 100)}%
+          </label>
+        )}
         <button
           onClick={() => void runLayout()}
           disabled={!raster || busy !== ""}
@@ -225,14 +315,19 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             background: layoutRes ? "var(--ifm-color-primary)" : "transparent",
             color: layoutRes ? "#fff" : "inherit",
             cursor: raster ? "pointer" : "not-allowed",
-            marginLeft: "auto",
           }}
         >
           Detect layout (~132 MB)
         </button>
       </div>
 
-      {busy === "ocr" && <p style={{ fontStyle: "italic" }}>Running OCR (loading ~21 MB models on first use)…</p>}
+      {busy === "ocr" && (
+        <p style={{ fontStyle: "italic" }}>
+          {handwriting
+            ? "Running OCR + handwriting fallback (TrOCR loads on first use)…"
+            : "Running OCR (loading ~21 MB models on first use)…"}
+        </p>
+      )}
       {busy === "layout" && (
         <p style={{ fontStyle: "italic" }}>
           {progress < 1
@@ -246,7 +341,7 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
       {err && <p style={{ color: "var(--ifm-color-danger)" }}>{err}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: "1rem" }}>
-        {/* Image with overlays */}
+        {/* Image with overlays — boxes are clickable and sync with the block list. */}
         <div style={{ position: "relative", lineHeight: 0 }}>
           {imgSrc && (
             <img
@@ -257,88 +352,151 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
               style={{ maxWidth: "100%", height: "auto", border: "1px solid var(--ifm-color-emphasis-200)" }}
             />
           )}
-          {/* Layout regions (drawn under text boxes) */}
-          {layoutRes?.regions.map((r, i) => (
-            <div
-              key={`r${i}`}
-              title={r.role}
-              style={{
-                position: "absolute",
-                left: r.x * scale,
-                top: r.y * scale,
-                width: r.w * scale,
-                height: r.h * scale,
-                border: `2px solid ${roleColor(r.role)}`,
-                background: `${roleColor(r.role)}14`,
-                pointerEvents: "none",
-              }}
-            >
-              <span
+          {/* Layout region boxes (drawn under text boxes) */}
+          {regions.map((r) => {
+            const sel = selectedId === r.id;
+            return (
+              <div
+                key={r.id}
+                title={`${r.role} (${Math.round(r.confidence * 100)}%)`}
+                onClick={() => setSelectedId(sel ? null : r.id)}
                 style={{
                   position: "absolute",
-                  top: -16,
-                  left: 0,
-                  fontSize: 10,
-                  background: roleColor(r.role),
-                  color: "#fff",
-                  padding: "0 4px",
-                  borderRadius: 3,
-                  lineHeight: "14px",
-                  whiteSpace: "nowrap",
+                  left: r.x * scale,
+                  top: r.y * scale,
+                  width: r.w * scale,
+                  height: r.h * scale,
+                  border: `${sel ? 3 : 2}px solid ${roleColor(r.role)}`,
+                  background: `${roleColor(r.role)}${sel ? "26" : "14"}`,
+                  cursor: "pointer",
                 }}
               >
-                {r.role}
-              </span>
-            </div>
-          ))}
-          {/* OCR text boxes */}
-          {ocrRes?.lines.map((l, i) => (
-            <div
-              key={`l${i}`}
-              title={l.text}
-              style={{
-                position: "absolute",
-                left: l.x * scale,
-                top: l.y * scale,
-                width: l.w * scale,
-                height: l.h * scale,
-                border: "1px solid rgba(37,99,235,0.9)",
-                background: "rgba(37,99,235,0.08)",
-                pointerEvents: "none",
-              }}
-            />
-          ))}
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -16,
+                    left: 0,
+                    fontSize: 10,
+                    background: roleColor(r.role),
+                    color: "#fff",
+                    padding: "0 4px",
+                    borderRadius: 3,
+                    lineHeight: "14px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {r.role}
+                </span>
+              </div>
+            );
+          })}
+          {/* OCR text-block boxes — purple where TrOCR re-read the line, blue for PP-OCR. */}
+          {blocks.map((b) => {
+            const hw = b.engine === "trocr";
+            const sel = selectedId === b.id;
+            const color = hw ? "124,58,237" : "37,99,235";
+            return (
+              <div
+                key={b.id}
+                title={`${b.id}: ${b.text}${hw ? " [TrOCR]" : ""}`}
+                onClick={() => setSelectedId(sel ? null : b.id)}
+                style={{
+                  position: "absolute",
+                  left: b.x * scale,
+                  top: b.y * scale,
+                  width: b.w * scale,
+                  height: b.h * scale,
+                  border: `${sel ? 2 : 1}px solid rgba(${color},${sel ? 1 : 0.9})`,
+                  background: `rgba(${color},${sel ? 0.28 : 0.08})`,
+                  boxShadow: sel ? `0 0 0 2px rgba(${color},0.4)` : "none",
+                  cursor: "pointer",
+                }}
+              />
+            );
+          })}
         </div>
 
-        {/* Results panel */}
+        {/* neokapi Blocks view (+ layout regions), shared selection with the image. */}
         <div style={{ fontSize: "0.85rem", maxHeight: 520, overflow: "auto" }}>
-          {ocrRes && (
+          {blocks.length > 0 && (
             <>
-              <h4 style={{ marginTop: 0 }}>Text ({ocrRes.lines.length})</h4>
-              <ol style={{ paddingLeft: "1.2rem", margin: 0 }}>
-                {ocrRes.lines.map((l, i) => (
-                  <li key={i} style={{ marginBottom: 2 }}>
-                    {l.text}{" "}
-                    <span style={{ color: "var(--ifm-color-emphasis-500)" }}>
-                      ({Math.round(l.confidence * 100)}%)
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <h4 style={{ marginTop: 0 }}>Blocks ({blocks.length})</h4>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {blocks.map((b) => {
+                  const sel = selectedId === b.id;
+                  return (
+                    <li
+                      key={b.id}
+                      ref={(el) => {
+                        rowRefs.current[b.id] = el;
+                      }}
+                      onClick={() => setSelectedId(sel ? null : b.id)}
+                      style={{
+                        padding: "0.3rem 0.4rem",
+                        borderRadius: 6,
+                        marginBottom: 2,
+                        cursor: "pointer",
+                        background: sel ? "var(--ifm-color-primary-lightest)" : "transparent",
+                        outline: sel ? "1px solid var(--ifm-color-primary)" : "none",
+                      }}
+                    >
+                      <code style={{ fontSize: "0.72rem", color: "var(--ifm-color-emphasis-600)" }}>
+                        {b.id}
+                      </code>{" "}
+                      {b.role && (
+                        <span
+                          className={roleStyle(b.role).className}
+                          style={{ fontSize: "0.68rem", padding: "0 5px", borderRadius: 4 }}
+                        >
+                          {roleStyle(b.role).label}
+                        </span>
+                      )}{" "}
+                      {b.text}{" "}
+                      <span style={{ color: "var(--ifm-color-emphasis-500)" }}>
+                        ({Math.round(b.confidence * 100)}%)
+                      </span>
+                      {b.engine === "trocr" && (
+                        <span style={{ color: "#7c3aed", fontWeight: 600 }}> ✍ TrOCR</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </>
           )}
-          {layoutRes && (
+          {regions.length > 0 && (
             <>
-              <h4>Layout regions ({layoutRes.regions.length})</h4>
-              <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
-                {layoutRes.regions.map((r, i) => (
-                  <li key={i} style={{ color: roleColor(r.role) }}>
-                    {r.role}{" "}
-                    <span style={{ color: "var(--ifm-color-emphasis-500)" }}>
-                      ({Math.round(r.confidence * 100)}%)
-                    </span>
-                  </li>
-                ))}
+              <h4>Layout regions ({regions.length})</h4>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {regions.map((r) => {
+                  const sel = selectedId === r.id;
+                  return (
+                    <li
+                      key={r.id}
+                      ref={(el) => {
+                        rowRefs.current[r.id] = el;
+                      }}
+                      onClick={() => setSelectedId(sel ? null : r.id)}
+                      style={{
+                        padding: "0.2rem 0.4rem",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        background: sel ? "var(--ifm-color-primary-lightest)" : "transparent",
+                        outline: sel ? "1px solid var(--ifm-color-primary)" : "none",
+                      }}
+                    >
+                      <span
+                        className={roleStyle(r.role).className}
+                        style={{ fontSize: "0.68rem", padding: "0 5px", borderRadius: 4 }}
+                      >
+                        {roleStyle(r.role).label}
+                      </span>{" "}
+                      <span style={{ color: "var(--ifm-color-emphasis-500)" }}>
+                        ({Math.round(r.confidence * 100)}%)
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
