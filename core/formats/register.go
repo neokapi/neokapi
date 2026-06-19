@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/androidxml"
 	"github.com/neokapi/neokapi/core/formats/applestrings"
 	"github.com/neokapi/neokapi/core/formats/arb"
+	"github.com/neokapi/neokapi/core/formats/asciidoc"
 	"github.com/neokapi/neokapi/core/formats/audio"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/designtokens"
@@ -380,6 +381,19 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "MDX")
 	reg.RegisterWriter("mdx", func() format.DataFormatWriter { return mdx.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "mdx", func() format.DataFormatReader { return mdx.NewReader() })
+
+	// AsciiDoc (.adoc/.asciidoc/.adfm/.asc) — Eclipse AsciiDoc Language. A
+	// lightweight prose markup format with no Okapi counterpart (harvest
+	// cohort). Detection is by the unique extensions and the distinct
+	// text/asciidoc MIME; it claims no shared MIME so it never steals plaintext.
+	reg.RegisterReader("asciidoc",
+		func() format.DataFormatReader { return asciidoc.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/asciidoc"},
+			Extensions: []string{".adoc", ".asciidoc", ".adfm", ".asc"},
+		}, "AsciiDoc")
+	reg.RegisterWriter("asciidoc", func() format.DataFormatWriter { return asciidoc.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "asciidoc", func() format.DataFormatReader { return asciidoc.NewReader() })
 
 	// CSV
 	reg.RegisterReader("csv",

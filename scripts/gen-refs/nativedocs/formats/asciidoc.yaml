@@ -1,0 +1,57 @@
+# Native reference doc for the built-in `asciidoc` format.
+# Schema source: core/formats/asciidoc/config.go (Config) + schema.go.
+# No Okapi equivalent — the Okapi filter set ships no AsciiDoc filter (harvest
+# cohort). Ground truth is the Eclipse AsciiDoc Language spec effort and the
+# Asciidoctor reference documentation it formalizes.
+description: Extract and update translatable content in AsciiDoc (.adoc) documents while round-tripping structure and inline markup faithfully.
+overview: |
+  The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents — the
+  lightweight prose markup language used widely for technical documentation.
+  The reader extracts the logical, translatable content and preserves
+  everything else byte-for-byte.
+
+  Headings (the document title `=` and section headings `==`…`======`),
+  paragraphs, list items (ordered and unordered, with nesting), block titles
+  (`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells
+  each become blocks carrying a normalized structural role (heading, paragraph,
+  list-item, caption, table-cell) — tables are reconstructed as table / table-row
+  groups so cell geometry stays intact. Inline markup is linearized into
+  canonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /
+  `~sub~`, URL and `link:` macros, attribute references `{name}`, and cross
+  references `<<id,text>>`. The visible text stays translatable; the markup never
+  leaks into it.
+
+  Verbatim blocks (listing/literal/source/passthrough), comments, attribute
+  entries, and the document header are non-translatable and round-trip as
+  skeleton — an untouched document is reproduced byte-for-byte; only changed
+  values are spliced back in.
+parameters:
+  extractBlockTitles:
+    description: Extract AsciiDoc block titles (`.Title`) as translatable blocks.
+    help: |
+      When enabled (the default), a block title line (`.My Caption`) attached to
+      a following block is emitted as a translatable caption block. Disable to
+      keep block titles as non-translatable skeleton.
+    values: "`true` / `false` (default `true`)"
+  extractTableCells:
+    description: Extract `|===` table cells as translatable blocks.
+    help: |
+      When enabled (the default), the cells of a PSV table are emitted as blocks
+      grouped into table / table-row groups (the first row is treated as a header
+      when a blank line follows it). Disable to keep the whole table as a single
+      non-translatable block.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Headings carry their level on Properties["level"] (the count of `=`), so the structure survives translation and cross-format export.
+  - Tables are reconstructed as table / table-row groups; header cells carry the table-header role, body cells the table-cell role.
+  - Inline markup (bold/italic/mono/super/sub, links, attribute references, cross references) is protected as inline-code runs and must not be translated.
+  - "Output is byte-faithful: an unchanged document round-trips exactly; only modified block values are rewritten. Verbatim blocks, comments, attribute entries, and the document header are preserved as skeleton."
+examples:
+  - title: Keep block titles untranslated
+    description: Treat `.Title` lines as skeleton rather than translatable captions.
+    config: |
+      extractBlockTitles: false
+  - title: Preserve tables verbatim
+    description: Do not extract table cells; round-trip the whole table unchanged.
+    config: |
+      extractTableCells: false

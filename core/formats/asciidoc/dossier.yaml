@@ -1,0 +1,50 @@
+# Knowledge dossier — contract: docs/internals/format-maturity.md §2.4.
+# spec_sources ids resolve against specs/catalog.yaml.
+#
+# Harvest cohort: there is no Okapi counterpart (okf_asciidoc does not exist —
+# see okapi_skip_test.go), so `divergences` (native-vs-Okapi parity divergences)
+# is empty. The reader's coverage boundary (what is faithfully modeled vs what
+# round-trips as non-translatable skeleton) is recorded in vocabulary.yaml,
+# config.go, and the nativedocs reference sidecar, not here.
+format: asciidoc
+spec_sources:
+  - id: asciidoc-lang
+    version: living
+    url: https://projects.eclipse.org/projects/asciidoc.asciidoc-lang
+    watch: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/commits/main?format=atom
+    notes: >-
+      The Eclipse AsciiDoc Language working group is producing the formal,
+      governing grammar for AsciiDoc. It is the ground-truth spec the native
+      reader targets; until it lands the Asciidoctor reference documentation
+      (asciidoctor-manual) is the de-facto reference.
+  - id: asciidoctor-manual
+    version: living
+    url: https://docs.asciidoctor.org/asciidoc/latest/
+    watch: https://github.com/asciidoctor/asciidoctor/releases.atom
+    notes: >-
+      The Asciidoctor reference documentation (successor to the legacy
+      Asciidoctor User Manual). The de-facto AsciiDoc reference the reader was
+      authored against — block structure, constrained/unconstrained inline
+      formatting, link/xref macros, attribute references, and PSV tables.
+implementations:
+  - name: Asciidoctor (Ruby)
+    kind: other
+    pointer: https://github.com/asciidoctor/asciidoctor
+    license_note: >-
+      MIT — the canonical reference processor; acceptance oracle (behavior
+      read-about and compared against, never harvested; MIT, not GPL).
+  - name: Asciidoctor.js
+    kind: other
+    pointer: https://github.com/asciidoctor/asciidoctor.js
+    license_note: MIT — JS transpile of Asciidoctor; reference renderer.
+  - name: downdoc
+    kind: other
+    pointer: https://github.com/opendevise/downdoc
+    license_note: MIT — fast AsciiDoc-to-Markdown converter; a second parser reference.
+learning_materials:
+  # The generated native reference doc source (rendered to the reference site by
+  # `make generate-reference-docs`).
+  - scripts/gen-refs/nativedocs/formats/asciidoc.yaml
+  - "Asciidoctor — Text formatting: https://docs.asciidoctor.org/asciidoc/latest/text/"
+  - "Asciidoctor — Tables: https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/"
+divergences: []

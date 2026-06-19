@@ -1,0 +1,153 @@
+# core/formats/asciidoc/vocabulary.yaml — AsciiDoc representation-fidelity matrix.
+#
+# Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
+# against core/formats/constructs.yaml. Cells record only what the reader/writer
+# code provably does, evidence-bound for the audit.
+#
+# READER (core/formats/asciidoc/inline.go + reader.go): the inline scanner maps
+# *bold*->fmt:bold, _em_->fmt:italic, `mono`->fmt:code, ^sup^->fmt:superscript,
+# ~sub~->fmt:subscript, URL/link: macros->link:hyperlink (all canonical, paired
+# codes); {attr}->code:variable and <<xref>>->code:markup (placeholders). Block
+# kinds are set as Block.Type + normalized SemanticRole (heading/paragraph/
+# list-item/table-cell). Every cell below resolves to a grounding test.
+#
+# WRITER (core/formats/asciidoc/writer.go): re-emits captured Data via
+# model.RenderRunsWithData — markup round-trips from each run's stored Data, but
+# is not authored from the canonical Type, so write cells are `unknown`. This
+# caps AsciiDoc at V1 (typed reading), the honest state.
+#
+# Constructs the reader does NOT model as typed runs/kinds (block.quote,
+# block.title, strikethrough, footnotes, images, plural/select, ITS metadata) are
+# omitted rather than claimed without resolvable evidence — they round-trip as
+# non-translatable skeleton (the documented coverage boundary).
+version: 1
+family: rich-markup
+
+constructs:
+  - construct: inline.bold
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: >-
+        Round-trips via captured Data (RenderRunsWithData), not authored from the
+        canonical fmt:bold Type.
+
+  - construct: inline.italic
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: Data-replay writer; no canonical-authoring claim.
+
+  - construct: inline.code
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: Data-replay writer; the `mono` markup round-trips from Data.
+
+  - construct: inline.superscript
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: Data-replay writer; the ^...^ markup round-trips from Data.
+
+  - construct: inline.subscript
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: Data-replay writer; the ~...~ markup round-trips from Data.
+
+  - construct: link.hyperlink
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlineVocabulary]
+    write:
+      status: unknown
+      notes: >-
+        The URL / link: macro target round-trips via captured Data, not
+        re-authored from link:hyperlink.
+
+  - construct: placeholder.named
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlinePlaceholders]
+      notes: >-
+        Attribute references {name} become code:variable placeholder runs (a
+        canonical placeholder.named type).
+    write:
+      status: unknown
+      notes: Data-replay writer; the {name} reference round-trips from Data.
+
+  - construct: placeholder.markup-opaque
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderInlinePlaceholders]
+      notes: >-
+        Cross references <<id>> / <<id,text>> become code:markup runs (opaque
+        markup; the visible text of a labelled xref stays translatable).
+    write:
+      status: unknown
+      notes: Data-replay writer; the <<...>> markup round-trips from Data.
+
+  - construct: block.heading
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderRolesAndStructure]
+      notes: >-
+        Block.Type "heading" with the `=`-count level on Properties["level"] and
+        a normalized RoleHeading (model_mapping block:type).
+    write:
+      status: unknown
+      notes: >-
+        Heading markers round-trip via the skeleton, not re-authored from the
+        block kind.
+
+  - construct: block.paragraph
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderRolesAndStructure]
+      notes: Block.Type "paragraph" + RoleParagraph.
+    write:
+      status: unknown
+      notes: Skeleton round-trip; not re-authored from the block kind.
+
+  - construct: block.list-item
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderRolesAndStructure]
+      notes: Block.Type "list-item" + RoleListItem with marker-depth level.
+    write:
+      status: unknown
+      notes: List markers round-trip via the skeleton.
+
+  - construct: block.table-cell
+    expressible: true
+    read:
+      status: lossless
+      evidence: [asciidoc.TestReaderTableStructure]
+      notes: >-
+        Block.Type "table-cell" + RoleTableCell / RoleTableHeader inside table /
+        table-row groups.
+    write:
+      status: unknown
+      notes: Pipes and the table frame round-trip via the skeleton.

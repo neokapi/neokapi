@@ -13,7 +13,7 @@
 # Seeded 2026-06-12 from the research base's ranked shortlist
 # (docs/internals/research/format-ops/SYNTHESIS.md §5).
 version: 1
-updated: "2026-06-12"
+updated: "2026-06-19"
 candidates:
   - id: fluent
     as: format
@@ -48,14 +48,6 @@ candidates:
       whose span/mark model maps 1:1 onto Block/Run; inline marks justify
       bespoke readers despite the prefer-configured-readers rule (the Portable
       Text rule, format-ops.md §6).
-    status: proposed
-  - id: asciidoc
-    as: format
-    rank: 4
-    evidence:
-      - https://projects.eclipse.org/projects/asciidoc.asciidoc-lang
-    notes: >-
-      Eclipse-hosted spec plus TCK incubating; large documentation ecosystems.
     status: proposed
   - id: typst
     as: format
@@ -168,5 +160,6 @@ candidates:
       translatable-content exchange convention today — watch only.
     status: proposed
 decided:
-  accepted: []
+  accepted:
+    - {id: asciidoc, as: format, date: "2026-06-19"}
   rejected: {}

@@ -36,6 +36,14 @@ formats:
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
+  asciidoc:
+    tier: available
+    tier_since: "2026-06-19"
+    last_certified: "2026-06-19"
+    grandfathered: true
+    notes: "AsciiDoc (.adoc) reader + writer (harvest cohort — no Okapi counterpart); awaits first multi-axis certification."
+    gates:
+      - make test
   csv:
     tier: maintained
     tier_since: "2026-06-12"

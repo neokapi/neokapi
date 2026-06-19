@@ -31,7 +31,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "docling", "xcstrings", "arb", "resx",
-		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		"androidxml", "applestrings", "i18next", "designtokens", "mdx", "asciidoc",
 		// "image" (PNG/JPEG) is read-only: text + structure come from OCR via the
 		// kapi-vision plugin when installed, else just the image as Media.
 		"image",
@@ -68,7 +68,7 @@ func TestRegisterAllWriters(t *testing.T) {
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
-		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		"androidxml", "applestrings", "i18next", "designtokens", "mdx", "asciidoc",
 		// "image" has a writer: it emits the (possibly localized, e.g.
 		// pseudo-localized) image bytes — the whole-image localization sink.
 		"image",
@@ -161,7 +161,7 @@ func TestCollectNativeDecoders(t *testing.T) {
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx",
-		"ts", "fixedwidth", "phpcontent",
+		"ts", "fixedwidth", "phpcontent", "asciidoc",
 	}
 	for _, name := range expectedFormats {
 		kind := config.FormatConfigKind(name)

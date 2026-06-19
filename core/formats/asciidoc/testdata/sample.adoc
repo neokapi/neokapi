@@ -1,0 +1,34 @@
+= Document Title
+:author: Jane Doe
+:revnumber: 1.0
+
+This is the first paragraph with *bold*, _italic_, and `mono` text.
+
+== First Section
+
+A paragraph referencing {author} and a link https://example.com[Example Site].
+
+.A list of items
+* First item
+* Second item
+** Nested item
+
+NOTE: This is an admonition paragraph.
+
+=== Subsection
+
+[source,ruby]
+----
+puts "not translated"
+----
+
+// a line comment
+
+|===
+| Name | Role
+
+| Alice | Engineer
+| Bob | Designer
+|===
+
+Water is H~2~O and E = mc^2^.

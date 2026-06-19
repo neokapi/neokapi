@@ -1,0 +1,190 @@
+# AsciiDoc (.adoc) format specification.
+#
+# Native-only format — no Okapi counterpart (harvest cohort). The `format` id is
+# the bare native id `asciidoc`, not an `okf_*` bridge id; there are no
+# okapi_param / okapi_refs in this spec. Ground truth is the Eclipse AsciiDoc
+# Language working group's specification and the Asciidoctor reference docs it
+# formalizes (see okapi_skip_test.go).
+#
+# Authoring notes:
+#   - Inputs are inline AsciiDoc snippets (input_xml) or the committed
+#     testdata/sample.adoc exemplar. Assertions reflect the live reader under
+#     default config; verified via `go test -run TestSpec`.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractBlockTitles,
+#     extractTableCells.
+#   - The byte_faithful feature carries an expected.roundtrip view
+#     (mode: byte_exact): an untouched document round-trips verbatim.
+
+format: asciidoc
+mime_type: text/asciidoc
+description: |
+  AsciiDoc filter. Headings, paragraphs, list items, block titles, admonition
+  text, and table cells are extracted as translatable blocks carrying normalized
+  structural roles (heading/paragraph/list-item/caption/table-cell); inline
+  markup (*bold*, _italic_, `mono`, ^super^/~sub~, links, attribute references,
+  cross references) is linearized into canonical inline-code runs. Verbatim
+  blocks (listing/literal/source/passthrough), comments, attribute entries, and
+  the document header round-trip as non-translatable skeleton. The document is
+  parsed losslessly so the writer reproduces an untouched document byte-for-byte.
+
+config:
+  - key: extractBlockTitles
+    type: boolean
+    default: true
+    description: |
+      Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false
+      they are preserved verbatim as skeleton.
+  - key: extractTableCells
+    type: boolean
+    default: true
+    description: |
+      Emit `|===` table cells as translatable blocks grouped into table /
+      table-row groups. When false the table is preserved verbatim.
+
+features:
+  - id: block_extraction
+    name: Heading and paragraph extraction
+    description: |
+      The document title and section headings become heading blocks; prose
+      becomes paragraph blocks, in document order.
+    spec_refs:
+      - "Eclipse AsciiDoc Language (https://gitlab.eclipse.org/eclipse/asciidoc-lang/)"
+      - "Asciidoctor — Document structure (https://docs.asciidoctor.org/asciidoc/latest/document/)"
+    native_refs:
+      - asciidoc.TestReaderBlockExtraction
+      - asciidoc.TestReaderRolesAndStructure
+    examples:
+      - id: ad1ex
+        name: title_section_paragraph
+        class: valid
+        origin: "authored: a doctitle, one section heading, and one paragraph"
+        cite:
+          spec: asciidoctor-manual
+          version: living
+          url: https://docs.asciidoctor.org/asciidoc/latest/document/
+        input_xml: |
+          = Title
+
+          == Section
+
+          A paragraph.
+        block_count: 3
+        block_texts:
+          - "Title"
+          - "Section"
+          - "A paragraph."
+
+  - id: inline_vocabulary
+    name: Inline markup linearization
+    description: |
+      Inline formatting and links are linearized into canonical inline-code runs
+      while the visible text stays translatable.
+    spec_refs:
+      - "Asciidoctor — Text formatting (https://docs.asciidoctor.org/asciidoc/latest/text/)"
+    native_refs:
+      - asciidoc.TestReaderInlineVocabulary
+      - asciidoc.TestReaderInlinePlaceholders
+    examples:
+      - id: ad2ex
+        name: bold_and_link
+        class: valid
+        origin: "authored: a paragraph with bold and a URL link macro"
+        input_xml: |
+          Text with *bold* and a https://x.io[link].
+        block_count: 1
+        block_texts:
+          - "Text with bold and a link."
+
+  - id: table_modeling
+    name: Table cell extraction
+    description: |
+      `|===` table cells become blocks grouped into table / table-row groups;
+      the first row is a header when a blank line follows it.
+    spec_refs:
+      - "Asciidoctor — Tables (https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/)"
+    native_refs:
+      - asciidoc.TestReaderTableStructure
+    examples:
+      - id: ad3ex
+        name: header_and_body
+        class: valid
+        origin: "authored: a basic PSV table with a header row"
+        input_xml: |
+          |===
+          | Name | Role
+
+          | Alice | Engineer
+          |===
+        block_count: 4
+        has_block_with_text:
+          - "Name"
+          - "Alice"
+
+  - id: structure_roles
+    name: Structural roles (blocks view)
+    description: |
+      The reader recovers the document's logical structure into the canonical
+      core/model roles and reading-order groups (Structure & Geometry axis): a
+      heading carries RoleHeading + level, list items RoleListItem inside a list
+      group, and table cells RoleTableCell / RoleTableHeader inside table /
+      table-row groups. The block-event dump (expected.blocks) makes the typed
+      role + group contract executable rather than prose.
+    spec_refs:
+      - "Asciidoctor — Document structure (https://docs.asciidoctor.org/asciidoc/latest/document/)"
+      - "Asciidoctor — Tables (https://docs.asciidoctor.org/asciidoc/latest/tables/build-a-basic-table/)"
+    native_refs:
+      - asciidoc.TestReaderRolesAndStructure
+      - asciidoc.TestReaderReadingOrderGroups
+    examples:
+      # Multi-view proof case (format-spec-cases.md §5): a heading + list + table
+      # asserted through the structural blocks view — the canonical block-event
+      # dump (§4) — so the role/group contract (heading -> RoleHeading; list-item
+      # -> RoleListItem in a list group; cells -> RoleTableHeader/RoleTableCell in
+      # table/table-row groups) is checked as data. Fixture generated by
+      # accept-mode (KAPI_SPEC_UPDATE=1).
+      - id: ad5ro
+        name: roles_blocks_view
+        class: valid
+        origin: "authored: a heading, a two-item list, and a header table, asserted via the blocks view"
+        cite:
+          spec: asciidoctor-manual
+          version: living
+          url: https://docs.asciidoctor.org/asciidoc/latest/document/
+        tags: [structure, roles, blocks-view]
+        input_xml: |
+          = Guide
+
+          == Setup
+
+          * First step
+          * Second step
+
+          |===
+          | Name | Role
+
+          | Alice | Engineer
+          |===
+        expected:
+          blocks: cases/ad5ro.events.jsonl
+
+  - id: byte_faithful
+    name: Byte-faithful round-trip
+    description: |
+      With no edits the writer reproduces the source document byte-for-byte,
+      demonstrated on the committed testdata/sample.adoc exemplar.
+    spec_refs:
+      - "Eclipse AsciiDoc Language (https://gitlab.eclipse.org/eclipse/asciidoc-lang/)"
+    native_refs:
+      - asciidoc.TestSampleFixtureRoundTrip
+      - asciidoc.TestSkeletonRoundTripByteExact
+    examples:
+      - id: ad4rt
+        name: sample_roundtrip
+        class: valid
+        origin: "authored: the committed testdata/sample.adoc exemplar"
+        input_file: testdata/sample.adoc
+        has_block_with_text:
+          - "First Section"
+        expected:
+          roundtrip:
+            mode: byte_exact

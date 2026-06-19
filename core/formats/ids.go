@@ -54,4 +54,5 @@ const (
 	I18next       registry.FormatID = "i18next"
 	DesignTokens  registry.FormatID = "designtokens"
 	MDX           registry.FormatID = "mdx"
+	AsciiDoc      registry.FormatID = "asciidoc"
 )

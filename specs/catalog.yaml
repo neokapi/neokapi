@@ -158,6 +158,35 @@ specs:
       No native Go MF2 implementation exists as of 2025–2026 — an open lane.
 
   # ── Markup / web ────────────────────────────────────────────────────
+  - id: asciidoc-lang
+    name: AsciiDoc Language (Eclipse AsciiDoc Language WG)
+    version: living
+    url: https://projects.eclipse.org/projects/asciidoc.asciidoc-lang
+    rights: link-only
+    watch:
+      - https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/commits/main?format=atom
+    notes: >-
+      The Eclipse AsciiDoc Language working group is producing the formal,
+      governing grammar for AsciiDoc; the specification is still in progress, so
+      the Asciidoctor reference documentation (catalog id asciidoctor-manual) is
+      the de-facto reference until it lands. link-only: a living, unpinned spec
+      has no committed snapshot, so citations carry the URL + a short fair-use
+      quote only (not rights: vendor — there is nothing stable to vendor yet).
+
+  - id: asciidoctor-manual
+    name: Asciidoctor reference documentation (de-facto AsciiDoc reference)
+    version: living
+    url: https://docs.asciidoctor.org/asciidoc/latest/
+    rights: link-only
+    watch:
+      - https://github.com/asciidoctor/asciidoctor/releases.atom
+    notes: >-
+      The Asciidoctor project's reference documentation (successor to the legacy
+      single-page Asciidoctor User Manual) is the de-facto AsciiDoc reference the
+      native reader was authored against, pending the Eclipse AsciiDoc Language
+      spec (catalog id asciidoc-lang). Cited by core/formats/asciidoc/spec.yaml;
+      link-only (cite URL + short fair-use quote, no stored text).
+
   - id: commonmark
     name: CommonMark Spec
     version: "0.31.2"

@@ -1,0 +1,53 @@
+# core/formats/asciidoc/structure.yaml — Structure & Geometry (G) axis declaration.
+#
+# Structure/Geometry maturity axis (docs/internals/format-maturity.md §2.7): the
+# comprehension-depth ladder G0..G4 over the core/model/structure.go stand-off
+# payloads (SemanticRole, LayoutLayer, RelationAnnotation, GeometryAnnotation).
+#
+# The audit (audit-format.py `_structure_axis`) GREPS the package's non-test .go
+# for the deterministic floor; THIS file adds the two facts a grep cannot prove:
+#   - authority: the AD-028 provenance tier (native|tagged|geometric|ml).
+#   - geometry: the countersigned `na` ceiling cap for a non-spatial format.
+version: 1
+
+# AsciiDoc carries its logical structure in the grammar itself (heading levels,
+# list markers, table delimiters, block titles), so the reader recovers roles
+# and reading order directly from the source — native/given provenance, not
+# inferred from tags, geometry, or an ML model.
+authority: native
+
+in_core: G3   # grep-verified floor (reader.go below)
+ceiling: G3   # markup source format — no intrinsic spatial layout (geometry N/A)
+realized_by: native reader (core/formats/asciidoc/reader.go)
+
+# Geometry is the G4 ceiling cap: AsciiDoc is a plain-text markup SOURCE format
+# with no rendered page coordinates, so GeometryAnnotation is not applicable. On
+# this cumulative ladder `na` is a COUNTERSIGNED state (rubric §2.7; SHARPEN §5
+# decision 6).
+geometry:
+  status: na
+  reviewed_by: claude-fable
+  date: "2026-06-19"
+  reason: >-
+    AsciiDoc is a lightweight-markup source format with no intrinsic spatial
+    layout (no page/bbox); structure is logical, not geometric. Geometry is
+    therefore not applicable and caps the axis at G3.
+
+# Every claimed rung is grounded in core/formats/asciidoc/reader.go:
+evidence:
+  # G2 reading order — a document Group brackets the body; section/list/table
+  # Groups bracket their children in document order (emitHeading/processList/
+  # processTable openGroup PartGroupStart).
+  - "PartGroupStart (openGroup: document/section/list/table/table-row)"
+  # G3 logical structure — heading -> RoleHeading+Level, paragraph ->
+  # RoleParagraph, list item -> RoleListItem+Level, block title -> RoleCaption,
+  # table cells -> RoleTableCell/RoleTableHeader inside Type:"table"/"table-row".
+  - "SetSemanticRole (emitBlock); Type:\"table\"/\"table-row\" + RoleTableCell/RoleTableHeader (processTable)"
+  # roles/structure assertions:
+  - "asciidoc.TestReaderRolesAndStructure; asciidoc.TestReaderTableStructure; asciidoc.TestReaderReadingOrderGroups (roles_test.go)"
+
+notes: >-
+  Inline markup is modeled as canonical run vocabulary (see vocabulary.yaml),
+  which does not bear on the G axis. Roles, table topology, and reading order are
+  all recovered in-core from the grammar, so asciidoc is a native G3; G4
+  (geometry) is not applicable to a non-rendered markup source.
