@@ -153,9 +153,20 @@ func OCRResultFromBlocks(blocks []*model.Block, width, height int) *OCRResult {
 		if !ok || g == nil {
 			continue
 		}
-		res.Lines = append(res.Lines, OCRLine{Text: text, BBox: g.BBox, Confidence: 1})
+		conf := 1.0
+		if o, ok := b.SourceOrigin(); ok && o.Confidence > 0 {
+			conf = o.Confidence
+		}
+		res.Lines = append(res.Lines, OCRLine{Text: text, BBox: g.BBox, Confidence: conf})
 	}
 	return res
+}
+
+// setOCRProvenance records on a block that its source text was produced by OCR,
+// carrying the line's confidence — the gate a media-refine tier reads (AD-030).
+// The provenance is uniform across lines; a 0 confidence still marks Kind ocr.
+func setOCRProvenance(b *model.Block, ln OCRLine) {
+	b.SetSourceOrigin(&model.Origin{Kind: model.OriginOCR, Confidence: ln.Confidence})
 }
 
 // BlocksFromOCR converts recognized lines into positioned content Blocks: one
@@ -177,6 +188,7 @@ func BlocksFromOCR(res *OCRResult, page int, counter *int) []*model.Block {
 		if ln.BBox.W > 0 || ln.BBox.H > 0 {
 			b.SetGeometry(&model.GeometryAnnotation{Page: page, BBox: ln.BBox, Origin: "top-left"})
 		}
+		setOCRProvenance(b, ln)
 		out = append(out, b)
 	}
 	return out
