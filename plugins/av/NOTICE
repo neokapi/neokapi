@@ -1,0 +1,18 @@
+kapi-av plugin — third-party notices
+====================================
+
+This plugin bundles the following third-party software. See the repository's
+THIRD_PARTY_NOTICES.md for the full bundling policy and the FFmpeg LGPL checklist.
+
+FFmpeg (ffmpeg, ffprobe)
+  License: LGPL-2.1-or-later (LGPL build — configured with --disable-gpl
+           --disable-nonfree; GPL-only components such as x264/x265/libpostproc
+           are excluded)
+  Copyright (c) the FFmpeg developers
+  Source: https://ffmpeg.org/ — the exact version and ./configure flags used to
+          produce the bundled build are recorded by the release build script;
+          corresponding source is available on request.
+  Bundled as: ffmpeg, ffprobe — separate executables invoked over a process
+          boundary (never linked into kapi or the plugin binary), so the LGPL
+          "replaceable component" requirement is satisfied: a user may substitute
+          their own LGPL-compatible build.
