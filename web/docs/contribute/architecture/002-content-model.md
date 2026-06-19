@@ -3,7 +3,7 @@ id: 002-content-model
 sidebar_position: 2
 title: "AD-002: Content Model"
 description: "Architecture decision: documents are represented as a stream of Part values (Layer, Block, Data, Media) and a Block's inline content is a flat sequence of Run values, so that tools and translations work independently of source file format."
-keywords: [content model, Part, Block, Run, Segment, overlay, stand-off annotation, segmentation, Layer, architecture decision, neokapi]
+keywords: [content model, Part, Block, Run, Segment, overlay, stand-off annotation, segmentation, Layer, anchor, geometry, timing, source provenance, Origin, multimodal, architecture decision, neokapi]
 ---
 
 # AD-002: Content Model
@@ -21,8 +21,12 @@ roundtrip native markup exactly. Interpretations *of* that content — sentence
 segmentation, terminology, entities, QA findings — are **stand-off overlays**:
 typed, run-anchored span sets layered over the runs on demand, never rewriting
 them. `Segment` is not a structural type; a segment is a span in a
-segmentation overlay. Targets are first-class records keyed by a *variant* —
-locale plus optional tone or channel — not bare locale-keyed strings.
+segmentation overlay. Where a Block is **anchored** in its source follows the
+medium — a run range in text, a spatial box on a rendered page, a time span in
+timed media — and content that is *recognized* rather than parsed records the
+extracting engine and a confidence in the same `Origin` a translation carries.
+Targets are first-class records keyed by a *variant* — locale plus optional tone
+or channel — not bare locale-keyed strings.
 
 ## Context
 
@@ -156,7 +160,9 @@ type VariantKey struct {
 type Target struct {
     Runs   []Run
     Status TargetStatus // draft | translated | reviewed | signed-off
-    Origin Origin       // human | tm | mt | ai, plus engine, tool, timestamp, author
+    Origin Origin       // how the content was produced: human | tm | mt | ai |
+                        // ocr | asr, plus engine, confidence, reference — the same
+                        // record a recognized *source* carries (see Anchoring)
     Score  float64
 }
 ```
@@ -223,9 +229,11 @@ fields because they differ in shape and lifecycle:
   rest shift to follow it); an opaque whole-block rewrite has no mapping and drops
   them. See AD-006.
 - **Annotations** are *block-scoped*: a keyed map of typed payloads describing
-  the block as a whole, with no position — alt-translations, notes, analysis
-  results (word/char/segment counts, comparison, repetition, brand-voice), and
-  format round-trip state. A source rewrite does not invalidate them.
+  the block as a whole — alt-translations, notes, analysis results
+  (word/char/segment counts, comparison, repetition, brand-voice), format
+  round-trip state, and the block's **anchor** and **role** facets (`structure`,
+  `geometry`, `timing` — see [Anchoring across media](#anchoring-across-media-and-source-provenance)).
+  A source rewrite does not invalidate them.
 
 ```go
 type Block struct {
@@ -271,6 +279,40 @@ Tools communicate by reading the overlays and annotations produced upstream and
 writing their own downstream, keeping tools loosely coupled through the shared
 data model rather than direct dependencies.
 
+#### Anchoring across media, and source provenance {#anchoring-across-media-and-source-provenance}
+
+Two things about a Block depend on where its content came from: **where it sits
+in its source**, and **how its source text was produced**. Both are block-scoped
+typed annotations, riding the same carrier as the analytic results above.
+
+**Anchor.** A Block's position in its source is a coordinate, and the coordinate
+system follows the medium:
+
+- **Text** anchors by **run range** — the `RunRange` every overlay above already
+  uses. Run anchoring is the text facet of one general idea, not a separate
+  concept.
+- **Rendered media** (an image, a PDF page) anchors **spatially**: a `geometry`
+  annotation (`AnnoGeometry`, a `GeometryAnnotation` of page + bounding box).
+- **Timed media** (audio, video) anchors **temporally**: a `timing` annotation
+  records the time span.
+
+A Block carries whichever facets its medium defines, and they compose — text
+burned into a video frame carries both a `geometry` box and a `timing` span.
+Alongside anchor, a `structure` annotation (`AnnoStructure`, a
+`StructureAnnotation`) records the block's logical **role** and plane (title,
+heading, table cell, caption, metadata) independent of medium. A tool reads only
+the facet it needs; a Block with no media facet is plain anchored-by-runs text.
+
+**Source provenance.** A `Target` records its `Origin` — how the translation was
+produced (`human`/`tm`/`mt`/`ai`, the engine, a reference). A Block's **source**
+carries the same `Origin` when it was *recognized* rather than parsed: an OCR or
+ASR engine, or an LLM, produced the text, so the `Origin` names that engine and
+carries a **confidence**. A block read losslessly from a text format has no
+source `Origin`; one produced by recognition does, and a confidence-gated
+refinement step ([AD-030](030-multimodal-extraction-and-llm-refinement.md)) reads
+it to decide what to re-examine. Source and target provenance are one record on
+two sides of the Block.
+
 ### The Run sequence
 
 A Block's content is not a string with embedded markers — it is a flat
@@ -304,8 +346,11 @@ The runs are the content. Everything that *interprets* the content — where the
 sentence boundaries fall, which spans are terms or named entities, what a QA
 check flagged, how a source span aligns to a target span — is a **stand-off
 overlay**: a typed set of spans anchored to a run sequence, layered over it
-without rewriting it. This is the one mechanism for every positional
+without rewriting it. This is the one mechanism for every *run-anchored*
 interpretation; segmentation is simply the overlay of type `segmentation`.
+(Where content is positioned in a rendered or timed medium rather than over runs,
+that coordinate is an anchor facet — `geometry`, `timing` — on the block, see
+[Anchoring across media](#anchoring-across-media-and-source-provenance).)
 
 ```go
 // Overlay is a typed stand-off layer over one side of a Block.
@@ -758,6 +803,12 @@ backend's tag-handling capability:
 - Segmentation, terminology, entities, and QA share one run-anchored stand-off
   overlay mechanism; segmentation never mutates content, so it is opt-in,
   multi-layered, and losslessly reversible.
+- Anchoring is one idea with per-medium facets — run range (text), `geometry`
+  (rendered), `timing` (timed) — so image, audio, and video content sit in the
+  same Block model as text, and a recognized source carries the same `Origin`
+  (engine + confidence) a translation does. Vision ([AD-029](029-vision-and-image-localization.md))
+  and multimodal extraction ([AD-030](030-multimodal-extraction-and-llm-refinement.md))
+  add no new positional primitive.
 - Bilingual interchange formats that carry sentence segments (XLIFF 2.0
   `<segment>`/`<ignorable>`, TMX) project to and from segmentation + alignment
   overlays at the reader/writer boundary — opt-in byte-faithful round-trip —
@@ -774,4 +825,7 @@ backend's tag-handling capability:
 - [AD-004: Processing Engine](004-processing-engine.md) — how Parts stream
 - [AD-005: Format System](005-format-system.md) — readers/writers that produce Parts
 - [AD-006: Tool System](006-tool-system.md) — tools that consume Parts
+- [AD-011: AI Providers](011-ai-providers.md) — multimodal messages that carry a Block's media anchor as content
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF/TMX segment + alignment projection
+- [AD-029: Vision and Image Localization](029-vision-and-image-localization.md) — geometry as the spatial anchor facet
+- [AD-030: Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md) — the temporal facet, source `Origin` confidence, and the refinement tier that reads them

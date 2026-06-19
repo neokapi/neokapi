@@ -143,7 +143,9 @@ The OCR engine runs the PP-OCRv5 mobile detection (DBNet) and recognition
 (CRNN+CTC) models: it builds an MCID-free pipeline — binarize the detection
 probability map, extract connected-component boxes, "unclip" them, recognize each
 crop and CTC-decode against the PP-OCRv5 dictionary. Recognized lines carry
-top-left pixel geometry; the image reader feeds them to the geometric tier-2
+top-left pixel geometry — the **spatial anchor facet** of the content model
+([AD-002](002-content-model.md): `geometry`) — and a per-line confidence on the
+block's source `Origin`; the image reader feeds them to the geometric tier-2
 (`core/structure.Analyze`) when layout is unavailable.
 
 ### Layout — PP-DocLayoutV3 (tier 3)

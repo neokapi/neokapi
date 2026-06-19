@@ -2,8 +2,8 @@
 id: 030-multimodal-extraction-and-llm-refinement
 sidebar_position: 30
 title: "AD-030: Multimodal Extraction and LLM Refinement"
-description: "Architecture decision: extracting translatable content from images, audio, and video is one pattern — a fast local extractor produces confidence-scored Blocks anchored to a slice of the source media, and a configurable multimodal LLM refines only the low-confidence units. A MediaAnchor + ExtractionProvenance overlay pair makes Blocks self-describing across space and time, a multimodal aiprovider carries image/audio/video content parts, and one generic media-refine Transform tool escalates per modality."
-keywords: [multimodal, OCR, ASR, speech recognition, video localization, audio localization, LLM refinement, confidence cascade, MediaAnchor, ExtractionProvenance, multimodal aiprovider, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
+description: "Architecture decision: extracting translatable content from images, audio, and video is one pattern — a fast local extractor produces confidence-scored Blocks anchored to a slice of the source media, and a configurable multimodal LLM refines only the low-confidence units. The anchor facets and source provenance are the content model's (AD-002); the multimodal message is the provider's (AD-011); this AD adds the confidence-gated escalation pattern, the generic media-refine Transform, and the kapi-asr/video plugin symmetry."
+keywords: [multimodal, OCR, ASR, speech recognition, video localization, audio localization, LLM refinement, confidence cascade, media-refine, MediaSlicer, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
 ---
 
 # AD-030: Multimodal Extraction and LLM Refinement
@@ -18,23 +18,30 @@ per-unit **confidence**. The hard units are then escalated, low-confidence-first
 to a **configurable multimodal LLM** that re-reads just that slice — a crop for an
 image, a time span for audio, a frame or clip for video.
 
-Four pieces make this generic across modalities:
+This rests on two foundations defined elsewhere — it adds no new content-model
+primitive:
 
-- A **MediaAnchor** overlay generalizes the spatial `GeometryAnnotation`
-  ([AD-029](029-vision-and-image-localization.md)) to locate a Block in source
-  media across **space *and* time** (`page + bbox`, `[startMs, endMs]`, or both).
-- An **ExtractionProvenance** overlay persists `{modality, engine, modelVersion,
-  confidence, needsReview}` on every extracted Block — the gate the escalation
-  reads, and the audit trail the editor shows.
-- A **multimodal `aiprovider`** carries `image`/`audio`/`video` content parts and
-  advertises which input modalities each backend accepts
-  ([AD-011](011-ai-providers.md)).
+- The **content model** ([AD-002](002-content-model.md)) anchors a Block to its
+  source by a per-medium facet (run range for text, `geometry` for rendered media,
+  `timing` for timed media) and records how a *recognized* source was produced in
+  its `Origin` (engine + confidence). Extractors populate these; the escalation
+  reads them.
+- The **provider interface** ([AD-011](011-ai-providers.md)) carries
+  `image`/`audio`/`video` content parts and advertises each backend's input
+  modalities.
+
+On those, this AD adds three things:
+
+- The **confidence-gated escalation pattern** — tier the readers, escalate only
+  the units the local extractor is unsure of.
 - One **generic `media-refine` tool** — a source-`Transform`
-  ([AD-006](006-tool-system.md)) — gates on confidence, slices the source via a
-  per-modality `MediaSlicer`, and rewrites the Block's source from the LLM
-  response, behind faithfulness guards.
+  ([AD-006](006-tool-system.md)) — that gates on the source `Origin` confidence,
+  slices the source via a per-modality `MediaSlicer`, and rewrites the Block's
+  source from the LLM response, behind faithfulness guards.
+- **Plugin and pipeline symmetry** — `kapi-asr` and the video demux reader mirror
+  `kapi-vision`, so audio and video reuse the same tier.
 
-The escalation tier is identical across modalities; only the *anchor*, the
+The escalation tier is identical across modalities; only the *anchor* facet, the
 *slicer*, and the LLM *content part* differ. Heavy extractors stay out-of-core in
 plugins, mirroring `kapi-vision` and the SaT segmenter
 ([AD-021](021-sat-segmenter-plugin.md)).
@@ -93,112 +100,27 @@ entirely in the per-modality adapters.
 | LLM content part | `image` | `audio` | `image` (frame) or `video` (clip) |
 | Refusal token | `[illegible]` | `[inaudible]` | per-track |
 
-### Content model: MediaAnchor and ExtractionProvenance
+### What the extractor records
 
-Two stand-off overlays ([AD-002](002-content-model.md)) make an extracted Block
-self-describing enough for one modality-generic tool: where it sits in the source
-media, and how its source text was produced.
+The escalation needs nothing the content model does not already define
+([AD-002](002-content-model.md)). Each extractor's block builder
+(`BlocksFromOCR`, `BlocksFromASR`) populates, on every Block it emits:
 
-**MediaAnchor** locates a Block within source media across space and time. It
-subsumes `GeometryAnnotation` — an image Block carries only the spatial part, an
-audio Block only the temporal part, an on-screen-text-in-video Block carries both:
+- the **anchor** facet for its medium — a `geometry` annotation (page + bounding
+  box) for a rendered region, a `timing` annotation (time span) for an audio or
+  video segment, both for on-screen text in video; and
+- the source **`Origin`** — the extracting engine (`ocr`, `asr`) and a
+  **confidence**, the same record a translation carries on its target side.
 
-```go
-type MediaAnchor struct {
-    Source   string              // ref to the source Media / child Layer
-    Spatial  *GeometryAnnotation // page + bbox; nil for pure audio
-    Temporal *TimeSpan           // {StartMS, EndMS}; nil for still images
-}
-```
+So a Block arrives at the refinement tier self-describing: confidence to gate on,
+an anchor that says which slice of the source to re-read, and an engine for the
+audit trail. The tier introduces no overlay of its own.
 
-**ExtractionProvenance** records how the Block's source text came to be — the gate
-the escalation reads and the trail the editor surfaces:
-
-```go
-type ExtractionProvenance struct {
-    Modality     Modality // closed set, named type (see below)
-    Engine       EngineID // open ID: plugins register their own
-    ModelVersion string   // free-form version string
-    Confidence   float64  // [0,1]; the escalation gate
-    NeedsReview  bool     // set on LLM divergence / refusal
-}
-
-// Modality is a closed enumeration, typed with constants like ProviderID /
-// PartType / Capability — not a bare string.
-type Modality string
-
-const (
-    ModalityImage Modality = "image"
-    ModalityAudio Modality = "audio"
-    ModalityVideo Modality = "video"
-)
-
-// EngineID is an open identifier — extractors register their own, as providers
-// register ProviderIDs. Well-known values: "ppocr", "trocr", "whisper",
-// "llm:<provider>".
-type EngineID string
-```
-
-This follows neokapi's typing convention: **closed sets and registry IDs are
-named types with constants** (`PartType`, `ProviderID`, `Capability`,
-`LocaleID`), while **open or standardized free-form values stay `string`** with a
-doc comment (`Message.Role`, `GeometryAnnotation.Origin`, IANA media types,
-version strings). `MediaAnchor.Source` follows the existing `GeometryAnnotation.SourceRef`
-precedent — an ID reference held as `string`.
-
-Each extractor's block builder (`BlocksFromOCR`, `BlocksFromASR`) attaches both
-overlays, so provenance and anchor travel with the Block from the moment it is
-extracted.
-
-### The keystone: a multimodal aiprovider
-
-`aiprovider.Message.Content` becomes an ordered list of typed parts, and providers
-advertise the input modalities they accept ([AD-011](011-ai-providers.md)):
-
-```go
-type ContentPart struct {
-    Kind      ContentKind // closed set, named type
-    Text      string      // Kind == ContentText
-    Data      []byte      // Kind == ContentImage|Audio|Video (base64-encoded on the wire)
-    MediaType string      // IANA media type: "image/png", "audio/wav", "video/mp4"
-}
-
-// ContentKind discriminates a part (named type with constants, like PartType).
-// Distinct from Modality: it includes text, which every provider accepts.
-type ContentKind string
-
-const (
-    ContentText  ContentKind = "text"
-    ContentImage ContentKind = "image"
-    ContentAudio ContentKind = "audio"
-    ContentVideo ContentKind = "video"
-)
-
-type Message struct {
-    Role  string        // unchanged from the existing type: "system"|"user"|"assistant"
-    Parts []ContentPart
-}
-
-// Capability descriptor — media-refine selects a provider that accepts the
-// modality it needs, rather than discovering the limit at call time. Returns
-// the non-text modalities a backend accepts (text is always supported).
-func (p Provider) InputModalities() []Modality
-```
-
-A pure-text message is a single `text` part, so text-only tools (translation, QA,
-terminology — [AD-022](022-brand-voice.md)) use the same interface with no media
-parts. The same interface carries image, audio, and video for the refinement
-tier. Backends differ in reach:
-
-| Provider | Accepts |
-|---|---|
-| Gemini | text, image, audio, video |
-| OpenAI / Azure OpenAI | text, image (audio on audio-capable models) |
-| Anthropic | text, image |
-| Ollama (vision models) | text, image |
-
-`media-refine` reads `InputModalities()` and errors clearly if the chosen provider
-cannot accept the slice's modality — never silently degrades.
+The provider side is equally already-defined: the multimodal `aiprovider`
+([AD-011](011-ai-providers.md)) carries the slice as an `image`/`audio`/`video`
+content part, and `media-refine` reads `InputModalities()` to pick a provider that
+accepts the slice's modality — erroring clearly rather than silently degrading if
+none is configured.
 
 ### The generic media-refine tool
 
@@ -206,26 +128,26 @@ One tool, dispatched by the anchor/modality, behind a `MediaSlicer` per modality
 
 ```go
 type MediaSlicer interface {
-    // Returns the source slice as an LLM content part: ImageCropper crops the
-    // raster bbox; AudioCutter cuts [startMs,endMs]; VideoClipper extracts a
-    // frame (+crop) or a short clip.
-    Slice(ctx context.Context, src MediaRef, a MediaAnchor) (aiprovider.ContentPart, error)
+    // Returns the source slice as an LLM content part, reading the block's anchor
+    // facet (AD-002): ImageCropper crops the geometry bbox; AudioCutter cuts the
+    // timing span; VideoClipper extracts a frame (+crop) or a short clip.
+    Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error)
 }
 ```
 
 Control flow:
 
-1. **Gate** — skip Blocks whose `ExtractionProvenance.Confidence ≥ threshold` and
-   not `NeedsReview`.
+1. **Gate** — skip Blocks whose source `Origin` confidence is at or above the
+   threshold.
 2. **Slice** — resolve the modality's `MediaSlicer`; produce the content part.
 3. **Prompt** — `[neighbouring extracted text as context] + [media part] +
    instruction to transcribe only the slice, returning the refusal token when
    unsure`.
 4. **Call** — the explicitly-configured provider (capability-checked).
-5. **Rewrite** — emit an `EditPlan` rewriting the Block source; tag
-   `ExtractionProvenance.Engine = "llm:<provider>"`; set `NeedsReview` when the LLM
-   output diverges sharply from the Tier-1/Tier-2 guess or returns the refusal
-   token.
+5. **Rewrite** — emit an `EditPlan` rewriting the Block source; set its source
+   `Origin` engine to `llm:<provider>`; add a `qa` finding
+   ([AD-002](002-content-model.md)) marking the unit for review when the LLM output
+   diverges sharply from the Tier-1/Tier-2 guess or returns the refusal token.
 
 `media-refine` is a **source-`Transform`** ([AD-006](006-tool-system.md)): it
 rewrites source, so it runs in a flow's leading **source-transform stage** — the
@@ -257,14 +179,14 @@ slicer holds the source ref), not as an arbitrary downstream tool.
 The confabulation risk is identical across modalities, so the guards are too:
 
 - **Refusal token.** The model is instructed to return `[illegible]` /
-  `[inaudible]` rather than guess; the token maps to `NeedsReview`, not to
-  fabricated source.
+  `[inaudible]` rather than guess; the token marks the unit for review (a `qa`
+  finding), not fabricated source.
 - **Divergence check.** A Tier-3 result that disagrees sharply with the Tier-1/2
-  guess (both low-confidence) is flagged `NeedsReview` rather than silently
-  accepted.
+  guess (both low-confidence) is flagged for review rather than silently accepted.
 - **Provenance is visible.** LLM-sourced source text is the least-verified tier;
-  the editor renders the `Engine`/`NeedsReview` provenance ([AD-027](027-visual-editor-data-model.md))
-  so a reviewer sees exactly which units a model invented versus read.
+  the editor renders the source `Origin` (engine + confidence) and any `qa` review
+  finding ([AD-027](027-visual-editor-data-model.md)) so a reviewer sees exactly
+  which units a model invented versus read.
 - **Slice, never page.** Only the low-confidence slice plus a text context hint
   leaves the process — bounding both cost and data exposure.
 
@@ -280,9 +202,10 @@ not a browser one.
 
 ## Related
 
-- [AD-002 Content Model](002-content-model.md) — overlays, Layers, semantic vocabulary
+- [AD-002 Content Model](002-content-model.md) — anchor facets (geometry/timing) and source `Origin` confidence this tier reads
 - [AD-006 Tool System](006-tool-system.md) — capability views, source-transform stage
-- [AD-011 AI Providers](011-ai-providers.md) — `LLMProvider`, the multimodal extension
+- [AD-011 AI Providers](011-ai-providers.md) — the multimodal `LLMProvider` this tier sends slices to
 - [AD-020 Content Redaction](020-redaction.md) — the recoverable-Transform precedent
 - [AD-021 SaT Segmenter Plugin](021-sat-segmenter-plugin.md) — native-stack plugin isolation template
+- [AD-027 Visual Editor](027-visual-editor-data-model.md) — renders source provenance and qa review findings
 - [AD-029 Vision and Image Localization](029-vision-and-image-localization.md) — the image instance of this pattern
