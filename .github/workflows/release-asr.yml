@@ -89,8 +89,8 @@ jobs:
           if (-not $cli) { Write-Error "whisper-cli.exe not found"; exit 1 }
           "WHISPER_DIR=$($cli.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Build whisper.cpp from source (macOS / windows-arm64)
-        if: matrix.build.whisper == 'source'
+      - name: Build whisper.cpp from source (macOS)
+        if: matrix.build.whisper == 'source' && runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
@@ -98,14 +98,53 @@ jobs:
           cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
           cmake --build "$RUNNER_TEMP/wbuild" --config Release -j --target whisper-cli
           out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
-          cli="$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli' -o -name 'whisper-cli.exe' | head -n1)"
+          cli="$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli' | head -n1)"
           cp "$cli" "$out/"
           # gather shared libs produced by the build
-          find "$RUNNER_TEMP/wbuild" \( -name 'libwhisper*.dylib' -o -name 'libggml*.dylib' -o -name 'libwhisper*.so*' -o -name 'libggml*.so*' -o -name '*.dll' \) -exec cp -p {} "$out/" \; || true
-          if [ "$(uname -s)" = Darwin ]; then
-            install_name_tool -add_rpath @loader_path "$out/whisper-cli" 2>/dev/null || true
-          fi
+          find "$RUNNER_TEMP/wbuild" \( -name 'libwhisper*.dylib' -o -name 'libggml*.dylib' \) -exec cp -p {} "$out/" \;
+          install_name_tool -add_rpath @loader_path "$out/whisper-cli" 2>/dev/null || true
           echo "WHISPER_DIR=$out" >> "$GITHUB_ENV"
+
+      # windows/arm64: ggml refuses MSVC ("MSVC is not supported for ARM, use
+      # clang"), so build with the LLVM-mingw CLANGARM64 toolchain (clang + libc++),
+      # mirroring release-sat.yml. whisper-cli.exe then links the CLANGARM64 runtime
+      # DLLs (libc++/libunwind/libwinpthread), which we bundle beside it.
+      - name: Set up MSYS2 CLANGARM64 (windows/arm64)
+        if: matrix.build.whisper == 'source' && runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          path-type: inherit
+          install: >-
+            mingw-w64-clang-aarch64-clang
+            mingw-w64-clang-aarch64-cmake
+            mingw-w64-clang-aarch64-ninja
+
+      - name: Build whisper.cpp from source (windows/arm64, clang)
+        if: matrix.build.whisper == 'source' && runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          export CC=clang CXX=clang++
+          git clone --branch "${WHISPER_CPP_VERSION}" --depth 1 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wsrc"
+          cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_NATIVE=OFF
+          cmake --build "$RUNNER_TEMP/wbuild" --target whisper-cli
+          out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
+          cp "$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli.exe' | head -n1)" "$out/"
+          # whisper/ggml DLLs produced by the build…
+          find "$RUNNER_TEMP/wbuild" -name '*.dll' -exec cp -p {} "$out/" \;
+          # …plus the CLANGARM64 C++/unwind/pthread runtime DLLs the exe links.
+          clangbin="$(dirname "$(command -v clang)")"
+          for dll in libc++ libunwind libwinpthread-1; do
+            f="$(find "$clangbin" -maxdepth 1 -name "${dll}*.dll" | head -n1)"
+            if [ -n "$f" ]; then
+              cp -p "$f" "$out/"
+            else
+              echo "::warning::runtime DLL $dll not found in $clangbin"
+            fi
+          done
+          echo "WHISPER_DIR=$(cygpath -w "$out")" >> "$GITHUB_ENV"
 
       - name: Download default model
         shell: bash

@@ -39,6 +39,14 @@ while [ $# -gt 0 ]; do
 done
 : "${VERSION:?--version required}"; : "${WHISPER_DIR:?--whisper-dir required}"; : "${OUT_DIR:?--out-dir required}"
 
+# On Windows the inputs arrive as Windows-style paths (set by pwsh/msys2 steps);
+# normalize them for git-bash so cp/tar resolve them.
+if command -v cygpath >/dev/null 2>&1; then
+  WHISPER_DIR=$(cygpath -u "$WHISPER_DIR")
+  OUT_DIR=$(cygpath -u "$OUT_DIR")
+  [ -n "$MODEL" ] && MODEL=$(cygpath -u "$MODEL")
+fi
+
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 goos="$(cd "$repo/plugins/asr" && GOWORK=off go env GOOS)"
 goarch="$(cd "$repo/plugins/asr" && GOWORK=off go env GOARCH)"
