@@ -1,0 +1,21 @@
+kapi-asr plugin — third-party notices
+=====================================
+
+This plugin bundles the following third-party software. See the repository's
+THIRD_PARTY_NOTICES.md for the full bundling policy.
+
+whisper.cpp + ggml
+  License: MIT
+  Copyright (c) 2023-2024 Georgi Gerganov and contributors
+  Source: https://github.com/ggerganov/whisper.cpp
+  Bundled as: whisper-cli (a separate executable invoked by the plugin)
+
+Whisper model weights (ggml format)
+  License: MIT
+  Copyright (c) 2022 OpenAI
+  Source: https://github.com/ggerganov/whisper.cpp (ggml conversions of
+          https://github.com/openai/whisper)
+  Bundled as: ggml-*.bin
+
+The MIT License grants permission to use, copy, modify, and distribute the
+software with the above copyright notice. No copyleft obligations apply.
