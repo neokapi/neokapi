@@ -7,6 +7,9 @@ import { PhaseFlow } from "./PhaseFlow";
 import { LanesDiagram } from "./LanesDiagram";
 import { SwimlaneDiagram } from "./SwimlaneDiagram";
 import { RedactionDiagram } from "./RedactionDiagram";
+import { AxisLadderDiagram } from "./AxisLadderDiagram";
+import { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
+import { CycleDiagram } from "./CycleDiagram";
 import { withDiagramTheme } from "./storyEnv";
 
 /*
@@ -186,6 +189,75 @@ export const Redaction: Story = {
       redact={[{ text: "Sarah Chen", label: "Person" }, "Project Halcyon"]}
       translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
       caption="A span is either blacked out with a marker (sensitive) or shown as a labeled category chip."
+    />
+  ),
+};
+
+export const AxisLadder: Story = {
+  name: "AxisLadderDiagram (ascending rungs)",
+  render: () => (
+    <AxisLadderDiagram
+      rungs={[
+        { grade: "G0", name: "opaque", gloss: "bytes only" },
+        { grade: "G1", name: "metadata", gloss: "title, author, page count" },
+        { grade: "G2", name: "linear text", gloss: "reading-order characters" },
+        { grade: "G3", name: "roles", gloss: "headings, tables, reading order" },
+        { grade: "G4", name: "geometry", gloss: "page coords, bounding boxes" },
+      ]}
+      caption="Structure & Geometry — how much document structure we recover, rung by rung."
+    />
+  ),
+};
+
+export const AxisFamilies: Story = {
+  name: "AxisFamiliesDiagram (axes grouped by family)",
+  render: () => (
+    <AxisFamiliesDiagram
+      families={[
+        {
+          name: "Comprehension",
+          tagline: "how deeply we read it",
+          axes: [
+            { label: "Engine", range: "L0–L4" },
+            { label: "Vocabulary", range: "V0–V3" },
+            { label: "Structure & Geometry", range: "G0–G4" },
+          ],
+        },
+        {
+          name: "Assurance",
+          tagline: "how we prove it",
+          axes: [
+            { label: "Corpus", range: "C0–C3" },
+            { label: "Security", range: "S0–S4" },
+          ],
+        },
+        {
+          name: "Enablement",
+          tagline: "how we work with it",
+          axes: [
+            { label: "Knowledge", range: "K0–K3" },
+            { label: "Editor", range: "E0–E4" },
+          ],
+        },
+      ]}
+      caption="The maturity axes group by the question they answer."
+    />
+  ),
+};
+
+export const Cycle: Story = {
+  name: "CycleDiagram (closed runbook loop)",
+  render: () => (
+    <CycleDiagram
+      steps={[
+        { label: "Reconcile", sub: "ledger vs reality" },
+        { label: "Compute due", sub: "signals + watermarks" },
+        { label: "Rank & budget" },
+        { label: "Execute", sub: "with evidence" },
+        { label: "Record", sub: "ledger commit" },
+        { label: "Reflect", sub: "learnings" },
+      ]}
+      caption="The format-ops runbook is a self-feeding loop; each run records what it consumed."
     />
   ),
 };

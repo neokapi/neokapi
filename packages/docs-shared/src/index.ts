@@ -14,6 +14,9 @@ export {
   LanesDiagram,
   SwimlaneDiagram,
   RedactionDiagram,
+  AxisLadderDiagram,
+  AxisFamiliesDiagram,
+  CycleDiagram,
 } from "./diagram";
 export type {
   ArchitectureDiagramProps,
@@ -33,4 +36,10 @@ export type {
   SwimlaneMessage,
   RedactionDiagramProps,
   RedactSpan,
+  AxisLadderDiagramProps,
+  AxisRung,
+  AxisFamiliesDiagramProps,
+  AxisFamily,
+  CycleDiagramProps,
+  CycleStep,
 } from "./diagram";
