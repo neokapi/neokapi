@@ -183,6 +183,9 @@
         "mcp": {
           "short": "Start MCP server (stdio) exposing project tools"
         },
+        "media-refine": {
+          "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
+        },
         "merge": {
           "example": "  kapi merge                     # materialize localized files from the project store\n  kapi merge -i out/app.en-US-to-fr-FR.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-tm-update\n  kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace",
           "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",

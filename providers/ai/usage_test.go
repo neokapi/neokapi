@@ -54,7 +54,7 @@ func TestOpenAIProviderParsesUsage(t *testing.T) {
 	defer srv.Close()
 
 	p := NewOpenAIProvider(Config{BaseURL: srv.URL, APIKey: "test", Model: "gpt-4o"})
-	resp, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+	resp, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 	require.NoError(t, err)
 	assert.Equal(t, 150, resp.Usage.InputTokens)
 	assert.Equal(t, 42, resp.Usage.OutputTokens)
@@ -102,7 +102,7 @@ func TestAzureOpenAIProviderParsesUsage(t *testing.T) {
 	defer srv.Close()
 
 	p := NewAzureOpenAIProvider(Config{BaseURL: srv.URL, APIKey: "test", Model: "gpt-4o"})
-	resp, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+	resp, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.Usage.InputTokens)
 	assert.Equal(t, 30, resp.Usage.OutputTokens)
@@ -129,7 +129,7 @@ func TestAnthropicProviderParsesUsage(t *testing.T) {
 	defer srv.Close()
 
 	p := NewAnthropicProvider(Config{BaseURL: srv.URL, APIKey: "test", Model: "claude-sonnet-4-20250514"})
-	resp, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+	resp, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 	require.NoError(t, err)
 	assert.Equal(t, 150, resp.Usage.InputTokens)
 	assert.Equal(t, 42, resp.Usage.OutputTokens)
@@ -157,7 +157,7 @@ func TestAnthropicProviderChatStructuredParsesUsage(t *testing.T) {
 	defer srv.Close()
 
 	p := NewAnthropicProvider(Config{BaseURL: srv.URL, APIKey: "test", Model: "claude-sonnet-4-20250514"})
-	resp, err := p.ChatStructured(t.Context(), []Message{{Role: "user", Content: "Hi"}}, JSONSchema{
+	resp, err := p.ChatStructured(t.Context(), []Message{TextMessage("user", "Hi")}, JSONSchema{
 		Name:   "structured_output",
 		Schema: map[string]any{"type": "object"},
 	})
@@ -177,12 +177,12 @@ func TestMockProviderReturnsUsage(t *testing.T) {
 	assert.Equal(t, 10, resp.Usage.InputTokens)
 	assert.Equal(t, 20, resp.Usage.OutputTokens)
 
-	chatResp, err := mock.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+	chatResp, err := mock.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 	require.NoError(t, err)
 	assert.Equal(t, 10, chatResp.Usage.InputTokens)
 	assert.Equal(t, 20, chatResp.Usage.OutputTokens)
 
-	structResp, err := mock.ChatStructured(t.Context(), []Message{{Role: "user", Content: "Hi"}}, JSONSchema{
+	structResp, err := mock.ChatStructured(t.Context(), []Message{TextMessage("user", "Hi")}, JSONSchema{
 		Name:   "test",
 		Schema: map[string]any{"type": "object"},
 	})
@@ -208,7 +208,7 @@ func TestProviderUsageZeroWhenNotInResponse(t *testing.T) {
 	defer srv.Close()
 
 	p := NewOpenAIProvider(Config{BaseURL: srv.URL, APIKey: "test", Model: "gpt-4o"})
-	resp, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+	resp, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 	require.NoError(t, err)
 	assert.Equal(t, 0, resp.Usage.InputTokens)
 	assert.Equal(t, 0, resp.Usage.OutputTokens)

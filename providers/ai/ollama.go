@@ -33,14 +33,16 @@ func NewOllamaProvider(cfg Config) *OllamaProvider {
 
 func (p *OllamaProvider) Name() ProviderID { return Ollama }
 
+func (p *OllamaProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
+
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	return standardTranslate(ctx, p.Chat, req, 0.7)
 }
 
 func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	ollamaMessages := make([]ollamaMessage, len(messages))
-	for i, m := range messages {
-		ollamaMessages[i] = ollamaMessage(m)
+	ollamaMessages, err := toOllamaMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	body := ollamaChatRequest{
@@ -91,9 +93,9 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 }
 
 func (p *OllamaProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	ollamaMessages := make([]ollamaMessage, len(messages))
-	for i, m := range messages {
-		ollamaMessages[i] = ollamaMessage(m)
+	ollamaMessages, err := toOllamaMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	body := ollamaChatRequest{
@@ -148,8 +150,32 @@ func (p *OllamaProvider) Close() error { return nil }
 
 // Ollama API types
 type ollamaMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images,omitempty"` // base64-encoded images (vision models)
+}
+
+func toOllamaMessages(messages []Message) ([]ollamaMessage, error) {
+	out := make([]ollamaMessage, len(messages))
+	for i, m := range messages {
+		om := ollamaMessage{Role: m.Role, Content: m.Text()}
+		for _, part := range m.Parts {
+			switch part.Kind {
+			case ContentText:
+				// text is already folded into Content via m.Text()
+			case ContentImage:
+				b64, _, err := resolveMediaBase64(part.Media)
+				if err != nil {
+					return nil, fmt.Errorf("ollama: %w", err)
+				}
+				om.Images = append(om.Images, b64)
+			default:
+				return nil, fmt.Errorf("ollama: unsupported content kind %q (provider accepts text, image)", part.Kind)
+			}
+		}
+		out[i] = om
+	}
+	return out, nil
 }
 
 type ollamaChatRequest struct {

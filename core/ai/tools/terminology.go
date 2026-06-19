@@ -132,7 +132,7 @@ func (t *AITerminologyTool) annotate(v tool.BlockView) error {
 	)
 
 	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
-		{Role: "user", Content: prompt},
+		aiprovider.TextMessage("user", prompt),
 	}, terminologySchema())
 	if err != nil {
 		return fmt.Errorf("ai-terminology: %w", err)

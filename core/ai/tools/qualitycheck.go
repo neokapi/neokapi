@@ -137,7 +137,7 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 	)
 
 	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
-		{Role: "user", Content: prompt},
+		aiprovider.TextMessage("user", prompt),
 	}, qaSchema())
 	if err != nil {
 		return fmt.Errorf("ai-qa: %w", err)

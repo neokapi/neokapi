@@ -99,7 +99,7 @@ Suggestion: <improved translation if needed, or "none">`,
 	)
 
 	resp, err := t.provider.Chat(v.Context(), []aiprovider.Message{
-		{Role: "user", Content: prompt},
+		aiprovider.TextMessage("user", prompt),
 	})
 	if err != nil {
 		return fmt.Errorf("ai-review: %w", err)

@@ -194,6 +194,7 @@ func regionParts(reg Region, lines []OCRLine, counter, groupCounter *int) []*mod
 			if ln.BBox.W > 0 || ln.BBox.H > 0 {
 				b.SetGeometry(&model.GeometryAnnotation{BBox: ln.BBox, Origin: "top-left"})
 			}
+			setOCRProvenance(b, ln)
 			cells = append(cells, b)
 		}
 		return structure.TableToParts(structure.Gridify(cells), groupCounter)
@@ -215,6 +216,7 @@ func blockPart(ln OCRLine, role string, counter *int) *model.Part {
 	if ln.BBox.W > 0 || ln.BBox.H > 0 {
 		b.SetGeometry(&model.GeometryAnnotation{BBox: ln.BBox, Origin: "top-left"})
 	}
+	setOCRProvenance(b, ln)
 	if role != "" {
 		level := 0
 		if role == model.RoleHeading {

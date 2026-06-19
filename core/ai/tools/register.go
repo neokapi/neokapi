@@ -49,11 +49,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, AIEntityExtractSchema())
 	reg.SetConfigFactory("ai-entity-extract", NewAIEntityExtractFromConfig)
 
+	// Media Refine — re-read low-confidence OCR/ASR lines with a multimodal LLM.
+	reg.RegisterWithSchema("media-refine", func() tool.Tool {
+		return NewMediaRefineTool(aiprovider.NewMockProvider(), MediaRefineConfig{})
+	}, MediaRefineSchema())
+	reg.SetConfigFactory("media-refine", NewMediaRefineFromConfig)
+
 	// Every AI tool's remote-source-egress side effect is config-dependent: a
 	// local provider (Ollama, the offline demo) keeps content on the machine.
 	for _, name := range []registry.ToolID{
 		"ai-translate", "ai-qa", "ai-review", "brand-voice-check",
-		"ai-terminology",
+		"ai-terminology", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)
 	}

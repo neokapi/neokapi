@@ -575,6 +575,54 @@
         }
       }
     },
+    "media-refine": {
+      "displayName": "Media Refine",
+      "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+      "category": "text-processing",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "Multimodal model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "Multimodal AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "threshold": {
+          "title": "Confidence Threshold",
+          "description": "Re-read extracted lines whose confidence is below this"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "microsoft-translate": {
       "displayName": "Microsoft Translator Translate",
       "description": "Translate content using Microsoft Translator",

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T22:05:31Z",
+  "generatedAt": "2026-06-19T17:12:58Z",
   "kind": "format",
   "entries": [
     {
@@ -3114,6 +3114,12 @@
             "type": "boolean",
             "title": "Per-glyph geometry",
             "description": "Additionally attach per-character bounding boxes to each text block (implies geometry). Enables character-precise highlighting; slightly slower.",
+            "default": false
+          },
+          "tier3": {
+            "type": "boolean",
+            "title": "ML layout (tier 3)",
+            "description": "Render each page and run the kapi-vision layout model over it for authoritative structure — multi-column reading order, borderless tables, figure/caption regions — beyond what page geometry alone recovers. Requires the kapi-vision plugin; falls back to geometric structure (tier 2) when it is not installed. Implies geometry.",
             "default": false
           }
         }

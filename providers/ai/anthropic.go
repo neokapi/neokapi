@@ -38,14 +38,16 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 
 func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 
+func (p *AnthropicProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
+
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	return standardTranslate(ctx, p.Chat, req, 0.85)
 }
 
 func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	apiMessages := make([]anthropicMessage, len(messages))
-	for i, m := range messages {
-		apiMessages[i] = anthropicMessage(m)
+	apiMessages, err := toAnthropicMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	body := anthropicRequest{
@@ -103,9 +105,9 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 }
 
 func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	apiMessages := make([]anthropicMessage, len(messages))
-	for i, m := range messages {
-		apiMessages[i] = anthropicMessage(m)
+	apiMessages, err := toAnthropicMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	toolName := schema.Name
@@ -186,8 +188,46 @@ func (p *AnthropicProvider) Close() error { return nil }
 
 // Anthropic API types
 type anthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string              `json:"role"`
+	Content []anthropicReqBlock `json:"content"`
+}
+
+type anthropicReqBlock struct {
+	Type   string                `json:"type"`             // "text" | "image"
+	Text   string                `json:"text,omitempty"`   // type == "text"
+	Source *anthropicImageSource `json:"source,omitempty"` // type == "image"
+}
+
+type anthropicImageSource struct {
+	Type      string `json:"type"`       // "base64"
+	MediaType string `json:"media_type"` // e.g. "image/png"
+	Data      string `json:"data"`       // base64-encoded bytes
+}
+
+func toAnthropicMessages(messages []Message) ([]anthropicMessage, error) {
+	out := make([]anthropicMessage, len(messages))
+	for i, m := range messages {
+		blocks := make([]anthropicReqBlock, 0, len(m.Parts))
+		for _, part := range m.Parts {
+			switch part.Kind {
+			case ContentText:
+				blocks = append(blocks, anthropicReqBlock{Type: "text", Text: part.Text})
+			case ContentImage:
+				b64, mime, err := resolveMediaBase64(part.Media)
+				if err != nil {
+					return nil, fmt.Errorf("anthropic: %w", err)
+				}
+				blocks = append(blocks, anthropicReqBlock{
+					Type:   "image",
+					Source: &anthropicImageSource{Type: "base64", MediaType: mime, Data: b64},
+				})
+			default:
+				return nil, fmt.Errorf("anthropic: unsupported content kind %q (provider accepts text, image)", part.Kind)
+			}
+		}
+		out[i] = anthropicMessage{Role: m.Role, Content: blocks}
+	}
+	return out, nil
 }
 
 type anthropicRequest struct {

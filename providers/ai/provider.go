@@ -16,6 +16,11 @@ type LLMProvider interface {
 	// Name returns the provider identifier (e.g., Anthropic, OpenAI).
 	Name() ProviderID
 
+	// InputModalities returns the non-text inputs this provider accepts (text is
+	// always accepted). A caller checks a message's media parts against this
+	// before a call rather than discovering the limit at request time.
+	InputModalities() []Modality
+
 	// Translate translates text using the LLM.
 	Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
 
@@ -41,10 +46,29 @@ type JSONSchema struct {
 	Strict      bool           `json:"strict,omitempty"`
 }
 
-// Message represents a chat message.
+// Message represents a chat message. Content is an ordered list of parts so one
+// message can mix text with image/audio/video — a text-only message is a single
+// text part (see TextMessage).
 type Message struct {
-	Role    string `json:"role"`    // "system", "user", "assistant"
-	Content string `json:"content"` // Message text
+	Role  string        `json:"role"` // "system", "user", "assistant"
+	Parts []ContentPart `json:"parts"`
+}
+
+// TextMessage builds a text-only message — the common case.
+func TextMessage(role, text string) Message {
+	return Message{Role: role, Parts: []ContentPart{TextPart(text)}}
+}
+
+// Text returns the concatenated text of the message's text parts (media parts
+// contribute nothing), for providers and callers that want the plain text.
+func (m Message) Text() string {
+	var b strings.Builder
+	for _, p := range m.Parts {
+		if p.Kind == ContentText {
+			b.WriteString(p.Text)
+		}
+	}
+	return b.String()
 }
 
 // TranslateRequest contains parameters for a translation request.
@@ -337,7 +361,7 @@ func standardTranslate(
 		req.SourceLanguage, req.TargetLocale, req.Source,
 	) + req.Directives()
 
-	resp, err := chat(ctx, []Message{{Role: "user", Content: prompt}})
+	resp, err := chat(ctx, []Message{TextMessage("user", prompt)})
 	if err != nil {
 		return nil, err
 	}

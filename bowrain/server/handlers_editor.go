@@ -983,7 +983,7 @@ func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 	defer prov.Close()
 
 	if _, err := prov.Chat(c.Request().Context(), []aiprovider.Message{
-		{Role: "user", Content: "Hello, respond with OK."},
+		aiprovider.TextMessage("user", "Hello, respond with OK."),
 	}); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("connection test failed: %s", err)})
 	}

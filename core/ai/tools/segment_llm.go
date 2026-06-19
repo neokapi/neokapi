@@ -106,7 +106,7 @@ func (s *llmSegmenter) Segment(ctx context.Context, runs []model.Run, loc model.
 
 	prompt := s.buildPrompt(txt, lang)
 	resp, err := s.provider.ChatStructured(ctx,
-		[]aiprovider.Message{{Role: "user", Content: prompt}},
+		[]aiprovider.Message{aiprovider.TextMessage("user", prompt)},
 		chunkSchema(),
 	)
 	if err != nil || resp == nil {

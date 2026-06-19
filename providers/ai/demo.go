@@ -48,6 +48,9 @@ var _ StreamingLLMProvider = (*DemoProvider)(nil)
 
 func (p *DemoProvider) Name() ProviderID { return Demo }
 
+// InputModalities — the keyless demo provider is text-only.
+func (p *DemoProvider) InputModalities() []Modality { return nil }
+
 func (p *DemoProvider) modelName() string {
 	if p.config.Model != "" {
 		return p.config.Model
@@ -391,11 +394,11 @@ func lastUserMessage(messages []Message) string {
 	last := ""
 	for _, m := range messages {
 		if m.Role == "user" {
-			last = m.Content
+			last = m.Text()
 		}
 	}
 	if last == "" && len(messages) > 0 {
-		last = messages[len(messages)-1].Content
+		last = messages[len(messages)-1].Text()
 	}
 	return last
 }

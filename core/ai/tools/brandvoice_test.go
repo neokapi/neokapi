@@ -83,7 +83,7 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		for _, m := range messages {
 			if m.Role == "user" {
-				capturedPrompt = m.Content
+				capturedPrompt = m.Text()
 			}
 		}
 		return &aiprovider.ChatResponse{

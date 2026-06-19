@@ -68,6 +68,8 @@ func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) 
 
 func (p *AzureOpenAIProvider) Name() ProviderID { return AzureOpenAI }
 
+func (p *AzureOpenAIProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
+
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	system := fmt.Sprintf(
 		"You are a software localization specialist. Your task is to translate user interface strings from %s to %s. "+
@@ -81,8 +83,8 @@ func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateReques
 	user.WriteString(req.Directives())
 
 	resp, err := p.Chat(ctx, []Message{
-		{Role: "system", Content: system},
-		{Role: "user", Content: user.String()},
+		TextMessage("system", system),
+		TextMessage("user", user.String()),
 	})
 	if err != nil {
 		return nil, err
@@ -97,9 +99,9 @@ func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateReques
 }
 
 func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	apiMessages := make([]openaiMessage, len(messages))
-	for i, m := range messages {
-		apiMessages[i] = openaiMessage(m)
+	apiMessages, err := toOpenAIMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	body := openaiRequest{
@@ -170,9 +172,9 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 }
 
 func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	apiMessages := make([]openaiMessage, len(messages))
-	for i, m := range messages {
-		apiMessages[i] = openaiMessage(m)
+	apiMessages, err := toOpenAIMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
 	body := openaiRequest{

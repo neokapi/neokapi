@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T22:05:31Z",
+  "generatedAt": "2026-06-19T17:12:58Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -3118,6 +3118,133 @@
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
+    },
+    {
+      "id": "media-refine",
+      "path": [
+        "media-refine"
+      ],
+      "use": "media-refine [files...]",
+      "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+      "groupID": "text-processing",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "model",
+          "usage": "Multimodal model name",
+          "type": "string"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "provider",
+          "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "threshold",
+          "usage": "Re-read extracted lines whose confidence is below this",
+          "default": "0.85",
+          "type": "float64"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "merge",

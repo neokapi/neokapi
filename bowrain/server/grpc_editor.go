@@ -1274,7 +1274,7 @@ func (g *EditorGRPCServer) TestProviderConfig(ctx context.Context, req *pb.TestP
 	defer prov.Close()
 
 	if _, err := prov.Chat(ctx, []aiprovider.Message{
-		{Role: "user", Content: "Hello, respond with OK."},
+		aiprovider.TextMessage("user", "Hello, respond with OK."),
 	}); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "connection test failed: %v", err)
 	}

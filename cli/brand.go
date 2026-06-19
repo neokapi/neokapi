@@ -948,7 +948,7 @@ func aiRewrite(ctx context.Context, p aiprovider.LLMProvider, profile *brand.Voi
 	b.WriteString("\n## Text to rewrite\n\n")
 	b.WriteString(text)
 
-	resp, err := p.Chat(ctx, []aiprovider.Message{{Role: "user", Content: b.String()}})
+	resp, err := p.Chat(ctx, []aiprovider.Message{aiprovider.TextMessage("user", b.String())})
 	if err != nil {
 		return "", fmt.Errorf("brand rewrite: %w", err)
 	}

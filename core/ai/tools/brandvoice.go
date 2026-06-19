@@ -191,7 +191,7 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 	prompt := t.buildPrompt(sourceText)
 
 	resp, err := t.provider.ChatStructured(ctx, []aiprovider.Message{
-		{Role: "user", Content: prompt},
+		aiprovider.TextMessage("user", prompt),
 	}, brandVoiceSchema())
 	if err != nil {
 		return fmt.Errorf("brand-voice-check: %w", err)

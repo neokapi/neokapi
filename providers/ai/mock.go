@@ -16,6 +16,7 @@ type MockProvider struct {
 	ChatStructuredFunc       func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
 	ChatStreamFunc           func(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
 	ChatStructuredStreamFunc func(ctx context.Context, messages []Message, schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
+	InputModalitiesValue     []Modality
 	TranslateCalls           []TranslateRequest
 	ChatCalls                [][]Message
 	ChatStructuredCalls      []struct {
@@ -33,6 +34,15 @@ func NewMockProvider() *MockProvider {
 }
 
 func (p *MockProvider) Name() ProviderID { return ProviderID(p.ProviderName) }
+
+// InputModalities reports the modalities the mock accepts. It accepts all of
+// them so tests can exercise any media path; override via InputModalitiesValue.
+func (p *MockProvider) InputModalities() []Modality {
+	if p.InputModalitiesValue != nil {
+		return p.InputModalitiesValue
+	}
+	return []Modality{ModalityImage, ModalityAudio, ModalityVideo}
+}
 
 func (p *MockProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	p.mu.Lock()
@@ -61,7 +71,7 @@ func (p *MockProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 	lastMsg := ""
 	for _, m := range messages {
 		if m.Role == "user" {
-			lastMsg = m.Content
+			lastMsg = m.Text()
 		}
 	}
 	return &ChatResponse{

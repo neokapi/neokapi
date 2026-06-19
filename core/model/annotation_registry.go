@@ -35,7 +35,9 @@ func init() {
 	// Structural layer (see structure.go):
 	RegisterPayload(AnnoStructure, func() Payload { return &StructureAnnotation{} })
 	RegisterPayload(AnnoGeometry, func() Payload { return &GeometryAnnotation{} })
+	RegisterPayload(AnnoTiming, func() Payload { return &TimingAnnotation{} })
 	RegisterPayload(AnnoRelations, func() Payload { return &RelationAnnotation{} })
+	RegisterPayload(AnnoSourceOrigin, func() Payload { return &Origin{} })
 }
 
 // RegisterPayload registers a factory for the given stand-off payload type

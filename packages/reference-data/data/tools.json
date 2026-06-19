@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T22:05:31Z",
+  "generatedAt": "2026-06-19T17:12:58Z",
   "kind": "tool",
   "entries": [
     {
@@ -3302,6 +3302,110 @@
             "config": "mode: lf\napplyTarget: false\n"
           }
         ]
+      }
+    },
+    {
+      "id": "media-refine",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Media Refine",
+      "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+      "category": "text-processing",
+      "tags": [
+        "ai-powered",
+        "vision"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "isSourceTransform": true,
+      "schema": {
+        "$id": "media-refine",
+        "title": "Media Refine",
+        "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+        "type": "object",
+        "toolMeta": {
+          "id": "media-refine",
+          "category": "text-processing",
+          "displayName": "Media Refine",
+          "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+          "tags": [
+            "ai-powered",
+            "vision"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Multimodal model name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "Multimodal AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              }
+            ]
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Confidence Threshold",
+            "description": "Re-read extracted lines whose confidence is below this",
+            "default": 0.85
+          }
+        }
       }
     },
     {
