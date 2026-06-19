@@ -13,6 +13,7 @@ use (
 	./scripts/contract-audit
 	./scripts/gen-contract-types
 	./scripts/gen-refs
+	./scripts/mkappcast
 	./scripts/okapi-test-scan
 	./scripts/testcompare
 )

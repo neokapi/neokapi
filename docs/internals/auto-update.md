@@ -1,8 +1,11 @@
 # Auto-update & distribution
 
-Status: **Phase 1 implemented** (CLI self-update + notifier; release-side wiring
-lands on the next tagged release). Phases 2–5 pending. Tracking doc for how
-neokapi keeps its shipped artifacts up to date across macOS, Windows, and Linux.
+Status: **Phases 1–2 implemented** (CLI self-update + notifier; desktop in-app
+updates via the Wails native updater + signed appcast). Both need their
+release-side wiring exercised on a real tagged release; Phase 2 also needs
+on-device validation before the casks flip to `auto_updates true`. Phases 3–5
+pending. Tracking doc for how neokapi keeps its shipped artifacts up to date
+across macOS, Windows, and Linux.
 
 ## The model (read this first)
 
@@ -162,12 +165,65 @@ winget-only build) added in Phase 3.
   Add the signed Windows zip to the index to enable `kapi update` self-replace
   on direct-download Windows installs.
 
-### Phase 2 — macOS desktop Sparkle (the VSCode behavior)
+### Phase 2 — desktop in-app updates (implemented; needs on-device validation)
 
-- [ ] Sparkle via `go-sparkle`; EdDSA-signed appcast (`generate_appcast`) riding
-      on existing Developer-ID signing + notarization.
-- [ ] add `auto_updates true` to the `kapi` / `bowrain` casks so `brew upgrade
-      --cask` defers to Sparkle.
+**Chose the Wails v3 native updater over go-sparkle.** Wails v3 (already our
+pinned `alpha.96`) ships `pkg/updater` with a Sparkle-`appcast` provider — pure
+Go, **no cgo, no `Sparkle.framework` bundling, no nested-helper codesigning**,
+cross-platform (also sets up Phase 4's Windows/Linux desktop updates), and
+native `Config.Channel` filtering that maps onto our stable/beta split. It
+reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
+
+- [x] `backend/updater.go` in both apps (`apps/kapi-desktop`, `bowrain/apps/bowrain`):
+      builds the `appcast` provider for the current channel, pins the ed25519
+      public key (`PublicKey`, fail-closed when unset), 6h background check,
+      wired via `InitUpdater(app)` at startup. kapi-desktop also adds a
+      "Check for Updates…" File-menu item; both expose `CheckForUpdatesNow`.
+- [x] channel from `KAPI_UPDATE_CHANNEL` (default stable), per-channel feeds
+      (`appcast-<app>.xml` / `appcast-<app>-beta.xml`) so a stable build is
+      never offered a beta item.
+- [x] `scripts/mkappcast` — the signed-appcast generator + `keygen`. **Crucial
+      detail:** the Wails `ed25519` verifier checks `ed25519.Verify(pub,
+      sha256(file), sig)`, i.e. the signature is over the artifact's SHA-256
+      *digest* — which Sparkle's own `generate_appcast`/`sign_update` do **not**
+      produce (they sign the raw file). So `mkappcast` signs the digest itself;
+      a unit test reproduces the exact verifier path to guarantee compatibility.
+- [x] `scripts/publish-appcast.sh` + `release.yml` (both desktop jobs): zip the
+      notarized+stapled `.app`, sign it into the channel's appcast, upload the
+      zip to the release, and publish the feed to the registry repo
+      (`neokapi.github.io/registry/appcast-*.xml`). No-ops until the signing key
+      + `REGISTRY_TOKEN` are set.
+- [ ] **Gate — validate on a real notarized build before flipping casks.** The
+      native updater's swap helper renames the `.app` in place; Gatekeeper /
+      quarantine correctness on a notarized build must be confirmed on-device
+      (it is the one thing Sparkle's signed XPC installer would handle for us).
+- [ ] add `auto_updates true` to the `kapi` / `bowrain` **casks** (in the
+      separate `homebrew-tap` repo) so `brew upgrade --cask` defers to the in-app
+      updater. **Hold until the gate above passes** — flipping it early while the
+      updater can't yet self-update would strand cask users.
+
+#### One-time setup runbook (Phase 2)
+
+1. **Generate the updater signing key** (once for both apps):
+   ```bash
+   go run ./scripts/mkappcast keygen
+   ```
+   - Commit the printed **public** key (base64) to both
+     `apps/kapi-desktop/backend/update-ed25519.pub` and
+     `bowrain/apps/bowrain/backend/update-ed25519.pub` (replacing the
+     `REPLACE_WITH_…` placeholder — until then the apps fail closed on signed
+     releases).
+   - Store the **private** key as the `UPDATE_ED25519_PRIVATE_KEY` GitHub secret
+     (never commit it).
+2. Ensure `REGISTRY_TOKEN` (write access to `neokapi/registry`) is set — it
+   already is for the CLI `cli.json` publish.
+3. Cut a normal release (`vX.Y.Z` → stable feed, `vX.Y.Z-rc.N` → beta feed).
+   `release.yml` publishes `appcast-kapi-desktop.xml` / `appcast-bowrain.xml`
+   (and `-beta` variants) to the registry Pages site.
+4. Install the resulting DMG, run "Check for Updates…", and confirm the
+   download → verify → swap → relaunch works on a notarized build (the gate).
+5. Only then: add `auto_updates true` to `Casks/kapi.rb` + `Casks/bowrain.rb`
+   in `homebrew-tap`.
 
 ### Phase 3 — winget + Linux packaging (discoverability + Linux update paths)
 

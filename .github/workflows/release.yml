@@ -957,6 +957,28 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
+      # Publish the in-app-update feed (Phase 2): zip the notarized .app, sign
+      # its digest into the appcast, upload the zip, and push the feed to the
+      # registry repo. No-ops until the updater signing key + registry token
+      # are configured.
+      - name: Publish updater appcast (macOS)
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        env:
+          UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "updater appcast secrets not set; skipping"
+            exit 0
+          fi
+          bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
+            bowrain/apps/bowrain/bin/Bowrain.app arm64
+
       # Windows: Create ZIP
       - name: Create ZIP
         if: runner.os == 'Windows'
@@ -1311,6 +1333,25 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
+
+      # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
+      - name: Publish updater appcast (macOS)
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        env:
+          UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "updater appcast secrets not set; skipping"
+            exit 0
+          fi
+          bash scripts/publish-appcast.sh Kapi kapi-desktop "$VERSION" "$REF_NAME" "$REPO" \
+            apps/kapi-desktop/bin/Kapi.app arm64
 
       - name: Create ZIP
         if: runner.os == 'Windows'

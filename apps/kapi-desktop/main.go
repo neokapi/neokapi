@@ -43,6 +43,10 @@ func main() {
 
 	appService.SetApplication(app)
 
+	// Wire the in-app updater (appcast feed for the current channel). No-op
+	// until a real signing key is committed; never blocks startup.
+	backend.InitUpdater(app)
+
 	// --- Application menu ---
 	//
 	// The whole menu is rebuilt by buildAppMenu so the Recent Projects submenu
@@ -185,6 +189,13 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 			app.Event.Emit("menu:save-project-as", nil)
 		})
 
+	// In-app updater: check → download → verify → swap → relaunch.
+	fileMenu.AddSeparator()
+	fileMenu.Add("Check for Updates…").
+		OnClick(func(ctx *application.Context) {
+			backend.CheckForUpdatesNow(app)
+		})
+
 	// Edit menu (macOS standard)
 	menu.AddRole(application.EditMenu)
 
@@ -194,7 +205,7 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	// Window menu (macOS standard)
 	menu.AddRole(application.WindowMenu)
 
-	// Help menu
+	// Help menu (macOS standard)
 	menu.AddRole(application.HelpMenu)
 
 	return menu
