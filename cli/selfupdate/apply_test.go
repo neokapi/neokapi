@@ -56,7 +56,7 @@ func TestExtractKapiBinary(t *testing.T) {
 	bn := binaryName()
 
 	gz := makeTarGz(t, bn, want)
-	got, err := extractKapiBinary(gz, "https://x/kapi_1.0_linux_amd64.tar.gz")
+	got, err := extractKapiBinary(gz, "https://x/kapi-cli_1.0_linux_amd64.tar.gz")
 	if err != nil {
 		t.Fatalf("extractKapiBinary(tar.gz) error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestExtractKapiBinary(t *testing.T) {
 	}
 
 	zp := makeZip(t, bn, want)
-	got, err = extractKapiBinary(zp, "https://x/kapi_1.0_windows_amd64.zip")
+	got, err = extractKapiBinary(zp, "https://x/kapi-cli_1.0_windows_amd64.zip")
 	if err != nil {
 		t.Fatalf("extractKapiBinary(zip) error: %v", err)
 	}

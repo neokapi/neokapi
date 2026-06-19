@@ -8,7 +8,7 @@ import (
 func TestUpgradeCommand(t *testing.T) {
 	cases := map[Source]string{
 		SourceHomebrew: "brew upgrade kapi-cli",
-		SourceWinget:   "winget upgrade Neokapi.Kapi",
+		SourceWinget:   "winget upgrade Neokapi.KapiCli",
 		SourceScoop:    "scoop update kapi",
 		SourceTarball:  "", // self-updates
 		SourceUnknown:  "",

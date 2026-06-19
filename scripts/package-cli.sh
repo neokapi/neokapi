@@ -9,8 +9,10 @@
 # this script lays them out into the release archive shapes the brew formulae,
 # the docs, and the plugin registry already expect, then emits checksums.txt.
 #
-# Archive shapes (must stay stable — referenced by formulae/registry/docs):
-#   kapi_<ver>_<os>_<arch>.tar.gz            -> kapi               (linux/darwin)
+# Archive shapes (must stay stable — referenced by formulae/registry/docs).
+# Names mirror the Homebrew naming: the CLI toolchain is the kapi-cli / kapi-*
+# family, the desktop app is plain "kapi" (see release.yml).
+#   kapi-cli_<ver>_<os>_<arch>.tar.gz        -> kapi               (linux/darwin)
 #   kapi-bowrain_<ver>_<os>_<arch>.tar.gz    -> bowrain/{kapi-bowrain,manifest.json}
 #   kapi-bowrain_<ver>_windows_amd64.zip     -> bowrain/{kapi-bowrain.exe,manifest.json}
 #
@@ -49,7 +51,7 @@ for d in "$bins_dir"/cli-bins-*; do
     mkdir -p "$stage"
     cp "$d/kapi" "$stage/kapi"
     chmod +x "$stage/kapi"
-    tar -czf "$out_dir/kapi_${version}_${os}_${arch}.tar.gz" -C "$stage" kapi
+    tar -czf "$out_dir/kapi-cli_${version}_${os}_${arch}.tar.gz" -C "$stage" kapi
   fi
 
   # --- kapi-bowrain plugin (bowrain/ dir + manifest.json) ---

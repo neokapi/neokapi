@@ -147,11 +147,13 @@ for z in "${zips[@]}"; do
   signed+=("$out")
 
   # Desktop GUI apps also ship a signed NSIS installer built from the signed
-  # .exe. The CLI (kapi_*) stays zip-only — CLIs install via winget/scoop.
+  # .exe. The CLI (kapi-cli_*) stays zip-only — CLIs install via winget/scoop.
+  # Desktop zips are hyphen-delimited (kapi-<ver>-windows / bowrain-<ver>-windows);
+  # the kapi-[0-9]* glob matches the desktop app but not kapi-cli_*/kapi-bowrain_*.
   app_dir=""; app_name=""
   case "$bn" in
-    bowrain-*windows*)      app_dir="bowrain/apps/bowrain"; app_name="Bowrain" ;;
-    kapi-desktop-*windows*) app_dir="apps/kapi-desktop";    app_name="Kapi" ;;
+    bowrain-[0-9]*windows*) app_dir="bowrain/apps/bowrain"; app_name="Bowrain" ;;
+    kapi-[0-9]*windows*)    app_dir="apps/kapi-desktop";    app_name="Kapi" ;;
   esac
   if [ -n "$app_dir" ]; then
     arch=amd64; case "$bn" in *arm64*) arch=arm64 ;; esac
@@ -175,7 +177,7 @@ if gh release download "$TAG" --repo "$REPO" --pattern checksums.txt --dir "$wor
   for f in "${signed[@]}"; do
     b="$(basename "$f")"
     case "$b" in
-      kapi_*_windows_*.zip)
+      kapi-cli_*_windows_*.zip)
         if ! grep -q "  ${b}\$" "$work/checksums.txt"; then
           printf '%s  %s\n' "$(shasum -a 256 "$f" | awk '{print $1}')" "$b" >> "$work/checksums.txt"
           add=1

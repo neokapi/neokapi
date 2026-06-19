@@ -7,7 +7,7 @@ name: Publish to WinGet
 # The publish script triggers this with:  gh workflow run winget.yml -f tag=<tag>
 #
 # Updates two winget packages from one release:
-#   • Neokapi.KapiCli — the CLI (moniker `kapi`), from the portable kapi_*.zip
+#   • Neokapi.KapiCli — the CLI (moniker `kapi`), from the portable kapi-cli_*.zip
 #   • Neokapi.Kapi    — the Kapi desktop app, from the NSIS *-setup.exe
 # The bare "Kapi" name belongs to the desktop on every channel, mirroring the
 # Homebrew split (formula kapi-cli / cask kapi).
@@ -36,13 +36,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # CLI — the signed portable zips (kapi_<ver>_windows_<arch>.zip). The
-          # leading underscore excludes kapi-bowrain and kapi-desktop assets.
+          # CLI — the signed portable zips (kapi-cli_<ver>_windows_<arch>.zip).
+          # The "kapi-cli_" prefix + underscores exclude the kapi-bowrain and
+          # kapi-<ver> (desktop) assets.
           - identifier: Neokapi.KapiCli
-            installers-regex: '^kapi_.*_windows_.*\.zip$'
-          # Desktop app — the signed NSIS installers (kapi-desktop-..-setup.exe).
+            installers-regex: '^kapi-cli_.*_windows_.*\.zip$'
+          # Desktop app — the signed NSIS installers (kapi-<ver>-windows-<arch>-setup.exe).
+          # kapi-[0-9] matches the desktop but not kapi-cli_/kapi-bowrain_.
           - identifier: Neokapi.Kapi
-            installers-regex: '^kapi-desktop-.*-windows-.*-setup\.exe$'
+            installers-regex: '^kapi-[0-9].*-windows-.*-setup\.exe$'
     steps:
       - name: Derive package version (strip leading v)
         id: ver

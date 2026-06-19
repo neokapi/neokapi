@@ -97,7 +97,7 @@ RUBY
   # kapi-pdfium does not depend on kapi-cli.
   echo '  depends_on "neokapi/tap/kapi-pdfium"'
   echo
-  platform_block "kapi"
+  platform_block "kapi-cli"
   cat <<'RUBY'
 
   # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat / kconv

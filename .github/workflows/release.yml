@@ -220,13 +220,13 @@ jobs:
       - name: Package Windows kapi CLI zip (out-of-band signing)
         if: matrix.target.goos == 'windows'
         shell: pwsh
-        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi_${{ steps.meta.outputs.VERSION }}_windows_${{ matrix.target.goarch }}.zip" -Force
+        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi-cli_${{ steps.meta.outputs.VERSION }}_windows_${{ matrix.target.goarch }}.zip" -Force
       - name: Upload Windows kapi zip
         if: matrix.target.goos == 'windows'
         uses: actions/upload-artifact@v7
         with:
           name: kapi-cli-windows-${{ matrix.target.goarch }}
-          path: out/kapi_*_windows_${{ matrix.target.goarch }}.zip
+          path: out/kapi-cli_*_windows_${{ matrix.target.goarch }}.zip
           retention-days: 14
 
   # Package + publish the CLI binaries built by build-cli. This replaces the
@@ -290,7 +290,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for a in dist/kapi_*.tar.gz dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
+          for a in dist/kapi-cli_*.tar.gz dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
             cosign sign-blob --yes --new-bundle-format=true \
               --bundle "${a}.sigstore.json" "$a"
           done
@@ -326,7 +326,7 @@ jobs:
           # downloadable assets but skip every live-channel write below.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            dist/kapi_*.tar.gz
+            dist/kapi-cli_*.tar.gz
             dist/kapi-bowrain_*.tar.gz
             dist/kapi-bowrain_*.zip
             dist/*.sigstore.json
@@ -444,9 +444,11 @@ jobs:
             "${CLI_ARGS[@]}"
 
           # --- kapi CLI → cli.json (drives `kapi update` self-replace) ---
+          # Archive family is kapi-cli_* (matches the Homebrew formula); the
+          # index key stays "kapi" (what the CLI's self-updater looks up).
           # Seed the index on first use; registry-update needs valid JSON.
           [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
-          build_args kapi darwin/arm64 linux/arm64 linux/amd64
+          build_args kapi-cli darwin/arm64 linux/arm64 linux/amd64
           /tmp/registry-update \
             --registry /tmp/registry/cli.json \
             --plugin kapi \
@@ -1300,7 +1302,7 @@ jobs:
               -srcfolder dmg \
               -ov \
               -format UDZO \
-              "../../kapi-desktop-${VERSION}-macOS-arm64.dmg" && break
+              "../../kapi-${VERSION}-macOS-arm64.dmg" && break
             echo "hdiutil attempt $i failed, retrying after 5s..."
             sleep 5
           done
@@ -1311,7 +1313,7 @@ jobs:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          DMG="kapi-desktop-${VERSION}-macOS-arm64.dmg"
+          DMG="kapi-${VERSION}-macOS-arm64.dmg"
           codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
           echo "Submitting $DMG for notarization..."
           xcrun notarytool submit "$DMG" --keychain-profile neokapi-notary --wait
@@ -1332,7 +1334,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
+          files: "kapi-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
       - name: Publish updater appcast (macOS)
@@ -1350,27 +1352,27 @@ jobs:
             echo "updater appcast secrets not set; skipping"
             exit 0
           fi
-          bash scripts/publish-appcast.sh Kapi kapi-desktop "$VERSION" "$REF_NAME" "$REPO" \
+          bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
             apps/kapi-desktop/bin/Kapi.app arm64
 
       - name: Create ZIP
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: kapi-desktop-windows-${{ matrix.build.arch }}
-          path: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          path: "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
           retention-days: 14
 
       - name: Create tarball
         if: runner.os == 'Linux'
         run: |
-          tar -czf "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
+          tar -czf "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
             -C apps/kapi-desktop/bin Kapi
 
       - name: Upload tarball to release
@@ -1378,7 +1380,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+          files: "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
   # NOTE: the Windows kapi CLI binary is now produced by the `build-cli` matrix
   # (cgo + static ICU via MSYS2 mingw); it uploads the unsigned
@@ -1411,7 +1413,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           echo "BOWRAIN_DMG=$(sha256sum "bowrain-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          echo "KAPI_DMG=$(sha256sum "kapi-desktop-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "KAPI_DMG=$(sha256sum "kapi-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v6
@@ -1470,7 +1472,7 @@ jobs:
             version "${VERSION}"
             sha256 "${SHA_KAPI}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-arm64.dmg"
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-#{version}-macOS-arm64.dmg"
             name "Kapi"
             desc "Localization toolkit - powered by neokapi"
             homepage "https://github.com/neokapi/neokapi"

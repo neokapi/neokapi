@@ -20,7 +20,7 @@ func TestSourceFromPath(t *testing.T) {
 	}{
 		{"/opt/homebrew/Cellar/kapi-cli/1.1.0/bin/kapi", SourceHomebrew},
 		{"/home/linuxbrew/.linuxbrew/bin/kapi", SourceHomebrew},
-		{`C:\Users\me\AppData\Local\Microsoft\WinGet\Packages\Neokapi.Kapi\kapi.exe`, SourceWinget},
+		{`C:\Users\me\AppData\Local\Microsoft\WinGet\Packages\Neokapi.KapiCli\kapi.exe`, SourceWinget},
 		{`C:\Users\me\scoop\apps\kapi\current\kapi.exe`, SourceScoop},
 		{"/usr/bin/kapi", SourceUnknown}, // deb/rpm left to the build stamp
 		{"/home/me/.local/bin/kapi", SourceUnknown},

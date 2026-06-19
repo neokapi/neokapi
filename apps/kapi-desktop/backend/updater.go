@@ -30,8 +30,9 @@ const (
 	// appcastBaseURL hosts the signed appcast feeds (GitHub Pages of the
 	// registry repo, alongside cli.json).
 	appcastBaseURL = "https://neokapi.github.io/registry"
-	// appcastName is this app's feed basename.
-	appcastName = "kapi-desktop"
+	// appcastName is this app's feed basename. It matches the desktop release
+	// asset name ("kapi", like the Homebrew cask), not the Go module dir.
+	appcastName = "kapi"
 )
 
 // updateChannel mirrors the kapi CLI: stable by default, KAPI_UPDATE_CHANNEL

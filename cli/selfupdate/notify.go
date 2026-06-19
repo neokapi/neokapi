@@ -7,9 +7,12 @@ import "fmt"
 // name, the winget package Id, etc.).
 const (
 	brewFormula = "kapi-cli"
-	wingetID    = "Neokapi.Kapi"
-	scoopApp    = "kapi"
-	debPackage  = "kapi"
+	// wingetID is the CLI's winget package Id (see .github/workflows/winget.yml).
+	// "Neokapi.Kapi" is reserved for the desktop app (matching the Homebrew
+	// cask), so the CLI is KapiCli.
+	wingetID   = "Neokapi.KapiCli"
+	scoopApp   = "kapi"
+	debPackage = "kapi"
 )
 
 // brewFormulaFor returns the Homebrew formula name for a channel. The fast track
