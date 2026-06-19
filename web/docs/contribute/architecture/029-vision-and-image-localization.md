@@ -223,5 +223,9 @@ configurable if a CDN is ever preferred.
   an isolated onnxruntime plugin
 - [AD-028: PDF Reader and Structure Tiers](028-pdf-reader-plugin.md) — the
   tier-1/2/3 structure model; vision is its tier-3 engine
+- [AD-030: Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md)
+  — image OCR as one instance of the confidence-gated escalation pattern; the
+  handwriting cascade generalized to a configurable multimodal LLM tier across
+  audio and video
 - [`plugins/vision/`](https://github.com/neokapi/neokapi/tree/main/plugins/vision) —
   plugin module, engine, protocol, and README
