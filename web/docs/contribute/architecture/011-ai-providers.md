@@ -81,10 +81,9 @@ type Message struct {
 }
 
 type ContentPart struct {
-    Kind      ContentKind // closed set, named type
-    Text      string      // Kind == ContentText
-    Data      []byte      // Kind == ContentImage|Audio|Video (base64 on the wire)
-    MediaType string      // IANA media type: "image/png", "audio/wav", "video/mp4"
+    Kind  ContentKind  // closed set, named type
+    Text  string       // Kind == ContentText
+    Media *model.Media // otherwise — a bounded slice, carried by reference
 }
 
 type ContentKind string
@@ -97,9 +96,19 @@ const (
 )
 ```
 
+A media part carries its payload as a **`model.Media`** — the framework's
+binary-reference type ([AD-002](002-content-model.md)), with precedence
+`BlobKey > URI > Data` — not a bare `[]byte`. A small slice rides inline (`Data`);
+a larger one (a video clip) is a `BlobKey`/`URI` and is never forced into memory.
+A single helper at the provider's HTTP boundary resolves the `Media` to the
+backend's wire form (base64 inline, or a fetchable URL where the provider supports
+it), so provider implementations stay **storage-agnostic** — they never read a
+file or the blob store. This keeps one binary idiom across `Media`, plugin I/O,
+and provider content.
+
 A text-only message is a single `text` part, so translation, QA, and terminology
 tools use the interface with no media parts — the common path carries no media
-ceremony. Image, audio, and video parts carry a Block's media anchor
+ceremony. Image, audio, and video parts carry a Block's media slice
 ([AD-002](002-content-model.md)) into the prompt, which is what the multimodal
 extraction refinement tier sends ([AD-030](030-multimodal-extraction-and-llm-refinement.md)).
 

@@ -128,12 +128,21 @@ One tool, dispatched by the anchor/modality, behind a `MediaSlicer` per modality
 
 ```go
 type MediaSlicer interface {
-    // Returns the source slice as an LLM content part, reading the block's anchor
-    // facet (AD-002): ImageCropper crops the geometry bbox; AudioCutter cuts the
-    // timing span; VideoClipper extracts a frame (+crop) or a short clip.
+    // Opens the source by reference — src is a path/BlobKey/URI, never the whole
+    // asset in memory — and returns the bounded slice as a content part whose
+    // model.Media is inline when small, a BlobKey/URI when not, reading the
+    // block's anchor facet (AD-002): ImageCropper crops the geometry bbox;
+    // AudioCutter cuts the timing span; VideoClipper extracts a frame (+crop) or
+    // a short clip.
     Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error)
 }
 ```
+
+Source assets stay references end to end (`model.Media` `BlobKey > URI > Data`,
+[AD-002](002-content-model.md); plugins are path-based): only the bounded slice is
+ever materialized, and the provider boundary resolves it to bytes
+([AD-011](011-ai-providers.md)) — a whole raster or track never enters the part
+stream or a provider call.
 
 Control flow:
 
