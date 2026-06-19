@@ -48,8 +48,11 @@ export default function VisionLabPage(): React.ReactElement {
             ask for it. You can also drop in a <strong>.docx</strong> — the embedded image is pulled
             straight from the document and run through the same models. Toggle{" "}
             <strong>handwriting fallback</strong> to re-read low-confidence lines with TrOCR (loaded
-            on demand): PP-OCR handles clean text fast, TrOCR rescues the hard lines. Nothing is
-            mocked — only the runtime differs.
+            on demand): PP-OCR handles clean text fast, TrOCR rescues the hard lines. Add a third{" "}
+            <strong>local-LLM tier</strong> (<code>🧠 Local LLM</code>) to re-read the still-uncertain
+            residual with a vision model on your own machine via <strong>Ollama</strong> — keyless and
+            on-device, no key to paste and nothing leaves your browser (start Ollama with this origin
+            allowed). Nothing is mocked — only the runtime differs.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
             <Link to="/lab">Lab</Link>
