@@ -242,6 +242,8 @@ const config: Config = {
           items: [
             { label: "Neokapi Lab", to: "/lab" },
             { label: "Segmentation Lab", to: "/lab/segmentation" },
+            { label: "PDF Lab", to: "/lab/pdf" },
+            { label: "Vision Lab", to: "/lab/vision" },
             { label: "CLI Playground", to: "/playground-cli" },
             { label: "KLF Lab", to: "/klf-lab" },
           ],

@@ -56,6 +56,11 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   const [err, setErr] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [shownW, setShownW] = useState(0);
+  // imgSrc is the actual image shown/processed; it differs from src when src is a
+  // .docx (then it's the image extracted from the document). extractedNote names
+  // that image.
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [extractedNote, setExtractedNote] = useState<string | null>(null);
 
   const runOCR = useCallback(
     async (r: Raster) => {
@@ -72,40 +77,86 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
     [modelBase],
   );
 
-  const loadImage = useCallback(
+  // Decode an image URL to a raster and run OCR.
+  const processImageUrl = useCallback(
     async (url: string) => {
-      setOcrRes(null);
-      setLayoutRes(null);
-      setErr(null);
-      try {
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-        image.src = url;
-        await image.decode();
-        const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("no 2D canvas context");
-        ctx.drawImage(image, 0, 0);
-        const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const r: Raster = { data: id.data, width: canvas.width, height: canvas.height };
-        setRaster(r);
-        await runOCR(r);
-      } catch (e) {
-        setErr(`Could not load image: ${(e as Error).message}`);
-      }
+      setImgSrc(url);
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no 2D canvas context");
+      ctx.drawImage(image, 0, 0);
+      const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const r: Raster = { data: id.data, width: canvas.width, height: canvas.height };
+      setRaster(r);
+      await runOCR(r);
     },
     [runOCR],
   );
 
+  // Pull the first embedded image out of a .docx/OOXML package and process it —
+  // the same image the engine's openxml reader surfaces as a Media part.
+  const processDocxBytes = useCallback(
+    async (bytes: Uint8Array) => {
+      const { extractEmbeddedImages } = await import("@neokapi/kapi-playground/ooxml");
+      const imgs = await extractEmbeddedImages(bytes);
+      if (!imgs.length) throw new Error("no embedded image found in the document");
+      const first = imgs[0];
+      setExtractedNote(`Extracted ${first.name} from the document`);
+      // copy into a fresh ArrayBuffer so the Blob owns a plain ArrayBuffer
+      await processImageUrl(URL.createObjectURL(new Blob([first.bytes.slice()], { type: first.mime })));
+    },
+    [processImageUrl],
+  );
+
+  const reset = (): void => {
+    setOcrRes(null);
+    setLayoutRes(null);
+    setErr(null);
+    setExtractedNote(null);
+  };
+
+  const isDocx = (u: string): boolean => /\.docx(\?|$)/i.test(u);
+
+  const loadSource = useCallback(
+    async (url: string) => {
+      reset();
+      try {
+        if (isDocx(url)) {
+          const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+          await processDocxBytes(bytes);
+        } else {
+          await processImageUrl(url);
+        }
+      } catch (e) {
+        setErr(`Could not load source: ${(e as Error).message}`);
+      }
+    },
+    [processDocxBytes, processImageUrl],
+  );
+
   useEffect(() => {
-    if (src) void loadImage(src);
-  }, [src, loadImage]);
+    if (src) void loadSource(src);
+  }, [src, loadSource]);
 
   const onUpload = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
-    if (file) setSrc(URL.createObjectURL(file));
+    if (!file) return;
+    const docx = file.name.toLowerCase().endsWith(".docx") || file.type.includes("wordprocessing");
+    if (docx) {
+      reset();
+      void file
+        .arrayBuffer()
+        .then((b) => processDocxBytes(new Uint8Array(b)))
+        .catch((err: unknown) => setErr(`Could not read document: ${(err as Error).message}`));
+    } else {
+      setSrc(URL.createObjectURL(file));
+    }
   };
 
   const runLayout = useCallback(async () => {
@@ -155,8 +206,13 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             cursor: "pointer",
           }}
         >
-          Upload image…
-          <input type="file" accept="image/png,image/jpeg" onChange={onUpload} style={{ display: "none" }} />
+          Upload image or .docx…
+          <input
+            type="file"
+            accept="image/png,image/jpeg,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={onUpload}
+            style={{ display: "none" }}
+          />
         </label>
         <button
           onClick={() => void runLayout()}
@@ -184,15 +240,18 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             : "Running layout detection…"}
         </p>
       )}
+      {extractedNote && (
+        <p style={{ fontStyle: "italic", color: "var(--ifm-color-emphasis-600)" }}>{extractedNote}</p>
+      )}
       {err && <p style={{ color: "var(--ifm-color-danger)" }}>{err}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: "1rem" }}>
         {/* Image with overlays */}
         <div style={{ position: "relative", lineHeight: 0 }}>
-          {src && (
+          {imgSrc && (
             <img
               ref={imgRef}
-              src={src}
+              src={imgSrc}
               alt="vision input"
               onLoad={(e) => setShownW(e.currentTarget.clientWidth)}
               style={{ maxWidth: "100%", height: "auto", border: "1px solid var(--ifm-color-emphasis-200)" }}
