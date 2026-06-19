@@ -212,6 +212,94 @@ func rowAligns(row []placed, cols []float64, tol float64) bool {
 	return n >= 2
 }
 
+// Gridify arranges table cell blocks (each carrying geometry) into a row/column
+// grid using the same clustering Analyze uses for table detection — but without
+// the "is this a table?" test: the caller already knows the blocks form a table
+// (e.g. an ML layout model tagged the region). Rows run top-to-bottom, cells
+// left-to-right; the first row is marked header only when the table has more than
+// one row (a single-row table is plain cells, not all-header). Blocks lacking
+// geometry are appended as single-cell rows in input order so nothing is dropped.
+func Gridify(blocks []*model.Block) *Table {
+	items := make([]placed, 0, len(blocks))
+	var noGeo []*model.Block
+	for _, b := range blocks {
+		g, ok := b.Geometry()
+		if !ok || g == nil || (g.BBox.W == 0 && g.BBox.H == 0) {
+			noGeo = append(noGeo, b)
+			continue
+		}
+		items = append(items, placed{
+			b: b, x: g.BBox.X, y: g.BBox.Y, w: g.BBox.W, h: g.BBox.H,
+			cx: g.BBox.X + g.BBox.W/2, cy: g.BBox.Y + g.BBox.H/2,
+		})
+	}
+	t := &Table{}
+	if len(items) > 0 {
+		rows := groupRows(items, medianHeight(items))
+		cols := columnCenters(items)
+		if len(cols) == 0 {
+			cols = []float64{0}
+		}
+		multi := len(rows) > 1
+		for ri, row := range rows {
+			cells := make([]Cell, len(cols))
+			for ci := range cells {
+				cells[ci].Header = multi && ri == 0
+			}
+			for _, it := range row {
+				ci := nearestCol(it.cx, cols)
+				cells[ci].Blocks = append(cells[ci].Blocks, it.b)
+			}
+			t.Rows = append(t.Rows, cells)
+		}
+	}
+	for _, b := range noGeo {
+		t.Rows = append(t.Rows, []Cell{{Blocks: []*model.Block{b}}})
+	}
+	return t
+}
+
+// columnCenters clusters cell horizontal centers into column positions by 1D
+// agglomerative grouping with a tolerance derived from the median cell width, so
+// rows that omit a column still align their present cells to the right place.
+func columnCenters(items []placed) []float64 {
+	if len(items) == 0 {
+		return nil
+	}
+	xs := make([]float64, len(items))
+	ws := make([]float64, len(items))
+	for i, it := range items {
+		xs[i] = it.cx
+		ws[i] = it.w
+	}
+	sort.Float64s(xs)
+	sort.Float64s(ws)
+	tol := ws[len(ws)/2] * 0.5
+	if tol < 1 {
+		tol = 1
+	}
+	var cols, cur []float64
+	flush := func() {
+		if len(cur) == 0 {
+			return
+		}
+		sum := 0.0
+		for _, v := range cur {
+			sum += v
+		}
+		cols = append(cols, sum/float64(len(cur)))
+		cur = nil
+	}
+	for _, x := range xs {
+		if len(cur) > 0 && x-cur[len(cur)-1] > tol {
+			flush()
+		}
+		cur = append(cur, x)
+	}
+	flush()
+	return cols
+}
+
 // buildTable assigns each row's blocks to the anchor columns, header = first row.
 func buildTable(rows [][]placed) *Table {
 	cols := make([]float64, len(rows[0]))
@@ -270,29 +358,42 @@ func ToParts(regions []Region, groupCounter *int) []*model.Part {
 			}
 			parts = append(parts, &model.Part{Type: model.PartBlock, Resource: reg.Block})
 		case RegionTable:
-			*groupCounter++
-			tid := fmt.Sprintf("tbl%d", *groupCounter)
-			parts = append(parts, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: "table", Type: "table"}})
-			for _, row := range reg.Table.Rows {
-				*groupCounter++
-				rid := fmt.Sprintf("%sr%d", tid, *groupCounter)
-				parts = append(parts, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rid, Name: "table-row", Type: "table-row"}})
-				for _, cell := range row {
-					role := model.RoleTableCell
-					if cell.Header {
-						role = model.RoleTableHeader
-					}
-					for _, b := range cell.Blocks {
-						b.Type = "table-cell"
-						b.SetSemanticRole(role, 0)
-						parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
-					}
-				}
-				parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rid}})
-			}
-			parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tid}})
+			parts = append(parts, TableToParts(reg.Table, groupCounter)...)
 		}
 	}
+	return parts
+}
+
+// TableToParts emits a Table as a Part stream: GroupStart("table") wrapping
+// per-row GroupStart("table-row") groups of cell Blocks (role table-cell /
+// table-header). It mutates the cell Blocks — they are the caller-owned objects —
+// setting Block.Type to "table-cell" and the structure role (matching the docling
+// reader's emission). Empty cells (a column a row omits) contribute no block.
+// groupCounter is advanced for unique group IDs across pages and tables. This is
+// shared by the geometric tier-2 (ToParts) and the ML tier-3 (vision) so both
+// render tables identically.
+func TableToParts(t *Table, groupCounter *int) []*model.Part {
+	*groupCounter++
+	tid := fmt.Sprintf("tbl%d", *groupCounter)
+	parts := []*model.Part{{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: "table", Type: "table"}}}
+	for _, row := range t.Rows {
+		*groupCounter++
+		rid := fmt.Sprintf("%sr%d", tid, *groupCounter)
+		parts = append(parts, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rid, Name: "table-row", Type: "table-row"}})
+		for _, cell := range row {
+			role := model.RoleTableCell
+			if cell.Header {
+				role = model.RoleTableHeader
+			}
+			for _, b := range cell.Blocks {
+				b.Type = "table-cell"
+				b.SetSemanticRole(role, 0)
+				parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+			}
+		}
+		parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rid}})
+	}
+	parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tid}})
 	return parts
 }
 

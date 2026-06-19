@@ -6,7 +6,16 @@ import (
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/structure"
 )
+
+// PageRasterProperty is the Media.Properties key marking a part as a rendered
+// page raster that the host's vision tier-3 pass should consume (run the layout
+// model over) and then delete. A format reader/plugin that can rasterize a page
+// (e.g. kapi-pdfium under its tier3 option) sets it to "page"; the host decorator
+// keys on it. Shared here so the producer (plugin) and consumer (host) never
+// drift on the string.
+const PageRasterProperty = "kapi-vision-raster"
 
 // Region is one detected layout region on a page image, in top-left pixel
 // coordinates. Role is a model.Role* value (heading, paragraph, table, figure,
@@ -107,9 +116,8 @@ func abs(f float64) float64 {
 // tier-3 path — authoritative roles + reading order from the layout model,
 // versus the geometric tier-2 (core/structure.Analyze).
 //
-// Table cell-structure reconstruction is out of scope here (a later phase); a
-// table region's lines are emitted as table-cell blocks within a table group so
-// downstream writers still render a table.
+// A table region's lines are reconstructed into row/column structure (see
+// regionParts → structure.Gridify) so downstream writers render a real table.
 func PartsFromLayout(regions []Region, res *OCRResult, counter, groupCounter *int) []*model.Part {
 	if res == nil {
 		return nil
@@ -148,18 +156,47 @@ func PartsFromLayout(regions []Region, res *OCRResult, counter, groupCounter *in
 	return parts
 }
 
-// regionParts emits one region's lines. A table region wraps its lines in a
-// table group; other roles emit role-tagged blocks.
+// StructureFromLayout runs a layout model over a page raster and structures the
+// page's already-positioned blocks by it: it runs le.Layout over rasterPath,
+// assigns reading order, builds an OCRResult from the blocks' text + geometry, and
+// emits role-tagged parts in reading order (PartsFromLayout) — authoritative
+// tier-3 structure (with tables reconstructed). This is format-agnostic: any
+// source that can produce a page raster plus positioned text blocks (the PDF
+// reader, an image, …) can use it. width/height are the raster's pixel dimensions
+// (the space the block geometry lives in too — render at 72 DPI for a 1:1 mapping
+// from PDF points).
+//
+// It returns (nil, nil) when the layout model yields no regions, so the caller can
+// fall back to the geometric tier-2 (core/structure.Analyze). counter and
+// groupCounter are advanced in place for IDs unique across pages.
+func StructureFromLayout(ctx context.Context, le LayoutEngine, rasterPath string, blocks []*model.Block, width, height int, opts LayoutOptions, counter, groupCounter *int) ([]*model.Part, error) {
+	regions, err := le.Layout(ctx, rasterPath, opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(regions) == 0 {
+		return nil, nil
+	}
+	regions = SortReadingOrder(regions)
+	res := OCRResultFromBlocks(blocks, width, height)
+	return PartsFromLayout(regions, res, counter, groupCounter), nil
+}
+
+// regionParts emits one region's lines. A table region reconstructs row/column
+// cell structure from the lines' geometry (reusing the tier-2 grid clustering);
+// other roles emit role-tagged blocks.
 func regionParts(reg Region, lines []OCRLine, counter, groupCounter *int) []*model.Part {
 	if reg.Role == model.RoleTable {
-		*groupCounter++
-		tid := fmt.Sprintf("vtbl%d", *groupCounter)
-		parts := []*model.Part{{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: "table", Type: "table"}}}
+		cells := make([]*model.Block, 0, len(lines))
 		for _, ln := range lines {
-			parts = append(parts, blockPart(ln, model.RoleTableCell, counter))
+			*counter++
+			b := model.NewBlock(fmt.Sprintf("tu%d", *counter), ln.Text)
+			if ln.BBox.W > 0 || ln.BBox.H > 0 {
+				b.SetGeometry(&model.GeometryAnnotation{BBox: ln.BBox, Origin: "top-left"})
+			}
+			cells = append(cells, b)
 		}
-		parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tid}})
-		return parts
+		return structure.TableToParts(structure.Gridify(cells), groupCounter)
 	}
 	role := reg.Role
 	if role == "" {

@@ -65,7 +65,12 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			fmtName := f.Name
 			sigCopy := sig
 			reg.RegisterReader(formatID, func() format.DataFormatReader {
-				return newDaemonReader(pool, pluginRef, fmtName, sigCopy, displayName)
+				// Wrap with the host-side vision tier-3 pass. It is a transparent
+				// pass-through unless the format config requests "tier3" and the
+				// kapi-vision layout engine is available, so wrapping every plugin
+				// reader is free (AD-028: tier 3 applies to any format that can
+				// produce a page raster + positioned blocks).
+				return newTier3Reader(newDaemonReader(pool, pluginRef, fmtName, sigCopy, displayName))
 			}, sig, displayName)
 		}
 		if f.HasCapability("write") && (overridable || !reg.HasWriter(formatID)) {

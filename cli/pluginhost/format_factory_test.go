@@ -102,10 +102,12 @@ func TestRegisterModeCFormats_PluginOverridesBuiltin(t *testing.T) {
 
 	RegisterModeCFormats(host, pool, reg)
 
-	// The plugin's daemon reader must now own "fakefmt".
+	// The plugin's daemon reader must now own "fakefmt" (wrapped by the tier-3
+	// vision pass, which embeds the daemon reader).
 	r := reg.ReaderFactory("fakefmt")()
-	_, isDaemon := r.(*daemonReader)
-	assert.True(t, isDaemon, "plugin reader should override the built-in")
+	t3, isTier3 := r.(*tier3Reader)
+	assert.True(t, isTier3, "plugin reader should be wrapped by the tier-3 pass")
+	assert.NotNil(t, t3.daemonReader, "tier-3 reader should embed the plugin daemon reader")
 	assert.Equal(t, "fmt-plugin", reg.FormatInfo("fakefmt").Source)
 }
 

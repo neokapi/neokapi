@@ -14,13 +14,16 @@ import (
 	"time"
 
 	pdfium "github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/single_threaded"
 
+	"github.com/neokapi/neokapi/core/docmeta"
 	pdffmt "github.com/neokapi/neokapi/core/formats/pdf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/structure"
+	"github.com/neokapi/neokapi/core/vision"
 )
 
 var (
@@ -45,6 +48,42 @@ type Options struct {
 	// rendering/highlighting. Implies Geometry. Slightly more work (PDFium "both"
 	// mode + char→rect bucketing), so it is opt-in.
 	Glyphs bool
+	// Tier3, when true, renders each page to a PNG raster (72 DPI, so PDF points
+	// map 1:1 to pixels) and emits it as a Media part alongside the page's raw
+	// positioned blocks — NOT the plugin's own tier-1/tier-2 structure. The host
+	// runs the vision layout model over the raster to produce authoritative tier-3
+	// structure (falling back to tier-2 when vision is unavailable). Implies
+	// Geometry. The host owns the rendered file and deletes it after use.
+	Tier3 bool
+}
+
+// renderInstance is the subset of the PDFium instance used to rasterize a page.
+type renderInstance interface {
+	RenderToFile(*requests.RenderToFile) (*responses.RenderToFile, error)
+}
+
+// VisionRasterProperty marks a Media part as a page raster the host's vision
+// tier-3 pass should consume (and then delete). It re-exports the shared
+// core/vision constant so the plugin producer and the host consumer never drift.
+const VisionRasterProperty = vision.PageRasterProperty
+
+// renderPageRaster renders page i to a temp PNG at 72 DPI — at which 1 PDF point
+// equals 1 pixel, so the page's text geometry (top-left points) aligns with the
+// raster pixels the layout model sees. Returns the file path and pixel size; the
+// host reads and removes the file.
+func renderPageRaster(inst renderInstance, doc *responses.OpenDocument, i int) (string, int, int, error) {
+	res, err := inst.RenderToFile(&requests.RenderToFile{
+		RenderPageInDPI: &requests.RenderPageInDPI{
+			Page: requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}},
+			DPI:  72,
+		},
+		OutputFormat: requests.RenderToFileOutputFormatPNG,
+		OutputTarget: requests.RenderToFileOutputTargetFile,
+	})
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("pdfium render page %d: %w", i+1, err)
+	}
+	return res.ImagePath, res.Width, res.Height, nil
 }
 
 // ReadParts parses a PDF and returns the ordered Part stream (root Layer,
@@ -55,6 +94,9 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	}
 	if opts.Glyphs {
 		opts.Geometry = true // glyph boxes ride on the per-rect geometry blocks
+	}
+	if opts.Tier3 {
+		opts.Geometry = true // tier-3 structures the per-rect geometry blocks
 	}
 	inst, err := pdfiumPool().GetInstance(30 * time.Second)
 	if err != nil {
@@ -80,6 +122,13 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	}
 	parts = append(parts, &model.Part{Type: model.PartLayerStart, Resource: root})
 
+	// Document metadata (Info dictionary): translatable fields (Title/Subject/
+	// Keywords) become metadata-plane Blocks; the rest (author, producer, dates)
+	// are recorded as namespaced Properties on the document layer.
+	for _, b := range metadataBlocks(inst, doc.Document, root) {
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+	}
+
 	blockCounter := 0
 	groupCounter := 0
 	for i := 0; i < pc.PageCount; i++ {
@@ -92,7 +141,31 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 		// structure geometrically from the positioned blocks (tier 2). The fast
 		// (non-geometry) path emits whole-page plain text with no structure.
 		var pageParts []*model.Part
-		if opts.Geometry {
+		if opts.Tier3 {
+			// Render the page raster and emit it with the raw positioned blocks;
+			// the host's vision pass produces tier-3 structure (or falls back to
+			// tier-2). We deliberately do NOT apply the plugin's own structure here.
+			pageBlocks, err := readPage(inst, doc, pg, pageNum, opts, &blockCounter)
+			if err != nil {
+				return nil, err
+			}
+			if rasterPath, rw, rh, rerr := renderPageRaster(inst, doc, i); rerr == nil && rasterPath != "" {
+				pageParts = append(pageParts, &model.Part{Type: model.PartMedia, Resource: &model.Media{
+					ID:       fmt.Sprintf("raster%d", pageNum),
+					MimeType: "image/png",
+					URI:      rasterPath,
+					Properties: map[string]string{
+						"width":              strconv.Itoa(rw),
+						"height":             strconv.Itoa(rh),
+						"page-number":        strconv.Itoa(pageNum),
+						VisionRasterProperty: "page",
+					},
+				}})
+			}
+			for _, b := range pageBlocks {
+				pageParts = append(pageParts, &model.Part{Type: model.PartBlock, Resource: b})
+			}
+		} else if opts.Geometry {
 			var pageHeight float64
 			if sz, err := inst.FPDF_GetPageSizeByIndex(&requests.FPDF_GetPageSizeByIndex{Document: doc.Document, Index: i}); err == nil {
 				pageHeight = sz.Height
@@ -130,6 +203,37 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 
 	parts = append(parts, &model.Part{Type: model.PartLayerEnd, Resource: root})
 	return parts, nil
+}
+
+// metaInstance is the subset of the PDFium instance used to read the Info dict.
+type metaInstance interface {
+	FPDF_GetMetaText(*requests.FPDF_GetMetaText) (*responses.FPDF_GetMetaText, error)
+}
+
+// metadataBlocks reads the PDF Info dictionary and maps it onto the content model
+// via core/docmeta: Title/Subject/Keywords become translatable metadata-plane
+// Blocks; Author/Creator/Producer/CreationDate/ModDate are recorded as
+// "pdf:"-namespaced Properties on the document layer (never translated, kept for
+// inspection). Empty fields are skipped.
+func metadataBlocks(inst metaInstance, docRef references.FPDF_DOCUMENT, root *model.Layer) []*model.Block {
+	get := func(tag string) string {
+		r, err := inst.FPDF_GetMetaText(&requests.FPDF_GetMetaText{Document: docRef, Tag: tag})
+		if err != nil || r == nil {
+			return ""
+		}
+		return strings.TrimSpace(r.Value)
+	}
+	entries := []docmeta.Entry{
+		{Key: "pdf:title", Value: get("Title"), Translatable: true, Role: model.RoleTitle},
+		{Key: "pdf:subject", Value: get("Subject"), Translatable: true},
+		{Key: "pdf:keywords", Value: get("Keywords"), Translatable: true},
+		{Key: "pdf:author", Value: get("Author")},
+		{Key: "pdf:creator", Value: get("Creator")},
+		{Key: "pdf:producer", Value: get("Producer")},
+		{Key: "pdf:creationdate", Value: get("CreationDate")},
+		{Key: "pdf:moddate", Value: get("ModDate")},
+	}
+	return docmeta.Apply(root, entries, "meta")
 }
 
 type pdfiumInstance interface {

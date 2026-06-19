@@ -74,6 +74,63 @@ func TestPartsFromLayout(t *testing.T) {
 	}
 }
 
+func TestPartsFromLayout_TableRowsCells(t *testing.T) {
+	// A 2-column × 3-row table region: header row + two body rows. Each cell is
+	// one OCR line. Expect one table group, three table-row groups, the first
+	// row's cells as table-header and the rest as table-cell.
+	regions := []Region{
+		{Role: model.RoleTable, BBox: model.Rect{X: 0, Y: 0, W: 400, H: 120}, ReadingOrder: 0},
+	}
+	res := &OCRResult{
+		Width: 400, Height: 120,
+		Lines: []OCRLine{
+			{Text: "Name", BBox: model.Rect{X: 10, Y: 5, W: 80, H: 18}},
+			{Text: "Price", BBox: model.Rect{X: 210, Y: 5, W: 80, H: 18}},
+			{Text: "Apple", BBox: model.Rect{X: 10, Y: 45, W: 80, H: 18}},
+			{Text: "1.20", BBox: model.Rect{X: 210, Y: 45, W: 80, H: 18}},
+			{Text: "Pear", BBox: model.Rect{X: 10, Y: 85, W: 80, H: 18}},
+			{Text: "0.90", BBox: model.Rect{X: 210, Y: 85, W: 80, H: 18}},
+		},
+	}
+	counter, gc := 0, 0
+	parts := PartsFromLayout(regions, res, &counter, &gc)
+
+	var tableGroups, rowGroups int
+	var roles []string
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartGroupStart:
+			switch p.Resource.(*model.GroupStart).Type {
+			case "table":
+				tableGroups++
+			case "table-row":
+				rowGroups++
+			}
+		case model.PartBlock:
+			roles = append(roles, p.Resource.(*model.Block).SemanticRole())
+		}
+	}
+	if tableGroups != 1 {
+		t.Errorf("table groups = %d, want 1", tableGroups)
+	}
+	if rowGroups != 3 {
+		t.Errorf("table-row groups = %d, want 3", rowGroups)
+	}
+	want := []string{
+		model.RoleTableHeader, model.RoleTableHeader,
+		model.RoleTableCell, model.RoleTableCell,
+		model.RoleTableCell, model.RoleTableCell,
+	}
+	if len(roles) != len(want) {
+		t.Fatalf("roles = %v, want %v", roles, want)
+	}
+	for i := range want {
+		if roles[i] != want[i] {
+			t.Errorf("role[%d] = %q, want %q", i, roles[i], want[i])
+		}
+	}
+}
+
 func TestPartsFromLayout_Nil(t *testing.T) {
 	c, g := 0, 0
 	if p := PartsFromLayout(nil, nil, &c, &g); p != nil {

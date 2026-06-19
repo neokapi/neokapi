@@ -128,6 +128,36 @@ func ResetForTest() {
 	defaultName = ""
 }
 
+// OCRResultFromBlocks builds an OCRResult from blocks that already carry text and
+// top-left geometry — e.g. a PDF page's positioned text runs. It is the inverse
+// of BlocksFromOCR, letting the layout pipeline (Layout + PartsFromLayout)
+// structure ANY source of positioned text, not just OCR: a layout model runs over
+// the rendered page raster while the text comes from the document itself (more
+// accurate than re-OCRing a vector PDF).
+//
+// width/height are the rendered raster's pixel dimensions — and the block
+// geometry must live in that same pixel space (render the page at 72 DPI so PDF
+// points map 1:1 to pixels, with a top-left origin). Blocks lacking text or
+// geometry are skipped.
+func OCRResultFromBlocks(blocks []*model.Block, width, height int) *OCRResult {
+	res := &OCRResult{Width: width, Height: height}
+	for _, b := range blocks {
+		if b == nil {
+			continue
+		}
+		text := b.SourceText()
+		if text == "" {
+			continue
+		}
+		g, ok := b.Geometry()
+		if !ok || g == nil {
+			continue
+		}
+		res.Lines = append(res.Lines, OCRLine{Text: text, BBox: g.BBox, Confidence: 1})
+	}
+	return res
+}
+
 // BlocksFromOCR converts recognized lines into positioned content Blocks: one
 // Block per line, carrying a top-left GeometryAnnotation, with IDs allocated
 // from counter (advanced in place) so they stay unique across pages. Empty lines
