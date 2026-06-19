@@ -280,6 +280,32 @@ jobs:
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
             bowrain/cli/cmd/kapi-bowrain/manifest.json
 
+      # Linux .deb / .rpm for the kapi CLI (nfpm). These are direct-download
+      # system packages; apt/dnf own updates, so they are not in cli.json.
+      - name: Build Linux packages (deb/rpm)
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          mkdir -p packaging/.stage
+          for arch in amd64 arm64; do
+            bin="cli-artifacts/cli-bins-linux-${arch}/kapi"
+            if [ ! -f "$bin" ]; then
+              echo "no linux/${arch} kapi binary; skipping"
+              continue
+            fi
+            # nfpm doesn't expand env in contents[].src, so stage at a fixed path.
+            cp "$bin" packaging/.stage/kapi
+            ARCH="$arch" VERSION="$VERSION" \
+              nfpm package -f packaging/nfpm.yaml -p deb -t "dist/kapi-cli_${VERSION}_${arch}.deb"
+            ARCH="$arch" VERSION="$VERSION" \
+              nfpm package -f packaging/nfpm.yaml -p rpm -t "dist/kapi-cli_${VERSION}_${arch}.rpm"
+          done
+          # Add the packages to checksums.txt (filenames only, no dir component).
+          ( cd dist && { sha256sum ./*.deb ./*.rpm 2>/dev/null | sed 's| \./| |' || true; } >> checksums.txt )
+          ls -l dist/*.deb dist/*.rpm 2>/dev/null || true
+
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
       # tarballs (kapi's plugin-install verifier requires it) AND the kapi CLI
       # archives (so `kapi update` can verify a self-replace — see
@@ -327,6 +353,8 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/kapi-cli_*.tar.gz
+            dist/kapi-cli_*.deb
+            dist/kapi-cli_*.rpm
             dist/kapi-bowrain_*.tar.gz
             dist/kapi-bowrain_*.zip
             dist/*.sigstore.json

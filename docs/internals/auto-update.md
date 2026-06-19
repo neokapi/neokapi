@@ -247,10 +247,17 @@ only user-facing asset names follow this scheme.
 
 ### Phase 3 — winget + Linux packaging (discoverability + Linux update paths)
 
-- [ ] winget manifests via `winget-releaser` (or `wingetcreate update`) in
-      `release.yml`, PR'd to `winget-pkgs` per release.
-- [ ] nfpm-built `.deb`/`.rpm` attached to releases; optional own apt/yum repo
-      later (Tailscale/gh pattern) for system-managed Linux CLI updates.
+- [x] **winget already wired** (`.github/workflows/winget.yml`): `winget-releaser`
+      submits `Neokapi.KapiCli` (CLI, portable zip) and `Neokapi.Kapi` (desktop,
+      NSIS `-setup.exe`) to `winget-pkgs`, dispatched by
+      `publish-windows-signed.sh` after the signed Windows assets land. The CLI
+      self-update nudge points at `Neokapi.KapiCli`.
+- [x] nfpm-built `.deb`/`.rpm` for the kapi CLI (`packaging/nfpm.yaml` +
+      `release.yml`): `kapi-cli_<ver>_<arch>.deb` / `.rpm` with the kapi binary +
+      toolbox symlinks, attached to the release and listed in `checksums.txt`.
+      Direct-download packages (apt/dnf own updates) — not in `cli.json`.
+- [ ] Optional later: a self-hosted apt/yum repo (Tailscale/gh pattern) for
+      system-managed Linux CLI updates, and signing the `.deb`/`.rpm`.
 
 ### Phase 4 — Windows/Linux desktop updaters
 

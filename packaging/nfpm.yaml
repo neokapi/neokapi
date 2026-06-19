@@ -1,0 +1,48 @@
+# nfpm config for the kapi CLI Linux packages (.deb / .rpm).
+#
+# Driven by release.yml (the package-cli job) once per linux arch. ARCH and
+# VERSION come from the environment (nfpm expands ${VAR} in scalar fields, but
+# NOT in the contents[].src glob — so the binary is staged at a fixed path
+# instead). One config serves both amd64 and arm64:
+#
+#   cp cli-artifacts/cli-bins-linux-amd64/kapi packaging/.stage/kapi
+#   ARCH=amd64 VERSION=1.2.0 \
+#     nfpm package -f packaging/nfpm.yaml -p deb -t dist/kapi-cli_1.2.0_amd64.deb
+#
+# Package name is kapi-cli (matches the Homebrew formula and the kapi-cli_*
+# release archives); it installs the kapi binary plus the busybox-style toolbox
+# aliases, exactly like the brew formula.
+name: kapi-cli
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: "neokapi <release-bot@neokapi.dev>"
+vendor: neokapi
+homepage: https://github.com/neokapi/neokapi
+license: Apache-2.0
+description: |
+  AI-native localization framework — format-aware parsing, concurrent
+  pipelines, and pluggable tools. Installs the kapi CLI plus the
+  kgrep / ksed / kcat / kconv toolbox aliases (busybox-style symlinks).
+
+contents:
+  - src: packaging/.stage/kapi
+    dst: /usr/bin/kapi
+    file_info:
+      mode: 0755
+  # Multi-call toolbox aliases — symlinks to the kapi binary, which dispatches
+  # on its invocation name. No extra binaries, no extra size.
+  - src: /usr/bin/kapi
+    dst: /usr/bin/kgrep
+    type: symlink
+  - src: /usr/bin/kapi
+    dst: /usr/bin/ksed
+    type: symlink
+  - src: /usr/bin/kapi
+    dst: /usr/bin/kcat
+    type: symlink
+  - src: /usr/bin/kapi
+    dst: /usr/bin/kconv
+    type: symlink
