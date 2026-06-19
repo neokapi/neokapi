@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T17:12:58Z",
+  "generatedAt": "2026-06-19T19:20:48Z",
   "kind": "format",
   "entries": [
     {
@@ -403,6 +403,29 @@
           }
         ]
       }
+    },
+    {
+      "id": "audio",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Audio",
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".m4a",
+        ".aac",
+        ".flac",
+        ".ogg",
+        ".opus"
+      ],
+      "mimeTypes": [
+        "audio/wav",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/flac",
+        "audio/ogg"
+      ],
+      "hasReader": true
     },
     {
       "id": "csv",
@@ -4319,6 +4342,27 @@
         ],
         "wikiUrl": "https://ubsicap.github.io/usfm/"
       }
+    },
+    {
+      "id": "video",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Video",
+      "extensions": [
+        ".mp4",
+        ".mov",
+        ".m4v",
+        ".mkv",
+        ".webm",
+        ".avi"
+      ],
+      "mimeTypes": [
+        "video/mp4",
+        "video/quicktime",
+        "video/x-matroska",
+        "video/webm"
+      ],
+      "hasReader": true
     },
     {
       "id": "vignette",

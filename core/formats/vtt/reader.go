@@ -150,6 +150,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), cue.text)
 		block.Name = fmt.Sprintf("subtitle.%d", i+1)
 		block.Properties["timecode"] = cue.timecode
+		setBlockTiming(block, cue.timecode)
 		if cue.identifier != "" {
 			block.Properties["cue-id"] = cue.identifier
 		}
@@ -285,6 +286,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		block := model.NewBlock(blockIDStr, cue.text)
 		block.Name = fmt.Sprintf("subtitle.%d", cueIndex)
 		block.Properties["timecode"] = cue.timecode
+		setBlockTiming(block, cue.timecode)
 		if cue.identifier != "" {
 			block.Properties["cue-id"] = cue.identifier
 		}
