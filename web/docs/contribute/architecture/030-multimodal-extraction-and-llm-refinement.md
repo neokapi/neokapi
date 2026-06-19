@@ -3,7 +3,7 @@ id: 030-multimodal-extraction-and-llm-refinement
 sidebar_position: 30
 title: "AD-030: Multimodal Extraction and LLM Refinement"
 description: "Architecture decision: extracting translatable content from images, audio, and video is one pattern — a fast local extractor produces confidence-scored Blocks anchored to a slice of the source media, and a configurable multimodal LLM refines only the low-confidence units. The anchor facets and source provenance are the content model's (AD-002); the multimodal message is the provider's (AD-011); this AD adds the confidence-gated escalation pattern, the generic media-refine Transform, and the kapi-asr/video plugin symmetry."
-keywords: [multimodal, OCR, ASR, speech recognition, video localization, audio localization, LLM refinement, confidence cascade, media-refine, MediaSlicer, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
+keywords: [multimodal, OCR, ASR, speech recognition, video localization, audio localization, subtitles, WebVTT, SubRip, TTML, target-asset, whole-asset replacement, LLM refinement, confidence cascade, media-refine, MediaSlicer, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
 ---
 
 # AD-030: Multimodal Extraction and LLM Refinement
@@ -156,6 +156,38 @@ before annotation and translation. It must access the source raster/track while 
 still exists; the vision tier-3 reader consumes and deletes the page raster before
 blocks reach tools, so `media-refine` runs *inside* the extraction boundary (the
 slicer holds the source ref), not as an arbitrary downstream tool.
+
+### Two output modes: round-trip the text, or replace the asset
+
+Extraction feeds two distinct localization modes — the same split
+[AD-029](029-vision-and-image-localization.md) draws for images, generalized to
+timed media. They are independent, and an asset can use both at once.
+
+**Round-trip the text.** The anchored Blocks localize as text and return to where
+they came from. The path depends on how the text lives in the asset:
+
+- **Text track / sidecar — full round-trip today.** WebVTT, SubRip, and TTML are
+  first-class formats with reader *and* writer (`core/formats/{vtt,srt,ttml}`,
+  registered), so audio/video cues extract → translate → merge back into a
+  localized track the source platform ingests. For raw audio/video, ASR produces
+  the cues and the **`timing` anchor** is the hand-off into the timed-text writer.
+- **Embedded text layer with a skeleton.** PDF text layers and tagged formats
+  re-apply targets through the format's writer (the skeleton mechanism, AD-029).
+- **Baked into pixels or waveform.** OCR text burned into an image, or speech in
+  an audio track, cannot return to the *same rendered asset* without re-rendering
+  (out of scope, AD-029) or TTS (not designed). The localization is delivered as a
+  **companion** instead — e.g. a generated localized subtitle track, itself a
+  VTT/SRT write.
+
+**Replace the asset.** Independently, the whole file is a localizable `Media`
+asset: the **target-asset variant model** (AD-029 — `IsBinaryAssetFormat`,
+`ResolveAssetVariants`) pairs a source image/audio/video with per-locale files and
+treats a localized variant on disk as authoritative. This is medium-agnostic —
+audio and video swap wholesale exactly as images do.
+
+The modes compose on one asset: a video's subtitle track round-trips as text while
+the file itself stays replaceable; an image carries localized OCR/alt-text Blocks
+and is swappable.
 
 ### Plugin and pipeline symmetry
 
