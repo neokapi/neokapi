@@ -200,6 +200,41 @@ const config: Config = {
         },
       };
     },
+    // Drop wasm that webpack emits but the runtime never fetches from the bundle:
+    //
+    //   • onnxruntime-web (Vision Lab OCR via kapi-playground's visionBridge, and
+    //     the TrOCR handwriting fallback via @huggingface/transformers) references
+    //     every wasm variant (jsep/asyncify/jspi/simd-threaded) via
+    //     `new URL('ort-*.wasm', import.meta.url)` — ~100 MB, ×2 locales. But
+    //     visionBridge sets `ort.env.wasm.wasmPaths` to the jsdelivr CDN, so the
+    //     emitted copies are never loaded.
+    //   • @embedpdf/pdfium (PDF Lab) — pdfiumBridge `fetch()`es pdfium.wasm from an
+    //     explicit URL and passes the bytes to `init({ wasmBinary })`, so Emscripten
+    //     never uses the bundled `new URL` reference.
+    //
+    // Keep the URL references resolving (so the build doesn't break) but skip
+    // WRITING the files (asset/resource + generator.emit:false). Scoped by path so
+    // ICU4X's wasm — which the segmentation lab DOES load same-origin from the
+    // emitted file — is untouched.
+    function dropUnusedBundledWasm() {
+      return {
+        name: "drop-unused-bundled-wasm",
+        configureWebpack() {
+          return {
+            module: {
+              rules: [
+                {
+                  test: /\.wasm$/,
+                  include: [/[\\/]onnxruntime-web[\\/]/, /[\\/]@embedpdf[\\/]pdfium[\\/]/],
+                  type: "asset/resource",
+                  generator: { emit: false },
+                },
+              ],
+            },
+          };
+        },
+      };
+    },
   ],
 
   presets: [
