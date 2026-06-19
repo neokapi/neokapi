@@ -60,8 +60,9 @@ and the OCR confidence that the cascade depends on is **discarded** by
 `vision.BlocksFromOCR` — it never reaches a downstream tool. The `aiprovider`
 `Message` is **text-only** across all five backends, so no tool can send an image,
 let alone an audio clip. Building an OCR-shaped LLM refiner now would bake those
-limits in. This AD instead defines the *generic* shape so audio (ASR) and video
-extraction plug into the same escalation tier without reinvention.
+limits in. This AD instead defines the *generic* shape so audio — automatic
+speech recognition (ASR), the audio counterpart of OCR: speech in, text out —
+and video extraction plug into the same escalation tier without reinvention.
 
 ## Decision
 
