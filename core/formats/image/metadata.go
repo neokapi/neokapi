@@ -79,12 +79,11 @@ func pngMetadata(f *os.File) []docmeta.Entry {
 
 // pngTextEntry parses one text chunk into metadata entries (or XMP).
 func pngTextEntry(ctype string, data []byte) []docmeta.Entry {
-	i := bytes.IndexByte(data, 0)
-	if i < 0 {
+	kw, rest, ok := bytes.Cut(data, []byte{0})
+	if !ok {
 		return nil
 	}
-	keyword := string(data[:i])
-	rest := data[i+1:]
+	keyword := string(kw)
 	var text string
 	switch ctype {
 	case "tEXt":

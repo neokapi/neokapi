@@ -40,6 +40,9 @@ type AssetVariant struct {
 // have a localized variant present and which are missing — the coverage view a
 // whole-image-replacement workflow needs.
 func ResolveAssetVariants(root string, item ContentItem, source string, locales []model.LocaleID) []AssetVariant {
+	if item.Target == "" {
+		return nil // no per-locale target template → no variants to pair
+	}
 	out := make([]AssetVariant, 0, len(locales))
 	for _, loc := range locales {
 		p := ResolveTargetPath(item.Path, item.Base, item.Target, source, string(loc))

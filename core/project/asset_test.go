@@ -19,6 +19,13 @@ func TestIsBinaryAssetFormat(t *testing.T) {
 	}
 }
 
+func TestResolveAssetVariants_NoTarget(t *testing.T) {
+	// No target template → no variant pairing.
+	if v := ResolveAssetVariants(t.TempDir(), ContentItem{Path: "a/*.png"}, "a/x.png", []model.LocaleID{"fr"}); v != nil {
+		t.Errorf("empty target should yield nil, got %v", v)
+	}
+}
+
 func TestResolveAssetVariants(t *testing.T) {
 	root := t.TempDir()
 	// Source en asset + a localized fr variant on disk; de is missing.
