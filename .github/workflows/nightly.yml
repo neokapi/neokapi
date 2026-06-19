@@ -65,3 +65,66 @@ jobs:
 
       - name: Platform + bowrain (race, containers, stable)
         run: make test-platform test-bowrain
+
+  # ── Vision ONNX (real models) ───────────────────────────────────────────────
+  # Exercises the kapi-vision plugin against the REAL PP-OCRv5 (OCR) and
+  # PP-DocLayoutV3 (layout) models and a real onnxruntime — the numeric/inference
+  # path the per-PR suite can't reach. Those tests are gated behind `-tags onnx`
+  # plus KAPI_VISION_ORT_LIB / KAPI_VISION_MODELS_DIR (everything else uses fakes),
+  # so they only run here. onnxruntime + the models are cached by version/tag, so
+  # only the first run pays the ~350 MB download. (A full render→layout e2e over a
+  # real PDF — kapi-pdfium tier3 → vision — is a planned extension; this validates
+  # OCR + layout model inference directly, which local/fake tests cannot.)
+  vision-onnx:
+    name: Vision ONNX (real models)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ONNXRUNTIME_VERSION: "1.25.0" # matches yalue/onnxruntime_go (ORT_API_VERSION 25)
+      VISION_MODELS_TAG: "vision-models-v1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          go-version: stable
+
+      - name: Cache onnxruntime
+        id: cache-ort
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ort
+          key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
+      - name: Download onnxruntime
+        if: steps.cache-ort.outputs.cache-hit != 'true'
+        run: |
+          asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
+          mkdir -p "$RUNNER_TEMP/ort"
+          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
+          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort" --strip-components=1
+
+      - name: Cache vision models
+        id: cache-models
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/models
+          key: vision-models-${{ env.VISION_MODELS_TAG }}
+      - name: Download model assets
+        if: steps.cache-models.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/models"
+          base="https://github.com/neokapi/neokapi/releases/download/${VISION_MODELS_TAG}"
+          for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt ppdoclayoutv3.onnx; do
+            curl -sSfL -o "$RUNNER_TEMP/models/$f" "$base/$f"
+          done
+
+      # The smoke tests verify each model file against its pinned SHA-256 (via
+      # models.Ensure) before running, so a corrupt download fails loudly.
+      - name: Run kapi-vision ONNX smoke tests (real models)
+        env:
+          KAPI_VISION_ORT_LIB: ${{ runner.temp }}/ort/lib/libonnxruntime.so
+          KAPI_VISION_MODELS_DIR: ${{ runner.temp }}/models
+          GOWORK: "off" # plugins/vision is its own module (not in go.work)
+        run: |
+          cd plugins/vision
+          CGO_ENABLED=1 go test -tags onnx -v ./internal/ocr/...
