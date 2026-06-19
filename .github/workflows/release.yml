@@ -306,6 +306,26 @@ jobs:
           ( cd dist && { sha256sum ./*.deb ./*.rpm 2>/dev/null | sed 's| \./| |' || true; } >> checksums.txt )
           ls -l dist/*.deb dist/*.rpm 2>/dev/null || true
 
+      # Publish the .deb/.rpm into the self-hosted apt + yum repos
+      # (https://neokapi.github.io/packages/). Stable channel only — system
+      # package managers track stable. No-op until the signing key + packages
+      # token are configured.
+      - name: Publish to apt/yum repo
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
+          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PACKAGES_GPG_PRIVATE_KEY:-}" ] || [ -z "${PACKAGES_TOKEN:-}" ]; then
+            echo "apt/yum publish secrets not set; skipping"
+            exit 0
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-utils createrepo-c
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash scripts/publish-packages.sh "$VERSION" dist
+
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
       # tarballs (kapi's plugin-install verifier requires it) AND the kapi CLI
       # archives (so `kapi update` can verify a self-replace — see

@@ -256,15 +256,114 @@ only user-facing asset names follow this scheme.
       `release.yml`): `kapi-cli_<ver>_<arch>.deb` / `.rpm` with the kapi binary +
       toolbox symlinks, attached to the release and listed in `checksums.txt`.
       Direct-download packages (apt/dnf own updates) — not in `cli.json`.
-- [ ] Optional later: a self-hosted apt/yum repo (Tailscale/gh pattern) for
-      system-managed Linux CLI updates, and signing the `.deb`/`.rpm`.
+- [x] **Self-hosted apt + yum repos** (`scripts/publish-packages.sh` +
+      `release.yml`, stable channel only) served at
+      `https://neokapi.github.io/packages/`. apt is a flat repo
+      (`apt/pool/*.deb` + signed `InRelease`/`Release.gpg`); yum is
+      `createrepo_c` output with a signed `repomd.xml.asc`. The signed indexes
+      carry each package's SHA-256, so a tampered package is caught even though
+      packages aren't individually signed. Validated end-to-end in
+      Ubuntu/Rocky containers (`apt-get update` + `dnf makecache` both accept
+      the repo and list `kapi-cli`).
 
-### Phase 4 — Windows/Linux desktop updaters
+#### apt/yum install (users)
 
-- [ ] Windows: Wails v3 built-in updater **or** NSIS + signed-manifest poller.
-- [ ] Linux: AppImage + embedded zsync (AppImageUpdate) and/or a Flatpak on
-      Flathub for true background updates. (Today's bare tarball is an update
-      dead-end.)
+```bash
+# Debian/Ubuntu
+curl -fsSL https://neokapi.github.io/packages/neokapi.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/neokapi.gpg
+echo "deb [signed-by=/usr/share/keyrings/neokapi.gpg] https://neokapi.github.io/packages/apt ./" \
+  | sudo tee /etc/apt/sources.list.d/neokapi.list
+sudo apt update && sudo apt install kapi-cli
+```
+
+```bash
+# Fedora/RHEL/Rocky
+sudo tee /etc/yum.repos.d/neokapi.repo >/dev/null <<'EOF'
+[neokapi]
+name=neokapi
+baseurl=https://neokapi.github.io/packages/yum
+enabled=1
+gpgcheck=0
+repo_gpgcheck=1
+gpgkey=https://neokapi.github.io/packages/neokapi.gpg
+EOF
+sudo dnf install kapi-cli
+```
+
+(`gpgcheck=0 repo_gpgcheck=1`: the *index* is signed and carries the rpm
+checksums; per-package rpm signing is a possible later hardening.)
+
+#### apt/yum one-time setup (maintainer gate)
+
+1. Create the **`neokapi/packages`** repo (a README is enough) and enable
+   GitHub Pages (serve `main` / root) → `https://neokapi.github.io/packages/`.
+2. Generate an **RSA-4096** GPG signing key — **not ed25519**; rpm/dnf cannot
+   verify ed25519 repomd signatures (apt accepts either):
+   ```bash
+   gpg --batch --gen-key <<EOF
+   %no-protection
+   Key-Type: RSA
+   Key-Length: 4096
+   Name-Real: neokapi packages
+   Name-Email: packages@neokapi.dev
+   Expire-Date: 0
+   %commit
+   EOF
+   gpg --armor --export-secret-keys packages@neokapi.dev   # → PACKAGES_GPG_PRIVATE_KEY
+   ```
+3. Set secrets: `PACKAGES_GPG_PRIVATE_KEY` (armored private key) and
+   `PACKAGES_TOKEN` (PAT with write to `neokapi/packages`).
+4. Cut a stable release — `release.yml` publishes the `.deb`/`.rpm` into the repo.
+- [ ] Possible later hardening: per-package `.deb`/`.rpm` GPG signing, a beta
+      apt component, and a branded domain (CNAME on the Pages repo).
+
+### Phase 4 — Windows/Linux desktop updaters (investigated; design locked)
+
+The Wails native updater is the **same mechanism** as macOS — it works on all
+three OSes because the appcast provider filters items by `sparkle:os`
+(`macos`→darwin, `windows`, `linux`). Verified against the Wails v3 source. So
+this phase is *additive*: produce Windows + Linux update artifacts and add their
+enclosures to the feeds. Key facts from reading `v3/pkg/updater`:
+
+- **It swaps exactly one on-disk target** (`os.Executable()`) by renaming a
+  single extracted top-level entry into place — **it cannot run an installer**
+  (`.msi`/`.pkg`/`-setup.exe` unsupported in v1). So every update artifact is a
+  one-entry archive (the binary/app), which is exactly what we already build.
+- **No arch matching** — items are filtered by OS only. Multi-arch needs
+  **per-(os,arch) feeds** (`appcast-<app>-<os>-<arch>[-beta].xml`); the app
+  picks its URL from `runtime.GOOS`/`GOARCH`. (macOS is arm64-only → one feed.)
+
+**Windows** — artifact = a `.zip` containing exactly one signed `Kapi.exe`
+(this is the `kapi-<ver>-windows-<arch>.zip` we already produce). Caveats:
+- The swap helper has **no UAC elevation**, so the in-app swap only works for a
+  **per-user** install (`%LOCALAPPDATA%`); a Program Files install can't
+  self-update. → ship the NSIS installer as **per-user**.
+- A binary swap leaves NSIS/registry `DisplayVersion` stale, so **winget would
+  perpetually see an "upgrade"**. Pick one authority per install: per-user →
+  in-app zip-swap; managed/Program-Files → winget's `-setup.exe` with the
+  in-app updater disabled.
+
+**Linux** — artifact = a `.tar.gz` with one top-level binary (this is the
+`kapi-<ver>-linux-<arch>.tar.gz` we already produce). The Unix swap is
+`RemoveAll`+`Rename`, which works **only if the binary lives in a user-writable
+dir** (`~/.local/bin`, `~/Applications`) — document that. AppImage+zsync is a
+nicer UX but a **separate** updater path (inside an AppImage, `os.Executable()`
+is the read-only FUSE mount, so the Wails swap can't write it); reach for it
+only if delta downloads matter. **Flatpak: not an in-app updater — skip.**
+
+- [ ] `scripts/publish-appcast.sh`: also emit signed `sparkle:os="windows"` /
+      `"linux"` enclosures (reusing the existing zip/tarball + the same ed25519
+      digest signing), into per-(os,arch) feed files.
+- [ ] desktop apps: `feedURL()` keyed on `runtime.GOOS`+`GOARCH`; ship Windows
+      NSIS as per-user; document the user-writable Linux install dir.
+- [ ] validate the swap+relaunch on per-user Windows and a writable-dir Linux
+      install (mirror of the macOS Gatekeeper gate).
+
+### Phase 5 — revisit Velopack
+
+- [ ] If/when a Go binding ships, evaluate collapsing Phases 2–4 onto one
+      cross-platform framework.
 
 ### Phase 5 — revisit Velopack
 
