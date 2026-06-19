@@ -1,0 +1,118 @@
+---
+sidebar_position: 3
+title: Keeping it alive
+description: How the format-ops framework maintains itself — the runbook loop that computes what is due and works with evidence, the calibration loop that re-validates the measure on model upgrades, the upstream/corpus/security watches, and the new-format funnel.
+keywords: [format-ops, runbook, ledger, rituals, calibration, golden set, corpus sweep, fuzzing, new-format funnel, self-maintaining]
+---
+
+import { CycleDiagram, PipelineDiagram } from "@neokapi/docs-shared";
+
+# Keeping it alive
+
+A measurement framework is only as good as the process that re-runs it. Scores
+rot, specifications change, models improve, and new formats appear; without an
+upkeep loop the [dashboard](/format-maturity) would quietly drift from reality.
+This page describes how the format-ops framework stays alive.
+
+## The runbook loop
+
+The maintainer's whole job is to point an AI assistant at the runbook on a loose
+cadence — weekly to fortnightly is enough, and a longer absence produces stale
+badges, never breakage. From there the loop is autonomous:
+
+<CycleDiagram
+  steps={[
+    { label: "Reconcile", sub: "ledger vs reality" },
+    { label: "Compute due", sub: "signals + watermarks" },
+    { label: "Rank & budget" },
+    { label: "Execute", sub: "with evidence" },
+    { label: "Record", sub: "ledger commit" },
+    { label: "Reflect", sub: "learnings" },
+  ]}
+  caption="Each run computes what is due from durable repo signals; watermarks make any deferral safe."
+/>
+
+The runbook reads a committed **ledger** plus live repo signals — git history,
+dashboard timestamps, CI states, upstream trackers — and computes what is **due**
+since last time. Due work is ranked, capped to a budget, done with executable
+evidence (test output, regenerated data, diffs) committed in the same commit as
+the ledger update, and recorded. Decisions that change the published promise —
+promotions, demotions, new-format acceptance — wait in an approval queue for the
+maintainer; everything else runs unattended. A run that cannot verify itself ends
+in a `blocked` state, which is safe to leave: it stays due, and the evidence is in
+the last ledger entry.
+
+The work is organized as a set of recurring **rituals** — score the fleet,
+remediate the top gaps, watch upstream, sweep the corpus, scan for new formats,
+and recalibrate — each with its own cadence and its own freshness signal. The
+key property is that due-ness is computed from durable signals, not remembered:
+the ledger only records what each ritual last consumed, so a missed week is
+caught up rather than lost.
+
+## Calibration — keeping the measure honest
+
+The prompts that drive the work, and the rubric they grade against, are versioned
+artifacts with a regression gate. Generic "improvements" are not monotonic, so an
+edit ships only when a paired before/after benchmark shows it helped.
+
+When a new model generation lands, the loop re-scores a small, human-graded
+**golden set** anchor-free and compares against the adjudicated grades for that
+exact rubric version. If agreement drops, scoring is **blocked** until the rubric
+or the prompts are brought back into line. This is what lets the framework trust
+an AI to do the work: the measure is re-validated against human judgment whenever
+the thing doing the measuring changes.
+
+## Vigilance — upstream, corpus, security
+
+Three standing watches keep the evidence current:
+
+- **Upstream** — the format specifications and the
+  [Okapi](/framework/okapi-comparison) implementations are watched for revisions.
+  A spec clause change or a new Okapi release queues drift notes and a list of
+  divergences that may now be resolvable.
+- **Corpus** — reference files are harvested from license-clean sources and swept
+  periodically (read → write → read, one file per subprocess, with wall-clock and
+  memory caps), so support is proven over real and wild files, not just
+  hand-picked fixtures. Every bug fix lands a minimized failing file, so the
+  corpus grows from real defects rather than guesses.
+- **Security** — parsers carry resource budgets and fuzz targets; sweep failures
+  are minimized and promoted into the fuzz seed corpus automatically, so a crash
+  found once becomes a permanent regression test.
+
+## The new-format funnel
+
+Adding a format follows a fixed funnel, so a candidate moves from evidence to a
+published tier without anyone editing a list of formats by hand:
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Radar candidate" },
+    { label: "Evidence bar", note: "demand · corpus · spec · angle", role: "qa" },
+    { label: "Accept", note: "human", role: "io" },
+    { label: "implement-format", sub: "skill", role: "translate" },
+    { label: "triage-score", note: "auto-discovers", role: "annotate" },
+    { label: "tier-review", note: "promotes", role: "io" },
+  ]}
+  caption="A candidate clears the evidence bar, is accepted, built, scored automatically, then promoted."
+/>
+
+A candidate is scanned in from the wider content world and scored against an
+**adoption-evidence bar**: real demand, a harvestable or generatable corpus, an
+identifiable spec source, and a clear statement of what kapi uniquely adds. Once
+the maintainer accepts it, the `implement-format` skill builds the reader,
+writer, specification, and the per-axis artifacts; the next scoring run discovers
+it automatically — the reporting set is derived from the real format directories,
+so there is no list to edit and no count to hardcode — and tier-review promotes
+it Available → Maintained → Supported as its gating axes and CI gates come into
+place. Retirement runs the same funnel backwards: a format drops to a plugin or
+is archived with its corpus and dossier intact, never deleted.
+
+## Read next
+
+- [Format support & maturity](/framework/format-maturity) — the promise-vs-score
+  split and why the framework exists.
+- [The axes](/framework/format-maturity/axes) — what each axis measures and the
+  ladder it climbs.
+- The live [/format-maturity dashboard](/format-maturity) — current scores,
+  tiers, and trends.
