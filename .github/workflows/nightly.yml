@@ -128,3 +128,95 @@ jobs:
         run: |
           cd plugins/vision
           CGO_ENABLED=1 go test -tags onnx -v ./internal/ocr/...
+
+  # ── PDF tier-3 end-to-end (kapi + kapi-pdfium + kapi-vision) ─────────────────
+  # The cross-process wiring the smoke lane can't cover: build the real kapi CLI
+  # and both plugins, install them, and read a real PDF with tier3 on so
+  # kapi-pdfium renders each page and kapi-vision runs the layout model over the
+  # raster (host decorator). Asserts the chain segments the page into many
+  # structured blocks (the fast path yields ~1/page). onnxruntime + models reuse
+  # the same caches as vision-onnx; libpdfium is cached too.
+  vision-pdf-e2e:
+    name: Vision PDF tier-3 e2e (kapi + plugins)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ONNXRUNTIME_VERSION: "1.25.0"
+      VISION_MODELS_TAG: "vision-models-v1"
+      PDFIUM_RELEASE: "chromium/7891" # matches release-pdfium.yml
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          go-version: stable
+
+      # kapi links the cgo ICU tokenizer / FTS5 path; the pdfium plugin's
+      # static-pc build uses pkg-config.
+      - name: Install cgo deps
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Cache onnxruntime
+        id: cache-ort
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ort
+          key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
+      - name: Download onnxruntime
+        if: steps.cache-ort.outputs.cache-hit != 'true'
+        run: |
+          asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
+          mkdir -p "$RUNNER_TEMP/ort"
+          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
+          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort" --strip-components=1
+
+      - name: Cache vision models
+        id: cache-models
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/models
+          key: vision-models-${{ env.VISION_MODELS_TAG }}
+      - name: Download model assets
+        if: steps.cache-models.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/models"
+          base="https://github.com/neokapi/neokapi/releases/download/${VISION_MODELS_TAG}"
+          for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt ppdoclayoutv3.onnx; do
+            curl -sSfL -o "$RUNNER_TEMP/models/$f" "$base/$f"
+          done
+
+      - name: Cache libpdfium
+        id: cache-pdfium
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pdfium
+          key: pdfium-linux-x64-${{ env.PDFIUM_RELEASE }}
+      - name: Download libpdfium (bblanchon)
+        if: steps.cache-pdfium.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdfium"
+          url="https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/pdfium-linux-x64.tgz"
+          curl -sSfL "$url" | tar xz -C "$RUNNER_TEMP/pdfium"
+
+      - name: Build kapi
+        run: make build
+
+      - name: Package + install plugins
+        run: |
+          set -euo pipefail
+          PLUGINS="$RUNNER_TEMP/plugins"; mkdir -p "$PLUGINS/pdfium" "$PLUGINS/vision"
+          scripts/package-pdfium-plugin.sh --version 0.0.0 \
+            --pdfium-dir "$RUNNER_TEMP/pdfium" --out-dir "$RUNNER_TEMP/pdfium-out"
+          scripts/package-vision-plugin.sh --version 0.0.0 \
+            --ort-dir "$RUNNER_TEMP/ort" --models-dir "$RUNNER_TEMP/models" \
+            --out-dir "$RUNNER_TEMP/vision-out"
+          tar xzf "$RUNNER_TEMP"/pdfium-out/kapi-pdfium_*.tar.gz -C "$PLUGINS/pdfium"
+          tar xzf "$RUNNER_TEMP"/vision-out/kapi-vision_*.tar.gz -C "$PLUGINS/vision"
+
+      - name: Run PDF tier-3 e2e
+        env:
+          KAPI_BIN: ${{ github.workspace }}/bin/kapi
+          KAPI_PLUGINS_DIR: ${{ runner.temp }}/plugins
+          KAPI_VISION_ORT_LIB: ${{ runner.temp }}/ort/lib/libonnxruntime.so
+          KAPI_VISION_MODELS_DIR: ${{ runner.temp }}/models
+        run: bash scripts/e2e-vision-pdf.sh
