@@ -72,7 +72,7 @@ jobs:
           [ -n "$dir" ] || { echo "::error::whisper-cli not found in prebuilt"; find "$RUNNER_TEMP/wsp" | head; exit 1; }
           # Bundle the .so libs beside whisper-cli + set $ORIGIN rpath.
           find "$RUNNER_TEMP/wsp" -name 'lib*.so*' -exec cp -p {} "$dir/" \;
-          command -v patchelf >/dev/null || sudo apt-get update && sudo apt-get install -y patchelf
+          if ! command -v patchelf >/dev/null; then sudo apt-get update && sudo apt-get install -y patchelf; fi
           # shellcheck disable=SC2016 # $ORIGIN must reach patchelf literally
           patchelf --set-rpath '$ORIGIN' "$dir/whisper-cli" || true
           echo "WHISPER_DIR=$dir" >> "$GITHUB_ENV"
@@ -173,7 +173,10 @@ jobs:
 
       - name: Cleanup keychain (macOS)
         if: always() && runner.os == 'macOS'
-        run: '[ -n "${KEYCHAIN_PATH:-}" ] && security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true'
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
 
       - name: Cosign sign tarball (keyless, publish only)
         if: startsWith(github.ref, 'refs/tags/asr-v')
