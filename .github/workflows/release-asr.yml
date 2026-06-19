@@ -1,0 +1,266 @@
+name: Release ASR plugin
+
+# The kapi-asr speech-recognition plugin releases independently of the kapi CLI,
+# on its own `asr-v*` tag (e.g. `asr-v0.1.0` -> kapi-asr 0.1.0), mirroring the
+# kapi-sat model. kapi-asr is PURE-Go (no cgo) but bundles a per-platform
+# whisper.cpp `whisper-cli` (MIT) + a default ggml model, so the heavy/risky part
+# is producing whisper-cli per target: linux/x64+arm64 and windows/x64 use
+# whisper.cpp's published prebuilts; macOS/arm64 and windows/arm64 have no upstream
+# CLI prebuilt and are built from source (cmake).
+#
+# workflow_dispatch is a BUILD-ONLY dry run (no publish / no registry write) for
+# iterating the platform matrix. The publish + register jobs are gated to
+# `asr-v*` tag pushes only.
+on:
+  push:
+    tags:
+      - "asr-v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write # cosign keyless
+
+env:
+  WHISPER_CPP_VERSION: "v1.9.1"
+  WHISPER_MODEL: "ggml-base.en.bin"
+  WHISPER_MODEL_URL: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+
+jobs:
+  build-asr-plugin:
+    name: Build kapi-asr plugin (${{ matrix.build.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64, whisper: source }
+          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-ubuntu-x64.tar.gz" }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64, whisper: prebuilt, asset: "whisper-bin-ubuntu-arm64.tar.gz" }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64, whisper: prebuilt, asset: "whisper-bin-x64.zip" }
+          - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64, whisper: source }
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v6
+        with: { go-version: "1.26.0" }
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/asr-v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#asr-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── obtain whisper-cli + its runtime libs into $WHISPER_DIR ────────────────
+      # Prebuilt legs: download whisper.cpp's release archive (contains whisper-cli
+      # + shared libs). Linux: patch rpath to $ORIGIN so libs load beside the
+      # binary. Windows: DLLs load from the same dir automatically.
+      - name: Fetch whisper.cpp prebuilt (Unix)
+        if: matrix.build.whisper == 'prebuilt' && runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_CPP_VERSION}/${{ matrix.build.asset }}"
+          mkdir -p "$RUNNER_TEMP/wsp"
+          curl -sSfL -o "$RUNNER_TEMP/w.tgz" "$url"
+          tar -xzf "$RUNNER_TEMP/w.tgz" -C "$RUNNER_TEMP/wsp"
+          dir="$(dirname "$(find "$RUNNER_TEMP/wsp" -name 'whisper-cli' -type f | head -n1)")"
+          [ -n "$dir" ] || { echo "::error::whisper-cli not found in prebuilt"; find "$RUNNER_TEMP/wsp" | head; exit 1; }
+          # Bundle the .so libs beside whisper-cli + set $ORIGIN rpath.
+          find "$RUNNER_TEMP/wsp" -name 'lib*.so*' -exec cp -p {} "$dir/" \;
+          command -v patchelf >/dev/null || sudo apt-get update && sudo apt-get install -y patchelf
+          # shellcheck disable=SC2016 # $ORIGIN must reach patchelf literally
+          patchelf --set-rpath '$ORIGIN' "$dir/whisper-cli" || true
+          echo "WHISPER_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Fetch whisper.cpp prebuilt (Windows)
+        if: matrix.build.whisper == 'prebuilt' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = "https://github.com/ggml-org/whisper.cpp/releases/download/$env:WHISPER_CPP_VERSION/${{ matrix.build.asset }}"
+          $dest = "$env:RUNNER_TEMP\w.zip"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          Expand-Archive -Path $dest -DestinationPath "$env:RUNNER_TEMP\wsp" -Force
+          $cli = Get-ChildItem -Path "$env:RUNNER_TEMP\wsp" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+          if (-not $cli) { Write-Error "whisper-cli.exe not found"; exit 1 }
+          "WHISPER_DIR=$($cli.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build whisper.cpp from source (macOS / windows-arm64)
+        if: matrix.build.whisper == 'source'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --branch "${WHISPER_CPP_VERSION}" --depth 1 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wsrc"
+          cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build "$RUNNER_TEMP/wbuild" --config Release -j --target whisper-cli
+          out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
+          cli="$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli' -o -name 'whisper-cli.exe' | head -n1)"
+          cp "$cli" "$out/"
+          # gather shared libs produced by the build
+          find "$RUNNER_TEMP/wbuild" \( -name 'libwhisper*.dylib' -o -name 'libggml*.dylib' -o -name 'libwhisper*.so*' -o -name 'libggml*.so*' -o -name '*.dll' \) -exec cp -p {} "$out/" \; || true
+          if [ "$(uname -s)" = Darwin ]; then
+            install_name_tool -add_rpath @loader_path "$out/whisper-cli" 2>/dev/null || true
+          fi
+          echo "WHISPER_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Download default model
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o "$RUNNER_TEMP/${WHISPER_MODEL}" "${WHISPER_MODEL_URL}"
+          echo "MODEL_PATH=$RUNNER_TEMP/${WHISPER_MODEL}" >> "$GITHUB_ENV"
+
+      # ── macOS Developer-ID signing of the bundled Mach-O (pre-tar) ─────────────
+      - name: Import signing certificate (macOS)
+        id: signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CERT="$RUNNER_TEMP/cert.p12"; echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$CERT"
+          KC="$RUNNER_TEMP/sign.keychain-db"; PW=$(openssl rand -hex 32)
+          security create-keychain -p "$PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$PW" "$KC"
+          security import "$CERT" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$PW" "$KC"
+          security list-keychain -d user -s "$KC" login.keychain
+          security default-keychain -s "$KC"; rm -f "$CERT"
+          echo "KEYCHAIN_PATH=$KC" >> "$GITHUB_ENV"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Sign whisper-cli + libs (macOS)
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          for f in "$WHISPER_DIR"/*.dylib "$WHISPER_DIR/whisper-cli"; do
+            [ -e "$f" ] && codesign --force --timestamp --options runtime --sign "$APPLE_SIGN_IDENTITY" "$f"
+          done
+
+      - name: Package kapi-asr tarball
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          scripts/package-asr-plugin.sh \
+            --version "${VERSION}" \
+            --whisper-dir "${WHISPER_DIR}" \
+            --model "${MODEL_PATH}" \
+            --out-dir "$RUNNER_TEMP/asr-out"
+
+      # Sign + notarize the kapi-asr binary + whole tarball on macOS publish runs.
+      - name: Notarize tarball (macOS, publish only)
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true' && startsWith(github.ref, 'refs/tags/asr-v')
+        run: |
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "$KEY"
+          xcrun notarytool store-credentials "neokapi-notary" --key "$KEY" \
+            --key-id "${{ secrets.APPLE_API_KEY_ID }}" --issuer "${{ secrets.APPLE_API_ISSUER_ID }}" --keychain "$KEYCHAIN_PATH"
+          xcrun notarytool submit "${{ steps.package.outputs.tarball }}" --keychain-profile neokapi-notary --wait
+          rm -f "$KEY"
+
+      - name: Cleanup keychain (macOS)
+        if: always() && runner.os == 'macOS'
+        run: '[ -n "${KEYCHAIN_PATH:-}" ] && security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true'
+
+      - name: Cosign sign tarball (keyless, publish only)
+        if: startsWith(github.ref, 'refs/tags/asr-v')
+        uses: sigstore/cosign-installer@v3
+      - name: Cosign sign
+        if: startsWith(github.ref, 'refs/tags/asr-v')
+        shell: bash
+        env: { TARBALL: "${{ steps.package.outputs.tarball }}" }
+        run: cosign sign-blob --yes --new-bundle-format --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: asr-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: |
+            ${{ runner.temp }}/asr-out/*.tar.gz
+            ${{ runner.temp }}/asr-out/*.tar.gz.sigstore.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write checksum artifact
+        shell: bash
+        env:
+          ASR_SHA256: ${{ steps.package.outputs.sha256 }}
+          ASR_TARBALL_NAME: ${{ steps.package.outputs.tarball_name }}
+          LEG_GOOS: ${{ matrix.build.goos }}
+          LEG_GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asr-checksums"
+          echo "${ASR_SHA256}  ${ASR_TARBALL_NAME}" > "$RUNNER_TEMP/asr-checksums/${LEG_GOOS}_${LEG_GOARCH}.sha256"
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: asr-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: ${{ runner.temp }}/asr-checksums/*.sha256
+          retention-days: 14
+
+  publish-asr-release:
+    name: Publish kapi-asr release
+    if: startsWith(github.ref, 'refs/tags/asr-v')
+    needs: build-asr-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { pattern: asr-tarball-*, path: asr-release, merge-multiple: true }
+      - uses: softprops/action-gh-release@v3
+        with:
+          make_latest: false
+          files: |
+            asr-release/*.tar.gz
+            asr-release/*.tar.gz.sigstore.json
+
+  register-asr-plugin:
+    name: Register kapi-asr in plugin registry
+    if: startsWith(github.ref, 'refs/tags/asr-v')
+    needs: publish-asr-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { pattern: asr-checksum-*, path: asr-checksums, merge-multiple: true }
+      - name: Update manifest plugin registry (asr)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#asr-v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then echo "no REGISTRY_TOKEN; skip"; exit 0; fi
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
+          declare -A SHAS
+          for f in asr-checksums/*.sha256; do [ -f "$f" ] || continue; SHAS[$(awk '{print $2}' "$f")]=$(awk '{print $1}' "$f"); done
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-asr.yml@refs/tags/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64 windows/arm64; do
+            os=${plat%/*}; arch=${plat#*/}; file="kapi-asr_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}" "--signature" "${REPO_URL}/${file}.sigstore.json")
+            else echo "::warning::no checksum for ${file}; skipping ${plat}"; fi
+          done
+          [ ${#ARGS[@]} -eq 0 ] && { echo "::error::no artifacts"; exit 1; }
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          /tmp/registry-update --registry /tmp/registry/manifest-plugins.json \
+            --plugin asr --version "$VERSION" --channel stable --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" --cert-oidc-issuer https://token.actions.githubusercontent.com "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"; git config user.name "release-bot"
+          git add manifest-plugins.json
+          git diff --staged --quiet || { git commit -m "Register asr ${VERSION}"; git push; }
