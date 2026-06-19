@@ -184,7 +184,7 @@ tiered: OCR (~21 MB) on first use, layout (~132 MB) only on opt-in.
 
 GitHub release download URLs are **CORS-blocked** for browser `fetch()`, so the
 models are served **same-origin**: `make fetch-vision-models` stages the OCR
-models into `web/static/models/vision` at docs build (each <100 MB → GitHub
+models into `web/static/models/vision` at docs build (each under 100 MB → GitHub
 Pages-safe). The layout model (~132 MB) exceeds the Pages per-file limit, so the
 "Detect layout" path works in local dev (stage `ppdoclayoutv3.onnx` into the same
 dir) but in production needs the model on an external CORS-enabled host (e.g.
