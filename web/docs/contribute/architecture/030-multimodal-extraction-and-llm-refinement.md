@@ -117,13 +117,35 @@ the escalation reads and the trail the editor surfaces:
 
 ```go
 type ExtractionProvenance struct {
-    Modality    string  // "image" | "audio" | "video"
-    Engine      string  // "ppocr" | "trocr" | "whisper" | "llm:gemini" ...
-    ModelVersion string
-    Confidence  float64 // [0,1]; persisted, never discarded
-    NeedsReview bool    // set on LLM divergence / refusal
+    Modality     Modality // closed set, named type (see below)
+    Engine       EngineID // open ID: plugins register their own
+    ModelVersion string   // free-form version string
+    Confidence   float64  // [0,1]; persisted, never discarded
+    NeedsReview  bool     // set on LLM divergence / refusal
 }
+
+// Modality is a closed enumeration, typed with constants like ProviderID /
+// PartType / Capability — not a bare string.
+type Modality string
+
+const (
+    ModalityImage Modality = "image"
+    ModalityAudio Modality = "audio"
+    ModalityVideo Modality = "video"
+)
+
+// EngineID is an open identifier — extractors register their own, as providers
+// register ProviderIDs. Well-known values: "ppocr", "trocr", "whisper",
+// "llm:<provider>".
+type EngineID string
 ```
+
+This follows neokapi's typing convention: **closed sets and registry IDs are
+named types with constants** (`PartType`, `ProviderID`, `Capability`,
+`LocaleID`), while **open or standardized free-form values stay `string`** with a
+doc comment (`Message.Role`, `GeometryAnnotation.Origin`, IANA media types,
+version strings). `MediaAnchor.Source` follows the existing `GeometryAnnotation.SourceRef`
+precedent — an ID reference held as `string`.
 
 `BlocksFromOCR` (and the future `BlocksFromASR`) attach both overlays. The browser
 cascade's existing `OCRLine.engine` field is the same idea one layer up; this makes
@@ -136,19 +158,31 @@ advertise the input modalities they accept ([AD-011](011-ai-providers.md)):
 
 ```go
 type ContentPart struct {
-    Kind      PartKind // text | image | audio | video
-    Text      string   // Kind == text
-    Data      []byte   // Kind == image|audio|video (base64-encoded on the wire)
-    MediaType string   // "image/png", "audio/wav", "video/mp4"
+    Kind      ContentKind // closed set, named type
+    Text      string      // Kind == ContentText
+    Data      []byte      // Kind == ContentImage|Audio|Video (base64-encoded on the wire)
+    MediaType string      // IANA media type: "image/png", "audio/wav", "video/mp4"
 }
 
+// ContentKind discriminates a part (named type with constants, like PartType).
+// Distinct from Modality: it includes text, which every provider accepts.
+type ContentKind string
+
+const (
+    ContentText  ContentKind = "text"
+    ContentImage ContentKind = "image"
+    ContentAudio ContentKind = "audio"
+    ContentVideo ContentKind = "video"
+)
+
 type Message struct {
-    Role  string
+    Role  string        // unchanged from the existing type: "system"|"user"|"assistant"
     Parts []ContentPart
 }
 
 // Capability descriptor — media-refine selects a provider that accepts the
-// modality it needs, rather than discovering the limit at call time.
+// modality it needs, rather than discovering the limit at call time. Returns
+// the non-text modalities a backend accepts (text is always supported).
 func (p Provider) InputModalities() []Modality
 ```
 
