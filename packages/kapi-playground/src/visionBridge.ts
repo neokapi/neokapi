@@ -159,13 +159,61 @@ export function ensureOCR(base = MODEL_BASE): Promise<{
   return ocrModels;
 }
 
+// A model file may be served whole, or split into sub-100 MB parts (so the
+// ~132 MB layout model fits under GitHub Pages' git-push per-file limit). When a
+// "<name>.json" parts manifest exists, fetch and concatenate the parts; otherwise
+// fetch the single file. The browser reassembles the bytes before handing them to
+// onnxruntime-web — identical to loading the whole file, just CORS/Pages-safe.
+interface PartsManifest {
+  parts: string[];
+  bytes: number;
+}
+async function fetchModel(
+  base: string,
+  name: string,
+  onProgress?: (frac: number) => void,
+): Promise<ArrayBuffer> {
+  let manifest: PartsManifest | null = null;
+  try {
+    const r = await fetch(`${base}/${name}.json`);
+    if (r.ok) manifest = (await r.json()) as PartsManifest;
+  } catch {
+    manifest = null; // no manifest → whole file
+  }
+  if (!manifest?.parts?.length) {
+    return fetchBuf(`${base}/${name}`, onProgress);
+  }
+  const out = new Uint8Array(manifest.bytes);
+  let off = 0;
+  for (const part of manifest.parts) {
+    const resp = await fetch(`${base}/${part}`);
+    if (!resp.ok) throw new Error(`vision: fetch ${part}: ${resp.status}`);
+    if (resp.body && onProgress) {
+      const reader = resp.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        out.set(value, off);
+        off += value.length;
+        onProgress(off / manifest.bytes);
+      }
+    } else {
+      const buf = new Uint8Array(await resp.arrayBuffer());
+      out.set(buf, off);
+      off += buf.length;
+      onProgress?.(off / manifest.bytes);
+    }
+  }
+  return out.buffer;
+}
+
 /** ensureLayout loads (once) the large PP-DocLayoutV3 model — opt-in. */
 export function ensureLayout(
   onProgress?: (frac: number) => void,
   base = MODEL_BASE,
 ): Promise<ort.InferenceSession> {
   if (!layoutModel) {
-    layoutModel = fetchBuf(`${base}/ppdoclayoutv3.onnx`, onProgress).then((buf) =>
+    layoutModel = fetchModel(base, "ppdoclayoutv3.onnx", onProgress).then((buf) =>
       ort.InferenceSession.create(buf, SESSION_OPTS),
     );
   }
