@@ -85,7 +85,15 @@ AXIS_GRADES = {
     "knowledge": ["K0", "K1", "K2", "K3"],
     "corpus": ["C0", "C1", "C2", "C3"],
     "security": ["S0", "S1", "S2", "S3", "S4"],
+    "structure": ["G0", "G1", "G2", "G3", "G4"],
 }
+
+# Consume-only boundaries: a reader but no native writer. Generalizes the old
+# hardcoded 'pdf' so docling — and any future consume-only / OCR ingestion
+# boundary — also gets the read-only `na` writer/writecells patch
+# (SHARPEN-PROPOSAL §4 applicability). `image` is NOT here: it ships a writer
+# (bytes + alt-text sidecar) and is the binary-asset boundary, not consume-only.
+READ_ONLY_FORMATS = {"pdf", "docling"}
 VOCAB_STATUSES = {"lossless", "lossy", "dropped", "rejected"}
 CANONICAL_TYPE_RE = re.compile(r'"(fmt|link|media|code):')
 
@@ -226,7 +234,7 @@ def floor_ceiling(coarse: str) -> tuple[str, str]:
 
 
 def _ftype(fmt: str, counterpart: str) -> str:
-    if fmt == "pdf":
+    if fmt in READ_ONLY_FORMATS:
         return "read-only"
     if fmt == "splicedlines":
         return "internal"
@@ -923,6 +931,141 @@ def _security_axis(d: str, fmt: str, ledger) -> dict:
     return {"base": base, "ceiling": ceiling, "signals": sig}
 
 
+# ── structure & geometry axis (G0–G4) ──
+# A pure floor ladder, no quality dimensions (rubric §2.7) — the comprehension-
+# depth ladder the vision/structure stack populates. Signals are deterministic
+# file greps over the non-test .go in the format package, mirroring the
+# Vocabulary `vocabtypes` / Security `safeio` greps:
+#   G1 metaplane     — SetLayoutLayer(...LayerMetadata), an import of
+#                      core/docmeta, or AddRelation(...RelCaptionOf): metadata-
+#                      plane / alt-text/caption text recovered.
+#   G2 readingorder  — emits model.PartGroupStart and/or sets
+#                      StructureAnnotation.ReadingOrder (SetStructure): body text
+#                      recovered grouped / in reading order.
+#   G3 roles         — SetSemanticRole / SetStructure AND a table Group
+#                      (Type:"table"/"table-row" / RoleTableCell|Header) and/or
+#                      AddRelation, PLUS a roles/structure test.
+#   G4 geometry      — SetGeometry PLUS a geometry test.
+# The ladder is CUMULATIVE: a deeper payload entails the shallower body-text/plane
+# rungs, so the cells are DOWN-FILLED (roles ⇒ metaplane+readingorder; geometry ⇒
+# metaplane+readingorder but NOT roles — geometry-without-roles is "positioned
+# text we don't understand", capped at G2: odf/idml). `base` is then the
+# cumulative gate over the filled cells.
+#
+# na geometry (non-spatial catalogs with no intrinsic geometry) is a CEILING cap,
+# NOT a gate-pass (rubric §5 decision 6): the gate-visible geometry cell stays
+# 'none' (so the gate caps at G3 anyway) and the per-format `ceiling` records that
+# G4 is unreachable. structure.yaml, if present, declares the AD-028 authority
+# tier (native|tagged|geometric|ml) and may countersign the na geometry cell.
+
+_STRUCT_ROLE_TEST_RE = re.compile(
+    r"func\s+Test\w*(Role|Structure|Heading|Table|ReadingOrder)")
+_STRUCT_GEOM_TEST_RE = re.compile(r"func\s+Test\w*(Geometr|BBox|Glyph)")
+_STRUCT_TABLE_RE = re.compile(r'Type:\s*"table(-row)?"')
+
+
+def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
+    metaplane = readingorder = roles_setter = table_or_rel = geometry_setter = False
+    roles_test = geometry_test = False
+    if os.path.isdir(d):
+        for name in sorted(os.listdir(d)):
+            if not name.endswith(".go"):
+                continue
+            src = _read_text(os.path.join(d, name))
+            if name.endswith("_test.go"):
+                if _STRUCT_ROLE_TEST_RE.search(src):
+                    roles_test = True
+                if _STRUCT_GEOM_TEST_RE.search(src):
+                    geometry_test = True
+                continue
+            if (re.search(r"SetLayoutLayer\([^)]*LayerMetadata", src)
+                    or "core/docmeta" in src
+                    or re.search(r"AddRelation\([^,]*RelCaptionOf", src)):
+                metaplane = True
+            if ("PartGroupStart" in src or "GroupStart{" in src
+                    or re.search(r"\.ReadingOrder\b", src)
+                    or "SetStructure(" in src):
+                readingorder = True
+            if "SetSemanticRole(" in src or "SetStructure(" in src:
+                roles_setter = True
+            if (_STRUCT_TABLE_RE.search(src) or "RoleTableCell" in src
+                    or "RoleTableHeader" in src or "AddRelation(" in src):
+                table_or_rel = True
+            if "SetGeometry(" in src:
+                geometry_setter = True
+
+    # rung completeness per the floor-signals table
+    meta_c = metaplane
+    order_c = readingorder
+    roles_c = roles_setter and table_or_rel and roles_test
+    geom_c = geometry_setter and geometry_test
+
+    # CUMULATIVE down-fill: a deeper standoff payload implies the shallower
+    # body-text/plane rungs. Geometry fills body-text/plane (positioned text) but
+    # NOT roles — that asymmetry is what caps geometry-without-roles at G2.
+    if roles_c:
+        meta_c = order_c = True
+    if geom_c:
+        meta_c = order_c = True
+    if order_c:
+        meta_c = True
+
+    cells = {
+        "metaplane": "complete" if meta_c else "none",
+        "readingorder": "complete" if order_c else "none",
+        "roles": "complete" if roles_c else "none",
+        "geometry": "complete" if geom_c else "none",
+    }
+    full = lambda c: c == "complete"
+    if not full(cells["metaplane"]):
+        base = "G0"
+    elif not full(cells["readingorder"]):
+        base = "G1"
+    elif not full(cells["roles"]):
+        base = "G2"
+    elif not full(cells["geometry"]):
+        base = "G3"
+    else:
+        base = "G4"
+
+    # structure.yaml: authority tier + countersigned na geometry cell.
+    authority = None
+    geometry_na = False
+    sdoc = _load_yaml(os.path.join(d, "structure.yaml"))
+    if isinstance(sdoc, dict):
+        authority = sdoc.get("authority") or sdoc.get("tier")
+        geo = sdoc.get("geometry")
+        if isinstance(geo, dict):
+            if str(geo.get("status", "")).lower() == "na" and geo.get("reviewed_by"):
+                geometry_na = True
+        elif str(geo).lower() == "na":
+            geometry_na = True
+
+    # ceiling: floor-only ⇒ base. na-as-ceiling — a non-spatial format (no
+    # geometry capability, or a countersigned na) cannot climb to G4, so the
+    # ceiling caps below G4. Mirrors the per-axis ceiling mechanism, NOT the
+    # gate's full('na')==pass: base is already ≤ G3 when geometry is absent.
+    ceiling = base
+    spatial = geom_c or geometry_setter
+    if geometry_na or not spatial:
+        if AXIS_GRADES["structure"].index(ceiling) > AXIS_GRADES["structure"].index("G3"):
+            ceiling = "G3"
+
+    sig = {
+        "metaplane": metaplane,
+        "readingorder": readingorder,
+        "roles_setter": roles_setter,
+        "table_or_rel": table_or_rel,
+        "roles_test": roles_test,
+        "geometry_setter": geometry_setter,
+        "geometry_test": geometry_test,
+        "authority": authority,
+        "geometry_na": geometry_na,
+        "cells": cells,
+    }
+    return {"base": base, "ceiling": ceiling, "signals": sig}
+
+
 def _axes_block(d: str, fmt: str, has: dict, kinds: list[str], ftype: str,
                 base: str, ceiling: str, ledger) -> dict:
     return {
@@ -932,6 +1075,7 @@ def _axes_block(d: str, fmt: str, has: dict, kinds: list[str], ftype: str,
         "knowledge": _knowledge_axis(d, fmt, has, kinds, ftype, ledger),
         "corpus": _corpus_axis(d, fmt, kinds, ledger),
         "security": _security_axis(d, fmt, ledger),
+        "structure": _structure_axis(d, fmt, ftype),
     }
 
 
@@ -1006,6 +1150,34 @@ def _axis_hints(fmt: str, axes: dict) -> list[str]:
             miss.append("no sustained sweep/batch-fuzz signal (S4)")
         if miss:
             hints.append("security  : " + "; ".join(miss))
+    st = axes["structure"]["signals"]
+    if axes["structure"]["base"] != axes["structure"]["ceiling"] or axes["structure"]["base"] != "G4":
+        miss = []
+        if st["cells"]["metaplane"] != "complete":
+            miss.append("no metadata-plane / docmeta / caption block (G1)")
+        elif st["cells"]["readingorder"] != "complete":
+            miss.append("no group emission / reading-order (G2)")
+        elif st["cells"]["roles"] != "complete":
+            need = []
+            if not st["roles_setter"]:
+                need.append("SetSemanticRole/SetStructure")
+            if not st["table_or_rel"]:
+                need.append("table Group / AddRelation")
+            if not st["roles_test"]:
+                need.append("a roles/structure test")
+            miss.append("no logical structure (G3): " + ", ".join(need or ["roles"]))
+        elif st["cells"]["geometry"] != "complete":
+            if st["geometry_na"] or axes["structure"]["ceiling"] != "G4":
+                miss.append("geometry N/A (non-spatial) — capped below G4")
+            else:
+                need = []
+                if not st["geometry_setter"]:
+                    need.append("SetGeometry")
+                if not st["geometry_test"]:
+                    need.append("a geometry test")
+                miss.append("no spatial geometry (G4): " + ", ".join(need or ["geometry"]))
+        if miss:
+            hints.append("structure : " + "; ".join(miss))
     return hints
 
 
@@ -1015,7 +1187,8 @@ def _axes_summary(axes: dict) -> str:
         return f"{a['base']}..{a['ceiling']}"
     return (f"engine {band('engine')} | vocab {band('vocabulary')} | "
             f"editor {band('editor')} | knowledge {band('knowledge')} | "
-            f"corpus {band('corpus')} | security {band('security')}")
+            f"corpus {band('corpus')} | security {band('security')} | "
+            f"structure {band('structure')}")
 
 
 def audit_one(fmt: str, ledger=None) -> dict:
@@ -1055,13 +1228,19 @@ def audit_one(fmt: str, ledger=None) -> dict:
 
 
 def all_formats() -> list[str]:
+    """The reporting universe: a dir that ships a reader.go (an in-core format)
+    OR a structure.yaml (the dashboard allowlist seat for a PLUGIN-PROVIDED,
+    out-of-core format such as pdf — no in-core reader.go, read by the
+    kapi-pdfium plugin / a PDFium-wasm bridge). Mirrors realFormatDirs in
+    core/formats/maturity_test.go and scripts/format-ops/lib.mjs so the audit,
+    the Go maturity gates, and the JS format-ops gates agree on the universe."""
     base = os.path.join(REPO, "core", "formats")
     out = []
     for name in sorted(os.listdir(base)):
         d = os.path.join(base, name)
         if not os.path.isdir(d) or name in NOT_A_FORMAT:
             continue
-        if not has_file(d, "reader.go"):
+        if not (has_file(d, "reader.go") or has_file(d, "structure.yaml")):
             continue
         out.append(name)
     return out
@@ -1109,7 +1288,7 @@ def main() -> int:
                 ax = x["axes"]
                 compact = " ".join(ax[a]["base"] for a in
                                    ("vocabulary", "editor", "knowledge",
-                                    "corpus", "security"))
+                                    "corpus", "security", "structure"))
                 print(f"{x['format']}: {x['coarse_level']}  [{compact}]")
         return 0
 

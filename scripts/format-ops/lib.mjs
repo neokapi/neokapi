@@ -82,21 +82,30 @@ export const HARVEST_FORMATS = [
  */
 export const PARITY_TEST_ALIASES = { phpcontent: "php", xml: "xmlstream" };
 
-/** The 49 real format dirs under core/formats (sorted), excluding exec/jsx/memorytest. */
-// A real (in-core) format dir is a directory under core/formats that ships a
-// reader.go. This mirrors the canonical Go definition in
-// core/formats/maturity_test.go (realFormatDirs) so the JS format-ops gates and
-// the Go maturity gates agree on the universe. Dirs without a reader.go are not
-// in-core formats: either non-formats (exec/jsx/memorytest) or formats provided
-// out-of-core, e.g. pdf — read by the kapi-pdfium plugin on native and by a
-// js-only PDFium-wasm reader in the browser, so core/formats/pdf carries only
-// config.go + wasm_bridge.go and is correctly excluded here.
+/** The real format dirs under core/formats (sorted), excluding exec/jsx/memorytest. */
+// A format dir counts toward the reporting universe when it either ships a
+// reader.go (an in-core format) OR ships a structure.yaml (the dashboard
+// allowlist seat for a PLUGIN-PROVIDED, out-of-core format). This mirrors the
+// canonical Go definition in core/formats/maturity_test.go (realFormatDirs) so
+// the JS format-ops gates and the Go maturity gates agree on the universe.
+//
+// The structure.yaml seat exists for the Structure/Geometry (G) axis flagship,
+// pdf: it has no in-core reader.go (the native reader is the kapi-pdfium plugin;
+// the browser path is a PDFium-wasm bridge), so without this allowlist it would
+// vanish from /format-maturity even though it is the axis's best example. Its
+// structure.yaml declares the AD-028 authority tier + plugin ceiling that a grep
+// of the package cannot prove (SHARPEN §5 decision 5). Non-format dirs
+// (exec/jsx/memorytest) never ship a structure.yaml, so they stay excluded.
 export function realFormatDirs(root) {
   const dir = path.join(root, "core", "formats");
   return fs
     .readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && !EXCLUDED_FORMAT_DIRS.includes(e.name))
-    .filter((e) => fs.existsSync(path.join(dir, e.name, "reader.go")))
+    .filter(
+      (e) =>
+        fs.existsSync(path.join(dir, e.name, "reader.go")) ||
+        fs.existsSync(path.join(dir, e.name, "structure.yaml")),
+    )
     .map((e) => e.name)
     .sort();
 }

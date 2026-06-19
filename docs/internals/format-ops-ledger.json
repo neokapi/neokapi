@@ -3,11 +3,11 @@
   "rituals": {
     "triage-score": {
       "cadence_days": 14,
-      "last_run": "2026-06-13",
+      "last_run": "2026-06-19",
       "watermarks": {
-        "core_formats_sha": "c9d5447228a8655af1944ba8deb9fc1afd8a4af2",
-        "scorer_version": 3,
-        "audit_sha": "009694860e74b9d89a9b3c2bd708e6d36e54bbe5bf7c0d7d337a9bc7a480c4a6",
+        "core_formats_sha": "1b1896834cd5184c9820beb925ad305b491b86a0",
+        "scorer_version": 4,
+        "audit_sha": "7a1eb2ad7b7693f39d6e0a7ab79ff44befd7dac8741c24babeca11bd4a89b320",
         "model_id": "",
         "prompt_sha": "",
         "axes_published": [
@@ -16,7 +16,8 @@
           "editor",
           "knowledge",
           "corpus",
-          "security"
+          "security",
+          "structure"
         ]
       }
     },
@@ -140,6 +141,24 @@
           "check": "audit-format.py --all --json",
           "exit": 0,
           "output_sha": "009694860e74b9d89a9b3c2bd708e6d36e54bbe5bf7c0d7d337a9bc7a480c4a6"
+        }
+      ],
+      "followups": [
+        "vocabulary.yaml backfill (#issue)",
+        "corpus C2 fetch wiring"
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "ritual": "triage-score",
+      "commit": "pending",
+      "model_id": "deterministic",
+      "outcome": "bootstrap floor publish: engine L0:3 L1:12 L2:30 L3:7 L4:0; 52 formats; first multi-axis snapshot",
+      "evidence": [
+        {
+          "check": "audit-format.py --all --json",
+          "exit": 0,
+          "output_sha": "7a1eb2ad7b7693f39d6e0a7ab79ff44befd7dac8741c24babeca11bd4a89b320"
         }
       ],
       "followups": [

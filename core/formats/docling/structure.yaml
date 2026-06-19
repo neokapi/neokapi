@@ -1,0 +1,46 @@
+# core/formats/docling/structure.yaml — Structure & Geometry (G) axis declaration.
+#
+# Structure/Geometry maturity axis (docs/internals/format-maturity.md §2.7): the
+# comprehension-depth ladder G0..G4 over the core/model/structure.go stand-off
+# payloads (SemanticRole, LayoutLayer, RelationAnnotation, GeometryAnnotation).
+#
+# The audit (audit-format.py `_structure_axis`) GREPS the package's non-test .go
+# for the deterministic floor; THIS file adds the two facts a grep cannot prove:
+#   - authority: the AD-028 provenance tier (native|tagged|geometric|ml) — how
+#     trustworthy the recovered structure is. Orthogonal to depth (the G rung):
+#     the same payloads can arrive native, tagged, geometrically inferred, or
+#     ML-guessed; this records which, never collapsing it into the rung.
+#   - geometry: a countersigned `na` cell ({status: na, reviewed_by, date}) for
+#     non-spatial formats — a ceiling cap below G4 — OR the out-of-core (plugin)
+#     ceiling for capability-conditional formats whose deepest rung lives behind
+#     a plugin rather than in the grepped package. (docling needs neither: it is
+#     a native, in-core G4.)
+version: 1
+
+# DoclingDocument JSON is emitted by Docling itself, so its roles, layout layer,
+# and provenance bboxes are authoritative, not inferred — the AD-028 tier-1-class
+# "native/given" provenance (SHARPEN §2 "Authority qualifier", §3 docling row).
+authority: native
+
+in_core: G4   # grep-verified floor (reader.go below)
+ceiling: G4   # native; no plugin path needed
+realized_by: native reader (core/formats/docling/reader.go)
+geometry: emitted
+
+# Every claimed rung is grounded in core/formats/docling/reader.go:
+evidence:
+  # G2 reading order — body.children walked in order; Groups bracket lists/tables/pictures.
+  - "PartGroupStart (emitGroup/emitTable/emitPicture)"
+  # G3 logical structure — DocItemLabel -> normalized SemanticRole; furniture layer;
+  # OTSL/grid tables become table / table-row Groups of table-cell|table-header Blocks.
+  - "SetSemanticRole (labelRole); SetLayoutLayer(LayerFurniture); Type:\"table\"/\"table-row\" + RoleTableCell/RoleTableHeader (emitTable)"
+  # G4 geometry — provenance bbox -> GeometryAnnotation (page, bbox, origin, sourceRef).
+  - "SetGeometry (geometryFromProv)"
+  # roles/geometry assertions:
+  - "docling.TestRead* roles/table/geometry tests (reader_test.go)"
+
+notes: >-
+  read-only consume-Docling boundary; inline formatting is intentionally V0
+  (TextItem.text is plain), which does not bear on the G axis. Roles, tables,
+  reading order, and page geometry are all recovered in-core, so docling is a
+  native G4 — the structure/role conformance reference the other readers target.

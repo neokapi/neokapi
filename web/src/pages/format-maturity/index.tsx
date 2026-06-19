@@ -19,6 +19,10 @@ import {
   AXIS_GRADES,
   AXIS_DIMS,
   GRADE_NAME,
+  FAMILY_ORDER,
+  FAMILY_LABEL,
+  FAMILY_TAGLINE,
+  FAMILY_AXES,
   TIER_ORDER,
   TIER_LABEL,
   TIER_STALE_DAYS,
@@ -63,6 +67,11 @@ const gradeClass: Record<Grade, string> = {
   S2: styles.lvlS2,
   S3: styles.lvlS3,
   S4: styles.lvlS4,
+  G0: styles.lvlG0,
+  G1: styles.lvlG1,
+  G2: styles.lvlG2,
+  G3: styles.lvlG3,
+  G4: styles.lvlG4,
 };
 
 const tierClass: Record<SupportTier, string> = {
@@ -237,39 +246,56 @@ function DistBar() {
   );
 }
 
-/** Per-axis mini distribution bars from `summary.by_axis` (v3 datasets only;
- * the engine distribution already has the headline bar above). */
+/** Per-axis mini distribution bars from `summary.by_axis` (v3+ datasets only;
+ * the engine distribution already has the headline bar above), grouped under
+ * the three axis families. Each family renders only the axes the dataset
+ * actually carries, so a v3 (6-axis) dataset still groups cleanly. */
 function AxisBars() {
   const byAxis = data.summary.by_axis ?? {};
-  const axes = AXIS_IDS.filter((a) => a !== "engine" && byAxis[a]);
-  if (axes.length === 0) return null;
+  // Engine is excluded (its distribution is the headline bar).
+  const families = FAMILY_ORDER.map((fam) => ({
+    fam,
+    axes: FAMILY_AXES[fam].filter((a) => a !== "engine" && byAxis[a]),
+  })).filter((x) => x.axes.length > 0);
+  if (families.length === 0) return null;
   return (
     <div className={styles.axisBars}>
-      {axes.map((a) => {
-        const dist = byAxis[a] ?? {};
-        return (
-          <div key={a} className={styles.axisBarRow}>
-            <span className={styles.axisBarLabel}>{axisLabel(a)}</span>
-            <div className={styles.miniBar} role="img" aria-label={`${axisLabel(a)} distribution`}>
-              {AXIS_GRADES[a].map((g) => {
-                const n = dist[g] ?? 0;
-                if (!n) return null;
-                const pct = (n / data.summary.total) * 100;
-                return (
-                  <div
-                    key={g}
-                    className={`${styles.miniSeg} ${gradeClass[g]}`}
-                    style={{ width: `${pct}%` }}
-                    title={`${g} ${GRADE_NAME[g]}: ${n}`}
-                  >
-                    {pct > 8 ? `${g} · ${n}` : ""}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      {families.map(({ fam, axes }) => (
+        <div key={fam} className={styles.axisBarFamily}>
+          <span className={styles.familyHeader} title={FAMILY_TAGLINE[fam]}>
+            {FAMILY_LABEL[fam]}
+          </span>
+          {axes.map((a) => {
+            const dist = byAxis[a] ?? {};
+            return (
+              <div key={a} className={styles.axisBarRow}>
+                <span className={styles.axisBarLabel}>{axisLabel(a)}</span>
+                <div
+                  className={styles.miniBar}
+                  role="img"
+                  aria-label={`${axisLabel(a)} distribution`}
+                >
+                  {AXIS_GRADES[a].map((g) => {
+                    const n = dist[g] ?? 0;
+                    if (!n) return null;
+                    const pct = (n / data.summary.total) * 100;
+                    return (
+                      <div
+                        key={g}
+                        className={`${styles.miniSeg} ${gradeClass[g]}`}
+                        style={{ width: `${pct}%` }}
+                        title={`${g} ${GRADE_NAME[g]}: ${n}`}
+                      >
+                        {pct > 8 ? `${g} · ${n}` : ""}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -357,6 +383,39 @@ export default function FormatMaturity() {
   );
   const hasTiers = useMemo(() => data.formats.some((f) => f.tier), []);
 
+  // Axes the dataset actually carries (engine is always present; the rest only
+  // on v3+ rows / summaries). A v3 (6-axis) dataset omits `structure`, so it
+  // never surfaces in the selector, families, or legend.
+  const presentAxes = useMemo<AxisId[]>(
+    () =>
+      AXIS_IDS.filter(
+        (a) =>
+          a === "engine" ||
+          Boolean(data.axes?.[a]) ||
+          Boolean(data.summary.by_axis?.[a]) ||
+          data.formats.some((f) => f.levels?.[a]),
+      ),
+    [],
+  );
+
+  // Family-grouped grade-range legend, derived from the present axes so it
+  // never drifts from `AXIS_GRADES` and carries no hardcoded counts.
+  const axisLegend = useMemo(
+    () =>
+      FAMILY_ORDER.map((fam) => {
+        const axes = FAMILY_AXES[fam].filter((a) => presentAxes.includes(a));
+        if (axes.length === 0) return null;
+        const parts = axes.map((a) => {
+          const g = AXIS_GRADES[a];
+          return `${axisLabel(a)} ${g[0]}–${g[g.length - 1]}`;
+        });
+        return `${FAMILY_LABEL[fam]} (${parts.join(", ")})`;
+      })
+        .filter(Boolean)
+        .join("; "),
+    [presentAxes],
+  );
+
   const types = useMemo(() => Array.from(new Set(data.formats.map((f) => f.type))).sort(), []);
 
   const dimCols = useMemo(() => dimsForAxis(axis), [axis]);
@@ -388,7 +447,7 @@ export default function FormatMaturity() {
   return (
     <Layout
       title="Format Maturity"
-      description="Maturity of every neokapi format against the format maturity rubric — engine, vocabulary, editor, knowledge, and corpus axes plus the declared support tier."
+      description="Maturity of every neokapi format against the format maturity rubric — comprehension, assurance, and enablement axis families plus the declared support tier."
     >
       <main className={styles.page}>
         <div className={styles.header}>
@@ -402,13 +461,7 @@ export default function FormatMaturity() {
             <span className={`${styles.levelBadge} ${gradeClass[data.target_level]}`}>
               {data.target_level}
             </span>
-            {hasAxes && (
-              <>
-                {" "}
-                Axis grades: Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus
-                C0–C3, Security S0–S4.
-              </>
-            )}
+            {hasAxes && <> Axis grades by family — {axisLegend}.</>}
           </p>
           <p className={styles.meta}>
             {data.summary.total} formats · generated {data.generated_at} · source: {data.source}
@@ -423,18 +476,29 @@ export default function FormatMaturity() {
         {hasAxes && (
           <div className={styles.axisSelect}>
             <span className={styles.axisSelectLabel}>Axis</span>
-            {AXIS_IDS.map((a) => (
-              <button
-                key={a}
-                className={`${styles.chip} ${axis === a ? styles.chipActive : ""}`}
-                onClick={() => {
-                  setAxis(a);
-                  setGrade(null);
-                }}
-              >
-                {axisLabel(a)}
-              </button>
-            ))}
+            {FAMILY_ORDER.map((fam) => {
+              const axes = FAMILY_AXES[fam].filter((a) => presentAxes.includes(a));
+              if (axes.length === 0) return null;
+              return (
+                <div key={fam} className={styles.axisFamily}>
+                  <span className={styles.familyLabel} title={FAMILY_TAGLINE[fam]}>
+                    {FAMILY_LABEL[fam]}
+                  </span>
+                  {axes.map((a) => (
+                    <button
+                      key={a}
+                      className={`${styles.chip} ${axis === a ? styles.chipActive : ""}`}
+                      onClick={() => {
+                        setAxis(a);
+                        setGrade(null);
+                      }}
+                    >
+                      {axisLabel(a)}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -537,16 +601,26 @@ function RowGroup({
           )}
           {f.levels && (
             <div className={styles.axisProfile}>
-              {AXIS_IDS.map((a) => {
-                const ag = gradeOf(f, a);
-                if (!ag) return null;
+              {FAMILY_ORDER.map((fam) => {
+                const badges = FAMILY_AXES[fam]
+                  .map((a) => ({ a, ag: gradeOf(f, a) }))
+                  .filter((x): x is { a: AxisId; ag: Grade } => Boolean(x.ag));
+                if (badges.length === 0) return null;
                 return (
                   <span
-                    key={a}
-                    className={`${styles.miniBadge} ${gradeClass[ag]}`}
-                    title={`${axisLabel(a)}: ${ag} ${GRADE_NAME[ag]}`}
+                    key={fam}
+                    className={styles.axisProfileGroup}
+                    title={`${FAMILY_LABEL[fam]} — ${FAMILY_TAGLINE[fam]}`}
                   >
-                    {ag}
+                    {badges.map(({ a, ag }) => (
+                      <span
+                        key={a}
+                        className={`${styles.miniBadge} ${gradeClass[ag]}`}
+                        title={`${axisLabel(a)}: ${ag} ${GRADE_NAME[ag]}`}
+                      >
+                        {ag}
+                      </span>
+                    ))}
                   </span>
                 );
               })}

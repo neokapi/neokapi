@@ -1,0 +1,48 @@
+# core/formats/image/structure.yaml — Structure & Geometry (G) axis declaration.
+#
+# Structure/Geometry maturity axis (docs/internals/format-maturity.md §2.7): the
+# comprehension-depth ladder G0..G4 over the core/model/structure.go stand-off
+# payloads. The audit greps the package for the deterministic floor; this file
+# adds the AD-028 authority tier and the out-of-core (plugin) ceiling.
+# See core/formats/docling/structure.yaml for the full schema header.
+#
+# image is CAPABILITY-CONDITIONAL: depth depends on the kapi-vision plugin and
+# the ocr/layout toggles. The grep floor proves only what runs WITHOUT a plugin;
+# the deeper rungs live behind kapi-vision (and the nightly vision-onnx job), so
+# they MUST be declared here, not grepped (SHARPEN §3 image row).
+version: 1
+
+# Recovered structure is INFERRED, never authoritative: geometric inference over
+# OCR line geometry (tier 2) or an ML layout model (tier 3). Capability-
+# conditional, so both tiers are declared (SHARPEN §2 "Authority qualifier").
+authority: [geometric, ml]
+
+in_core: G1   # grep-verified floor WITHOUT the plugin (reader.go below)
+ceiling: G4   # plugin-gated — only reachable with kapi-vision installed
+realized_by: >-
+  in-core G1 (metadata plane + alt-text caption); G2/G3/G4 require the
+  kapi-vision plugin at runtime — plugin-gated, not in-core.
+geometry: plugin-gated
+
+# In-core floor (always available; no plugin), grounded in reader.go:
+in_core_evidence:
+  # G1 metadata plane — PNG/XMP text chunks -> metadata-plane Blocks (core/docmeta);
+  # "<image>.alt.txt" sidecar -> RoleCaption Block linked RelCaptionOf to the image.
+  - "core/docmeta (docmeta.Apply); SetSemanticRole(RoleCaption) + AddRelation(RelCaptionOf)"
+
+# Plugin-gated ceiling (kapi-vision; ocr=true, optionally layout=true):
+plugin:
+  id: kapi-vision
+  gated_by: [ocr, layout]   # Config toggles (config.go); also vision.Available()
+  rungs:
+    G2: "OCR plain text in reading order (vision.BlocksFromOCR)"
+    G3: "tier-2 geometric structure (structure.Analyze/ToParts) or tier-3 ML layout regions + reading order (vision.PartsFromLayout)"
+    G4: "per-line/region bbox geometry (and glyph geometry at the top sub-rung)"
+  certified_by: nightly vision-onnx job   # certify the ceiling out-of-core, not by grep
+
+notes: >-
+  binary-asset boundary (IsBinaryAssetFormat): the writer emits image bytes plus
+  a per-locale alt-text sidecar (whole-asset replacement, not a structural
+  round-trip — Engine's read-only writer-cell path, NOT the G axis, covers that).
+  Without kapi-vision the image is still a valid G1 document (Media + metadata +
+  caption); OCR/structure/geometry are opt-in enrichment.

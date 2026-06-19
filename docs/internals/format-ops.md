@@ -177,7 +177,7 @@ decorative — they are part of the implementation, not an aspiration).
   "ledger_version": 1,
   "rituals": {
     "triage-score":   { "cadence_days": 14, "last_run": null,
-                        "watermarks": { "core_formats_sha": "", "scorer_version": 3,
+                        "watermarks": { "core_formats_sha": "", "scorer_version": 4,
                                         "audit_sha": "", "model_id": "", "prompt_sha": "",
                                         "axes_published": [] } },
     "remediate":      { "cadence_days": 30, "last_run": null, "max_fixes_per_run": 3,
@@ -342,6 +342,7 @@ flags the drift.
 | Per-format vocabulary matrix | `core/formats/<id>/vocabulary.yaml` | implement-format + remediate |
 | Per-format dossier | `core/formats/<id>/dossier.yaml` | implement-format + upstream-watch |
 | Per-format corpus manifest | `core/formats/<id>/corpus.yaml` | corpus tooling + corpus-census |
+| Per-format structure & geometry | `core/formats/<id>/structure.yaml` | implement-format + tier-review (`na` geometry countersign) |
 | Integrations index | `core/formats/integrations.yaml` | maintainer + editor work (change-controlled) |
 | Spec knowledge base | `specs/` (catalog.yaml, snapshots/, sections/) | upstream-watch + case-gen |
 | Corpus store | release `format-corpus-vN`, per-format assets; fetched to `corpus/` (gitignored) | `scripts/publish-corpus.sh` / `scripts/fetch-corpus.sh` |

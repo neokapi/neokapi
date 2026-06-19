@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-06-13",
+  "generated_at": "2026-06-19",
   "target_level": "L4",
   "source": "format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)",
-  "scorer_version": 3,
+  "scorer_version": 4,
   "run_integrity": {
     "samples": 1,
     "anchored": true,
@@ -33,6 +33,10 @@
         "security": {
           "published": 0,
           "suppressed": 0
+        },
+        "structure": {
+          "published": 0,
+          "suppressed": 0
         }
       }
     },
@@ -40,53 +44,60 @@
     "golden_passed": true
   },
   "summary": {
-    "total": 49,
+    "total": 52,
     "by_level": {
-      "L0": 2,
-      "L1": 9,
-      "L2": 31,
+      "L0": 3,
+      "L1": 12,
+      "L2": 30,
       "L3": 7,
       "L4": 0
     },
     "by_axis": {
       "engine": {
-        "L0": 2,
-        "L1": 9,
-        "L2": 31,
+        "L0": 3,
+        "L1": 12,
+        "L2": 30,
         "L3": 7,
         "L4": 0
       },
       "vocabulary": {
-        "V0": 45,
+        "V0": 48,
         "V1": 4,
         "V2": 0,
         "V3": 0
       },
       "editor": {
-        "E0": 46,
+        "E0": 49,
         "E1": 3,
         "E2": 0,
         "E3": 0,
         "E4": 0
       },
       "knowledge": {
-        "K0": 0,
-        "K1": 37,
+        "K0": 4,
+        "K1": 36,
         "K2": 12,
         "K3": 0
       },
       "corpus": {
-        "C0": 20,
-        "C1": 29,
+        "C0": 24,
+        "C1": 28,
         "C2": 0,
         "C3": 0
       },
       "security": {
-        "S0": 34,
+        "S0": 37,
         "S1": 13,
         "S2": 2,
         "S3": 0,
         "S4": 0
+      },
+      "structure": {
+        "G0": 39,
+        "G1": 1,
+        "G2": 7,
+        "G3": 3,
+        "G4": 2
       }
     }
   },
@@ -129,6 +140,13 @@
       "S2",
       "S3",
       "S4"
+    ],
+    "structure": [
+      "G0",
+      "G1",
+      "G2",
+      "G3",
+      "G4"
     ]
   },
   "axis_labels": {
@@ -137,7 +155,8 @@
     "editor": "Editor",
     "knowledge": "Knowledge",
     "corpus": "Corpus",
-    "security": "Security"
+    "security": "Security",
+    "structure": "Structure & Geometry"
   },
   "dimensions": [
     "reader",
@@ -169,7 +188,11 @@
     "safeio",
     "fuzz",
     "sweepclean",
-    "sustained"
+    "sustained",
+    "metaplane",
+    "readingorder",
+    "roles",
+    "geometry"
   ],
   "dimension_labels": {
     "reader": "Reader",
@@ -201,7 +224,11 @@
     "safeio": "Bounded (core/safeio)",
     "fuzz": "Fuzz target + seed",
     "sweepclean": "Clean sweep",
-    "sustained": "Sustained"
+    "sustained": "Sustained",
+    "metaplane": "Metadata plane",
+    "readingorder": "Reading order",
+    "roles": "Semantic roles",
+    "geometry": "Geometry / bbox"
   },
   "dimension_axes": {
     "reader": [
@@ -294,6 +321,18 @@
     ],
     "sustained": [
       "security"
+    ],
+    "metaplane": [
+      "structure"
+    ],
+    "readingorder": [
+      "structure"
+    ],
+    "roles": [
+      "structure"
+    ],
+    "geometry": [
+      "structure"
     ]
   },
   "formats": [
@@ -308,7 +347,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -316,7 +356,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -349,7 +390,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -436,12 +481,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -461,7 +520,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -469,7 +529,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -502,7 +563,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -589,12 +654,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -614,7 +693,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L4",
@@ -622,7 +702,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -655,7 +736,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -740,12 +825,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -763,7 +862,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G3"
       },
       "next": {
         "engine": "L4",
@@ -771,7 +871,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G4"
       },
       "okapi_counterpart": "okf_table (via alias 'table')",
       "dimensions": {
@@ -804,7 +905,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -889,12 +994,24 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G3",
+          "next": "G4",
+          "floor": "G3",
+          "ceiling": "G3",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -912,7 +1029,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -920,7 +1038,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -953,7 +1072,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1040,16 +1163,374 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
         "add malformed_test.go"
+      ],
+      "top_risk": "",
+      "confidence": "floor"
+    },
+    {
+      "id": "doclang",
+      "type": "harvest",
+      "level": "L1",
+      "next_level": "L2",
+      "levels": {
+        "engine": "L1",
+        "vocabulary": "V0",
+        "editor": "E0",
+        "knowledge": "K0",
+        "corpus": "C0",
+        "security": "S0",
+        "structure": "G4"
+      },
+      "next": {
+        "engine": "L2",
+        "vocabulary": "V1",
+        "editor": "E1",
+        "knowledge": "K1",
+        "corpus": "C1",
+        "security": "S1",
+        "structure": "—"
+      },
+      "okapi_counterpart": "",
+      "dimensions": {
+        "reader": "complete",
+        "writer": "complete",
+        "config": "complete",
+        "spec": "na",
+        "parity": "na",
+        "malformed": "none",
+        "corpus": "complete",
+        "detection": "complete",
+        "docs": "complete",
+        "vocabmap": "none",
+        "vocabtypes": "complete",
+        "writecells": "none",
+        "equivalence": "none",
+        "preview": "none",
+        "identity": "none",
+        "embedded": "none",
+        "events": "none",
+        "dossier": "none",
+        "sidecar": "none",
+        "refs": "complete",
+        "citations": "none",
+        "contextpack": "none",
+        "corpusmanifest": "none",
+        "fetchwiring": "partial",
+        "acceptance": "none",
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
+        "geometry": "complete"
+      },
+      "evidence": {},
+      "floor": "L1",
+      "ceiling": "L1",
+      "derived_from": "dimensions",
+      "delta": null,
+      "agreement": 1,
+      "samples": 1,
+      "axes": {
+        "engine": {
+          "level": "L1",
+          "next": "L2",
+          "floor": "L1",
+          "ceiling": "L1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add malformed_test.go"
+          ]
+        },
+        "vocabulary": {
+          "level": "V0",
+          "next": "V1",
+          "floor": "V0",
+          "ceiling": "V0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add vocabulary.yaml with evidenced read cells",
+            "evidence write cells (author-from-canonical)",
+            "add the vocab equivalence case"
+          ]
+        },
+        "editor": {
+          "level": "E0",
+          "next": "E1",
+          "floor": "E0",
+          "ceiling": "E0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "implement format.PreviewBuilder",
+            "add an identity-binding round-trip test",
+            "ship a committed add-in/connector manifest"
+          ]
+        },
+        "knowledge": {
+          "level": "K0",
+          "next": "K1",
+          "floor": "K0",
+          "ceiling": "K0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add dossier.yaml with a catalog-registered spec source",
+            "wire the nativedocs sidecar"
+          ]
+        },
+        "corpus": {
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add corpus.yaml covering testdata",
+            "wire Tier B (corpus: scheme / make fetch-corpus)",
+            "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
+        },
+        "structure": {
+          "level": "G4",
+          "next": "—",
+          "floor": "G4",
+          "ceiling": "G4",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": []
+        }
+      },
+      "tier": {
+        "declared": "available",
+        "since": "2026-06-14",
+        "last_certified": null,
+        "gates": []
+      },
+      "blocking_gaps": [
+        "add malformed_test.go"
+      ],
+      "top_risk": "",
+      "confidence": "floor"
+    },
+    {
+      "id": "docling",
+      "type": "read-only",
+      "level": "L1",
+      "next_level": "L2",
+      "levels": {
+        "engine": "L1",
+        "vocabulary": "V0",
+        "editor": "E0",
+        "knowledge": "K0",
+        "corpus": "C0",
+        "security": "S0",
+        "structure": "G4"
+      },
+      "next": {
+        "engine": "L2",
+        "vocabulary": "V1",
+        "editor": "E1",
+        "knowledge": "K1",
+        "corpus": "C1",
+        "security": "S1",
+        "structure": "—"
+      },
+      "okapi_counterpart": "",
+      "dimensions": {
+        "reader": "complete",
+        "writer": "na",
+        "config": "complete",
+        "spec": "complete",
+        "parity": "none",
+        "malformed": "complete",
+        "corpus": "complete",
+        "detection": "complete",
+        "docs": "complete",
+        "vocabmap": "none",
+        "vocabtypes": "none",
+        "writecells": "na",
+        "equivalence": "none",
+        "preview": "none",
+        "identity": "none",
+        "embedded": "none",
+        "events": "none",
+        "dossier": "none",
+        "sidecar": "none",
+        "refs": "complete",
+        "citations": "none",
+        "contextpack": "none",
+        "corpusmanifest": "none",
+        "fetchwiring": "partial",
+        "acceptance": "none",
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
+        "geometry": "complete"
+      },
+      "evidence": {},
+      "floor": "L1",
+      "ceiling": "L1",
+      "derived_from": "dimensions",
+      "delta": null,
+      "agreement": 1,
+      "samples": 1,
+      "axes": {
+        "engine": {
+          "level": "L1",
+          "next": "L2",
+          "floor": "L1",
+          "ceiling": "L1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add cli/parity spec_test"
+          ]
+        },
+        "vocabulary": {
+          "level": "V0",
+          "next": "V1",
+          "floor": "V0",
+          "ceiling": "V0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add vocabulary.yaml with evidenced read cells",
+            "emit canonical run types in the reader",
+            "add the vocab equivalence case"
+          ]
+        },
+        "editor": {
+          "level": "E0",
+          "next": "E1",
+          "floor": "E0",
+          "ceiling": "E0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "implement format.PreviewBuilder",
+            "add an identity-binding round-trip test",
+            "ship a committed add-in/connector manifest"
+          ]
+        },
+        "knowledge": {
+          "level": "K0",
+          "next": "K1",
+          "floor": "K0",
+          "ceiling": "K0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add dossier.yaml with a catalog-registered spec source",
+            "wire the nativedocs sidecar"
+          ]
+        },
+        "corpus": {
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add corpus.yaml covering testdata",
+            "wire Tier B (corpus: scheme / make fetch-corpus)",
+            "wire an external acceptance validator"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
+        },
+        "structure": {
+          "level": "G4",
+          "next": "—",
+          "floor": "G4",
+          "ceiling": "G4",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": []
+        }
+      },
+      "tier": {
+        "declared": "available",
+        "since": "2026-06-14",
+        "last_certified": null,
+        "gates": []
+      },
+      "blocking_gaps": [
+        "add cli/parity spec_test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -1065,7 +1546,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -1073,7 +1555,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_doxygen",
       "dimensions": {
@@ -1106,7 +1589,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1195,12 +1682,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1220,7 +1721,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -1228,7 +1730,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_dtd",
       "dimensions": {
@@ -1261,7 +1764,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1350,12 +1857,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1375,7 +1896,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L1",
@@ -1383,7 +1905,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_epub",
       "dimensions": {
@@ -1416,7 +1939,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -1504,12 +2031,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1529,7 +2070,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -1537,7 +2079,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_table (via alias 'table')",
       "dimensions": {
@@ -1570,7 +2113,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1659,12 +2206,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1684,7 +2245,8 @@
         "editor": "E1",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G3"
       },
       "next": {
         "engine": "L2",
@@ -1692,7 +2254,8 @@
         "editor": "E2",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S3"
+        "security": "S3",
+        "structure": "G4"
       },
       "okapi_counterpart": "okf_html",
       "dimensions": {
@@ -1725,7 +2288,11 @@
         "safeio": "complete",
         "fuzz": "complete",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1809,12 +2376,24 @@
           "blocking_gaps": [
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G3",
+          "next": "G4",
+          "floor": "G3",
+          "ceiling": "G3",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1835,7 +2414,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -1843,7 +2423,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1876,7 +2457,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1963,12 +2548,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -1988,7 +2587,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L4",
@@ -1996,7 +2596,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_icml",
       "dimensions": {
@@ -2029,7 +2630,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -2115,12 +2720,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -2138,7 +2757,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G2"
       },
       "next": {
         "engine": "L4",
@@ -2146,7 +2766,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_idml",
       "dimensions": {
@@ -2179,7 +2800,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "complete"
       },
       "evidence": {},
       "floor": "L3",
@@ -2265,15 +2890,206 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
+      "top_risk": "",
+      "confidence": "floor"
+    },
+    {
+      "id": "image",
+      "type": "harvest",
+      "level": "L1",
+      "next_level": "L2",
+      "levels": {
+        "engine": "L1",
+        "vocabulary": "V0",
+        "editor": "E0",
+        "knowledge": "K0",
+        "corpus": "C0",
+        "security": "S0",
+        "structure": "G1"
+      },
+      "next": {
+        "engine": "L2",
+        "vocabulary": "V1",
+        "editor": "E1",
+        "knowledge": "K1",
+        "corpus": "C1",
+        "security": "S1",
+        "structure": "G2"
+      },
+      "okapi_counterpart": "",
+      "dimensions": {
+        "reader": "complete",
+        "writer": "complete",
+        "config": "complete",
+        "spec": "na",
+        "parity": "na",
+        "malformed": "none",
+        "corpus": "none",
+        "detection": "complete",
+        "docs": "complete",
+        "vocabmap": "none",
+        "vocabtypes": "none",
+        "writecells": "none",
+        "equivalence": "none",
+        "preview": "none",
+        "identity": "none",
+        "embedded": "none",
+        "events": "none",
+        "dossier": "none",
+        "sidecar": "none",
+        "refs": "none",
+        "citations": "none",
+        "contextpack": "none",
+        "corpusmanifest": "none",
+        "fetchwiring": "partial",
+        "acceptance": "none",
+        "sweep": "none",
+        "safeio": "none",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
+      },
+      "evidence": {},
+      "floor": "L1",
+      "ceiling": "L1",
+      "derived_from": "dimensions",
+      "delta": null,
+      "agreement": 1,
+      "samples": 1,
+      "axes": {
+        "engine": {
+          "level": "L1",
+          "next": "L2",
+          "floor": "L1",
+          "ceiling": "L1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add malformed_test.go",
+            "add a corpus/upstream test"
+          ]
+        },
+        "vocabulary": {
+          "level": "V0",
+          "next": "V1",
+          "floor": "V0",
+          "ceiling": "V0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add vocabulary.yaml with evidenced read cells",
+            "emit canonical run types in the reader",
+            "evidence write cells (author-from-canonical)"
+          ]
+        },
+        "editor": {
+          "level": "E0",
+          "next": "E1",
+          "floor": "E0",
+          "ceiling": "E0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "implement format.PreviewBuilder",
+            "add an identity-binding round-trip test",
+            "ship a committed add-in/connector manifest"
+          ]
+        },
+        "knowledge": {
+          "level": "K0",
+          "next": "K1",
+          "floor": "K0",
+          "ceiling": "K0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add dossier.yaml with a catalog-registered spec source",
+            "wire the nativedocs sidecar",
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
+        },
+        "corpus": {
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add corpus.yaml covering testdata",
+            "wire Tier B (corpus: scheme / make fetch-corpus)",
+            "replace synthetic corpus with real files"
+          ]
+        },
+        "security": {
+          "level": "S0",
+          "next": "S1",
+          "floor": "S0",
+          "ceiling": "S0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "wire core/safeio budgets into the reader (S1)",
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
+        },
+        "structure": {
+          "level": "G1",
+          "next": "G2",
+          "floor": "G1",
+          "ceiling": "G1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)",
+            "set SetGeometry + a geometry test (G4)"
+          ]
+        }
+      },
+      "tier": {
+        "declared": "available",
+        "since": "2026-06-18",
+        "last_certified": null,
+        "gates": []
+      },
+      "blocking_gaps": [
+        "add malformed_test.go",
+        "add a corpus/upstream test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -2288,7 +3104,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -2296,7 +3113,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S3"
+        "security": "S3",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_json",
       "dimensions": {
@@ -2329,7 +3147,11 @@
         "safeio": "complete",
         "fuzz": "complete",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2414,12 +3236,26 @@
           "blocking_gaps": [
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -2439,7 +3275,8 @@
         "editor": "E1",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G3"
       },
       "next": {
         "engine": "L3",
@@ -2447,7 +3284,8 @@
         "editor": "E2",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G4"
       },
       "okapi_counterpart": "okf_markdown",
       "dimensions": {
@@ -2480,7 +3318,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2564,12 +3406,24 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G3",
+          "next": "G4",
+          "floor": "G3",
+          "ceiling": "G3",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -2589,7 +3443,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -2597,7 +3452,8 @@
         "editor": "E2",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2630,7 +3486,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2715,12 +3575,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -2740,7 +3614,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -2748,7 +3623,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_messageformat",
       "dimensions": {
@@ -2781,7 +3657,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2870,12 +3750,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -2895,7 +3789,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L4",
@@ -2903,7 +3798,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_mif",
       "dimensions": {
@@ -2936,7 +3832,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -3023,12 +3923,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3046,7 +3960,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L1",
@@ -3054,7 +3969,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3087,7 +4003,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -3175,12 +4095,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -3201,7 +4135,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -3209,7 +4144,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_mosestext",
       "dimensions": {
@@ -3242,7 +4178,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3329,12 +4269,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -3354,7 +4308,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G2"
       },
       "next": {
         "engine": "L2",
@@ -3362,7 +4317,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G3"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3395,7 +4351,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "complete"
       },
       "evidence": {},
       "floor": "L1",
@@ -3479,12 +4439,24 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3502,7 +4474,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G2"
       },
       "next": {
         "engine": "L3",
@@ -3510,7 +4483,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_openxml",
       "dimensions": {
@@ -3543,7 +4517,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "complete"
       },
       "evidence": {},
       "floor": "L2",
@@ -3629,12 +4607,24 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -3654,7 +4644,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -3662,7 +4653,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_plaintext (via alias 'plaintext')",
       "dimensions": {
@@ -3695,7 +4687,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3781,12 +4777,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -3798,33 +4808,35 @@
     {
       "id": "pdf",
       "type": "read-only",
-      "level": "L2",
-      "next_level": "L3",
+      "level": "L0",
+      "next_level": "L1",
       "levels": {
-        "engine": "L2",
+        "engine": "L0",
         "vocabulary": "V0",
         "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0"
+        "knowledge": "K0",
+        "corpus": "C0",
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
-        "engine": "L3",
+        "engine": "L1",
         "vocabulary": "V1",
         "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1"
+        "knowledge": "K1",
+        "corpus": "C1",
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_pdf",
       "dimensions": {
-        "reader": "complete",
+        "reader": "none",
         "writer": "na",
         "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
+        "spec": "none",
+        "parity": "none",
+        "malformed": "none",
+        "corpus": "none",
         "detection": "complete",
         "docs": "complete",
         "vocabmap": "none",
@@ -3835,38 +4847,44 @@
         "identity": "none",
         "embedded": "none",
         "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
+        "dossier": "none",
+        "sidecar": "none",
+        "refs": "none",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "none",
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
+      "floor": "L0",
+      "ceiling": "L0",
       "derived_from": "dimensions",
       "delta": null,
       "agreement": 1,
       "samples": 1,
       "axes": {
         "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
+          "level": "L0",
+          "next": "L1",
+          "floor": "L0",
+          "ceiling": "L0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add a corpus/upstream test"
+            "add malformed_test.go",
+            "add spec.yaml + spec_test.go",
+            "add cli/parity spec_test"
           ]
         },
         "vocabulary": {
@@ -3898,27 +4916,31 @@
           ]
         },
         "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "K0",
+          "next": "K1",
+          "floor": "K0",
+          "ceiling": "K0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add dossier.yaml with a catalog-registered spec source",
+            "wire the nativedocs sidecar",
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
+        },
+        "corpus": {
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "replace synthetic corpus with real files"
           ]
         },
         "security": {
@@ -3934,16 +4956,32 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "since": "2026-06-19",
+        "last_certified": null,
         "gates": []
       },
       "blocking_gaps": [
-        "add a corpus/upstream test"
+        "add malformed_test.go",
+        "add spec.yaml + spec_test.go",
+        "add cli/parity spec_test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -3959,7 +4997,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -3967,7 +5006,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_php (via alias 'php')",
       "dimensions": {
@@ -4000,7 +5040,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4090,12 +5134,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -4116,7 +5174,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -4124,7 +5183,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_plaintext",
       "dimensions": {
@@ -4157,7 +5217,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4245,12 +5309,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -4270,7 +5348,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G2"
       },
       "next": {
         "engine": "L3",
@@ -4278,7 +5357,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_po",
       "dimensions": {
@@ -4311,7 +5391,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4399,12 +5483,25 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)",
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -4424,7 +5521,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -4432,7 +5530,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_properties",
       "dimensions": {
@@ -4465,7 +5564,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4553,12 +5656,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -4578,7 +5695,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -4586,7 +5704,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_regex",
       "dimensions": {
@@ -4619,7 +5738,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4706,12 +5829,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -4731,7 +5868,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L4",
@@ -4739,7 +5877,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -4772,7 +5911,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4857,12 +6000,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -4880,7 +6037,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -4888,7 +6046,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_rtf",
       "dimensions": {
@@ -4921,7 +6080,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5010,12 +6173,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5035,7 +6212,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -5043,7 +6221,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5076,7 +6255,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -5165,12 +6348,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5190,7 +6387,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -5198,7 +6396,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -5231,7 +6430,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5321,12 +6524,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5347,7 +6564,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -5355,7 +6573,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_tex",
       "dimensions": {
@@ -5388,7 +6607,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5477,12 +6700,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5502,7 +6739,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -5510,7 +6748,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_tmx",
       "dimensions": {
@@ -5543,7 +6782,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5632,12 +6875,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5657,7 +6914,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -5665,7 +6923,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_transtable",
       "dimensions": {
@@ -5698,7 +6957,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5785,12 +7048,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5810,7 +7087,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G2"
       },
       "next": {
         "engine": "L3",
@@ -5818,7 +7096,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_ts",
       "dimensions": {
@@ -5851,7 +7130,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5940,12 +7223,25 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)",
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -5965,7 +7261,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -5973,7 +7270,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -6006,7 +7304,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6095,12 +7397,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6120,7 +7436,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -6128,7 +7445,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_ttx",
       "dimensions": {
@@ -6161,7 +7479,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6250,12 +7572,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6275,7 +7611,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -6283,7 +7620,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_txml",
       "dimensions": {
@@ -6316,7 +7654,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6403,12 +7745,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6428,7 +7784,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L2",
@@ -6436,7 +7793,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -6469,7 +7827,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -6556,12 +7918,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6581,7 +7957,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -6589,7 +7966,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_vignette",
       "dimensions": {
@@ -6622,7 +8000,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6711,12 +8093,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6736,7 +8132,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -6744,7 +8141,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -6777,7 +8175,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6866,12 +8268,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -6891,7 +8307,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -6899,7 +8316,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C2",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_wiki",
       "dimensions": {
@@ -6932,7 +8350,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7019,12 +8441,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -7044,7 +8480,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G0"
       },
       "next": {
         "engine": "L4",
@@ -7052,7 +8489,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -7085,7 +8523,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7170,12 +8612,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [],
@@ -7193,7 +8649,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G2"
       },
       "next": {
         "engine": "L3",
@@ -7201,7 +8658,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_xliff",
       "dimensions": {
@@ -7234,7 +8692,11 @@
         "safeio": "none",
         "fuzz": "complete",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7320,12 +8782,25 @@
             "wire core/safeio budgets into the reader (S1)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)",
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -7345,7 +8820,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0"
+        "security": "S0",
+        "structure": "G2"
       },
       "next": {
         "engine": "L3",
@@ -7353,7 +8829,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G3"
       },
       "okapi_counterpart": "okf_xliff2",
       "dimensions": {
@@ -7386,7 +8863,11 @@
         "safeio": "none",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7475,12 +8956,25 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G2",
+          "next": "G3",
+          "floor": "G2",
+          "ceiling": "G2",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "set SetSemanticRole + tables/relations + a roles test (G3)",
+            "set SetGeometry + a geometry test (G4)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -7500,7 +8994,8 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -7508,7 +9003,8 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_xmlstream (via alias 'xmlstream')",
       "dimensions": {
@@ -7541,7 +9037,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7628,12 +9128,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [
@@ -7654,7 +9168,8 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1"
+        "security": "S1",
+        "structure": "G0"
       },
       "next": {
         "engine": "L3",
@@ -7662,7 +9177,8 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S2"
+        "security": "S2",
+        "structure": "G1"
       },
       "okapi_counterpart": "okf_yaml",
       "dimensions": {
@@ -7695,7 +9211,11 @@
         "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
-        "sustained": "none"
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -7783,12 +9303,26 @@
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-06-13",
+        "last_certified": "2026-06-19",
         "gates": []
       },
       "blocking_gaps": [

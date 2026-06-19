@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Deterministic, no-LLM publish of the format-maturity dashboard dataset.
 //
-// Contract: docs/internals/format-maturity.md §3 (the scorer-v3 dataset/history
-// contract) and docs/internals/format-ops.md (the triage-score ritual's Publish
+// Contract: docs/internals/format-maturity.md §3 (the scorer dataset/history
+// contract; scorer_version 4) and docs/internals/format-ops.md (the triage-score ritual's Publish
 // step). This is the floor-only path: it computes every axis level from the
 // deterministic file floor with NO quality-dimension demotions and NO sticky
 // prior — exactly what the format-triage workflow publishes when its Score
@@ -147,6 +147,7 @@ function gapsFor(floor, axis, dims) {
     knowledge: [['dossier', 'add dossier.yaml with a catalog-registered spec source'], ['sidecar', 'wire the nativedocs sidecar'], ['refs', 'populate spec_refs/native_refs + divergence_kind']],
     corpus: [['corpusmanifest', 'add corpus.yaml covering testdata'], ['fetchwiring', 'wire Tier B (corpus: scheme / make fetch-corpus)'], ['corpus', 'replace synthetic corpus with real files'], ['acceptance', 'wire an external acceptance validator']],
     security: [['safeio', 'wire core/safeio budgets into the reader (S1)'], ['fuzz', 'add a Fuzz* target + testdata/fuzz seed (S2)'], ['sweepclean', 'record a clean corpus-sweep in the ledger (S3)']],
+    structure: [['metaplane', 'classify metadata-plane / caption text (G1)'], ['readingorder', 'emit grouped body text in reading order (G2)'], ['roles', 'set SetSemanticRole + tables/relations + a roles test (G3)'], ['geometry', 'set SetGeometry + a geometry test (G4)']],
   }[axis] || []
   const gaps = []
   for (const [dim, msg] of want) {
@@ -260,7 +261,7 @@ if (existsSync(P.ledger)) {
     ts.watermarks = ts.watermarks || {}
     ts.watermarks.core_formats_sha = coreSha
     ts.watermarks.audit_sha = auditSha
-    ts.watermarks.scorer_version = 3
+    ts.watermarks.scorer_version = 4
     ts.watermarks.axes_published = S.AXIS_IDS.slice()
   }
   ledger.runs = ledger.runs || []

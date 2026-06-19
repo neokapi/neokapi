@@ -1,0 +1,38 @@
+# core/formats/doclang/structure.yaml — Structure & Geometry (G) axis declaration.
+#
+# Structure/Geometry maturity axis (docs/internals/format-maturity.md §2.7): the
+# comprehension-depth ladder G0..G4 over the core/model/structure.go stand-off
+# payloads (SemanticRole, LayoutLayer, RelationAnnotation, GeometryAnnotation).
+# The audit greps the package for the deterministic floor; this file adds the
+# AD-028 authority tier and (where applicable) a countersigned `na` geometry cell
+# or a plugin ceiling. See core/formats/docling/structure.yaml for the schema.
+version: 1
+
+# DocLang is the standardized XML serialization of Docling's structured output:
+# the role / layer / geometry / reading-structure are spelled out in the source
+# XML, so they are native/given provenance, not inferred (SHARPEN §3 doclang row).
+authority: native
+
+in_core: G4   # grep-verified floor (reader.go below)
+ceiling: G4   # native; faithful DocLang<->DocLang round-trip via writer.go
+realized_by: native reader + writer (core/formats/doclang/)
+geometry: emitted
+
+# Every claimed rung is grounded in core/formats/doclang/reader.go:
+evidence:
+  # G2 reading order — containerElem (list/group/field_region/picture) -> Groups.
+  - "PartGroupStart (container + table/index handling)"
+  # G3 logical structure — block-level elements -> normalized SemanticRole; the
+  # <layer> element-head property -> LayoutLayer; OTSL table/index -> table /
+  # table-row Groups with cell roles.
+  - "SetSemanticRole (blockRole); SetLayoutLayer (layer head element); Type:\"table\"/\"table-row\" + RoleTableCell/RoleTableHeader"
+  # G4 geometry — the 4-value <location> block -> GeometryAnnotation (512-grid).
+  - "SetGeometry (<location> -> normalized bbox)"
+  - "doclang.TestRead* roles/structure/geometry tests"
+
+notes: >-
+  highest-ready structured format: native G4 PLUS inline formatting runs
+  (bold/italic/underline/...) and a faithful writer (DocLang<->DocLang
+  round-trip; native->DocLang projection). The conformance oracle for the
+  role/layer/geometry vocabulary — every other reader speaks the same role names
+  by design (core/model/structure.go).

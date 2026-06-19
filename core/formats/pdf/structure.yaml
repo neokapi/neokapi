@@ -1,0 +1,52 @@
+# core/formats/pdf/structure.yaml — Structure & Geometry (G) axis declaration.
+#
+# Structure/Geometry maturity axis (docs/internals/format-maturity.md §2.7): the
+# comprehension-depth ladder G0..G4 over the core/model/structure.go stand-off
+# payloads. The audit greps the package for the deterministic floor; this file
+# adds the AD-028 authority tier and the out-of-core (plugin) ceiling.
+# See core/formats/docling/structure.yaml for the full schema header.
+#
+# pdf is the G axis's FLAGSHIP and the only Tier-1 (tagged) holder. It has no
+# in-core reader.go — the native reader is the kapi-pdfium plugin, and the
+# browser path is a PDFium-wasm bridge (wasm_bridge.go). So pdf's real depth
+# lives OUT OF CORE and MUST be declared here, not grepped (SHARPEN §3 pdf row;
+# §5 decision 5 — the dashboard allowlist seat). This structure.yaml is what
+# earns pdf a dashboard seat (realFormatDirs allowlists plugin-provided formats
+# that ship a structure.yaml).
+version: 1
+
+# A tagged PDF carries an authoritative logical structure tree (StructTreeRoot:
+# roles, reading order, table grids) — AD-028 tier 1, the only native source of
+# trustworthy structure among the spatial formats. Untagged PDFs degrade to
+# tier-2 geometric inference, then tier-3 ML layout — recorded in priority order.
+authority: tagged           # primary (T1); degrades to geometric (T2) then ml (T3)
+authority_fallback: [geometric, ml]
+
+in_core: G0   # grep-verified floor; the real reader is out-of-core (see plugin)
+ceiling: G4   # plugin-gated — tagged tree (G3) + page/glyph geometry (G4)
+realized_by: >-
+  native: kapi-pdfium plugin (tagged structure tree + geometry). browser:
+  PDFium-wasm bridge (core/formats/pdf/wasm_bridge.go) emits per-block geometry.
+geometry: emitted   # wasm bridge SetGeometry; authoritative via the tagged tree (plugin)
+
+# In-core (browser/wasm) evidence — what the committed package proves:
+in_core_evidence:
+  - "wasm_bridge.go: SetGeometry on text blocks (per-block bbox)"
+  - "grouping.go: line / reading-order grouping helper (TestGroupRuns_ReadingOrder)"
+
+# Out-of-core ceiling (the native reader + the geometry/tier-3 host decorator):
+plugin:
+  id: kapi-pdfium
+  rungs:
+    G1: "PDF Info dictionary (document metadata)"
+    G3: "tagged StructTreeRoot -> roles + reading order + table grids (tier 1); geometric/ML fallback (tier 2/3)"
+    G4: "page bbox geometry per block; per-glyph geometry at the top sub-rung (the \"glyphs\" option)"
+  certified_by: kapi-pdfium plugin path   # certify the ceiling out-of-core, not by grep
+
+notes: >-
+  read-only consume boundary (no native writer; nothing to round-trip — Engine
+  L is N/A on the writer cell). pdf is excluded from the in-core grep universe
+  (no reader.go) but stays on the /format-maturity dashboard via the
+  structure.yaml allowlist seat, since it is the axis's best example. Its
+  PUBLISHED G grade is the conservative in-core grep floor; the tagged-tree
+  ceiling is a plugin capability, asserted here rather than promoted by the grep.

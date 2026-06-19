@@ -18,15 +18,17 @@ things:
    may rely on. They change only by explicit, human-approved promotion or
    demotion events, and a tier claim must be backed by a CI gate — a tier not
    enforced by CI is marketing. (Rust's target-tier policy is the model.)
-2. **The score** — a six-**axis** maturity vector (§2), recomputed by every
+2. **The score** — a seven-**axis** maturity vector (§2), recomputed by every
    audit from deterministic file floors plus evidence-cited quality judgments.
    The vector is diagnostic: it ranks work and explains the tier; it does not
    itself promise anything.
 
 The headline tier is derived as the **minimum over the gating axes** — never a
 weighted average (a scalar aggregate is where measurement validity collapses).
-The sixth axis, **Security** (§2.6), is a non-gating display axis: it scores and
-ranks hardening work but does not enter the tier minimum (for now).
+Two of the seven axes — **Security** (§2.6) and **Structure & Geometry**
+(§2.7) — are non-gating display axes: they score and rank work (parser
+hardening; structure-recovery depth) but do not enter the tier minimum (for
+now).
 
 ## 1. Support tiers (the promise)
 
@@ -50,7 +52,7 @@ validators exist to prevent.
 **Validation (named mechanisms, not process prose):**
 
 - `scripts/format-ops/check-support-gates.mjs` — schema-validates
-  `support.yaml` (universe = exactly the 49 real formats, valid tier enums and
+  `support.yaml` (universe = exactly the real format dirs, valid tier enums and
   dates), asserts every Supported format's `gates` name workflows that exist
   and exercise that format (parity wiring or acceptance/invariants presence),
   and maps the latest parity/acceptance results to tiers so a Supported-format
@@ -87,14 +89,15 @@ Rules:
 - The vector may exceed the tier; it must never durably *under*-run it
   (suspended per-format while `grandfathered: true` during bootstrap).
 
-## 2. The six axes (the score)
+## 2. The seven axes (the score)
 
 Each axis has its own ladder, its own deterministic file floor, and (where
 defined) quality dimensions. A format sits at exactly one level per axis: the
 highest level whose criteria are fully met (a missing lower-tier requirement
 caps the level). Axes evolve independently — a format can be E3 (embedded in
 its native editor) at V1, or L3 at K1. Five axes (Engine, Vocabulary, Editor,
-Knowledge, Corpus) feed the tier; the sixth (Security) is display-only (§2.6).
+Knowledge, Corpus) feed the tier; two — Security (§2.6) and Structure &
+Geometry (§2.7) — are display-only.
 
 | Axis | Ladder | Measures | Primary artifacts |
 |---|---|---|---|
@@ -104,6 +107,31 @@ Knowledge, Corpus) feed the tier; the sixth (Security) is display-only (§2.6).
 | **Knowledge** | K0–K3 | The spec/learning assets that let a person or model work on the format | `dossier.yaml`, the spec knowledge base (`specs/`), `spec.yaml` refs, divergence attribution |
 | **Corpus** | C0–C3 | Reference files that validate support, with provenance | `corpus.yaml` manifests, `testdata/`, fetched corpus tiers, acceptance validators |
 | **Security** | S0–S4 | Resource-boundedness, fuzzing, and hostile-corpus hardening of the parser (non-gating display axis) | `core/safeio` imports, `Fuzz*` targets + `testdata/fuzz/` seeds, corpus-sweep ledger records |
+| **Structure & Geometry** | G0–G4 | How much of the document's logical and spatial structure the reader recovers — roles, reading order, tables, relations, geometry (non-gating display axis) | `core/model/structure.go` standoff payloads (`SetSemanticRole`/`SetStructure`/`SetGeometry`/`SetLayoutLayer`/`AddRelation`), optional `structure.yaml` |
+
+### Axis families (a reading aid)
+
+The seven axes group into three families, named by the question each answers —
+"how deeply we read it / how we prove it / how we work with it":
+
+| Family | Mental model (one line) | Axes |
+|---|---|---|
+| **Comprehension** | *How deeply we read it* — fidelity at three resolutions: bytes, inline, structure. | Engine, Vocabulary, Structure & Geometry |
+| **Assurance** | *How we prove it* — does support hold over real and hostile files? | Corpus, Security |
+| **Enablement** | *How we work with it* — can a person, model, or native editor act on it? | Knowledge, Editor |
+
+The three **Comprehension** axes are the same fidelity question at increasing
+resolution: Engine = byte/round-trip/parity fidelity of the serialization;
+Vocabulary = inline / run-level meaning (`fmt:*`/`link:*`/`media:*`/`code:*`
+*within* a block); Structure & Geometry = block-level, cross-block, and spatial
+structure.
+
+Families are a **reading aid** for the dashboard and this rubric, not a gating
+unit. The headline tier is still the `min` over the gating axes (Engine ∧
+Corpus ∧ Knowledge), which now straddle all three families
+(Engine→Comprehension, Corpus→Assurance, Knowledge→Enablement). The
+`min`-over-a-named-set rule operates on the axis set, never on a family, so the
+dashboard keeps marking the three gating axes individually.
 
 Shared signals are deliberate: the `corpus` quality dimension feeds both the
 Engine gate (as in scorer v2) and the Corpus gate, so one cited judgment moves
@@ -397,15 +425,128 @@ axis (e.g. "Supported requires S2") is a future **tier-policy** decision made
 through the `tier-review` ritual, recorded here when taken — not an audit
 outcome.
 
-## 3. How scores are computed (scorer v3 — reproducible by design)
+### 2.7 Structure & Geometry (G0–G4) — logical & spatial structure recovery
+
+Measures how much of the document's logical and spatial structure the reader
+recovers and the model represents — block roles, reading order, table grids,
+cross-block relations, and page geometry. It is the comprehension-depth ladder
+the vision / OCR / structure stack populates, riding the standoff payloads in
+`core/model/structure.go` (additive — no proto/KLF schema change). It is the
+third **Comprehension** axis, at coarser resolution than Engine (serialization
+round-trip) and Vocabulary (inline run-level meaning): block-level, cross-block,
+and spatial structure.
+
+This is a **cumulative floor ladder with no quality dimensions** — every rung is
+a deterministic file grep, so the published level is fully pinned
+(`repro-check.mjs` asserts spread 0, exactly as for Editor and Security). Each
+rung adds one richer standoff payload, in value order; **geometry is the top
+rung** — the hardest to recover faithfully and, for localization, the least
+directly useful (it is read-only reconstruction metadata that native writers
+ignore, `structure.go:124-126`), while logical structure is what a translation
+flow acts on.
+
+| Level | Name | Entry criteria |
+|---|---|---|
+| **G0** | Opaque / flat | A `model.Media` part, or undifferentiated text blocks: no normalized `Role`, no Group nesting beyond the document Layer, no geometry — the destructive flatten. The default for key-value catalog formats and the OCR-off / fast-path binary case. |
+| **G1** | Metadata | Text *about* the asset or document classified onto the metadata plane (`SetLayoutLayer(LayerMetadata)`, `core/docmeta`) and/or alt-text / caption blocks (`RoleCaption` + `AddRelation(RelCaptionOf, …)`). No in-content body structure yet. |
+| **G2** | Linear body text | G1 **plus**: the body content recovered as text in correct reading order (stream order), optionally grouped by the `Layer`/`Group` tree — but roles still generic (`Block.Type` only), no normalized `StructureAnnotation.Role`. |
+| **G3** | Logical structure | G2 **plus**: every block carries a normalized `StructureAnnotation.Role` (heading + `Level`, paragraph, caption, footnote, list-item, code, formula) and `LayoutLayer`; reconstructed table grids (`Group{Type:"table"/"table-row"}` + `RoleTableCell`/`RoleTableHeader`); typed `RelationAnnotation` edges; explicit reading order. |
+| **G4** | Spatial geometry | G3 **plus**: a `GeometryAnnotation` (page + bbox + origin + resolution) on blocks, `Z` for overlay planes, and per-glyph `Glyphs` at the top sub-rung — enough to reconstruct the page or round-trip to DocLang `<location>`. |
+
+Floor signals (dimension ids in parentheses), computed by the audit over
+non-test `.go` in `core/formats/<id>/` exactly as Vocabulary's `vocabtypes` is
+grepped, then **down-filled** so a deeper payload implies the shallower rungs
+(`roles` ⇒ metaplane + readingorder; `geometry` ⇒ metaplane + readingorder but
+**not** roles):
+
+- (`metaplane`) a `SetLayoutLayer(…LayerMetadata)` call, an import of
+  `core/docmeta`, or `AddRelation(RelCaptionOf, …)`.
+- (`readingorder`) the package emits `model.PartGroupStart` and/or sets
+  `StructureAnnotation.ReadingOrder` (`SetStructure`).
+- (`roles`) `SetSemanticRole`/`SetStructure` **and** table Groups
+  (`Type:"table"/"table-row"`) and/or `AddRelation`, **plus** a roles/structure
+  test.
+- (`geometry`) `SetGeometry` **plus** a geometry test (the top sub-rung also
+  emits `GeometryAnnotation.Glyphs`).
+
+These are the same kind of deterministic file facts the audit already computes
+for Security (`core/safeio` import / `Fuzz*` target), so the published level is
+fully pinned and reproducible.
+
+**Orthogonal to Vocabulary and Engine.** Engine (L) measures byte/round-trip/
+parity fidelity of the *serialization* — a reader can be L4 byte-faithful while
+flattening to one block per page (G0). Vocabulary (V) measures *inline /
+run-level* meaning (`fmt:*`/`link:*`/`media:*`/`code:*` within a block) plus
+block-kind via `constructs.yaml` → the free-form `Block.Type` field; G measures
+*block-level + cross-block + spatial* structure via the **new**
+`StructureAnnotation.Role` standoff layer — a different field the new readers
+populate (`SetSemanticRole`) that `constructs.yaml` does not model. Proof of
+independence: `docling` is V0 (plain runs) but high-G (roles / tables / geometry
+/ order); `html` is V1 (typed inline) but low-G (no geometry). G is not an
+extension of V.
+
+**`na` is a ceiling cap, not a gate-pass.** Pure key-value catalogs (json,
+properties, resx, yaml, po, the harvest set) have no intrinsic geometry
+(`structure.go:124-126`); their `geometry` cell is `na` as a **ceiling cap** —
+the audit sets `structure.ceiling = G3` (or G2), so they cannot reach G4. Unlike
+every other axis, `na` on this *cumulative depth* ladder must mean "ceiling
+capped below this rung," **not** "this rung passes" — otherwise a roles-only
+catalog would falsely promote to G4. It is recorded in the audit's per-format
+`ceiling`, never as the gate's `full('na') == pass` shortcut.
+
+**Geometry without roles caps at G2.** Because the ladder is cumulative (G4
+requires G3), formats that emit `SetGeometry` but no `SetSemanticRole` — `odf`
+and `idml` — cap at **G2** despite carrying geometry: positioned text whose
+structure we do not understand is not comprehension. They climb when they emit
+roles.
+
+**What a grade does and does not certify** (calibrated against DocLang, the
+richest structural format — see `docs/internals/research/format-ops/sharpen/`):
+
+- **G3 certifies table *topology*, not span fidelity.** The `roles` signal
+  proves a reader recovers table grids (rows/cells/headers); it does **not**
+  prove merged cells (`colspan`/`rowspan`) survive. Span extents have a typed
+  home — `StructureAnnotation.ColSpan`/`RowSpan` (DocLang `lcel`/`ucel`/`xcel`) —
+  but reading them is a per-reader quality detail tracked separately, not gated
+  by G3.
+- **G3 relation recovery is OR-lenient.** The signal accepts table Groups *or*
+  `AddRelation`, so a roles+tables reader reaches G3 with no cross-block relation
+  graph. Cross-block continuation/threading (DocLang `<thread>`, the
+  `RelContinues` relation) is therefore a noted sub-capability, not a G3
+  guarantee.
+- **G2 reading-order is grep-lenient.** The `readingorder` signal accepts
+  emitting `PartGroupStart`, which most grouped formats do trivially — it proves
+  the reader *can* express order, not that the order is *correct*. True
+  reading-order fidelity is a corpus-level check (a Corpus/C-axis follow-up),
+  not the G2 grep.
+
+**Authority is an orthogonal qualifier, not a rung.** The AD-028 provenance
+tiers (1 tagged tree / 2 geometric inference / 3 ML layout) are
+confidence/provenance, not richness: the same G3/G4 payloads can arrive via
+authoritative tags or an ML guess — same depth, different trust
+(`GeometryAnnotation.SourceRef` already records provenance). Carry the authority
+as a per-format qualifier in the new `core/formats/<id>/structure.yaml` artifact
+(which also countersigns the `na` geometry cell) and render its badge later;
+never collapse richness (the rung) and authority (the tier) into one number.
+
+**Non-gating, for now.** Like Security, Structure & Geometry is a **display
+axis**: it does *not* enter the headline-tier minimum (§1) and does not cap a
+format's support tier. Most formats are G0/G1, so gating it immediately would
+mass-demote the fleet. Promoting it to a gating axis (candidate rule: "Supported
+requires G2 where structure is applicable, `na`-exempt for catalogs") is a
+future **tier-policy** decision made through the `tier-review` ritual, recorded
+here when taken — not an audit outcome.
+
+## 3. How scores are computed (scorer v4 — reproducible by design)
 
 The triage workflow does **not** let the model pick levels; each axis level is
 *computed* from two inputs so re-runs are reproducible:
 
 1. **A deterministic file floor per axis** — `audit-format.py --json` emits an
-   additive `axes:{engine|vocabulary|editor|knowledge|corpus:{base, ceiling,
-   signals}}` block alongside the legacy top-level fields (the stdin contract
-   of `repro-check.mjs` is preserved). The audit **parses the axis artifacts**
+   additive `axes:{engine|vocabulary|editor|knowledge|corpus|security|structure:
+   {base, ceiling, signals}}` block alongside the legacy top-level fields (the
+   stdin contract of `repro-check.mjs` is preserved). The audit **parses the
+   axis artifacts**
    (`vocabulary.yaml` cell census with evidence resolution, `dossier.yaml`
    field census, `corpus.yaml` tier census, `integrations.yaml` + probes) —
    floors are computed from the artifacts the rubric names, not proxies. The
@@ -423,6 +564,7 @@ The triage workflow does **not** let the model pick levels; each axis level is
    | Corpus | `corpus` | manifest origin census (shared with Engine) |
    | Editor | — | floor-only (probes) |
    | Security | — | floor-only (safeio import / fuzz target+seed / ledger sweep; spread 0) |
+   | Structure & Geometry | — | floor-only (metaplane / readingorder / roles / geometry greps, down-filled; spread 0) |
 
    `normDim` matches dimension ids **exactly** (no substring matching); the
    SCORE schema enum, the per-axis QUALITY sets, and `repro-check.mjs`'s
@@ -441,8 +583,10 @@ Published levels are **sticky-anchored per axis** with one asymmetry:
 - On the first publish of a new axis there is no prior — the computed level
   publishes directly (priors are never synthesized from another axis).
 
-`scorer_version: 3`; datasets without a `scorer_version` are v1 (priors seed
-engine-only).
+`scorer_version: 4` (the v3→v4 bump adds the `structure` axis — additive, the
+six prior axes' gates and floors unchanged); datasets without a `scorer_version`
+are v1 (priors seed engine-only). A v3 dataset (six axes) still renders —
+`structure` is simply absent until the next publish derives it.
 
 **Remediation-introduced tests count as `partial` until mutation-checked.**
 The floor promotes robustness dimensions on file presence — so for test files
@@ -487,7 +631,9 @@ calibration phase of `process-health` (see
   ops ledger (human-graded axis levels, versioned by `rubric_sha`), not
   against self-agreement.
 
-**Dataset & history contract (v3)** — backward compatibility, verbatim rules:
+**Dataset & history contract (v4)** — backward compatibility, verbatim rules
+(the v3 rules carry forward unchanged; the v4 axis-add is additive, so a v3
+dataset renders with `structure` absent):
 
 - Rows keep `level`/`next_level` mirroring the **engine** axis (the prior
   parser reads only `formats[].id` + `.level`; the un-migrated page indexes
@@ -510,8 +656,8 @@ The `refresh-format-maturity` skill automates this per format; the
 `format-triage` workflow does it fleet-wide. By hand:
 
 1. **Identify** `core/formats/<id>/` and whether it has an Okapi counterpart.
-   Exclude `exec`/`jsx`/`memorytest` (the reporting denominator is the 49 real
-   formats).
+   Exclude `exec`/`jsx`/`memorytest` (the reporting denominator is the real
+   format dirs).
 2. **Run the floor**: `python3 .skills/refresh-format-maturity/scripts/audit-format.py <id>` —
    note each axis's `base..ceiling` band and missing-artifact list.
 3. **Score Engine** as before: open the tests and judge whether assertions
@@ -569,75 +715,79 @@ Security S1 : reader package imports core/safeio (bounded)                      
 ```
 
 <!-- BEGIN: gap-analysis report (generated) -->
-## Maturity report (snapshot: 2026-06-13)
+## Maturity report (snapshot: 2026-06-19)
 
 Generated by the `bootstrap-publish` (deterministic floor; no quality
-demotions) over 49 real formats. Regenerated by every ritual that
+demotions) over 52 real formats. Regenerated by every ritual that
 republishes the dashboard — do not edit by hand. The dashboard
 (`/format-maturity`) carries the live, filterable view.
 
 ### Per-axis distribution
 
-- **Engine** — L0:2 · L1:9 · L2:31 · L3:7 · L4:0
-- **Vocabulary** — V0:45 · V1:4 · V2:0 · V3:0
-- **Editor** — E0:46 · E1:3 · E2:0 · E3:0 · E4:0
-- **Knowledge** — K0:0 · K1:37 · K2:12 · K3:0
-- **Corpus** — C0:20 · C1:29 · C2:0 · C3:0
-- **Security** — S0:34 · S1:13 · S2:2 · S3:0 · S4:0
+- **Engine** — L0:3 · L1:12 · L2:30 · L3:7 · L4:0
+- **Vocabulary** — V0:48 · V1:4 · V2:0 · V3:0
+- **Editor** — E0:49 · E1:3 · E2:0 · E3:0 · E4:0
+- **Knowledge** — K0:4 · K1:36 · K2:12 · K3:0
+- **Corpus** — C0:24 · C1:28 · C2:0 · C3:0
+- **Security** — S0:37 · S1:13 · S2:2 · S3:0 · S4:0
+- **Structure & Geometry** — G0:39 · G1:1 · G2:7 · G3:3 · G4:2
 
 ### Per-format vector
 
-| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Top engine gap |
-|---|---|---|---|---|---|---|---|---|
-| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
-| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
-| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
-| `csv` | maintained | L3 | V0 | E0 | K1 | C1 | S1 | — |
-| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
-| `doxygen` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `dtd` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `fixedwidth` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `html` | available | L1 | V1 | E1 | K1 | C0 | S2 | add malformed_test.go |
-| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
-| `icml` | maintained | L3 | V0 | E0 | K1 | C1 | S0 | — |
-| `idml` | available | L3 | V0 | E0 | K1 | C0 | S1 | — |
-| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | add a corpus/upstream test |
-| `markdown` | available | L2 | V1 | E1 | K1 | C1 | S1 | add a corpus/upstream test |
-| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | add malformed_test.go |
-| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `mif` | maintained | L3 | V0 | E0 | K1 | C0 | S0 | — |
-| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | add malformed_test.go |
-| `mosestext` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `odf` | available | L1 | V0 | E0 | K1 | C0 | S1 | — |
-| `openxml` | maintained | L2 | V1 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `paraplaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `pdf` | available | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `phpcontent` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add cli/parity spec_test |
-| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
-| `regex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
-| `rtf` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `splicedlines` | available | L1 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add cli/parity spec_test |
-| `tex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `transtable` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `ttml` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `ttx` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `txml` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `versifiedtext` | available | L1 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `vignette` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | add a corpus/upstream test |
-| `wiki` | maintained | L2 | V0 | E0 | K2 | C1 | S0 | add a corpus/upstream test |
-| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | — |
-| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | add a corpus/upstream test |
-| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | add cli/parity spec_test |
-| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | add a corpus/upstream test |
+| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Structure & Geometry | Top engine gap |
+|---|---|---|---|---|---|---|---|---|---|
+| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
+| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
+| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | G0 | — |
+| `csv` | maintained | L3 | V0 | E0 | K1 | C1 | S1 | G3 | — |
+| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
+| `doclang` | available | L1 | V0 | E0 | K0 | C0 | S0 | G4 | add malformed_test.go |
+| `docling` | available | L1 | V0 | E0 | K0 | C0 | S0 | G4 | add cli/parity spec_test |
+| `doxygen` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `dtd` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| `fixedwidth` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `html` | available | L1 | V1 | E1 | K1 | C0 | S2 | G3 | add malformed_test.go |
+| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
+| `icml` | maintained | L3 | V0 | E0 | K1 | C1 | S0 | G0 | — |
+| `idml` | available | L3 | V0 | E0 | K1 | C0 | S1 | G2 | — |
+| `image` | available | L1 | V0 | E0 | K0 | C0 | S0 | G1 | add malformed_test.go |
+| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | G0 | add a corpus/upstream test |
+| `markdown` | available | L2 | V1 | E1 | K1 | C1 | S1 | G3 | add a corpus/upstream test |
+| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | G0 | add malformed_test.go |
+| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `mif` | maintained | L3 | V0 | E0 | K1 | C0 | S0 | G0 | — |
+| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
+| `mosestext` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `odf` | available | L1 | V0 | E0 | K1 | C0 | S1 | G2 | — |
+| `openxml` | maintained | L2 | V1 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
+| `paraplaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| `pdf` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
+| `phpcontent` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add cli/parity spec_test |
+| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
+| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| `regex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | G0 | — |
+| `rtf` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `splicedlines` | available | L1 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add cli/parity spec_test |
+| `tex` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `transtable` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | G0 | add a corpus/upstream test |
+| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G2 | add a corpus/upstream test |
+| `ttml` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `ttx` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | G0 | add a corpus/upstream test |
+| `txml` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | G0 | add a corpus/upstream test |
+| `versifiedtext` | available | L1 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `vignette` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | G0 | add a corpus/upstream test |
+| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add a corpus/upstream test |
+| `wiki` | maintained | L2 | V0 | E0 | K2 | C1 | S0 | G0 | add a corpus/upstream test |
+| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S0 | G0 | — |
+| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S0 | G2 | add a corpus/upstream test |
+| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S0 | G2 | add a corpus/upstream test |
+| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | G0 | add cli/parity spec_test |
+| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions
@@ -664,8 +814,10 @@ ritual, not by the mechanical snapshot regeneration).
    block-event oracle, accept-mode guard rails, AI generation loop).
    Implementation tracked as a GitHub issue; the `case-gen` ritual is blocked
    on it.
-5. **Reporting denominator** — resolved: 49 real formats
-   (`exec`/`jsx`/`memorytest` excluded everywhere, including the dashboard).
+5. **Reporting denominator** — resolved: the real format dirs
+   (`exec`/`jsx`/`memorytest` excluded everywhere, including the dashboard); the
+   count is code-controlled — the dashboard and the generated snapshot derive it
+   from the universe, never a hardcoded number.
 6. **Step parity** — still open: steps are tools, not formats; out of scope
    for the format axes. Revisit if step regressions recur.
 7. **Security axis** — *resolved: scored as of 2026-06-13.* The S0–S4 axis
@@ -679,3 +831,17 @@ ritual, not by the mechanical snapshot regeneration).
    candidate real signal: presence in `register_test.go`'s detection lists.
    Change requires a gate change ritual (calibration + same-commit mirror
    updates).
+9. **Structure & Geometry axis** — *resolved: scored as of 2026-06-19.* The
+   G0–G4 axis (§2.7) is wired across the scorer (`format-triage.js`), the audit
+   (`audit-format.py` `axes.structure`), the mirror (`repro-check.mjs`), and the
+   `/format-maturity` dashboard, riding the `core/model/structure.go` standoff
+   payloads. Resolved sub-decisions: it is **one cumulative ladder** with
+   **geometry as the top rung** (not two axes, not an independent geometry
+   top-up); under that cumulative rule `odf`/`idml` emit geometry but no roles
+   and therefore **cap at G2**; `na` geometry is a **ceiling cap, not a
+   gate-pass**; the AD-028 authority tier is declared in `structure.yaml` now
+   with the badge rendered later. It is a **non-gating display axis** for now;
+   promoting it into the headline-tier minimum is a future `tier-review`
+   decision. The seven axes now group into three reading-aid families
+   (Comprehension / Assurance / Enablement, §2) without changing the gating rule
+   (`min` over Engine ∧ Corpus ∧ Knowledge).

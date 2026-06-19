@@ -63,8 +63,21 @@
 .axisBars {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.8rem;
   margin: 0 0 1.75rem;
+}
+/* axis-family group (Comprehension / Assurance / Enablement) */
+.axisBarFamily {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.familyHeader {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-700);
 }
 .axisBarRow {
   display: flex;
@@ -98,7 +111,8 @@
 }
 .miniSeg.lvlL2,
 .miniSeg.lvlE2,
-.miniSeg.lvlS2 {
+.miniSeg.lvlS2,
+.miniSeg.lvlG2 {
   color: #222;
 }
 
@@ -195,6 +209,24 @@
 .lvlS4 {
   background: #2b8fb3;
 }
+/* structure & geometry (G0–G4) — same red → teal ladder; the G badge letter
+   carries the axis identity. G2 mid uses dark text. */
+.lvlG0 {
+  background: #d64545;
+}
+.lvlG1 {
+  background: #e08a2b;
+}
+.lvlG2 {
+  background: #d6b83a;
+  color: #222;
+}
+.lvlG3 {
+  background: #3fa05a;
+}
+.lvlG4 {
+  background: #2b8fb3;
+}
 
 .levelBadge {
   display: inline-block;
@@ -206,7 +238,8 @@
 }
 .levelBadge.lvlL2,
 .levelBadge.lvlE2,
-.levelBadge.lvlS2 {
+.levelBadge.lvlS2,
+.levelBadge.lvlG2 {
   color: #222;
 }
 
@@ -227,8 +260,20 @@
 }
 .miniBadge.lvlL2,
 .miniBadge.lvlE2,
-.miniBadge.lvlS2 {
+.miniBadge.lvlS2,
+.miniBadge.lvlG2 {
   color: #222;
+}
+/* family-grouped mini badges in the per-format axis profile: a thin divider
+   sets Comprehension | Assurance | Enablement apart without adding weight. */
+.axisProfileGroup {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.axisProfileGroup + .axisProfileGroup {
+  padding-left: 0.3rem;
+  margin-left: 0.05rem;
+  border-left: 1px solid var(--ifm-color-emphasis-300);
 }
 .gradeMissing {
   color: var(--ifm-color-emphasis-500);
@@ -335,6 +380,26 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--ifm-color-emphasis-700);
+}
+/* axis-family cluster in the selector — a light divider keeps the page sober */
+.axisFamily {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-right: 0.7rem;
+  border-right: 1px solid var(--ifm-color-emphasis-200);
+}
+.axisFamily:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+.familyLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-600);
 }
 
 /* ── table ───────────────────────────── */

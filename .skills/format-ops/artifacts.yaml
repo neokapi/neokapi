@@ -99,6 +99,12 @@ artifacts:
     glob: true
     bootstrap: true
     notes: written by corpus tooling + corpus-census
+  - id: structure-matrices
+    path: core/formats/*/structure.yaml
+    freshness_field: null
+    owner: tier-review
+    glob: true
+    notes: optional Structure and Geometry axis artifact (AD-028 authority tier + plugin ceiling + na geometry countersign); authored by implement-format, countersigned via tier-review; only structure-bearing formats carry one. A structure.yaml ALSO earns a plugin-provided, out-of-core format (e.g. pdf, no in-core reader.go) a dashboard seat: the dir-walk universe (realFormatDirs in lib.mjs / maturity_test.go and all_formats in audit-format.py) allowlists dirs that ship reader.go OR structure.yaml.
   - id: integrations-index
     path: core/formats/integrations.yaml
     freshness_field: null

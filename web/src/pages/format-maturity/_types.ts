@@ -5,9 +5,11 @@
 //
 // Version compatibility: the page must render a v1 dataset (no
 // `scorer_version`), a v2 dataset (`scorer_version: 2`, `run_integrity`,
-// evidence/floor/ceiling/delta on rows) and a v3 dataset (per-axis `levels`,
-// `dims`, `tier`, `summary.by_axis`) unchanged — every post-v1 field below is
-// therefore optional/additive.
+// evidence/floor/ceiling/delta on rows), a v3 dataset (per-axis `levels`,
+// `dims`, `tier`, `summary.by_axis`) and a v4 dataset (the additive
+// Structure & Geometry axis `structure`) unchanged — every post-v1 field below
+// is therefore optional/additive. A v3 (6-axis) dataset simply carries no
+// `structure` data, and the page guards every structure-bearing field.
 
 export type Level = "L0" | "L1" | "L2" | "L3" | "L4"; // engine axis
 export type VocabGrade = "V0" | "V1" | "V2" | "V3";
@@ -15,9 +17,27 @@ export type EditorGrade = "E0" | "E1" | "E2" | "E3" | "E4";
 export type KnowledgeGrade = "K0" | "K1" | "K2" | "K3";
 export type CorpusGrade = "C0" | "C1" | "C2" | "C3";
 export type SecurityGrade = "S0" | "S1" | "S2" | "S3" | "S4";
-export type Grade = Level | VocabGrade | EditorGrade | KnowledgeGrade | CorpusGrade | SecurityGrade;
+/** Structure & Geometry axis (scorer v4) — a cumulative comprehension-depth
+ * ladder: G0 opaque → G1 metadata → G2 linear body text → G3 logical structure
+ * → G4 + spatial geometry. */
+export type StructureGrade = "G0" | "G1" | "G2" | "G3" | "G4";
+export type Grade =
+  | Level
+  | VocabGrade
+  | EditorGrade
+  | KnowledgeGrade
+  | CorpusGrade
+  | SecurityGrade
+  | StructureGrade;
 
-export type AxisId = "engine" | "vocabulary" | "editor" | "knowledge" | "corpus" | "security";
+export type AxisId =
+  | "engine"
+  | "vocabulary"
+  | "editor"
+  | "knowledge"
+  | "corpus"
+  | "security"
+  | "structure";
 export type DimScore = "complete" | "partial" | "none" | "na";
 export type FormatType = "parity" | "harvest" | "read-only" | "internal";
 
@@ -131,6 +151,7 @@ export const AXIS_IDS: AxisId[] = [
   "knowledge",
   "corpus",
   "security",
+  "structure",
 ];
 
 export const AXIS_LABEL: Record<AxisId, string> = {
@@ -140,6 +161,7 @@ export const AXIS_LABEL: Record<AxisId, string> = {
   knowledge: "Knowledge",
   corpus: "Corpus",
   security: "Security",
+  structure: "Structure & Geometry",
 };
 
 export const AXIS_GRADES: Record<AxisId, Grade[]> = {
@@ -149,6 +171,7 @@ export const AXIS_GRADES: Record<AxisId, Grade[]> = {
   knowledge: ["K0", "K1", "K2", "K3"],
   corpus: ["C0", "C1", "C2", "C3"],
   security: ["S0", "S1", "S2", "S3", "S4"],
+  structure: ["G0", "G1", "G2", "G3", "G4"],
 };
 
 /**
@@ -175,6 +198,9 @@ export const AXIS_DIMS: Record<AxisId, string[]> = {
   corpus: ["corpusmanifest", "corpus", "fetchwiring", "acceptance", "sweep"],
   // Security is floor-only (rubric §2.6); these signal ids map S1–S4.
   security: ["safeio", "fuzz", "sweepclean", "sustained"],
+  // Structure & Geometry is floor-only (rubric §2.7); these signal ids map the
+  // cumulative G1–G4 rungs (metadata plane / reading order / roles / geometry).
+  structure: ["metaplane", "readingorder", "roles", "geometry"],
 };
 
 export const GRADE_NAME: Record<Grade, string> = {
@@ -201,6 +227,44 @@ export const GRADE_NAME: Record<Grade, string> = {
   S2: "Fuzzed",
   S3: "Hostile-hardened",
   S4: "Continuously-assured",
+  G0: "Opaque",
+  G1: "Metadata",
+  G2: "Linear body text",
+  G3: "Logical structure",
+  G4: "Spatial geometry",
+};
+
+// ── Axis families (rubric §1 — a dashboard reading aid, NOT a gating unit) ──
+// The seven axes group into three families by the question each answers
+// ("how deeply we read it / how we prove it / how we work with it"). The
+// support-tier gate is unchanged: it is still `min` over the gating axis set
+// (engine ∧ corpus ∧ knowledge), which deliberately straddles all three
+// families. Families only organize the dashboard; they never gate.
+export type FamilyId = "comprehension" | "assurance" | "enablement";
+
+export const FAMILY_ORDER: FamilyId[] = ["comprehension", "assurance", "enablement"];
+
+export const FAMILY_LABEL: Record<FamilyId, string> = {
+  comprehension: "Comprehension",
+  assurance: "Assurance",
+  enablement: "Enablement",
+};
+
+/** One-line mental model for each family (rubric §1), used as a tooltip. */
+export const FAMILY_TAGLINE: Record<FamilyId, string> = {
+  comprehension: "How deeply we read it",
+  assurance: "How we prove it",
+  enablement: "How we work with it",
+};
+
+/** Axes per family, in display order. Comprehension is the three fidelity
+ * resolutions (bytes → inline → structure); Structure & Geometry is the new
+ * third member. Any axis absent from a dataset is filtered out at render time,
+ * so a v3 (6-axis) dataset still groups cleanly. */
+export const FAMILY_AXES: Record<FamilyId, AxisId[]> = {
+  comprehension: ["engine", "vocabulary", "structure"],
+  assurance: ["corpus", "security"],
+  enablement: ["knowledge", "editor"],
 };
 
 /** Demotion ladder order, highest promise first (rubric §1). */

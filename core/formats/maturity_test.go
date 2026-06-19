@@ -44,8 +44,15 @@ var grandfatheredRoundtrip = map[string]bool{
 	"odf":      true,
 }
 
-// realFormatDirs returns the format ids that have a reader.go and are not
-// exempted non-formats.
+// realFormatDirs returns the format ids in the maturity universe: a dir that
+// ships a reader.go (an in-core format) OR a structure.yaml (the dashboard
+// allowlist seat for a PLUGIN-PROVIDED, out-of-core format such as pdf — whose
+// native reader is the kapi-pdfium plugin and whose browser path is a
+// PDFium-wasm bridge, so it has no in-core reader.go). Exempted non-formats
+// (exec/jsx/memorytest) are excluded and never ship a structure.yaml.
+//
+// This mirrors the JS definition in scripts/format-ops/lib.mjs (realFormatDirs)
+// so the Go maturity gates and the JS format-ops gates agree on the universe.
 func realFormatDirs(t *testing.T) []string {
 	t.Helper()
 	entries, err := os.ReadDir(".")
@@ -57,7 +64,8 @@ func realFormatDirs(t *testing.T) []string {
 		if !e.IsDir() || nonFormats[e.Name()] {
 			continue
 		}
-		if fileExists(filepath.Join(e.Name(), "reader.go")) {
+		if fileExists(filepath.Join(e.Name(), "reader.go")) ||
+			fileExists(filepath.Join(e.Name(), "structure.yaml")) {
 			ids = append(ids, e.Name())
 		}
 	}
@@ -397,6 +405,105 @@ func advisoryArtifactCoverage(t *testing.T, artifact, axis string) {
 // axis V1 floor). Advisory only.
 func TestVocabularyCoverage(t *testing.T) {
 	advisoryArtifactCoverage(t, "vocabulary.yaml", "Vocabulary V1")
+}
+
+// structureAuthorities is the AD-028 provenance-tier enum a structure.yaml may
+// declare (format-maturity.md §2.7; SHARPEN §2 "Authority qualifier"). Orthogonal
+// to the G rung (depth): the same payload depth can arrive native, tagged,
+// geometrically inferred, or ML-guessed.
+var structureAuthorities = map[string]bool{
+	"native": true, "tagged": true, "geometric": true, "ml": true,
+}
+
+var structureAuthorityNames = []string{"native", "tagged", "geometric", "ml"}
+
+// authorityValues flattens a structure.yaml `authority` node into its declared
+// tiers: a scalar (one tier) or a sequence (capability-conditional formats that
+// reach more than one tier, e.g. image: [geometric, ml]). Absent => nil.
+func authorityValues(n yaml.Node) []string {
+	switch n.Kind {
+	case yaml.ScalarNode:
+		if n.Value == "" {
+			return nil
+		}
+		return []string{n.Value}
+	case yaml.SequenceNode:
+		var out []string
+		for _, c := range n.Content {
+			if c.Value != "" {
+				out = append(out, c.Value)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// structureYAML is the shape TestStructureCoverage lightly validates. Only the
+// two fields the audit consumes are typed; everything else is free documentary
+// prose. `authority` and `geometry` are yaml.Node because each may be a scalar
+// or a richer node (a list of tiers; a countersigned `na` mapping).
+type structureYAML struct {
+	Authority yaml.Node `yaml:"authority"`
+	Geometry  yaml.Node `yaml:"geometry"`
+}
+
+// geometryNA reports whether the geometry cell is the `na` ceiling cap (a scalar
+// "na" or a mapping with status: na) and, for the mapping form, its reviewed_by.
+func (s structureYAML) geometryNA() (na bool, reviewedBy string) {
+	switch s.Geometry.Kind {
+	case yaml.ScalarNode:
+		return strings.EqualFold(s.Geometry.Value, "na"), ""
+	case yaml.MappingNode:
+		var g struct {
+			Status     string `yaml:"status"`
+			ReviewedBy string `yaml:"reviewed_by"`
+		}
+		_ = s.Geometry.Decode(&g)
+		return strings.EqualFold(g.Status, "na"), g.ReviewedBy
+	}
+	return false, ""
+}
+
+// TestStructureCoverage counts formats without a structure.yaml (Structure &
+// Geometry axis — the AD-028 authority/ceiling declaration; the G-rung floor
+// itself is grepped from the package by the audit, not declared here, so most
+// formats correctly have none). Advisory only.
+//
+// When a structure.yaml IS present its shape is validated (a hard gate, like the
+// other artifact registries): authority is from the fixed tier enum, and an `na`
+// geometry cell — the ceiling cap on this cumulative depth ladder — must be
+// countersigned with reviewed_by (format-maturity.md §2.7; SHARPEN §5 decision 6).
+func TestStructureCoverage(t *testing.T) {
+	advisoryArtifactCoverage(t, "structure.yaml", "Structure G")
+
+	for _, id := range realFormatDirs(t) {
+		p := filepath.Join(id, "structure.yaml")
+		if !fileExists(p) {
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Errorf("read %s: %v", p, err)
+			continue
+		}
+		var doc structureYAML
+		if err := yaml.Unmarshal(data, &doc); err != nil {
+			t.Errorf("structure.yaml: format %q: not valid YAML: %v", id, err)
+			continue
+		}
+		for _, a := range authorityValues(doc.Authority) {
+			if !structureAuthorities[a] {
+				t.Errorf("structure.yaml: format %q declares authority %q; want one of %v "+
+					"(AD-028 provenance tier, format-maturity.md §2.7)", id, a, structureAuthorityNames)
+			}
+		}
+		if na, reviewedBy := doc.geometryNA(); na && reviewedBy == "" {
+			t.Errorf("structure.yaml: format %q has geometry status \"na\" (the G4 ceiling cap) "+
+				"without reviewed_by — `na` on this cumulative depth ladder is a COUNTERSIGNED "+
+				"state (format-maturity.md §2.7; SHARPEN §5 decision 6)", id)
+		}
+	}
 }
 
 // TestDossierCoverage counts formats without a dossier.yaml (Knowledge axis K1
