@@ -1027,7 +1027,7 @@ jobs:
             exit 0
           fi
           bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
-            bowrain/apps/bowrain/bin/Bowrain.app arm64
+            bowrain/apps/bowrain/bin/Bowrain.app darwin arm64
 
       # Windows: Create ZIP
       - name: Create ZIP
@@ -1057,6 +1057,26 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+
+      # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
+      - name: Publish updater appcast (Linux)
+        if: runner.os == 'Linux'
+        env:
+          UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          ARCH: ${{ matrix.build.arch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "updater appcast secrets not set; skipping"
+            exit 0
+          fi
+          bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
+            "bowrain-${VERSION}-linux-${ARCH}.tar.gz" linux "$ARCH"
 
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
@@ -1401,7 +1421,7 @@ jobs:
             exit 0
           fi
           bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
-            apps/kapi-desktop/bin/Kapi.app arm64
+            apps/kapi-desktop/bin/Kapi.app darwin arm64
 
       - name: Create ZIP
         if: runner.os == 'Windows'
@@ -1429,6 +1449,26 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+
+      # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
+      - name: Publish updater appcast (Linux)
+        if: runner.os == 'Linux'
+        env:
+          UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          ARCH: ${{ matrix.build.arch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "updater appcast secrets not set; skipping"
+            exit 0
+          fi
+          bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
+            "kapi-${VERSION}-linux-${ARCH}.tar.gz" linux "$ARCH"
 
   # NOTE: the Windows kapi CLI binary is now produced by the `build-cli` matrix
   # (cgo + static ICU via MSYS2 mingw); it uploads the unsigned

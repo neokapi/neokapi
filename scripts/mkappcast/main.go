@@ -42,9 +42,11 @@ Usage:
       each desktop app's build/update-ed25519.pub) and the base64 PRIVATE key
       (store as the UPDATE_ED25519_PRIVATE_KEY CI secret — never commit it).
 
-  mkappcast gen --title <name> --version <x.y.z> [--channel beta] \
-      --url-prefix <https://.../download/vX.Y.Z> --out <appcast.xml> <artifact.zip>
+  mkappcast gen --title <name> --version <x.y.z> [--channel beta] [--os macos] \
+      --url-prefix <https://.../download/vX.Y.Z> --out <appcast.xml> <artifact>
       Sign the artifact's SHA-256 digest and write an appcast feed with one item.
+      --os sets sparkle:os (macos|windows|linux) so the Wails updater picks the
+      right item per platform.
       The ed25519 private key is read from $UPDATE_ED25519_PRIVATE_KEY (base64).
 `)
 }
@@ -71,12 +73,18 @@ func runGen(args []string) error {
 	channel := fs.String("channel", "", "channel tag (e.g. beta); empty for default")
 	urlPrefix := fs.String("url-prefix", "", "download URL prefix for the enclosure")
 	out := fs.String("out", "", "output appcast path")
+	osName := fs.String("os", "macos", "sparkle:os value: macos, windows, or linux")
 	pubDate := fs.String("pubdate", "", "RFC1123Z pub date (default: now)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *title == "" || *ver == "" || *out == "" {
 		return fmt.Errorf("--title, --version and --out are required")
+	}
+	switch *osName {
+	case "macos", "windows", "linux":
+	default:
+		return fmt.Errorf("--os must be macos, windows, or linux (got %q)", *osName)
 	}
 	rest := fs.Args()
 	if len(rest) != 1 {
@@ -93,7 +101,7 @@ func runGen(args []string) error {
 	if date == "" {
 		date = nowRFC1123Z(time.Now())
 	}
-	item, err := newItem(priv, *ver, *channel, downloadURL(*urlPrefix, artifact), artifact, date)
+	item, err := newItem(priv, *ver, *channel, downloadURL(*urlPrefix, artifact), artifact, *osName, date)
 	if err != nil {
 		return err
 	}
@@ -101,7 +109,7 @@ func runGen(args []string) error {
 	if err := os.WriteFile(*out, []byte(xmlDoc), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", *out, err)
 	}
-	fmt.Fprintf(os.Stderr, "wrote %s (%s %s, channel=%q)\n", *out, *title, *ver, *channel)
+	fmt.Fprintf(os.Stderr, "wrote %s (%s %s, os=%s, channel=%q)\n", *out, *title, *ver, *osName, *channel)
 	return nil
 }
 

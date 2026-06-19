@@ -206,4 +206,12 @@ else
   else
     echo "   ⚠ winget dispatch failed; the signed assets are still published. Retry: gh workflow run winget.yml -f tag=$TAG" >&2
   fi
+  # Also generate the Windows in-app-update feed from the freshly-signed desktop
+  # zips (the Wails native updater swaps the signed .exe). Same SKIP_WINGET guard.
+  echo ">> Dispatching Windows update-feed publish (appcast-windows.yml) for $TAG ..."
+  if gh workflow run appcast-windows.yml --repo "$REPO" -f tag="$TAG"; then
+    echo "   appcast-windows.yml dispatched — watch: gh run list --workflow=appcast-windows.yml --repo $REPO"
+  else
+    echo "   ⚠ appcast-windows dispatch failed. Retry: gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+  fi
 fi

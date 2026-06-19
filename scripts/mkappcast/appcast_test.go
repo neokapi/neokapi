@@ -53,7 +53,7 @@ func TestNewItem_And_Render(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	item, err := newItem(priv, "1.2.0", "beta", "https://x/download/v1.2.0/Kapi.app.zip", art, nowRFC1123Z(time.Unix(0, 0).UTC()))
+	item, err := newItem(priv, "1.2.0", "beta", "https://x/download/v1.2.0/Kapi.app.zip", art, "macos", nowRFC1123Z(time.Unix(0, 0).UTC()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +75,31 @@ func TestNewItem_And_Render(t *testing.T) {
 	} {
 		if !strings.Contains(xmlDoc, want) {
 			t.Errorf("appcast XML missing %q\n---\n%s", want, xmlDoc)
+		}
+	}
+}
+
+func TestNewItem_OSValue(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	art := filepath.Join(dir, "Kapi.exe.zip")
+	if err := os.WriteFile(art, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, osName := range []string{"windows", "linux", "macos"} {
+		it, err := newItem(priv, "1.0.0", "", "https://x/a", art, osName, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if it.OS != osName {
+			t.Errorf("newItem os = %q, want %q", it.OS, osName)
+		}
+		xmlDoc := renderAppcast("Kapi", []Item{it})
+		if !strings.Contains(xmlDoc, `sparkle:os="`+osName+`"`) {
+			t.Errorf("appcast missing sparkle:os=%q\n%s", osName, xmlDoc)
 		}
 	}
 }

@@ -1,0 +1,61 @@
+name: Publish desktop update feed (Windows)
+
+# Dispatch-only, like winget.yml. The Windows desktop installers/zips are signed
+# locally (SimplySign) and added to the release by scripts/publish-windows-signed.sh
+# *after* CI — so the Windows in-app-update feed must be generated after that
+# step, not during the release run. publish-windows-signed.sh dispatches this
+# (and winget.yml) once the signed assets are uploaded.
+#
+# It downloads each signed desktop zip (one top-level Kapi.exe / Bowrain.exe) and
+# signs it into the per-(os,arch) Sparkle appcast the Wails native updater reads
+# (appcast-<name>-windows-<arch>[-beta].xml on the registry Pages site).
+#
+# No-op until UPDATE_ED25519_PRIVATE_KEY + REGISTRY_TOKEN are configured.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish the Windows update feed for (e.g. v1.2.3)"
+        required: true
+
+jobs:
+  publish:
+    name: ${{ matrix.title }} ${{ matrix.arch }} appcast
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { title: Kapi, name: kapi, arch: amd64 }
+          - { title: Kapi, name: kapi, arch: arm64 }
+          - { title: Bowrain, name: bowrain, arch: amd64 }
+          - { title: Bowrain, name: bowrain, arch: arm64 }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - name: Publish Windows appcast
+        env:
+          UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+          TITLE: ${{ matrix.title }}
+          NAME: ${{ matrix.name }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "appcast secrets not set; skipping"
+            exit 0
+          fi
+          VERSION="${TAG#v}"
+          ZIP="${NAME}-${VERSION}-windows-${ARCH}.zip"
+          if ! gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --dir .; then
+            echo "no signed $ZIP on release $TAG yet; skipping"
+            exit 0
+          fi
+          bash scripts/publish-appcast.sh "$TITLE" "$NAME" "$VERSION" "$TAG" "$REPO" "$ZIP" windows "$ARCH"

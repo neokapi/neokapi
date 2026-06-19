@@ -1,11 +1,12 @@
 # Auto-update & distribution
 
-Status: **Phases 1–2 implemented** (CLI self-update + notifier; desktop in-app
-updates via the Wails native updater + signed appcast). Both need their
-release-side wiring exercised on a real tagged release; Phase 2 also needs
-on-device validation before the casks flip to `auto_updates true`. Phases 3–5
-pending. Tracking doc for how neokapi keeps its shipped artifacts up to date
-across macOS, Windows, and Linux.
+Status: **Phases 1–4 implemented** (CLI self-update + notifier; cross-platform
+desktop in-app updates via the Wails native updater + per-(os,arch) signed
+appcasts; winget; Linux apt/yum). All need their release-side wiring exercised
+on a real tagged release and the documented operational gates (signing keys,
+per-user Windows NSIS, on-device swap validation) before going live. Phase 5
+(Velopack) pending. Tracking doc for how neokapi keeps its shipped artifacts up
+to date across macOS, Windows, and Linux.
 
 ## The model (read this first)
 
@@ -180,8 +181,8 @@ reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
       wired via `InitUpdater(app)` at startup. kapi-desktop also adds a
       "Check for Updates…" File-menu item; both expose `CheckForUpdatesNow`.
 - [x] channel from `KAPI_UPDATE_CHANNEL` (default stable), per-channel feeds
-      (`appcast-<app>.xml` / `appcast-<app>-beta.xml`) so a stable build is
-      never offered a beta item.
+      (`appcast-<app>-<os>-<arch>[-beta].xml`) so a stable build is never
+      offered a beta item, and each platform/arch fetches its own feed.
 - [x] `scripts/mkappcast` — the signed-appcast generator + `keygen`. **Crucial
       detail:** the Wails `ed25519` verifier checks `ed25519.Verify(pub,
       sha256(file), sig)`, i.e. the signature is over the artifact's SHA-256
@@ -219,8 +220,10 @@ reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
 2. Ensure `REGISTRY_TOKEN` (write access to `neokapi/registry`) is set — it
    already is for the CLI `cli.json` publish.
 3. Cut a normal release (`vX.Y.Z` → stable feed, `vX.Y.Z-rc.N` → beta feed).
-   `release.yml` publishes `appcast-kapi.xml` / `appcast-bowrain.xml`
-   (and `-beta` variants) to the registry Pages site.
+   `release.yml` publishes the per-platform feeds
+   (`appcast-kapi-darwin-arm64.xml`, `…-linux-<arch>.xml`, etc., and `-beta`
+   variants) to the registry Pages site; Windows feeds come from
+   `appcast-windows.yml` after local signing.
 4. Install the resulting DMG, run "Check for Updates…", and confirm the
    download → verify → swap → relaunch works on a notarized build (the gate).
 5. Only then: add `auto_updates true` to the cask heredocs in `release.yml`
@@ -241,7 +244,7 @@ So the toolchain is the `kapi-cli` / `kapi-*` family and the apps are plain
 `kapi` / `bowrain`. winget mirrors this: `Neokapi.KapiCLI` (CLI),
 `Neokapi.Kapi` (desktop). The CLI's `cli.json` self-update index key stays
 `kapi` (what the binary looks itself up as) even though its archive is
-`kapi-cli_*`. The desktop appcast feed is `appcast-kapi.xml`. The Go module
+`kapi-cli_*`. The desktop appcast feeds are `appcast-kapi-<os>-<arch>.xml`. The Go module
 dirs (`apps/kapi-desktop`, the `kapi-desktop` artifact label) are unchanged —
 only user-facing asset names follow this scheme.
 
@@ -352,18 +355,19 @@ nicer UX but a **separate** updater path (inside an AppImage, `os.Executable()`
 is the read-only FUSE mount, so the Wails swap can't write it); reach for it
 only if delta downloads matter. **Flatpak: not an in-app updater — skip.**
 
-- [ ] `scripts/publish-appcast.sh`: also emit signed `sparkle:os="windows"` /
-      `"linux"` enclosures (reusing the existing zip/tarball + the same ed25519
-      digest signing), into per-(os,arch) feed files.
-- [ ] desktop apps: `feedURL()` keyed on `runtime.GOOS`+`GOARCH`; ship Windows
-      NSIS as per-user; document the user-writable Linux install dir.
-- [ ] validate the swap+relaunch on per-user Windows and a writable-dir Linux
-      install (mirror of the macOS Gatekeeper gate).
-
-### Phase 5 — revisit Velopack
-
-- [ ] If/when a Go binding ships, evaluate collapsing Phases 2–4 onto one
-      cross-platform framework.
+- [x] `mkappcast gen --os macos|windows|linux`; `publish-appcast.sh <… os arch>`
+      emits per-(os,arch) feeds (`appcast-<name>-<os>-<arch>[-beta].xml`),
+      signing the existing Windows `.zip` / Linux `.tar.gz` with the same
+      ed25519 digest scheme.
+- [x] desktop apps: `feedURL()` keyed on `runtime.GOOS`+`GOARCH`.
+- [x] CI: macOS + Linux desktop jobs publish their feeds in `release.yml`;
+      Windows feeds via the dispatched `appcast-windows.yml` (triggered by
+      `publish-windows-signed.sh` after the signed zips land).
+- [ ] **Gates before it's live**: ship the Windows NSIS installer **per-user**
+      (the swap can't elevate) and decide the winget-vs-in-app authority per
+      install; document/standardize a **user-writable** Linux install dir; then
+      validate swap+relaunch on per-user Windows and a writable-dir Linux
+      install (mirror of the macOS Gatekeeper gate). AppImage+zsync optional.
 
 ### Phase 5 — revisit Velopack
 

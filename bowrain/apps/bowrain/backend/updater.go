@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -43,13 +44,16 @@ func updateChannel() string {
 	return "stable"
 }
 
-// feedURL returns the appcast URL for a channel. Each channel gets its own feed
-// so a stable build is never offered a beta item.
+// feedURL returns the appcast URL for this platform + channel. There is one
+// feed per (os, arch) because the Wails appcast provider filters items by
+// sparkle:os but not by arch — so arch is disambiguated by the URL. Each
+// channel also gets its own feed so a stable build is never offered a beta item.
 func feedURL(channel string) string {
+	base := appcastBaseURL + "/appcast-" + appcastName + "-" + runtime.GOOS + "-" + runtime.GOARCH
 	if channel == "beta" {
-		return appcastBaseURL + "/appcast-" + appcastName + "-beta.xml"
+		return base + "-beta.xml"
 	}
-	return appcastBaseURL + "/appcast-" + appcastName + ".xml"
+	return base + ".xml"
 }
 
 // updatePublicKey decodes the embedded key, returning nil (fail closed) when it

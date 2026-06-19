@@ -56,8 +56,10 @@ func signDigest(priv ed25519.PrivateKey, artifact []byte) string {
 	return base64.StdEncoding.EncodeToString(sig)
 }
 
-// newItem builds a signed Item for an artifact on disk.
-func newItem(priv ed25519.PrivateKey, shortVersion, channel, downloadURL, artifactPath, pubDate string) (Item, error) {
+// newItem builds a signed Item for an artifact on disk. osName is the
+// sparkle:os value ("macos", "windows", "linux") the Wails appcast provider
+// matches against the running platform.
+func newItem(priv ed25519.PrivateKey, shortVersion, channel, downloadURL, artifactPath, osName, pubDate string) (Item, error) {
 	data, err := os.ReadFile(artifactPath)
 	if err != nil {
 		return Item{}, fmt.Errorf("read artifact %s: %w", artifactPath, err)
@@ -68,7 +70,7 @@ func newItem(priv ed25519.PrivateKey, shortVersion, channel, downloadURL, artifa
 		URL:          downloadURL,
 		Length:       int64(len(data)),
 		EdSignature:  signDigest(priv, data),
-		OS:           "macos",
+		OS:           osName,
 		PubDate:      pubDate,
 	}, nil
 }
