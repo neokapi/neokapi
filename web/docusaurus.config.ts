@@ -2,6 +2,8 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 // Build freshness stamp ("<YYYY-MM-DD HH:MM> UTC · <short-sha>"), appended to
 // the footer copyright so the deployed docs reveal when/from-what they built.
@@ -161,6 +163,25 @@ const config: Config = {
               },
             },
           };
+        },
+      };
+    },
+    // The Vision Lab's ONNX models (~150 MB) live in static/models/vision, which
+    // Docusaurus copies into EVERY locale's output — doubling them on the GitHub
+    // Pages site (a real size problem; Pages builds were failing). The lab fetches
+    // them from the default-locale (root) path regardless of locale, so the
+    // per-locale copies are dead weight. Drop them from non-default locale builds.
+    function dropLocaleVisionModels(context: {
+      i18n: { currentLocale: string; defaultLocale: string };
+    }) {
+      return {
+        name: "drop-locale-vision-models",
+        async postBuild({ outDir }: { outDir: string }) {
+          if (context.i18n.currentLocale === context.i18n.defaultLocale) return;
+          await fs.promises.rm(path.join(outDir, "models", "vision"), {
+            recursive: true,
+            force: true,
+          });
         },
       };
     },
