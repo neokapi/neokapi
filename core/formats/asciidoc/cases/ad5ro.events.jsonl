@@ -3,7 +3,7 @@
 {"block":{"id":"tu1","name":"doctitle","type":"title","translatable":true,"source":[{"type":"text","text":"Guide"}],"properties":{"level":"1"}}}
 {"block":{"id":"tu2","name":"heading-2","type":"heading","translatable":true,"source":[{"type":"text","text":"Setup"}],"properties":{"level":"2"}}}
 {"group_start":{"id":"g2","name":"section","type":"section"}}
-{"group_start":{"id":"g3","name":"list","type":"list"}}
+{"group_start":{"id":"g3","name":"list","type":"list","properties":{"ordered":"false"}}}
 {"block":{"id":"tu3","name":"item3","type":"list-item","translatable":true,"source":[{"type":"text","text":"First step"}],"properties":{"level":"1"}}}
 {"block":{"id":"tu4","name":"item4","type":"list-item","translatable":true,"source":[{"type":"text","text":"Second step"}],"properties":{"level":"1"}}}
 {"group_end":{"id":"g3"}}

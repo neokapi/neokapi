@@ -264,6 +264,23 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 	if err := sep(); err != nil {
 		return err
 	}
+
+	if role == model.RoleCode {
+		// Non-translatable verbatim content. A fenced block (listing/literal)
+		// re-synthesizes its delimiters; an indented literal paragraph carries
+		// its own significant indent in the body.
+		if fence := block.Properties["asciidoc.fence"]; fence != "" {
+			body := text
+			if !strings.HasSuffix(body, "\n") {
+				body += "\n"
+			}
+			_, err := fmt.Fprintf(w.Output, "%s\n%s%s\n", fence, body, fence)
+			return err
+		}
+		_, err := fmt.Fprintf(w.Output, "%s\n", text)
+		return err
+	}
+
 	var prefix string
 	switch role {
 	case model.RoleHeading:

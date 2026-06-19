@@ -25,15 +25,25 @@ func TestReaderMetadataAndSignature(t *testing.T) {
 }
 
 // TestReaderBlockExtraction asserts the exemplar fixture yields the expected
-// translatable blocks (and nothing from verbatim/listing/comment regions).
+// translatable blocks plus the code listing surfaced as non-translatable content
+// (visible for ingestion, skipped by MT) rather than buried in skeleton.
 func TestReaderBlockExtraction(t *testing.T) {
 	t.Parallel()
 	input := mustRead(t, filepath.Join("testdata", "sample.adoc"))
 	blocks := readBlocks(t, input)
 
-	require.Len(t, blocks, 17, "exemplar must yield exactly 17 translatable blocks")
+	var translatable, content []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			translatable = append(translatable, b)
+		} else {
+			content = append(content, b)
+		}
+	}
 
-	texts := testutil.BlockTexts(blocks)
+	require.Len(t, translatable, 17, "exemplar must yield exactly 17 translatable blocks")
+
+	texts := testutil.BlockTexts(translatable)
 	for _, want := range []string{
 		"Document Title", "First Section", "Subsection",
 		"A list of items", "First item", "Second item", "Nested item",
@@ -43,10 +53,20 @@ func TestReaderBlockExtraction(t *testing.T) {
 		assert.Contains(t, texts, want)
 	}
 
-	// Verbatim listing content must NOT be extracted as a block.
-	for _, b := range blocks {
+	// The listing body is contextual content: surfaced as a non-translatable
+	// content block (role=code), NOT extracted as translatable prose and NOT
+	// hidden in opaque skeleton.
+	require.Len(t, content, 1, "the code listing must surface as one non-translatable content block")
+	listing := content[0]
+	assert.False(t, listing.Translatable, "code content must not be translatable")
+	assert.Contains(t, listing.SourceText(), "not translated", "code content must be visible as content")
+	assert.Equal(t, model.RoleCode, listing.SemanticRole(), "code content carries the code role")
+	assert.True(t, listing.PreserveWhitespace, "code content preserves whitespace")
+
+	// No translatable block may carry the code content.
+	for _, b := range translatable {
 		assert.NotContains(t, b.SourceText(), "not translated",
-			"listing block content must stay non-translatable skeleton")
+			"code content must never be extracted as translatable prose")
 	}
 }
 

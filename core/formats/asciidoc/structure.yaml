@@ -43,6 +43,13 @@ evidence:
   # RoleParagraph, list item -> RoleListItem+Level, block title -> RoleCaption,
   # table cells -> RoleTableCell/RoleTableHeader inside Type:"table"/"table-row".
   - "SetSemanticRole (emitBlock); Type:\"table\"/\"table-row\" + RoleTableCell/RoleTableHeader (processTable)"
+  # G3 table topology — merged-cell extents recovered from the `N+`/`.M+`/`N.M+`
+  # cell span spec onto StructureAnnotation.ColSpan/RowSpan (parseCellSpec).
+  - "StructureAnnotation.ColSpan/RowSpan (parseCellSpec/processTable)"
+  # G3 content fidelity — contextual verbatim content (code listings, literal
+  # blocks, indented literal paragraphs) is surfaced as non-translatable RoleCode
+  # content (visible to ingestion) rather than buried in opaque skeleton.
+  - "RoleCode non-translatable content blocks (emitContentBlock: consumeVerbatimContent/emitIndentedLiteral)"
   # roles/structure assertions:
   - "asciidoc.TestReaderRolesAndStructure; asciidoc.TestReaderTableStructure; asciidoc.TestReaderReadingOrderGroups (roles_test.go)"
 

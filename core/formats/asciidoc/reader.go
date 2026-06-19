@@ -70,6 +70,11 @@ var (
 	reSidebarDelim = regexp.MustCompile(`^\*{4,}[ \t]*$`)
 	reQuoteDelim   = regexp.MustCompile(`^_{4,}[ \t]*$`)
 	reOpenDelim    = regexp.MustCompile(`^--[ \t]*$`)
+
+	// reCellSpec matches an AsciiDoc table cell SPAN spec preceding a `|`:
+	// `N+` (colspan N), `.M+` (rowspan M), `N.M+` (both). Alignment/style/repeat
+	// operators are not parsed here.
+	reCellSpec = regexp.MustCompile(`^(\d+)?(?:\.(\d+))?\+$`)
 )
 
 // NewReader creates a new AsciiDoc reader.
@@ -220,9 +225,9 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 		return i + 1
 
 	case reListingDelim.MatchString(text):
-		return r.consumeDelimited(ctx, ch, lines, i, "listing", reListingDelim)
+		return r.consumeVerbatimContent(ctx, ch, lines, i, "listing", "----", reListingDelim)
 	case reLiteralDelim.MatchString(text):
-		return r.consumeDelimited(ctx, ch, lines, i, "literal", reLiteralDelim)
+		return r.consumeVerbatimContent(ctx, ch, lines, i, "literal", "....", reLiteralDelim)
 	case rePassDelim.MatchString(text):
 		return r.consumeDelimited(ctx, ch, lines, i, "passthrough", rePassDelim)
 
@@ -271,6 +276,11 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 	case reUList.MatchString(text), reOList.MatchString(text):
 		return r.processList(ctx, ch, lines, i)
 
+	case text[0] == ' ' || text[0] == '\t':
+		// A line whose first character is whitespace is an AsciiDoc literal
+		// paragraph (verbatim) — surface it as non-translatable content, not prose.
+		return r.emitIndentedLiteral(ctx, ch, lines, i)
+
 	default:
 		return r.emitParagraph(ctx, ch, lines, i)
 	}
@@ -309,10 +319,37 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	return i
 }
 
+// emitIndentedLiteral collects a contiguous run of leading-whitespace lines into
+// one literal-paragraph block. AsciiDoc treats an indented paragraph as verbatim
+// literal content, so it is surfaced as non-translatable content (RoleCode), not
+// translatable prose — the leading indent is significant and stays in the body.
+func (r *Reader) emitIndentedLiteral(ctx context.Context, ch chan<- model.PartResult, lines []srcLine, i int) int {
+	start := i
+	for i < len(lines) {
+		t := lines[i].text
+		if strings.TrimSpace(t) == "" || len(t) == 0 || (t[0] != ' ' && t[0] != '\t') {
+			break
+		}
+		i++
+	}
+	contentStart := lines[start].start
+	contentEnd := lines[i-1].contentEnd
+	r.emitContentBlock(ctx, ch, contentStart, contentStart, contentEnd,
+		fmt.Sprintf("literal%d", r.blockCounter+1), "literal-paragraph", model.RoleCode, nil)
+	return i
+}
+
 // processList brackets a run of consecutive list items in a list group and
 // emits each item as a RoleListItem block (level = marker depth).
 func (r *Reader) processList(ctx context.Context, ch chan<- model.PartResult, lines []srcLine, i int) int {
-	if !r.openGroup(ctx, ch, "list", "list", 0, nil) {
+	// Record whether this list is ordered (`.`/numbered) or unordered (`*`/`-`)
+	// on the group — the one structural signal a downstream consumer (and an
+	// ordered/unordered round-trip) needs that the bare item depth does not carry.
+	listProps := map[string]string{"ordered": "false"}
+	if i < len(lines) && reOList.MatchString(lines[i].text) {
+		listProps["ordered"] = "true"
+	}
+	if !r.openGroup(ctx, ch, "list", "list", 0, listProps) {
 		return len(lines)
 	}
 	for i < len(lines) && !r.aborted {
@@ -394,10 +431,18 @@ func (r *Reader) processTable(ctx context.Context, ch chan<- model.PartResult, l
 		if rowIsHeader {
 			role = model.RoleTableHeader
 		}
+		props := map[string]string{"column": strconv.Itoa(col)}
+		span := 1
+		if c.colspan > 1 {
+			props["colspan"] = strconv.Itoa(c.colspan)
+			span = c.colspan
+		}
+		if c.rowspan > 1 {
+			props["rowspan"] = strconv.Itoa(c.rowspan)
+		}
 		r.emitBlock(ctx, ch, c.cStart, c.cStart, c.cEnd,
-			fmt.Sprintf("cell%d", r.blockCounter+1), "table-cell", role, 0,
-			map[string]string{"column": strconv.Itoa(col)})
-		col++
+			fmt.Sprintf("cell%d", r.blockCounter+1), "table-cell", role, 0, props)
+		col += span
 		if col >= colCount {
 			r.closeGroup(ctx, ch) // table-row
 			rowOpen = false
@@ -419,9 +464,10 @@ func (r *Reader) processTable(ctx context.Context, ch chan<- model.PartResult, l
 // tableCell is one non-empty cell's content byte range plus per-first-cell
 // metadata used for column/header inference.
 type tableCell struct {
-	cStart, cEnd int
-	rowCells     int  // cells on the first content row (only set on cells[0])
-	headerRow    bool // first content row is a header (only set on cells[0])
+	cStart, cEnd     int
+	colspan, rowspan int  // merged-cell extents (0 = default 1)
+	rowCells         int  // cells on the first content row (only set on cells[0])
+	headerRow        bool // first content row is a header (only set on cells[0])
 }
 
 // collectTableCells scans the table body lines [from,to) and returns the
@@ -449,7 +495,7 @@ func (r *Reader) collectTableCells(lines []srcLine, from, to int) []tableCell {
 			if ce <= cs {
 				continue // empty cell — stays skeleton
 			}
-			cells = append(cells, tableCell{cStart: cs, cEnd: ce})
+			cells = append(cells, tableCell{cStart: cs, cEnd: ce, colspan: seg.colspan, rowspan: seg.rowspan})
 		}
 	}
 	if len(cells) > 0 {
@@ -463,32 +509,85 @@ func (r *Reader) collectTableCells(lines []srcLine, from, to int) []tableCell {
 	return cells
 }
 
-// cellSeg is the trimmed content byte range of one cell within a line.
-type cellSeg struct{ start, end int }
+// cellSeg is the trimmed content byte range of one cell within a line, plus any
+// colspan/rowspan parsed from the cell's span spec (0 = default 1).
+type cellSeg struct {
+	start, end       int
+	colspan, rowspan int
+}
 
 // splitCells splits a PSV table line on `|` separators and returns the trimmed
-// content range of each cell (relative to the line). The leading segment before
-// the first `|` is ignored.
+// content range of each cell (relative to the line). A span spec immediately
+// preceding a `|` (`2+`, `.3+`, `2.3+`) — whether in the leading segment or as
+// the trailing token of the previous cell — attaches to the cell that `|` opens.
 func splitCells(line string) []cellSeg {
 	var out []cellSeg
-	i := 0
 	n := len(line)
-	for i < n {
-		if line[i] != '|' {
-			i++
-			continue
-		}
-		// Cell content runs from after this `|` to the next `|` or EOL.
+	firstPipe := strings.IndexByte(line, '|')
+	if firstPipe < 0 {
+		return out
+	}
+	// A span spec in the leading segment binds to the first cell.
+	pendCol, pendRow := parseCellSpec(line[:firstPipe])
+	for i := firstPipe; i >= 0 && i < n; {
 		segStart := i + 1
 		j := segStart
 		for j < n && line[j] != '|' {
 			j++
 		}
-		cs, ce := trimSpaceRange(line, segStart, j)
-		out = append(out, cellSeg{start: cs, end: ce})
+		// When another `|` follows, a span spec may be the trailing token of this
+		// cell's text — it belongs to the NEXT cell, so strip it from this one.
+		rawEnd := j
+		nextCol, nextRow := 0, 0
+		if j < n {
+			if specStart, c, rr := trailingCellSpec(line, segStart, j); specStart >= 0 {
+				rawEnd = specStart
+				nextCol, nextRow = c, rr
+			}
+		}
+		cs, ce := trimSpaceRange(line, segStart, rawEnd)
+		if ce > cs {
+			out = append(out, cellSeg{start: cs, end: ce, colspan: pendCol, rowspan: pendRow})
+		}
+		pendCol, pendRow = nextCol, nextRow
 		i = j
 	}
 	return out
+}
+
+// parseCellSpec parses an AsciiDoc cell span spec token (e.g. "2+", ".3+",
+// "2.3+"); returns (0,0) when s is not a span spec. A bare "+" means span 1.
+func parseCellSpec(s string) (col, row int) {
+	m := reCellSpec.FindStringSubmatch(strings.TrimSpace(s))
+	if m == nil {
+		return 0, 0
+	}
+	col, row = 1, 1
+	if m[1] != "" {
+		col, _ = strconv.Atoi(m[1])
+	}
+	if m[2] != "" {
+		row, _ = strconv.Atoi(m[2])
+	}
+	return col, row
+}
+
+// trailingCellSpec reports whether the last whitespace-delimited token of
+// line[from:to] is a cell span spec. It returns the spec's start offset (so the
+// caller can trim it off the current cell) and the parsed col/row, or (-1,0,0).
+func trailingCellSpec(line string, from, to int) (specStart, col, row int) {
+	end := to
+	for end > from && (line[end-1] == ' ' || line[end-1] == '\t') {
+		end--
+	}
+	start := end
+	for start > from && line[start-1] != ' ' && line[start-1] != '\t' {
+		start--
+	}
+	if c, r := parseCellSpec(line[start:end]); c != 0 {
+		return start, c, r
+	}
+	return -1, 0, 0
 }
 
 // lineCellCount returns the number of `|`-separated cells on a table line.
@@ -534,6 +633,30 @@ func (r *Reader) consumeDelimited(ctx context.Context, ch chan<- model.PartResul
 	return next
 }
 
+// consumeVerbatimContent consumes a listing/literal delimited block and surfaces
+// its BODY as a non-translatable content block (RoleCode) rather than burying it
+// in opaque skeleton, while keeping the open/close delimiters as skeleton so the
+// block round-trips byte-exact. fence is the canonical delimiter re-synthesized
+// on the normalized (no-skeleton) writer path. Unterminated or empty blocks fall
+// back to the verbatim-skeleton path.
+func (r *Reader) consumeVerbatimContent(ctx context.Context, ch chan<- model.PartResult, lines []srcLine, i int, name, fence string, closeRE *regexp.Regexp) int {
+	j := i + 1
+	for j < len(lines) && !closeRE.MatchString(lines[j].text) {
+		j++
+	}
+	if j >= len(lines) {
+		return r.consumeDelimited(ctx, ch, lines, i, name, closeRE) // unterminated
+	}
+	bodyStart := lines[i].end
+	bodyEnd := lines[j].start
+	if bodyEnd <= bodyStart {
+		return r.consumeDelimited(ctx, ch, lines, i, name, closeRE) // empty body
+	}
+	r.emitContentBlock(ctx, ch, bodyStart, bodyStart, bodyEnd,
+		name, name, model.RoleCode, map[string]string{"asciidoc.fence": fence})
+	return j + 1
+}
+
 // emitBlock emits one translatable block whose source runs are the inline-parsed
 // text in [contentStart,contentEnd). The structural prefix [lineStart,
 // contentStart) is written to the skeleton verbatim, the content as a Ref.
@@ -554,6 +677,51 @@ func (r *Reader) emitBlock(ctx context.Context, ch chan<- model.PartResult,
 	}
 	if level > 0 {
 		block.Properties["level"] = strconv.Itoa(level)
+	}
+	maps.Copy(block.Properties, props)
+	// Promote table-cell span props to the typed structure annotation so
+	// geometry/structure consumers (and DocLang export) see the merged extents.
+	if s, ok := block.Structure(); ok && s != nil {
+		if v := block.Properties["colspan"]; v != "" {
+			s.ColSpan, _ = strconv.Atoi(v)
+		}
+		if v := block.Properties["rowspan"]; v != "" {
+			s.RowSpan, _ = strconv.Atoi(v)
+		}
+	}
+
+	r.skelEmitGap(lineStart)
+	if contentStart > lineStart {
+		r.skelText(string(r.source[lineStart:contentStart]))
+	}
+	r.skelRef(id)
+	r.cursor = contentEnd
+
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitContentBlock emits a NON-translatable content block: the bytes in
+// [contentStart,contentEnd) are surfaced as first-class, role-tagged content (a
+// single verbatim run, whitespace-significant, NOT inline-parsed) rather than
+// buried in opaque skeleton — so an ingestion/LLM consumer sees the contextual
+// content (code, literal text) while MT still skips it (Translatable=false). The
+// structural prefix [lineStart,contentStart) stays skeleton and the body rides as
+// a Ref, so the byte-exact round-trip is preserved.
+func (r *Reader) emitContentBlock(ctx context.Context, ch chan<- model.PartResult,
+	lineStart, contentStart, contentEnd int, name, blockType, role string, props map[string]string) bool {
+
+	r.blockCounter++
+	id := fmt.Sprintf("tu%d", r.blockCounter)
+	text := string(r.source[contentStart:contentEnd])
+
+	block := model.NewBlock(id, text) // default Source is a single verbatim run
+	block.Name = name
+	block.Type = blockType
+	block.SourceLocale = r.locale
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	if role != "" {
+		block.SetSemanticRole(role, 0)
 	}
 	maps.Copy(block.Properties, props)
 
