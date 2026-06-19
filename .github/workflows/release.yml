@@ -286,8 +286,10 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
+          export VERSION   # nfpm reads ${VERSION} from the environment
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
-          export PATH="$PATH:$(go env GOPATH)/bin"
+          gopath_bin="$(go env GOPATH)/bin"
+          export PATH="$PATH:$gopath_bin"
           mkdir -p packaging/.stage
           for arch in amd64 arm64; do
             bin="cli-artifacts/cli-bins-linux-${arch}/kapi"
@@ -297,10 +299,9 @@ jobs:
             fi
             # nfpm doesn't expand env in contents[].src, so stage at a fixed path.
             cp "$bin" packaging/.stage/kapi
-            ARCH="$arch" VERSION="$VERSION" \
-              nfpm package -f packaging/nfpm.yaml -p deb -t "dist/kapi-cli_${VERSION}_${arch}.deb"
-            ARCH="$arch" VERSION="$VERSION" \
-              nfpm package -f packaging/nfpm.yaml -p rpm -t "dist/kapi-cli_${VERSION}_${arch}.rpm"
+            export ARCH="$arch"   # nfpm reads ${ARCH} from the environment
+            nfpm package -f packaging/nfpm.yaml -p deb -t "dist/kapi-cli_${VERSION}_${arch}.deb"
+            nfpm package -f packaging/nfpm.yaml -p rpm -t "dist/kapi-cli_${VERSION}_${arch}.rpm"
           done
           # Add the packages to checksums.txt (filenames only, no dir component).
           ( cd dist && { sha256sum ./*.deb ./*.rpm 2>/dev/null | sed 's| \./| |' || true; } >> checksums.txt )
