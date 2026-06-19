@@ -176,39 +176,71 @@ jobs:
           echo "KEYCHAIN_PATH=$KC" >> "$GITHUB_ENV"
           echo "enabled=true" >> "$GITHUB_OUTPUT"
 
-      - name: Sign whisper-cli + libs (macOS)
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
-        env:
-          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+      # macOS: build the pure-Go kapi-asr binary up front so it can be Developer-ID
+      # signed alongside the bundled whisper-cli before packaging (the package
+      # script then bundles this pre-signed binary as-is via --prebuilt-bin).
+      - name: Build kapi-asr (macOS, pre-sign)
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
           set -euo pipefail
-          for f in "$WHISPER_DIR"/*.dylib "$WHISPER_DIR/whisper-cli"; do
-            [ -e "$f" ] && codesign --force --timestamp --options runtime --sign "$APPLE_SIGN_IDENTITY" "$f"
+          mkdir -p "$RUNNER_TEMP/prebuilt"
+          ( cd plugins/asr && GOWORK=off CGO_ENABLED=0 go build -trimpath \
+              -ldflags "-s -w" -o "$RUNNER_TEMP/prebuilt/kapi-asr" ./cmd/kapi-asr )
+          echo "ASR_PREBUILT_BIN=$RUNNER_TEMP/prebuilt/kapi-asr" >> "$GITHUB_ENV"
+
+      # Developer-ID sign every Mach-O (kapi-asr + whisper-cli + dylibs) with the
+      # hardened runtime, then — on a publish (tag) run — notarize them. notarytool
+      # only accepts a .zip/.pkg/.dmg, so we ditto the signed binaries into a zip;
+      # stapling is not applicable to bare Mach-O, but notarization registers them
+      # with Apple so Gatekeeper accepts the binaries once the tarball is expanded.
+      - name: Sign + notarize macOS binaries
+        if: runner.os == 'macOS'
+        env:
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          IS_PUBLISH: ${{ startsWith(github.ref, 'refs/tags/asr-v') }}
+        run: |
+          set -euo pipefail
+          macho=( "$WHISPER_DIR/whisper-cli" "$ASR_PREBUILT_BIN" )
+          for lib in "$WHISPER_DIR"/*.dylib; do [ -e "$lib" ] && macho+=( "$lib" ); done
+          if [ "$SIGNING_ENABLED" != "true" ]; then
+            echo "No Developer ID — ad-hoc signing the bundled binaries (not distributable)"
+            for f in "${macho[@]}"; do codesign --force --sign - "$f"; done
+            exit 0
+          fi
+          for f in "${macho[@]}"; do
+            codesign --force --timestamp --options runtime --sign "$APPLE_SIGN_IDENTITY" "$f"
           done
+          if [ "$IS_PUBLISH" = "true" ]; then
+            KEY="$RUNNER_TEMP/AuthKey.p8"
+            echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$KEY"
+            xcrun notarytool store-credentials "neokapi-notary" --key "$KEY" \
+              --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --keychain "$KEYCHAIN_PATH"
+            rm -f "$KEY"
+            ndir="$RUNNER_TEMP/notarize"; mkdir -p "$ndir"
+            for f in "${macho[@]}"; do cp "$f" "$ndir/"; done
+            ZIP="$RUNNER_TEMP/asr-notarize.zip"
+            /usr/bin/ditto -c -k --keepParent "$ndir" "$ZIP"
+            xcrun notarytool submit "$ZIP" --keychain-profile neokapi-notary --wait
+          fi
 
       - name: Package kapi-asr tarball
         id: package
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
+          PREBUILT_BIN: ${{ env.ASR_PREBUILT_BIN }}
         run: |
           scripts/package-asr-plugin.sh \
             --version "${VERSION}" \
             --whisper-dir "${WHISPER_DIR}" \
             --model "${MODEL_PATH}" \
+            --prebuilt-bin "${PREBUILT_BIN:-}" \
             --out-dir "$RUNNER_TEMP/asr-out"
-
-      # Sign + notarize the kapi-asr binary + whole tarball on macOS publish runs.
-      - name: Notarize tarball (macOS, publish only)
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true' && startsWith(github.ref, 'refs/tags/asr-v')
-        run: |
-          set -euo pipefail
-          KEY="$RUNNER_TEMP/AuthKey.p8"
-          echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "$KEY"
-          xcrun notarytool store-credentials "neokapi-notary" --key "$KEY" \
-            --key-id "${{ secrets.APPLE_API_KEY_ID }}" --issuer "${{ secrets.APPLE_API_ISSUER_ID }}" --keychain "$KEYCHAIN_PATH"
-          xcrun notarytool submit "${{ steps.package.outputs.tarball }}" --keychain-profile neokapi-notary --wait
-          rm -f "$KEY"
 
       - name: Cleanup keychain (macOS)
         if: always() && runner.os == 'macOS'
@@ -217,9 +249,20 @@ jobs:
             security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
           fi
 
-      - name: Cosign sign tarball (keyless, publish only)
-        if: startsWith(github.ref, 'refs/tags/asr-v')
+      # cosign keyless sign (publish only). sigstore/cosign-installer has no
+      # windows/arm64 build, so go-install cosign on that leg and use the action
+      # everywhere else.
+      - name: Install cosign (publish only)
+        if: startsWith(github.ref, 'refs/tags/asr-v') && !(runner.os == 'Windows' && matrix.build.goarch == 'arm64')
         uses: sigstore/cosign-installer@v3
+      - name: Install cosign via go (windows/arm64, publish only)
+        if: startsWith(github.ref, 'refs/tags/asr-v') && runner.os == 'Windows' && matrix.build.goarch == 'arm64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+          # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
+          cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Cosign sign
         if: startsWith(github.ref, 'refs/tags/asr-v')
         shell: bash

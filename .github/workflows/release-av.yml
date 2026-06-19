@@ -1,0 +1,323 @@
+name: Release AV plugin
+
+# The kapi-av video-demux dependency plugin releases independently of the kapi
+# CLI, on its own `av-v*` tag (e.g. `av-v0.1.0` -> kapi-av 0.1.0), mirroring the
+# kapi-asr / kapi-sat model. kapi-av is PURE-Go (no cgo) but bundles a
+# per-platform LGPL ffmpeg + ffprobe (separate executables invoked over a process
+# boundary by core/av — never linked into kapi), so the heavy part is producing an
+# LGPL ffmpeg per target: linux x64/arm64 and windows x64/arm64 use BtbN's static
+# LGPL prebuilts; macOS/arm64 has no clean LGPL prebuilt and is built from source
+# (./configure --disable-gpl --disable-nonfree).
+#
+# workflow_dispatch is a BUILD-ONLY dry run (no publish / no registry write) for
+# iterating the platform matrix. The publish + register jobs are gated to `av-v*`
+# tag pushes only.
+on:
+  push:
+    tags:
+      - "av-v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write # cosign keyless
+
+env:
+  # BtbN's rolling `latest` tag carries stable asset names
+  # (ffmpeg-master-latest-<plat>-lgpl.*); the build's exact version is captured at
+  # bundle time (ffmpeg -version) for the LGPL source-correspondence record.
+  FFMPEG_BTBN_TAG: "latest"
+  # macOS source build: pinned FFmpeg release tag.
+  FFMPEG_SOURCE_TAG: "n7.1.4"
+
+jobs:
+  build-av-plugin:
+    name: Build kapi-av plugin (${{ matrix.build.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64, ffmpeg: source }
+          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64, ffmpeg: prebuilt, btbn: linux64 }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64, ffmpeg: prebuilt, btbn: linuxarm64 }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64, ffmpeg: prebuilt, btbn: win64 }
+          - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64, ffmpeg: prebuilt, btbn: winarm64 }
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v6
+        with: { go-version: "1.26.0" }
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/av-v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#av-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── obtain ffmpeg + ffprobe into $FFMPEG_DIR ──────────────────────────────
+      # Prebuilt legs: BtbN's static LGPL build (single self-contained binaries,
+      # no shared libs to bundle).
+      - name: Fetch ffmpeg LGPL prebuilt (Linux)
+        if: matrix.build.ffmpeg == 'prebuilt' && runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/BtbN/FFmpeg-Builds/releases/download/${FFMPEG_BTBN_TAG}/ffmpeg-master-latest-${{ matrix.build.btbn }}-lgpl.tar.xz"
+          mkdir -p "$RUNNER_TEMP/ff"
+          curl -sSfL -o "$RUNNER_TEMP/ff.txz" "$url"
+          tar -xJf "$RUNNER_TEMP/ff.txz" -C "$RUNNER_TEMP/ff"
+          dir="$(dirname "$(find "$RUNNER_TEMP/ff" -type f -name ffmpeg | head -n1)")"
+          [ -n "$dir" ] || { echo "::error::ffmpeg not found in BtbN prebuilt"; find "$RUNNER_TEMP/ff" | head; exit 1; }
+          echo "FFMPEG_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Fetch ffmpeg LGPL prebuilt (Windows)
+        if: matrix.build.ffmpeg == 'prebuilt' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$env:FFMPEG_BTBN_TAG/ffmpeg-master-latest-${{ matrix.build.btbn }}-lgpl.zip"
+          $dest = "$env:RUNNER_TEMP\ff.zip"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          Expand-Archive -Path $dest -DestinationPath "$env:RUNNER_TEMP\ff" -Force
+          $ff = Get-ChildItem -Path "$env:RUNNER_TEMP\ff" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+          if (-not $ff) { Write-Error "ffmpeg.exe not found"; exit 1 }
+          "FFMPEG_DIR=$($ff.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # macOS: no clean LGPL prebuilt — build ffmpeg + ffprobe from source. Default
+      # (built-in) codecs are LGPL; --disable-autodetect keeps the build reproducible
+      # and free of stray GPL/brew libs, --enable-zlib covers the PNG frame encoder.
+      - name: Build ffmpeg from source (macOS, LGPL)
+        if: matrix.build.ffmpeg == 'source' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install nasm >/dev/null || true
+          git clone --branch "${FFMPEG_SOURCE_TAG}" --depth 1 https://github.com/FFmpeg/FFmpeg "$RUNNER_TEMP/ffsrc"
+          cd "$RUNNER_TEMP/ffsrc"
+          ./configure \
+            --disable-gpl --disable-nonfree --disable-autodetect --enable-zlib \
+            --disable-doc --disable-debug --disable-shared --enable-static \
+            --disable-programs --enable-ffmpeg --enable-ffprobe
+          make -j3
+          out="$RUNNER_TEMP/ffdir"; mkdir -p "$out"
+          cp ffmpeg ffprobe "$out/"
+          echo "FFMPEG_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Record ffmpeg LGPL build version (source correspondence)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ff="$FFMPEG_DIR/ffmpeg"
+          if [ "${RUNNER_OS}" = Windows ]; then
+            ff="$FFMPEG_DIR/ffmpeg.exe"
+            if command -v cygpath >/dev/null 2>&1; then ff="$(cygpath -u "$ff")"; fi
+          fi
+          "$ff" -hide_banner -version | head -n2 || true
+          # The macOS leg builds from source: assert it is genuinely an LGPL build
+          # (BtbN prebuilt legs already pull the -lgpl asset by name).
+          if [ "${RUNNER_OS}" = macOS ]; then
+            if "$ff" -hide_banner -buildconf | grep -qiE 'enable-gpl|enable-nonfree'; then
+              echo "::error::macOS ffmpeg build reports gpl/nonfree — not an LGPL build"
+              exit 1
+            fi
+          fi
+
+      # ── macOS Developer-ID signing of the bundled Mach-O (pre-tar) ─────────────
+      - name: Import signing certificate (macOS)
+        id: signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CERT="$RUNNER_TEMP/cert.p12"; echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$CERT"
+          KC="$RUNNER_TEMP/sign.keychain-db"; PW=$(openssl rand -hex 32)
+          security create-keychain -p "$PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$PW" "$KC"
+          security import "$CERT" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$PW" "$KC"
+          security list-keychain -d user -s "$KC" login.keychain
+          security default-keychain -s "$KC"; rm -f "$CERT"
+          echo "KEYCHAIN_PATH=$KC" >> "$GITHUB_ENV"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      # macOS: build the pure-Go kapi-av binary up front so it can be Developer-ID
+      # signed alongside the bundled ffmpeg/ffprobe before packaging (the package
+      # script then bundles this pre-signed binary as-is via --prebuilt-bin).
+      - name: Build kapi-av (macOS, pre-sign)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/prebuilt"
+          ( cd plugins/av && GOWORK=off CGO_ENABLED=0 go build -trimpath \
+              -ldflags "-s -w" -o "$RUNNER_TEMP/prebuilt/kapi-av" ./cmd/kapi-av )
+          echo "AV_PREBUILT_BIN=$RUNNER_TEMP/prebuilt/kapi-av" >> "$GITHUB_ENV"
+
+      # Developer-ID sign every Mach-O (kapi-av + ffmpeg + ffprobe + any dylibs)
+      # with the hardened runtime, then — on a publish (tag) run — notarize them.
+      # notarytool only accepts a .zip/.pkg/.dmg, so we ditto the signed binaries
+      # into a zip; stapling is not applicable to bare Mach-O, but notarization
+      # registers them with Apple so Gatekeeper accepts them once expanded.
+      - name: Sign + notarize macOS binaries
+        if: runner.os == 'macOS'
+        env:
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          IS_PUBLISH: ${{ startsWith(github.ref, 'refs/tags/av-v') }}
+        run: |
+          set -euo pipefail
+          macho=( "$FFMPEG_DIR/ffmpeg" "$FFMPEG_DIR/ffprobe" "$AV_PREBUILT_BIN" )
+          for lib in "$FFMPEG_DIR"/*.dylib; do [ -e "$lib" ] && macho+=( "$lib" ); done
+          if [ "$SIGNING_ENABLED" != "true" ]; then
+            echo "No Developer ID — ad-hoc signing the bundled binaries (not distributable)"
+            for f in "${macho[@]}"; do codesign --force --sign - "$f"; done
+            exit 0
+          fi
+          for f in "${macho[@]}"; do
+            codesign --force --timestamp --options runtime --sign "$APPLE_SIGN_IDENTITY" "$f"
+          done
+          if [ "$IS_PUBLISH" = "true" ]; then
+            KEY="$RUNNER_TEMP/AuthKey.p8"
+            echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$KEY"
+            xcrun notarytool store-credentials "neokapi-notary" --key "$KEY" \
+              --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --keychain "$KEYCHAIN_PATH"
+            rm -f "$KEY"
+            ndir="$RUNNER_TEMP/notarize"; mkdir -p "$ndir"
+            for f in "${macho[@]}"; do cp "$f" "$ndir/"; done
+            ZIP="$RUNNER_TEMP/av-notarize.zip"
+            /usr/bin/ditto -c -k --keepParent "$ndir" "$ZIP"
+            xcrun notarytool submit "$ZIP" --keychain-profile neokapi-notary --wait
+          fi
+
+      - name: Package kapi-av tarball
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          PREBUILT_BIN: ${{ env.AV_PREBUILT_BIN }}
+        run: |
+          scripts/package-av-plugin.sh \
+            --version "${VERSION}" \
+            --ffmpeg-dir "${FFMPEG_DIR}" \
+            --prebuilt-bin "${PREBUILT_BIN:-}" \
+            --out-dir "$RUNNER_TEMP/av-out"
+
+      - name: Cleanup keychain (macOS)
+        if: always() && runner.os == 'macOS'
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+
+      # cosign keyless sign (publish only). sigstore/cosign-installer has no
+      # windows/arm64 build, so go-install cosign on that leg and use the action
+      # everywhere else.
+      - name: Install cosign (publish only)
+        if: startsWith(github.ref, 'refs/tags/av-v') && !(runner.os == 'Windows' && matrix.build.goarch == 'arm64')
+        uses: sigstore/cosign-installer@v3
+      - name: Install cosign via go (windows/arm64, publish only)
+        if: startsWith(github.ref, 'refs/tags/av-v') && runner.os == 'Windows' && matrix.build.goarch == 'arm64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+          # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
+          cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Cosign sign
+        if: startsWith(github.ref, 'refs/tags/av-v')
+        shell: bash
+        env: { TARBALL: "${{ steps.package.outputs.tarball }}" }
+        run: cosign sign-blob --yes --new-bundle-format --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: av-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: |
+            ${{ runner.temp }}/av-out/*.tar.gz
+            ${{ runner.temp }}/av-out/*.tar.gz.sigstore.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write checksum artifact
+        shell: bash
+        env:
+          AV_SHA256: ${{ steps.package.outputs.sha256 }}
+          AV_TARBALL_NAME: ${{ steps.package.outputs.tarball_name }}
+          LEG_GOOS: ${{ matrix.build.goos }}
+          LEG_GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/av-checksums"
+          echo "${AV_SHA256}  ${AV_TARBALL_NAME}" > "$RUNNER_TEMP/av-checksums/${LEG_GOOS}_${LEG_GOARCH}.sha256"
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: av-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: ${{ runner.temp }}/av-checksums/*.sha256
+          retention-days: 14
+
+  publish-av-release:
+    name: Publish kapi-av release
+    if: startsWith(github.ref, 'refs/tags/av-v')
+    needs: build-av-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { pattern: av-tarball-*, path: av-release, merge-multiple: true }
+      - uses: softprops/action-gh-release@v3
+        with:
+          make_latest: false
+          files: |
+            av-release/*.tar.gz
+            av-release/*.tar.gz.sigstore.json
+
+  register-av-plugin:
+    name: Register kapi-av in plugin registry
+    if: startsWith(github.ref, 'refs/tags/av-v')
+    needs: publish-av-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { pattern: av-checksum-*, path: av-checksums, merge-multiple: true }
+      - name: Update manifest plugin registry (av)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#av-v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then echo "no REGISTRY_TOKEN; skip"; exit 0; fi
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
+          declare -A SHAS
+          for f in av-checksums/*.sha256; do [ -f "$f" ] || continue; SHAS[$(awk '{print $2}' "$f")]=$(awk '{print $1}' "$f"); done
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-av.yml@refs/tags/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64 windows/arm64; do
+            os=${plat%/*}; arch=${plat#*/}; file="kapi-av_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}" "--signature" "${REPO_URL}/${file}.sigstore.json")
+            else echo "::warning::no checksum for ${file}; skipping ${plat}"; fi
+          done
+          [ ${#ARGS[@]} -eq 0 ] && { echo "::error::no artifacts"; exit 1; }
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          /tmp/registry-update --registry /tmp/registry/manifest-plugins.json \
+            --plugin av --version "$VERSION" --channel stable --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" --cert-oidc-issuer https://token.actions.githubusercontent.com "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"; git config user.name "release-bot"
+          git add manifest-plugins.json
+          git diff --staged --quiet || { git commit -m "Register av ${VERSION}"; git push; }

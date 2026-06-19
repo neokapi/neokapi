@@ -28,12 +28,18 @@
 set -euo pipefail
 
 VERSION="${VERSION:-}"; WHISPER_DIR="${WHISPER_DIR:-}"; MODEL="${MODEL:-}"; OUT_DIR="${OUT_DIR:-}"
+# Optional: an already-built (and, on macOS, Developer-ID-signed + notarized)
+# kapi-asr binary to bundle as-is instead of building one here. The macOS release
+# leg pre-signs the binary before packaging so the bundled binary carries the
+# notarized signature; see release-asr.yml.
+PREBUILT_BIN="${PREBUILT_BIN:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) VERSION="$2"; shift 2 ;;
     --whisper-dir) WHISPER_DIR="$2"; shift 2 ;;
     --model) MODEL="$2"; shift 2 ;;
     --out-dir) OUT_DIR="$2"; shift 2 ;;
+    --prebuilt-bin) PREBUILT_BIN="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -54,9 +60,14 @@ exe=""; [ "$goos" = windows ] && exe=".exe"
 
 stage="$(mktemp -d)/kapi-asr"; mkdir -p "$stage"
 
-echo "==> build kapi-asr ($goos/$goarch)"
-( cd "$repo/plugins/asr" && GOWORK=off CGO_ENABLED=0 go build -trimpath \
-    -ldflags "-s -w" -o "$stage/kapi-asr$exe" ./cmd/kapi-asr )
+if [ -n "$PREBUILT_BIN" ]; then
+  echo "==> use prebuilt (pre-signed) kapi-asr: $PREBUILT_BIN"
+  cp "$PREBUILT_BIN" "$stage/kapi-asr$exe"
+else
+  echo "==> build kapi-asr ($goos/$goarch)"
+  ( cd "$repo/plugins/asr" && GOWORK=off CGO_ENABLED=0 go build -trimpath \
+      -ldflags "-s -w" -o "$stage/kapi-asr$exe" ./cmd/kapi-asr )
+fi
 
 cp "$repo/plugins/asr/manifest.json" "$stage/manifest.json"
 cp "$repo/plugins/asr/NOTICE" "$stage/NOTICE"
