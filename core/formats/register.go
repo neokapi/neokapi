@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/androidxml"
 	"github.com/neokapi/neokapi/core/formats/applestrings"
 	"github.com/neokapi/neokapi/core/formats/arb"
+	"github.com/neokapi/neokapi/core/formats/audio"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doclang"
@@ -53,6 +54,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/ttx"
 	"github.com/neokapi/neokapi/core/formats/txml"
 	"github.com/neokapi/neokapi/core/formats/versifiedtext"
+	"github.com/neokapi/neokapi/core/formats/video"
 	"github.com/neokapi/neokapi/core/formats/vignette"
 	"github.com/neokapi/neokapi/core/formats/vtt"
 	"github.com/neokapi/neokapi/core/formats/wiki"
@@ -405,6 +407,25 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MIMETypes: []string{"text/x-mosestext"},
 		}, "Moses Text")
 	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
+
+	// Audio — transcribed to timing-anchored Blocks when the kapi-asr plugin is
+	// available (AD-030); otherwise emitted as a Media asset. Read-only.
+	reg.RegisterReader("audio",
+		func() format.DataFormatReader { return audio.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"audio/wav", "audio/mpeg", "audio/mp4", "audio/flac", "audio/ogg"},
+			Extensions: []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
+			MagicBytes: [][]byte{[]byte("RIFF"), []byte("ID3"), []byte("OggS"), []byte("fLaC")},
+		}, "Audio")
+
+	// Video — demuxed (ffmpeg) into an audio track (→ kapi-asr) and sampled
+	// frames (→ kapi-vision OCR), each a child Layer (AD-030). Read-only.
+	reg.RegisterReader("video",
+		func() format.DataFormatReader { return video.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"video/mp4", "video/quicktime", "video/x-matroska", "video/webm"},
+			Extensions: []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
+		}, "Video")
 
 	// SRT Subtitles
 	reg.RegisterReader("srt",

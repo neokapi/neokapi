@@ -156,8 +156,26 @@ func (w *Writer) writeBlock(part *model.Part) error {
 
 	text := w.blockText(block)
 
+	// Cue timing is the format-agnostic TimingAnnotation (AD-002); format it to
+	// VTT syntax. Fall back to a legacy timecode property if no anchor is set.
 	timecode := block.Properties["timecode"]
+	if t, ok := block.Timing(); ok && t != nil {
+		timecode = formatVTTTimecode(t.StartMS, t.EndMS)
+		if settings := block.Properties["cue-settings"]; settings != "" {
+			timecode += " " + settings
+		}
+	}
 	cueID := block.Properties["cue-id"]
+
+	// A valid WebVTT file must start with the WEBVTT signature. When writing from
+	// a non-VTT source (e.g. audio → ASR → VTT) no header Data part arrives, so
+	// emit a default one before the first cue.
+	if !w.wroteHeader {
+		if _, err := io.WriteString(w.Output, "WEBVTT"); err != nil {
+			return err
+		}
+		w.wroteHeader = true
+	}
 
 	// Blank line separator before cue
 	if _, err := fmt.Fprint(w.Output, "\n\n"); err != nil {
