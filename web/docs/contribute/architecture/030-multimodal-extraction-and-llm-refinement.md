@@ -41,7 +41,7 @@ plugins, mirroring `kapi-vision` and the SaT segmenter
 
 ## Context
 
-The vision work ([AD-029](029-vision-and-image-localization.md)) shipped an OCR
+The vision work ([AD-029](029-vision-and-image-localization.md)) establishes an OCR
 pipeline and an in-browser handwriting cascade — PP-OCRv5 reads every line fast,
 and lines below a confidence threshold are re-read by a handwriting model (TrOCR).
 That cascade is the seed of a general idea: a frontier multimodal LLM reads hard
@@ -54,15 +54,14 @@ word rather than admitting defeat. So the LLM is never the primary reader; it is
 **narrow escalation** over only the units the fast local extractor is unsure of,
 fed only the slice in question.
 
-Audio and video are the same problem with different coordinates. Today the content
-model anchors content spatially only (`GeometryAnnotation`: page + pixel `Rect`),
-and the OCR confidence that the cascade depends on is **discarded** by
-`vision.BlocksFromOCR` — it never reaches a downstream tool. The `aiprovider`
-`Message` is **text-only** across all five backends, so no tool can send an image,
-let alone an audio clip. Building an OCR-shaped LLM refiner now would bake those
-limits in. This AD instead defines the *generic* shape so audio — automatic
-speech recognition (ASR), the audio counterpart of OCR: speech in, text out —
-and video extraction plug into the same escalation tier without reinvention.
+Audio and video are the same problem in different coordinates — speech and
+on-screen text are anchored in *time* (and, for video, time plus space) rather
+than on a still page. Generalizing the spatial anchor to also cover time,
+carrying the extractor's confidence as a first-class attribute the escalation
+gate reads, and giving the provider interface image/audio/video content parts
+are therefore one design, not an OCR feature: audio — automatic speech
+recognition (ASR), the audio counterpart of OCR: speech in, text out — and video
+extraction plug into the same escalation tier without reinvention.
 
 ## Decision
 
@@ -97,8 +96,8 @@ entirely in the per-modality adapters.
 ### Content model: MediaAnchor and ExtractionProvenance
 
 Two stand-off overlays ([AD-002](002-content-model.md)) make an extracted Block
-self-describing enough for one modality-generic tool, and close the two gaps named
-above (dropped confidence, spatial-only anchoring).
+self-describing enough for one modality-generic tool: where it sits in the source
+media, and how its source text was produced.
 
 **MediaAnchor** locates a Block within source media across space and time. It
 subsumes `GeometryAnnotation` — an image Block carries only the spatial part, an
@@ -120,7 +119,7 @@ type ExtractionProvenance struct {
     Modality     Modality // closed set, named type (see below)
     Engine       EngineID // open ID: plugins register their own
     ModelVersion string   // free-form version string
-    Confidence   float64  // [0,1]; persisted, never discarded
+    Confidence   float64  // [0,1]; the escalation gate
     NeedsReview  bool     // set on LLM divergence / refusal
 }
 
@@ -147,9 +146,9 @@ doc comment (`Message.Role`, `GeometryAnnotation.Origin`, IANA media types,
 version strings). `MediaAnchor.Source` follows the existing `GeometryAnnotation.SourceRef`
 precedent — an ID reference held as `string`.
 
-`BlocksFromOCR` (and the future `BlocksFromASR`) attach both overlays. The browser
-cascade's existing `OCRLine.engine` field is the same idea one layer up; this makes
-it first-class and native.
+Each extractor's block builder (`BlocksFromOCR`, `BlocksFromASR`) attaches both
+overlays, so provenance and anchor travel with the Block from the moment it is
+extracted.
 
 ### The keystone: a multimodal aiprovider
 
@@ -186,10 +185,10 @@ type Message struct {
 func (p Provider) InputModalities() []Modality
 ```
 
-A bare string folds to a single `text` part, so existing AI tools
-([AD-022](022-brand-voice.md), translate/QA/terminology) are unaffected. This one
-change unlocks *all three* modalities, not just OCR. Backends differ in reach —
-roughly:
+A pure-text message is a single `text` part, so text-only tools (translation, QA,
+terminology — [AD-022](022-brand-voice.md)) use the same interface with no media
+parts. The same interface carries image, audio, and video for the refinement
+tier. Backends differ in reach:
 
 | Provider | Accepts |
 |---|---|
@@ -269,39 +268,15 @@ The confabulation risk is identical across modalities, so the guards are too:
 - **Slice, never page.** Only the low-confidence slice plus a text context hint
   leaves the process — bounding both cost and data exposure.
 
-### Credentials and the browser boundary
+### Provider credentials
 
-A configurable cloud LLM tier belongs **server/CLI-side**, where credentials
-already have a home: the keychain and env path the AI tools use
-([AD-011](011-ai-providers.md), [AD-013](013-kapi-cli.md)). "Configurable like the
-other AI tools" — `provider` + `model` + key from the credential store — is
-satisfied there.
-
-The static-site **Labs have no backend and no credential store**, and a fully
-OAuth-automated, no-key-pasting path to a frontier cloud LLM from a browser does
-**not** exist across providers: OpenAI and Anthropic authenticate the API with keys
-only (Anthropic's subscription OAuth token is contractually prohibited in
-third-party tools as of 2026), and Google's in-browser token flow does not bill a
-user's own Gemini account without a site-registered OAuth client and a billing-
-enabled project. Pasting raw API keys into a docs page is rejected on security
-grounds. The Labs therefore use **keyless local inference only** — Ollama on
-`localhost` (a vision/ASR model the user runs) or an in-browser model via
-transformers.js (TrOCR today; a small VLM where an ONNX export exists). The Lab is
-a *local-inference demonstrator* of the pattern; cloud-provider refinement is a
-CLI/desktop capability. This keeps the browser surface credential-free and matches
-neokapi's local-first posture and the kapi/bowrain product boundary.
-
-## Status
-
-This AD defines the target architecture. Implemented today
-([AD-029](029-vision-and-image-localization.md)): the image OCR + layout pipeline,
-and the in-browser Vision Lab handwriting cascade (PP-OCR → TrOCR, with
-`OCRLine.confidence` + `engine`). Not yet built: native `ExtractionProvenance` /
-`MediaAnchor` persistence (OCR confidence is currently dropped by
-`BlocksFromOCR`), the multimodal `aiprovider` (`Message` is text-only), the generic
-`media-refine` tool and `MediaSlicer`s, the Vision Lab Tier-3 (keyless-local) LLM
-option, and the `kapi-asr` plugin + video demux reader. The phased build order is
-tracked in the implementation issue, not here.
+The configurable multimodal LLM tier runs **server/CLI-side** and draws its
+`provider` + `model` + key from the same credential path as the other AI tools —
+the keychain and environment ([AD-011](011-ai-providers.md),
+[AD-013](013-kapi-cli.md)). "Configurable like the other AI tools" is satisfied
+there. The in-browser Labs demonstrate the local extraction tiers (OCR, ASR, the
+handwriting cascade); credentialed cloud refinement is a CLI/desktop capability,
+not a browser one.
 
 ## Related
 
