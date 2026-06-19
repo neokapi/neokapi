@@ -72,7 +72,7 @@ GitHub Actions repo secrets used by `release.yml`:
 
 ### Maintainer's Mac (for the Windows signing step)
 
-1. `brew bundle` at the repo root — installs `jsign`, `gh`, `goreleaser`, and the
+1. `brew bundle` at the repo root — installs `jsign`, `gh`, and the
    **SimplySign Desktop** cask (see [`Brewfile`](Brewfile)).
 2. Open **SimplySign Desktop** (menu-bar app) and log in with your Certum
    SimplySign account + the mobile-app OTP. The session is time-limited, so log

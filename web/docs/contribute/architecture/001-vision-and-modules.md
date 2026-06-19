@@ -266,8 +266,8 @@ their boundaries so invalid codes never propagate silently.
 - Framework packages are organized under `core/`, `sievepen/`, `termbase/`,
   `providers/`, giving a clean separation of concerns at the directory level.
 - Four `go.mod` files need maintenance, but `go.work` resolves cross-module
-  imports during daily development and GoReleaser handles multi-module release
-  builds.
+  imports during daily development and the `release.yml` workflow handles
+  multi-module release builds.
 - License-clean: Apache-2.0 framework modules never accidentally pull
   separately-licensed platform code, enforced by import-path topology.
 - The shared CLI base lets kapi and kapi-desktop expose identical commands

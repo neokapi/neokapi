@@ -336,5 +336,5 @@ The `kapi` CLI binary is built from `kapi/cmd/kapi`.
 | Go install       | Go developers         | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
-push) and `release.yml` (GoReleaser on tag push). See
+push) and `release.yml` (build + publish on tag push). See
 [RELEASE.md](RELEASE.md) for the release process.

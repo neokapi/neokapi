@@ -17,7 +17,6 @@ brew "jsign"         # Authenticode signing of Windows .exe/.zip (pulls openjdk)
 brew "osslsigncode"  # alternative Authenticode signer (PKCS#11)
 brew "makensis"      # NSIS — builds the Windows desktop installers (setup.exe)
                      #   in scripts/publish-windows-signed.sh (needs wails3 too)
-brew "goreleaser"    # local release builds / `goreleaser check` (matches CI)
 brew "cosign"        # Sigstore signing of plugin tarballs (matches CI)
 
 # ── macOS apps (Homebrew Cask) ───────────────────────────────────
