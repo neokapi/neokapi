@@ -1280,22 +1280,34 @@ docs-dev: docs-wasm ; cd web && vp run start
 docs-build: ; cd web && vp run build
 docs-serve: ; cd web && vp run serve
 
-# Stage the Vision Lab OCR models same-origin (web/static/models/vision) so the
+# Stage the Vision Lab models same-origin (web/static/models/vision) so the
 # browser can fetch them without CORS (GitHub release URLs are CORS-blocked for
-# fetch()). OCR models only (det/rec/dict, <100 MB each → GitHub Pages-safe); the
-# ~132 MB layout model exceeds the Pages file limit and needs an external
-# CORS-enabled host (Vision Lab follow-up). For local dev, drop ppdoclayoutv3.onnx
-# into the same dir to exercise the layout path. Staged at build, never committed.
-fetch-vision-models: ## Stage Vision Lab OCR models → web/static/models/vision
+# fetch()). The docs deploy git-pushes the built site, so files must stay under
+# the 100 MB git limit: OCR models (det/rec/dict) ship whole; the ~132 MB layout
+# model is split into <100 MB parts plus a "<name>.json" manifest, which the
+# browser reassembles before inference (visionBridge.fetchModel). Staged at
+# build, never committed (web/.gitignore covers static/models).
+VISION_MODELS_REL := https://github.com/neokapi/neokapi/releases/download/vision-models-v1
+fetch-vision-models: ## Stage Vision Lab models (OCR whole + layout chunked) → web/static/models/vision
 	@mkdir -p web/static/models/vision
 	@for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt; do \
 	  if [ ! -f web/static/models/vision/$$f ]; then \
-	    gh release download vision-models-v1 -p $$f -D web/static/models/vision 2>/dev/null \
-	      || curl -sSfL -o web/static/models/vision/$$f \
-	        "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/$$f"; \
+	    gh release download vision-models-v1 -p $$f -O web/static/models/vision/$$f 2>/dev/null \
+	      || curl -sSfL -o web/static/models/vision/$$f "$(VISION_MODELS_REL)/$$f"; \
 	  fi; \
 	done
-	@echo "Staged Vision Lab OCR models → web/static/models/vision"
+	@if [ ! -f web/static/models/vision/ppdoclayoutv3.onnx.json ]; then \
+	  tmp=$$(mktemp); \
+	  gh release download vision-models-v1 -p ppdoclayoutv3.onnx -O $$tmp 2>/dev/null \
+	    || curl -sSfL -o $$tmp "$(VISION_MODELS_REL)/ppdoclayoutv3.onnx"; \
+	  bytes=$$(wc -c < $$tmp | tr -d ' '); \
+	  ( cd web/static/models/vision && rm -f ppdoclayoutv3.onnx.part-* \
+	    && split -b 94371840 "$$tmp" ppdoclayoutv3.onnx.part- ); \
+	  parts=$$(cd web/static/models/vision && ls ppdoclayoutv3.onnx.part-* | sort | sed 's/.*/"&"/' | paste -sd, -); \
+	  printf '{"parts":[%s],"bytes":%s}\n' "$$parts" "$$bytes" > web/static/models/vision/ppdoclayoutv3.onnx.json; \
+	  rm -f $$tmp; \
+	fi
+	@echo "Staged Vision Lab models → web/static/models/vision"
 
 # Output dir for the in-browser playground (gitignored; built locally or in CI).
 WASM_DEMO_DIR := web/static/wasm
