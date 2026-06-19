@@ -90,6 +90,7 @@ const (
 	RelLabelFor   = "label-for"   // a label → the field/input it labels
 	RelTriggers   = "triggers"    // a button/link → the modal/panel it opens
 	RelReferences = "references"  // a generic cross-reference
+	RelContinues  = "continues"   // a fragment → the prior fragment of the same logical flow it threads from (DocLang <thread>/<h_thread>: content split across columns/pages)
 )
 
 // StructureAnnotation is the block-scoped record of a block's logical role.
@@ -108,6 +109,12 @@ type StructureAnnotation struct {
 	// ReadingOrder is an explicit reading-order index when the source provides
 	// one. 0 = unset; fall back to Part-stream order.
 	ReadingOrder int `json:"readingOrder,omitempty"`
+	// ColSpan / RowSpan are the merged-cell extents of a table cell (DocLang
+	// lcel/ucel/xcel). 0 or 1 = a normal single cell. Carried so spanned grids
+	// reconstruct aligned; the Structure (G) axis certifies table *topology* at
+	// G3, not span fidelity (see docs/internals/format-maturity.md §2.7).
+	ColSpan int `json:"colSpan,omitempty"`
+	RowSpan int `json:"rowSpan,omitempty"`
 }
 
 // TypeName implements Payload.
