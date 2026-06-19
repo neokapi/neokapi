@@ -203,6 +203,29 @@ export const AXIS_DIMS: Record<AxisId, string[]> = {
   structure: ["metaplane", "readingorder", "roles", "geometry"],
 };
 
+/**
+ * One-line "measures" text per axis — verbatim from the rubric §2 axes table
+ * (docs/internals/format-maturity.md) and the public axes page
+ * (web/docs/framework/format-maturity/axes.mdx), so the dashboard and the docs
+ * never drift. Surfaced as `title=` tooltips and in the visible axis key.
+ */
+export const AXIS_DESC: Record<AxisId, string> = {
+  engine: "Parse/round-trip/parity fidelity and robustness",
+  vocabulary:
+    "How richly format semantics map into the canonical content-model vocabulary (and back)",
+  editor: "How close kapi gets to the format's native editing surface",
+  knowledge: "The spec/learning assets that let a person or model work on the format",
+  corpus: "Reference files that validate support, with provenance",
+  security:
+    "Resource-boundedness, fuzzing, and hostile-corpus hardening of the parser (non-gating display axis)",
+  structure:
+    "How much of the document's logical and spatial structure the reader recovers — roles, reading order, tables, relations, geometry (non-gating display axis)",
+};
+
+/** The two non-gating display axes (rubric §2): they score and rank work but
+ * do not enter the tier minimum (for now). */
+export const NON_GATING_AXES: AxisId[] = ["security", "structure"];
+
 export const GRADE_NAME: Record<Grade, string> = {
   ...LEVEL_NAME,
   V0: "Opaque",
@@ -274,6 +297,14 @@ export const TIER_LABEL: Record<SupportTier, string> = {
   supported: "Supported",
   maintained: "Maintained",
   available: "Available",
+};
+
+/** What each support tier promises (rubric §1 "Meaning" column) — the contract
+ * a user may rely on, changed only by an explicit human-approved event. */
+export const TIER_MEANING: Record<SupportTier, string> = {
+  supported: "Release-gating — a regression in this format blocks any release.",
+  maintained: "Tested and kept green; regressions fixed on cadence, may not block a release.",
+  available: "Registered and usable; explicitly experimental, no fidelity promise.",
 };
 
 /** Certification decay thresholds in days (rubric §1): older than 45 days the

@@ -18,6 +18,8 @@ import {
   AXIS_LABEL,
   AXIS_GRADES,
   AXIS_DIMS,
+  AXIS_DESC,
+  NON_GATING_AXES,
   GRADE_NAME,
   FAMILY_ORDER,
   FAMILY_LABEL,
@@ -25,6 +27,7 @@ import {
   FAMILY_AXES,
   TIER_ORDER,
   TIER_LABEL,
+  TIER_MEANING,
   TIER_STALE_DAYS,
   TIER_DECAY_DAYS,
 } from "./_types";
@@ -269,7 +272,9 @@ function AxisBars() {
             const dist = byAxis[a] ?? {};
             return (
               <div key={a} className={styles.axisBarRow}>
-                <span className={styles.axisBarLabel}>{axisLabel(a)}</span>
+                <span className={styles.axisBarLabel} title={AXIS_DESC[a]}>
+                  {axisLabel(a)}
+                </span>
                 <div
                   className={styles.miniBar}
                   role="img"
@@ -295,6 +300,65 @@ function AxisBars() {
             );
           })}
         </div>
+      ))}
+    </div>
+  );
+}
+
+// ── keys (what the axes and tiers mean) ──────────────────────────────────────
+
+/** Visible axis key: each present axis with its grade range, its one-line
+ * "measures" text (verbatim from the rubric §2 / the public axes page), and a
+ * non-gating marker for Security and Structure & Geometry. The ladders
+ * themselves live on the axes page, linked at the end. */
+function AxisKey({ presentAxes }: { presentAxes: AxisId[] }) {
+  const families = FAMILY_ORDER.map((fam) => ({
+    fam,
+    axes: FAMILY_AXES[fam].filter((a) => presentAxes.includes(a)),
+  })).filter((x) => x.axes.length > 0);
+  if (families.length === 0) return null;
+  return (
+    <div className={styles.axisKey}>
+      <span className={styles.keyHeader}>Axis key</span>
+      {families.map(({ fam, axes }) => (
+        <div key={fam} className={styles.axisKeyFamily}>
+          <span className={styles.familyHeader} title={FAMILY_TAGLINE[fam]}>
+            {FAMILY_LABEL[fam]} — {FAMILY_TAGLINE[fam].toLowerCase()}
+          </span>
+          {axes.map((a) => {
+            const g = AXIS_GRADES[a];
+            return (
+              <div key={a} className={styles.axisKeyRow} title={AXIS_DESC[a]}>
+                <span className={styles.axisKeyName}>{axisLabel(a)}</span>
+                <span className={styles.axisKeyRange}>
+                  {g[0]}–{g[g.length - 1]}
+                </span>
+                {NON_GATING_AXES.includes(a) && (
+                  <span className={styles.axisKeyTag}>non-gating</span>
+                )}
+                <span className={styles.axisKeyDesc}>{AXIS_DESC[a]}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      <a className={styles.keyMore} href="/framework/format-maturity/axes">
+        The axes — families, ladders, and Structure &amp; Geometry depth →
+      </a>
+    </div>
+  );
+}
+
+/** Visible tier key: what each support-tier promise means (rubric §1). */
+function TierKey() {
+  return (
+    <div className={styles.tierKey}>
+      <span className={styles.keyHeader}>Tier key</span>
+      {TIER_ORDER.map((t) => (
+        <span key={t} className={styles.tierKeyItem} title={TIER_MEANING[t]}>
+          <span className={`${styles.tierBadge} ${tierClass[t]}`}>{TIER_LABEL[t]}</span>
+          <span className={styles.tierKeyDesc}>{TIER_MEANING[t]}</span>
+        </span>
       ))}
     </div>
   );
@@ -454,10 +518,8 @@ export default function FormatMaturity() {
           <h1>Format Maturity</h1>
           <p className={styles.subtitle}>
             Where every neokapi format sits against the{" "}
-            <a href="https://github.com/neokapi/neokapi/blob/main/docs/internals/format-maturity.md">
-              maturity rubric
-            </a>{" "}
-            (L0 experimental → L4 rock-solid). Target:{" "}
+            <a href="/framework/format-maturity">format maturity model</a> (L0 experimental → L4
+            rock-solid). Target:{" "}
             <span className={`${styles.levelBadge} ${gradeClass[data.target_level]}`}>
               {data.target_level}
             </span>
@@ -467,6 +529,33 @@ export default function FormatMaturity() {
             {data.summary.total} formats · generated {data.generated_at} · source: {data.source}
             {data.scorer_version ? ` · scorer v${data.scorer_version}` : ""}
           </p>
+
+          <div className={styles.howToRead}>
+            <p>
+              This dashboard publishes two separate things per format. The{" "}
+              <strong>promise</strong> is a support tier — Supported, Maintained, or Available — a
+              CI-backed contract you can rely on, changed only by an explicit, human-approved event.
+              The <strong>score</strong> is the per-axis vector below, recomputed from file evidence
+              on every audit; it ranks the remaining work and explains the tier, but on its own
+              promises nothing.
+            </p>
+            <p>
+              The headline tier is the <strong>minimum over the gating axes</strong> (Engine,
+              Corpus, Knowledge) — never an average. The seven axes group into three families by the
+              question each answers: <strong>Comprehension</strong> (how deeply we read it),{" "}
+              <strong>Assurance</strong> (how we prove it), and <strong>Enablement</strong> (how we
+              work with it).
+            </p>
+            <p className={styles.learnMore}>
+              <span className={styles.learnMoreLabel}>Learn more</span>
+              <a href="/framework/format-maturity">Overview</a>
+              <a href="/framework/format-maturity/axes">The axes</a>
+              <a href="/framework/format-maturity/keeping-it-alive">Keeping it alive</a>
+              <a href="https://github.com/neokapi/neokapi/blob/main/docs/internals/format-maturity.md">
+                rubric (maintainers)
+              </a>
+            </p>
+          </div>
         </div>
 
         <DistBar />
@@ -488,6 +577,7 @@ export default function FormatMaturity() {
                     <button
                       key={a}
                       className={`${styles.chip} ${axis === a ? styles.chipActive : ""}`}
+                      title={AXIS_DESC[a]}
                       onClick={() => {
                         setAxis(a);
                         setGrade(null);
@@ -501,6 +591,9 @@ export default function FormatMaturity() {
             })}
           </div>
         )}
+
+        {hasAxes && <AxisKey presentAxes={presentAxes} />}
+        {hasTiers && <TierKey />}
 
         <div className={styles.controls}>
           <input
@@ -534,8 +627,8 @@ export default function FormatMaturity() {
             <thead>
               <tr>
                 <th>Format</th>
-                <th>{axis === "engine" ? "Level" : axisLabel(axis)}</th>
-                {hasTiers && <th>Tier</th>}
+                <th title={AXIS_DESC[axis]}>{axis === "engine" ? "Level" : axisLabel(axis)}</th>
+                {hasTiers && <th title="Declared support tier (the promise) — see the tier key above.">Tier</th>}
                 {dimCols.map((d) => (
                   <th key={d} className={styles.dimHead}>
                     {data.dimension_labels[d] ?? d}

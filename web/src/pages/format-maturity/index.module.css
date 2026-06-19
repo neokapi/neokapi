@@ -17,6 +17,112 @@
   margin-bottom: 1.5rem;
 }
 
+/* ── how to read this / learn more ───────────────────────────── */
+.howToRead {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+}
+.howToRead p {
+  margin-bottom: 0.6rem;
+  max-width: 72ch;
+}
+.learnMore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin: 0.4rem 0 0 !important;
+  font-size: 0.85rem;
+}
+.learnMoreLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── axis & tier keys ───────────────────────────── */
+.axisKey,
+.tierKey {
+  margin: 1.25rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  background: var(--ifm-color-emphasis-100);
+}
+.keyHeader {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.6rem;
+}
+.axisKeyFamily {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.7rem;
+}
+.axisKeyRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+  font-size: 0.82rem;
+}
+.axisKeyName {
+  flex: 0 0 140px;
+  font-weight: 600;
+}
+.axisKeyRange {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+.axisKeyTag {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-emphasis-600);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  padding: 0 0.35rem;
+}
+.axisKeyDesc {
+  flex: 1 1 320px;
+  color: var(--ifm-color-emphasis-800);
+}
+.keyMore {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+}
+
+.tierKey {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.tierKeyItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+.tierKeyItem .tierBadge {
+  flex: 0 0 auto;
+  min-width: 92px;
+  text-align: center;
+}
+.tierKeyDesc {
+  color: var(--ifm-color-emphasis-800);
+}
+
 /* ── level distribution bar ───────────────────────────── */
 .distBar {
   display: flex;
