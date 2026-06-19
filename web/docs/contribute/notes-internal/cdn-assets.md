@@ -16,8 +16,8 @@ fetched at runtime rather than needed to render a page:
 | Walkthrough videos (`.webm` light/dark + `.jpg` posters) | ~85 MB kapi / ~55 MB bowrain | `ThemedVideo` embeds |
 
 Bundling these into the Pages artifact makes every deploy slow and forced an
-awkward workaround for the ~132 MB layout model (split into <100 MB parts to fit
-the GitHub Pages per-file limit). Offloading them to **Cloudflare R2** — free
+awkward workaround for the ~132 MB layout model (split into sub-100 MB parts to
+fit the GitHub Pages per-file limit). Offloading them to **Cloudflare R2** — free
 tier (10 GB storage, free egress), served behind a custom domain with CDN
 caching and CORS — removes the bulk from the Pages artifact and lets the models
 ship whole.
