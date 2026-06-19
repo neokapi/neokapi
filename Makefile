@@ -1200,13 +1200,16 @@ publish-cdn-videos: ## Sync kapi walkthrough videos → R2 (kapi/video/)
 publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → R2 (bowrain/video/)
 	@bash scripts/publish-cdn-assets.sh video-bowrain
 
+publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → R2 (kapi/icu/<ver>/)
+	@bash scripts/publish-cdn-assets.sh icu
+
 # One-shot seed: publish everything that exists TODAY straight from the release
 # artifacts to R2 — no desktop-produced source needed. Fetches the kapi + bowrain
 # videos/images from their docs-assets releases and the models from
-# vision-models-v1, then syncs each to R2. Run this BEFORE setting the
-# DOCS_CDN_URL repo variable, so the assets are in place when the site flips to
-# the CDN. (wasm is published by CI on the next docs build; no seed needed.)
-seed-cdn: fetch-docs-assets publish-cdn-videos fetch-bowrain-docs-assets publish-cdn-bowrain-videos publish-cdn-vision-models ## Seed R2 with today's videos + models from the GitHub releases
+# vision-models-v1, plus the ICU4X wasm, then syncs each to R2. Run this BEFORE
+# setting the DOCS_CDN_URL repo variable, so the assets are in place when the site
+# flips to the CDN. (wasm is published by CI on the next docs build; no seed needed.)
+seed-cdn: fetch-docs-assets publish-cdn-videos fetch-bowrain-docs-assets publish-cdn-bowrain-videos publish-cdn-vision-models publish-cdn-icu ## Seed R2 with today's videos + models + icu from the GitHub releases
 	@echo "✓ R2 seeded from release artifacts — safe to set the DOCS_CDN_URL repo variable now."
 
 # Tier B format corpora (docs/internals/format-maturity.md §2.5): one

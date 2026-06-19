@@ -48,6 +48,7 @@ deploy serving a stale binary.
   kapi/
     wasm/<git-sha>/{kapi-cli.wasm, kapi-cli.wasm.gz, kapi.wasm, pdfium.wasm, wasm_exec.js}
     models/vision/{ppocrv5_det.onnx, ppocrv5_rec.onnx, ppocrv5_dict.txt, ppdoclayoutv3.onnx}
+    icu/<icu-version>/icu_capi.wasm    # ICU4X (Segmentation Lab), served application/wasm
     video/...            # .webm + .jpg posters, mirroring web/static/video/
   bowrain/
     video/...            # mirroring bowrain/web/docs/static/video/
@@ -124,6 +125,7 @@ pre-seeding.)
 ```bash
 # one-time / when assets change (needs the R2_* env vars above + aws CLI):
 make publish-cdn-vision-models     # whole ONNX models → kapi/models/vision/
+make publish-cdn-icu               # ICU4X seg wasm   → kapi/icu/<ver>/icu_capi.wasm
 make publish-cdn-videos            # web/static/video → kapi/video/  (run fetch-docs-assets first)
 make publish-cdn-bowrain-videos    # bowrain videos   → bowrain/video/ (run fetch-bowrain-docs-assets first)
 make publish-cdn-wasm              # optional manual wasm push (CI does this in deploy)

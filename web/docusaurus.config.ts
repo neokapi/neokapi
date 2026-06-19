@@ -43,6 +43,29 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/";
 const cdnBaseUrl = process.env.DOCS_CDN_URL ?? "";
 const cdnWasmVersion = process.env.DOCS_CDN_VERSION ?? "dev";
 
+// ICU4X (the `icu` npm package, used by the Segmentation Lab) loads its wasm via
+// a hardcoded `new URL('icu_capi.wasm', import.meta.url)` — no wasmPaths-style
+// override like onnxruntime-web. When the CDN is enabled we rewrite that asset's
+// URL to R2 at build time (cdnIcuWasm plugin); pin the package version so the R2
+// path is immutable and cache-busts on an icu bump. Publish the file with
+// `make publish-cdn-icu` (folded into `make seed-cdn`).
+const icuVersion = (() => {
+  // `icu`'s package.json `exports` only declares the "import" entry, so
+  // require.resolve("icu") throws ERR_PACKAGE_PATH_NOT_EXPORTED. Read the
+  // manifest by path instead (the pnpm node_modules/icu symlink), trying the
+  // config dir then the cwd.
+  const bases = [typeof __dirname !== "undefined" ? __dirname : "", process.cwd()].filter(Boolean);
+  for (const base of bases) {
+    try {
+      const pkg = path.join(base, "node_modules", "icu", "package.json");
+      return JSON.parse(fs.readFileSync(pkg, "utf8")).version as string;
+    } catch {
+      /* try the next base */
+    }
+  }
+  return "0";
+})();
+
 const config: Config = {
   title: "neokapi",
   tagline: "The faithful, format-aware content engine for people and AI agents",
@@ -228,6 +251,36 @@ const config: Config = {
                   include: [/[\\/]onnxruntime-web[\\/]/, /[\\/]@embedpdf[\\/]pdfium[\\/]/],
                   type: "asset/resource",
                   generator: { emit: false },
+                },
+              ],
+            },
+          };
+        },
+      };
+    },
+    // ICU4X wasm (Segmentation Lab). The `icu` package hardcodes
+    // `new URL('icu_capi.wasm', import.meta.url)`, so — unlike onnxruntime-web —
+    // there's no runtime path hook. When the CDN is enabled, rewrite the emitted
+    // asset's URL to R2 (kapi/icu/<version>/icu_capi.wasm) and skip writing the
+    // ~16 MB file; otherwise it stays same-origin (local dev unchanged). The R2
+    // object must exist first (`make publish-cdn-icu`) or the lab 404s. R2 serves
+    // it with Content-Type application/wasm so instantiateStreaming accepts it.
+    function cdnIcuWasm() {
+      return {
+        name: "cdn-icu-wasm",
+        configureWebpack() {
+          if (!cdnBaseUrl) return {};
+          return {
+            module: {
+              rules: [
+                {
+                  test: /icu_capi\.wasm$/,
+                  type: "asset/resource",
+                  generator: {
+                    emit: false,
+                    filename: "icu_capi.wasm",
+                    publicPath: `${cdnBaseUrl}/kapi/icu/${icuVersion}/`,
+                  },
                 },
               ],
             },

@@ -34,9 +34,9 @@ cd "$(dirname "$0")/.."
 
 FAMILY="${1:-}"
 case "$FAMILY" in
-  wasm | vision-models | video-kapi | video-bowrain) ;;
+  wasm | vision-models | video-kapi | video-bowrain | icu) ;;
   *)
-    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain>" >&2
+    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain|icu>" >&2
     exit 2
     ;;
 esac
@@ -108,5 +108,23 @@ case "$FAMILY" in
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
     echo "✓ bowrain videos published → $DST"
+    ;;
+
+  icu)
+    # ICU4X wasm (Segmentation Lab) — the `icu` npm package's prebuilt wasm,
+    # versioned by package version so the path is immutable. Served with
+    # Content-Type application/wasm so the lab's instantiateStreaming accepts it.
+    # `icu`'s exports block require.resolve, so read the manifest by path (the
+    # pnpm web/node_modules/icu symlink). require() of an explicit .json path is
+    # not gated by the package's exports map.
+    ICU_ROOT="web/node_modules/icu"
+    SRC="$ICU_ROOT/icu_capi.wasm"
+    [ -f "$SRC" ] || { echo "error: $SRC not found — run 'vp install'"; exit 1; }
+    ICU_VER="$(node -e "process.stdout.write(require('./$ICU_ROOT/package.json').version)")"
+    DST="s3://$R2_BUCKET/kapi/icu/$ICU_VER"
+    echo "→ uploading $SRC → ${DST}/icu_capi.wasm (immutable, application/wasm)…"
+    "${S3[@]}" cp "$SRC" "$DST/icu_capi.wasm" \
+      --cache-control "$IMMUTABLE" --content-type "application/wasm"
+    echo "✓ icu4x wasm published → $DST/icu_capi.wasm"
     ;;
 esac
