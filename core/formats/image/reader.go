@@ -11,6 +11,11 @@
 // caption Block linked to the image (RoleCaption + RelCaptionOf). That block
 // translates through the normal block path — no special tool support — and the
 // writer folds the localized text back into a per-locale sidecar.
+//
+// Embedded metadata (PNG text chunks, XMP) is mapped onto the document layer via
+// core/docmeta: translatable fields (title/description/keywords) become
+// metadata-plane Blocks; the rest become namespaced Layer properties. Metadata is
+// read without loading the pixel data (see metadata.go).
 package image
 
 import (
@@ -28,6 +33,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	"github.com/neokapi/neokapi/core/docmeta"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/structure"
@@ -165,7 +171,14 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			ID: "doc1", Name: uri, Format: "image", Locale: locale,
 			Encoding: "binary", MimeType: mime,
 		}
+		// Image metadata (PNG text chunks, XMP): translatable fields become
+		// metadata-plane Blocks on the document layer; the rest are namespaced
+		// Properties. Populate the layer before emitting its LayerStart.
+		metaBlocks := docmeta.Apply(root, readImageMetadata(imgPath, mime), "meta")
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: root}}
+		for _, b := range metaBlocks {
+			ch <- model.PartResult{Part: &model.Part{Type: model.PartBlock, Resource: b}}
+		}
 
 		pageLayer := &model.Layer{
 			ID: "page1", Name: "Page 1", Format: "image", Locale: locale,

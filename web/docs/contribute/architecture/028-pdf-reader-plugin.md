@@ -107,6 +107,14 @@ The reader has two granularities, selected by the `geometry` config flag
   Block additionally carries per-character boxes for character-precise
   highlighting.
 
+Independent of the mode, the reader maps the PDF **Info dictionary**
+(`FPDF_GetMetaText`) onto the content model through the shared `core/docmeta`
+helper: `Title`/`Subject`/`Keywords` become translatable Blocks on the metadata
+plane (`LayerMetadata`), while `Author`/`Creator`/`Producer`/`CreationDate`/
+`ModDate` are recorded as `pdf:`-namespaced properties on the document layer —
+never translated, kept for inspection. This is the same metadata mechanism the
+image reader uses ([AD-029](029-vision-and-image-localization.md)).
+
 ### Geometry model and coordinate flip
 
 PDFium reports boxes in PDF user space, where the origin is **bottom-left** and Y

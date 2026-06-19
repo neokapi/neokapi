@@ -37,6 +37,7 @@ treating "image" as "OCR" conflates them. The distinct modes are:
 |---|---|---|
 | **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text); pseudo-localization (a visible watermark variant) ships today |
 | **Alt-text / caption** | accessible text, not pixels | the alt text is emitted as a translatable caption Block linked to the image (`RoleCaption` + `RelCaptionOf`) and localized through the normal block path |
+| **Metadata** | embedded title/description/keywords | translatable metadata fields → metadata-plane Blocks; non-translatable fields → namespaced Layer properties (`core/docmeta`) |
 | **In-image text (OCR)** | text rendered into the image | extract → translate → (optionally) re-render |
 | **Layout / structure** | the document's regions | detect regions + reading order, with table regions reconstructed into row/column cell structure, for faithful reconstruction |
 
@@ -88,6 +89,25 @@ and pseudo-translates the alt-text. Read an image → pseudo-translate → write
 the output is an unmistakably-marked image — proof, in a UI or build artifact,
 that image localization actually swapped the asset. It is deterministic and
 dependency-free (standard-library raster ops only).
+
+#### Metadata
+
+Embedded document metadata is localized the same way, via the shared
+**`core/docmeta`** helper. Metadata is document-level — not anchored to any run —
+so it lives on the **Layer**, never in a run-anchored overlay: translatable
+fields (title, description, keywords) become Blocks on the metadata plane
+(`StructureAnnotation.Layer == LayerMetadata`) that localize through the normal
+block path, while non-translatable fields (author, copyright, software, dates)
+are recorded as namespaced `Layer.Properties` (`png:author`, `xmp:dc:creator`,
+…) — never translated, preserved for inspection and re-application on write. This
+mirrors the OOXML reader's treatment of `docProps/core.xml` (translatable
+Dublin-Core fields become blocks; the rest stays skeleton), generalized to
+formats whose round-trip is a byte copy. The image reader reads PNG text chunks
+(`tEXt`/`iTXt`/`zTXt`) and embedded XMP (PNG and JPEG `dc:title`/`dc:description`/
+`dc:subject`/`dc:creator`) without loading the pixel data — it stops scanning at
+the first image-data chunk. Binary EXIF/IPTC parsing is a documented follow-up.
+The same `core/docmeta` path carries the PDF Info dictionary
+([AD-028](028-pdf-reader-plugin.md)).
 
 Two config toggles gate the enrichment, both default-on:
 

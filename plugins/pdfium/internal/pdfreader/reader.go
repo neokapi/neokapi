@@ -14,10 +14,12 @@ import (
 	"time"
 
 	pdfium "github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/single_threaded"
 
+	"github.com/neokapi/neokapi/core/docmeta"
 	pdffmt "github.com/neokapi/neokapi/core/formats/pdf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/structure"
@@ -120,6 +122,13 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 	}
 	parts = append(parts, &model.Part{Type: model.PartLayerStart, Resource: root})
 
+	// Document metadata (Info dictionary): translatable fields (Title/Subject/
+	// Keywords) become metadata-plane Blocks; the rest (author, producer, dates)
+	// are recorded as namespaced Properties on the document layer.
+	for _, b := range metadataBlocks(inst, doc.Document, root) {
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+	}
+
 	blockCounter := 0
 	groupCounter := 0
 	for i := 0; i < pc.PageCount; i++ {
@@ -194,6 +203,37 @@ func ReadParts(data []byte, locale model.LocaleID, uri string, opts Options) ([]
 
 	parts = append(parts, &model.Part{Type: model.PartLayerEnd, Resource: root})
 	return parts, nil
+}
+
+// metaInstance is the subset of the PDFium instance used to read the Info dict.
+type metaInstance interface {
+	FPDF_GetMetaText(*requests.FPDF_GetMetaText) (*responses.FPDF_GetMetaText, error)
+}
+
+// metadataBlocks reads the PDF Info dictionary and maps it onto the content model
+// via core/docmeta: Title/Subject/Keywords become translatable metadata-plane
+// Blocks; Author/Creator/Producer/CreationDate/ModDate are recorded as
+// "pdf:"-namespaced Properties on the document layer (never translated, kept for
+// inspection). Empty fields are skipped.
+func metadataBlocks(inst metaInstance, docRef references.FPDF_DOCUMENT, root *model.Layer) []*model.Block {
+	get := func(tag string) string {
+		r, err := inst.FPDF_GetMetaText(&requests.FPDF_GetMetaText{Document: docRef, Tag: tag})
+		if err != nil || r == nil {
+			return ""
+		}
+		return strings.TrimSpace(r.Value)
+	}
+	entries := []docmeta.Entry{
+		{Key: "pdf:title", Value: get("Title"), Translatable: true, Role: model.RoleTitle},
+		{Key: "pdf:subject", Value: get("Subject"), Translatable: true},
+		{Key: "pdf:keywords", Value: get("Keywords"), Translatable: true},
+		{Key: "pdf:author", Value: get("Author")},
+		{Key: "pdf:creator", Value: get("Creator")},
+		{Key: "pdf:producer", Value: get("Producer")},
+		{Key: "pdf:creationdate", Value: get("CreationDate")},
+		{Key: "pdf:moddate", Value: get("ModDate")},
+	}
+	return docmeta.Apply(root, entries, "meta")
 }
 
 type pdfiumInstance interface {
