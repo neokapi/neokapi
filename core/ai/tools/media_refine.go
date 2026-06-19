@@ -2,8 +2,10 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/imageops"
@@ -38,7 +40,7 @@ func (r MediaRef) bytes() ([]byte, error) {
 	if r.Path != "" {
 		return os.ReadFile(r.Path)
 	}
-	return nil, fmt.Errorf("media-refine: no source raster (path or bytes) available")
+	return nil, errors.New("media-refine: no source raster (path or bytes) available")
 }
 
 // MediaSlicer turns a block's anchor facet into a bounded media content part for
@@ -287,10 +289,5 @@ func setProp(b *model.Block, key, val string) {
 
 // modalitySupported reports whether the provider accepts the given modality.
 func modalitySupported(p aiprovider.LLMProvider, m aiprovider.Modality) bool {
-	for _, got := range p.InputModalities() {
-		if got == m {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.InputModalities(), m)
 }

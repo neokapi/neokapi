@@ -2,6 +2,7 @@ package aiprovider
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -100,7 +101,7 @@ func hasMedia(parts []ContentPart) bool {
 // providers that can fetch a URL instead.
 func resolveMediaBytes(m *model.Media) (data []byte, mimeType string, err error) {
 	if m == nil {
-		return nil, "", fmt.Errorf("aiprovider: nil media part")
+		return nil, "", errors.New("aiprovider: nil media part")
 	}
 	mimeType = m.MimeType
 	switch {
@@ -115,7 +116,7 @@ func resolveMediaBytes(m *model.Media) (data []byte, mimeType string, err error)
 	case m.BlobKey != "":
 		return nil, "", fmt.Errorf("aiprovider: media is blob-store-backed (%q); materialize it before the provider call", m.BlobKey)
 	default:
-		return nil, "", fmt.Errorf("aiprovider: media has no inline data or local URI to send")
+		return nil, "", errors.New("aiprovider: media has no inline data or local URI to send")
 	}
 }
 
