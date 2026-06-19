@@ -12,6 +12,7 @@
     "./runtime": "./src/runtime.ts",
     "./samples": "./src/samples.ts",
     "./visionBridge": "./src/visionBridge.ts",
+    "./ooxml": "./src/ooxml.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
