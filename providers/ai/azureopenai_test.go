@@ -49,7 +49,7 @@ func TestAzureOpenAIProviderChat(t *testing.T) {
 	})
 
 	resp, err := p.Chat(t.Context(), []Message{
-		{Role: "user", Content: "Hi"},
+		TextMessage("user", "Hi"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Hello!", resp.Content)
@@ -106,7 +106,7 @@ func TestAzureOpenAIProviderTokenAuth(t *testing.T) {
 	p := NewAzureOpenAITokenProvider(srv.URL, "gpt-4o", tp)
 
 	resp, err := p.Chat(t.Context(), []Message{
-		{Role: "user", Content: "Translate Hello to Norwegian"},
+		TextMessage("user", "Translate Hello to Norwegian"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Hei", resp.Content)

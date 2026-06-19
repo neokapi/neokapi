@@ -79,7 +79,7 @@ func TestDemoProvider_PreservesMarkup(t *testing.T) {
 func TestDemoProvider_BatchTranslations(t *testing.T) {
 	p := newTestDemo()
 	prompt := "Translate each numbered segment from en to fr.\n\n[1] Hello\n[2] Save\n[3] world\n"
-	resp, err := p.ChatStructured(context.Background(), []Message{{Role: "user", Content: prompt}}, JSONSchema{Name: "batch_translations"})
+	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", prompt)}, JSONSchema{Name: "batch_translations"})
 	require.NoError(t, err)
 
 	var out struct {
@@ -107,7 +107,7 @@ func TestDemoProvider_NeutralSchema(t *testing.T) {
 			},
 		},
 	}
-	resp, err := p.ChatStructured(context.Background(), []Message{{Role: "user", Content: "check this"}}, qa)
+	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", "check this")}, qa)
 	require.NoError(t, err)
 
 	var out struct {

@@ -68,7 +68,7 @@ func TestGeminiProviderChat(t *testing.T) {
 	})
 
 	resp, err := p.Chat(t.Context(), []Message{
-		{Role: "user", Content: "Hi"},
+		TextMessage("user", "Hi"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Hello!", resp.Content)
@@ -148,7 +148,7 @@ func TestGeminiProviderChatStructured(t *testing.T) {
 	}
 
 	resp, err := p.ChatStructured(t.Context(), []Message{
-		{Role: "user", Content: "Translate Hello to French"},
+		TextMessage("user", "Translate Hello to French"),
 	}, schema)
 	require.NoError(t, err)
 	assert.Contains(t, resp.Content, "Bonjour")
@@ -189,8 +189,8 @@ func TestGeminiProviderSystemMessage(t *testing.T) {
 	})
 
 	_, err := p.Chat(t.Context(), []Message{
-		{Role: "system", Content: "You are a translator"},
-		{Role: "user", Content: "Translate this"},
+		TextMessage("system", "You are a translator"),
+		TextMessage("user", "Translate this"),
 	})
 	require.NoError(t, err)
 }
@@ -222,7 +222,7 @@ func TestGeminiProviderFiltersThinkingParts(t *testing.T) {
 	})
 
 	resp, err := p.Chat(t.Context(), []Message{
-		{Role: "user", Content: "Translate Hello world to French"},
+		TextMessage("user", "Translate Hello world to French"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", resp.Content)
@@ -259,7 +259,7 @@ func TestGeminiProviderDisablesThinking(t *testing.T) {
 	})
 
 	_, err := p.Chat(t.Context(), []Message{
-		{Role: "user", Content: "Hi"},
+		TextMessage("user", "Hi"),
 	})
 	require.NoError(t, err)
 }
@@ -323,7 +323,7 @@ func TestGeminiProviderChatStream(t *testing.T) {
 
 	var events []ChatStreamEvent
 	resp, err := p.ChatStream(t.Context(), []Message{
-		{Role: "user", Content: "Translate Hello to French"},
+		TextMessage("user", "Translate Hello to French"),
 	}, func(e ChatStreamEvent) {
 		events = append(events, e)
 	})
@@ -374,7 +374,7 @@ func TestGeminiProviderChatStreamMultipleContentChunks(t *testing.T) {
 
 	var contentEvents []string
 	resp, err := p.ChatStream(t.Context(), []Message{
-		{Role: "user", Content: "Hi"},
+		TextMessage("user", "Hi"),
 	}, func(e ChatStreamEvent) {
 		if e.Type == StreamEventContent {
 			contentEvents = append(contentEvents, e.Content)
@@ -424,7 +424,7 @@ func TestGeminiProviderTransportErrorDoesNotLeakKey(t *testing.T) {
 	t.Run("blocking", func(t *testing.T) {
 		t.Parallel()
 		p := NewGeminiProvider(Config{BaseURL: baseURL, APIKey: secret})
-		_, err := p.Chat(t.Context(), []Message{{Role: "user", Content: "Hi"}})
+		_, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), secret, "API key leaked into error: %v", err)
 	})
@@ -432,7 +432,7 @@ func TestGeminiProviderTransportErrorDoesNotLeakKey(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
 		t.Parallel()
 		p := NewGeminiProvider(Config{BaseURL: baseURL, APIKey: secret})
-		_, err := p.ChatStream(t.Context(), []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+		_, err := p.ChatStream(t.Context(), []Message{TextMessage("user", "Hi")}, func(ChatStreamEvent) {})
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), secret, "API key leaked into error: %v", err)
 	})
@@ -474,7 +474,7 @@ func TestGeminiProviderChatStreamLargeDataLine(t *testing.T) {
 
 	p := NewGeminiProvider(Config{BaseURL: srv.URL, APIKey: "test-key"})
 
-	resp, err := p.ChatStream(t.Context(), []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+	resp, err := p.ChatStream(t.Context(), []Message{TextMessage("user", "Hi")}, func(ChatStreamEvent) {})
 	require.NoError(t, err)
 	assert.Equal(t, largeText, resp.Content)
 }
@@ -508,7 +508,7 @@ func TestGeminiProviderChatStreamRespectsContextDeadline(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, err := p.ChatStream(ctx, []Message{{Role: "user", Content: "Hi"}}, func(ChatStreamEvent) {})
+	_, err := p.ChatStream(ctx, []Message{TextMessage("user", "Hi")}, func(ChatStreamEvent) {})
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Less(t, time.Since(start), geminiStreamTimeout, "stream should honor the caller's deadline, not the 5m cap")

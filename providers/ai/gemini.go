@@ -63,12 +63,19 @@ func NewGeminiProvider(cfg Config) *GeminiProvider {
 
 func (p *GeminiProvider) Name() ProviderID { return Gemini }
 
+func (p *GeminiProvider) InputModalities() []Modality {
+	return []Modality{ModalityImage, ModalityAudio, ModalityVideo}
+}
+
 func (p *GeminiProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	return standardTranslate(ctx, p.Chat, req, 0.85)
 }
 
 func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	contents := messagesToGeminiContents(messages)
+	contents, err := messagesToGeminiContents(messages)
+	if err != nil {
+		return nil, err
+	}
 
 	body := geminiRequest{
 		Contents: contents,
@@ -96,7 +103,10 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 }
 
 func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	contents := messagesToGeminiContents(messages)
+	contents, err := messagesToGeminiContents(messages)
+	if err != nil {
+		return nil, err
+	}
 
 	body := geminiRequest{
 		Contents: contents,
@@ -129,7 +139,10 @@ func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message,
 // endpoint with thinking enabled, streaming incremental thinking summaries and
 // content chunks via the onEvent callback.
 func (p *GeminiProvider) ChatStream(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error) {
-	contents := messagesToGeminiContents(messages)
+	contents, err := messagesToGeminiContents(messages)
+	if err != nil {
+		return nil, err
+	}
 
 	body := geminiRequest{
 		Contents: contents,
@@ -144,7 +157,10 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, messages []Message, onE
 
 // ChatStructuredStream implements StreamingLLMProvider with JSON schema constraints.
 func (p *GeminiProvider) ChatStructuredStream(ctx context.Context, messages []Message, schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error) {
-	contents := messagesToGeminiContents(messages)
+	contents, err := messagesToGeminiContents(messages)
+	if err != nil {
+		return nil, err
+	}
 
 	body := geminiRequest{
 		Contents: contents,
@@ -324,13 +340,13 @@ func (p *GeminiProvider) doRequest(ctx context.Context, body geminiRequest) (*ge
 // messagesToGeminiContents converts chat messages to Gemini contents format.
 // System messages are prepended to the first user message since Gemini uses
 // a separate systemInstruction field (handled at the request level if needed).
-func messagesToGeminiContents(messages []Message) []geminiContent {
+func messagesToGeminiContents(messages []Message) ([]geminiContent, error) {
 	var contents []geminiContent
 	var systemText string
 
 	for _, m := range messages {
 		if m.Role == "system" {
-			systemText += m.Content + "\n"
+			systemText += m.Text() + "\n"
 			continue
 		}
 
@@ -339,19 +355,41 @@ func messagesToGeminiContents(messages []Message) []geminiContent {
 			role = "model"
 		}
 
-		content := m.Content
+		prefix := ""
 		if systemText != "" && role == "user" {
-			content = systemText + "\n" + content
+			prefix = systemText + "\n"
 			systemText = ""
 		}
 
-		contents = append(contents, geminiContent{
-			Role:  role,
-			Parts: []geminiPart{{Text: content}},
-		})
+		parts := make([]geminiPart, 0, len(m.Parts))
+		for _, part := range m.Parts {
+			switch part.Kind {
+			case ContentText:
+				text := part.Text
+				if prefix != "" {
+					text = prefix + text
+					prefix = ""
+				}
+				parts = append(parts, geminiPart{Text: text})
+			case ContentImage, ContentAudio, ContentVideo:
+				b64, mime, err := resolveMediaBase64(part.Media)
+				if err != nil {
+					return nil, fmt.Errorf("gemini: %w", err)
+				}
+				parts = append(parts, geminiPart{InlineData: &geminiInlineData{MimeType: mime, Data: b64}})
+			default:
+				return nil, fmt.Errorf("gemini: unsupported content kind %q", part.Kind)
+			}
+		}
+		// A pending system prefix with no text part to attach to becomes its own part.
+		if prefix != "" {
+			parts = append([]geminiPart{{Text: prefix}}, parts...)
+		}
+
+		contents = append(contents, geminiContent{Role: role, Parts: parts})
 	}
 
-	return contents
+	return contents, nil
 }
 
 func extractGeminiText(resp *geminiResponse) (string, error) {
@@ -399,8 +437,14 @@ type geminiContent struct {
 }
 
 type geminiPart struct {
-	Text    string `json:"text"`
-	Thought bool   `json:"thought,omitempty"`
+	Text       string            `json:"text,omitempty"`
+	InlineData *geminiInlineData `json:"inlineData,omitempty"`
+	Thought    bool              `json:"thought,omitempty"`
+}
+
+type geminiInlineData struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"` // base64-encoded bytes
 }
 
 type geminiRequest struct {

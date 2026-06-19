@@ -413,8 +413,8 @@ func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extr
 	}
 
 	resp, err := t.llm.ChatStructured(ctx, []aiprovider.Message{
-		{Role: "system", Content: extractionSystemPrompt},
-		{Role: "user", Content: prompt.String()},
+		aiprovider.TextMessage("system", extractionSystemPrompt),
+		aiprovider.TextMessage("user", prompt.String()),
 	}, extractionSchema())
 	if err != nil {
 		return nil, err

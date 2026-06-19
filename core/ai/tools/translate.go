@@ -476,7 +476,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 	prompt.WriteString(req.Directives())
 
 	resp, err := t.streaming.ChatStream(ctx, []aiprovider.Message{
-		{Role: "user", Content: prompt.String()},
+		aiprovider.TextMessage("user", prompt.String()),
 	}, func(e aiprovider.ChatStreamEvent) {
 		if e.Type == aiprovider.StreamEventThinking {
 			t.emitProgress(false, e.Content)
@@ -704,7 +704,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
 	}
 
-	messages := []aiprovider.Message{{Role: "user", Content: prompt.String()}}
+	messages := []aiprovider.Message{aiprovider.TextMessage("user", prompt.String())}
 	schema := batchTranslationSchema()
 
 	var resp *aiprovider.ChatResponse

@@ -473,7 +473,7 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		// Parse which segments were requested and return translations.
-		content := messages[len(messages)-1].Content
+		content := messages[len(messages)-1].Text()
 		translations := make(map[int]string)
 		for i := 1; i <= 10; i++ {
 			marker := fmt.Sprintf("[%d]", i)
@@ -668,13 +668,13 @@ func TestProviderMockDefaultBehavior(t *testing.T) {
 	assert.Contains(t, resp.Translation, "Hello")
 
 	chatResp, err := mock.Chat(ctx, []aiprovider.Message{
-		{Role: "user", Content: "Test message"},
+		aiprovider.TextMessage("user", "Test message"),
 	})
 	require.NoError(t, err)
 	assert.Contains(t, chatResp.Content, "Mock response")
 
 	structResp, err := mock.ChatStructured(ctx, []aiprovider.Message{
-		{Role: "user", Content: "Test"},
+		aiprovider.TextMessage("user", "Test"),
 	}, aiprovider.JSONSchema{
 		Name: "test",
 		Schema: map[string]any{
