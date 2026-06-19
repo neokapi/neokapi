@@ -115,6 +115,29 @@ func TestEnrichTier3_WithLayout(t *testing.T) {
 	}
 }
 
+// If the stream ends mid-page (truncated / cancelled) before the page's
+// LayerEnd, the in-progress raster temp file is still removed (deferred cleanup),
+// not leaked.
+func TestEnrichTier3_CleansRasterOnTruncatedStream(t *testing.T) {
+	dir := t.TempDir()
+	rasterPath := filepath.Join(dir, "page1.png")
+	if err := os.WriteFile(rasterPath, []byte("PNGDATA"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	full := tier3PageStream(t, rasterPath)
+	// Drop the page LayerEnd and the root LayerEnd → stream stops mid-page.
+	truncated := full[:len(full)-2]
+
+	le := fakeLayoutEngine{regions: []vision.Region{
+		{Role: model.RoleParagraph, BBox: model.Rect{X: 0, Y: 0, W: 300, H: 80}, ReadingOrder: 0},
+	}}
+	_ = runEnrich(t, truncated, le)
+
+	if _, err := os.Stat(rasterPath); !os.IsNotExist(err) {
+		t.Error("raster temp file should be removed even when the stream is truncated mid-page")
+	}
+}
+
 // With no layout engine, it falls back to the geometric tier-2 over the same
 // blocks (still consuming/deleting the raster).
 func TestEnrichTier3_FallbackTier2(t *testing.T) {

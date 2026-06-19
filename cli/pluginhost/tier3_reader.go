@@ -80,6 +80,15 @@ func enrichTier3(ctx context.Context, in <-chan model.PartResult, out chan<- mod
 	var raster *model.Media
 	counter, groupCounter := 0, 0
 
+	// Ensure the in-progress page's rendered raster is removed even if the stream
+	// ends mid-page — ctx cancellation, a truncated stream, or an upstream error —
+	// before its LayerEnd (which is where a completed page deletes its raster).
+	defer func() {
+		if raster != nil && raster.URI != "" {
+			_ = os.Remove(raster.URI)
+		}
+	}()
+
 	for res := range in {
 		if res.Error != nil {
 			if !emit(res) {

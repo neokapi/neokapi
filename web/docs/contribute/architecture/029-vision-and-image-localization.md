@@ -99,15 +99,22 @@ fields (title, description, keywords) become Blocks on the metadata plane
 (`StructureAnnotation.Layer == LayerMetadata`) that localize through the normal
 block path, while non-translatable fields (author, copyright, software, dates)
 are recorded as namespaced `Layer.Properties` (`png:author`, `xmp:dc:creator`,
-…) — never translated, preserved for inspection and re-application on write. This
-mirrors the OOXML reader's treatment of `docProps/core.xml` (translatable
-Dublin-Core fields become blocks; the rest stays skeleton), generalized to
-formats whose round-trip is a byte copy. The image reader reads PNG text chunks
-(`tEXt`/`iTXt`/`zTXt`) and embedded XMP (PNG and JPEG `dc:title`/`dc:description`/
-`dc:subject`/`dc:creator`) without loading the pixel data — it stops scanning at
-the first image-data chunk. Binary EXIF/IPTC parsing is a documented follow-up.
-The same `core/docmeta` path carries the PDF Info dictionary
+…) — never translated, kept for inspection. This mirrors the OOXML reader's
+treatment of `docProps/core.xml` (translatable Dublin-Core fields become blocks;
+the rest stays skeleton), generalized to formats whose round-trip is a byte copy.
+The image reader reads PNG text chunks (`tEXt`/`iTXt`/`zTXt`) and embedded XMP
+(PNG and JPEG `dc:title`/`dc:description`/`dc:subject`/`dc:creator`) without
+loading the pixel data — it stops scanning at the first image-data chunk. The
+same `core/docmeta` path carries the PDF Info dictionary
 ([AD-028](028-pdf-reader-plugin.md)).
+
+Scope: extraction surfaces metadata for translation, TM, and inspection. Whether
+the *localized* metadata is re-embedded depends on the writer — a skeleton-based
+format (OOXML) re-applies the translated field, and a cross-format conversion
+(PDF → Markdown/HTML) carries the metadata blocks into the output document. The
+byte-copy image writer preserves the source image's *original* embedded metadata
+unchanged; re-encoding localized PNG text chunks / XMP back into the raster, like
+binary EXIF/IPTC parsing, is a documented follow-up.
 
 Two config toggles gate the enrichment, both default-on:
 
