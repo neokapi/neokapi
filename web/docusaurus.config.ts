@@ -110,8 +110,11 @@ const config: Config = {
                 // (the lab's on-device NER, via onnxruntime-web) is in the same
                 // boat: browser-only export conditions and bundled wasm binaries
                 // that don't resolve under node, loaded by a BrowserOnly
-                // dynamic import.
-                { externals: ["icu", "gliner"] }
+                // dynamic import. `@huggingface/transformers` (the Vision Lab's
+                // TrOCR handwriting fallback) is the same: its Node build pulls in
+                // `sharp` + native `.node` binaries webpack can't parse, but it's
+                // only ever dynamic-imported on the client.
+                { externals: ["icu", "gliner", "@huggingface/transformers"] }
               : // On the client, `icu`'s loader has a Node branch importing `fs`;
                 // the browser branch uses fetch, so stub the Node builtins out.
                 { resolve: { fallback: { fs: false, path: false } } }),
