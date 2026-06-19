@@ -15,6 +15,7 @@ export default function VisionLabPage(): React.ReactElement {
   const samples = [
     { url: useBaseUrl("/samples/vision-doc.png"), name: "document" },
     { url: useBaseUrl("/samples/vision-hello.png"), name: "hello" },
+    { url: useBaseUrl("/samples/vision-handwriting.png"), name: "handwriting" },
     { url: useBaseUrl("/samples/embedded-image.docx"), name: "report.docx" },
   ];
   // Models are served same-origin (staged into web/static/models/vision at
@@ -36,8 +37,10 @@ export default function VisionLabPage(): React.ReactElement {
             models the native plugin runs, executed via <strong>onnxruntime-web</strong>. The OCR
             models (~21 MB) load on first use; the layout model (~132 MB) downloads only when you
             ask for it. You can also drop in a <strong>.docx</strong> — the embedded image is pulled
-            straight from the document and run through the same models. Nothing is mocked — only the
-            runtime differs.
+            straight from the document and run through the same models. Toggle{" "}
+            <strong>handwriting fallback</strong> to re-read low-confidence lines with TrOCR (loaded
+            on demand): PP-OCR handles clean text fast, TrOCR rescues the hard lines. Nothing is
+            mocked — only the runtime differs.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
             <Link to="/lab">Lab</Link>

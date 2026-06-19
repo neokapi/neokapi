@@ -61,21 +61,36 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   // that image.
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [extractedNote, setExtractedNote] = useState<string | null>(null);
+  // Handwriting cascade: PP-OCR reads every line fast; lines below this
+  // confidence are re-read by TrOCR (loaded on first escalation).
+  const [handwriting, setHandwriting] = useState(false);
+  const [hwThreshold, setHwThreshold] = useState(0.85);
 
   const runOCR = useCallback(
     async (r: Raster) => {
       setBusy("ocr");
       setErr(null);
       try {
-        setOcrRes(await ocr(r, modelBase));
+        setOcrRes(await ocr(r, modelBase, { handwriting, hwThreshold }));
       } catch (e) {
         setErr(`OCR failed: ${(e as Error).message}`);
       } finally {
         setBusy("");
       }
     },
-    [modelBase],
+    [modelBase, handwriting, hwThreshold],
   );
+
+  // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle).
+  const rerunOCR = (hw: boolean, thr: number): void => {
+    if (!raster) return;
+    setBusy("ocr");
+    setErr(null);
+    ocr(raster, modelBase, { handwriting: hw, hwThreshold: thr })
+      .then(setOcrRes)
+      .catch((e: unknown) => setErr(`OCR failed: ${(e as Error).message}`))
+      .finally(() => setBusy(""));
+  };
 
   // Decode an image URL to a raster and run OCR.
   const processImageUrl = useCallback(
@@ -159,6 +174,12 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
     }
   };
 
+  // Toggle the handwriting cascade and re-run OCR with the new setting.
+  const onToggleHandwriting = (v: boolean): void => {
+    setHandwriting(v);
+    rerunOCR(v, hwThreshold);
+  };
+
   const runLayout = useCallback(async () => {
     if (!raster) return;
     setBusy("layout");
@@ -214,6 +235,44 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             style={{ display: "none" }}
           />
         </label>
+        <label
+          title="Re-read low-confidence lines with the TrOCR handwriting model (loads on first use). PP-OCR handles clean text fast; TrOCR rescues the hard lines."
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            marginLeft: "auto",
+            cursor: raster ? "pointer" : "not-allowed",
+            fontSize: "0.85rem",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={handwriting}
+            disabled={!raster || busy !== ""}
+            onChange={(e) => onToggleHandwriting(e.target.checked)}
+          />
+          ✍ Handwriting fallback
+        </label>
+        {handwriting && (
+          <label
+            title="Lines whose PP-OCR confidence is below this are re-read by TrOCR. Higher = escalate more lines."
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8rem" }}
+          >
+            below
+            <input
+              type="range"
+              min={0.5}
+              max={0.99}
+              step={0.01}
+              value={hwThreshold}
+              disabled={busy !== ""}
+              onChange={(e) => setHwThreshold(Number(e.target.value))}
+              onPointerUp={(e) => rerunOCR(true, Number((e.target as HTMLInputElement).value))}
+            />
+            {Math.round(hwThreshold * 100)}%
+          </label>
+        )}
         <button
           onClick={() => void runLayout()}
           disabled={!raster || busy !== ""}
@@ -225,14 +284,19 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
             background: layoutRes ? "var(--ifm-color-primary)" : "transparent",
             color: layoutRes ? "#fff" : "inherit",
             cursor: raster ? "pointer" : "not-allowed",
-            marginLeft: "auto",
           }}
         >
           Detect layout (~132 MB)
         </button>
       </div>
 
-      {busy === "ocr" && <p style={{ fontStyle: "italic" }}>Running OCR (loading ~21 MB models on first use)…</p>}
+      {busy === "ocr" && (
+        <p style={{ fontStyle: "italic" }}>
+          {handwriting
+            ? "Running OCR + handwriting fallback (TrOCR loads on first use)…"
+            : "Running OCR (loading ~21 MB models on first use)…"}
+        </p>
+      )}
       {busy === "layout" && (
         <p style={{ fontStyle: "italic" }}>
           {progress < 1
@@ -291,23 +355,26 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
               </span>
             </div>
           ))}
-          {/* OCR text boxes */}
-          {ocrRes?.lines.map((l, i) => (
-            <div
-              key={`l${i}`}
-              title={l.text}
-              style={{
-                position: "absolute",
-                left: l.x * scale,
-                top: l.y * scale,
-                width: l.w * scale,
-                height: l.h * scale,
-                border: "1px solid rgba(37,99,235,0.9)",
-                background: "rgba(37,99,235,0.08)",
-                pointerEvents: "none",
-              }}
-            />
-          ))}
+          {/* OCR text boxes — purple where TrOCR re-read the line, blue for PP-OCR. */}
+          {ocrRes?.lines.map((l, i) => {
+            const hw = l.engine === "trocr";
+            return (
+              <div
+                key={`l${i}`}
+                title={`${l.text}${hw ? " [TrOCR]" : ""}`}
+                style={{
+                  position: "absolute",
+                  left: l.x * scale,
+                  top: l.y * scale,
+                  width: l.w * scale,
+                  height: l.h * scale,
+                  border: `1px solid ${hw ? "rgba(124,58,237,0.95)" : "rgba(37,99,235,0.9)"}`,
+                  background: hw ? "rgba(124,58,237,0.12)" : "rgba(37,99,235,0.08)",
+                  pointerEvents: "none",
+                }}
+              />
+            );
+          })}
         </div>
 
         {/* Results panel */}
@@ -322,6 +389,9 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
                     <span style={{ color: "var(--ifm-color-emphasis-500)" }}>
                       ({Math.round(l.confidence * 100)}%)
                     </span>
+                    {l.engine === "trocr" && (
+                      <span style={{ color: "#7c3aed", fontWeight: 600 }}> ✍ TrOCR</span>
+                    )}
                   </li>
                 ))}
               </ol>

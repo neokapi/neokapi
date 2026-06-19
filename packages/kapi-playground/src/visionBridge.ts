@@ -40,6 +40,19 @@ export interface OCRLine {
   w: number;
   h: number;
   confidence: number;
+  /** Which recognizer produced the text: fast CTC ("ppocr") or the handwriting
+   *  fallback ("trocr"), set when the confidence-gated cascade escalates. */
+  engine?: "ppocr" | "trocr";
+}
+
+/** Options for the OCR cascade. */
+export interface OCROptions {
+  /** Re-recognize low-confidence lines with the TrOCR handwriting model. */
+  handwriting?: boolean;
+  /** PP-OCR confidence below which a line is escalated to TrOCR (default 0.85). */
+  hwThreshold?: number;
+  /** Hugging Face model id for the handwriting recognizer. */
+  hwModel?: string;
 }
 export interface OCRResult {
   width: number;
@@ -426,10 +439,64 @@ function firstTensor(out: ort.InferenceSession.OnnxValueMapType, names: readonly
   return out[names[0]] as ort.Tensor;
 }
 
-/** ocr runs PP-OCRv5 detection + recognition over the raster, returning text lines. */
-export async function ocr(img: RGBA, base = MODEL_BASE): Promise<OCRResult> {
+// --- handwriting fallback (TrOCR via transformers.js / onnxruntime-web) ---
+//
+// PP-OCR's CRNN+CTC is fast and great on clean/printed text but weaker on
+// cursive. TrOCR (an image→text transformer) is far better on handwriting but
+// heavier (autoregressive decode). The cascade runs PP-OCR on every line and
+// escalates ONLY the low-confidence ones to TrOCR — each model plays to its
+// strength. TrOCR is loaded lazily (and from the Hugging Face Hub, which is
+// CORS-enabled) the first time a line is escalated.
+
+const DEFAULT_HW_MODEL = "Xenova/trocr-small-handwritten";
+const DEFAULT_HW_THRESHOLD = 0.85;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let hwRecognizer: Promise<any> | null = null;
+
+function ensureHandwriting(model: string): Promise<unknown> {
+  if (!hwRecognizer) {
+    hwRecognizer = (async () => {
+      const { pipeline } = await import("@huggingface/transformers");
+      return pipeline("image-to-text", model);
+    })();
+  }
+  return hwRecognizer;
+}
+
+/** layoutAvailable's handwriting twin: has the TrOCR recognizer been loaded? */
+export function handwritingLoaded(): boolean {
+  return hwRecognizer !== null;
+}
+
+// Encode a line crop as a PNG data URL — the most robust input for transformers.js
+// (it handles decode + the model's own preprocessing).
+function rgbaToDataURL(img: RGBA): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("vision: no 2D canvas context");
+  // Copy into a fresh ArrayBuffer-backed array (ImageData requires that exact type).
+  const src = new Uint8ClampedArray(img.data);
+  ctx.putImageData(new ImageData(src, img.width, img.height), 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+async function recognizeLineHW(crop: RGBA, model: string): Promise<string> {
+  const recog = ensureHandwriting(model);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out = await (await recog as any)(rgbaToDataURL(crop));
+  const text = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text;
+  return typeof text === "string" ? text.trim() : "";
+}
+
+/** ocr runs PP-OCRv5 detection + recognition over the raster, returning text lines.
+ *  With opts.handwriting, low-confidence lines are re-recognized by TrOCR. */
+export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): Promise<OCRResult> {
   const { det, rec, dict } = await ensureOCR(base);
   const ow = img.width, oh = img.height;
+  const hwThreshold = opts.hwThreshold ?? DEFAULT_HW_THRESHOLD;
+  const hwModel = opts.hwModel ?? DEFAULT_HW_MODEL;
 
   // Detection.
   const [dw, dh] = detInputSize(ow, oh);
@@ -466,9 +533,21 @@ export async function ocr(img: RGBA, base = MODEL_BASE): Promise<OCRResult> {
     const sh = logitsT.dims;
     if (sh.length !== 3) continue;
     const steps = Number(sh[1]), classes = Number(sh[2]);
-    const { text, conf } = ctcGreedyDecode(logitsT.data as Float32Array, steps, classes, dict);
+    const dec = ctcGreedyDecode(logitsT.data as Float32Array, steps, classes, dict);
+    let text = dec.text;
+    const conf = dec.conf;
+    let engine: "ppocr" | "trocr" = "ppocr";
+    // Confidence-gated escalation: the fast CTC handled this line; if it was
+    // unsure (low confidence, or produced nothing), re-read it with TrOCR.
+    if (opts.handwriting && (conf < hwThreshold || text === "")) {
+      const hw = await recognizeLineHW(c, hwModel);
+      if (hw) {
+        text = hw;
+        engine = "trocr";
+      }
+    }
     if (!text) continue;
-    lines.push({ text, x: ox0, y: oy0, w: ox1 - ox0 + 1, h: oy1 - oy0 + 1, confidence: conf });
+    lines.push({ text, x: ox0, y: oy0, w: ox1 - ox0 + 1, h: oy1 - oy0 + 1, confidence: conf, engine });
   }
   return { width: ow, height: oh, lines };
 }
