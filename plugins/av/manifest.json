@@ -1,0 +1,29 @@
+{
+  "manifest_version": "1",
+  "plugin": "av",
+  "version": "0.1.0",
+  "description": "Video demux dependency for kapi — bundles ffmpeg/ffprobe (LGPL) per platform so the in-process video reader can demux a video into an audio track (→ kapi-asr) and sampled frames (→ kapi-vision OCR) without a system ffmpeg install.",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/av",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-av",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "av",
+        "short": "ffmpeg/ffprobe bundle self-check",
+        "long": "Print the kapi-av version and the bundled ffmpeg/ffprobe paths. The host's in-process video demux (core/av) discovers this plugin's directory and uses the bundled binaries; this plugin runs no daemon."
+      }
+    ]
+  },
+  "metadata": {
+    "av": {
+      "role": "video-demux",
+      "bundled_binaries": ["ffmpeg", "ffprobe"],
+      "bundled_license": "ffmpeg: LGPL-2.1+ build, separate executables (see NOTICE)",
+      "invoked_in_process_by": "github.com/neokapi/neokapi/core/av"
+    }
+  }
+}

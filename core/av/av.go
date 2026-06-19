@@ -15,9 +15,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Frame is one sampled video frame: its timestamp (ms from start) and the path
@@ -52,15 +54,73 @@ const (
 	defaultDedupDst = 5
 )
 
-// FFmpegAvailable reports whether ffmpeg and ffprobe are on PATH. A video format
-// reader uses this to decide whether demux is possible (degrading to "video as
-// an opaque Media asset" when not).
-func FFmpegAvailable() bool {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		return false
+// A bundled ffmpeg/ffprobe (the kapi-av plugin) is preferred over a system one.
+// Resolution order: an explicit SetBinDir → a host-provided locator (discovers
+// the kapi-av plugin, called lazily on first use) → $KAPI_AV_DIR → PATH.
+var (
+	binDir  string
+	binOnce sync.Once
+	locator func() string
+)
+
+// SetBinDir points av at a directory containing bundled ffmpeg/ffprobe. Empty is
+// ignored.
+func SetBinDir(dir string) { binDir = dir }
+
+// SetBinLocator registers a host function that finds the kapi-av bundle dir. It
+// is called at most once, on first ffmpeg use, so discovery cost is paid only by
+// commands that actually demux video.
+func SetBinLocator(f func() string) { locator = f }
+
+func resolveDir() string {
+	if binDir != "" {
+		return binDir
 	}
-	_, err := exec.LookPath("ffprobe")
-	return err == nil
+	if locator != nil {
+		binOnce.Do(func() {
+			if d := locator(); d != "" {
+				binDir = d
+			}
+		})
+	}
+	return binDir
+}
+
+func exeName(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
+// resolveBin returns the path to a bundled ffmpeg/ffprobe if one is configured
+// and present, else the bare name (resolved on PATH by exec).
+func resolveBin(name string) string {
+	for _, dir := range []string{resolveDir(), os.Getenv("KAPI_AV_DIR")} {
+		if dir == "" {
+			continue
+		}
+		p := filepath.Join(dir, exeName(name))
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return name
+}
+
+// FFmpegAvailable reports whether ffmpeg and ffprobe are resolvable (bundled or
+// on PATH). A video format reader uses this to decide whether demux is possible
+// (degrading to "video as an opaque Media asset" when not).
+func FFmpegAvailable() bool {
+	for _, n := range []string{"ffmpeg", "ffprobe"} {
+		p := resolveBin(n)
+		if p == n { // not a bundled path — must be on PATH
+			if _, err := exec.LookPath(n); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type probeFormat struct {
@@ -77,7 +137,7 @@ type probeOut struct {
 // Probe reports whether the video has an audio track and its duration, via
 // ffprobe.
 func Probe(ctx context.Context, videoPath string) (hasAudio bool, durationMS int64, err error) {
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := exec.CommandContext(ctx, resolveBin("ffprobe"),
 		"-v", "error",
 		"-show_entries", "format=duration:stream=codec_type",
 		"-of", "json", videoPath)
@@ -125,7 +185,7 @@ func Demux(ctx context.Context, videoPath, workDir string, opts Options) (*Demux
 	if hasAudio {
 		audioPath := filepath.Join(workDir, "audio.wav")
 		// 16 kHz mono PCM — the canonical Whisper input.
-		cmd := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-y", "-i", videoPath,
+		cmd := exec.CommandContext(ctx, resolveBin("ffmpeg"), "-nostdin", "-y", "-i", videoPath,
 			"-vn", "-ac", "1", "-ar", "16000", "-f", "wav", audioPath)
 		if out, aerr := cmd.CombinedOutput(); aerr != nil {
 			return nil, fmt.Errorf("av: extract audio: %w: %s", aerr, lastLine(out))
@@ -147,7 +207,7 @@ func Demux(ctx context.Context, videoPath, workDir string, opts Options) (*Demux
 // sampleFrames extracts frames at fps to workDir, returning them ordered by time.
 func sampleFrames(ctx context.Context, videoPath, workDir string, fps float64) ([]Frame, error) {
 	pattern := filepath.Join(workDir, "frame_%06d.png")
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-y", "-i", videoPath,
+	cmd := exec.CommandContext(ctx, resolveBin("ffmpeg"), "-nostdin", "-y", "-i", videoPath,
 		"-vf", fmt.Sprintf("fps=%g", fps), pattern)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("av: sample frames: %w: %s", err, lastLine(out))
