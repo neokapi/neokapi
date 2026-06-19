@@ -24,23 +24,23 @@
     "@neokapi/kapi-react": "*",
     "@neokapi/ui-primitives": "*",
     "@xyflow/react": "^12.11.0",
-    "lucide-react": "^1.14.0",
-    "react-hook-form": "^7.78.0",
+    "lucide-react": "^1.21.0",
+    "react-hook-form": "^7.79.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.4.3",
+    "@storybook/react-vite": "^10.4.6",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
-    "storybook": "^10.4.3",
+    "storybook": "^10.4.6",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.1.24",
-    "vitest": "^4.1.8"
+    "vite-plus": "^0.2.1",
+    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "react": "^19.0.0",
