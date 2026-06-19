@@ -7,9 +7,19 @@ import (
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/pluginhost"
+	"github.com/neokapi/neokapi/cli/selfupdate"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/cobra"
 )
+
+// updateChannel resolves the release track the background notifier watches —
+// the configured update.channel (KAPI_UPDATE_CHANNEL), defaulting to stable.
+func updateChannel() string {
+	if app.Config == nil {
+		return config.DefaultUpdateChannel
+	}
+	return app.Config.UpdateChannel()
+}
 
 var app = &cli.App{}
 
@@ -28,10 +38,19 @@ var rootCmd = &cobra.Command{
 		// Plugins (e.g. bowrain) register App initializers at init().
 		// Apply them after Init has set up registries and config.
 		cli.ApplyAppInitializers(app)
+		// Kick off a detached, time-bounded check for a newer kapi release. It
+		// only warms the on-disk cache; the notice (if any) is rendered in
+		// PostRun. No-ops in CI / non-TTY / when opted out.
+		selfupdate.StartBackgroundRefresh(updateChannel())
 		return nil
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		app.Shutdown()
+		// Surface an "update available" line (cache-only, never blocks). Skip
+		// for `kapi update`, which already speaks to the user about versions.
+		if cmd.Name() != "update" {
+			selfupdate.RenderNotice(os.Stderr, updateChannel())
+		}
 	},
 }
 

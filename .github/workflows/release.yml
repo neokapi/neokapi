@@ -280,26 +280,44 @@ jobs:
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
             bowrain/cli/cmd/kapi-bowrain/manifest.json
 
-      # Keyless cosign signature (sigstore bundle) for each kapi-bowrain plugin
-      # tarball — kapi's plugin-install verifier requires it. Mirrors the former
-      # GoReleaser `signs` block.
-      - name: Sign kapi-bowrain plugin archives (cosign)
+      # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
+      # tarballs (kapi's plugin-install verifier requires it) AND the kapi CLI
+      # archives (so `kapi update` can verify a self-replace — see
+      # cli/selfupdate). Mirrors the former GoReleaser `signs` block.
+      - name: Sign CLI archives (cosign)
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for a in dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
+          for a in dist/kapi_*.tar.gz dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
             cosign sign-blob --yes --new-bundle-format=true \
               --bundle "${a}.sigstore.json" "$a"
           done
 
+      # Channel is tag-driven: a full tag (v1.2.0) feeds the `stable` channel; a
+      # prerelease tag (v1.2.0-rc.1, v1.2.0-beta.1, …) feeds the `beta` fast
+      # track. Stable formulae are kapi-cli/bowrain-cli; beta formulae are the
+      # @beta variants so the two tracks install side by side.
+      - name: Resolve release channel
+        id: channel
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          case "$REF_NAME" in
+            *-*) echo "channel=beta" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "channel=stable" >> "$GITHUB_OUTPUT" ;;
+          esac
+
       - name: Generate brew formulae
+        env:
+          CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
-            dist/checksums.txt brew-formulae
+            dist/checksums.txt brew-formulae "$CHANNEL"
 
       - name: Publish CLI archives to release
         uses: softprops/action-gh-release@v3
@@ -336,22 +354,25 @@ jobs:
             brew install --cask neokapi/tap/bowrain
             ```
 
+      # Push the generated formulae (stable: kapi-cli/bowrain-cli; beta: the
+      # @beta variants) to the tap. Both stable and prerelease tags publish —
+      # only the formula names and channel differ.
       - name: Push brew formulae to homebrew-tap
-        if: ${{ !contains(github.ref_name, '-') }}
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neokapi/homebrew-tap.git" /tmp/tap
           mkdir -p /tmp/tap/Formula
-          cp brew-formulae/kapi-cli.rb brew-formulae/bowrain-cli.rb /tmp/tap/Formula/
+          cp brew-formulae/*.rb /tmp/tap/Formula/
           cd /tmp/tap
           git config user.email "release-bot@neokapi.dev"
           git config user.name "release-bot"
-          git add Formula/kapi-cli.rb Formula/bowrain-cli.rb
+          git add Formula/*.rb
           if ! git diff --staged --quiet; then
-            git commit -m "kapi-cli + bowrain-cli ${VERSION}"
+            git commit -m "kapi-cli + bowrain-cli ${VERSION} (${CHANNEL})"
             git push
           fi
 
@@ -360,11 +381,11 @@ jobs:
       # Includes cosign signature URLs + cert-identity so kapi's verifier
       # can validate the install (signatures are mandatory unless --unsafe).
       - name: Update manifest plugin registry
-        if: ${{ !contains(github.ref_name, '-') }}
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
           VERSION="${REF_NAME#v}"
@@ -384,37 +405,64 @@ jobs:
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
-          declare -a ARGS
-          for plat in darwin/arm64 linux/arm64 linux/amd64; do
-            os=${plat%/*}
-            arch=${plat#*/}
-            file="kapi-bowrain_${VERSION}_${os}_${arch}.tar.gz"
-            if [ -n "${SHAS[$file]:-}" ]; then
-              ARGS+=(
-                "--platform" "$plat"
-                "--url" "${REPO_URL}/${file}"
-                "--sha256" "${SHAS[$file]}"
-                "--signature" "${REPO_URL}/${file}.sigstore.json"
-              )
-            fi
-          done
+          RELEASED="$(date -u +%Y-%m-%d)"
+          ISSUER="https://token.actions.githubusercontent.com"
+
+          # Build per-platform args for a given archive prefix (kapi-bowrain or
+          # kapi). The kapi CLI ships the same darwin/linux platforms as the
+          # plugin (Windows kapi is signed + published out of band, so it is not
+          # yet in the self-update index).
+          build_args() {
+            local prefix="$1"; shift
+            CLI_ARGS=()
+            for plat in "$@"; do
+              local os=${plat%/*} arch=${plat#*/}
+              local file="${prefix}_${VERSION}_${os}_${arch}.tar.gz"
+              if [ -n "${SHAS[$file]:-}" ]; then
+                CLI_ARGS+=(
+                  "--platform" "$plat"
+                  "--url" "${REPO_URL}/${file}"
+                  "--sha256" "${SHAS[$file]}"
+                  "--signature" "${REPO_URL}/${file}.sigstore.json"
+                )
+              fi
+            done
+          }
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+
+          # --- bowrain plugin → manifest-plugins.json ---
+          build_args kapi-bowrain darwin/arm64 linux/arm64 linux/amd64
           /tmp/registry-update \
             --registry /tmp/registry/manifest-plugins.json \
             --plugin bowrain \
             --version "$VERSION" \
-            --channel stable \
-            --released "$(date -u +%Y-%m-%d)" \
+            --channel "$CHANNEL" \
+            --released "$RELEASED" \
             --cert-identity "$CERT_ID" \
-            --cert-oidc-issuer https://token.actions.githubusercontent.com \
-            "${ARGS[@]}"
+            --cert-oidc-issuer "$ISSUER" \
+            "${CLI_ARGS[@]}"
+
+          # --- kapi CLI → cli.json (drives `kapi update` self-replace) ---
+          # Seed the index on first use; registry-update needs valid JSON.
+          [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
+          build_args kapi darwin/arm64 linux/arm64 linux/amd64
+          /tmp/registry-update \
+            --registry /tmp/registry/cli.json \
+            --plugin kapi \
+            --version "$VERSION" \
+            --channel "$CHANNEL" \
+            --released "$RELEASED" \
+            --cert-identity "$CERT_ID" \
+            --cert-oidc-issuer "$ISSUER" \
+            "${CLI_ARGS[@]}"
+
           cd /tmp/registry
           git config user.email "release-bot@neokapi.dev"
           git config user.name "release-bot"
-          git add manifest-plugins.json
+          git add manifest-plugins.json cli.json
           if ! git diff --staged --quiet; then
-            git commit -m "Register bowrain ${VERSION}"
+            git commit -m "Register bowrain + kapi ${VERSION} (${CHANNEL})"
             git push
           fi
 
