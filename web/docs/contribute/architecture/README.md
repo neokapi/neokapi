@@ -38,6 +38,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [026](026-flow-io-binding.md)   | Flow I/O Binding  | source/sink bindings, file·store·klz·import/export, process-only runs, ingest vs run transforms |
 | [028](028-pdf-reader-plugin.md) | PDF Reader & Structure Tiers | PDFium native plugin + browser WASM, geometry/glyphs, tagged + geometric structure tiers |
 | [029](029-vision-and-image-localization.md) | Vision & Image Localization | image as localizable asset; kapi-vision OCR (PP-OCRv5) + layout (PP-DocLayoutV3), path-based, localization modes |
+| [030](030-multimodal-extraction-and-llm-refinement.md) | Multimodal Extraction & LLM Refinement | confidence-gated escalation across image/audio/video; MediaAnchor + ExtractionProvenance overlays, multimodal aiprovider, generic media-refine Transform, kapi-asr/video symmetry |
 
 ## Project Model
 

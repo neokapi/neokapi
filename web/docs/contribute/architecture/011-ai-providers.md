@@ -3,7 +3,7 @@ id: 011-ai-providers
 sidebar_position: 11
 title: "AD-011: AI Providers"
 description: "Architecture decision: LLM capabilities plug in through an LLMProvider interface in providers/ai/ with built-in backends for Anthropic Claude, OpenAI, Google Gemini, Azure OpenAI, and Ollama."
-keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, architecture decision, neokapi]
+keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, multimodal, ContentPart, input modality, vision, architecture decision, neokapi]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
@@ -16,10 +16,13 @@ The framework integrates LLM capabilities through an `LLMProvider` interface
 in `providers/ai/` (package `aiprovider`), with built-in implementations for
 Anthropic, OpenAI, Azure OpenAI, Ollama, and Gemini (plus an offline `demo`
 provider) and an optional `StreamingLLMProvider` extension for live thinking
-progress. AI tools call providers directly; throughput comes from
-config-driven batching and bounded concurrency inside the tool, not from a
-separate worker-pool subsystem. A `ChatStructured` method with JSON Schema
-enables reliable batch translation and other structured-output tasks.
+progress. Messages are **multimodal** — content is an ordered list of text,
+image, audio, or video parts — and each provider advertises the input modalities
+it accepts, so a vision- or audio-capable model reads a Block's media anchor
+([AD-002](002-content-model.md)) directly. AI tools call providers directly;
+throughput comes from config-driven batching and bounded concurrency inside the
+tool, not from a separate worker-pool subsystem. A `ChatStructured` method with
+JSON Schema enables reliable batch translation and other structured-output tasks.
 
 ## Context
 
@@ -48,6 +51,7 @@ while giving tools a predictable contract.
 ```go
 type LLMProvider interface {
     Name() ProviderID
+    InputModalities() []Modality // non-text inputs accepted; text always
     Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
     Chat(ctx context.Context, messages []Message) (*ChatResponse, error)
     ChatStructured(ctx context.Context, messages []Message,
@@ -64,6 +68,61 @@ the provider to return structured output. The `JSONSchema` type includes
 Provider configuration is schema-driven: fields in AI tool configs generate
 CLI flags automatically via `schema.FromStruct()`, removing the need for
 manual flag registration.
+
+### Multimodal content
+
+A `Message`'s content is an ordered list of typed parts, so one interface carries
+text, images, audio, and video:
+
+```go
+type Message struct {
+    Role  string        // "system" | "user" | "assistant"
+    Parts []ContentPart
+}
+
+type ContentPart struct {
+    Kind  ContentKind  // closed set, named type
+    Text  string       // Kind == ContentText
+    Media *model.Media // otherwise — a bounded slice, carried by reference
+}
+
+type ContentKind string
+
+const (
+    ContentText  ContentKind = "text"
+    ContentImage ContentKind = "image"
+    ContentAudio ContentKind = "audio"
+    ContentVideo ContentKind = "video"
+)
+```
+
+A media part carries its payload as a **`model.Media`** — the framework's
+binary-reference type ([AD-002](002-content-model.md)), with precedence
+`BlobKey > URI > Data` — not a bare `[]byte`. A small slice rides inline (`Data`);
+a larger one (a video clip) is a `BlobKey`/`URI` and is never forced into memory.
+A single helper at the provider's HTTP boundary resolves the `Media` to the
+backend's wire form (base64 inline, or a fetchable URL where the provider supports
+it), so provider implementations stay **storage-agnostic** — they never read a
+file or the blob store. This keeps one binary idiom across `Media`, plugin I/O,
+and provider content.
+
+A text-only message is a single `text` part, so translation, QA, and terminology
+tools use the interface with no media parts — the common path carries no media
+ceremony. Image, audio, and video parts carry a Block's media slice
+([AD-002](002-content-model.md)) into the prompt, which is what the multimodal
+extraction refinement tier sends ([AD-030](030-multimodal-extraction-and-llm-refinement.md)).
+
+Backends differ in which input modalities they accept, so `InputModalities()`
+advertises a provider's reach (`Modality` being the `image`/`audio`/`video`
+subset of `ContentKind`; text is always accepted) and a caller selects a provider
+that fits rather than discovering the limit at call time:
+
+| Provider | Accepts |
+|---|---|
+| Gemini | text, image, audio, video |
+| OpenAI / Azure OpenAI | text, image (audio on audio-capable models) |
+| Anthropic | text, image |
+| Ollama (vision models) | text, image |
 
 ### Built-in providers
 
@@ -287,7 +346,8 @@ these framework primitives.
 
 ## Related
 
-- [AD-002: Content Model](002-content-model.md) — annotations on Blocks
+- [AD-002: Content Model](002-content-model.md) — annotations on Blocks; the media anchor a multimodal message carries
+- [AD-030: Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md) — the refinement tier that sends image/audio/video parts
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
   and `ParallelBlockTool`
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern
