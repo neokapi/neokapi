@@ -2,6 +2,7 @@ import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { VisionExplorer } from "@site/src/components/Lab";
 import styles from "./pdf.module.css";
 
@@ -18,9 +19,17 @@ export default function VisionLabPage(): React.ReactElement {
     { url: useBaseUrl("/samples/vision-handwriting.png"), name: "handwriting" },
     { url: useBaseUrl("/samples/embedded-image.docx"), name: "report.docx" },
   ];
-  // Models are served same-origin (staged into web/static/models/vision at
-  // docs build): GitHub release download URLs are CORS-blocked for browser fetch.
-  const modelBase = useBaseUrl("/models/vision");
+  // Models are served same-origin (staged into web/static/models/vision at docs
+  // build): GitHub release URLs are CORS-blocked for browser fetch. They are
+  // deduplicated to the default-locale (root) output (docusaurus.config
+  // dropLocaleVisionModels), so strip any locale segment to fetch that single
+  // copy — a no-op when useBaseUrl isn't locale-prefixed (default locale).
+  const { i18n } = useDocusaurusContext();
+  const localizedModels = useBaseUrl("/models/vision");
+  const modelBase =
+    i18n.currentLocale === i18n.defaultLocale
+      ? localizedModels
+      : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
   return (
     <Layout
       title="Vision Lab"
