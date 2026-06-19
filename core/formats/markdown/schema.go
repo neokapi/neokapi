@@ -22,7 +22,8 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
-					"translateCodeBlocks", "translateFrontMatter", "frontMatterKeys",
+					"translateCodeBlocks", "extractNonTranslatableContent",
+					"translateFrontMatter", "frontMatterKeys",
 					"translateImageAlt", "translateURLs",
 					"translateBlockQuotes", "translateHTMLBlocks",
 				},
@@ -55,6 +56,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Translate Code Blocks",
 				Description: "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 			"translateFrontMatter": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",

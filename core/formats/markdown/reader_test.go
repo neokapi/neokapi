@@ -204,9 +204,13 @@ func TestReadBoldItalicInline(t *testing.T) {
 }
 
 // okapi: MarkdownFilterTest#testDontTranslateFencedCodeBlocks
+// With non-translatable-content surfacing disabled (the Okapi-faithful config),
+// a fenced code block stays opaque Data.
 func TestReadCodeBlockAsData(t *testing.T) {
 	input := "# Title\n\n```go\nfmt.Println(\"hello\")\n```\n\nText after code"
-	parts := readParts(t, input)
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	blocks := testutil.FilterBlocks(parts)
 
 	assert.Len(t, blocks, 2)
@@ -224,6 +228,36 @@ func TestReadCodeBlockAsData(t *testing.T) {
 		}
 	}
 	assert.True(t, hasCodeData, "expected code block as Data")
+}
+
+// By default (ExtractNonTranslatableContent on), a fenced code block is surfaced
+// as a non-translatable RoleCode content block — visible to ingestion, skipped
+// by MT — instead of opaque skeleton, and the document still round-trips.
+func TestReadFencedCodeBlockAsContent(t *testing.T) {
+	input := "# Title\n\n```go\nfmt.Println(\"hello\")\n```\n\nText after code"
+	parts := readParts(t, input)
+
+	var translatable, content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.Translatable {
+				translatable = append(translatable, b)
+			} else {
+				content = append(content, b)
+			}
+		}
+	}
+	assert.Len(t, translatable, 2, "Title + trailing text stay translatable")
+	require.Len(t, content, 1, "code surfaces as one non-translatable content block")
+	code := content[0]
+	assert.False(t, code.Translatable)
+	assert.Equal(t, model.RoleCode, code.SemanticRole())
+	assert.True(t, code.PreserveWhitespace)
+	assert.Contains(t, code.SourceText(), `fmt.Println("hello")`)
+	assert.Equal(t, "go", code.Properties["language"])
+
+	assert.Equal(t, input, roundtripWithSkeleton(t, input), "round-trip stays byte-exact")
 }
 
 // okapi: MarkdownFilterTest#testBulletList
@@ -482,7 +516,10 @@ func TestRead_CodeAndEmphasis(t *testing.T) {
 // okapi: MarkdownFilterTest#testFencedCodeBlock
 func TestRead_FencedCodeBlock(t *testing.T) {
 	input := "```\ncode here\n```\n"
-	parts := readParts(t, input)
+	// Okapi-faithful config: code stays opaque Data.
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	hasCode := false
 	for _, p := range parts {
 		if p.Type == model.PartData {
@@ -508,11 +545,13 @@ func TestRead_TranslateFencedCodeBlocks(t *testing.T) {
 }
 
 // okapi: MarkdownFilterTest#testExcludeIndentedCodeBlock
+// Okapi-faithful config (surfacing off): indented code stays Data, not a block.
 func TestRead_ExcludeIndentedCodeBlock(t *testing.T) {
 	input := "Text\n\n    indented code\n\nMore text\n"
-	parts := readParts(t, input)
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	blocks := testutil.FilterBlocks(parts)
-	// Indented code should be Data, not a block
 	assert.Len(t, blocks, 2)
 	assert.Equal(t, "Text", blocks[0].SourceText())
 	assert.Equal(t, "More text", blocks[1].SourceText())
@@ -521,7 +560,10 @@ func TestRead_ExcludeIndentedCodeBlock(t *testing.T) {
 // okapi: MarkdownFilterTest#testIndentedCodeBlock
 func TestRead_IndentedCodeBlock(t *testing.T) {
 	input := "    indented code line 1\n    indented code line 2\n"
-	parts := readParts(t, input)
+	// Okapi-faithful config: indented code stays Data.
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	hasCode := false
 	for _, p := range parts {
 		if p.Type == model.PartData {
@@ -532,6 +574,25 @@ func TestRead_IndentedCodeBlock(t *testing.T) {
 		}
 	}
 	assert.True(t, hasCode, "indented code should be Data")
+}
+
+// By default, indented code surfaces as a non-translatable RoleCode content
+// block and the document still round-trips byte-exact.
+func TestRead_IndentedCodeBlockAsContent(t *testing.T) {
+	input := "Text\n\n    indented code\n\nMore text\n"
+	parts := readParts(t, input)
+	var content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b := p.Resource.(*model.Block); !b.Translatable {
+				content = append(content, b)
+			}
+		}
+	}
+	require.Len(t, content, 1, "indented code surfaces as one non-translatable content block")
+	assert.Equal(t, model.RoleCode, content[0].SemanticRole())
+	assert.Contains(t, content[0].SourceText(), "indented code")
+	assert.Equal(t, input, roundtripWithSkeleton(t, input), "round-trip stays byte-exact")
 }
 
 // --- Link Tests ---

@@ -1687,6 +1687,28 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelCursor = closeFenceEnd
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	} else if r.cfg.ExtractNonTranslatableContent() {
+		// Surface the code as non-translatable RoleCode content (visible to
+		// ingestion, skipped by MT); fences stay skeleton, body rides a ref.
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, content)
+		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Type = "code-block"
+		block.Translatable = false
+		block.PreserveWhitespace = true
+		block.SetSemanticRole(model.RoleCode, 0)
+		if lang != "" {
+			block.Properties["language"] = lang
+		}
+
+		r.skelEmitGap(fenceStart)
+		r.skelText(string(r.source[fenceStart:lineStart]))
+		r.skelRef(blockID)
+		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
+		r.skelCursor = closeFenceEnd
+
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
 		r.dataCounter++
 		data := &model.Data{
@@ -1746,6 +1768,26 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		block := model.NewBlock(blockID, blockContent)
 		block.Name = fmt.Sprintf("code%d", r.blockCounter)
 		block.Type = "code-block"
+
+		r.skelEmitGap(absStart)
+		r.skelText(prefix)
+		r.skelRef(blockID)
+		r.skelCursor = lineEnd
+
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	} else if r.cfg.ExtractNonTranslatableContent() {
+		// Surface as non-translatable RoleCode content; the 4-space indent stays
+		// skeleton, the verbatim body rides a ref (byte-exact round-trip).
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		prefix := string(r.source[absStart:lineStart])
+		blockContent := string(r.source[lineStart:lineEnd])
+		block := model.NewBlock(blockID, blockContent)
+		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Type = "code-block"
+		block.Translatable = false
+		block.PreserveWhitespace = true
+		block.SetSemanticRole(model.RoleCode, 0)
 
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)

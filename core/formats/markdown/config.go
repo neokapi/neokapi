@@ -46,6 +46,13 @@ type Config struct {
 	// within Markdown (e.g., "html").
 	Subfilter string
 
+	// disableNonTranslatableContent, when set, keeps non-translatable contextual
+	// content (code blocks) in opaque skeleton instead of surfacing it as
+	// RoleCode content blocks (visible to ingestion, skipped by MT). Zero value
+	// = surfacing ON (the opt-out default). Orthogonal to TranslateCodeBlocks,
+	// which only decides whether code is *translatable*.
+	disableNonTranslatableContent bool
+
 	// UseCodeFinder enables regex-based inline code detection.
 	UseCodeFinder bool
 
@@ -77,6 +84,19 @@ func (c *Config) TranslateBlockQuotes() bool {
 	return !c.nonTranslatableBlockQuotes
 }
 
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (code blocks) is surfaced as RoleCode content blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
+
 // ApplyMap applies configuration values from a map.
 //
 // Bridge-schema leaf aliases (translateImageAltText, translateUrls,
@@ -91,6 +111,10 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "translateCodeBlocks":
 			if v, ok := val.(bool); ok {
 				c.TranslateCodeBlocks = v
+			}
+		case "extractNonTranslatableContent":
+			if v, ok := val.(bool); ok {
+				c.disableNonTranslatableContent = !v
 			}
 		case "translateFrontMatter", "translateHeaderMetadata":
 			if v, ok := val.(bool); ok {
