@@ -13,19 +13,19 @@
   },
   "dependencies": {
     "@neokapi/ui": "*",
-    "@tailwindcss/vite": "^4.2.2",
+    "@tailwindcss/vite": "^4.3.1",
     "@tanstack/react-query": "^5.101.0",
-    "@tanstack/react-router": "^1.170.15",
-    "lucide-react": "^1.14.0",
+    "@tanstack/react-router": "^1.170.16",
+    "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.1.24"
+    "vite-plus": "^0.2.1"
   }
 }
