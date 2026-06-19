@@ -1,5 +1,7 @@
 # Format Ops — The Operating Process for Format Maturity
 
+> New here? Start with the one-page [format-ops-overview.md](./format-ops-overview.md).
+
 This document defines *how the format estate is maintained over time*: the
 rituals, their cadences, the ledger that makes the process self-evaluating, and
 the self-improvement loop that keeps the prompts and rubric current as models
@@ -328,6 +330,7 @@ flags the drift.
 
 | Artifact | Path | Written by |
 |---|---|---|
+| Overview (front door) | `docs/internals/format-ops-overview.md` | maintainer + process-health (kept in sync with the axes/rituals) |
 | Rubric (tiers + axes) | `docs/internals/format-maturity.md` | maintainer + process-health (approved edits) |
 | This process doc | `docs/internals/format-ops.md` | maintainer + process-health (approved edits) |
 | Spec-case design | `docs/internals/format-spec-cases.md` | maintainer + process-health |

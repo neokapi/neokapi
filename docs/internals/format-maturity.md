@@ -1,5 +1,7 @@
 # Format Maturity — Tiers, Axes & Audit
 
+> New here? Start with the one-page [format-ops-overview.md](./format-ops-overview.md).
+
 This is the bar a neokapi format must clear, and how to measure where a format
 sits today. It is the guardrail companion to
 [format-engineering.md](./format-engineering.md) (how the engine works) and the
