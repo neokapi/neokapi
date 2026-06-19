@@ -4,7 +4,9 @@ name: Publish to WinGet
 # (already published) release by scripts/publish-windows-signed.sh *after* CI
 # publishes macOS/Linux — so winget must run after that step, not on the
 # release event (the signed asset isn't on the release yet at CI publish time).
-# The publish script triggers this with:  gh workflow run winget.yml -f tag=<tag>
+# That script (via `make release-windows`) dispatches this workflow automatically
+# once the signed assets are uploaded; `make release-winget` re-dispatches by
+# hand. Either way:  gh workflow run winget.yml -f tag=<tag>
 #
 # Updates two winget packages from one release:
 #   • Neokapi.KapiCli — the CLI (moniker `kapi`), from the portable kapi-cli_*.zip

@@ -189,3 +189,21 @@ fi
 
 echo "✅ Signed Windows artifacts added to release $TAG:"
 for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
+
+# Now that the signed CLI zip + desktop setup.exe are on the release, kick off
+# the winget update workflow. winget.yml bumps both Neokapi.KapiCli (portable
+# zip) and Neokapi.Kapi (desktop setup.exe); the desktop row fails harmlessly
+# until that package is bootstrapped once with `komac new Neokapi.Kapi`.
+# Set SKIP_WINGET=1 to skip (e.g. a re-run that only fixes the signed assets).
+if [ "${SKIP_WINGET:-0}" = "1" ]; then
+  echo ">> SKIP_WINGET=1 — not dispatching winget. Run later: gh workflow run winget.yml -f tag=$TAG"
+elif ! command -v gh >/dev/null 2>&1; then
+  echo ">> gh not found — skipping winget dispatch. Run later: gh workflow run winget.yml -f tag=$TAG" >&2
+else
+  echo ">> Dispatching winget publish (winget.yml) for $TAG ..."
+  if gh workflow run winget.yml --repo "$REPO" -f tag="$TAG"; then
+    echo "   winget.yml dispatched — watch: gh run list --workflow=winget.yml --repo $REPO"
+  else
+    echo "   ⚠ winget dispatch failed; the signed assets are still published. Retry: gh workflow run winget.yml -f tag=$TAG" >&2
+  fi
+fi
