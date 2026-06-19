@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -172,6 +173,25 @@ func saveWorkspace(pkg *klz.Package, path string) error {
 		return fmt.Errorf("finalize snapshot: %w", err)
 	}
 	return nil
+}
+
+// copyContentToFile streams a parcel member's Content into a file on disk,
+// never buffering the whole member in memory.
+func copyContentToFile(c klz.Content, dst string) error {
+	rc, err := c.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	f, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, rc); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func klzToStoreOverlays(in []klz.OverlayDoc) []blockstore.Overlay {

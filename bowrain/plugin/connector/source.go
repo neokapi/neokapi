@@ -818,12 +818,15 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 				// Fetch locale-variant media for this item (Bowrain AD-007).
 				var mediaRepl []MediaReplacement
+				cleanupMedia := func() {}
 				if c.project.Recipe.AssetsEnabled() {
-					mediaRepl = c.fetchMediaReplacements(ctx, itemName, loc)
+					mediaRepl, cleanupMedia = c.fetchMediaReplacements(ctx, itemName, loc)
 				}
 
-				if err := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...); err != nil {
-					writeErrs = append(writeErrs, fmt.Errorf("write %s (%s): %w", outPath, loc, err))
+				werr := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
+				cleanupMedia()
+				if werr != nil {
+					writeErrs = append(writeErrs, fmt.Errorf("write %s (%s): %w", outPath, loc, werr))
 					continue
 				}
 				filesWritten++
@@ -1169,15 +1172,17 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,
 // and writes the translated output file using the appropriate format writer.
-// MediaReplacement describes a locale-variant media file to substitute in the output.
+// MediaReplacement describes a locale-variant media file to substitute in the
+// output. The variant asset travels as a *model.Media reference (a local file
+// path the writer streams from), never as inline bytes on this struct.
 type MediaReplacement struct {
-	ZipPath string // original ZIP entry path (e.g., "word/media/image1.png")
-	Data    []byte // locale-variant binary content
+	ZipPath string       // original ZIP entry path (e.g., "word/media/image1.png")
+	Media   *model.Media // locale-variant asset reference
 }
 
 // MediaReplacementSetter is implemented by writers that support locale-variant media substitution.
 type MediaReplacementSetter interface {
-	SetMediaReplacement(zipPath string, data []byte)
+	SetMediaReplacement(zipPath string, media *model.Media)
 }
 
 // targetMatchKey computes a stable key for matching a pulled translation to a
@@ -1269,7 +1274,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	// Apply locale-variant media replacements (Bowrain AD-007).
 	if mrs, ok := writer.(MediaReplacementSetter); ok {
 		for _, mr := range mediaReplacements {
-			mrs.SetMediaReplacement(mr.ZipPath, mr.Data)
+			mrs.SetMediaReplacement(mr.ZipPath, mr.Media)
 		}
 	}
 
@@ -1296,17 +1301,28 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	return writer.Close()
 }
 
-// fetchMediaReplacements downloads approved locale-variant media files for a given
-// item and locale, returning them as MediaReplacement entries for the writer.
-func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, itemName, locale string) []MediaReplacement {
+// fetchMediaReplacements downloads approved locale-variant media files for a
+// given item and locale, materializing each variant to a temp file and
+// returning MediaReplacement entries that reference it by path (so the writer
+// streams the asset rather than buffering it). The returned cleanup removes the
+// temp files and must be called once the writer is done with them.
+func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, itemName, locale string) ([]MediaReplacement, func()) {
+	noop := func() {}
 	if c.client == nil {
-		return nil
+		return nil, noop
 	}
 
 	// Fetch assets for this item.
 	assets, err := c.client.ListAssets(ctx, itemName)
 	if err != nil || len(assets) == 0 {
-		return nil
+		return nil, noop
+	}
+
+	var tmpDir string
+	cleanup := func() {
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
 	}
 
 	var replacements []MediaReplacement
@@ -1325,9 +1341,22 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, ite
 				continue
 			}
 
-			// Download the variant binary.
+			// Download the variant binary and materialize it to a temp file so
+			// the writer can stream it into the output instead of holding every
+			// variant's bytes in memory.
 			data, err := c.client.DownloadBlob(ctx, v.DownloadURL)
 			if err != nil {
+				continue
+			}
+			if tmpDir == "" {
+				tmpDir, err = os.MkdirTemp("", "bowrain-media-*")
+				if err != nil {
+					cleanup()
+					return nil, noop
+				}
+			}
+			variantPath := filepath.Join(tmpDir, fmt.Sprintf("%s-%s", asset.ID, v.Locale))
+			if err := os.WriteFile(variantPath, data, 0o644); err != nil {
 				continue
 			}
 
@@ -1337,12 +1366,12 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, ite
 
 			replacements = append(replacements, MediaReplacement{
 				ZipPath: zipPath,
-				Data:    data,
+				Media:   &model.Media{URI: variantPath, Filename: filepath.Base(zipPath), Size: int64(len(data))},
 			})
 		}
 	}
 
-	return replacements
+	return replacements, cleanup
 }
 
 // fetchAndCacheMetadata fetches project metadata from the server and caches it.

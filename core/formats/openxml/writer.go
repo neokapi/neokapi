@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -950,8 +951,11 @@ type Writer struct {
 	sourceLocale model.LocaleID
 
 	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
-	// to replacement binary content for locale-variant media substitution (Bowrain AD-007).
-	mediaReplacements map[string][]byte
+	// to a locale-variant media reference for substitution (Bowrain AD-007).
+	// The asset travels as a *model.Media reference (URI/path or, for small
+	// assets, inline Data) and is streamed straight into the output ZIP, so a
+	// whole media file never sits buffered on the writer.
+	mediaReplacements map[string]*model.Media
 
 	// blocks holds the current Write call's block index, populated by
 	// Write() before invoking renderBlock and consumed by
@@ -969,12 +973,50 @@ var _ format.SourceLocaleSetter = (*Writer)(nil)
 
 // SetMediaReplacement registers a locale-variant media file to substitute
 // during output reconstruction. The zipPath should match the original
-// entry path (e.g., "word/media/image1.png").
-func (w *Writer) SetMediaReplacement(zipPath string, data []byte) {
-	if w.mediaReplacements == nil {
-		w.mediaReplacements = make(map[string][]byte)
+// entry path (e.g., "word/media/image1.png"); media references the variant
+// asset (resolved and streamed at write time, not buffered here).
+func (w *Writer) SetMediaReplacement(zipPath string, media *model.Media) {
+	if media == nil {
+		return
 	}
-	w.mediaReplacements[zipPath] = data
+	if w.mediaReplacements == nil {
+		w.mediaReplacements = make(map[string]*model.Media)
+	}
+	w.mediaReplacements[zipPath] = media
+}
+
+// openMediaReplacement resolves a media reference to a reader, streaming from
+// its on-disk path (URI, optionally file://-prefixed) when present and falling
+// back to inline Data for small assets. The caller closes the reader.
+func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
+	if path := strings.TrimPrefix(m.URI, "file://"); path != "" {
+		return os.Open(path)
+	}
+	if len(m.Data) > 0 {
+		return io.NopCloser(bytes.NewReader(m.Data)), nil
+	}
+	return nil, fmt.Errorf("openxml: media replacement has no content (no URI or Data)")
+}
+
+// writeMediaReplacement streams a locale-variant media reference into the output
+// ZIP under the original entry's recompressed header.
+func writeMediaReplacement(zw *zip.Writer, f *zip.File, media *model.Media) error {
+	fh := f.FileHeader
+	fh.Method = zip.Deflate
+	fh.CompressedSize64 = 0
+	fh.UncompressedSize64 = 0
+	fh.CRC32 = 0
+	fw, err := zw.CreateHeader(&fh)
+	if err != nil {
+		return err
+	}
+	rc, err := openMediaReplacement(media)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	_, err = io.Copy(fw, rc)
+	return err
 }
 
 // NewWriter creates a new OpenXML writer.
@@ -1389,16 +1431,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			}
 		} else if replacement, ok := w.mediaReplacements[f.Name]; ok {
 			// Replace with locale-variant media (Bowrain AD-007).
-			fh := f.FileHeader
-			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
-			if err != nil {
-				return err
-			}
-			if _, err := fw.Write(replacement); err != nil {
+			if err := writeMediaReplacement(zw, f, replacement); err != nil {
 				return err
 			}
 		} else if isDOCX && shouldStripWMLLang(f.Name) {
@@ -1447,16 +1480,7 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 
 	for _, f := range origZR.File {
 		if replacement, ok := w.mediaReplacements[f.Name]; ok {
-			fh := f.FileHeader
-			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
-			if err != nil {
-				return err
-			}
-			if _, err := fw.Write(replacement); err != nil {
+			if err := writeMediaReplacement(zw, f, replacement); err != nil {
 				return err
 			}
 		} else {

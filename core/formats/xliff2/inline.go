@@ -67,7 +67,13 @@ func (a *OriginalDataAnnotation) TypeName() string { return "xliff2:original-dat
 // When this annotation is absent, the writer falls back to generation
 // mode (fresh DOM build, canonical formatting).
 type SourceDOMAnnotation struct {
-	Doc      *etree.Document
+	Doc *etree.Document
+	// Original is the raw input bytes of ONE <unit>'s DOM, captured inline by
+	// design. Unlike the whole-document/whole-asset members migrated to the
+	// Media reference idiom (issue #914), this is unit-scoped and therefore
+	// bounded: it never holds a full document or media asset, and the writer
+	// needs the exact bytes in hand to emit them verbatim for a byte-equal,
+	// minimal-diff round-trip. Inlining the bytes is the right call here.
 	Original []byte
 }
 

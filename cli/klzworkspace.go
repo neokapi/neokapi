@@ -115,12 +115,14 @@ func (a *App) extractToKlz(ctx context.Context, sources []string, outKlz, target
 				skelPath := klz.SkeletonDir + base
 				full.Skeletons = append(full.Skeletons, klz.SkeletonDoc{
 					Path: skelPath, SourcePath: base, FormatID: formatID,
-					ContentHash: si.ContentHash, Data: skel,
+					ContentHash: si.ContentHash, Content: klz.BytesContent(skel),
 				})
 				si.SkeletonPath = skelPath
 			}
 		}
-		full.Source = append(full.Source, klz.SourceDoc{Path: archivePath, Data: data})
+		// Stream the original source file into the parcel rather than retaining
+		// the bytes (already read above only to hash + capture the skeleton).
+		full.Source = append(full.Source, klz.SourceDoc{Path: archivePath, Content: klz.FileContent(f)})
 		full.Sources = append(full.Sources, si)
 	}
 

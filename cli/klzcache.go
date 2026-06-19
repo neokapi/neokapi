@@ -222,20 +222,20 @@ func buildKlzCacheFromPackage(ctx context.Context, klzPath string, pkg *klz.Pack
 			FormatID: e.formatID, ContentHash: e.contentHash,
 		}
 
-		// Raw source bytes: write them into the cache when present (the runtime
+		// Raw source bytes: stream them into the cache when present (the runtime
 		// needs them). Pack retention is tracked separately by hasRawSource.
 		if raw, ok := rawByPath[e.archivePath]; ok {
-			if err := os.WriteFile(c.sourcePath(name), raw.Data, 0o644); err != nil {
+			if err := copyContentToFile(raw.Content, c.sourcePath(name)); err != nil {
 				return nil, fmt.Errorf("klz cache: write source: %w", err)
 			}
 			cs.RawPresent = true
 		}
 		cs.HasRawSource = e.hasRawSource
 
-		// Skeleton (default source-retention): write it into the cache.
+		// Skeleton (default source-retention): stream it into the cache.
 		if skel, ok := skelBySource[e.sourcePath]; ok {
 			skelName := name + ".skel"
-			if err := os.WriteFile(c.skeletonPath(skelName), skel.Data, 0o644); err != nil {
+			if err := copyContentToFile(skel.Content, c.skeletonPath(skelName)); err != nil {
 				return nil, fmt.Errorf("klz cache: write skeleton: %w", err)
 			}
 			cs.Skeleton = skelName
@@ -340,19 +340,16 @@ func (c *klzCache) toPackage(ctx context.Context) (*klz.Package, error) {
 			ContentHash: src.ContentHash,
 		}
 
-		// Skeleton (default source-retention).
+		// Skeleton (default source-retention). The cache file is streamed into
+		// the package on demand (hash/pack), never read into memory here.
 		if src.Skeleton != "" {
-			data, err := os.ReadFile(c.skeletonPath(src.Skeleton))
-			if err != nil {
-				return nil, fmt.Errorf("klz cache: read skeleton: %w", err)
-			}
 			skelPath := klz.SkeletonDir + filepath.Base(src.Name)
 			pkg.Skeletons = append(pkg.Skeletons, klz.SkeletonDoc{
 				Path:        skelPath,
 				SourcePath:  src.Name,
 				FormatID:    src.FormatID,
 				ContentHash: src.ContentHash,
-				Data:        data,
+				Content:     klz.FileContent(c.skeletonPath(src.Skeleton)),
 			})
 			si.SkeletonPath = skelPath
 		}
@@ -360,11 +357,7 @@ func (c *klzCache) toPackage(ctx context.Context) (*klz.Package, error) {
 		// Raw source bytes (opt-in retention): pack them only when the source
 		// is retained (--with-source) and the cache holds them.
 		if src.HasRawSource && c.hasSource(src) {
-			data, err := os.ReadFile(c.sourcePath(src.Name))
-			if err != nil {
-				return nil, fmt.Errorf("klz cache: read source: %w", err)
-			}
-			pkg.Source = append(pkg.Source, klz.SourceDoc{Path: src.Path, Data: data})
+			pkg.Source = append(pkg.Source, klz.SourceDoc{Path: src.Path, Content: klz.FileContent(c.sourcePath(src.Name))})
 			si.HasRawSource = true
 		}
 

@@ -927,7 +927,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 		skelMember = klz.SkeletonDir + filepath.Base(task.source.Relative)
 		skeletons = append(skeletons, klz.SkeletonDoc{
 			Path: skelMember, SourcePath: task.source.Relative, FormatID: task.source.Format,
-			ContentHash: sourceHash, Data: skel,
+			ContentHash: sourceHash, Content: klz.BytesContent(skel),
 		})
 	}
 

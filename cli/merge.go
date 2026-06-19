@@ -513,11 +513,17 @@ func (a *App) mergeOneKlz(cmd *cobra.Command, klzInput string) error {
 			}
 		}
 
-		// Write the merged target via the package's inline skeleton.
+		// Write the merged target via the package's skeleton. The skeleton
+		// stream is bounded; read it from its parcel reference to feed the
+		// reconstructing writer.
 		var skelBytes []byte
 		for _, s := range pkg.Skeletons {
 			if s.SourcePath == srcRel {
-				skelBytes = s.Data
+				b, rerr := klz.ReadAll(s.Content)
+				if rerr != nil {
+					return fmt.Errorf("read skeleton for %s: %w", srcRel, rerr)
+				}
+				skelBytes = b
 				break
 			}
 		}

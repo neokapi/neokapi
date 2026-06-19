@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -216,44 +217,63 @@ func TestWriterNilOriginal(t *testing.T) {
 }
 
 func TestWriterMediaReplacement(t *testing.T) {
-	// Build a DOCX with an embedded PNG.
-	docxFile := buildDocxWithMedia(t)
-	original, err := os.ReadFile(docxFile.Name())
-	require.NoError(t, err)
-
-	// Read the original.
-	f, err := os.Open(docxFile.Name())
-	require.NoError(t, err)
-
-	reader := NewReader()
-	doc := testutil.RawDocFromReader(f, "test.docx", model.LocaleEnglish)
-	require.NoError(t, reader.Open(t.Context(), doc))
-	parts := testutil.CollectParts(t, reader.Read(t.Context()))
-	reader.Close()
-
-	// Write with a media replacement.
 	replacementPNG := []byte("REPLACED-IMAGE-DATA")
-	var buf bytes.Buffer
-	writer := NewWriter()
-	writer.SetOriginalContent(original)
-	writer.SetMediaReplacement("word/media/test.png", replacementPNG)
-	require.NoError(t, writer.SetOutputWriter(&buf))
 
-	ch := testutil.PartsToChannel(parts)
-	require.NoError(t, writer.Write(t.Context(), ch))
-	writer.Close()
-
-	// Verify the output ZIP contains the replacement.
-	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	require.NoError(t, err)
-
-	for _, f := range zr.File {
-		if f.Name == "word/media/test.png" {
-			data, err := readZipFile(f)
-			require.NoError(t, err)
-			assert.Equal(t, replacementPNG, data, "media should be replaced with locale variant")
-			return
-		}
+	// The variant asset travels as a *model.Media reference: inline Data for a
+	// small asset, or a file path (URI) the writer streams from. Both land
+	// byte-identical in the output ZIP.
+	cases := map[string]func(t *testing.T) *model.Media{
+		"inline-data": func(_ *testing.T) *model.Media {
+			return &model.Media{Data: replacementPNG}
+		},
+		"file-uri": func(t *testing.T) *model.Media {
+			p := filepath.Join(t.TempDir(), "variant.png")
+			require.NoError(t, os.WriteFile(p, replacementPNG, 0o644))
+			return &model.Media{URI: p}
+		},
 	}
-	t.Fatal("word/media/test.png not found in output ZIP")
+
+	for name, mkMedia := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Build a DOCX with an embedded PNG.
+			docxFile := buildDocxWithMedia(t)
+			original, err := os.ReadFile(docxFile.Name())
+			require.NoError(t, err)
+
+			// Read the original.
+			f, err := os.Open(docxFile.Name())
+			require.NoError(t, err)
+
+			reader := NewReader()
+			doc := testutil.RawDocFromReader(f, "test.docx", model.LocaleEnglish)
+			require.NoError(t, reader.Open(t.Context(), doc))
+			parts := testutil.CollectParts(t, reader.Read(t.Context()))
+			reader.Close()
+
+			// Write with a media replacement.
+			var buf bytes.Buffer
+			writer := NewWriter()
+			writer.SetOriginalContent(original)
+			writer.SetMediaReplacement("word/media/test.png", mkMedia(t))
+			require.NoError(t, writer.SetOutputWriter(&buf))
+
+			ch := testutil.PartsToChannel(parts)
+			require.NoError(t, writer.Write(t.Context(), ch))
+			writer.Close()
+
+			// Verify the output ZIP contains the replacement.
+			zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+			require.NoError(t, err)
+
+			for _, f := range zr.File {
+				if f.Name == "word/media/test.png" {
+					data, err := readZipFile(f)
+					require.NoError(t, err)
+					assert.Equal(t, replacementPNG, data, "media should be replaced with locale variant")
+					return
+				}
+			}
+			t.Fatal("word/media/test.png not found in output ZIP")
+		})
+	}
 }

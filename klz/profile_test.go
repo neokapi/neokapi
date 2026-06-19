@@ -12,7 +12,7 @@ import (
 func TestSkeletonRoundTrip(t *testing.T) {
 	skel := SkeletonDoc{
 		Path: SkeletonDir + "app.json", SourcePath: "app.json",
-		FormatID: "json", ContentHash: "sha256:abc", Data: []byte("SKELDATA"),
+		FormatID: "json", ContentHash: "sha256:abc", Content: BytesContent([]byte("SKELDATA")),
 	}
 	pkg := &Package{
 		Skeletons: []SkeletonDoc{skel},
@@ -27,14 +27,16 @@ func TestSkeletonRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, got.Skeletons, 1)
-	assert.Equal(t, []byte("SKELDATA"), got.Skeletons[0].Data)
+	gotSkel, err := ReadAll(got.Skeletons[0].Content)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("SKELDATA"), gotSkel)
 	assert.Equal(t, "app.json", got.Skeletons[0].SourcePath)
 	assert.Equal(t, "json", got.Skeletons[0].FormatID)
 	assert.Equal(t, "sha256:abc", got.Skeletons[0].ContentHash)
 
 	// Changing the skeleton bytes changes the content RootHash (it is content).
 	pkg2 := &Package{
-		Skeletons: []SkeletonDoc{{Path: skel.Path, SourcePath: skel.SourcePath, Data: []byte("DIFFERENT")}},
+		Skeletons: []SkeletonDoc{{Path: skel.Path, SourcePath: skel.SourcePath, Content: BytesContent([]byte("DIFFERENT"))}},
 		Sources:   pkg.Sources,
 	}
 	r1, err := pkg.RootHash()
@@ -49,7 +51,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 // while one with a Source member does.
 func TestSourceRetentionOptIn(t *testing.T) {
 	identityOnly := &Package{
-		Skeletons: []SkeletonDoc{{Path: SkeletonDir + "a.json", SourcePath: "a.json", Data: []byte("S")}},
+		Skeletons: []SkeletonDoc{{Path: SkeletonDir + "a.json", SourcePath: "a.json", Content: BytesContent([]byte("S"))}},
 		Sources:   []SourceIdentity{{SourcePath: "a.json", SkeletonPath: SkeletonDir + "a.json"}},
 	}
 	data, err := identityOnly.Marshal()
@@ -60,7 +62,7 @@ func TestSourceRetentionOptIn(t *testing.T) {
 	require.Len(t, got.Skeletons, 1)
 
 	withSource := &Package{
-		Source:    []SourceDoc{{Path: "source/a.json", Data: []byte("RAW")}},
+		Source:    []SourceDoc{{Path: "source/a.json", Content: BytesContent([]byte("RAW"))}},
 		Skeletons: identityOnly.Skeletons,
 		Sources:   []SourceIdentity{{SourcePath: "a.json", SkeletonPath: SkeletonDir + "a.json", HasRawSource: true}},
 	}
@@ -69,7 +71,9 @@ func TestSourceRetentionOptIn(t *testing.T) {
 	got2, err := Unmarshal(data2)
 	require.NoError(t, err)
 	require.Len(t, got2.Source, 1)
-	assert.Equal(t, []byte("RAW"), got2.Source[0].Data)
+	gotRaw, err := ReadAll(got2.Source[0].Content)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("RAW"), gotRaw)
 	require.Len(t, got2.Sources, 1)
 	assert.True(t, got2.Sources[0].HasRawSource)
 }

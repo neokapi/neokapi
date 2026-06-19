@@ -233,24 +233,25 @@ func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, pro
 					ContentHash: ef.SourceHash,
 				}
 
-				// Skeleton: the per-source .bin captured at extract time.
+				// Skeleton: the per-source .bin captured at extract time, streamed
+				// from its file into the parcel on demand.
 				if ef.Skeleton != "" {
 					skelPath := filepath.Join(project.ExtractionDir(layout, m.BatchID), ef.Skeleton)
-					if data, rerr := os.ReadFile(skelPath); rerr == nil {
+					if _, serr := os.Stat(skelPath); serr == nil {
 						member := klz.SkeletonDir + ef.Source
 						pkg.Skeletons = append(pkg.Skeletons, klz.SkeletonDoc{
 							Path: member, SourcePath: ef.Source, FormatID: ef.Format,
-							ContentHash: ef.SourceHash, Data: data,
+							ContentHash: ef.SourceHash, Content: klz.FileContent(skelPath),
 						})
 						si.SkeletonPath = member
 					}
 				}
 
-				// Raw source bytes (opt-in).
+				// Raw source bytes (opt-in), streamed from the source file.
 				if withSource {
 					srcAbs := filepath.Join(layout.Root, ef.Source)
-					if data, rerr := os.ReadFile(srcAbs); rerr == nil {
-						pkg.Source = append(pkg.Source, klz.SourceDoc{Path: "source/" + ef.Source, Data: data})
+					if _, serr := os.Stat(srcAbs); serr == nil {
+						pkg.Source = append(pkg.Source, klz.SourceDoc{Path: "source/" + ef.Source, Content: klz.FileContent(srcAbs)})
 						si.HasRawSource = true
 					}
 				}
@@ -370,7 +371,7 @@ func (a *App) runUnpack(cmd *cobra.Command, snapshotPath string) error {
 				hash = skel.SourcePath
 			}
 			dst := filepath.Join(batchDir, project.SkeletonFilename(hash))
-			if werr := os.WriteFile(dst, skel.Data, 0o644); werr != nil {
+			if werr := copyContentToFile(skel.Content, dst); werr != nil {
 				return fmt.Errorf("unpack: write skeleton: %w", werr)
 			}
 		}

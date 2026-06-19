@@ -83,7 +83,7 @@ func samplePackage() *Package {
 		Annotations: []AnnotationDoc{{Path: "annotations/a.klfl", File: sampleAnnotations()}},
 		TM:          klftm.FromModel(sampleTM(), nil),
 		Termbase:    klftb.FromConcepts(sampleTermbase()),
-		Media:       []Media{{Path: "media/logo.bin", Data: []byte{0x89, 0x50, 0x4e, 0x47}}},
+		Media:       []Media{{Path: "media/logo.bin", Content: BytesContent([]byte{0x89, 0x50, 0x4e, 0x47})}},
 	}
 }
 
@@ -107,7 +107,9 @@ func TestPackageRoundTrip(t *testing.T) {
 	require.NotNil(t, got.TM)
 	require.NotNil(t, got.Termbase)
 	require.Len(t, got.Media, 1)
-	assert.Equal(t, []byte{0x89, 0x50, 0x4e, 0x47}, got.Media[0].Data)
+	gotMedia, err := ReadAll(got.Media[0].Content)
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x89, 0x50, 0x4e, 0x47}, gotMedia)
 	assert.Equal(t, "tm-1", got.TM.Entries[0].ID)
 	assert.Equal(t, "c-1", got.Termbase.Concepts[0].ID)
 	// The block's markup with < > & survived unescaped through the KLF member.

@@ -29,7 +29,7 @@ func TestPackageHasContent(t *testing.T) {
 		"blocks":    {Blocks: []BlockDoc{{Path: "blocks/x.klf"}}},
 		"overlays":  {Overlays: []OverlayDoc{{Kind: "targets/fr", Source: "a.json"}}},
 		"skeletons": {Skeletons: []SkeletonDoc{{Path: "skeletons/x", SourcePath: "a.json"}}},
-		"source":    {Source: []SourceDoc{{Path: "source/a.json", Data: []byte("{}")}}},
+		"source":    {Source: []SourceDoc{{Path: "source/a.json", Content: BytesContent([]byte("{}"))}}},
 		"tm":        {TM: &klftm.File{Entries: make([]klftm.Entry, 1)}},
 	}
 	for name, pkg := range cases {

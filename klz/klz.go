@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"time"
 
@@ -17,6 +18,71 @@ import (
 	"github.com/neokapi/neokapi/sievepen/klftm"
 	"github.com/neokapi/neokapi/termbase/klftb"
 )
+
+// Content provides a parcel member's bytes on demand. A .klz member that can
+// hold a whole document or media asset — a source document, a media blob, a
+// round-trip skeleton stream — carries a Content reference rather than inlining
+// the bytes on the public struct, the same reference-not-inline idiom as
+// model.Media (BlobKey > URI > Data) and core/blockstore. Marshal reads it to
+// hash and to stream into the archive; Unmarshal backs it with a lazy reader
+// over the parcel's own ZIP entry, so a whole document is never retained on the
+// in-memory Package.
+type Content interface {
+	// Open returns a reader over the member's bytes. The caller closes it.
+	Open() (io.ReadCloser, error)
+}
+
+// FileContent references a member by an on-disk path, streamed on demand. The
+// preferred producer-side form: the bytes never enter memory until Marshal
+// copies them into the archive.
+func FileContent(path string) Content { return fileContent{path} }
+
+type fileContent struct{ path string }
+
+func (f fileContent) Open() (io.ReadCloser, error) { return os.Open(f.path) }
+
+// BytesContent wraps already-in-memory bytes — the inline escape hatch for
+// genuinely small or freshly-derived members (e.g. a serialized skeleton the
+// caller already holds), matching model.Media's small-Data mode.
+func BytesContent(b []byte) Content { return bytesContent{b} }
+
+type bytesContent struct{ b []byte }
+
+func (b bytesContent) Open() (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(b.b)), nil
+}
+
+// zipContent backs a member by its entry in an already-open parcel archive,
+// read lazily so Unmarshal never retains whole documents in memory.
+type zipContent struct{ f *zip.File }
+
+func (z zipContent) Open() (io.ReadCloser, error) { return z.f.Open() }
+
+// ReadAll reads a member's full content into memory. Use only at a boundary
+// that genuinely needs the bytes (e.g. handing a skeleton stream to a reader);
+// prefer streaming via Open elsewhere.
+func ReadAll(c Content) ([]byte, error) {
+	rc, err := c.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(rc)
+}
+
+// hashContent streams a member through SHA-256 without retaining its bytes.
+func hashContent(c Content) (string, error) {
+	rc, err := c.Open()
+	if err != nil {
+		return "", err
+	}
+	defer rc.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, rc); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
 
 const (
 	// SchemaVersion is the package manifest version (MAJOR.MINOR, same
@@ -204,16 +270,21 @@ type AnnotationDoc struct {
 	File *klf.AnnotationFile
 }
 
-// Media is one opaque blob member (e.g. an image referenced by content).
+// Media is one opaque blob member (e.g. an image referenced by content). The
+// blob can be arbitrarily large, so it travels as a Content reference
+// (file-backed when producing, ZIP-entry-backed when read), never inlined.
 type Media struct {
-	Path string // archive path under media/, e.g. "media/logo.png"
-	Data []byte
+	Path    string // archive path under media/, e.g. "media/logo.png"
+	Content Content
 }
 
-// SourceDoc is one original input document a `.klz` was written on.
+// SourceDoc is one original input document a `.klz` was written on. The whole
+// document (a DOCX/XLSX/PDF/…) rides as a Content reference, not inline bytes —
+// the producer streams from the source file, the reader from the parcel's ZIP
+// entry.
 type SourceDoc struct {
-	Path string // archive path under source/, e.g. "source/report.docx"
-	Data []byte
+	Path    string // archive path under source/, e.g. "source/report.docx"
+	Content Content
 }
 
 // SkeletonDoc is one source document's round-trip skeleton member — the
@@ -229,8 +300,11 @@ type SkeletonDoc struct {
 	FormatID string
 	// ContentHash is the source's content hash at capture time.
 	ContentHash string
-	// Data is the serialized skeleton stream (format.SkeletonStore bytes).
-	Data []byte
+	// Content is the serialized skeleton stream (format.SkeletonStore bytes),
+	// carried as a reference. The skeleton is derived and usually small, so a
+	// caller that already holds it may use BytesContent; one materializing it on
+	// disk uses FileContent.
+	Content Content
 }
 
 // OverlayDoc is one append-layer entry, mirroring blockstore.Overlay minus
@@ -278,9 +352,14 @@ type Member struct {
 	SHA256      string `json:"sha256"`
 }
 
-type memberBytes struct {
+// memberContent is one archive member: its manifest identity plus a source for
+// its bytes. Exactly one of data / content is set — data for members serialized
+// in memory from a bounded native KLF structure, content for a referenced
+// whole-document/media member streamed on demand.
+type memberContent struct {
 	Member
-	data []byte
+	data    []byte
+	content Content
 }
 
 // Marshal serializes the package to deterministic .klz (zip) bytes.
@@ -321,7 +400,7 @@ func (p *Package) Marshal() ([]byte, error) {
 	// Write all entries sorted by path (manifest included) for deterministic
 	// archive bytes; store (no compression) so the bytes don't depend on a
 	// compressor version.
-	all := append([]memberBytes{{Member: Member{Path: ManifestPath}, data: manifestData}}, members...)
+	all := append([]memberContent{{Member: Member{Path: ManifestPath}, data: manifestData}}, members...)
 	sort.Slice(all, func(i, j int) bool { return all[i].Path < all[j].Path })
 
 	var buf bytes.Buffer
@@ -331,7 +410,19 @@ func (p *Package) Marshal() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("klz: create %q: %w", m.Path, err)
 		}
-		if _, err := w.Write(m.data); err != nil {
+		if m.content != nil {
+			// Referenced member: stream from the source (file or ZIP entry)
+			// straight into the archive — the whole asset never sits in memory.
+			rc, oerr := m.content.Open()
+			if oerr != nil {
+				return nil, fmt.Errorf("klz: open %q: %w", m.Path, oerr)
+			}
+			_, cerr := io.Copy(w, rc)
+			_ = rc.Close()
+			if cerr != nil {
+				return nil, fmt.Errorf("klz: write %q: %w", m.Path, cerr)
+			}
+		} else if _, err := w.Write(m.data); err != nil {
 			return nil, fmt.Errorf("klz: write %q: %w", m.Path, err)
 		}
 	}
@@ -354,11 +445,23 @@ func (p *Package) RootHash() (string, error) {
 }
 
 // serializeMembers turns each section into its native KLF-family bytes.
-func (p *Package) serializeMembers() ([]memberBytes, error) {
-	var members []memberBytes
-	add := func(path, ct string, data []byte) {
+// Structured members (blocks, annotations, TM, termbase, overlays, history) are
+// serialized in memory; whole-document/media members (media, source, skeleton)
+// are streamed through SHA-256 from their Content reference without retaining
+// the bytes.
+func (p *Package) serializeMembers() ([]memberContent, error) {
+	var members []memberContent
+	addData := func(path, ct string, data []byte) {
 		sum := sha256.Sum256(data)
-		members = append(members, memberBytes{Member: Member{Path: path, ContentType: ct, SHA256: hex.EncodeToString(sum[:])}, data: data})
+		members = append(members, memberContent{Member: Member{Path: path, ContentType: ct, SHA256: hex.EncodeToString(sum[:])}, data: data})
+	}
+	addContent := func(path, ct string, c Content) error {
+		sum, err := hashContent(c)
+		if err != nil {
+			return fmt.Errorf("klz: hash %q: %w", path, err)
+		}
+		members = append(members, memberContent{Member: Member{Path: path, ContentType: ct, SHA256: sum}, content: c})
+		return nil
 	}
 
 	for _, b := range p.Blocks {
@@ -369,7 +472,7 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		if err != nil {
 			return nil, fmt.Errorf("klz: marshal %q: %w", b.Path, err)
 		}
-		add(b.Path, ContentTypeBlocks, data)
+		addData(b.Path, ContentTypeBlocks, data)
 	}
 	for _, a := range p.Annotations {
 		if a.Path == "" || a.File == nil {
@@ -379,49 +482,64 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 		if err := klf.EncodeAnnotationFile(&ab, a.File); err != nil {
 			return nil, fmt.Errorf("klz: encode %q: %w", a.Path, err)
 		}
-		add(a.Path, ContentTypeAnnotations, ab.Bytes())
+		addData(a.Path, ContentTypeAnnotations, ab.Bytes())
 	}
 	if p.TM != nil {
 		data, err := klftm.Marshal(p.TM)
 		if err != nil {
 			return nil, fmt.Errorf("klz: marshal tm: %w", err)
 		}
-		add(tmPath, ContentTypeTM, data)
+		addData(tmPath, ContentTypeTM, data)
 	}
 	if p.Termbase != nil {
 		data, err := klftb.Marshal(p.Termbase)
 		if err != nil {
 			return nil, fmt.Errorf("klz: marshal termbase: %w", err)
 		}
-		add(termbasePath, ContentTypeTermbase, data)
+		addData(termbasePath, ContentTypeTermbase, data)
 	}
 	for _, m := range p.Media {
 		if m.Path == "" {
 			return nil, errors.New("klz: media needs Path")
 		}
-		add(m.Path, ContentTypeMedia, m.Data)
+		if m.Content == nil {
+			return nil, fmt.Errorf("klz: media %q needs Content", m.Path)
+		}
+		if err := addContent(m.Path, ContentTypeMedia, m.Content); err != nil {
+			return nil, err
+		}
 	}
 	for _, s := range p.Source {
 		if s.Path == "" {
 			return nil, errors.New("klz: source needs Path")
 		}
-		add(s.Path, ContentTypeSource, s.Data)
+		if s.Content == nil {
+			return nil, fmt.Errorf("klz: source %q needs Content", s.Path)
+		}
+		if err := addContent(s.Path, ContentTypeSource, s.Content); err != nil {
+			return nil, err
+		}
 	}
 	for _, s := range p.Skeletons {
 		if s.Path == "" {
 			return nil, errors.New("klz: skeleton needs Path")
 		}
-		add(s.Path, ContentTypeSkeleton, s.Data)
+		if s.Content == nil {
+			return nil, fmt.Errorf("klz: skeleton %q needs Content", s.Path)
+		}
+		if err := addContent(s.Path, ContentTypeSkeleton, s.Content); err != nil {
+			return nil, err
+		}
 	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
 		if err != nil {
 			return nil, fmt.Errorf("klz: marshal overlays: %w", err)
 		}
-		add(OverlaysPath, ContentTypeOverlays, data)
+		addData(OverlaysPath, ContentTypeOverlays, data)
 	}
 	if len(p.History) > 0 {
-		add(HistoryPath, ContentTypeHistory, p.History)
+		addData(HistoryPath, ContentTypeHistory, p.History)
 	}
 	return members, nil
 }
@@ -430,7 +548,7 @@ func (p *Package) serializeMembers() ([]memberBytes, error) {
 // advisory history log is excluded: it is subordinate to content (AD-025
 // §5), so it must not perturb the package's content identity, and its
 // timestamps would otherwise break determinism.
-func rootHash(members []memberBytes) string {
+func rootHash(members []memberContent) string {
 	sorted := make([]Member, 0, len(members))
 	for _, m := range members {
 		if m.ContentType == ContentTypeHistory {
@@ -509,7 +627,7 @@ func Unmarshal(data []byte) (*Package, error) {
 			skelMeta[si.SkeletonPath] = si
 		}
 	}
-	verify := make([]memberBytes, 0, len(manifest.Members))
+	verify := make([]memberContent, 0, len(manifest.Members))
 
 	for _, m := range manifest.Members {
 		zf, ok := files[m.Path]
@@ -524,7 +642,7 @@ func Unmarshal(data []byte) (*Package, error) {
 		if hex.EncodeToString(s[:]) != m.SHA256 {
 			return nil, fmt.Errorf("klz: member %q checksum mismatch (corrupt package)", m.Path)
 		}
-		verify = append(verify, memberBytes{Member: m})
+		verify = append(verify, memberContent{Member: m})
 
 		switch m.ContentType {
 		case ContentTypeBlocks:
@@ -552,9 +670,11 @@ func Unmarshal(data []byte) (*Package, error) {
 			}
 			pkg.Termbase = f
 		case ContentTypeMedia:
-			pkg.Media = append(pkg.Media, Media{Path: m.Path, Data: body})
+			// Whole-asset members are verified above, then dropped from memory:
+			// the public struct keeps only a lazy reader over the ZIP entry.
+			pkg.Media = append(pkg.Media, Media{Path: m.Path, Content: zipContent{zf}})
 		case ContentTypeSource:
-			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Data: body})
+			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Content: zipContent{zf}})
 		case ContentTypeSkeleton:
 			si := skelMeta[m.Path]
 			pkg.Skeletons = append(pkg.Skeletons, SkeletonDoc{
@@ -562,7 +682,7 @@ func Unmarshal(data []byte) (*Package, error) {
 				SourcePath:  si.SourcePath,
 				FormatID:    si.FormatID,
 				ContentHash: si.ContentHash,
-				Data:        body,
+				Content:     zipContent{zf},
 			})
 		case ContentTypeHistory:
 			pkg.History = body
