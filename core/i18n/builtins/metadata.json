@@ -1196,6 +1196,28 @@
         }
       }
     },
+    "asciidoc": {
+      "displayName": "AsciiDoc",
+      "extensions": [
+        ".adoc",
+        ".asciidoc",
+        ".adfm",
+        ".asc"
+      ],
+      "mimeTypes": [
+        "text/asciidoc"
+      ],
+      "properties": {
+        "extractBlockTitles": {
+          "title": "Extract block titles",
+          "description": "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton."
+        },
+        "extractTableCells": {
+          "title": "Extract table cells",
+          "description": "Emit `|===` table cells as translatable blocks grouped into table / table-row groups. When false the table is preserved verbatim."
+        }
+      }
+    },
     "audio": {
       "displayName": "Audio",
       "extensions": [

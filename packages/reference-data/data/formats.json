@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T19:20:48Z",
+  "generatedAt": "2026-06-19T20:42:35Z",
   "kind": "format",
   "entries": [
     {
@@ -400,6 +400,100 @@
             "title": "Leave placeholders inline",
             "description": "Do not protect printf/%#@var@ tokens as codes.",
             "config": "protectPlaceholders: false\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "asciidoc",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "AsciiDoc",
+      "description": "Extract and update translatable content in AsciiDoc (.adoc) documents while round-tripping structure and inline markup faithfully.",
+      "extensions": [
+        ".adoc",
+        ".asciidoc",
+        ".adfm",
+        ".asc"
+      ],
+      "mimeTypes": [
+        "text/asciidoc"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "AsciiDoc",
+        "description": "Configuration for the native AsciiDoc (.adoc) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "asciidoc",
+          "extensions": [
+            ".adoc",
+            ".asciidoc",
+            ".adfm",
+            ".asc"
+          ],
+          "mimeTypes": [
+            "text/asciidoc"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractBlockTitles",
+              "extractTableCells"
+            ]
+          }
+        ],
+        "properties": {
+          "extractBlockTitles": {
+            "type": "boolean",
+            "title": "Extract block titles",
+            "description": "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton.",
+            "default": true
+          },
+          "extractTableCells": {
+            "type": "boolean",
+            "title": "Extract table cells",
+            "description": "Emit `|===` table cells as translatable blocks grouped into table / table-row groups. When false the table is preserved verbatim.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents — the\nlightweight prose markup language used widely for technical documentation.\nThe reader extracts the logical, translatable content and preserves\neverything else byte-for-byte.\n\nHeadings (the document title `=` and section headings `==`…`======`),\nparagraphs, list items (ordered and unordered, with nesting), block titles\n(`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells\neach become blocks carrying a normalized structural role (heading, paragraph,\nlist-item, caption, table-cell) — tables are reconstructed as table / table-row\ngroups so cell geometry stays intact. Inline markup is linearized into\ncanonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /\n`~sub~`, URL and `link:` macros, attribute references `{name}`, and cross\nreferences `\u003c\u003cid,text\u003e\u003e`. The visible text stays translatable; the markup never\nleaks into it.\n\nVerbatim blocks (listing/literal/source/passthrough), comments, attribute\nentries, and the document header are non-translatable and round-trip as\nskeleton — an untouched document is reproduced byte-for-byte; only changed\nvalues are spliced back in.\n",
+        "parameters": {
+          "extractBlockTitles": {
+            "description": "Extract AsciiDoc block titles (`.Title`) as translatable blocks.",
+            "help": "When enabled (the default), a block title line (`.My Caption`) attached to\na following block is emitted as a translatable caption block. Disable to\nkeep block titles as non-translatable skeleton.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "extractTableCells": {
+            "description": "Extract `|===` table cells as translatable blocks.",
+            "help": "When enabled (the default), the cells of a PSV table are emitted as blocks\ngrouped into table / table-row groups (the first row is treated as a header\nwhen a blank line follows it). Disable to keep the whole table as a single\nnon-translatable block.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "Headings carry their level on Properties[\"level\"] (the count of `=`), so the structure survives translation and cross-format export.",
+          "Tables are reconstructed as table / table-row groups; header cells carry the table-header role, body cells the table-cell role.",
+          "Inline markup (bold/italic/mono/super/sub, links, attribute references, cross references) is protected as inline-code runs and must not be translated.",
+          "Output is byte-faithful: an unchanged document round-trips exactly; only modified block values are rewritten. Verbatim blocks, comments, attribute entries, and the document header are preserved as skeleton."
+        ],
+        "examples": [
+          {
+            "title": "Keep block titles untranslated",
+            "description": "Treat `.Title` lines as skeleton rather than translatable captions.",
+            "config": "extractBlockTitles: false\n"
+          },
+          {
+            "title": "Preserve tables verbatim",
+            "description": "Do not extract table cells; round-trip the whole table unchanged.",
+            "config": "extractTableCells: false\n"
           }
         ]
       }
