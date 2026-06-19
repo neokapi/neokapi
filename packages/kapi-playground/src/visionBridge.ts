@@ -30,8 +30,7 @@ const SESSION_OPTS: ort.InferenceSession.SessionOptions = { logSeverityLevel: 3 
 // a same-origin (or otherwise CORS-enabled) base — the docs Vision Lab stages the
 // models under /models/vision and passes that. This default exists only for
 // non-browser / CORS-enabled contexts.
-const MODEL_BASE =
-  "https://github.com/neokapi/neokapi/releases/download/vision-models-v1";
+const MODEL_BASE = "https://github.com/neokapi/neokapi/releases/download/vision-models-v1";
 
 export interface OCRLine {
   text: string;
@@ -40,9 +39,10 @@ export interface OCRLine {
   w: number;
   h: number;
   confidence: number;
-  /** Which recognizer produced the text: fast CTC ("ppocr") or the handwriting
-   *  fallback ("trocr"), set when the confidence-gated cascade escalates. */
-  engine?: "ppocr" | "trocr";
+  /** Which recognizer produced the text along the confidence-gated cascade: the
+   *  fast CTC ("ppocr"), the TrOCR handwriting fallback ("trocr"), or the
+   *  multimodal-LLM tier ("llm"). */
+  engine?: "ppocr" | "trocr" | "llm";
 }
 
 /** Options for the OCR cascade. */
@@ -53,6 +53,17 @@ export interface OCROptions {
   hwThreshold?: number;
   /** Hugging Face model id for the handwriting recognizer. */
   hwModel?: string;
+  /** Re-read low-confidence lines with a multimodal LLM — Tier 3 (AD-030). The
+   *  Lab is keyless-local only: this calls a local Ollama vision model at
+   *  ollamaUrl (no API key, no egress). Ollama must allow the page's origin
+   *  (OLLAMA_ORIGINS). */
+  llm?: boolean;
+  /** Confidence below which a line is escalated to the LLM tier (default 0.85). */
+  llmThreshold?: number;
+  /** Ollama vision model id (default "llama3.2-vision"). */
+  llmModel?: string;
+  /** Ollama base URL (default "http://localhost:11434"). */
+  ollamaUrl?: string;
 }
 export interface OCRResult {
   width: number;
@@ -83,22 +94,58 @@ const LAYOUT_SCORE_THRESHOLD = 0.5;
 
 // PP-DocLayoutV3 class labels (layoutmap.go) → neokapi content roles.
 const LAYOUT_LABELS = [
-  "abstract", "algorithm", "aside_text", "chart", "content",
-  "display_formula", "doc_title", "figure_title", "footer", "footer_image",
-  "footnote", "formula_number", "header", "header_image", "image",
-  "inline_formula", "number", "paragraph_title", "reference", "reference_content",
-  "seal", "table", "text", "vertical_text", "vision_footnote",
+  "abstract",
+  "algorithm",
+  "aside_text",
+  "chart",
+  "content",
+  "display_formula",
+  "doc_title",
+  "figure_title",
+  "footer",
+  "footer_image",
+  "footnote",
+  "formula_number",
+  "header",
+  "header_image",
+  "image",
+  "inline_formula",
+  "number",
+  "paragraph_title",
+  "reference",
+  "reference_content",
+  "seal",
+  "table",
+  "text",
+  "vertical_text",
+  "vision_footnote",
 ];
 const LAYOUT_ROLE_BY_LABEL: Record<string, string> = {
-  doc_title: "title", paragraph_title: "heading", abstract: "paragraph",
-  content: "paragraph", text: "paragraph", vertical_text: "paragraph",
-  aside_text: "paragraph", reference: "paragraph", reference_content: "paragraph",
-  number: "paragraph", table: "table", figure_title: "caption",
-  chart: "picture", image: "picture", header_image: "picture",
-  footer_image: "picture", seal: "picture", algorithm: "code",
-  display_formula: "formula", inline_formula: "formula", formula_number: "formula",
-  footnote: "footnote", vision_footnote: "footnote",
-  header: "page-header", footer: "page-footer",
+  doc_title: "title",
+  paragraph_title: "heading",
+  abstract: "paragraph",
+  content: "paragraph",
+  text: "paragraph",
+  vertical_text: "paragraph",
+  aside_text: "paragraph",
+  reference: "paragraph",
+  reference_content: "paragraph",
+  number: "paragraph",
+  table: "table",
+  figure_title: "caption",
+  chart: "picture",
+  image: "picture",
+  header_image: "picture",
+  footer_image: "picture",
+  seal: "picture",
+  algorithm: "code",
+  display_formula: "formula",
+  inline_formula: "formula",
+  formula_number: "formula",
+  footnote: "footnote",
+  vision_footnote: "footnote",
+  header: "page-header",
+  footer: "page-footer",
 };
 function layoutRole(classID: number): string {
   if (classID < 0 || classID >= LAYOUT_LABELS.length) return "paragraph";
@@ -119,10 +166,7 @@ let ocrModels: Promise<{
 }> | null = null;
 let layoutModel: Promise<ort.InferenceSession> | null = null;
 
-async function fetchBuf(
-  url: string,
-  onProgress?: (frac: number) => void,
-): Promise<ArrayBuffer> {
+async function fetchBuf(url: string, onProgress?: (frac: number) => void): Promise<ArrayBuffer> {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`vision: fetch ${url}: ${resp.status}`);
   const total = Number(resp.headers.get("content-length") ?? 0);
@@ -351,16 +395,30 @@ function normalizeLayout(img: RGBA): Float32Array {
 
 // unclip expands a shrunk DBNet box (engine_onnx.go: ±0.6×h vert, ±0.35×h horiz).
 function unclip(
-  x0: number, y0: number, x1: number, y1: number, w: number, h: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  w: number,
+  h: number,
 ): [number, number, number, number] {
   const bh = y1 - y0 + 1;
   const padY = Math.floor(0.6 * bh);
   const padX = Math.floor(0.35 * bh);
-  return [clamp(x0 - padX, 0, w - 1), clamp(y0 - padY, 0, h - 1),
-    clamp(x1 + padX, 0, w - 1), clamp(y1 + padY, 0, h - 1)];
+  return [
+    clamp(x0 - padX, 0, w - 1),
+    clamp(y0 - padY, 0, h - 1),
+    clamp(x1 + padX, 0, w - 1),
+    clamp(y1 + padY, 0, h - 1),
+  ];
 }
 
-interface Box { x0: number; y0: number; x1: number; y1: number }
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
 
 // connectedBoxes: 4-connected components of a w×h mask, bounded, ≥minArea,
 // returned in reading order (algo.go).
@@ -370,21 +428,37 @@ function connectedBoxes(mask: Uint8Array, w: number, h: number, minArea: number)
   const stack: number[] = [];
   for (let start = 0; start < w * h; start++) {
     if (!mask[start] || seen[start]) continue;
-    let x0 = start % w, y0 = (start / w) | 0, x1 = x0, y1 = y0;
+    let x0 = start % w,
+      y0 = (start / w) | 0,
+      x1 = x0,
+      y1 = y0;
     stack.length = 0;
     stack.push(start);
     seen[start] = 1;
     while (stack.length) {
       const idx = stack.pop()!;
-      const x = idx % w, y = (idx / w) | 0;
+      const x = idx % w,
+        y = (idx / w) | 0;
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (y < y0) y0 = y;
       if (y > y1) y1 = y;
-      if (x > 0 && mask[idx - 1] && !seen[idx - 1]) { seen[idx - 1] = 1; stack.push(idx - 1); }
-      if (x < w - 1 && mask[idx + 1] && !seen[idx + 1]) { seen[idx + 1] = 1; stack.push(idx + 1); }
-      if (y > 0 && mask[idx - w] && !seen[idx - w]) { seen[idx - w] = 1; stack.push(idx - w); }
-      if (y < h - 1 && mask[idx + w] && !seen[idx + w]) { seen[idx + w] = 1; stack.push(idx + w); }
+      if (x > 0 && mask[idx - 1] && !seen[idx - 1]) {
+        seen[idx - 1] = 1;
+        stack.push(idx - 1);
+      }
+      if (x < w - 1 && mask[idx + 1] && !seen[idx + 1]) {
+        seen[idx + 1] = 1;
+        stack.push(idx + 1);
+      }
+      if (y > 0 && mask[idx - w] && !seen[idx - w]) {
+        seen[idx - w] = 1;
+        stack.push(idx - w);
+      }
+      if (y < h - 1 && mask[idx + w] && !seen[idx + w]) {
+        seen[idx + w] = 1;
+        stack.push(idx + w);
+      }
     }
     if ((x1 - x0 + 1) * (y1 - y0 + 1) >= minArea) boxes.push({ x0, y0, x1, y1 });
   }
@@ -399,27 +473,37 @@ function sortReadingOrder(boxes: Box[]): void {
   const med = heights[heights.length >> 1];
   const tol = Math.max(med >> 1, 1);
   boxes.sort((a, b) => {
-    const ca = (a.y0 + a.y1) >> 1, cb = (b.y0 + b.y1) >> 1;
+    const ca = (a.y0 + a.y1) >> 1,
+      cb = (b.y0 + b.y1) >> 1;
     if (Math.abs(ca - cb) > tol) return ca - cb;
     return a.x0 - b.x0;
   });
 }
 
 function argmax(v: Float32Array, off: number, n: number): [number, number] {
-  let best = 0, bestV = -Infinity;
+  let best = 0,
+    bestV = -Infinity;
   for (let i = 0; i < n; i++) {
     const x = v[off + i];
-    if (x > bestV) { best = i; bestV = x; }
+    if (x > bestV) {
+      best = i;
+      bestV = x;
+    }
   }
   return [best, bestV];
 }
 
 // ctcGreedyDecode: argmax per timestep, drop blanks (class 0) + repeats (algo.go).
 function ctcGreedyDecode(
-  logits: Float32Array, steps: number, classes: number, dict: string[],
+  logits: Float32Array,
+  steps: number,
+  classes: number,
+  dict: string[],
 ): { text: string; conf: number } {
   let text = "";
-  let confSum = 0, kept = 0, prev = -1;
+  let confSum = 0,
+    kept = 0,
+    prev = -1;
   for (let t = 0; t < steps; t++) {
     const [cls, p] = argmax(logits, t * classes, classes);
     if (cls !== 0 && cls !== prev) {
@@ -435,7 +519,10 @@ function ctcGreedyDecode(
   return { text, conf: kept > 0 ? confSum / kept : 0 };
 }
 
-function firstTensor(out: ort.InferenceSession.OnnxValueMapType, names: readonly string[]): ort.Tensor {
+function firstTensor(
+  out: ort.InferenceSession.OnnxValueMapType,
+  names: readonly string[],
+): ort.Tensor {
   return out[names[0]] as ort.Tensor;
 }
 
@@ -450,6 +537,12 @@ function firstTensor(out: ort.InferenceSession.OnnxValueMapType, names: readonly
 
 const DEFAULT_HW_MODEL = "Xenova/trocr-small-handwritten";
 const DEFAULT_HW_THRESHOLD = 0.85;
+const DEFAULT_LLM_MODEL = "llama3.2-vision";
+const DEFAULT_OLLAMA_URL = "http://localhost:11434";
+const DEFAULT_LLM_THRESHOLD = 0.85;
+/** The model is told to return this when a crop is unreadable, so the tier flags
+ *  rather than fabricates — mirrors the native media-refine RefuseToken. */
+const LLM_REFUSE_TOKEN = "[illegible]";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let hwRecognizer: Promise<any> | null = null;
 
@@ -485,18 +578,55 @@ function rgbaToDataURL(img: RGBA): string {
 async function recognizeLineHW(crop: RGBA, model: string): Promise<string> {
   const recog = ensureHandwriting(model);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const out = await (await recog as any)(rgbaToDataURL(crop));
+  const out = await ((await recog) as any)(rgbaToDataURL(crop));
   const text = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text;
   return typeof text === "string" ? text.trim() : "";
+}
+
+/** recognizeLineLLM re-reads one cropped line with a local Ollama vision model —
+ *  the keyless-local Tier-3 (AD-030). It sends only the bounded crop, never the
+ *  whole page, and instructs the model to refuse rather than guess. Returns "" on
+ *  refusal so the caller keeps the prior tier's text. */
+async function recognizeLineLLM(crop: RGBA, model: string, url: string): Promise<string> {
+  const b64 = rgbaToDataURL(crop).replace(/^data:[^;]+;base64,/, "");
+  const resp = await fetch(`${url.replace(/\/$/, "")}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      messages: [
+        {
+          role: "user",
+          content:
+            "Transcribe the text in this cropped image line. Return only the exact " +
+            `text, no commentary. If it is unreadable, return ${LLM_REFUSE_TOKEN}.`,
+          images: [b64],
+        },
+      ],
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Ollama ${resp.status}: ${await resp.text()}`);
+  }
+  const data = (await resp.json()) as { message?: { content?: string } };
+  const text = data?.message?.content;
+  if (typeof text !== "string") return "";
+  const trimmed = text.trim();
+  return trimmed === LLM_REFUSE_TOKEN ? "" : trimmed;
 }
 
 /** ocr runs PP-OCRv5 detection + recognition over the raster, returning text lines.
  *  With opts.handwriting, low-confidence lines are re-recognized by TrOCR. */
 export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): Promise<OCRResult> {
   const { det, rec, dict } = await ensureOCR(base);
-  const ow = img.width, oh = img.height;
+  const ow = img.width,
+    oh = img.height;
   const hwThreshold = opts.hwThreshold ?? DEFAULT_HW_THRESHOLD;
   const hwModel = opts.hwModel ?? DEFAULT_HW_MODEL;
+  const llmThreshold = opts.llmThreshold ?? DEFAULT_LLM_THRESHOLD;
+  const llmModel = opts.llmModel ?? DEFAULT_LLM_MODEL;
+  const ollamaUrl = opts.ollamaUrl ?? DEFAULT_OLLAMA_URL;
 
   // Detection.
   const [dw, dh] = detInputSize(ow, oh);
@@ -516,11 +646,14 @@ export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): 
   const boxes = connectedBoxes(mask, pw, ph, minArea);
 
   // Recognition, per box.
-  const sx = ow / pw, sy = oh / ph;
+  const sx = ow / pw,
+    sy = oh / ph;
   const lines: OCRLine[] = [];
   for (const b of boxes) {
-    let ox0 = Math.floor(b.x0 * sx), oy0 = Math.floor(b.y0 * sy);
-    let ox1 = Math.floor(b.x1 * sx), oy1 = Math.floor(b.y1 * sy);
+    let ox0 = Math.floor(b.x0 * sx),
+      oy0 = Math.floor(b.y0 * sy);
+    let ox1 = Math.floor(b.x1 * sx),
+      oy1 = Math.floor(b.y1 * sy);
     [ox0, oy0, ox1, oy1] = unclip(ox0, oy0, ox1, oy1, ow, oh);
     const c = crop(img, ox0, oy0, ox1, oy1);
     if (!c) continue;
@@ -532,11 +665,12 @@ export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): 
     const logitsT = firstTensor(recOut, rec.outputNames);
     const sh = logitsT.dims;
     if (sh.length !== 3) continue;
-    const steps = Number(sh[1]), classes = Number(sh[2]);
+    const steps = Number(sh[1]),
+      classes = Number(sh[2]);
     const dec = ctcGreedyDecode(logitsT.data as Float32Array, steps, classes, dict);
     let text = dec.text;
     const conf = dec.conf;
-    let engine: "ppocr" | "trocr" = "ppocr";
+    let engine: "ppocr" | "trocr" | "llm" = "ppocr";
     // Confidence-gated escalation: the fast CTC handled this line; if it was
     // unsure (low confidence, or produced nothing), re-read it with TrOCR.
     if (opts.handwriting && (conf < hwThreshold || text === "")) {
@@ -546,8 +680,29 @@ export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): 
         engine = "trocr";
       }
     }
+    // Tier 3: re-read the still-uncertain residual with a local LLM. Keyless and
+    // local (Ollama) per AD-030; a failed call leaves the prior tier's text.
+    if (opts.llm && (conf < llmThreshold || text === "")) {
+      try {
+        const llm = await recognizeLineLLM(c, llmModel, ollamaUrl);
+        if (llm) {
+          text = llm;
+          engine = "llm";
+        }
+      } catch (err) {
+        console.warn("vision LLM tier failed:", err);
+      }
+    }
     if (!text) continue;
-    lines.push({ text, x: ox0, y: oy0, w: ox1 - ox0 + 1, h: oy1 - oy0 + 1, confidence: conf, engine });
+    lines.push({
+      text,
+      x: ox0,
+      y: oy0,
+      w: ox1 - ox0 + 1,
+      h: oy1 - oy0 + 1,
+      confidence: conf,
+      engine,
+    });
   }
   return { width: ow, height: oh, lines };
 }
@@ -555,11 +710,16 @@ export async function ocr(img: RGBA, base = MODEL_BASE, opts: OCROptions = {}): 
 /** layout runs PP-DocLayoutV3 over the raster, returning regions in original coords. */
 export async function layout(img: RGBA, base = MODEL_BASE): Promise<LayoutResult> {
   const sess = await ensureLayout(undefined, base);
-  const ow = img.width, oh = img.height;
+  const ow = img.width,
+    oh = img.height;
   const imgIn = normalizeLayout(resize(img, LAYOUT_SIZE, LAYOUT_SIZE));
   const byName: Record<string, ort.Tensor> = {
     image: new ort.Tensor("float32", imgIn, [1, 3, LAYOUT_SIZE, LAYOUT_SIZE]),
-    scale_factor: new ort.Tensor("float32", Float32Array.from([LAYOUT_SIZE / oh, LAYOUT_SIZE / ow]), [1, 2]),
+    scale_factor: new ort.Tensor(
+      "float32",
+      Float32Array.from([LAYOUT_SIZE / oh, LAYOUT_SIZE / ow]),
+      [1, 2],
+    ),
     im_shape: new ort.Tensor("float32", Float32Array.from([oh, ow]), [1, 2]),
   };
   const feeds: Record<string, ort.Tensor> = {};
@@ -572,19 +732,33 @@ export async function layout(img: RGBA, base = MODEL_BASE): Promise<LayoutResult
   let det: ort.Tensor | null = null;
   for (const n of sess.outputNames) {
     const v = out[n] as ort.Tensor;
-    if (v && v.type === "float32" && v.dims.length === 2 && Number(v.dims[1]) >= 6) { det = v; break; }
+    if (v && v.type === "float32" && v.dims.length === 2 && Number(v.dims[1]) >= 6) {
+      det = v;
+      break;
+    }
   }
   if (!det) throw new Error("vision: layout produced no float detection output");
-  const rows = Number(det.dims[0]), cols = Number(det.dims[1]);
+  const rows = Number(det.dims[0]),
+    cols = Number(det.dims[1]);
   const data = det.data as Float32Array;
   const regions: Region[] = [];
   for (let r = 0; r < rows; r++) {
     const o = r * cols;
     const score = data[o + 1];
     if (score < LAYOUT_SCORE_THRESHOLD) continue;
-    const x1 = data[o + 2], y1 = data[o + 3], x2 = data[o + 4], y2 = data[o + 5];
+    const x1 = data[o + 2],
+      y1 = data[o + 3],
+      x2 = data[o + 4],
+      y2 = data[o + 5];
     if (x2 <= x1 || y2 <= y1) continue;
-    regions.push({ role: layoutRole(Math.round(data[o])), x: x1, y: y1, w: x2 - x1, h: y2 - y1, confidence: score });
+    regions.push({
+      role: layoutRole(Math.round(data[o])),
+      x: x1,
+      y: y1,
+      w: x2 - x1,
+      h: y2 - y1,
+      confidence: score,
+    });
   }
   return { width: ow, height: oh, regions };
 }

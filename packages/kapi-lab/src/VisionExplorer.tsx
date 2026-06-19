@@ -4,6 +4,7 @@ import {
   ocr,
   layout,
   type OCRResult,
+  type OCROptions,
   type LayoutResult,
 } from "@neokapi/kapi-playground/visionBridge";
 
@@ -47,7 +48,10 @@ const roleColor = (r: string): string => ROLE_COLOR[r] ?? "#64748b";
 // (text) and PP-DocLayoutV3 (layout) ONNX models in the browser via
 // onnxruntime-web — the same models the native kapi-vision plugin runs. OCR
 // loads ~21 MB on first use; layout is opt-in (~132 MB).
-export default function VisionExplorer({ samples = [], modelBase }: VisionExplorerProps): React.ReactElement {
+export default function VisionExplorer({
+  samples = [],
+  modelBase,
+}: VisionExplorerProps): React.ReactElement {
   const [src, setSrc] = useState<string | null>(samples[0]?.url ?? null);
   const [raster, setRaster] = useState<Raster | null>(null);
   const [ocrRes, setOcrRes] = useState<OCRResult | null>(null);
@@ -66,6 +70,10 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   // confidence are re-read by TrOCR (loaded on first escalation).
   const [handwriting, setHandwriting] = useState(false);
   const [hwThreshold, setHwThreshold] = useState(0.85);
+  // Tier 3: re-read still-uncertain lines with a local Ollama vision model
+  // (keyless-local per AD-030). Off by default — requires a running Ollama.
+  const [llm, setLlm] = useState(false);
+  const [llmThreshold, setLlmThreshold] = useState(0.85);
   // Shared selection: clicking a box on the image or a block in the list
   // highlights the other.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -76,22 +84,23 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
       setBusy("ocr");
       setErr(null);
       try {
-        setOcrRes(await ocr(r, modelBase, { handwriting, hwThreshold }));
+        setOcrRes(await ocr(r, modelBase, { handwriting, hwThreshold, llm, llmThreshold }));
       } catch (e) {
         setErr(`OCR failed: ${(e as Error).message}`);
       } finally {
         setBusy("");
       }
     },
-    [modelBase, handwriting, hwThreshold],
+    [modelBase, handwriting, hwThreshold, llm, llmThreshold],
   );
 
-  // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle).
-  const rerunOCR = (hw: boolean, thr: number): void => {
+  // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle):
+  // overrides win over the current render-time state.
+  const rerunOCR = (overrides: Partial<OCROptions> = {}): void => {
     if (!raster) return;
     setBusy("ocr");
     setErr(null);
-    ocr(raster, modelBase, { handwriting: hw, hwThreshold: thr })
+    ocr(raster, modelBase, { handwriting, hwThreshold, llm, llmThreshold, ...overrides })
       .then(setOcrRes)
       .catch((e: unknown) => setErr(`OCR failed: ${(e as Error).message}`))
       .finally(() => setBusy(""));
@@ -129,7 +138,9 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
       const first = imgs[0];
       setExtractedNote(`Extracted ${first.name} from the document`);
       // copy into a fresh ArrayBuffer so the Blob owns a plain ArrayBuffer
-      await processImageUrl(URL.createObjectURL(new Blob([first.bytes.slice()], { type: first.mime })));
+      await processImageUrl(
+        URL.createObjectURL(new Blob([first.bytes.slice()], { type: first.mime })),
+      );
     },
     [processImageUrl],
   );
@@ -182,7 +193,13 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
   // Toggle the handwriting cascade and re-run OCR with the new setting.
   const onToggleHandwriting = (v: boolean): void => {
     setHandwriting(v);
-    rerunOCR(v, hwThreshold);
+    rerunOCR({ handwriting: v });
+  };
+
+  // Toggle the local-LLM Tier-3 and re-run OCR with the new setting.
+  const onToggleLLM = (v: boolean): void => {
+    setLlm(v);
+    rerunOCR({ llm: v });
   };
 
   const runLayout = useCallback(async () => {
@@ -288,7 +305,12 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
         {handwriting && (
           <label
             title="Lines whose PP-OCR confidence is below this are re-read by TrOCR. Higher = escalate more lines."
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8rem" }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              fontSize: "0.8rem",
+            }}
           >
             below
             <input
@@ -299,9 +321,55 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
               value={hwThreshold}
               disabled={busy !== ""}
               onChange={(e) => setHwThreshold(Number(e.target.value))}
-              onPointerUp={(e) => rerunOCR(true, Number((e.target as HTMLInputElement).value))}
+              onPointerUp={(e) =>
+                rerunOCR({ hwThreshold: Number((e.target as HTMLInputElement).value) })
+              }
             />
             {Math.round(hwThreshold * 100)}%
+          </label>
+        )}
+        <label
+          title="Tier 3: re-read still-uncertain lines with a local Ollama vision model (keyless, on-device). Requires Ollama running locally with this page's origin allowed (OLLAMA_ORIGINS)."
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            cursor: raster ? "pointer" : "not-allowed",
+            fontSize: "0.85rem",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={llm}
+            disabled={!raster || busy !== ""}
+            onChange={(e) => onToggleLLM(e.target.checked)}
+          />
+          🧠 Local LLM (Ollama)
+        </label>
+        {llm && (
+          <label
+            title="Lines whose confidence is below this are re-read by the local LLM. Higher = escalate more lines."
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              fontSize: "0.8rem",
+            }}
+          >
+            below
+            <input
+              type="range"
+              min={0.5}
+              max={0.99}
+              step={0.01}
+              value={llmThreshold}
+              disabled={busy !== ""}
+              onChange={(e) => setLlmThreshold(Number(e.target.value))}
+              onPointerUp={(e) =>
+                rerunOCR({ llmThreshold: Number((e.target as HTMLInputElement).value) })
+              }
+            />
+            {Math.round(llmThreshold * 100)}%
           </label>
         )}
         <button
@@ -336,11 +404,19 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
         </p>
       )}
       {extractedNote && (
-        <p style={{ fontStyle: "italic", color: "var(--ifm-color-emphasis-600)" }}>{extractedNote}</p>
+        <p style={{ fontStyle: "italic", color: "var(--ifm-color-emphasis-600)" }}>
+          {extractedNote}
+        </p>
       )}
       {err && <p style={{ color: "var(--ifm-color-danger)" }}>{err}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: "1rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
+          gap: "1rem",
+        }}
+      >
         {/* Image with overlays — boxes are clickable and sync with the block list. */}
         <div style={{ position: "relative", lineHeight: 0 }}>
           {imgSrc && (
@@ -349,7 +425,11 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
               src={imgSrc}
               alt="vision input"
               onLoad={(e) => setShownW(e.currentTarget.clientWidth)}
-              style={{ maxWidth: "100%", height: "auto", border: "1px solid var(--ifm-color-emphasis-200)" }}
+              style={{
+                maxWidth: "100%",
+                height: "auto",
+                border: "1px solid var(--ifm-color-emphasis-200)",
+              }}
             />
           )}
           {/* Layout region boxes (drawn under text boxes) */}
@@ -457,6 +537,9 @@ export default function VisionExplorer({ samples = [], modelBase }: VisionExplor
                       </span>
                       {b.engine === "trocr" && (
                         <span style={{ color: "#7c3aed", fontWeight: 600 }}> ✍ TrOCR</span>
+                      )}
+                      {b.engine === "llm" && (
+                        <span style={{ color: "#0891b2", fontWeight: 600 }}> 🧠 LLM</span>
                       )}
                     </li>
                   );
