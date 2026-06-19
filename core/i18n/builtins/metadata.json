@@ -1196,6 +1196,25 @@
         }
       }
     },
+    "audio": {
+      "displayName": "Audio",
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".m4a",
+        ".aac",
+        ".flac",
+        ".ogg",
+        ".opus"
+      ],
+      "mimeTypes": [
+        "audio/wav",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/flac",
+        "audio/ogg"
+      ]
+    },
     "csv": {
       "displayName": "CSV",
       "extensions": [
@@ -2139,6 +2158,23 @@
       "displayName": "Versified Text",
       "extensions": [
         ".ver"
+      ]
+    },
+    "video": {
+      "displayName": "Video",
+      "extensions": [
+        ".mp4",
+        ".mov",
+        ".m4v",
+        ".mkv",
+        ".webm",
+        ".avi"
+      ],
+      "mimeTypes": [
+        "video/mp4",
+        "video/quicktime",
+        "video/x-matroska",
+        "video/webm"
       ]
     },
     "vignette": {
