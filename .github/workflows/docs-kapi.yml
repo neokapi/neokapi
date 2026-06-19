@@ -109,6 +109,15 @@ jobs:
             echo "::warning::docs-assets release unavailable; docs videos will be missing"
           fi
 
+      # The Vision Lab fetches its OCR models from the same origin (GitHub release
+      # URLs are CORS-blocked for browser fetch). Stage them into web/static so the
+      # built site serves them. OCR models only — the ~132 MB layout model exceeds
+      # the GitHub Pages file limit (external CORS host is a follow-up).
+      - name: Stage Vision Lab OCR models
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make fetch-vision-models
+
       - name: Download playground wasm
         uses: actions/download-artifact@v8
         with:

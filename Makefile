@@ -1280,6 +1280,23 @@ docs-dev: docs-wasm ; cd web && vp run start
 docs-build: ; cd web && vp run build
 docs-serve: ; cd web && vp run serve
 
+# Stage the Vision Lab OCR models same-origin (web/static/models/vision) so the
+# browser can fetch them without CORS (GitHub release URLs are CORS-blocked for
+# fetch()). OCR models only (det/rec/dict, <100 MB each → GitHub Pages-safe); the
+# ~132 MB layout model exceeds the Pages file limit and needs an external
+# CORS-enabled host (Vision Lab follow-up). For local dev, drop ppdoclayoutv3.onnx
+# into the same dir to exercise the layout path. Staged at build, never committed.
+fetch-vision-models: ## Stage Vision Lab OCR models → web/static/models/vision
+	@mkdir -p web/static/models/vision
+	@for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt; do \
+	  if [ ! -f web/static/models/vision/$$f ]; then \
+	    gh release download vision-models-v1 -p $$f -D web/static/models/vision 2>/dev/null \
+	      || curl -sSfL -o web/static/models/vision/$$f \
+	        "https://github.com/neokapi/neokapi/releases/download/vision-models-v1/$$f"; \
+	  fi; \
+	done
+	@echo "Staged Vision Lab OCR models → web/static/models/vision"
+
 # Output dir for the in-browser playground (gitignored; built locally or in CI).
 WASM_DEMO_DIR := web/static/wasm
 

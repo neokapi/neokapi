@@ -22,6 +22,8 @@ export { default as AnatomyExplorer } from "./AnatomyExplorer";
 export type { AnatomyExplorerProps } from "./AnatomyExplorer";
 export { default as PdfExplorer } from "./PdfExplorer";
 export type { PdfExplorerProps, PdfSampleSpec } from "./PdfExplorer";
+export { default as VisionExplorer } from "./VisionExplorer";
+export type { VisionExplorerProps, VisionSampleSpec } from "./VisionExplorer";
 export { default as PipelineExplorer } from "./PipelineExplorer";
 export type { PipelineExplorerProps } from "./PipelineExplorer";
 export { default as ToolLab } from "./ToolLab";
