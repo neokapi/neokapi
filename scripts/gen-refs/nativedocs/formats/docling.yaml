@@ -1,0 +1,28 @@
+# Native reference doc for the built-in `docling` format.
+# Source: core/formats/docling/{reader.go,config.go,spec.yaml}. Read-only.
+# No Okapi equivalent — DoclingDocument JSON is Docling's native serialization.
+description: Read DoclingDocument JSON — Docling's native, lossless serialization — into the content model with semantic roles and page geometry.
+overview: |
+  The **DoclingDocument JSON** format reads the native, lossless JSON
+  serialization emitted by
+  [Docling](https://github.com/docling-project/docling). It follows the
+  document's reading order (`body.children`), resolving the `$ref` pointers into
+  the `texts`/`tables`/`groups`/`pictures` arrays, into the neokapi content model
+  plus the structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This
+  is the file-based "consume Docling" boundary alongside the DocLang XML reader:
+  a tool runs Docling, saves the JSON, and neokapi reads it.
+
+  Coverage: text items (title, section_header with level, paragraph/text,
+  list_item, caption, footnote, page_header/page_footer → furniture, code,
+  formula); groups (lists and inline groups); tables (the resolved cell grid,
+  with column/row-header cells → table-header role) and their captions; picture
+  captions; and per-item page geometry from `prov[].bbox`. Inline formatting is
+  not part of the base DoclingDocument text model, so each text item is one run.
+
+  Read-only — Docling owns the JSON; neokapi re-emits structure via the DocLang
+  writer or projects to Markdown/HTML.
+limitations:
+  - Read-only — there is no DoclingDocument writer; re-emit via the DocLang writer or a Markdown/HTML projection.
+  - Inline formatting is not modeled (each text item is a single run).
+processingNotes:
+  - Co-claims the `.json` extension with the generic JSON reader and disambiguates by a precise content sniff (`schema_name` + `DoclingDocument`) at a below-default priority, so a plain `.json` never resolves to DoclingDocument when the sniff misses.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T20:42:35Z",
+  "generatedAt": "2026-06-19T23:22:40Z",
   "kind": "format",
   "entries": [
     {
@@ -813,6 +813,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "DocLang",
+      "description": "Read and write DocLang — the LF AI \u0026 Data open standard (.dclg.xml) for AI-native documents, with semantic roles and page geometry.",
       "extensions": [
         ".dclg.xml",
         ".xml"
@@ -821,20 +822,47 @@
         "application/doclang+xml"
       ],
       "hasReader": true,
-      "hasWriter": true
+      "hasWriter": true,
+      "doc": {
+        "overview": "The **DocLang** format reads and writes\n[DocLang](https://doclang.ai), the LF AI \u0026 Data open standard for AI-native\ndocuments, pinned to spec v0.6. It maps `.dclg.xml` into the neokapi content\nmodel plus the structural layer (SemanticRole, GeometryAnnotation,\nLayoutLayer). This is the file-based \"consume Docling\" boundary: a tool runs\nDocling, emits DocLang, and neokapi reads it.\n\nCoverage (v0.6): the document root + head; the block-level semantic elements\n(heading, text, footnote, page_header, page_footer, code, formula); lists\n(with ldiv-delimited items); groups; OTSL table/index cells (fcel, ched, rhed,\necel, srow, corn) with `nl` row terminators; the element-head properties layer\nand the 4-value location block (mapped to page geometry); and inline formatting\n(bold, italic, underline, strikethrough, superscript, subscript).\n\nNot yet mapped (skipped without losing surrounding content): OTSL span\ncontinuations (lcel/ucel/xcel), picture/field/marker/checkbox constructs, and\nthread/xref/href continuity.\n",
+        "parameters": {
+          "emitGeometry": {
+            "description": "Emit \u003clocation\u003e geometry blocks when writing.",
+            "help": "Writer option (no effect on read): emit `\u003clocation\u003e` blocks from a block's\ngeometry annotation. Set false to project to a geometry-less DocLang when\nre-emitting reflowable content.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "limitations": [
+          "OTSL span continuations (lcel/ucel/xcel) and picture/field/marker/checkbox constructs are skipped (surrounding content is preserved)."
+        ],
+        "processingNotes": [
+          "Disambiguated from generic XML by a content sniff for the `\u003cdoclang` tag and a below-default format priority, so a plain `.xml` never resolves to DocLang when the sniff misses."
+        ]
+      }
     },
     {
       "id": "docling",
       "source": "built-in",
       "kind": "format",
       "displayName": "DoclingDocument JSON",
+      "description": "Read DoclingDocument JSON — Docling's native, lossless serialization — into the content model with semantic roles and page geometry.",
       "extensions": [
         ".json"
       ],
       "mimeTypes": [
         "application/json"
       ],
-      "hasReader": true
+      "hasReader": true,
+      "doc": {
+        "overview": "The **DoclingDocument JSON** format reads the native, lossless JSON\nserialization emitted by\n[Docling](https://github.com/docling-project/docling). It follows the\ndocument's reading order (`body.children`), resolving the `$ref` pointers into\nthe `texts`/`tables`/`groups`/`pictures` arrays, into the neokapi content model\nplus the structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This\nis the file-based \"consume Docling\" boundary alongside the DocLang XML reader:\na tool runs Docling, saves the JSON, and neokapi reads it.\n\nCoverage: text items (title, section_header with level, paragraph/text,\nlist_item, caption, footnote, page_header/page_footer → furniture, code,\nformula); groups (lists and inline groups); tables (the resolved cell grid,\nwith column/row-header cells → table-header role) and their captions; picture\ncaptions; and per-item page geometry from `prov[].bbox`. Inline formatting is\nnot part of the base DoclingDocument text model, so each text item is one run.\n\nRead-only — Docling owns the JSON; neokapi re-emits structure via the DocLang\nwriter or projects to Markdown/HTML.\n",
+        "limitations": [
+          "Read-only — there is no DoclingDocument writer; re-emit via the DocLang writer or a Markdown/HTML projection.",
+          "Inline formatting is not modeled (each text item is a single run)."
+        ],
+        "processingNotes": [
+          "Co-claims the `.json` extension with the generic JSON reader and disambiguates by a precise content sniff (`schema_name` + `DoclingDocument`) at a below-default priority, so a plain `.json` never resolves to DoclingDocument when the sniff misses."
+        ]
+      }
     },
     {
       "id": "doxygen",
@@ -1462,17 +1490,64 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "Image",
+      "description": "Localize raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.",
       "extensions": [
         ".png",
         ".jpg",
-        ".jpeg"
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".heic",
+        ".heif",
+        ".avif"
       ],
       "mimeTypes": [
         "image/png",
-        "image/jpeg"
+        "image/jpeg",
+        "image/gif",
+        "image/bmp",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+        "image/avif"
       ],
       "hasReader": true,
-      "hasWriter": true
+      "hasWriter": true,
+      "doc": {
+        "overview": "The **Image** format reads raster images as documents. PNG and JPEG decode\nnatively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF\nstill images HEIC/HEIF and AVIF are transcoded with ffmpeg (the kapi-av\nbundle) when it is available, degrading to a Media-only asset when it is not.\nThe image itself is always emitted as a **Media** part by reference — the\npixel bytes are never loaded into the kapi process — so an image is a valid,\ninspectable document even with no OCR engine installed. This is the\n*whole-image localization* mode: the picture is an asset to be replaced rather\nthan read.\n\nWhen the **kapi-vision** plugin is installed and `ocr` is enabled, the reader\nrecognizes in-image text and emits positioned text **Blocks**, recovering\ntier-2 structure (headings, paragraphs, tables) from the OCR line geometry the\nsame way the PDF geometry path does. With `layout` enabled it uses ML layout\ndetection (regions + reading order) when the engine supports it, falling back\nto geometric inference otherwise.\n\nAn `\u003cimage\u003e.alt.txt` sidecar beside the source supplies alt-text / caption\ncopy: it is attached to the Media and emitted as a caption Block that\ntranslates through the normal block path; the writer folds the localized text\nback into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is\nread without decoding pixels and mapped onto the document layer.\n",
+        "parameters": {
+          "layout": {
+            "description": "Use ML layout detection for regions and reading order.",
+            "help": "When enabled (the default) and OCR runs, layout regions and reading order\ncome from the vision engine's ML layout model (when it supports one). When\ndisabled, structure falls back to geometric inference over the OCR line\ngeometry (tier 2).\n",
+            "values": "`true` / `false` (default `true`)",
+            "dependsOn": [
+              {
+                "property": "ocr",
+                "condition": "only applies when OCR is enabled"
+              }
+            ]
+          },
+          "ocr": {
+            "description": "Recognize in-image text via the kapi-vision plugin.",
+            "help": "When enabled (the default), and the kapi-vision plugin is installed, the\nimage's text is recognized and emitted as positioned, structured Blocks.\nWhen disabled — or the plugin is absent — the image is emitted as a Media\nasset only (whole-image localization).\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "limitations": [
+          "PNG/JPEG/GIF/BMP/TIFF are detected by magic-byte prefix; WebP and the ISOBMFF still images HEIC/HEIF and AVIF by content sniff (their markers sit past offset 0 and share the RIFF/ftyp container with audio/video).",
+          "OCR of HEIC/HEIF and AVIF requires ffmpeg (the kapi-av bundle or PATH) to transcode the frame; without it those images are still emitted as a Media asset but are not OCR'd.",
+          "OCR and layout require the kapi-vision plugin; without it the image is a Media asset only."
+        ],
+        "processingNotes": [
+          "The image is always emitted as a Media part by reference; OCR Blocks are additive enrichment and OCR failures are non-fatal.",
+          "Formats the vision engine can't read natively are normalized to PNG before OCR — GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg — while the emitted Media keeps the original bytes.",
+          "Alt-text / caption copy travels through the standard block path — no special tool support — and is written back to a per-locale `\u003cimage\u003e.alt.txt` sidecar."
+        ]
+      }
     },
     {
       "id": "properties",

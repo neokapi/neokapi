@@ -1,0 +1,34 @@
+# Native reference doc for the built-in `doclang` format.
+# Source: core/formats/doclang/{reader.go,writer.go,config.go,spec.yaml}.
+# No Okapi equivalent — DocLang is a new LF AI & Data standard.
+description: Read and write DocLang — the LF AI & Data open standard (.dclg.xml) for AI-native documents, with semantic roles and page geometry.
+overview: |
+  The **DocLang** format reads and writes
+  [DocLang](https://doclang.ai), the LF AI & Data open standard for AI-native
+  documents, pinned to spec v0.6. It maps `.dclg.xml` into the neokapi content
+  model plus the structural layer (SemanticRole, GeometryAnnotation,
+  LayoutLayer). This is the file-based "consume Docling" boundary: a tool runs
+  Docling, emits DocLang, and neokapi reads it.
+
+  Coverage (v0.6): the document root + head; the block-level semantic elements
+  (heading, text, footnote, page_header, page_footer, code, formula); lists
+  (with ldiv-delimited items); groups; OTSL table/index cells (fcel, ched, rhed,
+  ecel, srow, corn) with `nl` row terminators; the element-head properties layer
+  and the 4-value location block (mapped to page geometry); and inline formatting
+  (bold, italic, underline, strikethrough, superscript, subscript).
+
+  Not yet mapped (skipped without losing surrounding content): OTSL span
+  continuations (lcel/ucel/xcel), picture/field/marker/checkbox constructs, and
+  thread/xref/href continuity.
+parameters:
+  emitGeometry:
+    description: Emit <location> geometry blocks when writing.
+    help: |
+      Writer option (no effect on read): emit `<location>` blocks from a block's
+      geometry annotation. Set false to project to a geometry-less DocLang when
+      re-emitting reflowable content.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - OTSL span continuations (lcel/ucel/xcel) and picture/field/marker/checkbox constructs are skipped (surrounding content is preserved).
+processingNotes:
+  - Disambiguated from generic XML by a content sniff for the `<doclang` tag and a below-default format priority, so a plain `.xml` never resolves to DocLang when the sniff misses.

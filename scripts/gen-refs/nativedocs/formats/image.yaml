@@ -1,0 +1,55 @@
+# Native reference doc for the built-in `image` format.
+# Source: core/formats/image/{reader.go,writer.go,config.go,metadata.go}.
+# No Okapi equivalent — image OCR/localization is a neokapi capability.
+description: Localize raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.
+overview: |
+  The **Image** format reads raster images as documents. PNG and JPEG decode
+  natively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF
+  still images HEIC/HEIF and AVIF are transcoded with ffmpeg (the kapi-av
+  bundle) when it is available, degrading to a Media-only asset when it is not.
+  The image itself is always emitted as a **Media** part by reference — the
+  pixel bytes are never loaded into the kapi process — so an image is a valid,
+  inspectable document even with no OCR engine installed. This is the
+  *whole-image localization* mode: the picture is an asset to be replaced rather
+  than read.
+
+  When the **kapi-vision** plugin is installed and `ocr` is enabled, the reader
+  recognizes in-image text and emits positioned text **Blocks**, recovering
+  tier-2 structure (headings, paragraphs, tables) from the OCR line geometry the
+  same way the PDF geometry path does. With `layout` enabled it uses ML layout
+  detection (regions + reading order) when the engine supports it, falling back
+  to geometric inference otherwise.
+
+  An `<image>.alt.txt` sidecar beside the source supplies alt-text / caption
+  copy: it is attached to the Media and emitted as a caption Block that
+  translates through the normal block path; the writer folds the localized text
+  back into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is
+  read without decoding pixels and mapped onto the document layer.
+parameters:
+  ocr:
+    description: Recognize in-image text via the kapi-vision plugin.
+    help: |
+      When enabled (the default), and the kapi-vision plugin is installed, the
+      image's text is recognized and emitted as positioned, structured Blocks.
+      When disabled — or the plugin is absent — the image is emitted as a Media
+      asset only (whole-image localization).
+    values: "`true` / `false` (default `true`)"
+  layout:
+    description: Use ML layout detection for regions and reading order.
+    help: |
+      When enabled (the default) and OCR runs, layout regions and reading order
+      come from the vision engine's ML layout model (when it supports one). When
+      disabled, structure falls back to geometric inference over the OCR line
+      geometry (tier 2).
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: ocr
+        condition: only applies when OCR is enabled
+limitations:
+  - PNG/JPEG/GIF/BMP/TIFF are detected by magic-byte prefix; WebP and the ISOBMFF still images HEIC/HEIF and AVIF by content sniff (their markers sit past offset 0 and share the RIFF/ftyp container with audio/video).
+  - OCR of HEIC/HEIF and AVIF requires ffmpeg (the kapi-av bundle or PATH) to transcode the frame; without it those images are still emitted as a Media asset but are not OCR'd.
+  - OCR and layout require the kapi-vision plugin; without it the image is a Media asset only.
+processingNotes:
+  - The image is always emitted as a Media part by reference; OCR Blocks are additive enrichment and OCR failures are non-fatal.
+  - Formats the vision engine can't read natively are normalized to PNG before OCR — GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg — while the emitted Media keeps the original bytes.
+  - Alt-text / caption copy travels through the standard block path — no special tool support — and is written back to a per-locale `<image>.alt.txt` sidecar.
