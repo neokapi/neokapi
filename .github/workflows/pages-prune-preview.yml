@@ -1,0 +1,95 @@
+name: Pages Prune Preview
+
+# When a PR closes (merged or not), delete its preview subtrees from the
+# neokapi.github.io org pages repo so closed-PR previews don't accumulate:
+#
+#   web/prs/<N>/         and   storybook/prs/<N>/
+#
+# Previews are created by pages-deploy.yml on PR builds; this is their teardown.
+# Mirrors pages-deploy.yml's SSH setup + rebase-retry push (cross-source deploys
+# race on the shared branch, so a single commit is rebased onto latest main).
+
+on:
+  pull_request:
+    types: [closed]
+  # Manual escape hatch: prune a specific PR number (or sweep) by hand.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number whose preview to prune
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-prune-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    # Fork PRs can't have deployed previews and don't get the deploy secret;
+    # only run for same-repo PRs (and manual dispatch).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      PAGES_REPO: github.com:neokapi/neokapi.github.io.git
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+    steps:
+      - name: Validate PR number
+        run: |
+          if ! printf '%s' "$PR_NUMBER" | grep -qE '^[0-9]+$'; then
+            echo "::error::PR_NUMBER '$PR_NUMBER' is not numeric"; exit 1
+          fi
+
+      - name: Set up SSH for org pages repo
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
+
+      - name: Clone neokapi.github.io
+        run: |
+          # Depth 50 (not 1) so the push step can rebase onto a concurrent
+          # deploy's commit — matches pages-deploy.yml.
+          git clone --depth 50 "git@${PAGES_REPO}" pages
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Remove preview subtrees
+        working-directory: pages
+        run: |
+          # Belt-and-braces: PR_NUMBER is validated numeric above.
+          rm -rf "web/prs/${PR_NUMBER}" "storybook/prs/${PR_NUMBER}"
+
+      - name: Commit and push (rebase-retry)
+        working-directory: pages
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No preview to prune for PR #${PR_NUMBER} (already gone)."
+            exit 0
+          fi
+          git commit -m "deploy: prune PR #${PR_NUMBER} preview"
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "pushed on attempt ${attempt}"; break
+            fi
+            if [ "${attempt}" = "5" ]; then
+              echo "::error::pages prune push failed after ${attempt} attempts"; exit 1
+            fi
+            echo "push rejected (attempt ${attempt}); rebasing onto latest main…"
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "::error::pages prune rebase hit a conflict"; exit 1
+            fi
+            sleep $((attempt * 3))
+          done
