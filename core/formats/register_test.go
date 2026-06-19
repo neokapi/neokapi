@@ -35,6 +35,10 @@ func TestRegisterAllReaders(t *testing.T) {
 		// "image" (PNG/JPEG) is read-only: text + structure come from OCR via the
 		// kapi-vision plugin when installed, else just the image as Media.
 		"image",
+		// "audio"/"video" are read-only: speech → text via the kapi-asr plugin
+		// (audio + video audio track) and on-screen text via kapi-vision OCR
+		// (video frames). Demux is via the kapi-av plugin / ffmpeg.
+		"audio", "video",
 		// Note: "pdf" is absent on native builds — it is read out-of-core by
 		// the kapi-pdfium plugin (registered at runtime), and only registered
 		// in-core on js builds (the PDFium-wasm reader). See register_pdf_*.go.

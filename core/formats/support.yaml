@@ -71,6 +71,20 @@ formats:
     notes: "PNG/JPEG reader (read-only OCR boundary); text + structure via the kapi-vision plugin. Awaits first multi-axis certification."
     gates:
       - .github/workflows/format-acceptance.yml
+  audio:
+    tier: available
+    tier_since: "2026-06-19"
+    grandfathered: true
+    notes: "Audio reader (read-only ASR boundary); speech → timing-anchored text via the kapi-asr plugin, else the audio as Media. Awaits first multi-axis certification."
+    gates:
+      - .github/workflows/format-acceptance.yml
+  video:
+    tier: available
+    tier_since: "2026-06-19"
+    grandfathered: true
+    notes: "Video reader (read-only); ffmpeg demux → audio track (kapi-asr) + sampled frames (kapi-vision OCR). Awaits first multi-axis certification."
+    gates:
+      - .github/workflows/format-acceptance.yml
   doxygen:
     tier: maintained
     tier_since: "2026-06-12"
