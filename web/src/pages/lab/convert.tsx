@@ -30,10 +30,10 @@ export default function ConversionLabPage(): React.ReactElement {
             mocked.
           </p>
           <nav aria-label="Related labs" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <Link to="/lab">neokapi Lab</Link>
-            <Link to="/lab/segmentation">Segmentation Lab</Link>
-            <Link to="/lab/pdf">PDF Lab</Link>
-            <Link to="/lab/vision">Vision Lab</Link>
+            <Link to="/lab">Core Framework</Link>
+            <Link to="/lab/segmentation">Segmentation</Link>
+            <Link to="/lab/structure">Structure &amp; Layout</Link>
+            <Link to="/lab/vision">Kapi Vision</Link>
           </nav>
         </div>
         <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />

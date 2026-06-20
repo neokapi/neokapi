@@ -51,7 +51,7 @@ export default function VisionLabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>Vision Lab</h1>
           <p className={styles.lede}>
-            Drop in an image and the <Link to="/lab">Lab</Link> runs the real{" "}
+            Drop in an image and the <Link to="/lab">Core Framework</Link> runs the real{" "}
             <code>kapi-vision</code> models right here in your browser. Text is detected and
             recognized by <strong>PP-OCRv5</strong>; document <strong>layout</strong> (headings,
             paragraphs, tables, figures) comes from <strong>PP-DocLayoutV3</strong> — the same ONNX
@@ -68,8 +68,8 @@ export default function VisionLabPage(): React.ReactElement {
             differs.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
-            <Link to="/lab">Lab</Link>
-            <Link to="/lab/pdf">PDF Lab</Link>
+            <Link to="/lab">Core Framework</Link>
+            <Link to="/lab/structure">Structure &amp; Layout</Link>
             <Link to="/contribute/architecture/029-vision-and-image-localization">
               Vision &amp; image localization
             </Link>

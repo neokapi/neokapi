@@ -29,14 +29,13 @@ export default function LabPage(): React.ReactElement {
             WebAssembly, runs your flow in the browser. Nothing is mocked.
           </p>
           <nav className={styles.appNav} aria-label="Related labs">
-            <Link to="/lab/convert">Conversion Lab</Link>
-            <Link to="/lab/segmentation">Segmentation Lab</Link>
-            <Link to="/lab/pdf">PDF Lab</Link>
-            <Link to="/lab/vision">Vision Lab</Link>
-            <Link to="/lab/audio">Audio Lab</Link>
-            <Link to="/lab/video">Video Lab</Link>
-            <Link to="/lab/multimodal">Multimodal Showcase</Link>
+            <Link to="/lab/segmentation">Segmentation</Link>
+            <Link to="/lab/convert">File Conversion</Link>
+            <Link to="/lab/structure">Structure &amp; Layout</Link>
+            <Link to="/lab/vision">Kapi Vision</Link>
+            <Link to="/lab/media">Audio &amp; Video</Link>
             <Link to="/playground-cli">CLI Playground</Link>
+            <Link to="/klf-lab">Kapi L10N Format</Link>
             <Link to="/framework/architecture">Framework docs</Link>
           </nav>
         </header>
