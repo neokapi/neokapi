@@ -124,6 +124,30 @@ const config: Config = {
   // site is not yet live, so no client-side redirects are kept — old URLs are
   // simply gone.
   plugins: [
+    // Cloudflare Web Analytics: inject the beacon script just before </body> on
+    // every page (postBodyTags renders at the end of <body>). Gated to production
+    // builds so it ships on the deployed site + PR previews but not in local
+    // `vp run start` dev, where the beacon would report nothing useful.
+    function cloudflareWebAnalytics() {
+      return {
+        name: "cloudflare-web-analytics",
+        injectHtmlTags() {
+          if (process.env.NODE_ENV !== "production") return {};
+          return {
+            postBodyTags: [
+              {
+                tagName: "script",
+                attributes: {
+                  defer: true,
+                  src: "https://static.cloudflareinsights.com/beacon.min.js",
+                  "data-cf-beacon": '{"token": "3b1c27d17cee44beb47518685678a1e6"}',
+                },
+              },
+            ],
+          };
+        },
+      };
+    },
     // Silence the benign "Critical dependency" webpack warning emitted by the
     // UMD wrapper in vscode-languageserver-types (pulled in transitively via
     // @docusaurus/theme-mermaid → mermaid → langium). The `require` it flags is
