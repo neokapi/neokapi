@@ -59,13 +59,23 @@ async function ensureASR(model: string, onProgress?: (frac: number) => void): Pr
   if (!pipe) {
     pipe = (async () => {
       const { pipeline } = await import("@huggingface/transformers");
+      // Pin a per-component fp32 dtype. With the default, transformers.js loads a
+      // 4-bit (MatMulNBits) Whisper decoder that onnxruntime-web 1.26 can't create
+      // a session for ("TransposeDQWeightsForMatMulNBits Missing required scale …").
+      // fp32 has no quantize/dequantize ops at all, so it always loads. Run on the
+      // wasm (CPU) EP, matching visionBridge; Whisper-tiny is small, so it's fast.
       const p = await pipeline("automatic-speech-recognition", model, {
+        dtype: { encoder_model: "fp32", decoder_model_merged: "fp32" },
+        device: "wasm",
         progress_callback: (e: { status?: string; progress?: number }) => {
           if (onProgress && e.status === "progress") onProgress((e.progress ?? 0) / 100);
         },
       });
       return p as unknown as Transcriber;
-    })();
+    })().catch((err) => {
+      pipe = null; // reset so a Retry re-attempts instead of returning the rejection
+      throw err;
+    });
   }
   return pipe;
 }
