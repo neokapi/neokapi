@@ -1,9 +1,19 @@
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Play } from "lucide-react";
+import { useRef, useState } from "react";
 
 export function Hero() {
   // Relative to the deploy base (see Nav): /web/bowrain/ today, / at launch.
   const base = import.meta.env.BASE_URL;
   const docsUrl = `${base}docs/`;
+
+  // The sizzle reel is click-to-play (no autoplay on load): the poster shows
+  // until the visitor presses play.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const playSizzle = () => {
+    setPlaying(true);
+    void videoRef.current?.play();
+  };
 
   return (
     <section className="relative flex flex-col items-center px-6 pb-20 pt-32">
@@ -79,18 +89,34 @@ export function Hero() {
           public/, shown until the video loads (and in isolated landing-only dev,
           where the docs path isn't served). */}
       <div className="animate-fade-in-up-delay-3 relative z-10 mt-16 w-full max-w-5xl">
-        <div className="overflow-hidden rounded-xl border border-neutral-800 shadow-2xl shadow-brand-500/10">
+        <div className="relative overflow-hidden rounded-xl border border-neutral-800 shadow-2xl shadow-brand-500/10">
           <video
+            ref={videoRef}
             className="block w-full"
-            autoPlay
             muted
             loop
             playsInline
+            controls={playing}
             poster={`${base}sizzle.jpg`}
             aria-label="A montage of the Bowrain platform: the shared editor, real-time collaboration, translation memory and terminology, review and approval, and corrections that become versioned checks."
           >
-            <source src={`${base}docs/video/bowrain-web/bowrain-sizzle-dark.webm`} type="video/webm" />
+            <source
+              src={`${base}docs/video/bowrain-web/bowrain-sizzle-dark.webm`}
+              type="video/webm"
+            />
           </video>
+          {!playing && (
+            <button
+              type="button"
+              onClick={playSizzle}
+              aria-label="Play the platform sizzle reel"
+              className="group absolute inset-0 flex items-center justify-center bg-neutral-950/30 transition-colors hover:bg-neutral-950/20"
+            >
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg transition-transform group-hover:scale-105">
+                <Play className="ml-1 h-7 w-7 text-neutral-900" fill="currentColor" />
+              </span>
+            </button>
+          )}
         </div>
         <p className="mt-3 text-center text-xs text-neutral-600">
           The platform at a glance — a shared editor, real-time collaboration, memory and
