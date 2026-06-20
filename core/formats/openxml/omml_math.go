@@ -1,6 +1,52 @@
 package openxml
 
-import xmath "github.com/neokapi/neokapi/core/math"
+import (
+	"fmt"
+
+	xmath "github.com/neokapi/neokapi/core/math"
+	"github.com/neokapi/neokapi/core/model"
+)
+
+// ommlNorBlockType marks a translatable block holding one <m:nor/> prose span of
+// an equation. The cross-format writers skip these (the prose is already in the
+// formula's LaTeX); the openxml writer resolves them back into the OMML.
+const ommlNorBlockType = "omml-nor"
+
+// writeOMathSubSkeleton writes an OMML equation to the skeleton as a
+// sub-skeleton: verbatim OMML segments interleaved with skeleton refs to
+// translatable nor-text blocks (the <m:nor/> prose — "where", "otherwise",
+// units). On write each ref resolves to its block's target-else-source, which
+// the skeleton writer XML-escapes back into the <m:t>, so an untranslated
+// equation reproduces the original bytes exactly and a translated one splices the
+// translation in. Returns false (emitting nothing) when the equation has no prose
+// or the offsets look wrong, so the caller writes it verbatim.
+func (p *wmlParser) writeOMathSubSkeleton(raw string, emitBlock func(*model.Block)) bool {
+	spans := xmath.NorSpans([]byte(raw))
+	if len(spans) == 0 {
+		return false
+	}
+	// Validate offsets (monotonic, in range) before emitting anything.
+	prev := 0
+	for _, sp := range spans {
+		if sp.Start < prev || sp.End > len(raw) || sp.Start > sp.End {
+			return false
+		}
+		prev = sp.End
+	}
+	cursor := 0
+	for _, sp := range spans {
+		p.skelText(raw[cursor:sp.Start])
+		*p.blockCounter++
+		id := fmt.Sprintf("tu%d", *p.blockCounter)
+		blk := model.NewBlock(id, sp.Text)
+		blk.Type = ommlNorBlockType
+		emitBlock(blk)
+		p.skelRef(id)
+		cursor = sp.End
+	}
+	p.skelText(raw[cursor:])
+	return true
+}
 
 // ommlToMathEquiv converts a captured OMML subtree to portable math renderings
 // for cross-format export. It returns:
@@ -27,11 +73,4 @@ func ommlToMathEquiv(raw string) (equiv, disp string) {
 		return "$$" + latex + "$$", latex
 	}
 	return "$" + latex + "$", latex
-}
-
-// ommlNorTexts returns the natural-language (<m:nor/>) prose spans embedded in an
-// OMML equation, in document order — e.g. "where", "otherwise", units. Empty for
-// pure math typography.
-func ommlNorTexts(raw string) []string {
-	return xmath.NorTexts([]byte(raw))
 }

@@ -1505,6 +1505,16 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return xmlEscapeAttr(model.FlattenRuns(runs))
 	}
 
+	// An OMML <m:nor/> prose span (equation text — "where", "otherwise", units):
+	// the block was emitted by writeOMathSubSkeleton and its skeleton ref sits
+	// inside the equation's <m:t>…</m:t>. Render the target-else-source as bare
+	// element-content text, matching captureRawElement's CharData escaping, so an
+	// untranslated span reproduces the original bytes and a translated one splices
+	// the translation into the OMML in place.
+	if block.Type == ommlNorBlockType {
+		return xmlEscape(model.FlattenRuns(runs))
+	}
+
 	// Chart and diagram parts inside a DOCX are DrawingML, not WML —
 	// they declare the drawingml/2006/main namespace under the `a:`
 	// prefix and use <a:r>/<a:t>. Routing them through renderWMLBlock

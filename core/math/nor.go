@@ -80,6 +80,25 @@ func wrapOMML(raw []byte) (wrapped []byte, prefixLen int) {
 
 var ommlSuffix = []byte(`</ommlRoot>`)
 
+// NorSpan is one <m:nor/> prose span: its decoded text plus the byte range of
+// its <m:t> CharData within the raw OMML fragment.
+type NorSpan struct {
+	Text       string
+	Start, End int
+}
+
+// NorSpans returns the <m:nor/> prose spans of an equation with byte offsets
+// into raw, in document order — enabling a caller to splice translations into
+// the original bytes (a sub-skeleton over the OMML).
+func NorSpans(raw []byte) []NorSpan {
+	wrapped, prefixLen := wrapOMML(raw)
+	var out []NorSpan
+	scanNorTexts(wrapped, func(n norText) {
+		out = append(out, NorSpan{Text: n.text, Start: n.start - prefixLen, End: n.end - prefixLen})
+	})
+	return out
+}
+
 // NorTexts returns the literal text of each <m:nor/> run's <m:t> in document
 // order — the natural-language prose embedded in an equation. Empty when the
 // equation is pure math typography.

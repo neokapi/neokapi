@@ -262,6 +262,12 @@ func formulaLaTeX(blk *model.Block) string {
 }
 
 func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
+	// "omml-nor" blocks are an OpenXML equation's translatable prose spans
+	// (surfaced for docx write-back); the prose is already in the formula's
+	// LaTeX, so skip them in cross-format output to avoid duplication.
+	if blk.Type == "omml-nor" {
+		return
+	}
 	role := blk.SemanticRole()
 	if role == "" {
 		role = typeToRole[blk.Type]

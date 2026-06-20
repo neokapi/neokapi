@@ -208,6 +208,12 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 // type, not its source-format Data, so the same Markdown results whatever the
 // source format.
 func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
+	// "omml-nor" blocks are the translatable prose spans of an OpenXML equation,
+	// surfaced for docx write-back; their text is already in the formula's LaTeX,
+	// so skip them in cross-format output to avoid duplication.
+	if block.Type == "omml-nor" {
+		return nil
+	}
 	text := renderInlineMarkdown(w.blockRuns(block))
 
 	if !w.firstBlock {

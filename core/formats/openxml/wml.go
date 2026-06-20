@@ -2714,14 +2714,19 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				if isEmptyRuns(merged) {
 					// A paragraph whose only content is an OMML equation
 					// (an <m:oMath>/<m:oMathPara> direct <w:p> child with no
-					// translatable text) is written to skeleton verbatim below.
-					// When non-translatable-content surfacing is on, ALSO emit a
-					// detached non-translatable RoleFormula block carrying the
-					// equation's portable LaTeX/MathML so cross-format export
-					// (markdown/DocLang) can render it. The block is NOT
-					// skeleton-referenced, so docx round-trip (which replays the
-					// paragraph bytes from skeleton) stays byte-exact; parity
-					// forces the flag off, so the part stream is unchanged there.
+					// translatable text) is written to skeleton below — verbatim for
+					// pure math, or as a sub-skeleton (writeOMathSubSkeleton, via the
+					// writeRunToSkel intercept) that makes any embedded <m:nor/> prose
+					// translatable when non-translatable-content surfacing is on.
+					//
+					// When that flag is on, ALSO emit a detached non-translatable
+					// RoleFormula block carrying the equation's portable LaTeX/MathML
+					// so cross-format export (markdown/DocLang) can render the whole
+					// formula — the nor prose travels inside the LaTeX as \text{…}.
+					// This block is NOT skeleton-referenced, so the docx round-trip
+					// (which replays the paragraph bytes / nor refs from skeleton)
+					// stays byte-exact; parity forces the flag off, so the part stream
+					// is unchanged there.
 					if p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
 						for _, r := range merged {
 							if r.data == "" || !strings.HasPrefix(r.data, "<m:oMath") {
@@ -2740,15 +2745,6 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 								ID: "c1", Type: TypeOpaqueParaChild, SubType: SubTypeOMath,
 								Data: r.data, Equiv: equiv, Disp: disp,
 							}}}
-							// Surface any natural-language prose embedded in the
-							// equation (<m:nor/> runs: "where", "otherwise", units)
-							// as notes, so it is visible to ingestion alongside the
-							// math. (Translating it back into the .docx OMML is a
-							// separate sub-skeleton change; the splice engine —
-							// math.SpliceNorText — is ready for it.)
-							for _, nt := range ommlNorTexts(r.data) {
-								blk.AddNote(&model.NoteAnnotation{Text: nt, From: "math", Annotates: "general"})
-							}
 							emitBlock(blk)
 						}
 					}
@@ -6204,6 +6200,18 @@ func runToXML(r textRun) string {
 // Okapi would have translated it ("ßĩĺď 1" under pseudo-translation),
 // producing structural-but-semantic divergence.
 func (p *wmlParser) writeRunToSkel(r textRun, partPath string, emitBlock func(*model.Block)) {
+	// A paragraph-direct OMML equation (captured as a paragraph-opaque sentinel
+	// run, sentinelParaOpaque + the raw <m:oMath…> payload): when
+	// non-translatable-content surfacing is on, write it as a sub-skeleton so any
+	// embedded <m:nor/> prose is translatable and splices back on write (no-op /
+	// byte-exact when nothing is translated). Falls through to the verbatim path
+	// when there is no prose.
+	if p.cfg != nil && p.cfg.ExtractNonTranslatableContent() &&
+		strings.HasPrefix(r.text, sentinelParaOpaque) && strings.HasPrefix(r.data, "<m:oMath") {
+		if p.writeOMathSubSkeleton(r.data, emitBlock) {
+			return
+		}
+	}
 	// For opaque sentinel runs with captured data, do attribute
 	// extraction. Otherwise, fall back to the simple runToXML path.
 	isOpaque := strings.HasPrefix(r.text, "") || strings.HasPrefix(r.text, "")
