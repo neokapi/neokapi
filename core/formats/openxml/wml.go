@@ -4984,9 +4984,18 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if strings.HasPrefix(run.data, "<mc:AlternateContent") {
 				subType = SubTypeAlternateContentParaChild
 			}
+			// Surface OMML equations as portable LaTeX in the placeholder's
+			// Equiv, so cross-format writers (markdown/DocLang) render the math
+			// while docx round-trip still replays the opaque OMML from Ph.Data.
+			// Equiv is not part of the byte-exact/parity rendering (which uses
+			// Ph.Data), so this is round-trip- and parity-safe.
+			equiv, disp := "", ""
+			if subType == SubTypeOMath && p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
+				equiv, disp = ommlToMathEquiv(run.data)
+			}
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeOpaqueParaChild, subType,
-				run.data, "", "",
+				run.data, equiv, disp,
 				false, false, false)
 			continue
 		}

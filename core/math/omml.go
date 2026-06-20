@@ -13,9 +13,17 @@ const mathNS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
 
 type parser struct{ dec *xml.Decoder }
 
-// parseOMML decodes an <m:oMath>/<m:oMathPara> fragment into a Math AST.
+// wprNS is the WordprocessingML namespace (run/paragraph props embedded in OMML).
+const wprNS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+// parseOMML decodes an <m:oMath>/<m:oMathPara> fragment into a Math AST. An OMML
+// subtree captured from a .docx carries no namespace declarations of its own
+// (they sit on an ancestor), so we wrap it in a root that binds the m: and w:
+// prefixes before decoding — otherwise the prefixes are unbound and nothing
+// resolves to the math namespace.
 func parseOMML(raw []byte) (*Math, error) {
-	p := &parser{dec: xml.NewDecoder(bytes.NewReader(raw))}
+	wrapped := `<ommlRoot xmlns:m="` + mathNS + `" xmlns:w="` + wprNS + `">` + string(raw) + `</ommlRoot>`
+	p := &parser{dec: xml.NewDecoder(bytes.NewReader([]byte(wrapped)))}
 	for {
 		tok, err := p.dec.Token()
 		if errors.Is(err, io.EOF) {
