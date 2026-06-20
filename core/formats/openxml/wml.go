@@ -2712,6 +2712,37 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// markup survives the round-trip — losing
 				// <w:drawing> here is the bug fixed in #590.
 				if isEmptyRuns(merged) {
+					// A paragraph whose only content is an OMML equation
+					// (an <m:oMath>/<m:oMathPara> direct <w:p> child with no
+					// translatable text) is written to skeleton verbatim below.
+					// When non-translatable-content surfacing is on, ALSO emit a
+					// detached non-translatable RoleFormula block carrying the
+					// equation's portable LaTeX/MathML so cross-format export
+					// (markdown/DocLang) can render it. The block is NOT
+					// skeleton-referenced, so docx round-trip (which replays the
+					// paragraph bytes from skeleton) stays byte-exact; parity
+					// forces the flag off, so the part stream is unchanged there.
+					if p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
+						for _, r := range merged {
+							if r.data == "" || !strings.HasPrefix(r.data, "<m:oMath") {
+								continue
+							}
+							equiv, disp := ommlToMathEquiv(r.data)
+							if equiv == "" {
+								continue
+							}
+							*p.blockCounter++
+							blk := model.NewBlock(fmt.Sprintf("tu%d", *p.blockCounter), "")
+							blk.Translatable = false
+							blk.Type = "math"
+							blk.SetSemanticRole(model.RoleFormula, 0)
+							blk.Source = []model.Run{{Ph: &model.PlaceholderRun{
+								ID: "c1", Type: TypeOpaqueParaChild, SubType: SubTypeOMath,
+								Data: r.data, Equiv: equiv, Disp: disp,
+							}}}
+							emitBlock(blk)
+						}
+					}
 					// Field-straddle absorption (fldChar-end-only
 					// paragraph). When the previous paragraph buffered
 					// itself as a `pendingFieldBlock` (display content
