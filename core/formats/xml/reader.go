@@ -1461,9 +1461,13 @@ func (s *xmlParseState) handleComment(t xml.Comment) {
 		}})
 	} else {
 		s.dataCounter++
+		// Carry the comment text on the Data so an ingestion consumer can see it
+		// (the bytes already round-trip via the skeleton). Parity compares only
+		// Data.ID, so this is parity-safe and needs no flag.
 		data := &model.Data{
-			ID:   "d" + strconv.Itoa(s.dataCounter),
-			Name: "comment",
+			ID:         "d" + strconv.Itoa(s.dataCounter),
+			Name:       "comment",
+			Properties: map[string]string{"raw": "<!--" + string(t) + "-->"},
 		}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
 	}

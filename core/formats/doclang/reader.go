@@ -228,6 +228,11 @@ func (r *Reader) dispatchChild(ctx context.Context, ch chan<- model.PartResult, 
 		// GeometryAnnotation.Page = currentPage. The element is empty.
 		r.currentPage++
 		return dec.Skip()
+	case name == "caption" && r.cfg.ExtractNonTranslatableContent:
+		// Surface a figure/picture/container caption as a non-translatable
+		// RoleCaption content block (visible to ingestion, skipped by MT) rather
+		// than dropping it. The writer already round-trips RoleCaption.
+		return r.parseBlock(ctx, ch, dec, el, model.RoleCaption, false)
 	case name == "head" || headElem[name]:
 		return dec.Skip()
 	case name == "checkbox":
@@ -245,7 +250,7 @@ func (r *Reader) dispatchChild(ctx context.Context, ch chan<- model.PartResult, 
 		if parent == "list" && name == "text" {
 			role = model.RoleListItem // a <text> inside a <list> is an item
 		}
-		return r.parseBlock(ctx, ch, dec, el, role)
+		return r.parseBlock(ctx, ch, dec, el, role, true)
 	}
 }
 
@@ -290,6 +295,19 @@ func (r *Reader) parseContainer(ctx context.Context, ch chan<- model.PartResult,
 		switch el := tok.(type) {
 		case xml.StartElement:
 			n := el.Name.Local
+			if n == "caption" && r.cfg.ExtractNonTranslatableContent {
+				// Surface the container's caption as a non-translatable RoleCaption
+				// content block inside the group (visible to ingestion, skipped by
+				// MT). Other head elements (e.g. a picture's <label> subclass) are
+				// still drained below before the body.
+				if !ensure() {
+					return context.Canceled
+				}
+				if err := r.parseBlock(ctx, ch, dec, el, model.RoleCaption, false); err != nil {
+					return err
+				}
+				continue
+			}
 			if !emitted && containerHeadElem[n] {
 				// Picture chart kind rides in a leading <label value="bar_chart"/>;
 				// it refines the bounded class subclass.
@@ -344,7 +362,7 @@ func (r *Reader) parseCheckbox(ctx context.Context, ch chan<- model.PartResult, 
 
 // parseBlock parses a block-level element: its element head (layer + location)
 // and its inline body, emitting one PartBlock with role, geometry, and layer.
-func (r *Reader) parseBlock(ctx context.Context, ch chan<- model.PartResult, dec *xml.Decoder, start xml.StartElement, role string) error {
+func (r *Reader) parseBlock(ctx context.Context, ch chan<- model.PartResult, dec *xml.Decoder, start xml.StartElement, role string, translatable bool) error {
 	elem := start.Name.Local
 	level := 0
 	if elem == "heading" || elem == "field_heading" {
@@ -430,6 +448,7 @@ func (r *Reader) parseBlock(ctx context.Context, ch chan<- model.PartResult, dec
 	block := model.NewRunsBlock(fmt.Sprintf("b%d", r.blockCounter), runs)
 	block.SourceLocale = r.locale()
 	block.Type = elem
+	block.Translatable = translatable
 	if role != "" {
 		block.SetSemanticRole(role, level)
 	}
@@ -491,7 +510,7 @@ type otslTok struct {
 // wrapping per-row Groups of cell Blocks, each origin carrying ColSpan/RowSpan
 // and (for headers) its OTSL sub-kind.
 func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec *xml.Decoder, start xml.StartElement) error {
-	grid, err := r.scanOTSLGrid(dec)
+	grid, caption, err := r.scanOTSLGrid(dec)
 	if err != nil {
 		return err
 	}
@@ -500,6 +519,20 @@ func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec
 	tid := fmt.Sprintf("g%d", r.groupCounter)
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: start.Name.Local, Type: start.Name.Local}}) {
 		return context.Canceled
+	}
+
+	// Surface the table/index caption as a non-translatable RoleCaption content
+	// block inside the group (visible to ingestion, skipped by MT).
+	if caption = strings.TrimSpace(caption); caption != "" && r.cfg.ExtractNonTranslatableContent {
+		r.blockCounter++
+		cb := model.NewBlock(fmt.Sprintf("b%d", r.blockCounter), caption)
+		cb.SourceLocale = r.locale()
+		cb.Type = "caption"
+		cb.Translatable = false
+		cb.SetSemanticRole(model.RoleCaption, 0)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: cb}) {
+			return context.Canceled
+		}
 	}
 
 	at := func(rr, cc int) string {
@@ -565,9 +598,10 @@ func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec
 // scanOTSLGrid reads the OTSL token stream of the current table/index up to its
 // closing EndElement, returning the row-major token grid. Cell content (text and
 // the inner text of a <text> wrapper) attaches to the most recent origin cell.
-func (r *Reader) scanOTSLGrid(dec *xml.Decoder) ([][]otslTok, error) {
+func (r *Reader) scanOTSLGrid(dec *xml.Decoder) ([][]otslTok, string, error) {
 	var grid [][]otslTok
 	var row []otslTok
+	var caption strings.Builder
 	last := -1 // index of the current content-bearing cell in row
 	flushRow := func() {
 		grid = append(grid, row)
@@ -577,7 +611,7 @@ func (r *Reader) scanOTSLGrid(dec *xml.Decoder) ([][]otslTok, error) {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		switch el := tok.(type) {
 		case xml.StartElement:
@@ -587,35 +621,39 @@ func (r *Reader) scanOTSLGrid(dec *xml.Decoder) ([][]otslTok, error) {
 				row = append(row, otslTok{name: n})
 				last = len(row) - 1
 				if err := dec.Skip(); err != nil {
-					return nil, err
+					return nil, "", err
 				}
 			case otslContinuation[n]:
 				row = append(row, otslTok{name: n})
 				last = -1 // continuations carry no content
 				if err := dec.Skip(); err != nil {
-					return nil, err
+					return nil, "", err
 				}
 			case n == "nl":
 				flushRow()
 				if err := dec.Skip(); err != nil {
-					return nil, err
+					return nil, "", err
 				}
 			case n == "text":
 				if last >= 0 {
 					row[last].text += readInnerText(dec)
 				} else if err := dec.Skip(); err != nil {
-					return nil, err
+					return nil, "", err
 				}
-			default: // element head / caption / nested — skip
+			case n == "caption":
+				// Capture the table/index caption so parseTable can surface it as
+				// non-translatable content (it would otherwise be dropped here).
+				caption.WriteString(readInnerText(dec))
+			default: // element head / nested — skip
 				if err := dec.Skip(); err != nil {
-					return nil, err
+					return nil, "", err
 				}
 			}
 		case xml.EndElement: // </table>/</index>
 			if len(row) > 0 {
 				flushRow() // a final row not terminated by <nl/>
 			}
-			return grid, nil
+			return grid, caption.String(), nil
 		case xml.CharData:
 			if last >= 0 {
 				row[last].text += string(el)
