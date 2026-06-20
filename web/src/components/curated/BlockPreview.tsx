@@ -112,7 +112,7 @@ const LazyBlockPreview = React.lazy(async () => {
         const path = ensureSample(runtime, sample);
         const abs = resolveInCwd(runtime, path);
         setResolvedPath(abs);
-        runtime.preview(abs).then((r) => {
+        void runtime.preview(abs).then((r) => {
           if (!cancelled) setData(r);
         });
       } catch (e) {

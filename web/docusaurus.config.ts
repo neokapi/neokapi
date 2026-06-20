@@ -225,7 +225,10 @@ const config: Config = {
     function devServerOverlayFilter() {
       return {
         name: "dev-server-overlay-filter",
-        configureWebpack() {
+        // Docusaurus merges this into the dev-server config; `devServer` isn't on
+        // webpack's base Configuration type (webpack-dev-server augments it), so
+        // widen the return type to carry it.
+        configureWebpack(): import("webpack").Configuration & { devServer?: unknown } {
           return {
             devServer: {
               client: {

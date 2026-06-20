@@ -14,8 +14,7 @@ interface Props {
 
 function SourceBadge({ source }: { source: ReferenceSource }) {
   const label = source === "okapi" ? "Okapi bridge" : source === "plugin" ? "Plugin" : "Built-in";
-  const cls =
-    source === "okapi" || source === "plugin" ? styles.sourceOkapi : styles.sourceBuiltin;
+  const cls = source === "okapi" || source === "plugin" ? styles.sourceOkapi : styles.sourceBuiltin;
   return <span className={`${styles.sourceBadge} ${cls}`}>{label}</span>;
 }
 
@@ -35,7 +34,7 @@ export default function ReferenceModal({ entry, href, onClose }: Props) {
   const pageHref = useBaseUrl(href);
 
   const copyLink = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 1500);
     });

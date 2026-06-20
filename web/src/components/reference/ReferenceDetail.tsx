@@ -91,7 +91,7 @@ export default function ReferenceDetail({ entry }: Props) {
   );
 
   const copyYaml = useCallback(() => {
-    navigator.clipboard.writeText(yamlText(yamlLines)).then(() => {
+    void navigator.clipboard.writeText(yamlText(yamlLines)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
