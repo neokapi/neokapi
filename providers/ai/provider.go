@@ -218,6 +218,13 @@ const (
 	Gemini      ProviderID = "gemini"
 	AzureOpenAI ProviderID = "azureopenai"
 	Ollama      ProviderID = "ollama"
+	// Gemma is the local, on-device Gemma 4 provider backed by the kapi-llm
+	// plugin (in-process ONNX). It needs no API key and keeps content on the
+	// machine — a free, private alternative to the paid cloud providers. The
+	// provider implementation and factory live in the cli module (it drives the
+	// plugin subprocess); the id is declared here so it is a known local
+	// provider for flow side-effect analysis.
+	Gemma ProviderID = "gemma"
 	// Demo is a deterministic, offline provider that returns illustrative
 	// (not real-model) output. Used by the browser playground so AI commands
 	// run with no API keys. See demo.go.
@@ -225,14 +232,14 @@ const (
 )
 
 // IsLocalProvider reports whether the provider keeps content on the machine:
-// Ollama serves a local model and Demo is offline, while the cloud providers
-// (Anthropic, OpenAI, Gemini, Azure OpenAI — and any unknown provider, which
-// is assumed remote fail-closed) send content to a remote endpoint. The flow
-// placement pass uses this to refine a tool's remote-source-egress side
+// Ollama and Gemma serve local models and Demo is offline, while the cloud
+// providers (Anthropic, OpenAI, Gemini, Azure OpenAI — and any unknown provider,
+// which is assumed remote fail-closed) send content to a remote endpoint. The
+// flow placement pass uses this to refine a tool's remote-source-egress side
 // effect from its configuration (AD-006).
 func IsLocalProvider(id ProviderID) bool {
 	switch id {
-	case Ollama, Demo:
+	case Ollama, Gemma, Demo:
 		return true
 	default:
 		return false

@@ -40,6 +40,19 @@ var providerEnvVars = map[string][]string{
 	"mymemory":  {"MYMEMORY_API_KEY"},
 }
 
+// keylessProviders are the local, on-device providers that never require an API
+// key. Mirrors aiprovider.IsLocalProvider (kept here to avoid an import cycle).
+var keylessProviders = map[string]bool{
+	"ollama": true,
+	"gemma":  true,
+	"demo":   true,
+}
+
+// isKeylessProvider reports whether a provider id runs locally with no key.
+func isKeylessProvider(providerType string) bool {
+	return keylessProviders[strings.ToLower(providerType)]
+}
+
 // apiKeyFromEnv returns the API key for the given provider id from the
 // environment, trying each mapped variable in order and returning the first
 // non-empty value. It returns ("", false) when the provider has no mapped
@@ -104,6 +117,15 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 			return nil, err
 		}
 		return mergeCredentials(config, resolved), nil
+	}
+
+	// Keyless local providers (Ollama, Gemma, Demo) run on-device and need no
+	// API key, so credential resolution is a no-op for them — never fail a local
+	// run by demanding a saved credential or env var. Kept in sync with
+	// aiprovider.IsLocalProvider; duplicated here (not imported) to avoid an
+	// import cycle with the provider packages, like providerEnvVars above.
+	if isKeylessProvider(inferProviderID(toolName, config)) {
+		return config, nil
 	}
 
 	// Environment-variable fallback: when no inline key and no --credential,
