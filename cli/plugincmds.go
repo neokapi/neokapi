@@ -570,7 +570,7 @@ func writeDoctorReport(w io.Writer, p *pluginhost.Plugin, res doctorResult) {
 	}
 	if res.output != "" {
 		fmt.Fprintln(w, "  self-check output:")
-		for _, line := range strings.Split(res.output, "\n") {
+		for line := range strings.SplitSeq(res.output, "\n") {
 			fmt.Fprintf(w, "    %s\n", line)
 		}
 	}
