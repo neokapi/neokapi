@@ -117,7 +117,10 @@ func TestRead_ExtractImageTitleButNotAltText(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testFencedCodeBlockWithHtmlEntity
 func TestRead_FencedCodeBlockWithHtmlEntity(t *testing.T) {
-	parts := readParts(t, "```\n&amp; entity\n```\n")
+	// Okapi-faithful config: code stays opaque Data.
+	parts := readPartsWithConfig(t, "```\n&amp; entity\n```\n", func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	require.NotEmpty(t, parts)
 	assert.True(t, hasDataNamed(parts, "code-block"), "fenced code should be data")
 }
@@ -360,7 +363,10 @@ func TestRead_RunQuotedFencedCodeBlock(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testTabIndentedCodeBlock
 func TestRead_TabIndentedCodeBlock(t *testing.T) {
-	parts := readParts(t, "\tcode line 1\n\tcode line 2\n")
+	// Okapi-faithful config: code stays opaque Data.
+	parts := readPartsWithConfig(t, "\tcode line 1\n\tcode line 2\n", func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	require.NotEmpty(t, parts)
 	assert.True(t, hasDataNamed(parts, "code-block"), "tab-indented code should be data")
 }

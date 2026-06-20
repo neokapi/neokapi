@@ -1258,6 +1258,10 @@
           "title": "Comment Columns",
           "description": "Column indices (0-based) that contain comments or notes"
         },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts."
+        },
         "hasHeader": {
           "title": "Has Header Row",
           "description": "If true, the first row is treated as headers (non-translatable)"
@@ -1341,6 +1345,10 @@
           "title": "Code finder rules",
           "description": "Regex patterns that match inline codes within translatable text"
         },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as \\code…\\endcode and \\verbatim…\\endverbatim region bodies is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
         "preserveWhitespace": {
           "title": "Preserve whitespace",
           "description": "Preserve original whitespace in extracted comment text instead of normalizing it"
@@ -1402,6 +1410,10 @@
         "elements": {
           "title": "Element Rules",
           "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), renderable non-translatable contextual content -- the \u003cnoscript\u003e fallback subtree and JSON data islands (\u003cscript type=\"application/ld+json\"|\"application/json\"\u003e) -- is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable \u003cscript\u003e and \u003cstyle\u003e always stay opaque."
         },
         "parser": {
           "title": "Parser behavior",
@@ -1505,6 +1517,10 @@
           "title": "Extract strings without associated key",
           "description": "Extract string values in arrays (without keys) as translatable blocks."
         },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
         "extractionRules": {
           "title": "Extraction rules",
           "description": "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified."
@@ -1594,6 +1610,10 @@
         "codeFinderRules": {
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
         "frontMatterKeys": {
           "title": "Front Matter Keys",
@@ -1903,6 +1923,10 @@
         "application/x-php"
       ],
       "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), skipped PHP string literals are surfaced as non-translatable content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep them in skeleton."
+        },
         "extractOutsideDirectives": {
           "title": "Extract outside the scope of the directives",
           "description": "Extract translatable strings found outside directive-controlled regions."
@@ -2155,6 +2179,10 @@
           "title": "Escape line breaks",
           "description": "When true, \u003cbr/\u003e elements are removed and text is joined with spaces; when false, \u003cbr/\u003e is preserved as literal text."
         },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
         "maxCharsPerLine": {
           "title": "Max characters per line",
           "description": "Maximum number of characters per line in output. Set to 0 to disable."
@@ -2230,6 +2258,10 @@
           "title": "Max characters per line for CJK",
           "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable."
         },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior."
+        },
         "maxCharsPerLine": {
           "title": "Max characters per line",
           "description": "Maximum number of characters per line in output. Set to 0 to disable."
@@ -2254,6 +2286,10 @@
         "text/x-wiki"
       ],
       "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as DokuWiki \u003ccode\u003e/\u003cfile\u003e/\u003chtml\u003e/\u003cphp\u003e block bodies and indented code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
         "preserveWhitespace": {
           "title": "Preserve Whitespace",
           "description": "Preserve original whitespace in wiki markup instead of normalizing it."
@@ -2455,6 +2491,10 @@
         "excludedElements": {
           "title": "Excluded elements",
           "description": "Element names whose content is excluded from extraction"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code/pre subtrees is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
         "groupElements": {
           "title": "Group elements",

@@ -14,10 +14,20 @@ import (
 
 func xmlSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
+	return xmlSkeletonRoundtripCfg(t, input, nil)
+}
+
+// xmlSkeletonRoundtripCfg is xmlSkeletonRoundtrip with an explicit reader
+// config (used by the #928 non-translatable-content round-trip tests).
+func xmlSkeletonRoundtripCfg(t *testing.T, input string, cfg *xmlfmt.Config) string {
+	t.Helper()
 	ctx := t.Context()
 
 	reader := xmlfmt.NewReader()
 	writer := xmlfmt.NewWriter()
+	if cfg != nil {
+		require.NoError(t, reader.SetConfig(cfg))
+	}
 
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)

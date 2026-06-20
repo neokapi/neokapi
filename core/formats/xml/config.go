@@ -325,8 +325,33 @@ type Config struct {
 	// CodeFinderRules are regex patterns that match inline codes.
 	CodeFinderRules []string
 
+	// disableNonTranslatableContent, when set, keeps non-translatable
+	// contextual content (whitelist-excluded element text and verbatim
+	// code/pre subtrees) in opaque skeleton / contentless Data instead of
+	// surfacing it as non-translatable content blocks (visible to
+	// ingestion/LLM consumers, skipped by MT). Zero value = surfacing ON
+	// (the opt-out default). Inverted so the default is ON regardless of
+	// how the Config is constructed.
+	disableNonTranslatableContent bool
+
 	// compiledCodeFinder caches compiled regex patterns.
 	compiledCodeFinder []*regexp.Regexp
+}
+
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (whitelist-excluded element text, config-excluded code/pre
+// subtrees) is surfaced as Block{Translatable:false} content blocks rather
+// than buried in opaque skeleton / contentless Data. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks. The parity runner type-asserts this
+// method and forces it false so the native reader matches the Okapi bridge,
+// which keeps such content in skeleton.
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
 }
 
 // FormatName returns the format this config applies to.
@@ -349,6 +374,7 @@ func (c *Config) Reset() {
 	c.IDAttributeNames = nil
 	c.UseCodeFinder = false
 	c.CodeFinderRules = nil
+	c.disableNonTranslatableContent = false
 	c.compiledCodeFinder = nil
 }
 
@@ -468,6 +494,10 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
+		case "extractNonTranslatableContent":
+			if v, ok := val.(bool); ok {
+				c.disableNonTranslatableContent = !v
+			}
 		case "parser":
 			m, ok := val.(map[string]any)
 			if !ok {

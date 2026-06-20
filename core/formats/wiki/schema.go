@@ -21,7 +21,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "syntax",
 				Label: "Syntax",
 				Fields: []string{
-					"variant", "preserveWhitespace",
+					"variant", "preserveWhitespace", "extractNonTranslatableContent",
 				},
 			},
 		},
@@ -41,6 +41,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Preserve Whitespace",
 				Default:     false,
 				Description: "Preserve original whitespace in wiki markup instead of normalizing it.",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as DokuWiki <code>/<file>/<html>/<php> block bodies and indented code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 		},
 	}

@@ -325,7 +325,16 @@ func (w *Writer) writeTokenObject(out *strings.Builder, tokens []token, pos *int
 				childPath = parentPath + "." + key
 			}
 			w.writeTokenValue(out, tokens, pos, childPath, blocks, childLayerValues)
+			continue
 		}
+
+		// Unexpected token inside an object — only reachable on malformed input
+		// that the lenient scanner accepted. Emit it verbatim and advance so the
+		// writer always makes progress (mirrors the reader's walkTokenObject and
+		// avoids an infinite loop / hang).
+		out.WriteString(tok.prefix)
+		out.WriteString(tok.raw)
+		*pos++
 	}
 }
 

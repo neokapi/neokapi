@@ -24,6 +24,17 @@ type Config struct {
 	// (Named extractStandalone in Java, extractIsolatedStrings in fprm.)
 	ExtractIsolatedStrings bool
 
+	// disableNonTranslatableContent, when set, keeps non-translatable
+	// contextual string content — isolated array strings (when
+	// ExtractIsolatedStrings is off) and values excluded by the extraction
+	// rules (Exceptions/ExtractionRules/ExtractAllPairs=false) — in opaque
+	// skeleton/Data instead of surfacing it as Block{Translatable:false}
+	// content (visible to ingestion/LLM consumers, still skipped by MT). Zero
+	// value = surfacing ON (the opt-out default), regardless of how the Config
+	// is constructed. Orthogonal to the extraction rules, which only decide
+	// whether a value is *translatable*.
+	disableNonTranslatableContent bool
+
 	// UseKeyAsName uses the JSON key as the block name. Defaults to true.
 	UseKeyAsName bool
 
@@ -122,6 +133,21 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// string content (isolated array strings, values excluded by extraction rules)
+// is surfaced as Block{Translatable:false} content rather than buried in
+// skeleton/Data. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
+
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
@@ -144,6 +170,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("%s: expected bool, got %T", key, val)
 			}
 			c.ExtractIsolatedStrings = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		case "useKeyAsName":
 			b, ok := val.(bool)
 			if !ok {

@@ -31,7 +31,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 					"translatableElements", "translatableAttributes",
 					"excludeByDefault", "inlineElements", "excludedElements",
 					"preserveWhitespaceElements", "groupElements",
-					"idAttributes",
+					"idAttributes", "extractNonTranslatableContent",
 				},
 			},
 			{
@@ -106,6 +106,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "array",
 				Title:       "ID attributes",
 				Description: "Attribute names used to extract block IDs from elements",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code/pre subtrees is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 
 			// Advanced

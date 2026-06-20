@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	jsonfmt "github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -590,4 +591,174 @@ func TestReadDeeplyNested(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "deep", blocks[0].SourceText())
 	assert.Equal(t, "a.b.c.d", blocks[0].Name)
+}
+
+// partsByKind splits emitted parts into translatable blocks, non-translatable
+// content blocks, and Data parts — the three buckets the
+// extractNonTranslatableContent flag moves content between.
+func partsByKind(parts []*model.Part) (translatable, content []*model.Block, data []*model.Data) {
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartBlock:
+			if b, ok := p.Resource.(*model.Block); ok {
+				if b.Translatable {
+					translatable = append(translatable, b)
+				} else {
+					content = append(content, b)
+				}
+			}
+		case model.PartData:
+			if d, ok := p.Resource.(*model.Data); ok {
+				data = append(data, d)
+			}
+		}
+	}
+	return translatable, content, data
+}
+
+// By default (extractNonTranslatableContent on), isolated string values in an
+// array — not extracted for translation — surface as non-translatable content
+// blocks (visible to ingestion/LLM consumers, skipped by MT) instead of opaque
+// textless Data parts.
+func TestReadIsolatedStringsAsContent(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	input := `{"tags": ["alpha", "beta"]}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	assert.Empty(t, translatable, "isolated strings are never translatable by default")
+	require.Len(t, content, 2, "both isolated strings surface as non-translatable content")
+	assert.Empty(t, data, "isolated strings no longer fall through to textless Data")
+
+	byName := map[string]*model.Block{}
+	for _, b := range content {
+		byName[b.Name] = b
+	}
+	for _, name := range []string{"tags[0]", "tags[1]"} {
+		b := byName[name]
+		require.NotNil(t, b, "expected content block for %s", name)
+		assert.False(t, b.Translatable)
+		assert.Empty(t, b.SemanticRole(), "plain string value carries no special role")
+	}
+	assert.Equal(t, "alpha", byName["tags[0]"].SourceText())
+	assert.Equal(t, "beta", byName["tags[1]"].SourceText())
+}
+
+// With extractNonTranslatableContent off (the Okapi-faithful config), isolated
+// array strings stay opaque textless Data — byte-identical to the prior default.
+func TestReadIsolatedStringsAsDataWhenDisabled(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractNonTranslatableContent": false,
+	}))
+	input := `{"tags": ["alpha", "beta"]}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	assert.Empty(t, translatable)
+	assert.Empty(t, content, "no content blocks surface when surfacing is disabled")
+	require.Len(t, data, 2, "isolated strings stay as textless Data")
+	names := []string{data[0].Name, data[1].Name}
+	assert.Contains(t, names, "tags[0]")
+	assert.Contains(t, names, "tags[1]")
+}
+
+// By default, a value excluded from extraction (here via the exceptions regex)
+// surfaces as a non-translatable content block while the extracted sibling stays
+// translatable.
+func TestReadExcludedValueAsContent(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"exceptions": "^_internal$",
+	}))
+	input := `{"keep": "Hi", "_internal": "secret"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Hi", translatable[0].SourceText())
+	assert.Equal(t, "keep", translatable[0].Name)
+
+	require.Len(t, content, 1, "the excluded value surfaces as one non-translatable content block")
+	assert.False(t, content[0].Translatable)
+	assert.Equal(t, "secret", content[0].SourceText())
+	assert.Equal(t, "_internal", content[0].Name)
+	assert.Empty(t, content[0].SemanticRole())
+
+	assert.Empty(t, data, "excluded value no longer falls through to textless Data")
+}
+
+// TestWriterTerminatesOnUnexpectedObjectToken guards against a writer hang:
+// when leniently-parsed malformed input leaves a non-string, non-comma,
+// non-close token at the head of an object, writeTokenObject must still advance
+// (emit it verbatim) instead of spinning forever. Reconstruction runs on the
+// stored original (no skeleton store).
+func TestWriterTerminatesOnUnexpectedObjectToken(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// `]` inside the object (after a complete pair) is the unexpected token.
+	input := `{"a": "b", ] }`
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	writer := jsonfmt.NewWriter()
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	done := make(chan error, 1)
+	go func() { done <- writer.Write(ctx, testutil.PartsToChannel(parts)) }()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+		writer.Close()
+		// The extracted value round-trips and the stray token is preserved.
+		assert.Contains(t, buf.String(), `"b"`)
+		assert.Contains(t, buf.String(), `]`)
+	case <-time.After(10 * time.Second):
+		t.Fatal("writer.Write did not terminate on malformed object input")
+	}
+}
+
+// With surfacing disabled, an excluded value stays opaque textless Data —
+// byte-identical to the prior default.
+func TestReadExcludedValueAsDataWhenDisabled(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"exceptions":                    "^_internal$",
+		"extractNonTranslatableContent": false,
+	}))
+	input := `{"keep": "Hi", "_internal": "secret"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Hi", translatable[0].SourceText())
+	assert.Empty(t, content)
+	require.Len(t, data, 1, "excluded value stays as textless Data")
+	assert.Equal(t, "_internal", data[0].Name)
 }

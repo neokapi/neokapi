@@ -73,11 +73,15 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// vttCue represents a single VTT cue (subtitle entry).
+// vttCue represents a single VTT cue (subtitle entry). When isStyle is set the
+// "cue" is actually a WebVTT STYLE block whose embedded CSS lives in text; the
+// reader surfaces it as a non-translatable RoleCode content block rather than a
+// translatable subtitle.
 type vttCue struct {
 	identifier string
 	timecode   string
 	text       string
+	isStyle    bool
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -99,9 +103,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	if r.skeletonStore != nil {
-		r.readContentSkeleton(ctx, ch)
+		r.readContentSkeleton(ctx, ch, locale)
 	} else {
-		r.readContentSimple(ctx, ch)
+		r.readContentSimple(ctx, ch, locale)
 	}
 
 	r.skelFlush()
@@ -109,7 +113,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult) {
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID) {
 	cues, header := r.parseCues()
 
 	dataCounter := 0
@@ -128,14 +132,30 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 	}
 
 	blockCounter := 0
+	cueIndex := 0
+	styleIndex := 0
 
-	for i, cue := range cues {
+	for _, cue := range cues {
+		// STYLE block: surface the embedded CSS as a non-translatable RoleCode
+		// content block (gated by ExtractNonTranslatableContent in parseCue, so
+		// isStyle is only ever set when the flag is on).
+		if cue.isStyle {
+			styleIndex++
+			blockCounter++
+			block := newStyleBlock(fmt.Sprintf("tu%d", blockCounter), cue.text, locale, styleIndex)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+
+		cueIndex++
 		// Emit cue identifier as Data if present
 		if cue.identifier != "" {
 			dataCounter++
 			idData := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataCounter),
-				Name: fmt.Sprintf("cue-id.%d", i+1),
+				Name: fmt.Sprintf("cue-id.%d", cueIndex),
 				Properties: map[string]string{
 					"identifier": cue.identifier,
 				},
@@ -148,13 +168,13 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		// Emit cue text as Block
 		blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), cue.text)
-		block.Name = fmt.Sprintf("subtitle.%d", i+1)
+		block.Name = fmt.Sprintf("subtitle.%d", cueIndex)
 		block.Properties["timecode"] = cue.timecode
 		setBlockTiming(block, cue.timecode)
 		if cue.identifier != "" {
 			block.Properties["cue-id"] = cue.identifier
 		}
-		block.Properties["index"] = strconv.Itoa(i + 1)
+		block.Properties["index"] = strconv.Itoa(cueIndex)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
@@ -162,7 +182,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 }
 
 // readContentSkeleton reads the VTT with skeleton tracking, preserving exact bytes.
-func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID) {
 	// Read the full content to preserve exact bytes
 	data, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
@@ -175,6 +195,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	dataCounter := 0
 	blockCounter := 0
 	cueIndex := 0
+	styleIndex := 0
 
 	// Read the WEBVTT header line
 	header := ""
@@ -209,6 +230,20 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		if strings.TrimSpace(lines[lineIdx].content) == "" {
 			r.skelText(lines[lineIdx].raw)
 			lineIdx++
+			continue
+		}
+
+		// STYLE block: embedded CSS. With extraction on, surface the CSS body as
+		// a non-translatable RoleCode content block and keep the STYLE keyword in
+		// the skeleton, instead of mis-parsing the block as a cue. With
+		// extraction off, fall through to the legacy cue path so the output is
+		// byte-identical to before this change.
+		if r.cfg.ExtractNonTranslatableContent() && isStyleHeader(lines[lineIdx].content) {
+			next, ok := r.emitStyleBlockSkeleton(ctx, ch, lines, lineIdx, locale, &blockCounter, &styleIndex)
+			if !ok {
+				return
+			}
+			lineIdx = next
 			continue
 		}
 
@@ -297,6 +332,79 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	}
 }
 
+// emitStyleBlockSkeleton consumes a WebVTT STYLE block — the "STYLE" keyword
+// line followed by embedded CSS up to the next blank line / EOF — and surfaces
+// the CSS body as a single non-translatable RoleCode content block. The STYLE
+// keyword line stays in the skeleton and the CSS body rides as a skeleton ref,
+// so the block round-trips byte-exact. It returns the next line index and
+// whether emission succeeded (false = context cancelled). An empty body (STYLE
+// immediately followed by a blank line / EOF) emits nothing and leaves the
+// keyword in the skeleton.
+func (r *Reader) emitStyleBlockSkeleton(ctx context.Context, ch chan<- model.PartResult, lines []rawLine, lineIdx int, locale model.LocaleID, blockCounter, styleIndex *int) (int, bool) {
+	// STYLE keyword line → skeleton verbatim.
+	r.skelText(lines[lineIdx].raw)
+	lineIdx++
+
+	// CSS body: every line up to the next blank line or EOF.
+	var bodyLines []string
+	bodyStartIdx := lineIdx
+	for lineIdx < len(lines) && strings.TrimSpace(lines[lineIdx].content) != "" {
+		bodyLines = append(bodyLines, lines[lineIdx].content)
+		lineIdx++
+	}
+	if len(bodyLines) == 0 {
+		return lineIdx, true
+	}
+
+	// Join body lines with their original line endings (all but the last),
+	// matching the cue text-building convention so the round-trip is exact.
+	var bodyBuilder strings.Builder
+	for i, bl := range bodyLines {
+		bodyBuilder.WriteString(bl)
+		if i < len(bodyLines)-1 {
+			ending := lines[bodyStartIdx+i].lineEnding
+			if ending == "" {
+				ending = "\n"
+			}
+			bodyBuilder.WriteString(ending)
+		}
+	}
+
+	*styleIndex++
+	*blockCounter++
+	blockIDStr := fmt.Sprintf("tu%d", *blockCounter)
+	r.skelRef(blockIDStr)
+
+	// Only the last body line's ending is skeleton text (the body itself rides
+	// the ref).
+	r.skelText(lines[bodyStartIdx+len(bodyLines)-1].lineEnding)
+
+	block := newStyleBlock(blockIDStr, bodyBuilder.String(), locale, *styleIndex)
+	return lineIdx, r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// isStyleHeader reports whether line is the keyword line that opens a WebVTT
+// STYLE block. Per the WebVTT grammar the keyword sits alone on the line;
+// trailing whitespace is tolerated.
+func isStyleHeader(line string) bool {
+	return strings.TrimRight(line, " \t\f\v") == "STYLE"
+}
+
+// newStyleBlock builds the non-translatable RoleCode content block for a STYLE
+// block's embedded CSS body. The CSS is carried as a single verbatim run (no
+// inline parse), whitespace-significant, skipped by MT but visible to
+// ingestion/LLM consumers.
+func newStyleBlock(id, css string, locale model.LocaleID, index int) *model.Block {
+	block := model.NewBlock(id, css) // default Source is a single verbatim run
+	block.Name = fmt.Sprintf("style.%d", index)
+	block.Type = "style"
+	block.SourceLocale = locale
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(model.RoleCode, 0)
+	return block
+}
+
 // rawLine holds a line with its original line ending preserved.
 type rawLine struct {
 	content    string // line content without line ending
@@ -368,6 +476,25 @@ func (r *Reader) parseCues() ([]*vttCue, string) {
 // parseCue parses a single VTT cue starting from the given first non-empty line.
 func (r *Reader) parseCue(scanner *bufio.Scanner, firstLine string) *vttCue {
 	cue := &vttCue{}
+
+	// STYLE block: with extraction on, capture the embedded CSS (up to the next
+	// blank line / EOF) so it can be surfaced as a non-translatable RoleCode
+	// content block instead of being mis-parsed as a cue. With extraction off,
+	// fall through to the legacy cue path (parity).
+	if r.cfg.ExtractNonTranslatableContent() && isStyleHeader(firstLine) {
+		cue.isStyle = true
+		cue.identifier = firstLine
+		var bodyLines []string
+		for scanner.Scan() {
+			line := strings.TrimRight(scanner.Text(), "\r")
+			if strings.TrimSpace(line) == "" {
+				break
+			}
+			bodyLines = append(bodyLines, line)
+		}
+		cue.text = strings.Join(bodyLines, "\n")
+		return cue
+	}
 
 	// Determine if the first line is a timecode or a cue identifier
 	if isTimecode(firstLine) {

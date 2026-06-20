@@ -22,6 +22,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"mergeAdjacentCaptions", "escapeBR",
+					"extractNonTranslatableContent",
 				},
 			},
 			{
@@ -45,6 +46,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Escape line breaks",
 				Description: "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text.",
 				Default:     true,
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 			"maxCharsPerLine": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",

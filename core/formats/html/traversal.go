@@ -17,6 +17,13 @@ type walkVisitor interface {
 	// script/style elements, meta structure, lang attributes).
 	onData(dataID string, n *html.Node, dataName string, props map[string]string)
 
+	// onContentBlock is called for renderable non-translatable contextual
+	// content (a <noscript> fallback subtree, a JSON data island) whose body is
+	// surfaced verbatim as a Block{Translatable:false} with the given semantic
+	// role. The walker decides which elements qualify; the reader emits the
+	// content block while the writer leaves the re-parsed node untouched.
+	onContentBlock(blockID string, n *html.Node, role, body string)
+
 	// onTextBlock is called for bare text nodes that become blocks.
 	onTextBlock(blockID string, n *html.Node)
 
@@ -119,8 +126,19 @@ func (w *domWalker) walkElement(n *html.Node, translateNo bool) {
 		}
 	}
 
-	// Non-translatable elements (script, style).
+	// Non-translatable elements (script, style, noscript).
 	if nonTranslatableElements[n.DataAtom] {
+		// Surface renderable contextual content (<noscript> fallback, JSON
+		// data islands) as a non-translatable content block; generic <script>
+		// / <style> (and empty bodies) stay opaque Data.
+		if w.cfg.ExtractNonTranslatableContent() {
+			if role, ok := nonTranslatableContentRole(n.DataAtom, getAttr(n, "type")); ok {
+				if body := rawTextContent(n); body != "" {
+					w.visitor.onContentBlock(w.nextBlockID(), n, role, body)
+					return
+				}
+			}
+		}
 		w.visitor.onData(w.nextDataID(), n, n.Data, nil)
 		return
 	}

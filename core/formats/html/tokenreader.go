@@ -599,6 +599,16 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 
 	if nonTranslatableElements[a] {
 		s.onStructuralEvent()
+		// Surface renderable contextual content (<noscript> fallback, JSON data
+		// islands) as a non-translatable content block riding a skeleton ref;
+		// generic <script> / <style> (and empty bodies) stay opaque Data.
+		if s.reader.cfg.ExtractNonTranslatableContent() {
+			if role, ok := nonTranslatableContentRole(a, getTokenAttr(attrs, "type")); ok {
+				s.emitNonTranslatableContent(tokenizer, raw, tag, attrs, role, ctx, ch)
+				*stack = append(*stack, info)
+				return
+			}
+		}
 		_ = s.store.WriteText(raw)
 		s.reader.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
@@ -1361,6 +1371,82 @@ func (s *tokenReaderState) consumeUntilClose(tokenizer *html.Tokenizer, tag stri
 			}
 		}
 	}
+}
+
+// emitNonTranslatableContent surfaces a renderable non-translatable element's
+// body (a <noscript> fallback subtree, a JSON data island) as a
+// Block{Translatable:false} carrying a single verbatim run with the given
+// semantic role — visible to ingestion/LLM consumers, skipped by MT. The start
+// tag and close tag stay in skeleton and the body rides a skeleton ref, so the
+// element round-trips byte-exact. An empty body falls back to the opaque path
+// (delimiters only, no block). startTagRaw is the element's already-read start
+// tag bytes.
+func (s *tokenReaderState) emitNonTranslatableContent(tokenizer *html.Tokenizer, startTagRaw []byte, tag string, attrs []html.Attribute, role string, ctx context.Context, ch chan<- model.PartResult) {
+	// Start tag stays skeleton.
+	_ = s.store.WriteText(startTagRaw)
+
+	body, closeTag := s.consumeRawBody(tokenizer, tag)
+	if len(body) == 0 {
+		// Empty element: nothing to surface; keep delimiters in skeleton.
+		if closeTag != nil {
+			_ = s.store.WriteText(closeTag)
+		}
+		return
+	}
+
+	blockID := s.nextBlockID()
+	block := model.NewBlock(blockID, string(body)) // single verbatim run
+	block.Name = tag
+	block.Type = tag
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(role, 0)
+	if t := getTokenAttr(attrs, "type"); t != "" {
+		block.Properties["type"] = t
+	}
+
+	_ = s.store.WriteRef(blockID)
+	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+	if closeTag != nil {
+		_ = s.store.WriteText(closeTag)
+	}
+}
+
+// consumeRawBody consumes tokens until the matching close tag, returning the
+// inner body bytes (everything before the close tag) and the close tag bytes
+// separately — so a non-translatable content block can ride the body via a
+// skeleton ref while the close tag stays skeleton. Nested same-name tags are
+// balanced; an unterminated element returns a nil close tag (body holds the
+// remaining bytes).
+func (s *tokenReaderState) consumeRawBody(tokenizer *html.Tokenizer, tag string) (body, closeTag []byte) {
+	var buf bytes.Buffer
+	depth := 1
+	for depth > 0 {
+		tt := s.next(tokenizer)
+		if tt == html.ErrorToken {
+			break
+		}
+		raw := tokenizer.Raw()
+		switch tt {
+		case html.StartTagToken:
+			if name, _ := tokenizer.TagName(); string(name) == tag {
+				depth++
+			}
+			buf.Write(raw)
+		case html.EndTagToken:
+			if name, _ := tokenizer.TagName(); string(name) == tag {
+				depth--
+				if depth == 0 {
+					return buf.Bytes(), copyBytes(raw)
+				}
+			}
+			buf.Write(raw)
+		default:
+			buf.Write(raw)
+		}
+	}
+	return buf.Bytes(), nil
 }
 
 // consumeRawUntilClose consumes tokens until the matching close tag and

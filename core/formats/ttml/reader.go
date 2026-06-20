@@ -139,6 +139,14 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		captions = r.mergeCaptions(captions)
 	}
 
+	// Surface non-translatable head metadata (ttm:copyright, ttm:agent) for
+	// ingestion/LLM consumers. The original bytes are preserved verbatim in the
+	// "ttml-document" Data part above (the non-skeleton writer only swaps <p>
+	// caption text), so these blocks are purely informational here.
+	if r.cfg.ExtractNonTranslatableContent() {
+		r.emitHeadMetadataBlocks(ctx, ch, r.findHeadMetadataRanges(data), data)
+	}
+
 	r.emitCaptionBlocks(ctx, ch, captions)
 }
 
@@ -154,6 +162,15 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: docData}) {
 		return
+	}
+
+	// Non-translatable head metadata (ttm:copyright, ttm:agent) is carved out of
+	// the opaque head skeleton and surfaced as content blocks riding their own
+	// skeleton refs. Gated so that, when off, the skeleton stream is byte-for-byte
+	// what it was before (the head stays one verbatim text chunk).
+	var headRanges []headMetaRange
+	if r.cfg.ExtractNonTranslatableContent() {
+		headRanges = r.findHeadMetadataRanges(data)
 	}
 
 	// Find the byte ranges of <p> element text content in the original document.
@@ -174,29 +191,41 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		}
 	}
 
-	// Write skeleton entries based on text ranges
+	// Build one ordered list of referent byte ranges: head metadata (meta IDs)
+	// followed by body captions (tu IDs). The head always precedes the body, so
+	// the list is already sorted by start offset. With headRanges empty (flag
+	// off) this reduces to exactly the previous <p>-only stream.
+	type refRange struct {
+		start, end int
+		id         string
+	}
+	var refs []refRange
+	for i, hr := range headRanges {
+		refs = append(refs, refRange{start: hr.start, end: hr.end, id: fmt.Sprintf("meta%d", i+1)})
+	}
 	blockCounter := 0
-	pos := 0
 	for i, tr := range textRanges {
-		// Write skeleton text for bytes before this range
-		if tr.start > pos {
-			_ = r.skeletonStore.WriteText(data[pos:tr.start])
-		}
-
-		// Write skeleton ref for this <p> text content
 		if i < len(nonEmptyCaptions) {
 			blockCounter++
-			blockIDStr := fmt.Sprintf("tu%d", blockCounter)
-			_ = r.skeletonStore.WriteRef(blockIDStr)
+			refs = append(refs, refRange{start: tr.start, end: tr.end, id: fmt.Sprintf("tu%d", blockCounter)})
 		}
+	}
 
-		pos = tr.end
+	// Write skeleton entries: verbatim text between refs, a ref for each range.
+	pos := 0
+	for _, rf := range refs {
+		if rf.start > pos {
+			_ = r.skeletonStore.WriteText(data[pos:rf.start])
+		}
+		_ = r.skeletonStore.WriteRef(rf.id)
+		pos = rf.end
 	}
 	// Write remaining bytes after the last range
 	if pos < len(data) {
 		_ = r.skeletonStore.WriteText(data[pos:])
 	}
 
+	r.emitHeadMetadataBlocks(ctx, ch, headRanges, data)
 	r.emitCaptionBlocks(ctx, ch, nonEmptyCaptions)
 }
 
@@ -292,6 +321,152 @@ func findCloseTag(data []byte, start, end int, tagName string) int {
 		return -1
 	}
 	return start + idx
+}
+
+// headMetaRange is the inner-content byte range of a non-translatable head
+// metadata element (ttm:copyright or ttm:agent), with absolute offsets.
+type headMetaRange struct {
+	start int    // inclusive, byte offset of the first inner-content byte
+	end   int    // exclusive, byte offset just before the closing tag
+	elem  string // element local name: "copyright" or "agent"
+}
+
+// headSlice returns the byte slice covering <head...>...</head> in data, plus
+// the absolute byte offset of the opening "<head". Returns (nil, 0) when no
+// closed <head> element is found. Mirrors bodySlice so head parsing is scoped
+// and offsets can be reported absolutely.
+func headSlice(data []byte) ([]byte, int) {
+	src := string(data)
+	open := strings.Index(src, "<head")
+	if open < 0 {
+		return nil, 0
+	}
+	closeIdx := strings.Index(src[open:], "</head>")
+	if closeIdx < 0 {
+		return nil, 0
+	}
+	end := open + closeIdx + len("</head>")
+	return data[open:end], open
+}
+
+// findHeadMetadataRanges locates the inner-content byte ranges of the
+// ttm:copyright and ttm:agent metadata elements inside <head>. ttm:title and
+// ttm:desc are intentionally excluded (arguably translatable; out of scope).
+//
+// Parsing is scoped to the <head> slice and tolerant of malformed markup: the
+// okapi reference fixtures ship non-conformant head XML (e.g. <okp:foo> closed
+// by </lilt:foo>) that fails Go's xml.Decoder. On any decode error we stop and
+// return whatever was found so far (typically nothing), so extraction degrades
+// gracefully rather than aborting.
+func (r *Reader) findHeadMetadataRanges(data []byte) []headMetaRange {
+	head, off := headSlice(data)
+	if head == nil {
+		return nil
+	}
+	decoder := xml.NewDecoder(strings.NewReader(string(head)))
+	var ranges []headMetaRange
+
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			break // graceful stop on malformed head
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if start.Name.Local != "copyright" && start.Name.Local != "agent" {
+			continue
+		}
+		local := start.Name.Local
+		contentStart := int(decoder.InputOffset())
+
+		// Consume to the matching close tag, tracking nesting depth so a
+		// structured <ttm:agent> (with child <ttm:name> etc.) is closed at its
+		// own end tag rather than a child's.
+		depth := 1
+		malformed := false
+		for {
+			tok2, err2 := decoder.Token()
+			if err2 != nil {
+				malformed = true
+				break
+			}
+			switch tok2.(type) {
+			case xml.StartElement:
+				depth++
+			case xml.EndElement:
+				depth--
+				if depth == 0 {
+					endOffset := int(decoder.InputOffset())
+					closeStart := lastCloseTagStart(head, contentStart, endOffset)
+					if closeStart > contentStart {
+						ranges = append(ranges, headMetaRange{
+							start: contentStart + off,
+							end:   closeStart + off,
+							elem:  local,
+						})
+					}
+				}
+			}
+			if depth == 0 {
+				break
+			}
+		}
+		if malformed {
+			break
+		}
+	}
+
+	return ranges
+}
+
+// lastCloseTagStart returns the byte offset of the start of the last closing
+// tag ("</") within data[start:end). The inner content of an element ends just
+// before its (namespace-prefixed) closing tag, which is the last "</" in the
+// range; children's closing tags appear earlier. Returns -1 if none is found.
+func lastCloseTagStart(data []byte, start, end int) int {
+	if end > len(data) {
+		end = len(data)
+	}
+	if start >= end {
+		return -1
+	}
+	idx := bytes.LastIndex(data[start:end], []byte("</"))
+	if idx < 0 {
+		return -1
+	}
+	return start + idx
+}
+
+// emitHeadMetadataBlocks emits one NON-translatable content block per head
+// metadata range (ttm:copyright, ttm:agent). Each block carries the element's
+// verbatim inner content as a single run (no inline parse), is anchored to the
+// document layer, and is tagged RoleCode / LayerMetadata so ingestion/LLM
+// consumers see the contextual content while MT skips it (Translatable=false).
+// In the skeleton path these blocks ride their own refs (meta1, meta2, …) so the
+// round-trip stays byte-exact; in the non-skeleton path their bytes live in the
+// preserved document Data and the blocks are purely informational.
+func (r *Reader) emitHeadMetadataBlocks(ctx context.Context, ch chan<- model.PartResult, ranges []headMetaRange, data []byte) {
+	for i, hr := range ranges {
+		if hr.start < 0 || hr.end > len(data) || hr.start >= hr.end {
+			continue
+		}
+		text := string(data[hr.start:hr.end])
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		block := model.NewBlock(fmt.Sprintf("meta%d", i+1), text)
+		block.Name = "ttm:" + hr.elem
+		block.Type = hr.elem
+		block.Translatable = false
+		block.PreserveWhitespace = true
+		block.SetSemanticRole(model.RoleCode, 0)
+		block.SetLayoutLayer(model.LayerMetadata)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return
+		}
+	}
 }
 
 func (r *Reader) emitCaptionBlocks(ctx context.Context, ch chan<- model.PartResult, captions []*ttmlCaption) {

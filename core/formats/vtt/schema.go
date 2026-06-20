@@ -18,6 +18,13 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 		Groups: []schema.ParameterGroup{
 			{
+				ID:    "extraction",
+				Label: "Content Extraction",
+				Fields: []string{
+					"extractNonTranslatableContent",
+				},
+			},
+			{
 				ID:    "output",
 				Label: "Output settings",
 				Fields: []string{
@@ -27,6 +34,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior.",
+			}),
 			"maxCharsPerLine": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Title:       "Max characters per line",

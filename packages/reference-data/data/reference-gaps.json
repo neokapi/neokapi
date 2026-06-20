@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-19T23:22:40Z",
+  "generatedAt": "2026-06-20T08:09:33Z",
   "summary": {
     "built-in/format/description": 3,
-    "built-in/format/doc.examples": 1,
+    "built-in/format/doc.examples": 3,
     "built-in/format/doc.overview": 3,
     "built-in/tool/doc.overview": 1,
     "plugin/format/doc.overview": 1,
-    "total": 9
+    "total": 11
   },
   "gaps": [
     {
@@ -22,6 +22,13 @@
       "id": "audio",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "epub",
+      "field": "doc.examples",
+      "detail": "configurable but no worked examples"
     },
     {
       "kind": "format",
@@ -50,6 +57,13 @@
       "id": "pdf",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "tex",
+      "field": "doc.examples",
+      "detail": "configurable but no worked examples"
     },
     {
       "kind": "format",

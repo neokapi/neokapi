@@ -31,7 +31,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"translatableColumns", "keyColumns", "commentColumns",
-					"trimValues",
+					"trimValues", "extractNonTranslatableContent",
 				},
 			},
 			{
@@ -81,6 +81,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Trim Values",
 				Description: "If true, leading and trailing whitespace is removed from cell values",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
 			}),
 			"columnNamesRow": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",

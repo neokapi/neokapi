@@ -294,15 +294,38 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 		childPath := parentPath + "[" + strconv.Itoa(index) + "]"
 
 		if tok.typ == tokenString && !r.cfg.ExtractIsolatedStrings {
-			// Standalone string in array — skip extraction
-			r.skelToken(tok)
-			*pos++
-			*dataCounter++
-			data := &model.Data{
-				ID:   "d" + strconv.Itoa(*dataCounter),
-				Name: childPath,
+			if r.cfg.ExtractNonTranslatableContent() {
+				// Isolated string in an array — not extracted for translation,
+				// but surfaced as non-translatable content (visible to
+				// ingestion/LLM consumers, still skipped by MT). The quotes /
+				// delimiters stay in the skeleton (re-synthesized by the writer)
+				// and the body rides a skeleton ref, exactly like a translatable
+				// value, so the document round-trips byte-exact.
+				*blockCounter++
+				blockID := "tu" + strconv.Itoa(*blockCounter)
+				r.skelText(tok.prefix)
+				r.skelRef(blockID)
+				*pos++
+
+				block := model.NewBlock(blockID, tok.value)
+				block.Name = childPath
+				block.Translatable = false
+				if quoteOf(tok.raw) == '\'' {
+					block.Properties["json.quote"] = "'"
+				}
+				r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			} else {
+				// Standalone string in array — skip extraction (opaque Data;
+				// byte-identical to the pre-surfacing behavior).
+				r.skelToken(tok)
+				*pos++
+				*dataCounter++
+				data := &model.Data{
+					ID:   "d" + strconv.Itoa(*dataCounter),
+					Name: childPath,
+				}
+				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 		} else {
 			elemKey := keyName
 			if tok.typ == tokenObjectStart {
@@ -347,6 +370,29 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 
 	// Check extraction rules
 	if !r.cfg.shouldExtract(keyName, fullPath) {
+		if r.cfg.ExtractNonTranslatableContent() {
+			// Value excluded from translation by the extraction rules
+			// (Exceptions/ExtractionRules/ExtractAllPairs=false) — surface it as
+			// non-translatable content (visible to ingestion/LLM consumers,
+			// still skipped by MT) instead of opaque Data. The key/delimiters
+			// stay in the skeleton and the body rides a skeleton ref, exactly
+			// like a translatable value, so the document round-trips byte-exact.
+			// Pending note/ID/meta state is deliberately left intact for the next
+			// translatable block, matching the prior Data behavior.
+			*blockCounter++
+			blockID := "tu" + strconv.Itoa(*blockCounter)
+			r.skelText(tok.prefix)
+			r.skelRef(blockID)
+
+			block := model.NewBlock(blockID, value)
+			block.Name = path
+			block.Translatable = false
+			if quoteOf(tok.raw) == '\'' {
+				block.Properties["json.quote"] = "'"
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			return
+		}
 		r.skelToken(tok)
 		*dataCounter++
 		data := &model.Data{

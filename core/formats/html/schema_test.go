@@ -21,11 +21,12 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 	// lives under the "parser" section but its flat name is still used here
 	// because the schema uses x-flattenPath to map it.
 	applyMapKeys := map[string]bool{
-		"preserveWhitespace": true,
-		"useCodeFinder":      true,
-		"codeFinderRules":    true,
-		"elements":           true,
-		"attributes":         true,
+		"preserveWhitespace":            true,
+		"extractNonTranslatableContent": true,
+		"useCodeFinder":                 true,
+		"codeFinderRules":               true,
+		"elements":                      true,
+		"attributes":                    true,
 	}
 
 	// Build flat properties the same way SchemaRegistry.RegisterSchema does.

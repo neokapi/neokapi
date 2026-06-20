@@ -42,6 +42,15 @@ type Config struct {
 	// CodeFinderRules are regex patterns that match inline codes.
 	CodeFinderRules []string
 
+	// disableNonTranslatableContent, when set, keeps renderable
+	// non-translatable contextual content (the <noscript> fallback subtree and
+	// JSON data islands, <script type="application/ld+json"|"application/json">)
+	// buried in opaque skeleton/Data instead of surfacing it as RoleCode
+	// content blocks (visible to ingestion/LLM consumers, skipped by MT). Zero
+	// value = surfacing ON (the opt-out default). Generic executable <script>
+	// and <style> always stay opaque regardless of this flag.
+	disableNonTranslatableContent bool
+
 	// compiledCodeFinder caches compiled regex patterns.
 	compiledCodeFinder []*regexp.Regexp
 }
@@ -59,11 +68,26 @@ func (c *Config) Reset() {
 	c.Attributes = nil
 	c.UseCodeFinder = false
 	c.CodeFinderRules = nil
+	c.disableNonTranslatableContent = false
 	c.compiledCodeFinder = nil
 }
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ExtractNonTranslatableContent reports whether renderable non-translatable
+// contextual content (the <noscript> fallback subtree and JSON data islands)
+// is surfaced as RoleCode content blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
 
 // ApplyMap applies configuration values from a map.
 // Uses the same hierarchical structure as the okf_html bridge config:
@@ -80,6 +104,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if err := c.applyParserSettings(m); err != nil {
 				return err
 			}
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		case "useCodeFinder":
 			b, ok := val.(bool)
 			if !ok {

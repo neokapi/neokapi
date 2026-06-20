@@ -139,6 +139,14 @@ func (w *Writer) collectPart(part *model.Part) error {
 			text = block.TargetText(w.Locale)
 		}
 
+		// A non-translatable header / column-label block (surfaced when
+		// ExtractNonTranslatableContent is on) carries the whole header line
+		// as its source — route it to the header slot like the Data form does.
+		if block.Name == "header-row" {
+			w.headerRow = text
+			return nil
+		}
+
 		row := 0
 		_, _ = fmt.Sscanf(block.Properties["row"], "%d", &row)
 		colName := block.Properties["column"]

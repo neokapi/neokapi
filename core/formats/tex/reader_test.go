@@ -33,6 +33,51 @@ func readBlocks(t *testing.T, input string) []*model.Block {
 	return testutil.FilterBlocks(readString(t, input))
 }
 
+// helper: read a string with a custom config modifier and return all parts
+func readStringWithConfig(t *testing.T, input string, configure func(*tex.Config)) []*model.Part {
+	t.Helper()
+	ctx := t.Context()
+	reader := tex.NewReader()
+	configure(reader.TexConfig())
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
+
+// disableNonTranslatableContent is the Okapi-faithful config modifier that
+// keeps verbatim/lstlisting code and math as opaque Data/skeleton.
+func disableNonTranslatableContent(c *tex.Config) {
+	c.SetExtractNonTranslatableContent(false)
+}
+
+// nonTranslatableContentBlocks returns every Block part with Translatable=false
+// (the surfaced code/formula content blocks).
+func nonTranslatableContentBlocks(parts []*model.Part) []*model.Block {
+	var content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b := p.Resource.(*model.Block); !b.Translatable {
+				content = append(content, b)
+			}
+		}
+	}
+	return content
+}
+
+// translatableBlocks returns every Block part with Translatable=true.
+func translatableBlocks(parts []*model.Part) []*model.Block {
+	var blocks []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b := p.Resource.(*model.Block); b.Translatable {
+				blocks = append(blocks, b)
+			}
+		}
+	}
+	return blocks
+}
+
 // helper: return block source texts
 func blockTexts(blocks []*model.Block) []string {
 	return testutil.BlockTexts(blocks)
@@ -62,11 +107,12 @@ Second paragraph.
 }
 
 // okapi: TEXFilterTest#testMathMode
+// Okapi-faithful config (surfacing off): inline math stays opaque Data.
 func TestMathMode(t *testing.T) {
 	// Inline math $...$ should be excluded from text
-	parts := readString(t, `\begin{document}
+	parts := readStringWithConfig(t, `\begin{document}
 $E = mc^2$
-\end{document}`)
+\end{document}`, disableNonTranslatableContent)
 
 	blocks := testutil.FilterBlocks(parts)
 	// The inline math should be emitted as Data, not Block
@@ -88,11 +134,45 @@ $E = mc^2$
 	assert.True(t, hasMathData, "math should be in a Data part")
 }
 
+// By default (ExtractNonTranslatableContent on), inline math $...$ is surfaced
+// as a non-translatable RoleFormula content block — visible to ingestion,
+// skipped by MT — with the `$` delimiters kept in skeleton, and the document
+// still round-trips byte-exact.
+func TestMathMode_InlineAsContent(t *testing.T) {
+	input := "\\begin{document}\nEnergy is $E = mc^2$ here.\n\\end{document}"
+	parts := readString(t, input)
+
+	var translatable, content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.Translatable {
+				translatable = append(translatable, b)
+			} else {
+				content = append(content, b)
+			}
+		}
+	}
+	require.Len(t, content, 1, "inline math surfaces as one non-translatable content block")
+	math := content[0]
+	assert.False(t, math.Translatable)
+	assert.Equal(t, model.RoleFormula, math.SemanticRole())
+	assert.True(t, math.PreserveWhitespace)
+	assert.Equal(t, "E = mc^2", math.SourceText(), "body excludes the $ delimiters")
+	for _, b := range translatable {
+		assert.NotContains(t, b.SourceText(), "E = mc^2",
+			"math body never reaches a translatable block")
+	}
+
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input), "round-trip stays byte-exact")
+}
+
 // okapi: TEXFilterTest#testMathMode (display math $$)
+// Okapi-faithful config (surfacing off): display $$ math stays opaque Data.
 func TestMathMode_DisplayDollar(t *testing.T) {
-	parts := readString(t, `\begin{document}
+	parts := readStringWithConfig(t, `\begin{document}
 $$a^2 + b^2 = c^2$$
-\end{document}`)
+\end{document}`, disableNonTranslatableContent)
 
 	blocks := testutil.FilterBlocks(parts)
 	for _, b := range blocks {
@@ -100,16 +180,44 @@ $$a^2 + b^2 = c^2$$
 	}
 }
 
+// By default, display math $$...$$ surfaces as a RoleFormula content block and
+// round-trips byte-exact.
+func TestMathMode_DisplayDollarAsContent(t *testing.T) {
+	input := "\\begin{document}\n$$a^2 + b^2 = c^2$$\n\\end{document}"
+	parts := readString(t, input)
+
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1)
+	assert.Equal(t, model.RoleFormula, content[0].SemanticRole())
+	assert.Equal(t, "a^2 + b^2 = c^2", content[0].SourceText())
+	assert.True(t, content[0].PreserveWhitespace)
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input), "round-trip stays byte-exact")
+}
+
 // okapi: TEXFilterTest#testMathMode (display math \[...\])
+// Okapi-faithful config (surfacing off): display \[..\] math stays opaque Data.
 func TestMathMode_DisplayBracket(t *testing.T) {
-	parts := readString(t, `\begin{document}
+	parts := readStringWithConfig(t, `\begin{document}
 \[x = \frac{-b}{2a}\]
-\end{document}`)
+\end{document}`, disableNonTranslatableContent)
 
 	blocks := testutil.FilterBlocks(parts)
 	for _, b := range blocks {
 		assert.NotContains(t, b.SourceText(), "frac")
 	}
+}
+
+// By default, display math \[...\] surfaces as a RoleFormula content block and
+// round-trips byte-exact.
+func TestMathMode_DisplayBracketAsContent(t *testing.T) {
+	input := "\\begin{document}\n\\[x = \\frac{-b}{2a}\\]\n\\end{document}"
+	parts := readString(t, input)
+
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1)
+	assert.Equal(t, model.RoleFormula, content[0].SemanticRole())
+	assert.Equal(t, `x = \frac{-b}{2a}`, content[0].SourceText())
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input), "round-trip stays byte-exact")
 }
 
 // okapi: TEXFilterTest#testComments
@@ -516,10 +624,12 @@ func TestTable2(t *testing.T) {
 // (header script commands skipped, body prose extracted) is verified by
 // TestScript below.
 func TestScripts(t *testing.T) {
-	// Subscript/superscript in math mode — non-translatable
-	parts := readString(t, `\begin{document}
+	// Subscript/superscript in math mode — non-translatable. Okapi-faithful
+	// config (surfacing off) keeps the math opaque; only translatable blocks
+	// are checked so the math content never reaches MT either way.
+	parts := readStringWithConfig(t, `\begin{document}
 $x^2$ and $x_i$
-\end{document}`)
+\end{document}`, disableNonTranslatableContent)
 	blocks := testutil.FilterBlocks(parts)
 	for _, b := range blocks {
 		assert.NotContains(t, b.SourceText(), "x^2")
@@ -621,9 +731,84 @@ func TestEquation(t *testing.T) {
 		"  S_\\textup{IC} = S_{123}\n" +
 		"\\end{equation}"
 
-	parts := readString(t, snippet)
+	// Okapi-faithful config (surfacing off): the whole equation span is one
+	// opaque Data part with no blocks.
+	parts := readStringWithConfig(t, snippet, disableNonTranslatableContent)
 	blocks := testutil.FilterBlocks(parts)
 	assert.Empty(t, blocks, "equation environment yields no translatable units")
+
+	var data []*model.Data
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data = append(data, p.Resource.(*model.Data))
+		}
+	}
+	require.Len(t, data, 1)
+	assert.Equal(t, snippet, data[0].Properties["content"])
+}
+
+// By default, an equation environment surfaces its body as a non-translatable
+// RoleFormula content block — visible to ingestion, skipped by MT — while
+// \begin{equation}/\end{equation} stay skeleton and the span round-trips
+// byte-exact. No translatable unit is produced.
+func TestEquationEnvironmentAsContent(t *testing.T) {
+	snippet := "\\begin{equation}\n" +
+		"  S_\\textup{IC} = S_{123}\n" +
+		"\\end{equation}"
+
+	parts := readString(t, snippet)
+	assert.Empty(t, translatableBlocks(parts),
+		"equation environment yields no translatable units")
+
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1)
+	math := content[0]
+	assert.Equal(t, model.RoleFormula, math.SemanticRole())
+	assert.True(t, math.PreserveWhitespace)
+	assert.Equal(t, "\n  S_\\textup{IC} = S_{123}\n", math.SourceText(),
+		"body is the verbatim span between begin/end tags")
+
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet), "round-trip stays byte-exact")
+}
+
+// By default, a verbatim environment surfaces its body as a non-translatable
+// RoleCode content block (code visible to ingestion, skipped by MT) with the
+// \begin{verbatim}/\end{verbatim} delimiters kept in skeleton; round-trip is
+// byte-exact. lstlisting behaves the same way.
+func TestVerbatimEnvironmentAsContent(t *testing.T) {
+	for _, env := range []string{"verbatim", "lstlisting"} {
+		t.Run(env, func(t *testing.T) {
+			snippet := "Before\n\n\\begin{" + env + "}\n" +
+				"x = f(y)\nprint(x)\n" +
+				"\\end{" + env + "}\n\nAfter"
+
+			parts := readString(t, snippet)
+			content := nonTranslatableContentBlocks(parts)
+			require.Len(t, content, 1)
+			code := content[0]
+			assert.False(t, code.Translatable)
+			assert.Equal(t, model.RoleCode, code.SemanticRole())
+			assert.True(t, code.PreserveWhitespace)
+			assert.Contains(t, code.SourceText(), "x = f(y)")
+			assert.Contains(t, code.SourceText(), "print(x)")
+
+			// The surrounding prose stays translatable.
+			texts := blockTexts(translatableBlocks(parts))
+			assert.Equal(t, []string{"Before", "After"}, texts)
+
+			assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+				"round-trip stays byte-exact")
+		})
+	}
+}
+
+// With surfacing disabled, verbatim/lstlisting stay opaque Data, exactly as
+// before — no content block, the whole span in one Data part.
+func TestVerbatimEnvironment_DisabledStaysData(t *testing.T) {
+	snippet := "\\begin{verbatim}\nx = f(y)\n\\end{verbatim}"
+
+	parts := readStringWithConfig(t, snippet, disableNonTranslatableContent)
+	assert.Empty(t, testutil.FilterBlocks(parts), "no blocks when surfacing is off")
 
 	var data []*model.Data
 	for _, p := range parts {
@@ -1106,9 +1291,16 @@ Text content.
 
 func roundtrip(t *testing.T, input string) string {
 	t.Helper()
+	return roundtripWithConfig(t, input, func(*tex.Config) {})
+}
+
+// roundtripWithConfig reads then writes (non-skeleton) with a custom config.
+func roundtripWithConfig(t *testing.T, input string, configure func(*tex.Config)) string {
+	t.Helper()
 	ctx := t.Context()
 
 	reader := tex.NewReader()
+	configure(reader.TexConfig())
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -1155,6 +1347,10 @@ Second paragraph.
 }
 
 // neokapi-only: native roundtrip preserves an opaque equation block.
+// Uses the Okapi-faithful config (surfacing off) so the non-skeleton writer
+// reconstructs the equation environment from its opaque Data part. The
+// byte-exact skeleton round-trip with surfacing ON is covered by
+// TestEquationEnvironmentAsContent.
 func TestRoundTrip_Math(t *testing.T) {
 	input := `\begin{document}
 \begin{equation}
@@ -1162,7 +1358,7 @@ a^2 + b^2 = c^2
 \end{equation}
 \end{document}`
 
-	output := roundtrip(t, input)
+	output := roundtripWithConfig(t, input, disableNonTranslatableContent)
 	assert.Contains(t, output, "equation")
 	assert.Contains(t, output, "a^2 + b^2 = c^2")
 }

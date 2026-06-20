@@ -103,6 +103,13 @@ const descriptionExtractionRule = `(^|/)\$description$`
 func (c *Config) applyToJSON(jc *jsonfmt.Config) {
 	jc.Reset()
 
+	// Design-token values are structured machine data (colours, dimensions,
+	// numbers), not contextual prose or code, so do not surface the excluded
+	// values as non-translatable content blocks — the only translatable surface
+	// is $description. (This format composes the JSON reader, whose default is to
+	// surface excluded values as non-translatable content for ingestion.)
+	jc.SetExtractNonTranslatableContent(false)
+
 	// Full key-path names so nested $description blocks get meaningful,
 	// collision-free names like /color/primary/$description.
 	jc.UseFullKeyPath = true

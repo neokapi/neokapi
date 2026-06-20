@@ -27,7 +27,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 			{
 				ID:     "extraction",
 				Label:  "Extraction Rules",
-				Fields: []string{"elements", "attributes"},
+				Fields: []string{"extractNonTranslatableContent", "elements", "attributes"},
 			},
 			{
 				ID:     "inlineCodes",
@@ -53,6 +53,15 @@ func (c *Config) Schema() *schema.FormatSchema {
 						FlattenPath: "preserveWhitespace",
 					},
 				},
+			},
+			"extractNonTranslatableContent": {
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "boolean",
+					Default:     true,
+					Title:       "Extract non-translatable content",
+					Description: "If true (default), renderable non-translatable contextual content -- the <noscript> fallback subtree and JSON data islands (<script type=\"application/ld+json\"|\"application/json\">) -- is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable <script> and <style> always stay opaque.",
+				},
+				FlattenPath: "extractNonTranslatableContent",
 			},
 			"elements": {
 				PropertySchema: coreschema.PropertySchema{

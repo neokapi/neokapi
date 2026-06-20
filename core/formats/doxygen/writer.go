@@ -153,6 +153,20 @@ func (w *Writer) writeCollected(collected []*model.Part, blocksByID map[string]*
 			if !ok {
 				return errors.New("doxygen writer: expected Block resource")
 			}
+			// Surfaced non-translatable RoleCode content blocks (for
+			// \code/\verbatim/… regions). "view" blocks are pure
+			// ingestion views — the round-trip carrier is elsewhere, so
+			// skip them. "raw" blocks replaced a len==0 comment's Data:
+			// reproduce their raw bytes verbatim, exactly as writeData did.
+			switch block.Properties["doxygen.verbatimBlock"] {
+			case "view":
+				continue
+			case "raw":
+				if err := w.writeRawBlock(block, &first); err != nil {
+					return err
+				}
+				continue
+			}
 			// Subsequent blocks of a multi-section group are folded
 			// into the first block's comment-template output.
 			if firstID := block.Properties["groupFirstID"]; firstID != "" && firstID != block.ID {
@@ -793,10 +807,39 @@ func (w *Writer) writeData(part *model.Part, first *bool) error {
 	return err
 }
 
+// writeRawBlock reproduces a surfaced "raw" RoleCode content block by
+// writing its raw property verbatim, identical to the Data path it replaced
+// (see writeData). Used for len==0 comments whose only body is a
+// verbatim/code/exclude region.
+func (w *Writer) writeRawBlock(block *model.Block, first *bool) error {
+	raw := block.Properties["raw"]
+	if raw == "" {
+		return nil
+	}
+	if !*first {
+		if _, err := fmt.Fprint(w.Output, w.lineSep()); err != nil {
+			return err
+		}
+	}
+	*first = false
+	_, err := fmt.Fprint(w.Output, raw)
+	return err
+}
+
 func (w *Writer) writeBlock(part *model.Part, first *bool) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return errors.New("doxygen writer: expected Block resource")
+	}
+
+	// Surfaced RoleCode content blocks: skip ingestion-only views and
+	// reproduce raw carriers verbatim (mirrors writeCollected's handling
+	// for callers that drive a single block straight through writeBlock).
+	switch block.Properties["doxygen.verbatimBlock"] {
+	case "view":
+		return nil
+	case "raw":
+		return w.writeRawBlock(block, first)
 	}
 
 	// Pick line ending lazily for callers that bypass writeCollected

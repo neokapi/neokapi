@@ -161,8 +161,15 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.getBlockText(block)
-				text = w.substituteBlockRefs(text, blocks)
-				text = htmlEncodeBlockText(text, block)
+				if block.Translatable {
+					text = w.substituteBlockRefs(text, blocks)
+					text = htmlEncodeBlockText(text, block)
+				}
+				// Non-translatable content (a <noscript> fallback subtree, a
+				// JSON data island) was surfaced verbatim; write its bytes back
+				// untouched so the round-trip stays byte-exact — quote-escaping,
+				// whitespace-collapse, or ref substitution would corrupt JSON or
+				// markup bodies.
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
@@ -439,6 +446,13 @@ func primaryLanguageSubtag(tag string) string {
 	}
 	return tag
 }
+
+// onContentBlock is a no-op for the re-parse writer: a surfaced
+// non-translatable content block (a <noscript> fallback subtree, a JSON data
+// island) carries no translation, so the re-parsed node is left verbatim and
+// rendered unchanged. The walker still allocates its block ID here so reader and
+// writer ID streams stay aligned.
+func (v *writerVisitor) onContentBlock(blockID string, n *html.Node, role, body string) {}
 
 func (v *writerVisitor) onTextBlock(blockID string, n *html.Node) {
 	if block, ok := v.blocks[blockID]; ok {

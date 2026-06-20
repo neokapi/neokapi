@@ -142,17 +142,36 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	// Handle header row
 	if r.cfg.HasHeader && len(lines) > 0 {
-		r.skelText(lines[0].content + lines[0].lineEnding)
-		dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: "header-row",
-			Properties: map[string]string{
-				"content": lines[0].content,
-			},
-		}
-		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-			return
+		if r.cfg.ExtractNonTranslatableContent() {
+			// Surface the header / column-label line as a non-translatable
+			// caption block (visible to ingestion/LLM consumers, skipped by
+			// MT). Its body rides a skeleton ref; the line ending stays
+			// skeleton so the round-trip is byte-exact.
+			blockCounter++
+			blockID := fmt.Sprintf("tu%d", blockCounter)
+			r.skelRef(blockID)
+			r.skelText(lines[0].lineEnding)
+			block := model.NewBlock(blockID, lines[0].content)
+			block.Name = "header-row"
+			block.Translatable = false
+			block.PreserveWhitespace = true
+			block.SetSemanticRole(model.RoleCaption, 0)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		} else {
+			r.skelText(lines[0].content + lines[0].lineEnding)
+			dataCounter++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: "header-row",
+				Properties: map[string]string{
+					"content": lines[0].content,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
 		}
 		startRow = 1
 	}
@@ -184,6 +203,28 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			colEnd := min(col.Start+col.Width, len(runes))
 
 			if !col.Translatable {
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Surface the non-translatable cell as a content block
+					// (visible to ingestion/LLM consumers, skipped by MT). Its
+					// body rides a skeleton ref so the cell round-trips
+					// byte-exact; inter-column gaps/padding stay skeleton.
+					blockCounter++
+					blockID := fmt.Sprintf("tu%d", blockCounter)
+					r.skelRef(blockID)
+					runePos = colEnd
+					block := model.NewBlock(blockID, value)
+					block.Name = fmt.Sprintf("%s.row%d", col.Name, rowNum)
+					block.Translatable = false
+					block.PreserveWhitespace = true
+					block.Properties["column"] = col.Name
+					block.Properties["row"] = strconv.Itoa(rowNum)
+					block.Properties["start"] = strconv.Itoa(col.Start)
+					block.Properties["width"] = strconv.Itoa(col.Width)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+					continue
+				}
 				r.skelText(rawValue)
 				runePos = colEnd
 				dataCounter++
@@ -254,16 +295,30 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 
 	// Handle header row
 	if r.cfg.HasHeader && len(lines) > 0 {
-		dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: "header-row",
-			Properties: map[string]string{
-				"content": lines[0],
-			},
-		}
-		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-			return
+		if r.cfg.ExtractNonTranslatableContent() {
+			// Surface the header / column-label line as a non-translatable
+			// caption block (visible to ingestion/LLM consumers, skipped by MT).
+			blockCounter++
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), lines[0])
+			block.Name = "header-row"
+			block.Translatable = false
+			block.PreserveWhitespace = true
+			block.SetSemanticRole(model.RoleCaption, 0)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		} else {
+			dataCounter++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: "header-row",
+				Properties: map[string]string{
+					"content": lines[0],
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
 		}
 		startRow = 1
 	}
@@ -280,6 +335,23 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			}
 
 			if !col.Translatable {
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Surface the non-translatable cell as a content block
+					// (visible to ingestion/LLM consumers, skipped by MT).
+					blockCounter++
+					block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), value)
+					block.Name = fmt.Sprintf("%s.row%d", col.Name, rowNum)
+					block.Translatable = false
+					block.PreserveWhitespace = true
+					block.Properties["column"] = col.Name
+					block.Properties["row"] = strconv.Itoa(rowNum)
+					block.Properties["start"] = strconv.Itoa(col.Start)
+					block.Properties["width"] = strconv.Itoa(col.Width)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+					continue
+				}
 				// Non-translatable -> Data
 				dataCounter++
 				data := &model.Data{

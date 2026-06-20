@@ -230,6 +230,12 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	}
 
 	mdReader := markdown.NewReader()
+	// MDX composes the markdown reader, whose default surfaces code blocks as
+	// non-translatable content. MDX-specific content surfacing (code fences, JSX
+	// text, table cells) is tracked separately (#928); keep the embedded markdown
+	// behaviour unchanged here so code stays skeleton, then let any explicit
+	// config override.
+	mdReader.MarkdownConfig().SetExtractNonTranslatableContent(false)
 	if err := r.cfg.applyTo(mdReader.MarkdownConfig()); err != nil {
 		return fmt.Errorf("mdx: applying markdown config: %w", err)
 	}

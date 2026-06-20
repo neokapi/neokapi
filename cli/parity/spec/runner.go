@@ -292,6 +292,16 @@ func slicesEqual(a, b []string) bool {
 
 func (r *ParityRunner) runNative(feat formatspec.Feature, ex formatspec.Example, input []byte) ([]*model.Part, error) {
 	reader := r.NewReader(ex.Variant)
+	// Parity measures faithfulness to the Okapi bridge, which has no notion of
+	// surfacing non-translatable contextual content (code/verbatim/etc.) as
+	// content blocks. Native readers default that surfacing ON (an ingestion
+	// convenience), so for the head-to-head we force it OFF — the matching
+	// semantic config — leaving such content in skeleton exactly as before.
+	if c := reader.Config(); c != nil {
+		if d, ok := c.(interface{ SetExtractNonTranslatableContent(bool) }); ok {
+			d.SetExtractNonTranslatableContent(false)
+		}
+	}
 	cfg := formatspec.MergeConfig(feat.Config, ex.Config)
 	if len(cfg) > 0 {
 		if c := reader.Config(); c != nil {

@@ -186,6 +186,41 @@ var nonTranslatableEnvironments = map[string]bool{
 	"figure*":     true,
 }
 
+// verbatimEnvironments hold non-translatable CODE — their body is surfaced
+// as a RoleCode content block (visible to ingestion/LLM consumers, skipped by
+// MT) when ExtractNonTranslatableContent is on.
+var verbatimEnvironments = map[string]bool{
+	"verbatim":   true,
+	"lstlisting": true,
+}
+
+// mathEnvironments hold non-translatable MATH — their body is surfaced as a
+// RoleFormula content block when ExtractNonTranslatableContent is on. table /
+// figure are deliberately absent: those stay opaque Data (structural floats,
+// not code or formula).
+var mathEnvironments = map[string]bool{
+	"equation": true, "equation*": true,
+	"align": true, "align*": true,
+	"gather": true, "gather*": true,
+	"multline": true, "multline*": true,
+	"eqnarray": true, "eqnarray*": true,
+	"math": true, "displaymath": true,
+}
+
+// contentEnvironmentRole maps a non-translatable environment name to the
+// semantic role its body should carry when surfaced as a content block. ok is
+// false for environments (table/figure) that stay opaque Data.
+func contentEnvironmentRole(name string) (role string, ok bool) {
+	switch {
+	case verbatimEnvironments[name]:
+		return model.RoleCode, true
+	case mathEnvironments[name]:
+		return model.RoleFormula, true
+	default:
+		return "", false
+	}
+}
+
 // headerTextCommands are commands in the preamble whose arguments ARE
 // translatable. Mirrors Okapi TEXFilter's oneArgParText for the
 // header (\title, \author). \date is intentionally excluded because
@@ -227,6 +262,10 @@ func NewReader() *Reader {
 func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 	r.skeletonStore = store
 }
+
+// TexConfig returns the reader's typed config for in-package configuration
+// (used by tests to toggle ExtractNonTranslatableContent).
+func (r *Reader) TexConfig() *Config { return r.cfg }
 
 // Signature returns detection metadata for this format.
 func (r *Reader) Signature() format.FormatSignature {
@@ -481,6 +520,40 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
 
+	// emitContent surfaces the verbatim/math body in p.source[bodyStart:bodyEnd]
+	// as a NON-translatable, role-tagged content block — a single verbatim run
+	// (whitespace-significant, NOT inline-parsed) — so an ingestion/LLM consumer
+	// sees the contextual content while MT still skips it (Translatable=false).
+	// The opening/closing delimiters in [p.lastSkelPos:bodyStart] and
+	// [bodyEnd:spanEnd] stay skeleton and the body rides a Ref, so round-trip is
+	// byte-exact. p.pos / p.lastSkelPos advance to spanEnd. Used only when
+	// ExtractNonTranslatableContent() is on; the opaque flushData path is the
+	// byte-identical default-off behavior.
+	emitContent := func(bodyStart, bodyEnd, spanEnd int, role, name, blockType string) {
+		body := p.source[bodyStart:bodyEnd]
+		p.blockCounter++
+		blockID := fmt.Sprintf("tu%d", p.blockCounter)
+		block := model.NewBlock(blockID, body)
+		block.Name = name
+		block.Type = blockType
+		block.Translatable = false
+		block.PreserveWhitespace = true
+		block.SetSemanticRole(role, 0)
+		if r.skeletonStore != nil {
+			if bodyStart > p.lastSkelPos {
+				r.skelText(p.source[p.lastSkelPos:bodyStart])
+			}
+			block.Properties["tex.rawSource"] = body
+			r.skelRef(blockID)
+			if spanEnd > bodyEnd {
+				r.skelText(p.source[bodyEnd:spanEnd])
+			}
+			p.lastSkelPos = spanEnd
+		}
+		p.pos = spanEnd
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
 	for p.pos < len(p.source) {
 		select {
 		case <-ctx.Done():
@@ -520,13 +593,29 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			// Check for display math $$...$$
 			if p.pos+1 < len(p.source) && p.source[p.pos+1] == '$' {
 				flushText()
+				start := p.pos
 				math := p.readDisplayMathDollar()
+				// Surface the formula body as RoleFormula content; the
+				// `$$` delimiters stay skeleton, body rides a ref.
+				if r.cfg.ExtractNonTranslatableContent() {
+					if bs, be, se, ok := mathSpan(p.source, start, p.pos, 2, "$$"); ok {
+						emitContent(bs, be, se, model.RoleFormula, "displaymath", "math")
+						continue
+					}
+				}
 				flushData(math)
 				continue
 			}
 			// Inline math $...$
 			flushText()
+			start := p.pos
 			math := p.readInlineMathDollar()
+			if r.cfg.ExtractNonTranslatableContent() {
+				if bs, be, se, ok := mathSpan(p.source, start, p.pos, 1, "$"); ok {
+					emitContent(bs, be, se, model.RoleFormula, "math", "math")
+					continue
+				}
+			}
 			flushData(math)
 			continue
 		}
@@ -556,7 +645,16 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				// Display math \[...\]
 				if cmd == "[" {
 					flushText()
+					start := p.pos
 					math := p.readDisplayMathBracket()
+					// Surface the formula body as RoleFormula content;
+					// the `\[` `\]` delimiters stay skeleton.
+					if r.cfg.ExtractNonTranslatableContent() {
+						if bs, be, se, ok := mathSpan(p.source, start, p.pos, 2, `\]`); ok {
+							emitContent(bs, be, se, model.RoleFormula, "displaymath", "math")
+							continue
+						}
+					}
 					flushData(math)
 					continue
 				}
@@ -567,6 +665,19 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					if envName != "" {
 						if nonTranslatableEnvironments[envName] {
 							flushText()
+							// verbatim/lstlisting → RoleCode, math envs →
+							// RoleFormula: surface the body as a
+							// non-translatable content block (visible to
+							// ingestion, skipped by MT); \begin{…}/\end{…}
+							// stay skeleton, body rides a ref. table/figure
+							// keep the opaque Data path. Default-off keeps the
+							// exact prior Data/skeleton behavior.
+							if role, ok := contentEnvironmentRole(envName); ok && r.cfg.ExtractNonTranslatableContent() {
+								if bs, be, se, spanOK := p.environmentSpan(envName); spanOK && be > bs {
+									emitContent(bs, be, se, role, envName, envName)
+									continue
+								}
+							}
 							env := p.readEnvironment(envName)
 							flushData(env)
 							continue
@@ -1694,6 +1805,47 @@ func (p *parser) readEnvironment(name string) string {
 		p.pos = len(p.source)
 	}
 	return p.source[start:p.pos]
+}
+
+// environmentSpan PEEKS the byte offsets of a \begin{name}...\end{name} span
+// starting at p.pos WITHOUT advancing the cursor: bodyStart/bodyEnd bound the
+// content between the begin and end tags, spanEnd is the byte just past
+// \end{name}. ok is false when the environment is unterminated (no matching
+// \end{name}), in which case the caller falls back to the opaque readEnvironment
+// path. The caller advances the cursor (via emitContent) only on the content
+// path.
+func (p *parser) environmentSpan(name string) (bodyStart, bodyEnd, spanEnd int, ok bool) {
+	beginTag := `\begin{` + name + `}`
+	endTag := `\end{` + name + `}`
+	bodyStart = p.pos + len(beginTag)
+	if bodyStart > len(p.source) {
+		return 0, 0, 0, false
+	}
+	idx := strings.Index(p.source[bodyStart:], endTag)
+	if idx < 0 {
+		return 0, 0, 0, false
+	}
+	bodyEnd = bodyStart + idx
+	spanEnd = bodyEnd + len(endTag)
+	return bodyStart, bodyEnd, spanEnd, true
+}
+
+// mathSpan computes the body offsets of a delimited math span occupying
+// source[start:end] (the slice a read* helper just consumed), stripping openLen
+// bytes of opening delimiter and the closeDelim closing delimiter. ok is false
+// when the span has no non-empty body or is not actually terminated by
+// closeDelim (e.g. an unterminated `$…EOF`), in which case the caller keeps the
+// opaque flushData path so byte-exact round-trip is preserved.
+func mathSpan(source string, start, end, openLen int, closeDelim string) (bodyStart, bodyEnd, spanEnd int, ok bool) {
+	bodyStart = start + openLen
+	bodyEnd = end - len(closeDelim)
+	if bodyEnd <= bodyStart {
+		return 0, 0, 0, false
+	}
+	if source[bodyEnd:end] != closeDelim {
+		return 0, 0, 0, false
+	}
+	return bodyStart, bodyEnd, end, true
 }
 
 // readBeginTag reads \begin{name} tag (just the tag, not the content).

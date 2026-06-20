@@ -131,14 +131,26 @@ func (w *Writer) blockText(block *model.Block) string {
 // writeOutput reconstructs the TTML document, replacing <p> element text
 // with translated content where available.
 func (w *Writer) writeOutput(blocks []*model.Block) error {
+	// Non-translatable head-metadata blocks (ttm:copyright, ttm:agent) are
+	// surfaced for ingestion only; their bytes are preserved verbatim in the
+	// original document Data. This content-replacement writer only swaps <p>
+	// caption text and matches blocks to <p> elements by index, so restrict the
+	// matched set to the translatable captions.
+	captions := make([]*model.Block, 0, len(blocks))
+	for _, b := range blocks {
+		if b.Translatable {
+			captions = append(captions, b)
+		}
+	}
+
 	if w.docContent == "" {
 		// No skeleton: generate minimal TTML from blocks
-		return w.writeMinimalTTML(blocks)
+		return w.writeMinimalTTML(captions)
 	}
 
 	// Parse the original document and replace <p> text content with
 	// translated text from the blocks.
-	return w.writeFromSkeleton(blocks)
+	return w.writeFromSkeleton(captions)
 }
 
 // writeFromSkeleton reconstructs the TTML from the original XML structure,

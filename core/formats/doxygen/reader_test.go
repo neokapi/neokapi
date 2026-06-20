@@ -27,6 +27,19 @@ func readDoxygen(t *testing.T, input string) []*model.Part {
 	return testutil.CollectParts(t, reader.Read(ctx))
 }
 
+func readDoxygenConfig(t *testing.T, input string, configure func(*doxygen.Config)) []*model.Part {
+	t.Helper()
+	ctx := t.Context()
+	reader := doxygen.NewReader()
+	if configure != nil {
+		configure(reader.Config().(*doxygen.Config))
+	}
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
+
 func collectBlocks(parts []*model.Part) []*model.Block {
 	return testutil.FilterBlocks(parts)
 }
@@ -46,6 +59,31 @@ func blockTextsContain(texts []string, substr string) bool {
 		}
 	}
 	return false
+}
+
+// translatableBlocks returns only the blocks an MT step would touch
+// (Translatable=true), filtering out the non-translatable RoleCode content
+// blocks the reader surfaces for \code/\verbatim/… region bodies.
+func translatableBlocks(blocks []*model.Block) []*model.Block {
+	var out []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// nonTranslatableBlocks returns only the surfaced content blocks
+// (Translatable=false).
+func nonTranslatableBlocks(blocks []*model.Block) []*model.Block {
+	var out []*model.Block
+	for _, b := range blocks {
+		if !b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -164,17 +202,50 @@ func TestExtract_ClassCommand2(t *testing.T) {
 func TestExtract_CodeCommand(t *testing.T) {
 	input := "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n"
 	parts := readDoxygen(t, input)
-	blocks := collectBlocks(parts)
-	texts := blockTexts(blocks)
+	texts := blockTexts(translatableBlocks(collectBlocks(parts)))
 
 	assert.True(t, blockTextsContain(texts, "Before code"),
 		"should contain 'Before code', got %v", texts)
 	assert.True(t, blockTextsContain(texts, "After code"),
 		"should contain 'After code', got %v", texts)
+	// Code between \code … \endcode is never translatable.
 	for _, text := range texts {
 		assert.False(t, strings.Contains(text, "some_code()"),
-			"code block content should not be extracted, got %q", text)
+			"code block content should not be in a translatable block, got %q", text)
 	}
+}
+
+// With non-translatable-content surfacing on (the default), the \code body is
+// surfaced as a RoleCode content block — visible to ingestion, skipped by MT.
+func TestExtract_CodeCommand_SurfacedAsContent(t *testing.T) {
+	input := "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n"
+	parts := readDoxygen(t, input)
+	content := nonTranslatableBlocks(collectBlocks(parts))
+	require.Len(t, content, 1, "the \\code body surfaces as one non-translatable content block")
+	code := content[0]
+	assert.False(t, code.Translatable)
+	assert.Equal(t, model.RoleCode, code.SemanticRole())
+	assert.True(t, code.PreserveWhitespace)
+	assert.Contains(t, code.SourceText(), "some_code();")
+	// Single verbatim run — no inline parse.
+	require.Len(t, code.SourceRuns(), 1)
+	// Round-trip stays byte-exact with the flag on.
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
+}
+
+// With surfacing disabled (the Okapi-faithful parity config) the \code body
+// stays in skeleton and no content block is emitted.
+func TestExtract_CodeCommand_FlagOff(t *testing.T) {
+	input := "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n"
+	parts := readDoxygenConfig(t, input, func(c *doxygen.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
+	assert.Empty(t, nonTranslatableBlocks(collectBlocks(parts)),
+		"no content block when surfacing is disabled")
+	// Round-trip still byte-exact.
+	assert.Equal(t, input, snippetRoundtripWithSkeletonConfig(t, input, func(c *doxygen.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	}))
 }
 
 // okapi: DoxygenFilterTest#testDoxygenItalicCommand
@@ -431,7 +502,7 @@ func TestExtract_SampleFile(t *testing.T) {
 	content, err := os.ReadFile("testdata/sample.h")
 	require.NoError(t, err)
 	parts := readDoxygen(t, string(content))
-	blocks := collectBlocks(parts)
+	blocks := translatableBlocks(collectBlocks(parts))
 	require.NotEmpty(t, blocks, "sample.h should produce translatable blocks")
 	texts := blockTexts(blocks)
 
@@ -440,10 +511,10 @@ func TestExtract_SampleFile(t *testing.T) {
 	assert.True(t, blockTextsContain(texts, "detailed class description"),
 		"should extract detailed description, got %v", texts)
 
-	// Code between \code and \endcode should NOT be extracted.
+	// Code between \code and \endcode should NOT be translatable.
 	for _, text := range texts {
 		assert.False(t, strings.Contains(text, "jimmy.crack"),
-			"code block content should not be extracted")
+			"code block content should not be in a translatable block")
 	}
 
 	// Regular C++ comments should NOT be extracted.
@@ -635,17 +706,27 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 func TestExtract_VerbatimExcluded(t *testing.T) {
 	input := "/// Before verbatim\n/// \\verbatim\n///   not translated\n/// \\endverbatim\n/// After verbatim\n"
 	parts := readDoxygen(t, input)
-	blocks := collectBlocks(parts)
-	texts := blockTexts(blocks)
+	texts := blockTexts(translatableBlocks(collectBlocks(parts)))
 
 	assert.True(t, blockTextsContain(texts, "Before verbatim"),
 		"should contain 'Before verbatim', got %v", texts)
 	assert.True(t, blockTextsContain(texts, "After verbatim"),
 		"should contain 'After verbatim', got %v", texts)
+	// Verbatim body is never translatable.
 	for _, text := range texts {
 		assert.False(t, strings.Contains(text, "not translated"),
-			"verbatim content should not be extracted, got %q", text)
+			"verbatim content should not be in a translatable block, got %q", text)
 	}
+
+	// With surfacing on (default), the verbatim body surfaces as a RoleCode
+	// content block, and the document still round-trips byte-exact.
+	content := nonTranslatableBlocks(collectBlocks(parts))
+	require.Len(t, content, 1, "the \\verbatim body surfaces as one content block")
+	assert.False(t, content[0].Translatable)
+	assert.Equal(t, model.RoleCode, content[0].SemanticRole())
+	assert.True(t, content[0].PreserveWhitespace)
+	assert.Contains(t, content[0].SourceText(), "not translated")
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
 }
 
 // ---------------------------------------------------------------------------
@@ -707,6 +788,111 @@ func TestExtract_TrailingJavadocComment(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Non-translatable content surfacing (#928)
+// ---------------------------------------------------------------------------
+
+// A comment whose ONLY body is a \code…\endcode region (no translatable prose)
+// previously emitted one opaque Data. With surfacing on (default) it now emits
+// a non-translatable RoleCode content block carrying the code body; both
+// round-trips stay byte-exact.
+func TestExtract_CodeOnlyComment_Surfaced(t *testing.T) {
+	input := "/// \\code\n///     int x = 5;\n/// \\endcode\nint main() {}\n"
+	parts := readDoxygen(t, input)
+
+	require.Empty(t, blockTexts(translatableBlocks(collectBlocks(parts))),
+		"a code-only comment yields no translatable blocks")
+	content := nonTranslatableBlocks(collectBlocks(parts))
+	require.Len(t, content, 1, "the code body surfaces as one content block")
+	assert.False(t, content[0].Translatable)
+	assert.Equal(t, model.RoleCode, content[0].SemanticRole())
+	assert.True(t, content[0].PreserveWhitespace)
+	assert.Contains(t, content[0].SourceText(), "int x = 5;")
+
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input),
+		"code-only comment round-trips byte-exact (skeleton)")
+}
+
+// With surfacing off, the code-only comment stays opaque Data (no content
+// block), exactly as before this feature.
+func TestExtract_CodeOnlyComment_FlagOff(t *testing.T) {
+	input := "/// \\code\n///     int x = 5;\n/// \\endcode\nint main() {}\n"
+	parts := readDoxygenConfig(t, input, func(c *doxygen.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
+	assert.Empty(t, collectBlocks(parts), "no blocks at all when surfacing is disabled")
+
+	hasCommentData := false
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if d := p.Resource.(*model.Data); strings.HasPrefix(d.Name, "comment.") {
+				hasCommentData = true
+				assert.Contains(t, d.Properties["raw"], "int x = 5;")
+			}
+		}
+	}
+	assert.True(t, hasCommentData, "code-only comment stays opaque Data with the flag off")
+
+	assert.Equal(t, input, snippetRoundtripWithSkeletonConfig(t, input, func(c *doxygen.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	}), "round-trip stays byte-exact with the flag off")
+}
+
+// Every Doxygen exclude family (\verbatim, \dot, \msc, \htmlonly, \latexonly,
+// \xmlonly, \manonly, \rtfonly, \docbookonly) surfaces its body as a RoleCode
+// content block and round-trips byte-exact.
+func TestExtract_ExcludeFamilies_Surfaced(t *testing.T) {
+	cases := []struct {
+		open, close, body string
+	}{
+		{"\\dot", "\\enddot", "digraph G { a -> b; }"},
+		{"\\msc", "\\endmsc", "a => b [ label = hi ];"},
+		{"\\htmlonly", "\\endhtmlonly", "<b>raw html</b>"},
+		{"\\latexonly", "\\endlatexonly", "\\frac{1}{2}"},
+		{"\\xmlonly", "\\endxmlonly", "<note/>"},
+		{"\\manonly", "\\endmanonly", ".SH NAME"},
+		{"\\rtfonly", "\\endrtfonly", "{\\rtf raw}"},
+		{"\\docbookonly", "\\enddocbookonly", "<para/>"},
+	}
+	for _, tc := range cases {
+		t.Run(strings.TrimPrefix(tc.open, "\\"), func(t *testing.T) {
+			input := "/// Before\n/// " + tc.open + "\n/// " + tc.body + "\n/// " + tc.close + "\n/// After\n"
+			parts := readDoxygen(t, input)
+
+			content := nonTranslatableBlocks(collectBlocks(parts))
+			require.Len(t, content, 1, "%s body surfaces as one content block", tc.open)
+			assert.Equal(t, model.RoleCode, content[0].SemanticRole())
+			assert.Contains(t, content[0].SourceText(), tc.body)
+
+			texts := blockTexts(translatableBlocks(collectBlocks(parts)))
+			for _, txt := range texts {
+				assert.NotContains(t, txt, tc.body, "%s body must not be translatable", tc.open)
+			}
+			assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input),
+				"%s round-trips byte-exact", tc.open)
+		})
+	}
+}
+
+// On the no-skeleton writer path the surfaced content blocks carry no
+// round-trip responsibility — the embedded code body is reproduced once by the
+// comment group's lineLayout (view block skipped), and a code-only comment is
+// reproduced once by the raw carrier block. Neither must be duplicated.
+func TestRoundTrip_NoSkeleton_SurfacedNotDuplicated(t *testing.T) {
+	// Embedded code in a translatable comment → view block, skipped.
+	embedded := roundtrip(t, "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n")
+	assert.Equal(t, 1, strings.Count(embedded, "some_code();"),
+		"embedded code body appears exactly once, got: %q", embedded)
+	assert.Contains(t, embedded, "Before code")
+	assert.Contains(t, embedded, "After code")
+
+	// Code-only comment → raw carrier, reproduced verbatim once.
+	codeOnly := roundtrip(t, "/// \\code\n///     int x = 5;\n/// \\endcode\nint main() {}\n")
+	assert.Equal(t, 1, strings.Count(codeOnly, "int x = 5;"),
+		"code-only body appears exactly once, got: %q", codeOnly)
+	assert.Contains(t, codeOnly, "int main() {}")
+}
+
+// ---------------------------------------------------------------------------
 // Config tests
 // ---------------------------------------------------------------------------
 
@@ -721,6 +907,29 @@ func TestConfig(t *testing.T) {
 	s := cfg.Schema()
 	assert.Equal(t, "Doxygen Comments", s.Title)
 	assert.Equal(t, "doxygen", s.FormatMeta.ID)
+}
+
+func TestConfig_ExtractNonTranslatableContent(t *testing.T) {
+	cfg := &doxygen.Config{}
+	// Default ON regardless of how the Config is constructed (zero value).
+	assert.True(t, cfg.ExtractNonTranslatableContent(), "default is ON")
+
+	cfg.SetExtractNonTranslatableContent(false)
+	assert.False(t, cfg.ExtractNonTranslatableContent())
+	cfg.SetExtractNonTranslatableContent(true)
+	assert.True(t, cfg.ExtractNonTranslatableContent())
+
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	assert.False(t, cfg.ExtractNonTranslatableContent())
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	assert.True(t, cfg.ExtractNonTranslatableContent())
+	require.Error(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"}))
+
+	// Schema declares the property (default true) in the parser group.
+	prop, ok := cfg.Schema().Properties["extractNonTranslatableContent"]
+	require.True(t, ok, "schema declares extractNonTranslatableContent")
+	assert.Equal(t, "boolean", prop.Type)
+	assert.Equal(t, true, prop.Default)
 }
 
 // ---------------------------------------------------------------------------

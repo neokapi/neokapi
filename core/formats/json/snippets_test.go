@@ -1332,11 +1332,15 @@ func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Set translation for the extracted block
+	// Set translation only for translatable blocks. The excluded value now
+	// surfaces as a non-translatable content block (extractNonTranslatableContent
+	// defaults on); a realistic MT pass skips it, so it keeps its source text.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
-			block.SetTargetText(model.LocaleFrench, "Bonjour")
+			if block.Translatable {
+				block.SetTargetText(model.LocaleFrench, "Bonjour")
+			}
 		}
 	}
 
@@ -1450,6 +1454,10 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 		{"empty_object", `{"data": {}, "text": "Hello"}`, nil},
 		{"unicode_escapes_non_translatable", `{"id": "\u0041\u0042", "text": "Hello"}`, map[string]any{"idRules": "id"}},
 		{"escaped_slash_non_translatable", `{"note": "see a\/b", "text": "Hello"}`, map[string]any{"noteRules": "note"}},
+		// Excluded value surfaced as a non-translatable content block
+		// (extractNonTranslatableContent defaults on) still round-trips
+		// byte-exact: the body rides a skeleton ref like a translatable value.
+		{"excluded_value_surfaced", `{"keep": "Hi", "_internal": "secret"}`, map[string]any{"exceptions": "^_internal$"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

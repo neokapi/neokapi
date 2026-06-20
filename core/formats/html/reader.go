@@ -68,6 +68,28 @@ var nonTranslatableElements = map[atom.Atom]bool{
 	atom.Script: true, atom.Style: true, atom.Noscript: true,
 }
 
+// nonTranslatableContentRole reports the semantic role under which a
+// non-translatable element's body should be surfaced as a content block, and
+// whether the element qualifies at all. Only renderable contextual content
+// qualifies — the <noscript> fallback subtree and JSON data islands
+// (<script type="application/ld+json"|"application/json">). Generic executable
+// <script> and <style> never qualify; they stay opaque skeleton/Data. Surfaced
+// content rides as a single verbatim run (Translatable=false), visible to
+// ingestion/LLM consumers but skipped by MT. The flag gating is applied by the
+// caller (Config.ExtractNonTranslatableContent).
+func nonTranslatableContentRole(a atom.Atom, scriptType string) (role string, ok bool) {
+	switch a {
+	case atom.Noscript:
+		return model.RoleCode, true
+	case atom.Script:
+		switch strings.ToLower(strings.TrimSpace(scriptType)) {
+		case "application/ld+json", "application/json":
+			return model.RoleCode, true
+		}
+	}
+	return "", false
+}
+
 // preserveWhitespaceElements preserve whitespace by default.
 var preserveWhitespaceElements = map[atom.Atom]bool{
 	atom.Pre: true, atom.Textarea: true,
@@ -226,6 +248,24 @@ func (v *readerVisitor) onData(dataID string, n *html.Node, dataName string, pro
 		Properties: props,
 	}
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartData, Resource: data})
+}
+
+// onContentBlock surfaces a renderable non-translatable element's body (a
+// <noscript> fallback subtree, a JSON data island) as a Block{Translatable:false}
+// carrying a single verbatim run with the given semantic role — visible to
+// ingestion/LLM consumers, skipped by MT. The body is NOT inline-parsed.
+func (v *readerVisitor) onContentBlock(blockID string, n *html.Node, role, body string) {
+	block := model.NewBlock(blockID, body) // single verbatim run
+	block.Name = n.Data
+	block.Type = n.Data
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(role, 0)
+	if t := getAttr(n, "type"); t != "" {
+		block.Properties["type"] = t
+	}
+	v.reader.applyStructureFacets(block, n)
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
@@ -732,6 +772,20 @@ func renderNodeHTML(n *html.Node) string {
 
 func isInlineElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && inlineElements[n.DataAtom]
+}
+
+// rawTextContent concatenates the raw text of an element's text-node children.
+// For raw-text elements (noscript, script, style) golang.org/x/net/html stores
+// the entire body as a single un-decoded text node, so this returns the verbatim
+// inner body — what onContentBlock surfaces and what the writer re-emits.
+func rawTextContent(n *html.Node) string {
+	var buf strings.Builder
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.TextNode {
+			buf.WriteString(child.Data)
+		}
+	}
+	return buf.String()
 }
 
 // getAttr returns the value of the named attribute, or empty string.

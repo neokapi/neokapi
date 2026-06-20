@@ -199,11 +199,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 		dataCounter++
 		row := records[rowIdx]
+		id := fmt.Sprintf("d%d", dataCounter)
+		name := fmt.Sprintf("preamble-row%d", rowIdx+1)
+		content := strings.Join(row, string(r.cfg.Separator))
+		if r.cfg.ExtractNonTranslatableContent() {
+			// Surface the preamble row as non-translatable contextual content
+			// (visible to ingestion/LLM consumers, skipped by MT) instead of
+			// burying it in an opaque Data part.
+			block := r.newPreambleBlock(id, name, content)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
 		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: fmt.Sprintf("preamble-row%d", rowIdx+1),
+			ID:   id,
+			Name: name,
 			Properties: map[string]string{
-				"content": strings.Join(row, string(r.cfg.Separator)),
+				"content": content,
 			},
 		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -285,11 +298,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			colName := r.columnName(headers, colIdx)
 
 			if !r.isTranslatable(colIdx) {
-				// Non-translatable column -> Data
 				dataCounter++
+				id := fmt.Sprintf("d%d", dataCounter)
+				name := fmt.Sprintf("%s.row%d", colName, rowNum)
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Non-translatable column -> non-translatable content cell
+					// (mirrors the header cells: visible to ingestion, skipped
+					// by MT) instead of an opaque Data part.
+					block := r.newNonTranslatableCell(id, name, cell, colIdx, rowNum)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+					continue
+				}
+				// Non-translatable column -> Data
 				data := &model.Data{
-					ID:   fmt.Sprintf("d%d", dataCounter),
-					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
+					ID:   id,
+					Name: name,
 					Properties: map[string]string{
 						"content": cell,
 						"column":  strconv.Itoa(colIdx),
@@ -346,6 +371,32 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// newNonTranslatableCell builds a non-translatable table-cell Block that
+// carries the cell text so ingestion/LLM consumers see the contextual value
+// while MT skips it (Translatable=false). It mirrors the translatable cell /
+// header-cell shape (RoleTableCell, column/row properties).
+func (r *Reader) newNonTranslatableCell(id, name, value string, colIdx, rowNum int) *model.Block {
+	block := model.NewBlock(id, value) // single verbatim run; no inline parse
+	block.Name = name
+	block.Type = "table-cell"
+	block.Translatable = false
+	block.SetSemanticRole(model.RoleTableCell, 0)
+	block.Properties["column"] = strconv.Itoa(colIdx)
+	block.Properties["row"] = strconv.Itoa(rowNum)
+	return block
+}
+
+// newPreambleBlock builds a non-translatable Block carrying a preamble row's
+// raw content (the joined cells) so it surfaces as contextual content for
+// ingestion/LLM consumers while MT skips it. Whitespace is significant.
+func (r *Reader) newPreambleBlock(id, name, content string) *model.Block {
+	block := model.NewBlock(id, content) // single verbatim run; no inline parse
+	block.Name = name
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	return block
 }
 
 func (r *Reader) columnName(headers []string, colIdx int) string {
@@ -437,19 +488,40 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		row := records[rowIdx]
 
 		if rowIdx < startRow {
-			// Header/preamble row: emit entirely as skeleton text + Data part.
+			// Header/preamble row: the raw line always stays in the skeleton so
+			// the localization round-trip is byte-exact.
 			r.skelText(rawLine.text + rawLine.lineEnding)
 			dataCounter++
-			name := "header-row"
+			id := fmt.Sprintf("d%d", dataCounter)
+			content := strings.Join(row, string(r.cfg.Separator))
 			if rowIdx != headerRow {
-				name = fmt.Sprintf("preamble-row%d", rowIdx+1)
+				// Preamble row (before the header). Surface as non-translatable
+				// contextual content when extraction is on; otherwise keep the
+				// historical Data part. Either way the raw bytes ride the
+				// skeleton text above, so the round-trip stays byte-exact.
+				name := fmt.Sprintf("preamble-row%d", rowIdx+1)
+				if r.cfg.ExtractNonTranslatableContent() {
+					block := r.newPreambleBlock(id, name, content)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+					continue
+				}
+				data := &model.Data{
+					ID:         id,
+					Name:       name,
+					Properties: map[string]string{"content": content},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
 			}
+			// Header row: unchanged Data part.
 			data := &model.Data{
-				ID:   fmt.Sprintf("d%d", dataCounter),
-				Name: name,
-				Properties: map[string]string{
-					"content": strings.Join(row, string(r.cfg.Separator)),
-				},
+				ID:         id,
+				Name:       "header-row",
+				Properties: map[string]string{"content": content},
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
@@ -506,13 +578,26 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 
 			if !r.isTranslatable(colIdx) {
-				// Non-translatable column -> skeleton text + Data part.
+				// Non-translatable column: the raw cell always stays in the
+				// skeleton so the round-trip is byte-exact.
 				r.skelText(rc.raw)
 				dataCounter++
 				colName := r.columnName(headers, colIdx)
+				id := fmt.Sprintf("d%d", dataCounter)
+				name := fmt.Sprintf("%s.row%d", colName, rowNum)
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Surface the cell value as non-translatable content
+					// (mirrors header cells: visible to ingestion, skipped by
+					// MT). The body rides the skeleton text above, not a ref.
+					block := r.newNonTranslatableCell(id, name, parsedValue, colIdx, rowNum)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+					continue
+				}
 				data := &model.Data{
-					ID:   fmt.Sprintf("d%d", dataCounter),
-					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
+					ID:   id,
+					Name: name,
 					Properties: map[string]string{
 						"content": parsedValue,
 						"column":  strconv.Itoa(colIdx),
