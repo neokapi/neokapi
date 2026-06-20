@@ -30,8 +30,15 @@ type FormatInfo struct {
 	Extensions  []string `json:"extensions,omitempty"`
 	HasReader   bool     `json:"has_reader"`
 	HasWriter   bool     `json:"has_writer"`
-	Source      string   `json:"source"`   // SourceBuiltIn or plugin name
-	Priority    int      `json:"priority"` // higher = preferred when multiple formats match
+	// Generative reports that the writer can serialize a complete document from
+	// the content model alone (no source skeleton) — so the format is a valid
+	// cross-format conversion target. Declarative: for built-ins it is probed
+	// once from the writer's GenerativeWriter capability at registration; for
+	// plugin formats it comes from the cached manifest ("generative" capability),
+	// never by loading the plugin. Meaningful only when HasWriter is true.
+	Generative bool   `json:"generative,omitempty"`
+	Source     string `json:"source"`   // SourceBuiltIn or plugin name
+	Priority   int    `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // FormatRegistry manages available DataFormats and their configurations.
@@ -147,6 +154,18 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 
 	info := r.getOrCreateInfo(name)
 	info.HasWriter = true
+
+	// Probe the writer's declared Generative capability — but ONLY for built-in
+	// formats. Constructing a built-in writer is cheap and side-effect-free;
+	// for plugin formats the factory dispatches to a daemon, and the capability
+	// is already set declaratively from the cached manifest (RegisterFormatInfo),
+	// so we never instantiate a plugin writer here. This keeps capability
+	// resolution plugin-load-free (AD-005 "Writer output modes").
+	if info.Source == "" || info.Source == SourceBuiltIn {
+		if gw, ok := factory().(format.GenerativeWriter); ok {
+			info.Generative = gw.Generative()
+		}
+	}
 }
 
 // RegisterAlias registers a name-only alias that resolves to a
@@ -222,6 +241,11 @@ func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	}
 	if info.HasWriter {
 		existing.HasWriter = true
+	}
+	// Generative is declared by plugins in the cached manifest; carry it onto the
+	// seeded info so the conversion-target query needs no plugin load.
+	if info.Generative {
+		existing.Generative = true
 	}
 
 	// Register detection signature so bridge/plugin formats participate in

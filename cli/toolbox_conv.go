@@ -140,6 +140,15 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	}
 
 	sameFormat := reader.Name() == writer.Name()
+	// A cross-format conversion reconstructs the target from the content model.
+	// Only a generative writer can do that; a skeleton-bound format (docx, odt,
+	// idml, epub, …) writes back into its own original file and cannot be a
+	// target. Check the declared capability (no plugin load) and fail cleanly.
+	if !sameFormat {
+		if info := a.FormatReg.FormatInfo(toFmt); info != nil && info.HasWriter && !info.Generative {
+			return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
+		}
+	}
 	if sameFormat {
 		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {

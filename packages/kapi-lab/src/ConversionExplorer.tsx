@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { CodeView } from "@neokapi/ui-primitives/preview";
+
+// CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
+type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "csv" | "text";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
@@ -26,16 +30,51 @@ export interface ConversionTarget {
   ext: string;
 }
 
+// GENERATIVE_TARGETS is the curated set shown while the engine boots; once ready
+// the lab replaces it with the authoritative generative-writer list queried from
+// `kapi formats list --json` (the declared capability — no hardcoding, no plugin
+// load). It is also the SSR/not-ready fallback.
 export const GENERATIVE_TARGETS: ConversionTarget[] = [
   { id: "doclang", label: "DocLang", ext: "dclg.xml" },
   { id: "markdown", label: "Markdown", ext: "md" },
   { id: "html", label: "HTML", ext: "html" },
+  { id: "asciidoc", label: "AsciiDoc", ext: "adoc" },
   { id: "xliff", label: "XLIFF", ext: "xliff" },
   { id: "po", label: "Gettext PO", ext: "po" },
+  { id: "klf", label: "KLF", ext: "klf" },
   { id: "json", label: "JSON", ext: "json" },
   { id: "yaml", label: "YAML", ext: "yaml" },
   { id: "plaintext", label: "Plain text", ext: "txt" },
 ];
+
+// langForTarget maps a format id to a CodeView highlight language. XML-family
+// formats (doclang/xliff/…) highlight as xml; unknown ids fall back to plain.
+const TARGET_LANG: Record<string, Lang> = {
+  markdown: "markdown",
+  html: "xml",
+  json: "json",
+  klf: "json",
+  yaml: "yaml",
+  po: "po",
+  properties: "properties",
+  csv: "csv",
+  doclang: "xml",
+  xliff: "xml",
+  xliff2: "xml",
+  ttml: "xml",
+  resx: "xml",
+  androidxml: "xml",
+  xml: "xml",
+};
+function langForTarget(id: string): Lang {
+  return TARGET_LANG[id] ?? "text";
+}
+
+// formatLabel derives a short dropdown label from a format id / display name.
+function targetLabel(id: string, displayName?: string): string {
+  if (displayName && displayName.length <= 18) return displayName;
+  return id;
+}
 
 const DEFAULT_SAMPLE_IDS = [
   "article-md",
@@ -77,11 +116,50 @@ export default function ConversionExplorer({
     content: initial.content,
   });
   const [target, setTarget] = useState<string>(defaultTarget ?? "doclang");
+  const [targets, setTargets] = useState<ConversionTarget[]>(GENERATIVE_TARGETS);
   const [view, setView] = useState<ViewTab>("source");
   const [output, setOutput] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Declaratively load the conversion targets from the engine: the writers it
+  // reports as `generative` (the declared, no-plugin-load capability). This is
+  // the authoritative list — skeleton-bound formats (docx/odt/idml/epub) are
+  // absent because they are not generative. Falls back to the curated default.
+  useEffect(() => {
+    if (!runtime.ready) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { code, output: out } = await runtime.runCapture(["formats", "list", "--json"]);
+        if (cancelled || code !== 0) return;
+        const data = JSON.parse(out) as {
+          formats?: {
+            name: string;
+            display_name?: string;
+            has_writer?: boolean;
+            generative?: boolean;
+            extensions?: string[];
+          }[];
+        };
+        const list = (data.formats ?? [])
+          .filter((f) => f.has_writer && f.generative)
+          .map((f) => ({
+            id: f.name,
+            label: targetLabel(f.name, f.display_name),
+            ext: (f.extensions?.[0] ?? `.${f.name}`).replace(/^\./, ""),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        if (list.length > 0) setTargets(list);
+      } catch {
+        /* keep the curated fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runtime.ready, runtime.runCapture]);
 
   // convertTo runs `kapi convert <in> --to <fmt> -o <out>` in WASM and returns
   // the written output (or throws with the captured error).
@@ -111,7 +189,7 @@ export default function ConversionExplorer({
     setError(null);
     try {
       const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
-      const def = GENERATIVE_TARGETS.find((t) => t.id === target) ?? GENERATIVE_TARGETS[0];
+      const def = targets.find((t) => t.id === target) ?? targets[0];
       const out = await convertTo(inPath, def.id, def.ext);
       setOutput(out);
       // Visual preview: reuse the HTML projection (or the output itself when the
@@ -123,7 +201,7 @@ export default function ConversionExplorer({
       setError(e instanceof Error ? e.message : String(e));
     }
     setBusy(false);
-  }, [runtime.ready, runtime.writeFile, convertTo, file, target]);
+  }, [runtime.ready, runtime.writeFile, convertTo, file, target, targets]);
 
   useEffect(() => {
     if (runtime.ready) void runConversion();
@@ -140,7 +218,7 @@ export default function ConversionExplorer({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
           >
-            {GENERATIVE_TARGETS.map((t) => (
+            {targets.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
               </option>
@@ -157,7 +235,7 @@ export default function ConversionExplorer({
         {runtime.ready && !busy && !error && output !== null && (
           <span className={shared.stats}>
             <span className={shared.statBadge}>
-              {file.filename} → {GENERATIVE_TARGETS.find((t) => t.id === target)?.label}
+              {file.filename} → {targets.find((t) => t.id === target)?.label}
             </span>
           </span>
         )}
@@ -184,9 +262,19 @@ export default function ConversionExplorer({
             </button>
           </div>
 
-          {view === "source" && <pre className={styles.code}>{output}</pre>}
+          {view === "source" &&
+            (output.trim() === "" ? (
+              <p className={styles.note}>
+                The {targets.find((t) => t.id === target)?.label} writer produced an empty document:
+                this is a key-value format and the source has no key-value entries to express. Try a
+                document or interchange target (Markdown, HTML, DocLang, XLIFF, PO), or convert from
+                a catalog source.
+              </p>
+            ) : (
+              <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />
+            ))}
           {view === "rendered" &&
-            (previewHtml !== null ? (
+            (previewHtml !== null && previewHtml.trim() !== "" ? (
               <iframe
                 className={styles.preview}
                 title="Rendered preview"
@@ -199,9 +287,9 @@ export default function ConversionExplorer({
 
           <p className={styles.note}>
             The reader parses the input into the content model (roles, runs, tables, geometry); a
-            generative writer re-serializes it as{" "}
-            {GENERATIVE_TARGETS.find((t) => t.id === target)?.label}. Skeleton-driven formats (docx,
-            odt, idml, epub) inject into an original file and so cannot be conversion targets.
+            generative writer re-serializes it as {targets.find((t) => t.id === target)?.label}.
+            Skeleton-driven formats (docx, odt, idml, epub) inject into an original file and so
+            cannot be conversion targets.
           </p>
         </>
       )}

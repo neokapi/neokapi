@@ -1025,7 +1025,8 @@ func NewWriter() *Writer {
 	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "openxml",
+			FormatName:       "openxml",
+			RequiresSkeleton: true,
 		},
 		cfg: cfg,
 	}

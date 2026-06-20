@@ -276,7 +276,11 @@ type Format struct {
 	// MimeTypes lists MIME types this format handles.
 	MimeTypes []string `json:"mime_types,omitempty"`
 
-	// Capabilities lists the supported operations: "read", "write".
+	// Capabilities lists the supported operations: "read", "write", and
+	// "generative". A "write" + "generative" format can serialize a complete
+	// document from the content model alone, so it is a valid cross-format
+	// conversion target; a "write" format without "generative" is skeleton-bound
+	// (round-trips / merges into its own original file only). See AD-005.
 	Capabilities []string `json:"capabilities,omitempty"`
 
 	// Schema is the path (relative to the plugin dir) to the format's

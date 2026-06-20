@@ -41,7 +41,8 @@ func NewWriter() *Writer {
 	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "idml",
+			FormatName:       "idml",
+			RequiresSkeleton: true,
 		},
 		cfg: cfg,
 	}

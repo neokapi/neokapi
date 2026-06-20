@@ -553,6 +553,13 @@ func renderRunsWithSentinels(runs []model.Run) string {
 			buf.WriteByte(escapeSkipEnd)
 		case run.Text != nil:
 			buf.WriteString(run.Text.Text)
+		case run.PcOpen != nil || run.PcClose != nil:
+			// PO has no inline-markup vocabulary; drop paired-code markers so a
+			// foreign format's markup (markdown **…**, OOXML <w:b>…</w:b>) never
+			// leaks into a msgid on cross-format conversion. The wrapped text is
+			// carried by separate TextRuns and survives. Same-format PO has no
+			// such runs, so round-trip is unaffected.
+			continue
 		default:
 			buf.WriteString(model.RenderRunsWithData([]model.Run{run}))
 		}

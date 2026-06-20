@@ -28,13 +28,18 @@ func (v VersionOutput) FormatText(w io.Writer) error {
 
 // FormatInfo represents a single format entry.
 type FormatInfo struct {
-	Name        string   `json:"name"`
-	DisplayName string   `json:"display_name,omitempty"`
-	HasReader   bool     `json:"has_reader"`
-	HasWriter   bool     `json:"has_writer"`
-	Source      string   `json:"source,omitempty"`
-	Extensions  []string `json:"extensions,omitempty"`
-	MimeTypes   []string `json:"mime_types,omitempty"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name,omitempty"`
+	HasReader   bool   `json:"has_reader"`
+	HasWriter   bool   `json:"has_writer"`
+	// Generative reports the writer can produce a complete document from the
+	// content model alone — so this format is a valid cross-format conversion
+	// target (`kconv --to`). False = skeleton-bound (writes back into its own
+	// original file only). Declarative; resolved without loading any plugin.
+	Generative bool     `json:"generative,omitempty"`
+	Source     string   `json:"source,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
+	MimeTypes  []string `json:"mime_types,omitempty"`
 }
 
 // FormatsListOutput represents the list of formats.

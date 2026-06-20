@@ -36,7 +36,8 @@ var _ format.SubfilterAware = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "odf",
+			FormatName:       "odf",
+			RequiresSkeleton: true,
 		},
 	}
 }

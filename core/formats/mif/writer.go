@@ -27,7 +27,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "mif",
+			FormatName:       "mif",
+			RequiresSkeleton: true,
 		},
 	}
 }

@@ -351,6 +351,11 @@ func NewWriter() *Writer {
 // Name returns the format name.
 func (w *Writer) Name() string { return FormatName }
 
+// Generative reports that KLF writes a complete, self-contained interchange
+// document from the content model alone (no source skeleton) — so it is a valid
+// cross-format conversion target. See AD-005 "Writer output modes".
+func (w *Writer) Generative() bool { return true }
+
 // SetOutput configures an output path.
 func (w *Writer) SetOutput(path string) error {
 	w.outPath = path

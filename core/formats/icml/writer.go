@@ -26,7 +26,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "icml",
+			FormatName:       "icml",
+			RequiresSkeleton: true,
 		},
 	}
 }

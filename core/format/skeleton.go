@@ -284,6 +284,20 @@ type SkeletonStoreEmitter interface {
 }
 
 // SkeletonStoreConsumer is implemented by writers that consume skeleton data.
+// Consuming a skeleton (for byte-exact same-format fidelity) is ORTHOGONAL to
+// being generative: HTML both consumes a skeleton when given one and writes a
+// clean document without one. So this interface does not say a writer needs a
+// skeleton — only that it will use one if offered (see GenerativeWriter).
 type SkeletonStoreConsumer interface {
 	SetSkeletonStore(store *SkeletonStore)
+}
+
+// GenerativeWriter is implemented by writers that can declare whether they
+// serialize a complete document from the content model alone. BaseFormatWriter
+// implements it (via the RequiresSkeleton declaration), so every writer that
+// embeds the base exposes it. The registry probes this once at registration to
+// record FormatInfo.Generative — the declarative, no-plugin-load source of truth
+// for whether a format is a valid cross-format conversion target.
+type GenerativeWriter interface {
+	Generative() bool
 }
