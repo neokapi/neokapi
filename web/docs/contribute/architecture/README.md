@@ -39,6 +39,8 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [028](028-pdf-reader-plugin.md) | PDF Reader & Structure Tiers | PDFium native plugin + browser WASM, geometry/glyphs, tagged + geometric structure tiers |
 | [029](029-vision-and-image-localization.md) | Vision & Image Localization | image as localizable asset; kapi-vision OCR (PP-OCRv5) + layout (PP-DocLayoutV3), path-based, localization modes |
 | [030](030-multimodal-extraction-and-llm-refinement.md) | Multimodal Extraction & LLM Refinement | confidence-gated escalation across image/audio/video; MediaAnchor + ExtractionProvenance overlays, multimodal aiprovider, generic media-refine Transform, kapi-asr/video symmetry |
+| [031](031-content-fidelity-surfacing.md) | Content-Fidelity Surfacing | readers surface non-translatable context (code/captions/formulas) as `Block{Translatable:false}` for LLM/RAG ingestion; default-ON `extractNonTranslatableContent` opt-out; byte-exact + parity-safe |
+| [032](032-math-and-equations.md) | Math & Equations | cgo-free OMML→AST→MathML/LaTeX converter (`core/math`), RoleFormula blocks + Equiv/Disp carriers, OMML sub-skeleton for translatable `<m:nor>` prose, markdown/doclang rendering |
 
 ## Project Model
 

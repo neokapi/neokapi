@@ -243,6 +243,35 @@ centrally, not left to each call site. A cross-format conversion therefore never
 feeds a foreign skeleton into the target writer; that writer takes the generative
 content-model route every writer shares.
 
+### Reader output policy: skeleton vs surfaced content
+
+The skeleton is not the only home for non-translatable content. A reader
+classifies each fragment three ways, not two:
+
+- **Translatable** → a `Block` (`Translatable: true`) the pipeline localizes.
+- **Pure structure** (delimiters, quoting, whitespace) → skeleton bytes.
+- **Non-translatable but meaningful context** (code, captions, alt-text,
+  formulas, do-not-translate strings, config-excluded values, comments) →
+  **surfaced** as a `Block{Translatable:false}` carrying a `SemanticRole`, or as
+  a `Data`/note, so downstream LLM/RAG ingestion sees it while MT skips it.
+
+This surfacing is a default-ON, per-format opt-out
+(`extractNonTranslatableContent`) and is the subject of
+[AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md). It does
+not weaken round-trip fidelity: a surfaced block's verbatim bytes still live in
+the skeleton, with a skeleton ref standing in for the rendered body, so the
+writer reproduces the original exactly. With the flag off, such content stays in
+the skeleton as before — which is the configuration parity pins
+([AD-018](018-parity-testing.md)).
+
+The SkeletonStore also supports a **sub-skeleton**: verbatim segments of an
+otherwise-opaque payload interleaved with refs to translatable spans inside it.
+This is how translatable prose embedded in an opaque structure — the
+natural-language `<m:nor/>` text inside a Word equation — is localized while the
+surrounding math is replayed byte-for-byte
+([AD-032: Math and Equations](032-math-and-equations.md); see
+[Skeleton Store](/contribute/notes-internal/skeleton-store)).
+
 ### Subfilters and nested layers
 
 Format readers can emit child Layers when they encounter embedded content
@@ -300,5 +329,7 @@ preferred skeleton strategy details.
 - [AD-006: Tool System](006-tool-system.md) — the tools that sit between reader and writer
 - [AD-026: Flow I/O Binding](026-flow-io-binding.md) — readers/writers as the `file` binding; other bindings (store, `.klz`, interchange) feed the same stream
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register
+- [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing non-translatable context as content for ingestion; the `extractNonTranslatableContent` opt-out
+- [AD-032: Math and Equations](032-math-and-equations.md) — the OMML sub-skeleton extension to the skeleton strategies
 - [Implementing Formats](/contribute/notes-internal/implementing-formats) — implementation walkthrough
 - [Skeleton Store](/contribute/notes-internal/skeleton-store) — binary skeleton format and wiring

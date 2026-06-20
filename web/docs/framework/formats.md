@@ -96,6 +96,33 @@ round-trip when present and are simply absent when a format doesn't define them.
 Tools and writers read those overlays; a format that emits none works at
 whole-block granularity.
 
+## Content fidelity: context for ingestion
+
+The split above — translatable blocks plus an inert skeleton — is not the whole
+story. A document carries text that should not be *translated* but is still
+*meaningful*: code listings, image captions and alt-text, formulas, strings
+explicitly marked do-not-translate, and values a config rule excluded from
+translation. For a translation run this is noise; for feeding a document to an
+LLM or a retrieval index, it is exactly the context you want to keep.
+
+By default, neokapi readers **surface** this contextual content as
+non-translatable blocks rather than hiding it in the skeleton. Such a block is
+visible to anything that reads the Part stream — the editor, an export to
+Markdown, an ingestion pipeline — and is tagged with a role (code, formula,
+caption, …) so consumers know what it is, but machine translation skips it and
+the round-trip is unaffected (its original bytes are still replayed verbatim).
+Comments and similar metadata surface as data or notes alongside the content.
+
+Each reader that supports this exposes an `extractNonTranslatableContent` option
+(on by default) in the [Format Reference](/formats); set it false to restore the
+older skeleton-only behavior. The design — and why it leaves translation output
+and Okapi parity unchanged — is described in
+[AD-031](/contribute/architecture/031-content-fidelity-surfacing). Equations are
+a notable case: Word/OMML formulas are converted to LaTeX/MathML and rendered on
+cross-format export, and the natural-language prose inside an equation is
+translatable — see [kconv](/toolbox/kconv) and
+[AD-032](/contribute/architecture/032-math-and-equations).
+
 ## Okapi bridge formats
 
 With the Okapi bridge [plugin](/contribute/plugins) installed, kapi can also

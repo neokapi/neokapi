@@ -118,6 +118,43 @@ writer outlives the function via the temp-then-rename output. The inline tool
 path (`cli/toolrun.go`) follows the same type-assert shape but uses a
 `defer store.Close()`.
 
+## Sub-skeleton: translatable spans inside an opaque payload
+
+Some translatable text is embedded *inside* a payload the reader otherwise
+captures opaquely and replays verbatim — the natural-language prose (`<m:nor/>`
+runs: "where", "otherwise", units) inside a Word equation's OMML, which is
+captured as one opaque sentinel run for a byte-exact DOCX round-trip
+([AD-032](/contribute/architecture/032-math-and-equations)). A flat
+`Text`/`Ref` skeleton cannot reach into that blob.
+
+The **sub-skeleton** is the same `Text`/`Ref` mechanism applied recursively over
+the opaque bytes: instead of emitting the whole payload as one `Text` entry, the
+reader emits the verbatim byte segments *between* the translatable spans as
+`Text` and a `Ref` to a translatable block for each span. No new entry type is
+needed — it is ordinary `WriteText` / `WriteRef` calls whose `Text` happens to be
+slices of an opaque blob rather than top-level structure.
+
+For OMML (`core/formats/openxml/omml_math.go`, `writeOMathSubSkeleton`):
+
+1. `xmath.NorSpans(raw)` (`core/math/nor.go`) returns each prose span's text plus
+   its **byte offset range** into the raw OMML (captured via
+   `xml.Decoder.InputOffset`).
+2. The writer validates the offsets are monotonic and in range; if not — or if
+   there are no spans — it falls back to writing the payload verbatim, so a
+   pure-math equation is unaffected.
+3. Otherwise it walks the spans, emitting `skelText(raw[cursor:span.Start])`
+   (verbatim OMML) then `skelRef(blockID)` for a translatable `omml-nor` block,
+   advancing `cursor` past the span.
+
+On write, the openxml `renderBlock` renders an `omml-nor` block as **bare
+element-content text** (`xmlEscape`, matching `captureRawElement`'s CharData
+escaping) so it lands directly inside `<m:t>…</m:t>`. An untranslated span
+therefore reproduces the original bytes exactly; a translated one splices the
+translation in place while the surrounding math is replayed byte-for-byte. The
+cross-format writers (markdown, doclang) **skip** `omml-nor` blocks — the prose
+already rides inside the formula's LaTeX carrier — so the spans are localized for
+DOCX round-trip without being duplicated on export.
+
 ## HTML tokenizer reader (`core/formats/html/tokenreader.go`)
 
 Single-pass reader using Go's `html.Tokenizer` (from `golang.org/x/net/html`).

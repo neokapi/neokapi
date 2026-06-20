@@ -307,9 +307,21 @@ system follows the medium:
 A Block carries whichever facets its medium defines, and they compose — text
 burned into a video frame carries both a `geometry` box and a `timing` span.
 Alongside anchor, a `structure` annotation (`AnnoStructure`, a
-`StructureAnnotation`) records the block's logical **role** and plane (title,
-heading, table cell, caption, metadata) independent of medium. A tool reads only
-the facet it needs; a Block with no media facet is plain anchored-by-runs text.
+`StructureAnnotation`) records the block's logical **role** and plane
+independent of medium. The role vocabulary (`core/model/structure.go`) is
+DocLang/Docling-aligned and broad — `RoleParagraph`, `RoleTitle`,
+`RoleHeading`, `RoleCaption`, `RoleTableCell`, `RoleCode`, `RoleFormula`,
+`RolePicture`, list/footnote/section roles, and the form-field family — not the
+title/heading/caption shortlist alone. A tool reads only the facet it needs; a
+Block with no media facet is plain anchored-by-runs text.
+
+The role also disambiguates **non-translatable content surfaced for context**.
+A block is not always translatable: a reader may emit `Block{Translatable:false}`
+carrying a role such as `RoleCode` or `RoleFormula` so a code listing or an
+equation is visible to LLM/RAG ingestion while MT skips it
+([AD-012](012-mt-providers.md)). This surfacing is a default-ON, per-format
+opt-out and is the subject of
+[AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md).
 
 **Source provenance.** A `Target` records its `Origin` — how the translation was
 produced (`human`/`tm`/`mt`/`ai`, the engine, a reference). A Block's **source**
@@ -481,6 +493,17 @@ The six concerns map onto these fields as follows:
 `PluralRun` / `SelectRun` are structured ICU constructs whose branches are
 themselves `[]Run`.
 
+`Equiv` and `Disp` double as **portable cross-format carriers**. Beyond a
+plain-text equivalent and a translator label, a reader may place a
+format-independent rendering of an opaque payload on them so a foreign writer can
+render it without understanding the source markup. Equations use this: the
+openxml reader keeps the OMML on `Data` (replayed verbatim for a byte-exact
+DOCX round-trip) and places portable LaTeX on `Equiv` (markdown-delimited:
+`$…$` / `$$…$$`) and `Disp` (bare LaTeX), so the Markdown and DocLang writers
+render the formula from the carrier ([AD-032](032-math-and-equations.md)). Both
+fields are excluded from the parity canonical projection, so carrying them never
+disturbs Okapi parity ([AD-018](018-parity-testing.md)).
+
 ### Semantic type vocabulary
 
 The `Type` field uses a defined vocabulary of format-independent semantic
@@ -498,6 +521,12 @@ types, grouped into categories by namespace prefix:
 | `fmt:superscript`   | Superscript text    | `<sup>`           | —        | `<w:vertAlign w:val="superscript"/>` |
 | `fmt:code`          | Inline code         | `<code>`          | `` ` ``  | —                                    |
 | `fmt:highlight`     | Highlighted text    | `<mark>`          | —        | `<w:highlight/>`                     |
+| `fmt:math`          | Inline equation     | `<math>`          | `$…$`    | `<m:oMath>`                          |
+
+`fmt:math` carries the equation markup as opaque inline-code `Data`; portable
+renderings travel on `Equiv`/`Disp` (see below). Standalone (display) equations
+surface as a `RoleFormula` block rather than an inline run
+([AD-032](032-math-and-equations.md)).
 
 **Linking** (`link:`):
 
@@ -553,7 +582,7 @@ convention. Reserved prefixes:
 
 - `xlf:` — XLIFF 2.0 subtypes (`xlf:b`, `xlf:i`, `xlf:u`, `xlf:lb`, `xlf:pb`, `xlf:var`)
 - `html:` — HTML element names (`html:span`, `html:div`, `html:em`)
-- `md:` — Markdown constructs (`md:emphasis`, `md:strong`)
+- `md:` — Markdown constructs (`md:emphasis`, `md:strong`, `md:math-inline`)
 - `docx:` — OpenXML run properties (`docx:w:b`, `docx:w:i`)
 
 Custom subtypes use a reverse-domain prefix: `com.acme:custom-tag`.
@@ -837,3 +866,5 @@ backend's tag-handling capability:
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF/TMX segment + alignment projection
 - [AD-029: Vision and Image Localization](029-vision-and-image-localization.md) — geometry as the spatial anchor facet
 - [AD-030: Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md) — the temporal facet, source `Origin` confidence, and the refinement tier that reads them
+- [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing non-translatable content as `Block{Translatable:false}` with a role, for ingestion
+- [AD-032: Math and Equations](032-math-and-equations.md) — `RoleFormula`, `fmt:math`, and `Equiv`/`Disp` as portable math carriers
