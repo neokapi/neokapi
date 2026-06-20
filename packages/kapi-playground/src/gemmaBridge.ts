@@ -15,7 +15,11 @@
 // return visit is instant. Because the download is large, the lab gates it behind
 // an explicit "use local Gemma" action and surfaces progress via onProgress.
 
-import { AutoProcessor, Gemma4ForConditionalGeneration } from "@huggingface/transformers";
+import {
+  AutoProcessor,
+  Gemma4ForConditionalGeneration,
+  load_image,
+} from "@huggingface/transformers";
 
 const MODEL_ID = "onnx-community/gemma-4-E2B-it-ONNX";
 
@@ -134,6 +138,22 @@ function toChatMessages(messages: WireMessage[]) {
   });
 }
 
+// toTemplateMessages builds chat messages for the multimodal two-step flow where
+// images are passed SEPARATELY to processor(text, images): each image becomes a
+// bare {type:"image"} placeholder (no data) so apply_chat_template emits the
+// image soft-token sequence, which the processor then aligns with the loaded
+// images. Text becomes a {type:"text"} part.
+function toTemplateMessages(messages: WireMessage[]) {
+  return messages.map((m) => {
+    const content: Array<Record<string, unknown>> = [];
+    for (const md of m.media ?? []) {
+      if (md.kind === "image") content.push({ type: "image" });
+    }
+    if (m.text) content.push({ type: "text", text: m.text });
+    return { role: m.role, content };
+  });
+}
+
 /**
  * installGemmaBridge wires globalThis.kapiGemmaGenerate so the in-wasm Gemma
  * provider (kapi --provider gemma) runs the real model on this page. Call once
@@ -160,12 +180,36 @@ async function generate(
   gen: GenOpts,
 ): Promise<GemmaResult> {
   const { processor, model } = loaded;
-  const chat = toChatMessages(wire);
-  const inputs = await processor.apply_chat_template(chat, {
-    add_generation_prompt: true,
-    tokenize: true,
-    return_dict: true,
-  });
+
+  // Collect image data URLs across the conversation. Multimodal needs the
+  // two-step processor flow (apply_chat_template → text, then processor(text,
+  // images)); embedding a data URL in the chat content with tokenize:true does
+  // NOT load the image. Text-only keeps the proven one-step path.
+  const imageURLs: string[] = [];
+  for (const m of wire) {
+    for (const md of m.media ?? []) {
+      if (md.kind === "image" && md.data_url) imageURLs.push(md.data_url);
+    }
+  }
+
+  let inputs: EncodedInputs;
+  if (imageURLs.length > 0) {
+    const proc = processor as unknown as {
+      (text: string, images?: unknown): Promise<EncodedInputs>;
+      apply_chat_template(messages: unknown, opts: unknown): string;
+    };
+    const text = proc.apply_chat_template(toTemplateMessages(wire), {
+      add_generation_prompt: true,
+    });
+    const images = await Promise.all(imageURLs.map((u) => load_image(u)));
+    inputs = await proc(text, images.length === 1 ? images[0] : images);
+  } else {
+    inputs = await processor.apply_chat_template(toChatMessages(wire), {
+      add_generation_prompt: true,
+      tokenize: true,
+      return_dict: true,
+    });
+  }
 
   const doSample = (gen.temperature ?? 0) > 0;
   const generated = await model.generate({
