@@ -33,6 +33,16 @@ const LazyMultimodalShowcase = React.lazy(async () => {
   return { default: mod.MultimodalShowcase };
 });
 
+const LazyAudio = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.AudioExplorer };
+});
+
+const LazyVideo = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.VideoExplorer };
+});
+
 // Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
 // `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
 const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
@@ -148,6 +158,39 @@ export function MultimodalShowcase(props: MultimodalShowcaseProps): React.ReactE
       {() => (
         <Suspense fallback={<Loading />}>
           <LazyMultimodalShowcase {...props} />
+        </Suspense>
+      )}
+    </BrowserOnly>
+  );
+}
+
+export interface AudioExplorerProps {
+  samples?: { url: string; name: string }[];
+}
+
+export function AudioExplorer(props: AudioExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => (
+        <Suspense fallback={<Loading />}>
+          <LazyAudio {...props} />
+        </Suspense>
+      )}
+    </BrowserOnly>
+  );
+}
+
+export interface VideoExplorerProps {
+  samples?: { url: string; name: string }[];
+  modelBase?: string;
+}
+
+export function VideoExplorer(props: VideoExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => (
+        <Suspense fallback={<Loading />}>
+          <LazyVideo {...props} />
         </Suspense>
       )}
     </BrowserOnly>

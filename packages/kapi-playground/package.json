@@ -12,6 +12,8 @@
     "./runtime": "./src/runtime.ts",
     "./samples": "./src/samples.ts",
     "./visionBridge": "./src/visionBridge.ts",
+    "./asrBridge": "./src/asrBridge.ts",
+    "./avBridge": "./src/avBridge.ts",
     "./ooxml": "./src/ooxml.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
@@ -24,6 +26,8 @@
   },
   "dependencies": {
     "@embedpdf/pdfium": "^2.14.4",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@huggingface/transformers": "^4.2.0",
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
