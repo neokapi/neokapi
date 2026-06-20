@@ -1,7 +1,10 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { AudioExplorer } from "@site/src/components/Lab";
+import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import styles from "./pdf.module.css";
 
 // The Audio Lab: drop in an audio file and run real Whisper speech recognition in
@@ -12,6 +15,16 @@ import styles from "./pdf.module.css";
 // differs (WebAssembly here, native there).
 
 export default function AudioLabPage(): React.ReactElement {
+  // The sample is the shared lab clip (a video asset served from the CDN when
+  // configured, else the staged web/static/video copy); the audio reader decodes
+  // its audio track.
+  const { siteConfig } = useDocusaurusContext();
+  const cdn = readCdnConfig(siteConfig);
+  const sampleLocal = useBaseUrl("/video/samples/multimodal-sample.mp4");
+  const sampleUrl = cdnEnabled(cdn)
+    ? cdnHref(cdn, "/video/samples/multimodal-sample.mp4")
+    : sampleLocal;
+  const samples = [{ url: sampleUrl, name: "sample clip" }];
   return (
     <Layout
       title="Audio Lab"
@@ -27,9 +40,9 @@ export default function AudioLabPage(): React.ReactElement {
             <code>kapi-asr</code> plugin runs through whisper.cpp. The recognized speech becomes{" "}
             timing-anchored <strong>subtitle cues</strong>: play the audio and the active cue
             highlights. That's exactly the shape the <code>audio-to-subtitles</code> flow translates
-            and writes to <code>.vtt</code>/<code>.srt</code>. The model (~40&nbsp;MB) loads on first
-            use; nothing is mocked — only the runtime differs. For an instant, no-download tour, see
-            the <Link to="/lab/multimodal">Multimodal Showcase</Link>.
+            and writes to <code>.vtt</code>/<code>.srt</code>. The model (~40&nbsp;MB) loads on
+            first use; nothing is mocked — only the runtime differs. For an instant, no-download
+            tour, see the <Link to="/lab/multimodal">Multimodal Showcase</Link>.
           </p>
           <nav className={styles.nav} aria-label="Related labs">
             <Link to="/lab">Lab</Link>
@@ -40,7 +53,7 @@ export default function AudioLabPage(): React.ReactElement {
             </Link>
           </nav>
         </div>
-        <AudioExplorer />
+        <AudioExplorer samples={samples} />
       </main>
     </Layout>
   );

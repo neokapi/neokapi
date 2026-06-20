@@ -24,6 +24,13 @@ export default function VideoLabPage(): React.ReactElement {
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
   const modelBase = cdnEnabled(cdn) ? cdnHref(cdn, "/models/vision") : sameOriginBase;
+  // The sample clip is a video asset (gitignored web/static/video, published to
+  // the docs-assets release + CDN), so serve it from the CDN when configured.
+  const sampleLocal = useBaseUrl("/video/samples/multimodal-sample.mp4");
+  const sampleUrl = cdnEnabled(cdn)
+    ? cdnHref(cdn, "/video/samples/multimodal-sample.mp4")
+    : sampleLocal;
+  const samples = [{ url: sampleUrl, name: "sample clip" }];
 
   return (
     <Layout
@@ -51,7 +58,7 @@ export default function VideoLabPage(): React.ReactElement {
             <Link to="/lab/multimodal">Multimodal Showcase</Link>
           </nav>
         </div>
-        <VideoExplorer modelBase={modelBase} />
+        <VideoExplorer samples={samples} modelBase={modelBase} />
       </main>
     </Layout>
   );
