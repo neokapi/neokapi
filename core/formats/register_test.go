@@ -218,6 +218,73 @@ func TestFormatDetection(t *testing.T) {
 	}
 }
 
+// ftypBoxBytes builds a 32-byte ISOBMFF header with the given major brand.
+func ftypBoxBytes(brand string) []byte {
+	b := make([]byte, 32)
+	b[3] = 0x20
+	copy(b[4:8], "ftyp")
+	copy(b[8:12], brand)
+	return b
+}
+
+// TestImageFormatDetection covers the widened raster set: every new extension
+// and MIME resolves to "image", and content detection routes WebP and the
+// ISOBMFF still images (HEIC/AVIF) to "image" via the Sniff hook without
+// stealing the shared RIFF/ftyp containers from audio and video.
+func TestImageFormatDetection(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	detector := reg.Detector()
+
+	for _, ext := range []string{
+		".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
+		".webp", ".heic", ".heif", ".avif",
+	} {
+		name, err := detector.DetectByExtension(ext)
+		require.NoError(t, err, "ext %s", ext)
+		assert.Equal(t, "image", name, "ext %s should detect as image", ext)
+	}
+
+	for _, mime := range []string{
+		"image/png", "image/jpeg", "image/gif", "image/bmp", "image/tiff",
+		"image/webp", "image/heic", "image/heif", "image/avif",
+	} {
+		name, err := detector.DetectByMIME(mime)
+		require.NoError(t, err, "mime %s", mime)
+		assert.Equal(t, "image", name, "mime %s should detect as image", mime)
+	}
+
+	// Content detection: WebP (RIFF container, "WEBP" at offset 8) and the
+	// ISOBMFF still images resolve to image via Sniff.
+	webp := append([]byte("RIFF\x10\x00\x00\x00WEBPVP8 "), make([]byte, 16)...)
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"webp", webp},
+		{"heic", ftypBoxBytes("heic")},
+		{"avif", ftypBoxBytes("avif")},
+		{"gif", []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00")},
+	} {
+		name, err := detector.DetectByContent(bytes.NewReader(tc.data))
+		require.NoError(t, err, "content %s", tc.name)
+		assert.Equal(t, "image", name, "%s content should detect as image", tc.name)
+	}
+
+	// Collision guards: a real WAV (RIFF…WAVE) stays audio, and an MP4 ftyp box
+	// (brand isom) is not claimed by image.
+	wav := append([]byte("RIFF\x24\x00\x00\x00WAVEfmt "), make([]byte, 16)...)
+	name, err := detector.DetectByContent(bytes.NewReader(wav))
+	require.NoError(t, err)
+	assert.Equal(t, "audio", name, "WAV must not be claimed by image")
+
+	// An MP4 ftyp box (brand isom) must not be claimed by image; whatever it
+	// resolves to (video, or nothing), it is not "image".
+	if mp4, derr := detector.DetectByContent(bytes.NewReader(ftypBoxBytes("isom"))); derr == nil {
+		assert.NotEqual(t, "image", mp4, "an MP4 ftyp box must not detect as image")
+	}
+}
+
 // TestDoclingContentDetection asserts the DoclingDocument JSON reader wins by
 // content sniff over the generic JSON reader, while a plain JSON object still
 // resolves to "json" (docling's below-default priority loses the fallback).

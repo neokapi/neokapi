@@ -96,18 +96,32 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("plaintext", func() format.DataFormatWriter { return plaintext.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "plaintext", func() format.DataFormatReader { return plaintext.NewReader() })
 
-	// Image (PNG/JPEG) — a localizable raster asset. Always emits the image as a
-	// Media part (whole-image localization); with ocr/layout enabled and the
-	// kapi-vision plugin installed, also extracts text + structure.
+	// Image — a localizable raster asset. Always emits the image as a Media part
+	// (whole-image localization); with ocr/layout enabled and the kapi-vision
+	// plugin installed, also extracts text + structure. PNG/JPEG/GIF/BMP/TIFF are
+	// matched by magic-byte prefix; WebP and the ISOBMFF still images HEIC/HEIF
+	// and AVIF are matched by imagefmt.Sniff (their markers sit past offset 0 and
+	// the RIFF/ftyp container prefixes are shared with audio/video).
 	reg.RegisterReader("image",
 		func() format.DataFormatReader { return imagefmt.NewReader() },
 		format.FormatSignature{
-			MIMETypes:  []string{"image/png", "image/jpeg"},
-			Extensions: []string{".png", ".jpg", ".jpeg"},
+			MIMETypes: []string{
+				"image/png", "image/jpeg", "image/gif", "image/bmp", "image/tiff",
+				"image/webp", "image/heic", "image/heif", "image/avif",
+			},
+			Extensions: []string{
+				".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
+				".webp", ".heic", ".heif", ".avif",
+			},
 			MagicBytes: [][]byte{
 				{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'},
 				{0xff, 0xd8, 0xff},
+				[]byte("GIF87a"), []byte("GIF89a"),
+				[]byte("BM"),
+				{0x49, 0x49, 0x2a, 0x00},
+				{0x4d, 0x4d, 0x00, 0x2a},
 			},
+			Sniff: imagefmt.Sniff,
 		}, "Image")
 	// The writer emits the (possibly localized) image bytes — the whole-image
 	// localization sink, e.g. pseudo-localized variants.

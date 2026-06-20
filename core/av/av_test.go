@@ -2,6 +2,10 @@ package av
 
 import (
 	"context"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -53,4 +57,41 @@ func TestDemux(t *testing.T) {
 	for i := 1; i < len(res.Frames); i++ {
 		assert.Greater(t, res.Frames[i].TimeMS, res.Frames[i-1].TimeMS)
 	}
+}
+
+// ConvertImage shells ffmpeg to transcode a still image into a PNG for the OCR
+// pipeline. We feed a real PNG (fast, deterministic) rather than encoding an
+// AVIF/HEIC at test time — those encoders are slow and environment-dependent;
+// here we only need to prove the decode→re-encode wiring (frame limit, output,
+// error handling) works against a real ffmpeg.
+func TestConvertImage(t *testing.T) {
+	if !FFmpegAvailable() {
+		t.Skip("ffmpeg/ffprobe not on PATH")
+	}
+	dir := t.TempDir()
+	src := filepath.Join(dir, "in.png")
+	srcImg := image.NewRGBA(image.Rect(0, 0, 80, 20))
+	for y := range 20 {
+		for x := range 80 {
+			srcImg.Set(x, y, color.RGBA{40, 90, 160, 255})
+		}
+	}
+	f, err := os.Create(src)
+	require.NoError(t, err)
+	require.NoError(t, png.Encode(f, srcImg))
+	require.NoError(t, f.Close())
+
+	dst := filepath.Join(dir, "out.png")
+	require.NoError(t, ConvertImage(context.Background(), src, dst))
+	assert.FileExists(t, dst)
+
+	// The output is a real PNG of the source dimensions.
+	out, err := os.Open(dst)
+	require.NoError(t, err)
+	defer func() { _ = out.Close() }()
+	cfg, fmtName, err := image.DecodeConfig(out)
+	require.NoError(t, err)
+	assert.Equal(t, "png", fmtName)
+	assert.Equal(t, 80, cfg.Width)
+	assert.Equal(t, 20, cfg.Height)
 }

@@ -123,6 +123,23 @@ func FFmpegAvailable() bool {
 	return true
 }
 
+// ConvertImage transcodes a single still image at srcPath to dstPath via ffmpeg,
+// decoding formats the in-core Go decoders can't read (HEIC/AVIF and other
+// ISOBMFF still images) with ffmpeg's built-in HEVC/AV1 decoders. The
+// destination extension selects the encoder — pass a ".png" path for the OCR
+// pipeline. Like Demux, it is path-based and never holds the image in memory.
+func ConvertImage(ctx context.Context, srcPath, dstPath string) error {
+	if !FFmpegAvailable() {
+		return errors.New("av: ffmpeg not found on PATH")
+	}
+	cmd := exec.CommandContext(ctx, resolveBin("ffmpeg"), "-nostdin", "-y",
+		"-i", srcPath, "-frames:v", "1", dstPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("av: convert image %q: %w: %s", srcPath, err, lastLine(out))
+	}
+	return nil
+}
+
 type probeFormat struct {
 	Duration string `json:"duration"`
 }

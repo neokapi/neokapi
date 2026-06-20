@@ -1,10 +1,16 @@
-// Package image reads raster image files (PNG, JPEG) as documents: it emits the
-// image as a Media part and, when a vision engine is registered (the kapi-vision
-// plugin), recognizes text with OCR and emits positioned text Blocks, recovering
-// tier-2 structure (headings/paragraphs/tables) from the OCR line geometry the
-// same way the PDF geometry path does. With no vision engine installed the
-// reader still opens the file and emits its Media (no text) rather than failing,
-// so an image is always a valid, inspectable document.
+// Package image reads raster image files as documents: it emits the image as a
+// Media part and, when a vision engine is registered (the kapi-vision plugin),
+// recognizes text with OCR and emits positioned text Blocks, recovering tier-2
+// structure (headings/paragraphs/tables) from the OCR line geometry the same
+// way the PDF geometry path does. With no vision engine installed the reader
+// still opens the file and emits its Media (no text) rather than failing, so an
+// image is always a valid, inspectable document.
+//
+// Accepted formats: PNG and JPEG decode natively for OCR; GIF, BMP, TIFF and
+// WebP decode in-core (pure Go) and are re-encoded to PNG before OCR; HEIC/HEIF
+// and AVIF have no Go decoder and are transcoded with ffmpeg (the kapi-av
+// bundle) when available, degrading to a Media-only asset when it is not. See
+// convert.go (normalizeForOCR) and detect.go (classify/Sniff).
 //
 // Alt-text / caption localization: when an "<image>.alt.txt" sidecar sits beside
 // the source, its text is attached to the Media (AltText) and emitted as a
@@ -56,21 +62,38 @@ func NewReader() *Reader {
 			FormatName:        "image",
 			FormatDisplayName: "Image",
 			FormatMimeType:    "image/png",
-			FormatExtensions:  []string{".png", ".jpg", ".jpeg"},
-			Cfg:               defaultConfig(),
+			FormatExtensions: []string{
+				".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
+				".webp", ".heic", ".heif", ".avif",
+			},
+			Cfg: defaultConfig(),
 		},
 	}
 }
 
-// Signature is the detection metadata for raster images.
+// Signature is the detection metadata for raster images. PNG/JPEG/GIF/BMP/TIFF
+// are matched by unambiguous magic-byte prefixes; WebP and the ISOBMFF still
+// images HEIC/HEIF and AVIF need the Sniff hook (their markers sit past offset
+// 0 and share a container prefix with audio/video).
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
-		MIMETypes:  []string{"image/png", "image/jpeg"},
-		Extensions: []string{".png", ".jpg", ".jpeg"},
+		MIMETypes: []string{
+			"image/png", "image/jpeg", "image/gif", "image/bmp", "image/tiff",
+			"image/webp", "image/heic", "image/heif", "image/avif",
+		},
+		Extensions: []string{
+			".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
+			".webp", ".heic", ".heif", ".avif",
+		},
 		MagicBytes: [][]byte{
 			{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, // PNG
 			{0xff, 0xd8, 0xff},                            // JPEG
+			[]byte("GIF87a"), []byte("GIF89a"),            // GIF
+			[]byte("BM"),             // BMP
+			{0x49, 0x49, 0x2a, 0x00}, // TIFF little-endian
+			{0x4d, 0x4d, 0x00, 0x2a}, // TIFF big-endian
 		},
+		Sniff: Sniff,
 	}
 }
 
@@ -91,6 +114,14 @@ func mimeForFormat(f string) string {
 	switch f {
 	case "jpeg":
 		return "image/jpeg"
+	case "gif":
+		return "image/gif"
+	case "bmp":
+		return "image/bmp"
+	case "tiff":
+		return "image/tiff"
+	case "webp":
+		return "image/webp"
 	default:
 		return "image/png"
 	}
@@ -117,11 +148,20 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		}
 		defer cleanup()
 
-		// DecodeConfig reads only the image header, not the whole file.
-		cfg, fmtName, err := decodeConfigFile(imgPath)
-		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("image: decode: %w", err)}
-			return
+		// DecodeConfig reads only the image header, not the whole file. A decode
+		// failure is fatal only when the bytes are not a recognized raster at all;
+		// formats with no in-core Go decoder (HEIC/AVIF) are still valid Media
+		// assets, so we fall back to content-classified MIME and unknown
+		// dimensions rather than failing the read.
+		cfg, fmtName, derr := decodeConfigFile(imgPath)
+		mime := mimeForFormat(fmtName)
+		if derr != nil {
+			kind, _ := classifyFile(imgPath)
+			if kind == kindUnknown {
+				ch <- model.PartResult{Error: fmt.Errorf("image: decode: %w", derr)}
+				return
+			}
+			mime = mimeForKind(kind)
 		}
 
 		uri := r.Doc.URI
@@ -132,7 +172,6 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		if locale.IsEmpty() {
 			locale = model.LocaleEnglish
 		}
-		mime := mimeForFormat(fmtName)
 
 		root := &model.Layer{
 			ID: "doc1", Name: uri, Format: "image", Locale: locale,
@@ -270,13 +309,22 @@ func decodeConfigFile(path string) (image.Config, string, error) {
 // returns the structured Part stream (tier-2 structure over the OCR line
 // geometry), or nil on any failure (best-effort: the Media is already emitted).
 func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID, useLayout bool) []*model.Part {
+	// The vision engine decodes PNG/JPEG only; normalize other rasters
+	// (GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg) to a temp PNG first. A
+	// normalization failure means OCR is skipped — the Media is already emitted.
+	ocrPath, cleanup, err := normalizeForOCR(ctx, imgPath)
+	if err != nil {
+		return nil
+	}
+	defer cleanup()
+
 	eng, err := vision.Open("")
 	if err != nil {
 		return nil
 	}
 	defer func() { _ = eng.Close() }()
 
-	res, err := eng.OCR(ctx, imgPath, vision.OCROptions{Lang: locale.String()})
+	res, err := eng.OCR(ctx, ocrPath, vision.OCROptions{Lang: locale.String()})
 	if err != nil || res == nil {
 		return nil
 	}
@@ -287,7 +335,7 @@ func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.Loca
 	// the geometric tier-2 (structure.Analyze) when layout is off, unavailable,
 	// or yields nothing.
 	if le, ok := eng.(vision.LayoutEngine); ok && useLayout {
-		if regions, lerr := le.Layout(ctx, imgPath, vision.LayoutOptions{Lang: locale.String()}); lerr == nil && len(regions) > 0 {
+		if regions, lerr := le.Layout(ctx, ocrPath, vision.LayoutOptions{Lang: locale.String()}); lerr == nil && len(regions) > 0 {
 			regions = vision.SortReadingOrder(regions)
 			if parts := vision.PartsFromLayout(regions, res, &counter, &groupCounter); len(parts) > 0 {
 				return parts
