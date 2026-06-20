@@ -10,6 +10,10 @@ import FormatPreview, { type PreviewSide } from "./FormatPreview";
 import BlockInspector from "./BlockInspector";
 import StructureView from "./StructureView";
 import LayoutView from "./LayoutView";
+import MediaCanvas from "./MediaCanvas";
+import AudioPlayer from "./AudioPlayer";
+import VideoPlayer from "./VideoPlayer";
+import SubtitleTimeline from "./SubtitleTimeline";
 import CodeView from "./CodeView";
 import { FileIcon, fileType } from "./fileTypes";
 import { downloadBytes, formatBytes } from "./download";
@@ -34,12 +38,58 @@ export interface DocumentViewerProps {
   /** Original file bytes, enabling the Download tab/button (optional). */
   bytes?: Uint8Array | null;
   /** Tab shown first (default "preview"). */
-  defaultTab?: "preview" | "structure" | "layout" | "blocks" | "raw" | "stats" | "download";
+  defaultTab?:
+    | "preview"
+    | "structure"
+    | "layout"
+    | "media"
+    | "blocks"
+    | "raw"
+    | "stats"
+    | "download";
   /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
   changedIds?: ReadonlySet<string>;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
   rawChangedLines?: ReadonlySet<number>;
+  /**
+   * Resolve a media node to a loadable URL for the Media tab. Hosts inject this
+   * to map a node's media descriptor (uri / blob key / inline bytes) onto a URL
+   * they can serve — a desktop content-store path, a wasm blob: URL, an http
+   * asset. Defaults to the node's declared `media.uri`.
+   */
+  resolveMediaUrl?: (node: ContentNode) => string | undefined;
   className?: string;
+}
+
+/** image | audio | video | "" derived from a media node's mime / filename. */
+function mediaKind(node: ContentNode): "image" | "audio" | "video" | "" {
+  const mime = node.media?.mimeType ?? node.mimeType ?? "";
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime.startsWith("video/")) return "video";
+  const name = (node.media?.filename ?? node.name ?? "").toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|bmp|tiff?)$/.test(name)) return "image";
+  if (/\.(mp3|wav|ogg|m4a|aac|flac)$/.test(name)) return "audio";
+  if (/\.(mp4|webm|mov|mkv|m4v)$/.test(name)) return "video";
+  return "";
+}
+
+function firstMediaNode(tree: ContentTree): ContentNode | undefined {
+  let found: ContentNode | undefined;
+  const walk = (n: ContentNode) => {
+    if (found) return;
+    if (n.kind === "media") {
+      found = n;
+      return;
+    }
+    n.children?.forEach(walk);
+  };
+  tree.root.forEach(walk);
+  return found;
+}
+
+function defaultResolveMediaUrl(node: ContentNode): string | undefined {
+  return node.media?.uri;
 }
 
 function flattenBlocks(tree: ContentTree): ContentNode[] {
@@ -64,6 +114,7 @@ export default function DocumentViewer({
   defaultTab = "preview",
   changedIds,
   rawChangedLines,
+  resolveMediaUrl = defaultResolveMediaUrl,
   className,
 }: DocumentViewerProps): React.ReactElement {
   const ft = fileType(filename);
@@ -74,6 +125,13 @@ export default function DocumentViewer({
   // carries a role, and the spatial Layout tab only when page geometry exists.
   const hasStructure = useMemo(() => blocks.some((b) => b.structure?.role), [blocks]);
   const hasGeometry = useMemo(() => blocks.some((b) => b.geometry), [blocks]);
+  // The temporal/media layer (WS1): show the Media tab when the tree carries a
+  // media node or any timed block (subtitles/audio/video transcripts).
+  const hasTiming = useMemo(() => blocks.some((b) => b.timing), [blocks]);
+  const mediaNode = useMemo(() => firstMediaNode(tree), [tree]);
+  const hasMedia = mediaNode !== undefined || hasTiming;
+  const mediaUrl = mediaNode ? resolveMediaUrl(mediaNode) : undefined;
+  const kind = mediaNode ? mediaKind(mediaNode) : "";
 
   // Decode the raw source for the Raw tab (text formats only; binary stays a
   // notice — its bytes are a zip/blob, not readable source).
@@ -172,6 +230,7 @@ export default function DocumentViewer({
           <TabsTrigger value="preview">Preview</TabsTrigger>
           {hasStructure && <TabsTrigger value="structure">Structure</TabsTrigger>}
           {hasGeometry && <TabsTrigger value="layout">Layout</TabsTrigger>}
+          {hasMedia && <TabsTrigger value="media">Media</TabsTrigger>}
           <TabsTrigger value="blocks">
             Blocks{" "}
             {blocks.length > 0 && (
@@ -202,6 +261,33 @@ export default function DocumentViewer({
         {hasGeometry && (
           <TabsContent value="layout" className="pt-3">
             <LayoutView tree={tree} side={side} />
+          </TabsContent>
+        )}
+
+        {/* Media — the format-aware temporal/spatial media view (WS1). image →
+            MediaCanvas (OCR boxes), audio → AudioPlayer, video → VideoPlayer,
+            and a bare timed transcript → the SubtitleTimeline alone. */}
+        {hasMedia && (
+          <TabsContent value="media" className="pt-3">
+            {kind === "image" && mediaUrl ? (
+              <MediaCanvas src={mediaUrl} tree={tree} />
+            ) : kind === "audio" ? (
+              <AudioPlayer src={mediaUrl ?? ""} tree={tree} side={side} />
+            ) : kind === "video" ? (
+              <VideoPlayer
+                src={mediaUrl ?? ""}
+                tree={tree}
+                side={side}
+                showFrameOCR={hasGeometry}
+              />
+            ) : hasTiming ? (
+              <SubtitleTimeline tree={tree} side={side} />
+            ) : (
+              <p className="py-3 text-sm text-muted-foreground">
+                Media is attached but no URL could be resolved — provide{" "}
+                <code>resolveMediaUrl</code> to view it.
+              </p>
+            )}
           </TabsContent>
         )}
 

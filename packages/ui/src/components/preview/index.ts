@@ -45,6 +45,23 @@ export type {
 } from "./renderDoc";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
+// Multimodal viewers (AD-030): timed media (subtitles/audio/video) + raster OCR.
+export { default as SubtitleTimeline } from "./SubtitleTimeline";
+export type { SubtitleTimelineProps } from "./SubtitleTimeline";
+export { default as MediaCanvas } from "./MediaCanvas";
+export type { MediaCanvasProps } from "./MediaCanvas";
+export { default as OCROverlay } from "./OCROverlay";
+export type { OCROverlayProps } from "./OCROverlay";
+export { default as AudioPlayer } from "./AudioPlayer";
+export type { AudioPlayerProps } from "./AudioPlayer";
+export { default as VideoPlayer } from "./VideoPlayer";
+export type { VideoPlayerProps } from "./VideoPlayer";
+export { collectCues, activeCueIndex, formatTimecode, formatDuration } from "./timeline";
+export type { Cue } from "./timeline";
+export { flattenGeometry, topUnits, boxPercent, boxStyle, extentOf } from "./geometry";
+export type { PlacedBlock, Box, BoxPercent } from "./geometry";
+export { useMediaTime } from "./useMediaTime";
+
 export { useTextTransition } from "./useTextTransition";
 export type {
   TransitionEffect,
