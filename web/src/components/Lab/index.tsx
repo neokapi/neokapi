@@ -42,6 +42,11 @@ const LazyBatch = React.lazy(async () => {
   return { default: mod.BatchExplorer };
 });
 
+const LazyConversion = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.ConversionExplorer };
+});
+
 const LazyToolDrop = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ToolDropWidget };
@@ -188,6 +193,30 @@ export function BatchExplorer(props: BatchExplorerProps): React.ReactElement {
           return (
             <Suspense fallback={<Loading />}>
               <LazyBatch assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface ConversionExplorerProps {
+  defaultSampleId?: string;
+  sampleIds?: string[];
+  defaultTarget?: string;
+}
+
+export function ConversionExplorer(props: ConversionExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyConversion assets={assets} {...props} />
             </Suspense>
           );
         }

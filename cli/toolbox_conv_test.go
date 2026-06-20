@@ -112,6 +112,33 @@ func TestConvMarkdownToDocLang(t *testing.T) {
 	assert.Contains(t, out, "<bold>bold</bold>")
 }
 
+// TestConvMarkdownCodeToDocLang: a fenced code block projects to <code> with the
+// recommended Linguist language <label> (the producer-path fix), proving the
+// structure layer carries code role + language across formats.
+func TestConvMarkdownCodeToDocLang(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	path := writeToolboxFile(t, dir, "in.md", "```go\nfmt.Println(\"hi\")\n```\n")
+
+	out, err := captureStdout(t, func() error {
+		return app.runConv(context.Background(), []string{path}, "doclang", "", "")
+	})
+	require.NoError(t, err)
+	assert.Contains(t, out, "<code>")
+	assert.Contains(t, out, `<label value="go"/>`)
+}
+
+// TestConvToSkeletonTargetFails: a skeleton-driven target (openxml) cannot be
+// generated from a foreign content model — it needs the original file. The
+// Conversion Lab only offers generative targets; this guards the error path.
+func TestConvToSkeletonTargetFails(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	path := writeToolboxFile(t, dir, "in.md", "# Title\n")
+	err := app.runConv(context.Background(), []string{path}, "openxml", "", filepath.Join(dir, "out.docx"))
+	require.Error(t, err, "expected openxml (skeleton-driven) to reject generation from markdown")
+}
+
 // TestConvToFile: -o writes the converted document to a file, format inferred
 // from the extension.
 func TestConvToFile(t *testing.T) {

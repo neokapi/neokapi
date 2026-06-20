@@ -28,6 +28,8 @@ export { default as PipelineExplorer } from "./PipelineExplorer";
 export type { PipelineExplorerProps } from "./PipelineExplorer";
 export { default as ToolLab } from "./ToolLab";
 export { default as RoundTripExplorer } from "./RoundTripExplorer";
+export { default as ConversionExplorer, GENERATIVE_TARGETS } from "./ConversionExplorer";
+export type { ConversionExplorerProps, ConversionTarget } from "./ConversionExplorer";
 export { default as FlowBuilderRunner } from "./FlowBuilderRunner";
 export type { FlowBuilderRunnerProps } from "./FlowBuilderRunner";
 export { LAB_SCENARIOS } from "./labScenarios";

@@ -77,6 +77,45 @@ cart.checkout = Proceed to checkout
 `,
   },
   {
+    id: "article-md",
+    label: "article.md",
+    filename: "article.md",
+    blurb:
+      "Markdown — headings, a list, an inline-styled paragraph, and a fenced code block (with a language). A rich source for cross-format conversion.",
+    content: `# Release notes
+
+The **2.0** release adds format-aware conversion. See the [docs](/docs) for details.
+
+## Highlights
+
+- Convert between formats
+- Preserve structure and inline styling
+- Keep code blocks intact
+
+\`\`\`go
+fmt.Println("hello, world")
+\`\`\`
+`,
+  },
+  {
+    id: "report-doclang",
+    label: "report.dclg.xml",
+    filename: "report.dclg.xml",
+    blurb:
+      "DocLang — a structured document with roles, a table, and geometry. Convert it to markdown/html to see the structure re-expressed.",
+    content: `<?xml version="1.0" encoding="UTF-8"?>
+<doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6">
+  <heading level="1">Quarterly Report</heading>
+  <text>Revenue grew across <bold>every</bold> region this quarter.</text>
+  <table>
+    <ched/>Region<ched/>Revenue<nl/>
+    <fcel/>North<fcel/>1200<nl/>
+    <fcel/>South<fcel/>980<nl/>
+  </table>
+</doclang>
+`,
+  },
+  {
     id: "support-reply",
     label: "support-reply.json",
     filename: "support-reply.json",

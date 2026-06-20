@@ -172,5 +172,12 @@ func buildRoot() *cobra.Command {
 		root.AddCommand(c)
 	}
 
+	// Format-aware toolbox utilities (grep/sed/cat/convert). `convert` (kconv)
+	// powers the in-browser Conversion Lab — read any format, re-express it as a
+	// generative target (markdown/html/doclang/xliff/…) via the content model.
+	for _, c := range app.NewToolboxProxies() {
+		root.AddCommand(c)
+	}
+
 	return root
 }
