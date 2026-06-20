@@ -249,6 +249,18 @@ var typeToRole = map[string]string{
 	"pre":        model.RoleCode,
 }
 
+// formulaLaTeX returns bare LaTeX for a formula block sourced from a foreign
+// format — a placeholder run carrying it in Disp. Empty when the block already
+// holds the LaTeX as text (native doclang), so the normal body is used.
+func formulaLaTeX(blk *model.Block) string {
+	for _, r := range blk.Source {
+		if r.Ph != nil && r.Ph.Disp != "" {
+			return r.Ph.Disp
+		}
+	}
+	return ""
+}
+
 func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 	role := blk.SemanticRole()
 	if role == "" {
@@ -282,6 +294,17 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 
 	body := renderXMLBody(w.blockRuns(blk))
 	elem, hasLevel := roleElem(role)
+
+	// A RoleFormula block sourced from a foreign format (e.g. OpenXML OMML)
+	// carries its math as a placeholder run whose Disp holds bare LaTeX. DocLang
+	// mandates LaTeX inside <formula> (no $…$ wrapping), so use that bare LaTeX
+	// for the body rather than the markdown-wrapped Equiv. Native doclang formula
+	// blocks hold the LaTeX as text and keep the normal body.
+	if role == model.RoleFormula {
+		if latex := formulaLaTeX(blk); latex != "" {
+			body = bodyEscaper.Replace(latex)
+		}
+	}
 
 	// Every direct child of a <list> is a list_item and MUST begin with
 	// <ldiv/> (per the schema's list content model), whatever its role.
