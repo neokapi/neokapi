@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T09:21:22Z",
+  "generatedAt": "2026-06-20T08:22:12Z",
   "kind": "format",
   "entries": [
     {
@@ -174,8 +174,7 @@
             "fields": [
               "extractComments",
               "skipNonTranslatable",
-              "skipResourceReferences",
-              "extractNonTranslatableContent"
+              "skipResourceReferences"
             ]
           }
         ],
@@ -184,12 +183,6 @@
             "type": "boolean",
             "title": "Extract comments as notes",
             "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
-            "default": true
-          },
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Surface non-translatable content",
-            "description": "Surface \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton.",
             "default": true
           },
           "skipNonTranslatable": {
@@ -274,18 +267,11 @@
             "label": "Extraction",
             "fields": [
               "extractStale",
-              "markTranslatedState",
-              "extractNonTranslatableContent"
+              "markTranslatedState"
             ]
           }
         ],
         "properties": {
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Surface non-translatable content",
-            "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extractStale is off). When off, the part stream is byte-identical to the prior behavior.",
-            "default": true
-          },
           "extractStale": {
             "type": "boolean",
             "title": "Extract stale entries",
@@ -533,7 +519,8 @@
         "audio/flac",
         "audio/ogg"
       ],
-      "hasReader": true
+      "hasReader": true,
+      "hasWriter": true
     },
     {
       "id": "csv",
@@ -1211,7 +1198,7 @@
           "descriptionNotes": {
             "type": "boolean",
             "title": "Surface descriptions as notes",
-            "description": "Surface the human-facing context in a resource's sibling \"@\u003cid\u003e\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
+            "description": "Surface the \"description\" field of a resource's sibling \"@\u003cid\u003e\" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
             "default": true
           }
         }
@@ -1532,40 +1519,6 @@
       ],
       "hasReader": true,
       "hasWriter": true,
-      "schema": {
-        "$id": "",
-        "$version": "",
-        "title": "ICU MessageFormat Filter",
-        "description": "ICU MessageFormat patterns, one per input line",
-        "type": "object",
-        "formatMeta": {
-          "id": "messageformat",
-          "extensions": [
-            ".mf",
-            ".messageformat"
-          ],
-          "mimeTypes": [
-            "text/x-messageformat"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "extraction",
-            "label": "Content Extraction",
-            "fields": [
-              "extractNonTranslatableContent"
-            ]
-          }
-        ],
-        "properties": {
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), literal prose that frames a plural/select branch (the sentence frame around a picker) is surfaced as a non-translatable content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
-            "default": true
-          }
-        }
-      },
       "doc": {
         "overview": "ICU MessageFormat is the pattern syntax used by ICU and many i18n\nlibraries to express messages with placeholders and grammatical\nvariation. This format treats each input line as one independent\nMessageFormat pattern.\n\nA plain-text pattern extracts as a single translatable block. A\npattern with simple placeholders — `{0}`, `{name}`, `{name, type}`,\n`{name, type, style}` — also extracts as a single block, with the\nplaceholders carried as inline runs around the literal text so they\ncannot be accidentally translated or reordered. A pattern with a\nplural, select, or selectordinal picker splits into one block per\nbranch body, so each grammatical form can be translated independently;\nthe picker scaffolding (`{count, plural, …}`, `{gender, select, …}`)\nand any text outside the picker is preserved through the skeleton\nrather than extracted. ICU quoting is decoded before extraction: `''`\nbecomes a literal apostrophe and `'{…}'` protects a literal-brace\npassage. Java's deprecated `choice` format is rejected with an error.\n",
         "limitations": [
@@ -1696,8 +1649,7 @@
               "useKeyCondition",
               "extractOnlyMatchingKey",
               "keyCondition",
-              "extraComments",
-              "extractNonTranslatableContent"
+              "extraComments"
             ]
           },
           {
@@ -1752,12 +1704,6 @@
             "title": "Additional Comment Markers",
             "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
             "default": false
-          },
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Surface Excluded Values",
-            "description": "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation",
-            "default": true
           },
           "extractOnlyMatchingKey": {
             "type": "boolean",
@@ -2611,7 +2557,6 @@
             "id": "extraction",
             "label": "Content Extraction",
             "fields": [
-              "extractNonTranslatableContent",
               "translateCodeBlocks",
               "translateFrontMatter",
               "frontMatterKeys",
@@ -2640,12 +2585,6 @@
               "field": "useCodeFinder",
               "eq": true
             }
-          },
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Surface Non-Translatable Content",
-            "description": "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque.",
-            "default": true
           },
           "frontMatterKeys": {
             "type": "array",
@@ -2800,59 +2739,6 @@
       ],
       "hasReader": true,
       "hasWriter": true,
-      "schema": {
-        "$id": "",
-        "$version": "",
-        "title": "Open Document Format",
-        "description": "Configuration for the OpenDocument (ODT/ODS/ODP/ODG) format reader/writer",
-        "type": "object",
-        "formatMeta": {
-          "id": "odf",
-          "extensions": [
-            ".odt",
-            ".ods",
-            ".odp",
-            ".odg",
-            ".odf"
-          ],
-          "mimeTypes": [
-            "application/vnd.oasis.opendocument.text",
-            "application/vnd.oasis.opendocument.spreadsheet",
-            "application/vnd.oasis.opendocument.presentation"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "extraction",
-            "label": "Content Extraction",
-            "fields": [
-              "translateNotes",
-              "translateHiddenContent",
-              "extractNonTranslatableContent"
-            ]
-          }
-        ],
-        "properties": {
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content — image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text) — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
-            "default": true
-          },
-          "translateHiddenContent": {
-            "type": "boolean",
-            "title": "Translate Hidden Content",
-            "description": "If true, hidden content is extracted as translatable content.",
-            "default": false
-          },
-          "translateNotes": {
-            "type": "boolean",
-            "title": "Translate Presentation Notes",
-            "description": "If true, presentation speaker notes are extracted as translatable content.",
-            "default": true
-          }
-        }
-      },
       "doc": {
         "overview": "ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,\nOpenOffice, and compatible suites. neokapi handles the text (`.odt`),\nspreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,\nauto-detecting the variant from the package's `mimetype` entry. Each file is\na ZIP archive containing a `content.xml` payload plus styles and metadata\nsub-documents; the reader extracts translatable text from the content while\npreserving the surrounding XML and the package structure as skeleton.\n\nneokapi reads and writes ODF, round-tripping the archive so the translated\noutput remains a valid OpenDocument file. By default it extracts\npresentation notes but skips hidden content — matching the upstream Okapi\nOpenOffice filter behaviour. The native reader applies these defaults but\ndoes not expose them as a configurable JSON schema in this reference.\n",
         "limitations": [
@@ -2956,8 +2842,7 @@
               "aggressiveCleanup",
               "tabAsCharacter",
               "ignoreSoftHyphenTag",
-              "replaceNoBreakHyphenTag",
-              "extractNonTranslatableContent"
+              "replaceNoBreakHyphenTag"
             ]
           },
           {
@@ -3046,12 +2931,6 @@
             "type": "array",
             "title": "Excluded sheets",
             "description": "Sheet names to exclude from extraction."
-          },
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content is surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque.",
-            "default": true
           },
           "extractRunFontsInfo": {
             "type": "boolean",
@@ -3933,85 +3812,6 @@
       ],
       "hasReader": true,
       "hasWriter": true,
-      "schema": {
-        "$id": "",
-        "$version": "",
-        "title": "RTF Format",
-        "description": "Configuration for the Rich Text Format reader/writer",
-        "type": "object",
-        "formatMeta": {
-          "id": "rtf",
-          "extensions": [
-            ".rtf"
-          ],
-          "mimeTypes": [
-            "application/rtf",
-            "text/rtf"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "extraction",
-            "label": "Content Extraction",
-            "fields": [
-              "extractNonTranslatableContent",
-              "extractHeadersFooters",
-              "extractAnnotations",
-              "extractBookmarks"
-            ]
-          },
-          {
-            "id": "inlineCodes",
-            "label": "Inline Codes",
-            "fields": [
-              "useCodeFinder",
-              "codeFinderRules"
-            ]
-          }
-        ],
-        "properties": {
-          "codeFinderRules": {
-            "type": "array",
-            "title": "Code Finder Rules",
-            "description": "Regex patterns that match inline codes within extracted text.",
-            "ui:widget": "code-finder",
-            "ui:visible": {
-              "field": "useCodeFinder",
-              "eq": true
-            }
-          },
-          "extractAnnotations": {
-            "type": "boolean",
-            "title": "Translate Annotations",
-            "description": "If true, text in \\annotation (review comment) destinations is extracted as translatable content. If false (default), the comment text rides as block note metadata when extractNonTranslatableContent is on.",
-            "default": false
-          },
-          "extractBookmarks": {
-            "type": "boolean",
-            "title": "Translate Bookmarks",
-            "description": "If true, \\bkmkstart / \\bkmkend bookmark labels are extracted as translatable text. Off by default — bookmarks are structural anchors, not user-visible copy.",
-            "default": false
-          },
-          "extractHeadersFooters": {
-            "type": "boolean",
-            "title": "Translate Headers and Footers",
-            "description": "If true, text in \\header* and \\footer* destinations is extracted as translatable content. If false (default), it is surfaced as non-translatable content when extractNonTranslatableContent is on, otherwise kept in skeleton.",
-            "default": false
-          },
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content — headers/footers, \\info title/doccomm metadata, and \\xe/\\tc index/TOC entries — is surfaced as role-tagged content blocks (visible to ingestion/LLM consumers, skipped by machine translation) and \\annotation review comments ride as note metadata. Disable to keep all of it in skeleton.",
-            "default": true
-          },
-          "useCodeFinder": {
-            "type": "boolean",
-            "title": "Enable Inline Code Detection",
-            "description": "Enable regex-based inline code detection within extracted text.",
-            "default": false
-          }
-        }
-      },
       "doc": {
         "overview": "RTF (Rich Text Format) is Microsoft's text-based document interchange\nformat, structured as a stream of control words and groups. It is also the\ncarrier for Trados-tagged bilingual RTF. neokapi walks the RTF token stream,\nextracts text from paragraph runs as translatable Blocks, and skips\nnon-translatable destinations — font, colour, and stylesheet tables,\ndocument info, pictures, and fields.\n\nneokapi reads and writes RTF. It decodes the common RTF escapes on read —\n`\\uN` Unicode escapes, `\\'HH` hex escapes, and special-character control\nwords such as `\\par`, `\\tab`, `\\emdash`, and the smart-quote words — and\npreserves non-translatable structure as skeleton. By default it does not\nextract header and footer text, annotation (comment) text, or bookmark text;\nthe upstream Okapi RTF filter exposes no parameters, and these neokapi-side\nextraction toggles are not surfaced as a configurable JSON schema in this\nreference.\n",
         "limitations": [
@@ -4709,7 +4509,7 @@
           "extractNonTranslatableContent": {
             "type": "boolean",
             "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable head metadata such as ttm:title, ttm:desc, ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "description": "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
           "maxCharsPerLine": {
@@ -4857,7 +4657,8 @@
         "video/x-matroska",
         "video/webm"
       ],
-      "hasReader": true
+      "hasReader": true,
+      "hasWriter": true
     },
     {
       "id": "vignette",
@@ -4865,93 +4666,8 @@
       "kind": "format",
       "displayName": "Vignette CMS Export",
       "description": "Read and write Vignette CMS export/import XML (the output of the vgnexport tool).",
-      "extensions": [
-        ".xml"
-      ],
-      "mimeTypes": [
-        "text/xml"
-      ],
       "hasReader": true,
       "hasWriter": true,
-      "schema": {
-        "$id": "",
-        "$version": "",
-        "title": "Vignette CMS Export Format",
-        "description": "Configuration for the Vignette CMS export/import XML format reader/writer",
-        "type": "object",
-        "formatMeta": {
-          "id": "vignette",
-          "extensions": [
-            ".xml"
-          ],
-          "mimeTypes": [
-            "text/xml"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "extraction",
-            "label": "Content Extraction",
-            "fields": [
-              "partsNames",
-              "partsConfigurations",
-              "sourceId",
-              "localeId",
-              "monolingual",
-              "extractNonTranslatableContent"
-            ]
-          },
-          {
-            "id": "output",
-            "label": "Output",
-            "fields": [
-              "useCDATA"
-            ]
-          }
-        ],
-        "properties": {
-          "extractNonTranslatableContent": {
-            "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-source-locale content instances that bilingual mode does not extract are surfaced as non-translatable content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep them in skeleton. No effect in monolingual mode.",
-            "default": true
-          },
-          "localeId": {
-            "type": "string",
-            "title": "Locale ID Attribute",
-            "description": "The name attribute value of the \u003cattribute\u003e that holds the locale identifier.",
-            "default": "LOCALE_ID"
-          },
-          "monolingual": {
-            "type": "boolean",
-            "title": "Monolingual Mode",
-            "description": "If true, disable source/target pairing and extract every importContentInstance independently.",
-            "default": false
-          },
-          "partsConfigurations": {
-            "type": "string",
-            "title": "Parts Configurations",
-            "description": "Comma-separated list of sub-filter configuration ids (one per entry in partsNames). Use 'default' for no sub-filtering; 'okf_html' decodes HTML entities and strips an outer \u003cp\u003e wrap."
-          },
-          "partsNames": {
-            "type": "string",
-            "title": "Parts Names",
-            "description": "Comma-separated list of \u003cattribute name=\"…\"\u003e values to extract from each importContentInstance."
-          },
-          "sourceId": {
-            "type": "string",
-            "title": "Source ID Attribute",
-            "description": "The name attribute value of the \u003cattribute\u003e that links source and target instances.",
-            "default": "SOURCE_ID"
-          },
-          "useCDATA": {
-            "type": "boolean",
-            "title": "Use CDATA",
-            "description": "If true (default), wrap written valueCLOB payloads in \u003c![CDATA[…]]\u003e sections on output.",
-            "default": true
-          }
-        }
-      },
       "doc": {
         "overview": "This format reads and writes the export/import XML produced by the\nVignette content management system's `vgnexport` tool. A document\ncontains one or more `\u003cimportContentInstance\u003e` blocks, each holding a\nset of `\u003cattribute name=\"…\"\u003e` payloads for one content item in one\nlocale. The reader walks every instance and extracts the payloads\nwhose attribute names are listed in the parts configuration; the\nremaining XML structure is preserved.\n\nBy default the reader works bilingually: source and target instances\nare paired through the value of the source-id attribute, and only\npaired instances reach the translatable stream. In monolingual mode\nevery instance is extracted independently. Encoding is forced to\nUTF-8 on read and write, matching the upstream filter. A payload may\nitself contain HTML; for attributes configured with the `okf_html`\nsub-filter the reader decodes HTML entities and strips an outer `\u003cp\u003e`\nwrapper, while every other configuration treats the payload as a\nsingle literal block.\n\nConfiguration is supplied on the collection's `format:` block in a\n`.kapi` project, with keys that mirror the Okapi parameter names:\n`partsNames` — a comma-separated list of attribute names to extract\n(defaults to the standard SMC attribute set); `partsConfigurations` —\na comma-separated list of sub-filter ids paired by index with\n`partsNames`, where `okf_html` decodes HTML and any other value\n(including `default`) means no sub-filtering; `sourceId` — the\nattribute name holding the source-id used to pair instances (default\n`SOURCE_ID`); `localeId` — the attribute name holding the locale\nidentifier (default `LOCALE_ID`); `monolingual` — when true, extract\nevery instance independently instead of pairing; and `useCDATA` —\nwhen true, wrap written payloads in a CDATA section (write-side only).\n",
         "limitations": [

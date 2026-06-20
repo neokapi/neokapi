@@ -1,10 +1,11 @@
 {
-  "generatedAt": "2026-06-20T09:21:22Z",
+  "generatedAt": "2026-06-20T08:22:12Z",
   "summary": {
     "built-in/format/description": 3,
-    "built-in/format/doc.examples": 5,
+    "built-in/format/doc.examples": 3,
     "built-in/format/doc.overview": 3,
-    "built-in/tool/doc.overview": 1,
+    "built-in/tool/description": 1,
+    "built-in/tool/doc.overview": 2,
     "plugin/format/doc.overview": 1,
     "total": 13
   },
@@ -53,24 +54,10 @@
     },
     {
       "kind": "format",
-      "source": "built-in",
-      "id": "odf",
-      "field": "doc.examples",
-      "detail": "configurable but no worked examples"
-    },
-    {
-      "kind": "format",
       "source": "plugin",
       "id": "pdf",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
-    },
-    {
-      "kind": "format",
-      "source": "built-in",
-      "id": "rtf",
-      "field": "doc.examples",
-      "detail": "configurable but no worked examples"
     },
     {
       "kind": "format",
@@ -97,6 +84,20 @@
       "kind": "tool",
       "source": "built-in",
       "id": "media-refine",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "subtitle-filter",
+      "field": "description",
+      "detail": "no description or overview"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "subtitle-filter",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     }

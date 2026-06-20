@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T19:20:48Z",
+  "generatedAt": "2026-06-20T08:22:12Z",
   "kind": "tool",
   "entries": [
     {
@@ -5543,6 +5543,33 @@
           "Operates on inline-code runs in both source and target segments.",
           "Recurses into plural and select constructs so codes inside them are classified as well."
         ]
+      }
+    },
+    {
+      "id": "subtitle-filter",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Subtitle Filter",
+      "category": "text-processing",
+      "tags": [
+        "media",
+        "subtitle"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "subtitle-filter",
+        "title": "Subtitle Filter",
+        "type": "object",
+        "toolMeta": {
+          "id": "subtitle-filter",
+          "category": "text-processing",
+          "displayName": "Subtitle Filter",
+          "tags": [
+            "media",
+            "subtitle"
+          ],
+          "cardinality": "monolingual"
+        }
       }
     },
     {
