@@ -10,11 +10,12 @@
 //   globalThis.kapiGemmaGenerate(payloadJSON) =>
 //     Promise<{ text, input_tokens, output_tokens }>
 //
-// Loading is lazy and opt-in: the model (a few GB; see DEFAULT_DTYPE for the
-// per-component quantization that keeps it down) downloads on the first generate
-// call, cached by transformers.js in the browser Cache API so a return visit is
-// instant. Because the download is large, the lab gates it behind an explicit
-// "use local Gemma" action and surfaces progress via onProgress.
+// Loading is lazy and opt-in: the model — several GB, since Gemma 4 E2B is a
+// multimodal model whose non-decoder components load at fp16 (no q4f16 variant)
+// — downloads on the first generate call, cached by transformers.js in the
+// browser Cache API so a return visit is instant. Because the download is large,
+// the lab gates it behind an explicit "use local Gemma" action and surfaces
+// progress via onProgress.
 
 import {
   AutoProcessor,
@@ -41,32 +42,20 @@ export interface GemmaProgress {
 
 export interface InstallGemmaOptions {
   /**
-   * Quantization. A single string applies to every sub-model — but Gemma 4 E2B
-   * is multimodal (decoder + embed_tokens + vision/audio encoders) and only the
-   * decoder ships a `q4f16` variant, so a bare "q4f16" falls back to fp16 for
-   * the rest and balloons the download to 6–8 GB. Pass a per-component map (the
-   * default) to keep each component quantized. See DEFAULT_DTYPE.
+   * Quantization variant. q4f16 (the default) quantizes Gemma 4 E2B's decoder
+   * and falls back to fp16 for its other components (embeddings + vision/audio
+   * encoders), which ship no q4f16 variant — so the full multimodal download is
+   * several GB. A per-component map CAN be passed, but a variant that doesn't
+   * exist for a component falls back to a much larger file (e.g. fp32) that can
+   * exceed the browser's ArrayBuffer limit and fail the download — so the safe
+   * default is the plain string.
    */
-  dtype?: GemmaDType | Record<string, GemmaDType>;
+  dtype?: "q4" | "q4f16" | "fp16" | Record<string, "q4" | "q4f16" | "q8" | "fp16">;
   /** Inference device. WebGPU is required for usable speed. */
   device?: "webgpu" | "wasm";
   /** Progress callback for the (one-time) model download + load. */
   onProgress?: (p: GemmaProgress) => void;
 }
-
-/** Quantization variants we use (a subset of transformers.js's DataType). */
-type GemmaDType = "q4" | "q4f16" | "q8" | "fp16";
-
-// Per-component quantization: q4f16 decoder (best quality/size for the LM that
-// does translation/segmentation), q8 embeddings, and quantized vision/audio
-// encoders — roughly a third of the all-fp16-fallback footprint. Keeping the
-// vision encoder reasonably precise preserves the Vision lab's OCR compare.
-const DEFAULT_DTYPE: Record<string, GemmaDType> = {
-  embed_tokens: "q8",
-  decoder_model_merged: "q4f16",
-  vision_encoder: "q4",
-  audio_encoder: "q4",
-};
 
 interface WireMedia {
   kind: "image" | "audio" | "video";
@@ -116,7 +105,7 @@ let loadPromise: Promise<LoadedModel> | null = null;
 
 function loadModel(opts: InstallGemmaOptions): Promise<LoadedModel> {
   if (loadPromise) return loadPromise;
-  const dtype = opts.dtype ?? DEFAULT_DTYPE;
+  const dtype = opts.dtype ?? "q4f16";
   const device = opts.device ?? "webgpu";
   // Gemma downloads many shards; transformers.js reports progress PER FILE, so a
   // naive per-file fraction makes the bar jump back to 0 on each shard. Track
