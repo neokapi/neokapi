@@ -14,19 +14,19 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
   "translate-and-qa": {
     description: "Translate with AI then run quality checks",
     steps: [
-      { tool: "ai-translate", label: "Translate" },
-      { tool: "qa-check", label: "Quality Check" },
+      { tool: "translate", label: "Translate" },
+      { tool: "qa", label: "Quality Check" },
     ],
   },
   "full-pipeline": {
     description: "Complete localization pipeline",
     steps: [
       { tool: "tm-leverage", label: "TM Leverage" },
-      { tool: "ai-translate", label: "AI Translate" },
+      { tool: "translate", label: "AI Translate" },
       {
         tool: "",
         parallel: [
-          { tool: "qa-check", label: "QA Check" },
+          { tool: "qa", label: "QA Check" },
           { tool: "brand-vocab-check", label: "Brand Check" },
         ],
       },
@@ -34,7 +34,7 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
     ],
   },
   "pseudo-validate": {
-    steps: [{ tool: "pseudo-translate" }, { tool: "qa-check" }],
+    steps: [{ tool: "pseudo-translate" }, { tool: "qa" }],
   },
 };
 

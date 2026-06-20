@@ -78,12 +78,12 @@ const sampleFlowBody = `{
   "description": "project flow",
   "nodes": [
     {"id":"reader","type":"reader","name":"auto","position":{"x":0,"y":0}},
-    {"id":"ai-translate","type":"tool","name":"ai-translate","position":{"x":250,"y":0}},
+    {"id":"translate","type":"tool","name":"translate","position":{"x":250,"y":0}},
     {"id":"writer","type":"writer","name":"auto","position":{"x":500,"y":0}}
   ],
   "edges": [
-    {"id":"e1","source":"reader","target":"ai-translate"},
-    {"id":"e2","source":"ai-translate","target":"writer"}
+    {"id":"e1","source":"reader","target":"translate"},
+    {"id":"e2","source":"translate","target":"writer"}
   ]
 }`
 
@@ -99,11 +99,11 @@ func TestHandleListFlowDefinitions_BuiltInOnly(t *testing.T) {
 	assert.GreaterOrEqual(t, len(defs), len(flow.BuiltInFlows()))
 	var hasBuiltIn bool
 	for _, d := range defs {
-		if d.ID == "ai-translate" && d.Source == "built-in" {
+		if d.ID == "translate" && d.Source == "built-in" {
 			hasBuiltIn = true
 		}
 	}
-	assert.True(t, hasBuiltIn, "built-in ai-translate flow should be listed")
+	assert.True(t, hasBuiltIn, "built-in translate flow should be listed")
 }
 
 func TestHandleFlowDefinition_CRUD(t *testing.T) {
@@ -163,11 +163,11 @@ func TestHandleGetFlowDefinition_BuiltIn(t *testing.T) {
 	srv, projectID := setupTestServerWithFlowStore(t)
 	base := "/api/v1/demo/" + projectID + "/flows"
 
-	rec := flowReq(t, srv, http.MethodGet, base+"/ai-translate", "", projectID, "ai-translate")
+	rec := flowReq(t, srv, http.MethodGet, base+"/translate", "", projectID, "translate")
 	require.Equal(t, http.StatusOK, rec.Code)
 	var def flow.FlowDefinition
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &def))
-	assert.Equal(t, "ai-translate", def.ID)
+	assert.Equal(t, "translate", def.ID)
 	assert.Equal(t, "built-in", def.Source)
 }
 
@@ -176,16 +176,16 @@ func TestHandleFlowDefinition_BuiltInImmutable(t *testing.T) {
 	base := "/api/v1/demo/" + projectID + "/flows"
 
 	// Cannot create a flow whose id collides with a built-in.
-	body := strings.Replace(sampleFlowBody, `"name": "Custom Translate"`, `"id":"ai-translate","name":"X"`, 1)
+	body := strings.Replace(sampleFlowBody, `"name": "Custom Translate"`, `"id":"translate","name":"X"`, 1)
 	rec := flowReq(t, srv, http.MethodPost, base, body, projectID, "")
 	assert.Equal(t, http.StatusConflict, rec.Code)
 
 	// Cannot update a built-in.
-	rec = flowReq(t, srv, http.MethodPut, base+"/ai-translate", sampleFlowBody, projectID, "ai-translate")
+	rec = flowReq(t, srv, http.MethodPut, base+"/translate", sampleFlowBody, projectID, "translate")
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 
 	// Cannot delete a built-in.
-	rec = flowReq(t, srv, http.MethodDelete, base+"/ai-translate", "", projectID, "ai-translate")
+	rec = flowReq(t, srv, http.MethodDelete, base+"/translate", "", projectID, "translate")
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
@@ -194,7 +194,7 @@ func TestHandleCreateFlowDefinition_Invalid(t *testing.T) {
 	base := "/api/v1/demo/" + projectID + "/flows"
 
 	// Edge references a non-existent node → validation error.
-	bad := `{"name":"Bad","nodes":[{"id":"a","type":"tool","name":"ai-translate","position":{"x":0,"y":0}}],"edges":[{"id":"e","source":"a","target":"missing"}]}`
+	bad := `{"name":"Bad","nodes":[{"id":"a","type":"tool","name":"translate","position":{"x":0,"y":0}}],"edges":[{"id":"e","source":"a","target":"missing"}]}`
 	rec := flowReq(t, srv, http.MethodPost, base, bad, projectID, "")
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

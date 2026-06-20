@@ -324,8 +324,8 @@ func TestToolNodeNames(t *testing.T) {
 		Name: "test",
 		Nodes: []FlowNode{
 			{ID: "reader", Type: NodeReader, Name: "html"},
-			{ID: "tool1", Type: NodeTool, Name: "ai-translate"},
-			{ID: "tool2", Type: NodeTool, Name: "ai-qa"},
+			{ID: "tool1", Type: NodeTool, Name: "translate"},
+			{ID: "tool2", Type: NodeTool, Name: "qa"},
 			{ID: "writer", Type: NodeWriter, Name: "html"},
 		},
 		Edges: []FlowEdge{
@@ -337,7 +337,7 @@ func TestToolNodeNames(t *testing.T) {
 
 	names, err := def.ToolNodeNames()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"ai-translate", "ai-qa"}, names)
+	assert.Equal(t, []string{"translate", "qa"}, names)
 }
 
 func TestBuiltInFlows(t *testing.T) {
@@ -352,10 +352,10 @@ func TestBuiltInFlows(t *testing.T) {
 		require.NoError(t, f.Validate())
 		ids[f.ID] = true
 	}
-	assert.True(t, ids["ai-translate"])
-	assert.True(t, ids["ai-translate-qa"])
+	assert.True(t, ids["translate"])
+	assert.True(t, ids["translate-qa"])
 	assert.True(t, ids["pseudo-translate"])
-	assert.True(t, ids["qa-check"])
+	assert.True(t, ids["qa"])
 	assert.True(t, ids["tm-leverage"])
 	assert.True(t, ids["secure-translate"])
 	assert.True(t, ids["redact-pii"])

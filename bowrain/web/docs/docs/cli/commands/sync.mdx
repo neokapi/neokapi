@@ -41,8 +41,8 @@ kapi sync --locale fr-FR --locale de-DE
 # ── Wait ──────────────────────────────────
 # Waiting for translations... (timeout: 5m)
 #   push abc123: 47 blocks → 3 flows triggered
-#   flow ai-translate: completed (42s)
-#   flow qa-check: completed (8s)
+#   flow translate: completed (42s)
+#   flow qa: completed (8s)
 #   flow term-enforce: completed (3s)
 #
 # ── Pull ──────────────────────────────────
@@ -97,7 +97,7 @@ Each push generates a unique PushID that the server uses to correlate triggered 
     { label: "Event", sub: "connector.push.completed" },
     {
       parallelLabel: "automations linked to abc123",
-      lanes: [{ label: "run ai-translate" }, { label: "run qa-check" }],
+      lanes: [{ label: "run translate" }, { label: "run qa" }],
     },
   ]}
 />

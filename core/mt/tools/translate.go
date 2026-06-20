@@ -31,7 +31,7 @@ type MTTranslateTool struct {
 // fields carry schema/json tags so they surface as CLI flags and flow config;
 // they are populated by the shared credential resolver (see
 // cli/credentials/resolve.go) or inline in a recipe step. The provider itself
-// is fixed by the registered tool name (e.g. "deepl-translate" → deepl), so
+// is fixed by the registered tool name (e.g. routed to deepl via --provider), so
 // there is no Provider field.
 type MTTranslateConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"     schema:"-"`
@@ -51,9 +51,9 @@ type MTTranslateConfig struct {
 	// BaseURL overrides the provider API endpoint (primarily for tests).
 	BaseURL string `json:"baseURL,omitempty"         schema:"-"`
 
-	// ToolName, when set, fixes the reported tool name (e.g. "deepl-translate")
+	// ToolName, when set, fixes the reported tool name
 	// regardless of the backing provider. The registry sets this so a tool
-	// registered as "deepl-translate" but constructed with the offline demo
+	// registered as "translate" but constructed with the offline demo
 	// provider as a default still reports its registered name. When empty, the
 	// name is derived from the provider id (<provider>-translate).
 	ToolName string `json:"-" schema:"-"`
@@ -134,7 +134,7 @@ func hasInlineCodes(runs []model.Run) bool {
 }
 
 // SessionProcess consults `targets/<locale>` overlays before hitting
-// the MT API — same incremental-work story as ai-translate. MT is
+// the MT API — same incremental-work story as translate. MT is
 // often cheaper than LLMs but still rate-limited and billed per
 // request; skipping cached targets avoids both.
 func (t *MTTranslateTool) SessionProcess(
@@ -167,7 +167,7 @@ func (t *MTTranslateTool) SessionProcess(
 }
 
 // mtTargetCache is the payload stored in `targets/<locale>` overlays
-// written by MT translate. Shape-compatible with ai-translate's
+// written by MT translate. Shape-compatible with translate's
 // overlay so sessions can interop.
 type mtTargetCache struct {
 	Text     string `json:"text"`
@@ -207,14 +207,14 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	if target := block.TargetText(t.targetLocale); target != "" {
 		payload, err := json.Marshal(mtTargetCache{Text: target, Provider: string(t.provider.Name())})
 		if err != nil {
-			return fmt.Errorf("mt-translate: encode overlay: %w", err)
+			return fmt.Errorf("translate: encode overlay: %w", err)
 		}
 		if err := sess.PutOverlay(blockstore.Overlay{
 			Kind:      overlayKind,
 			BlockHash: hash,
 			Payload:   payload,
 		}); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
-			return fmt.Errorf("mt-translate: write overlay: %w", err)
+			return fmt.Errorf("translate: write overlay: %w", err)
 		}
 	}
 	return nil

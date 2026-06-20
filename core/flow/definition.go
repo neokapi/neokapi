@@ -211,25 +211,28 @@ func (d *FlowDefinition) toolNodeRefs() ([]FlowNode, error) {
 func BuiltInFlows() []FlowDefinition {
 	return []FlowDefinition{
 		{
-			ID:          "ai-translate",
-			Name:        "AI Translate",
-			Description: "Translate content using AI/LLM",
+			ID:          "translate",
+			Name:        "Translate",
+			Description: "Translate content with an LLM or MT provider",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
-			ID:          "ai-translate-qa",
-			Name:        "AI Translate + QA",
-			Description: "Translate content using AI/LLM then run quality check",
+			ID:          "translate-qa",
+			Name:        "Translate + QA",
+			Description: "Translate content then run an LLM-judged quality check",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-qa", Type: NodeTool, Name: "ai-qa", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 0, Y: 100}},
+				// LLM-judged QA: pin a provider so the QA step runs the AI judge
+				// rather than the deterministic default. --provider overrides it.
+				{ID: "qa", Type: NodeTool, Name: "qa", Label: "QA Check", Position: NodePosition{X: 250, Y: 100},
+					Config: map[string]any{"provider": "anthropic"}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-translate-qa", Source: "ai-translate", Target: "ai-qa"},
+				{ID: "e-translate-qa", Source: "translate", Target: "qa"},
 			},
 		},
 		{
@@ -242,12 +245,12 @@ func BuiltInFlows() []FlowDefinition {
 			},
 		},
 		{
-			ID:          "qa-check",
-			Name:        "QA Check",
+			ID:          "qa",
+			Name:        "Quality Check",
 			Description: "Run rule-based quality checks on translations",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "qa-check", Type: NodeTool, Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "qa", Type: NodeTool, Name: "qa", Label: "Quality Check", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -265,7 +268,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "Transcribe an audio file (ASR) and AI-translate the cues — pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -275,10 +278,10 @@ func BuiltInFlows() []FlowDefinition {
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
 				{ID: "subtitle-filter", Type: NodeTool, Name: "subtitle-filter", Label: "Subtitle Filter", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 250, Y: 100}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-filter-translate", Source: "subtitle-filter", Target: "ai-translate"},
+				{ID: "e-filter-translate", Source: "subtitle-filter", Target: "translate"},
 			},
 		},
 		{
@@ -287,7 +290,7 @@ func BuiltInFlows() []FlowDefinition {
 			Description: "AI-translate the text OCR'd from an image — round-trips translated alt-text to the image's sidecar (the whole image is also replaceable per locale)",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{
@@ -295,16 +298,16 @@ func BuiltInFlows() []FlowDefinition {
 			Name:        "Secure Translate",
 			Description: "Redact sensitive content, AI-translate, then restore the originals locally",
 			Source:      registry.SourceBuiltIn,
-			// Redact precedes the remote-egress step (ai-translate) — the order the
+			// Redact precedes the remote-egress step (translate) — the order the
 			// placement pass enforces; unredact restores after translation.
 			Nodes: []FlowNode{
 				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 250, Y: 100}},
 				{ID: "unredact", Type: NodeTool, Name: "unredact", Label: "Unredact", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-redact-translate", Source: "redact", Target: "ai-translate"},
-				{ID: "e-translate-unredact", Source: "ai-translate", Target: "unredact"},
+				{ID: "e-redact-translate", Source: "redact", Target: "translate"},
+				{ID: "e-translate-unredact", Source: "translate", Target: "unredact"},
 			},
 		},
 		{

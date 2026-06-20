@@ -66,7 +66,7 @@ type QAPattern struct {
 }
 
 // ToolName returns the tool name this config applies to.
-func (c *QACheckConfig) ToolName() string { return "qa-check" }
+func (c *QACheckConfig) ToolName() string { return "qa" }
 
 // Reset restores default values.
 func (c *QACheckConfig) Reset() {
@@ -113,7 +113,7 @@ func (c *QACheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *QACheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return errors.New("qa-check: TargetLocale is required")
+		return errors.New("qa: TargetLocale is required")
 	}
 	return nil
 }
@@ -126,10 +126,10 @@ func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
 	return cfg
 }
 
-// QACheckSchema returns the auto-generated schema for the qa-check tool.
+// QACheckSchema returns the auto-generated schema for the qa tool.
 func QACheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(NewQACheckConfig(""), schema.ToolMeta{
-		ID:          "qa-check",
+		ID:          "qa",
 		Category:    schema.CategoryQuality,
 		DisplayName: "QA Check",
 		Description: "Run rule-based quality checks on translations",
@@ -137,11 +137,11 @@ func QACheckSchema() *schema.ComponentSchema {
 	})
 }
 
-// NewQACheckFromConfig creates a qa-check tool from a config map.
+// NewQACheckFromConfig creates a qa tool from a config map.
 func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewQACheckConfig(model.LocaleID(targetLang))
 	if err := schema.ApplyConfig(config, cfg); err != nil {
-		return nil, fmt.Errorf("qa-check config: %w", err)
+		return nil, fmt.Errorf("qa config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -383,7 +383,7 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 // checker's findings on the same block.
 func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
-		ToolName:        "qa-check",
+		ToolName:        "qa",
 		ToolDescription: "Performs rule-based quality checks on translations",
 		Cfg:             cfg,
 	}
@@ -401,7 +401,7 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		// If there is no target, check if empty target is an issue.
 		if !v.HasTarget(conf.TargetLocale) {
 			if conf.CheckEmptyTarget && sourceText != "" {
-				check.Annotate(v, "qa-check", []check.Finding{{
+				check.Annotate(v, "qa", []check.Finding{{
 					Category: "empty-target",
 					Severity: check.SeverityMajor,
 					Message:  "Target is empty but source has content",
@@ -417,7 +417,7 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		findings = append(findings, h.checkLengthIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)
 
-		check.Annotate(v, "qa-check", findings)
+		check.Annotate(v, "qa", findings)
 
 		return nil
 	}

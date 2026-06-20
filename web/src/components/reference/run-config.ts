@@ -98,7 +98,7 @@ const TOOL_COMMANDS = new Set([
   "length-check",
   "pattern-check",
   "pseudo-translate",
-  "qa-check",
+  "qa",
   "redact",
   "repetition-analysis",
   "scoping-report",
@@ -254,4 +254,3 @@ export function notRunnableReason(entry: ReferenceEntry): string | null {
   }
   return null;
 }
-

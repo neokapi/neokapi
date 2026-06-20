@@ -52,17 +52,17 @@ func TestBuiltinComposedFlowNames_MatchesComposedFlows(t *testing.T) {
 
 func TestDefaultParallelBlocks_AIFlows(t *testing.T) {
 	app := newTestApp()
-	pb := app.defaultParallelBlocks("ai-translate")
-	assert.Greater(t, pb, 0, "ai-translate should have parallel blocks")
+	pb := app.defaultParallelBlocks("translate")
+	assert.Greater(t, pb, 0, "translate should have parallel blocks")
 
-	pb = app.defaultParallelBlocks("ai-translate-qa")
-	assert.Greater(t, pb, 0, "ai-translate-qa should have parallel blocks")
+	pb = app.defaultParallelBlocks("translate-qa")
+	assert.Greater(t, pb, 0, "translate-qa should have parallel blocks")
 }
 
 func TestDefaultParallelBlocks_CPUFlows(t *testing.T) {
 	app := newTestApp()
 	assert.Equal(t, 0, app.defaultParallelBlocks("pseudo-translate"))
-	assert.Equal(t, 0, app.defaultParallelBlocks("qa-check"))
+	assert.Equal(t, 0, app.defaultParallelBlocks("word-count"))
 }
 
 func TestDefaultParallelBlocks_Unknown(t *testing.T) {

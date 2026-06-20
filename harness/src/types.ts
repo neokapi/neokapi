@@ -57,7 +57,7 @@ export interface DemoManifest {
   script?: ScriptStep[];
   /** The task prompt handed to Claude Code (required unless `terminal: "shell"`). */
   prompt?: string;
-  /** Whether the demo needs the Gemini AI path (ai-translate / AI brand). */
+  /** Whether the demo needs the Gemini AI path (translate / AI brand). */
   needsAi: boolean;
   /**
    * When true, narrate the whole video as ONE continuous Gemini read (one audio

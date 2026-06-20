@@ -100,7 +100,7 @@ is only ever in memory:
 kapi run secure-translate -i src/locales/en.json --target-lang fr
 ```
 
-The flow is `reader → redact → ai-translate → unredact → writer`. `redact` is
+The flow is `reader → redact → translate → unredact → writer`. `redact` is
 an ordinary [transformer step](/framework/flows#transformers): the framework
 applier rewrites the source — replacing sensitive spans with placeholders and
 vaulting the originals fail-closed — before the next step observes it. Because
@@ -114,7 +114,7 @@ the way out. You can compose both into your own flows as ordered steps:
 ```yaml
 steps:
   - tool: redact
-  - tool: ai-translate
+  - tool: translate
   - tool: unredact
 ```
 

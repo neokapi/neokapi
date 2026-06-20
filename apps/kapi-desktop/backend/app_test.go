@@ -119,7 +119,7 @@ func TestFlowOperations(t *testing.T) {
 
 	assert.Empty(t, app.ListFlows(tab.ID))
 
-	spec := &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa-check"}}}
+	spec := &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa"}}}
 	require.NoError(t, app.SaveFlow(tab.ID, "qa", spec))
 
 	flows := app.ListFlows(tab.ID)
@@ -128,7 +128,7 @@ func TestFlowOperations(t *testing.T) {
 
 	got := app.GetFlow(tab.ID, "qa")
 	require.NotNil(t, got)
-	assert.Equal(t, "qa-check", got.Steps[0].Tool)
+	assert.Equal(t, "qa", got.Steps[0].Tool)
 
 	require.NoError(t, app.DeleteFlow(tab.ID, "qa"))
 	assert.Empty(t, app.ListFlows(tab.ID))
@@ -169,7 +169,7 @@ func TestFlowOrderedTransformerRoundTrip(t *testing.T) {
 	// Transformers are ordinary ordered steps (AD-006): redact leads, the
 	// remote-egress translate step follows.
 	spec := &flow.StepsSpec{
-		Steps: []flow.FlowStep{{Tool: "redact"}, {Tool: "ai-translate"}},
+		Steps: []flow.FlowStep{{Tool: "redact"}, {Tool: "translate"}},
 	}
 	require.NoError(t, app.SaveFlow(tab.ID, "secure", spec))
 
@@ -177,7 +177,7 @@ func TestFlowOrderedTransformerRoundTrip(t *testing.T) {
 	require.NotNil(t, got)
 	require.Len(t, got.Steps, 2)
 	assert.Equal(t, "redact", got.Steps[0].Tool)
-	assert.Equal(t, "ai-translate", got.Steps[1].Tool)
+	assert.Equal(t, "translate", got.Steps[1].Tool)
 }
 
 func TestListFormats(t *testing.T) {

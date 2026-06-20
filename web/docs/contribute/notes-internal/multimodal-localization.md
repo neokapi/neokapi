@@ -45,12 +45,12 @@ ffmpeg/av engine is resolvable instead of erroring.
 Built-in flows (`core/flow.BuiltInFlows`) compose the existing tools; the
 reader/writer are run-time bindings (AD-026), so a flow is just the tool chain:
 
-- `audio-to-subtitles` — `ai-translate` (the audio reader yields timed cues).
-- `video-to-subtitles` — `subtitle-filter → ai-translate`. The new
+- `audio-to-subtitles` — `translate` (the audio reader yields timed cues).
+- `video-to-subtitles` — `subtitle-filter → translate`. The new
   `subtitle-filter` tool (`core/tools`) keeps only timing-anchored, non-geometry
   cues, dropping the frame-OCR (geometry-anchored) blocks so on-screen text never
   pollutes the subtitle track.
-- `image-ocr-translate` — `ai-translate` (round-trips translated alt-text).
+- `image-ocr-translate` — `translate` (round-trips translated alt-text).
 
 ```bash
 kapi run video-to-subtitles -i talk.mp4 -o talk.fr.vtt --target-lang fr

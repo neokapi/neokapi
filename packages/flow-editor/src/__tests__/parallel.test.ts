@@ -7,10 +7,10 @@ describe("stepsToGraph with parallel branches", () => {
   it("creates a single composite node for a parallel step", () => {
     const spec: FlowSpec = {
       steps: [
-        { tool: "ai-translate" },
+        { tool: "translate" },
         {
           tool: "",
-          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
         },
         { tool: "merge-results" },
       ],
@@ -18,22 +18,22 @@ describe("stepsToGraph with parallel branches", () => {
 
     const { nodes } = stepsToGraph(spec, undefined);
 
-    // ai-translate (tool) + parallel group (1 node) + merge-results (tool) = 3 nodes
+    // translate (tool) + parallel group (1 node) + merge-results (tool) = 3 nodes
     expect(nodes).toHaveLength(3);
 
     const group = nodes.find((n) => n.type === "parallel")!;
     expect(group).toBeDefined();
     const branches = group.data.branches as Array<{ toolName: string }>;
-    expect(branches.map((b) => b.toolName)).toEqual(["ai-qa", "tm-leverage"]);
+    expect(branches.map((b) => b.toolName)).toEqual(["qa", "tm-leverage"]);
   });
 
   it("connects the previous node to the parallel group with a single edge", () => {
     const spec: FlowSpec = {
       steps: [
-        { tool: "ai-translate" },
+        { tool: "translate" },
         {
           tool: "",
-          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
         },
       ],
     };
@@ -51,7 +51,7 @@ describe("stepsToGraph with parallel branches", () => {
       steps: [
         {
           tool: "",
-          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
         },
         { tool: "merge" },
       ],
@@ -137,10 +137,10 @@ describe("graphToSteps with parallel branches", () => {
   it("roundtrips a flow with parallel branches", () => {
     const original: FlowSpec = {
       steps: [
-        { tool: "ai-translate", config: { provider: "anthropic" } },
+        { tool: "translate", config: { provider: "anthropic" } },
         {
           tool: "",
-          parallel: [{ tool: "ai-qa" }, { tool: "brand-check" }],
+          parallel: [{ tool: "qa" }, { tool: "brand-check" }],
         },
       ],
     };
@@ -149,7 +149,7 @@ describe("graphToSteps with parallel branches", () => {
     const result = graphToSteps(nodes);
 
     expect(result.steps).toHaveLength(2);
-    expect(result.steps[0].tool).toBe("ai-translate");
+    expect(result.steps[0].tool).toBe("translate");
     expect(result.steps[0].config).toEqual({ provider: "anthropic" });
     expect(result.steps[1].parallel).toBeDefined();
     expect(result.steps[1].parallel).toHaveLength(2);
@@ -167,33 +167,33 @@ describe("suggestParallelGroups", () => {
 
   it("suggests parallelizing adjacent validate + enrich tools", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "brand-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "brand-check" }],
     };
     const toolMap = makeToolMap(
-      ["ai-translate", "translate"],
-      ["qa-check", "validate"],
+      ["translate", "translate"],
+      ["qa", "validate"],
       ["brand-check", "validate"],
     );
 
     const suggestions = suggestParallelGroups(spec, toolMap);
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].stepIndices).toEqual([1, 2]);
-    expect(suggestions[0].toolNames).toEqual(["qa-check", "brand-check"]);
+    expect(suggestions[0].toolNames).toEqual(["qa", "brand-check"]);
   });
 
   it("does not suggest parallelizing mutating tools", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }, { tool: "pseudo-translate" }],
+      steps: [{ tool: "translate" }, { tool: "pseudo-translate" }],
     };
-    const toolMap = makeToolMap(["ai-translate", "translate"], ["pseudo-translate", "translate"]);
+    const toolMap = makeToolMap(["translate", "translate"], ["pseudo-translate", "translate"]);
 
     const suggestions = suggestParallelGroups(spec, toolMap);
     expect(suggestions).toHaveLength(0);
   });
 
   it("does not suggest for a single tool", () => {
-    const spec: FlowSpec = { steps: [{ tool: "qa-check" }] };
-    const toolMap = makeToolMap(["qa-check", "validate"]);
+    const spec: FlowSpec = { steps: [{ tool: "qa" }] };
+    const toolMap = makeToolMap(["qa", "validate"]);
 
     const suggestions = suggestParallelGroups(spec, toolMap);
     expect(suggestions).toHaveLength(0);
@@ -201,11 +201,11 @@ describe("suggestParallelGroups", () => {
 
   it("suggests enrich + validate mixed groups", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "entity-extract" }, { tool: "qa-check" }, { tool: "term-lookup" }],
+      steps: [{ tool: "entity-extract" }, { tool: "qa" }, { tool: "term-lookup" }],
     };
     const toolMap = makeToolMap(
       ["entity-extract", "enrich"],
-      ["qa-check", "validate"],
+      ["qa", "validate"],
       ["term-lookup", "enrich"],
     );
 
@@ -219,13 +219,13 @@ describe("suggestParallelGroups", () => {
       steps: [
         {
           tool: "",
-          parallel: [{ tool: "qa-check" }, { tool: "brand-check" }],
+          parallel: [{ tool: "qa" }, { tool: "brand-check" }],
         },
         { tool: "term-lookup" },
       ],
     };
     const toolMap = makeToolMap(
-      ["qa-check", "validate"],
+      ["qa", "validate"],
       ["brand-check", "validate"],
       ["term-lookup", "enrich"],
     );

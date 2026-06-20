@@ -191,7 +191,7 @@ function smokeCommands(spec: SceneSpec): CommandStep[] {
 function tapeSleepForCommand(cmd: string): string {
   // Heavier commands (translate/extract/merge/leverage/qa) get a longer beat
   // so the recording shows settled output; lookups/help are quick.
-  if (/\b(extract|merge|tm-leverage|ai-translate|qa-check|term-check|tm audit)\b/.test(cmd))
+  if (/\b(extract|merge|tm-leverage|translate|qa|term-check|tm audit)\b/.test(cmd))
     return "2500ms";
   if (/\b(pseudo-translate|tm import|termbase import)\b/.test(cmd)) return "1500ms";
   if (/\b(--help|formats|tools|stats|lookup|search|ls)\b/.test(cmd)) return "2s";

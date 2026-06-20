@@ -23,9 +23,9 @@ const TOOLS: BatchTool[] = [
     build: (i, o) => ["pseudo-translate", i, "-o", o],
   },
   {
-    id: "ai-translate-qa",
+    id: "translate-qa",
     label: "AI translate + QA (demo)",
-    build: (i, o) => ["run", "ai-translate-qa", "-i", i, "-o", o, "--target-lang", "fr"],
+    build: (i, o) => ["run", "translate-qa", "-i", i, "-o", o, "--target-lang", "fr"],
   },
 ];
 

@@ -26,12 +26,12 @@ const tools: EditorToolInfo[] = [
     recoverable: true,
   },
   {
-    name: "ai-translate",
+    name: "translate",
     description: "Translate with AI",
     category: "transform",
     isSourceTransform: false,
   },
-  { name: "ai-qa", description: "QA check", category: "validate" },
+  { name: "qa", description: "QA check", category: "validate" },
 ];
 
 describe("FlowBuilder adapter — ordered-steps round-trip", () => {
@@ -49,19 +49,19 @@ describe("FlowBuilder adapter — ordered-steps round-trip", () => {
         position: { x: 250, y: 0 },
       },
       {
-        id: "ai-translate",
+        id: "translate",
         type: "tool",
-        name: "ai-translate",
+        name: "translate",
         label: "AI Translate",
         position: { x: 250, y: 260 },
       },
     ],
-    edges: [{ id: "e2", source: "redact", target: "ai-translate" }],
+    edges: [{ id: "e2", source: "redact", target: "translate" }],
   };
 
   it("defToSpec orders the redact node into steps like any other node", () => {
     const spec = defToSpec(secureDef);
-    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
+    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "translate"]);
   });
 
   it("specToDef keeps the transformer's leading position in the serialized def", () => {
@@ -71,8 +71,8 @@ describe("FlowBuilder adapter — ordered-steps round-trip", () => {
       { id: "secure-translate", name: "Secure Translate", source: "user" },
       tools,
     );
-    expect(serialized.nodes.map((n) => n.name)).toEqual(["redact", "ai-translate"]);
-    // The persisted chain axis is y: redact precedes ai-translate.
+    expect(serialized.nodes.map((n) => n.name)).toEqual(["redact", "translate"]);
+    // The persisted chain axis is y: redact precedes translate.
     expect(serialized.nodes[0].position.y).toBeLessThan(serialized.nodes[1].position.y);
   });
 
@@ -84,7 +84,7 @@ describe("FlowBuilder adapter — ordered-steps round-trip", () => {
       tools,
     );
     const spec2 = defToSpec(serialized);
-    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
+    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "translate"]);
   });
 
   it("serializes a tool-only graph — no reader/writer nodes (AD-026)", () => {
@@ -120,7 +120,7 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
       recoverable: true,
     },
     {
-      name: "ai-translate",
+      name: "translate",
       description: "Translate with AI",
       category: "transform",
       is_source_transform: false,
@@ -135,7 +135,7 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
 
   it("maps is_source_transform=false to isSourceTransform=false", () => {
     const mapped = backendTools.map(toEditorTool);
-    expect(mapped.find((t) => t.name === "ai-translate")!.isSourceTransform).toBe(false);
+    expect(mapped.find((t) => t.name === "translate")!.isSourceTransform).toBe(false);
   });
 
   it("leaves isSourceTransform undefined when the field is absent", () => {
@@ -146,7 +146,7 @@ describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
   it("maps recoverable through for recoverable transformers", () => {
     const mapped = backendTools.map(toEditorTool);
     expect(mapped.find((t) => t.name === "redact")!.recoverable).toBe(true);
-    expect(mapped.find((t) => t.name === "ai-translate")!.recoverable).toBeUndefined();
+    expect(mapped.find((t) => t.name === "translate")!.recoverable).toBeUndefined();
   });
 });
 

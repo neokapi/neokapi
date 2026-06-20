@@ -36,13 +36,13 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     spec: {
       steps: [
         {
-          tool: "ai-translate",
+          tool: "translate",
           get label() {
             return t("Translate", "flow step label");
           },
         },
         {
-          tool: "qa-check",
+          tool: "qa",
           get label() {
             return t("Quality Check", "flow step label");
           },
@@ -70,7 +70,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           },
         },
         {
-          tool: "ai-translate",
+          tool: "translate",
           get label() {
             return t("AI Translate", "flow step label");
           },
@@ -98,7 +98,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           },
         },
         {
-          tool: "qa-check",
+          tool: "qa",
           get label() {
             return t("Validate", "flow step label");
           },
@@ -120,7 +120,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     spec: {
       steps: [
         {
-          tool: "ai-translate",
+          tool: "translate",
           get label() {
             return t("Translate", "flow step label");
           },
@@ -129,7 +129,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           tool: "",
           parallel: [
             {
-              tool: "qa-check",
+              tool: "qa",
               get label() {
                 return t("QA Check", "flow step label");
               },
@@ -173,7 +173,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           },
         },
         {
-          tool: "ai-translate",
+          tool: "translate",
           get label() {
             return t("AI Translate", "flow step label");
           },
@@ -182,7 +182,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           tool: "",
           parallel: [
             {
-              tool: "qa-check",
+              tool: "qa",
               get label() {
                 return t("QA Check", "flow step label");
               },

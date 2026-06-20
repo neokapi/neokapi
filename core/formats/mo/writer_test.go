@@ -54,9 +54,9 @@ func parse(t *testing.T, data []byte) *gotext.Mo {
 
 func TestWriter_RoundTrip_WithContext(t *testing.T) {
 	data := write(t, "fr-FR",
-		block("tu1", "/tools/ai-translate/displayName",
+		block("tu1", "/tools/translate/displayName",
 			"AI Translate", "fr-FR", "Traduction IA", nil),
-		block("tu2", "/tools/ai-translate/description",
+		block("tu2", "/tools/translate/description",
 			"Translate content with an LLM provider", "fr-FR",
 			"Traduire le contenu avec un LLM", nil),
 		block("tu3", "/formats/okf_html/displayName",
@@ -66,17 +66,17 @@ func TestWriter_RoundTrip_WithContext(t *testing.T) {
 	mo := parse(t, data)
 	// Same source text in different contexts resolves independently via msgctxt.
 	assert.Equal(t, "Traduction IA",
-		mo.GetC("AI Translate", "/tools/ai-translate/displayName"))
+		mo.GetC("AI Translate", "/tools/translate/displayName"))
 	assert.Equal(t, "Traduire le contenu avec un LLM",
 		mo.GetC("Translate content with an LLM provider",
-			"/tools/ai-translate/description"))
+			"/tools/translate/description"))
 	assert.Equal(t, "Filtre HTML",
 		mo.GetC("HTML Filter", "/formats/okf_html/displayName"))
 }
 
 func TestWriter_ContextPrecedence_PropertiesOverName(t *testing.T) {
 	// Explicit Properties["context"] wins over Block.Name.
-	b := block("tu1", "/tools/ai-translate/displayName",
+	b := block("tu1", "/tools/translate/displayName",
 		"AI Translate", "fr-FR", "Traduction IA",
 		map[string]string{"context": "explicit/ctx"})
 
@@ -86,7 +86,7 @@ func TestWriter_ContextPrecedence_PropertiesOverName(t *testing.T) {
 	assert.Equal(t, "Traduction IA", mo.GetC("AI Translate", "explicit/ctx"))
 	// The Name-derived context must NOT be populated.
 	assert.Equal(t, "AI Translate",
-		mo.GetC("AI Translate", "/tools/ai-translate/displayName"),
+		mo.GetC("AI Translate", "/tools/translate/displayName"),
 		"should fall through to source text when context key has no entry")
 }
 
@@ -105,7 +105,7 @@ func TestWriter_SkipsUntranslated(t *testing.T) {
 func TestWriter_ScopeIsolation(t *testing.T) {
 	// Homonym source text "Description" in two different scopes stays separate.
 	data := write(t, "fr-FR",
-		block("tu1", "/tools/ai-translate/description",
+		block("tu1", "/tools/translate/description",
 			"Description", "fr-FR", "Description de l'outil", nil),
 		block("tu2", "/formats/okf_html/description",
 			"Description", "fr-FR", "Description du filtre", nil),
@@ -113,7 +113,7 @@ func TestWriter_ScopeIsolation(t *testing.T) {
 
 	mo := parse(t, data)
 	assert.Equal(t, "Description de l'outil",
-		mo.GetC("Description", "/tools/ai-translate/description"))
+		mo.GetC("Description", "/tools/translate/description"))
 	assert.Equal(t, "Description du filtre",
 		mo.GetC("Description", "/formats/okf_html/description"))
 }

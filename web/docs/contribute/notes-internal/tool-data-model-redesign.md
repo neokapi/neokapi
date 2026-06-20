@@ -136,9 +136,9 @@ This makes the motivating cases expressible:
 | --- | --- | --- |
 | `segmentation` | — | `segmentation@source` |
 | `tm-leverage` | `segmentation@source` *(optional)* | `tm-match`, `alt-translation`, `target` |
-| `ai-translate` | `term@source` *(opt)*, `entity@source` *(opt)* | `target` |
+| `translate` | `term@source` *(opt)*, `entity@source` *(opt)* | `target` |
 | `term-lookup` | — | `term@source` |
-| `qa-check` | `target` *(required)* | `qa@target` |
+| `qa` | `target` *(required)* | `qa@target` |
 | `unredact` | secret recovery *(required)* | `target`, `source` |
 
 ### Why optionality
@@ -215,7 +215,7 @@ part-type contract cannot:
   producer must supply it — an earlier tool's `Produces`, ingest-time settlers
   (AD-026 — segmentation/normalization persisted at extract), or the **source
   binding** (below). Otherwise the flow is rejected at load/build with a precise
-  message ("`qa-check` requires a `target`; no upstream tool produces one")
+  message ("`qa` requires a `target`; no upstream tool produces one")
   rather than failing at runtime.
 - Optional consumed ports never gate validation; they feed the editor's "this
   upgrades when X is present" affordance.
@@ -244,7 +244,7 @@ a `file` sink does. This gives the flow editor a real check at both the head and
 tail of the graph, and the typed "data flowing along each edge" view: tool node
 ports render the overlay/annotation types they carry, so a connection that would
 deliver no consumed port is visibly inert, and a monolingual `file` source under
-a `qa-check`-first flow that needs a `target` shows an unsatisfied-binding
+a `qa`-first flow that needs a `target` shows an unsatisfied-binding
 warning.
 
 ## Notes on edge cases

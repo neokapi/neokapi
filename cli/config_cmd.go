@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -45,7 +46,7 @@ func (a *App) newConfigGetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if a.Config == nil {
-				return fmt.Errorf("config not loaded")
+				return errors.New("config not loaded")
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), a.Config.GetString(args[0]))
 			return nil
@@ -75,7 +76,7 @@ func (a *App) newConfigListCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if a.Config == nil {
-				return fmt.Errorf("config not loaded")
+				return errors.New("config not loaded")
 			}
 			keys := a.Config.Viper().AllKeys()
 			sort.Strings(keys)

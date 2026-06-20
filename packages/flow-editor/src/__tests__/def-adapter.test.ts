@@ -59,8 +59,8 @@ describe("formatBinding (internal FlowBinding → wire locator)", () => {
 });
 
 const tools: ToolInfo[] = [
-  { name: "ai-translate", description: "Translate with AI", category: "translate" },
-  { name: "ai-qa", description: "QA check", category: "validate" },
+  { name: "translate", description: "Translate with AI", category: "translate" },
+  { name: "qa", description: "QA check", category: "validate" },
   {
     name: "redact",
     description: "Redact sensitive content",
@@ -77,15 +77,15 @@ const base = { id: "f1", name: "My Flow", source: "user" as const };
 describe("defToSpec", () => {
   it("converts a tool-only definition into a single-step spec", () => {
     const def: FlowDefinitionInfo = {
-      id: "ai-translate",
+      id: "translate",
       name: "AI Translate",
       description: "Translate content",
       source: "built-in",
       nodes: [
         {
-          id: "ai-translate",
+          id: "translate",
           type: "tool",
-          name: "ai-translate",
+          name: "translate",
           label: "AI Translate",
           position: { x: 250, y: 100 },
         },
@@ -95,7 +95,7 @@ describe("defToSpec", () => {
 
     const spec = defToSpec(def);
     expect(spec.steps).toHaveLength(1);
-    expect(spec.steps[0].tool).toBe("ai-translate");
+    expect(spec.steps[0].tool).toBe("translate");
     expect(spec.description).toBe("Translate content");
   });
 
@@ -113,9 +113,9 @@ describe("defToSpec", () => {
           position: { x: 250, y: 100 },
         },
         {
-          id: "ai-translate",
+          id: "translate",
           type: "tool",
-          name: "ai-translate",
+          name: "translate",
           label: "AI Translate",
           position: { x: 250, y: 360 },
         },
@@ -124,7 +124,7 @@ describe("defToSpec", () => {
     };
 
     const spec = defToSpec(def);
-    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate"]);
+    expect(spec.steps.map((s) => s.tool)).toEqual(["redact", "translate"]);
   });
 
   it("carries config through to steps", () => {
@@ -136,7 +136,7 @@ describe("defToSpec", () => {
         {
           id: "t",
           type: "tool",
-          name: "ai-translate",
+          name: "translate",
           config: { provider: "anthropic", model: "claude" },
           position: { x: 250, y: 0 },
         },
@@ -157,7 +157,7 @@ describe("defToSpec", () => {
         source: "xliff",
         sink: "store",
       },
-      nodes: [{ id: "t", type: "tool", name: "ai-translate", position: { x: 0, y: 0 } }],
+      nodes: [{ id: "t", type: "tool", name: "translate", position: { x: 0, y: 0 } }],
       edges: [],
     };
     const spec = defToSpec(def);
@@ -169,7 +169,7 @@ describe("defToSpec", () => {
 
 describe("specToDef", () => {
   it("produces tool-only nodes (no reader/writer)", () => {
-    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools);
+    const def = specToDef({ steps: [{ tool: "translate" }] }, base, tools);
     expect(def.id).toBe("f1");
     expect(def.name).toBe("My Flow");
     expect(def.source).toBe("user");
@@ -177,23 +177,23 @@ describe("specToDef", () => {
     // A flow owns no I/O (AD-026): every node is a tool node.
     expect(def.nodes.every((n) => n.type === "tool")).toBe(true);
     expect(def.nodes).toHaveLength(1);
-    expect(def.nodes[0].name).toBe("ai-translate");
+    expect(def.nodes[0].name).toBe("translate");
     // A single tool is both entry and exit, so no edges.
     expect(def.edges).toHaveLength(0);
   });
 
   it("emits transformer steps as ordinary ordered tool nodes", () => {
-    const def = specToDef({ steps: [{ tool: "redact" }, { tool: "ai-translate" }] }, base, tools);
-    expect(def.nodes.map((n) => n.name)).toEqual(["redact", "ai-translate"]);
+    const def = specToDef({ steps: [{ tool: "redact" }, { tool: "translate" }] }, base, tools);
+    expect(def.nodes.map((n) => n.name)).toEqual(["redact", "translate"]);
     expect(def.nodes.every((n) => n.type === "tool")).toBe(true);
-    // The persisted chain axis is y: redact precedes ai-translate.
+    // The persisted chain axis is y: redact precedes translate.
     expect(def.nodes[0].position.y).toBeLessThan(def.nodes[1].position.y);
   });
 
   it("carries spec.source / spec.sink (string locators) onto def.binding", () => {
     const def = specToDef(
       {
-        steps: [{ tool: "ai-translate" }],
+        steps: [{ tool: "translate" }],
         source: "po",
         sink: "none",
       },
@@ -207,7 +207,7 @@ describe("specToDef", () => {
   });
 
   it("omits def.binding when the spec has no source/sink", () => {
-    const def = specToDef({ steps: [{ tool: "ai-translate" }] }, base, tools);
+    const def = specToDef({ steps: [{ tool: "translate" }] }, base, tools);
     expect(def.binding).toBeUndefined();
   });
 });
@@ -230,7 +230,7 @@ describe("round-trip def → spec → def", () => {
         {
           id: "tool-1",
           type: "tool",
-          name: "ai-translate",
+          name: "translate",
           label: "AI Translate",
           position: { x: 200, y: 260 },
         },
@@ -249,25 +249,25 @@ describe("round-trip def → spec → def", () => {
     const back = specToDef(spec, original, tools);
 
     const toolNames = back.nodes.filter((n) => n.type === "tool").map((n) => n.name);
-    expect(toolNames).toEqual(["redact", "ai-translate", "unredact"]);
+    expect(toolNames).toEqual(["redact", "translate", "unredact"]);
 
     // The spec round-trips identically through a second pass.
     const spec2 = defToSpec(back);
-    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate", "unredact"]);
+    expect(spec2.steps.map((s) => s.tool)).toEqual(["redact", "translate", "unredact"]);
   });
 
   it("preserves a parallel group through spec → def → spec", () => {
     const spec = {
       steps: [
-        { tool: "ai-translate" },
-        { tool: "", parallel: [{ tool: "ai-qa" }, { tool: "term-check" }] },
+        { tool: "translate" },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "term-check" }] },
       ],
     };
     const def = specToDef(spec, base, tools);
     const spec2 = defToSpec(def);
 
-    expect(spec2.steps[0].tool).toBe("ai-translate");
+    expect(spec2.steps[0].tool).toBe("translate");
     expect(spec2.steps[1].parallel).toBeDefined();
-    expect(spec2.steps[1].parallel!.map((p) => p.tool).sort()).toEqual(["ai-qa", "term-check"]);
+    expect(spec2.steps[1].parallel!.map((p) => p.tool).sort()).toEqual(["qa", "term-check"]);
   });
 });

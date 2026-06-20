@@ -29,7 +29,7 @@ export const WithFlows: Story = {
   args: {
     flowName: "translate",
     flow: {
-      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
+      steps: [{ tool: "translate", config: { provider: "anthropic" } }],
     },
   },
 };

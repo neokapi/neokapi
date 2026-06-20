@@ -102,10 +102,10 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&SegCountConfig{}, toolMeta("segment-count", "Segment Count", schema.CategoryAnalysis,
 		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoSegCount)))))
 
-	reg.RegisterWithSchema("qa-check", func() tool.Tool {
+	reg.RegisterWithSchema("qa", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
-	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa-check", "QA Check", schema.CategoryQuality,
-		withTags("quality"), withAliases("qa"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
+	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
+		withTags("quality"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("inconsistency-check", func() tool.Tool {
 		return NewInconsistencyCheckTool(NewInconsistencyCheckConfig(model.LocaleEnglish))
@@ -355,7 +355,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("word-count", NewWordCountFromConfig)
 	reg.SetConfigFactory("char-count", NewCharCountFromConfig)
 	reg.SetConfigFactory("segment-count", NewSegCountFromConfig)
-	reg.SetConfigFactory("qa-check", NewQACheckFromConfig)
+	reg.SetConfigFactory("qa", NewQACheckFromConfig)
 	reg.SetConfigFactory("inconsistency-check", NewInconsistencyCheckFromConfig)
 	reg.SetConfigFactory("length-check", NewLengthCheckFromConfig)
 	reg.SetConfigFactory("chars-check", NewCharsCheckFromConfig)

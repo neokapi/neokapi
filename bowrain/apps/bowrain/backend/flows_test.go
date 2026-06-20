@@ -26,24 +26,24 @@ func TestListFlowDefinitions_OfflineReturnsBuiltIns(t *testing.T) {
 		assert.Equal(t, registry.SourceBuiltIn, d.Source)
 		assert.NotEmpty(t, d.Nodes)
 		// Since AD-026 a flow's I/O ends are bindings, not nodes, so a
-		// single-tool flow (ai-translate, pseudo-translate, …) has one node and
+		// single-tool flow (translate, pseudo-translate, …) has one node and
 		// no edges. Only multi-node graphs must be wired together.
 		if len(d.Nodes) > 1 {
 			assert.NotEmpty(t, d.Edges, "multi-node flow %q should have edges", d.ID)
 		}
 		ids[d.ID] = true
 	}
-	assert.True(t, ids["ai-translate"])
-	assert.True(t, ids["ai-translate-qa"])
+	assert.True(t, ids["translate"])
+	assert.True(t, ids["translate-qa"])
 	assert.True(t, ids["pseudo-translate"])
 	assert.True(t, ids["secure-translate"])
 }
 
 func TestGetFlowDefinition_OfflineBuiltIn(t *testing.T) {
 	app := NewApp()
-	info, err := app.GetFlowDefinition("proj-1", "ai-translate")
+	info, err := app.GetFlowDefinition("proj-1", "translate")
 	require.NoError(t, err)
-	assert.Equal(t, "AI Translate", info.Name)
+	assert.Equal(t, "Translate", info.Name)
 	assert.Equal(t, registry.SourceBuiltIn, info.Source)
 }
 
@@ -67,7 +67,7 @@ func TestSaveFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 func TestSaveFlowDefinition_BuiltInRejected(t *testing.T) {
 	app := NewApp()
 	_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
-		ID:     "ai-translate",
+		ID:     "translate",
 		Name:   "AI Translate",
 		Source: registry.SourceBuiltIn,
 	})
@@ -91,7 +91,7 @@ func TestFlowDefToInfo_Serialization(t *testing.T) {
 		Nodes: []flow.FlowNode{
 			{ID: "reader", Type: flow.NodeReader, Name: "auto", Position: flow.NodePosition{X: 0, Y: 0}},
 			{ID: "redact", Type: flow.NodeTool, Name: "redact", Position: flow.NodePosition{X: 200, Y: 0}},
-			{ID: "t1", Type: flow.NodeTool, Name: "ai-translate", Position: flow.NodePosition{X: 400, Y: 0}},
+			{ID: "t1", Type: flow.NodeTool, Name: "translate", Position: flow.NodePosition{X: 400, Y: 0}},
 			{ID: "writer", Type: flow.NodeWriter, Name: "auto", Position: flow.NodePosition{X: 600, Y: 0}},
 		},
 		Edges: []flow.FlowEdge{

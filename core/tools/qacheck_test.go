@@ -32,7 +32,7 @@ func TestQACheckTool(t *testing.T) {
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
-	assert.Equal(t, "qa-check", tl.Name())
+	assert.Equal(t, "qa", tl.Name())
 	assert.Contains(t, tl.Description(), "quality")
 }
 

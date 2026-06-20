@@ -68,26 +68,6 @@ type AITranslateConfig struct {
 	OnProgress func(aiprovider.ProgressEvent) `json:"-"`
 }
 
-// AITranslateSchema returns the auto-generated schema for the AI translate tool.
-func AITranslateSchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
-		ID:                    "ai-translate",
-		Category:              schema.CategoryTranslation,
-		DisplayName:           "AI Translate",
-		Description:           "Translate content using an LLM provider",
-		Tags:                  []string{"ai-powered"},
-		Aliases:               []string{"translate"},
-		WritesOutput:          true,
-		DefaultParallelBlocks: 5,
-		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
-		Cardinality:           schema.Bilingual,
-		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
-	})
-	injectProviderOptions(s)
-	return s
-}
-
 // injectProviderOptions sets the Provider field's options from the canonical
 // provider registry, replacing any hardcoded enum values.
 func injectProviderOptions(s *schema.ComponentSchema) {
@@ -138,7 +118,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 
 	var cfg AITranslateConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("ai-translate config: %w", err)
+		return nil, fmt.Errorf("translate config: %w", err)
 	}
 	cfg.OnProgress = onProgress
 	cfg.Profile = profile
@@ -177,7 +157,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	if t.concurrency < 1 {
 		t.concurrency = DefaultBatchConcurrency
 	}
-	t.ToolName = "ai-translate"
+	t.ToolName = "translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
 	// Translate: writes the target locale; source stays read-only. The batched
 	// and session paths (Process overrides) reuse translate() via NewTargetView.
@@ -284,14 +264,14 @@ func (t *AITranslateTool) sessionHandleBlock(
 			Provider: string(t.provider.Name()),
 		})
 		if err != nil {
-			return fmt.Errorf("ai-translate: encode overlay: %w", err)
+			return fmt.Errorf("translate: encode overlay: %w", err)
 		}
 		if err := sess.PutOverlay(blockstore.Overlay{
 			Kind:      overlayKind,
 			BlockHash: hash,
 			Payload:   payload,
 		}); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
-			return fmt.Errorf("ai-translate: write overlay: %w", err)
+			return fmt.Errorf("translate: write overlay: %w", err)
 		}
 	}
 	_ = ctx // ctx reserved for future streaming hooks
@@ -383,7 +363,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 						BlockHash: block.ID,
 						Payload:   payload,
 					}); werr != nil && !errors.Is(werr, blockstore.ErrReadOnly) {
-						return fmt.Errorf("ai-translate: write overlay: %w", werr)
+						return fmt.Errorf("translate: write overlay: %w", werr)
 					}
 				}
 			}
@@ -401,7 +381,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 }
 
 // aiTargetCache is the payload stored in `targets/<locale>` overlays
-// written by ai-translate. Kept small and JSON-compatible with
+// written by translate. Kept small and JSON-compatible with
 // other translators so sessions can interop freely.
 type aiTargetCache struct {
 	Text     string `json:"text"`
@@ -448,7 +428,7 @@ func (t *AITranslateTool) translate(v tool.TargetView) error {
 		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
-		return fmt.Errorf("ai-translate: %w", err)
+		return fmt.Errorf("translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -514,7 +494,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.TargetView, sourceRuns
 		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
-		return fmt.Errorf("ai-translate: %w", err)
+		return fmt.Errorf("translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -721,14 +701,14 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		resp, err = t.provider.ChatStructured(ctx, messages, schema)
 	}
 	if err != nil {
-		return fmt.Errorf("ai-translate batch: %w", err)
+		return fmt.Errorf("translate batch: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
 	// Parse structured JSON response.
 	var result batchResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		return fmt.Errorf("ai-translate batch: unmarshal response: %w", err)
+		return fmt.Errorf("translate batch: unmarshal response: %w", err)
 	}
 
 	// Build index → text map from the structured response.

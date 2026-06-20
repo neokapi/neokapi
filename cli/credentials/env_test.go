@@ -172,31 +172,31 @@ func TestInferProviderID(t *testing.T) {
 	}{
 		{
 			name:     "explicit provider wins",
-			toolName: "deepl-translate",
+			toolName: "translate",
 			config:   map[string]any{"provider": "openai"},
 			want:     "openai",
 		},
 		{
-			name:     "MT tool derives provider from name",
-			toolName: "deepl-translate",
-			config:   map[string]any{},
+			name:     "MT engine from config provider",
+			toolName: "translate",
+			config:   map[string]any{"provider": "deepl"},
 			want:     "deepl",
 		},
 		{
-			name:     "microsoft MT tool",
-			toolName: "microsoft-translate",
-			config:   map[string]any{},
+			name:     "microsoft engine from config provider",
+			toolName: "translate",
+			config:   map[string]any{"provider": "microsoft"},
 			want:     "microsoft",
 		},
 		{
-			name:     "ai-translate defaults to anthropic",
-			toolName: "ai-translate",
+			name:     "translate with no provider defaults to anthropic",
+			toolName: "translate",
 			config:   map[string]any{},
 			want:     "anthropic",
 		},
 		{
-			name:     "ai-qa defaults to anthropic",
-			toolName: "ai-qa",
+			name:     "qa with no provider defaults to anthropic",
+			toolName: "qa",
 			config:   map[string]any{},
 			want:     "anthropic",
 		},
@@ -208,9 +208,9 @@ func TestInferProviderID(t *testing.T) {
 		},
 		{
 			name:     "empty provider string is treated as unset",
-			toolName: "deepl-translate",
+			toolName: "translate",
 			config:   map[string]any{"provider": ""},
-			want:     "deepl",
+			want:     "anthropic",
 		},
 	}
 
@@ -234,16 +234,16 @@ func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 		wantProvider string
 	}{
 		{
-			name:         "ai-translate + ANTHROPIC_API_KEY",
-			toolName:     "ai-translate",
+			name:         "translate + ANTHROPIC_API_KEY",
+			toolName:     "translate",
 			config:       map[string]any{"provider": "anthropic"},
 			envVar:       "ANTHROPIC_API_KEY",
 			envVal:       "sk-ant",
 			wantProvider: "anthropic",
 		},
 		{
-			name:         "ai-translate no provider defaults to anthropic env",
-			toolName:     "ai-translate",
+			name:         "translate no provider defaults to anthropic env",
+			toolName:     "translate",
 			config:       map[string]any{},
 			envVar:       "ANTHROPIC_API_KEY",
 			envVal:       "sk-ant-default",
@@ -251,7 +251,7 @@ func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 		},
 		{
 			name:         "openai via OPENAI_API_KEY",
-			toolName:     "ai-translate",
+			toolName:     "translate",
 			config:       map[string]any{"provider": "openai"},
 			envVar:       "OPENAI_API_KEY",
 			envVal:       "sk-oai",
@@ -259,7 +259,7 @@ func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 		},
 		{
 			name:         "gemini via GEMINI_API_KEY",
-			toolName:     "ai-translate",
+			toolName:     "translate",
 			config:       map[string]any{"provider": "gemini"},
 			envVar:       "GEMINI_API_KEY",
 			envVal:       "g-key",
@@ -267,32 +267,32 @@ func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 		},
 		{
 			name:         "azureopenai via AZURE_OPENAI_API_KEY",
-			toolName:     "ai-translate",
+			toolName:     "translate",
 			config:       map[string]any{"provider": "azureopenai"},
 			envVar:       "AZURE_OPENAI_API_KEY",
 			envVal:       "az-key",
 			wantProvider: "azureopenai",
 		},
 		{
-			name:         "deepl MT tool via DEEPL_API_KEY (no provider in config)",
-			toolName:     "deepl-translate",
-			config:       map[string]any{},
+			name:         "deepl engine via DEEPL_API_KEY (provider in config)",
+			toolName:     "translate",
+			config:       map[string]any{"provider": "deepl"},
 			envVar:       "DEEPL_API_KEY",
 			envVal:       "dl-key",
 			wantProvider: "deepl",
 		},
 		{
-			name:         "microsoft MT tool via MICROSOFT_TRANSLATOR_KEY",
-			toolName:     "microsoft-translate",
-			config:       map[string]any{},
+			name:         "microsoft engine via MICROSOFT_TRANSLATOR_KEY",
+			toolName:     "translate",
+			config:       map[string]any{"provider": "microsoft"},
 			envVar:       "MICROSOFT_TRANSLATOR_KEY",
 			envVal:       "ms-key",
 			wantProvider: "microsoft",
 		},
 		{
-			name:         "modernmt MT tool via MODERNMT_API_KEY",
-			toolName:     "modernmt-translate",
-			config:       map[string]any{},
+			name:         "modernmt engine via MODERNMT_API_KEY",
+			toolName:     "translate",
+			config:       map[string]any{"provider": "modernmt"},
 			envVar:       "MODERNMT_API_KEY",
 			envVal:       "mmt-key",
 			wantProvider: "modernmt",
@@ -321,7 +321,7 @@ func TestResolveCredentials_InlineKeyBeatsEnv(t *testing.T) {
 	store := newTestStore(t)
 
 	config := map[string]any{"provider": "anthropic", "apiKey": "sk-inline"}
-	result, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err)
 	assert.Equal(t, "sk-inline", result["apiKey"], "inline apiKey must beat env var")
 }
@@ -337,7 +337,7 @@ func TestResolveCredentials_CredentialRefBeatsEnv(t *testing.T) {
 	mustUpsert(t, store, ProviderConfig{Name: "my-openai", ProviderType: "openai"})
 
 	config := map[string]any{"credential": "my-openai"}
-	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.Error(t, err, "credential path runs before env fallback; keychain is unavailable in tests")
 	assert.Contains(t, err.Error(), "keychain")
 }
@@ -356,7 +356,7 @@ func TestResolveCredentials_EnvBeatsStoreAutoDetect(t *testing.T) {
 	mustUpsert(t, store, ProviderConfig{Name: "stored-openai", ProviderType: "openai"})
 
 	config := map[string]any{"provider": "openai"}
-	result, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err, "env var should short-circuit before store auto-detect")
 	assert.Equal(t, "sk-from-env", result["apiKey"])
 	assert.Equal(t, "openai", result["provider"])
@@ -388,7 +388,7 @@ func TestResolveCredentials_NoEnvNoStoreErrorsUnchanged(t *testing.T) {
 
 	// No inline key, no credential, no env var, no store match → unchanged error.
 	config := map[string]any{"provider": "openai"}
-	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no saved credentials")
 	assert.Contains(t, err.Error(), "openai", "error should name the provider as before")

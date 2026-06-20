@@ -67,37 +67,37 @@ func TestListTools_LocalizesDisplayName(t *testing.T) {
 
 	// Swap in a French translator with a single-tool catalog.
 	cat := makeMoCatalog(t, "fr-FR",
-		[3]string{"tools.ai-translate.displayName", "AI Translate", "Traduction IA"},
-		[3]string{"tools.ai-translate.description", "Translate content using an LLM provider", "Traduire avec un LLM"},
+		[3]string{"tools.translate.displayName", "Translate", "Traduction IA"},
+		[3]string{"tools.translate.description", "Translate content with an LLM or machine-translation provider (select with --provider)", "Traduire avec un LLM"},
 	)
 	app.translator = i18n.NewTranslator("fr-FR", cat)
 
 	// Assert the translator resolves what we'll assert below.
 	require.Equal(t, "Traduction IA",
-		app.T().T("tools.ai-translate.displayName", "AI Translate"),
+		app.T().T("tools.translate.displayName", "Translate"),
 		"sanity check on the fixture translator — must hit the stub catalog")
 
-	// Find ai-translate via the same CLITools() path listTools uses.
+	// Find translate via the same CLITools() path listTools uses.
 	var found bool
 	for _, entry := range app.ToolReg.CLITools() {
-		if entry.Info.Name != registry.ToolID("ai-translate") {
+		if entry.Info.Name != registry.ToolID("translate") {
 			continue
 		}
 		found = true
-		scope := "tools.ai-translate"
+		scope := "tools.translate"
 		displayName := app.T().T(i18n.Scope(scope+".displayName"), entry.Info.DisplayName)
 		desc := app.T().T(i18n.Scope(scope+".description"), entry.Info.Description)
 		assert.Equal(t, "Traduction IA", displayName)
 		assert.Equal(t, "Traduire avec un LLM", desc)
 	}
-	assert.True(t, found, "ai-translate must be registered by InitRegistries")
+	assert.True(t, found, "translate must be registered by InitRegistries")
 }
 
 // TestApp_TBeforeInit_ReturnsNoop confirms that callers which reach for
 // T() before Init runs still get a safe passthrough Translator.
 func TestApp_TBeforeInit_ReturnsNoop(t *testing.T) {
 	app := &App{}
-	got := app.T().T("tools.ai-translate.displayName", "AI Translate")
+	got := app.T().T("tools.translate.displayName", "AI Translate")
 	assert.Equal(t, "AI Translate", got, "pre-Init T() must pass source through")
 }
 

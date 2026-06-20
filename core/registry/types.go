@@ -9,7 +9,7 @@ type FormatID string
 func (id FormatID) String() string { return string(id) }
 
 // ToolID is a type-safe identifier for a registered tool.
-// Values are kebab-case, stable identifiers like "word-count", "ai-translate".
+// Values are kebab-case, stable identifiers like "word-count", "translate".
 type ToolID string
 
 // String returns the string representation.

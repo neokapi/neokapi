@@ -178,7 +178,7 @@ Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `i
 1. `mkdir -p demos/<id>/fixtures` and add the starting project files.
 2. Write `demos/<id>/demo.yaml` (see any existing demo). Pin output filenames in the
    `prompt` and point `artifacts[].path` at them. Keep prompts to the **reliable
-   standalone** kapi surface: `ai-translate`, `pseudo-translate`, `brand`, `termbase`,
+   standalone** kapi surface: `translate`, `pseudo-translate`, `brand`, `termbase`,
    `word-count`, `formats`, `extract-content`, or the MCP tools.
 3. `pnpm run demo <id>`.
 

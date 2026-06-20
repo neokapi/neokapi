@@ -245,7 +245,7 @@ export const IdleState: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }, { tool: "qa-check" }],
+      steps: [{ tool: "translate", config: { provider: "anthropic" } }, { tool: "qa" }],
     },
   },
 };
@@ -255,7 +255,7 @@ export const AutoRunThreeFiles: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     autoRun: true,
     fileCount: 3,
@@ -268,12 +268,7 @@ export const LongPipeline: Story = {
   args: {
     flowName: "full-pipeline",
     flow: {
-      steps: [
-        { tool: "tm-leverage" },
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-        { tool: "ai-qa" },
-      ],
+      steps: [{ tool: "tm-leverage" }, { tool: "translate" }, { tool: "qa" }, { tool: "qa" }],
     },
     autoRun: true,
     fileCount: 5,
@@ -286,7 +281,7 @@ export const ErrorDuringExecution: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     autoRun: true,
     simulateError: true,

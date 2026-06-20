@@ -6,14 +6,14 @@
     {
       "id": "tool-0",
       "type": "tool",
-      "name": "ai-translate",
+      "name": "translate",
       "label": "AI Translate",
       "concurrency": 2
     },
     {
       "id": "tool-1",
       "type": "tool",
-      "name": "ai-qa-check",
+      "name": "qa",
       "label": "AI QA Check",
       "concurrency": 2
     },

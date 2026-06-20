@@ -12,7 +12,7 @@ export interface GemmaExplorerProps {
   defaultTargetLang?: string;
 }
 
-// GemmaExplorer runs `kapi ai-translate --provider gemma` entirely in the
+// GemmaExplorer runs `kapi translate --provider gemma` entirely in the
 // browser: the kapi wasm engine drives the AI tool, and the Gemma 4 model itself
 // runs via transformers.js + WebGPU (gemmaBridge installs the host hook the wasm
 // `gemma` provider calls). It is the in-browser twin of the native kapi-llm
@@ -48,7 +48,7 @@ export default function GemmaExplorer({
       const inPath = runtime.writeFile("source.json", JSON.stringify({ message: text }, null, 2));
       const outPath = "/project/source.translated.json";
       const code = await runtime.run([
-        "ai-translate",
+        "translate",
         inPath,
         "--provider",
         "gemma",

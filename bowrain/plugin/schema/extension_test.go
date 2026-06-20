@@ -51,7 +51,7 @@ url: "not a url"
 
 func TestHooksDecoder_Valid(t *testing.T) {
 	n := decode(t, `
-pre-push: [qa-check]
+pre-push: [qa]
 post-pull: [update-stats]
 `)
 	assert.NoError(t, hooksDecoder.Decode(n))
@@ -205,7 +205,7 @@ server:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto
 hooks:
-  pre-push: [qa-check]
+  pre-push: [qa]
 automations:
   - name: auto-translate
     trigger: post-push

@@ -307,10 +307,10 @@ kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/
 **Key kapi CLI commands (standalone, no project needed):**
 
 ```bash
-kapi ai-translate -i file.xliff --target-lang fr    # Translate with AI
+kapi translate -i file.xliff --target-lang fr    # Translate with AI
 kapi pseudo-translate file.json # Pseudo-translate for testing
 kapi word-count file.json                            # Count words
-kapi run ai-translate-qa -i file.xliff --target-lang fr  # Run composed flow
+kapi run translate-qa -i file.xliff --target-lang fr  # Run composed flow
 kapi formats list             # List available formats
 kapi tools                    # List available tools
 kapi flows                    # List available flows

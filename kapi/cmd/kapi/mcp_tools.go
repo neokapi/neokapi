@@ -50,7 +50,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "run_flow",
-		Description: "Execute a processing flow (e.g. pseudo-translate, qa-check) on a file",
+		Description: "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 		return handleRunFlow(ctx, a, input)
 	})
@@ -117,7 +117,7 @@ type ExtractContentOutput struct {
 }
 
 type RunFlowInput struct {
-	FlowName   string `json:"flow_name" jsonschema:"Name of the flow to run (e.g. pseudo-translate or qa-check)"`
+	FlowName   string `json:"flow_name" jsonschema:"Name of the flow to run (e.g. pseudo-translate or qa)"`
 	Path       string `json:"path,omitempty" jsonschema:"Input file path (optional when project has content patterns)"`
 	Project    string `json:"project,omitempty" jsonschema:"Path to a .kapi project file for project-scoped execution"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`

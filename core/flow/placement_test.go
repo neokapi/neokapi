@@ -98,7 +98,7 @@ func TestValidatePlacement_UnredactAfterTranslateAllowed(t *testing.T) {
 	reg := placementReg(t)
 	def := chain(
 		toolNode("r", "redact", nil),
-		toolNode("t", "ai-translate", nil),
+		toolNode("t", "translate", nil),
 		toolNode("u", "unredact", nil),
 	)
 	assert.NoError(t, def.CheckPlacement(reg))
@@ -110,10 +110,10 @@ func TestValidatePlacement_RedactAfterRemoteEgress(t *testing.T) {
 	t.Parallel()
 	reg := placementReg(t)
 
-	// ai-translate egresses source; redact placed after it is both an orphaned-
+	// translate egresses source; redact placed after it is both an orphaned-
 	// target error and a remote-egress error.
 	def := chain(
-		toolNode("t", "ai-translate", nil),
+		toolNode("t", "translate", nil),
 		toolNode("r", "redact", nil),
 	)
 	diags, err := def.ValidatePlacement(reg)

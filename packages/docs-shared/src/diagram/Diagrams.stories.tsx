@@ -41,8 +41,8 @@ export const Pipeline: Story = {
         { label: "RawDocument" },
         { label: "Reader", sub: "DataFormat", role: "io" },
         { label: "segmentation", role: "annotate" },
-        { label: "ai-translate", role: "translate" },
-        { label: "qa-check", role: "qa" },
+        { label: "translate", role: "translate" },
+        { label: "qa", role: "qa" },
         { label: "Writer", sub: "DataFormat", role: "io" },
       ]}
     />
@@ -58,9 +58,9 @@ export const PipelineFanOut: Story = {
         { label: "Reader", sub: "DataFormat", role: "io" },
         {
           lanes: [
-            { label: "ai-translate", sub: "fr" },
-            { label: "ai-translate", sub: "de" },
-            { label: "ai-translate", sub: "ja" },
+            { label: "translate", sub: "fr" },
+            { label: "translate", sub: "de" },
+            { label: "translate", sub: "ja" },
           ],
           parallelLabel: "fan-out · N goroutines",
         },
@@ -126,7 +126,7 @@ export const Phases: Story = {
           sub: "KLF archive",
           edge: "kapi-react extract",
           role: "io",
-          loop: ["kapi ai-translate / pseudo / qa", "accumulate locales in place"],
+          loop: ["kapi translate / pseudo / qa", "accumulate locales in place"],
         },
         {
           label: "public/translations/{locale}.json",

@@ -432,10 +432,10 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 
 func handleBowrainListFlows(a *cli.App) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
 	builtinFlows := []clioutput.FlowInfo{
-		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
+		{Name: "translate", Description: "Translate content with an LLM or MT provider"},
+		{Name: "translate-qa", Description: "Translate + quality check using AI/LLM"},
 		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-		{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
+		{Name: "qa", Description: "Run rule-based quality checks on translations"},
 		{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
 		{Name: "segmentation", Description: "Split source text into sentence segments"},
 	}

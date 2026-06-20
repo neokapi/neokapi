@@ -143,28 +143,32 @@ Keys never appear in flow definitions or project files.
 
 ### Flow composition
 
-A typical production flow chains TM, MT, and AI refinement:
+On the CLI surface there are no per-engine commands; every MT engine is
+reached through the single `translate` command (and the matching `translate`
+tool in a flow) by selecting it with `--provider` — the same command that
+reaches the LLM providers. A typical production flow chains TM, MT, and AI
+refinement:
 
 <PipelineDiagram
   stages={[
     { label: "Source", role: "io" },
     { label: "tm-leverage", role: "translate" },
-    { label: "deepl-translate", role: "translate" },
+    { label: "translate", role: "translate" },
     { label: "ai-review", role: "qa" },
-    { label: "qa-check", role: "qa" },
+    { label: "qa", role: "qa" },
     { label: "Sink", role: "io" },
   ]}
 />
 
 - `tm-leverage` fills exact and generalized matches at near-zero cost.
-- `deepl-translate` translates the remainder quickly and cheaply.
+- `translate --provider deepl` translates the remainder quickly and cheaply.
 - `ai-review` (optional) refines MT output using LLM reasoning with
   glossary and TM context.
-- `qa-check` validates the result before writing.
+- `qa` validates the result before writing.
 
-Switching providers is a configuration change: replace `deepl-translate`
-with `google-translate` or `ai-translate`. The rest of the flow is
-unchanged.
+Switching providers is a configuration change: switch `--provider deepl`
+to `--provider google` (or an LLM provider such as `--provider anthropic`).
+The rest of the flow is unchanged.
 
 ## Consequences
 

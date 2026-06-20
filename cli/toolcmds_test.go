@@ -67,8 +67,8 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	}
 
 	expectedTools := []string{
-		"ai-translate", "pseudo-translate", "tm-leverage", "qa-check",
-		"ai-qa", "ai-review", "word-count", "search-replace",
+		"translate", "pseudo-translate", "tm-leverage", "qa",
+		"ai-review", "word-count", "search-replace",
 		"segmentation", "script",
 	}
 	for _, name := range expectedTools {
@@ -96,9 +96,7 @@ func TestNewToolCommands_AliasesWork(t *testing.T) {
 		}
 	}
 
-	assert.Contains(t, aliasMap["ai-translate"], "translate")
 	assert.Contains(t, aliasMap["pseudo-translate"], "pseudo")
-	assert.Contains(t, aliasMap["qa-check"], "qa")
 	assert.Contains(t, aliasMap["word-count"], "wc")
 }
 
@@ -139,7 +137,7 @@ func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
 
 func TestDefaultParallelBlocks_AITools(t *testing.T) {
 	app := newTestApp()
-	info := app.ToolReg.ToolInfo("ai-translate")
+	info := app.ToolReg.ToolInfo("translate")
 	require.NotNil(t, info)
 	assert.Equal(t, 5, info.DefaultParallelBlocks)
 }

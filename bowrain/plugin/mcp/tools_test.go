@@ -155,8 +155,8 @@ func TestHandleBowrainListFlows(t *testing.T) {
 		names = append(names, f.Name)
 	}
 	assert.Contains(t, names, "pseudo-translate")
-	assert.Contains(t, names, "qa-check")
-	assert.Contains(t, names, "ai-translate")
+	assert.Contains(t, names, "qa")
+	assert.Contains(t, names, "translate")
 }
 
 func TestMatchesMCPPathFilter(t *testing.T) {

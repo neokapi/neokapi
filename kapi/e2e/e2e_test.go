@@ -90,7 +90,7 @@ func kapi(t *testing.T, args ...string) string {
 }
 
 // kapiAllowFail runs kapi and returns combined output + error WITHOUT failing
-// the test. Use for QA gates (qa-check, term-check) that exit non-zero when
+// the test. Use for QA gates (qa, term-check) that exit non-zero when
 // they find issues — a non-zero exit is a result to assert on, not a harness
 // failure. Same isolation env as kapi().
 func kapiAllowFail(t *testing.T, args ...string) (string, error) {
@@ -193,7 +193,7 @@ func TestTermCheckWithTermbase(t *testing.T) {
 		"--termbase", tb)
 }
 
-// TestQACheckWithoutTermbase verifies that qa-check works standalone for
+// TestQACheckWithoutTermbase verifies that qa works standalone for
 // baseline rule-based checks and writes its annotated output file.
 func TestQACheckWithoutTermbase(t *testing.T) {
 	tmp := t.TempDir()
@@ -204,9 +204,9 @@ func TestQACheckWithoutTermbase(t *testing.T) {
 		"--target-lang", "fr")
 
 	qaOut := filepath.Join(tmp, "qa.json")
-	// qa-check annotates rather than gates; tolerate a non-zero exit and
+	// qa annotates rather than gates; tolerate a non-zero exit and
 	// assert it produced the output file.
-	_, _ = kapiAllowFail(t, "qa-check", pseudoOut,
+	_, _ = kapiAllowFail(t, "qa", pseudoOut,
 		"-o", qaOut,
 		"--source-lang", "en",
 		"--target-lang", "fr")
@@ -292,7 +292,7 @@ func TestTMLeverage(t *testing.T) {
 // ─── Full Pipeline: TM Leverage → Pseudo-Translate → QA + Termbase ──────────
 
 // TestFullPipeline runs the supported standalone pipeline end-to-end:
-// pseudo-translate → qa-check → term-check against the project glossary.
+// pseudo-translate → qa → term-check against the project glossary.
 // (TM leverage is covered separately by TestTMLeverage.)
 func TestFullPipeline(t *testing.T) {
 	tb := importedTermbase(t)
@@ -307,7 +307,7 @@ func TestFullPipeline(t *testing.T) {
 
 	// Step 2: Rule-based QA — writes annotated output.
 	qaOut := filepath.Join(tmp, "step2_qa.json")
-	_, _ = kapiAllowFail(t, "qa-check", pseudoOut,
+	_, _ = kapiAllowFail(t, "qa", pseudoOut,
 		"-o", qaOut,
 		"--source-lang", "en",
 		"--target-lang", "fr")

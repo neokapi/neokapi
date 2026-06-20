@@ -157,7 +157,7 @@ start, a block, a layer end — flowing through a two-tool chain look like this:
   stages={[
     { label: "source", role: "io" },
     { label: "segmentation", role: "annotate", note: "handles Block · passes Layer*" },
-    { label: "ai-translate", role: "translate", note: "handles Block · passes Layer*" },
+    { label: "translate", role: "translate", note: "handles Block · passes Layer*" },
     { label: "sink", role: "io" },
   ]}
 />

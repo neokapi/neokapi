@@ -381,7 +381,7 @@ func TestAllowedTools_BuiltInOnly(t *testing.T) {
 
 	allTools := []registry.ToolInfo{
 		{Name: "pseudo-translate", Source: registry.SourceBuiltIn},
-		{Name: "qa-check", Source: ""}, // empty = built-in
+		{Name: "qa", Source: ""}, // empty = built-in
 		{Name: "okf-step", Source: "okapi-bridge"},
 	}
 
@@ -389,7 +389,7 @@ func TestAllowedTools_BuiltInOnly(t *testing.T) {
 	assert.Len(t, allowed, 2)
 	names := toolNames(allowed)
 	assert.Contains(t, names, "pseudo-translate")
-	assert.Contains(t, names, "qa-check")
+	assert.Contains(t, names, "qa")
 	assert.NotContains(t, names, "okf-step")
 }
 
@@ -420,15 +420,15 @@ func TestValidateFlows_AllValid(t *testing.T) {
 		Version: CurrentVersion,
 		Flows: map[string]*flow.StepsSpec{
 			"translate": {Steps: []flow.FlowStep{
-				{Tool: "ai-translate"},
-				{Tool: "qa-check"},
+				{Tool: "translate"},
+				{Tool: "qa"},
 			}},
 		},
 	}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "ai-translate", Source: registry.SourceBuiltIn},
-		{Name: "qa-check", Source: registry.SourceBuiltIn},
+		{Name: "translate", Source: registry.SourceBuiltIn},
+		{Name: "qa", Source: registry.SourceBuiltIn},
 	}
 
 	issues := ctx.ValidateFlows(allTools)
@@ -465,7 +465,7 @@ func TestValidateFlows_ParallelSteps(t *testing.T) {
 		Flows: map[string]*flow.StepsSpec{
 			"parallel": {Steps: []flow.FlowStep{
 				{Parallel: []flow.FlowStep{
-					{Tool: "ai-translate"},
+					{Tool: "translate"},
 					{Tool: "okf-step"},
 				}},
 			}},
@@ -473,7 +473,7 @@ func TestValidateFlows_ParallelSteps(t *testing.T) {
 	}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "ai-translate", Source: registry.SourceBuiltIn},
+		{Name: "translate", Source: registry.SourceBuiltIn},
 		{Name: "okf-step", Source: "okapi-bridge"},
 	}
 

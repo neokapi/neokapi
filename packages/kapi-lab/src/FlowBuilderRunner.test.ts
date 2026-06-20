@@ -8,14 +8,14 @@ import type { FlowSpec } from "@neokapi/flow-editor";
 describe("buildRecipe", () => {
   it("emits transformers as plain ordered steps (no source_transforms block)", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "search-replace" }, { tool: "ai-translate" }],
+      steps: [{ tool: "search-replace" }, { tool: "translate" }],
     };
     const recipe = buildRecipe(spec);
     expect(recipe).not.toContain("source_transforms:");
     expect(recipe).toContain("steps:");
     // Order is preserved: the transformer precedes the translation.
     expect(recipe.indexOf("- tool: search-replace")).toBeLessThan(
-      recipe.indexOf("- tool: ai-translate"),
+      recipe.indexOf("- tool: translate"),
     );
   });
 
@@ -56,7 +56,7 @@ describe("buildRecipe", () => {
             ],
           },
         },
-        { tool: "ai-translate" },
+        { tool: "translate" },
       ],
     };
     const recipe = buildRecipe(spec);
@@ -78,7 +78,7 @@ describe("buildRecipe", () => {
     expect(recipe).not.toContain("source_transforms:");
     // All four steps, in order: the transformers run first.
     expect(recipe).toContain("    steps:");
-    const order = ["search-replace", "redact", "ai-translate", "qa-check"].map((t) =>
+    const order = ["search-replace", "redact", "translate", "qa"].map((t) =>
       recipe.indexOf(`- tool: ${t}`),
     );
     expect(order.every((idx) => idx > -1)).toBe(true);
@@ -95,7 +95,7 @@ describe("buildRecipe", () => {
     expect(recipe).toContain("Acme Corp");
     expect(recipe).toContain("detectors:");
     // The redact STEP stays bare — the preset is project scope, not step config.
-    expect(recipe).toContain("      - tool: redact\n      - tool: ai-translate");
+    expect(recipe).toContain("      - tool: redact\n      - tool: translate");
   });
 
   it("omits defaults.tools when no presets are given", () => {
@@ -159,9 +159,9 @@ describe("buildToolInfos", () => {
     expect(redact?.recoverable).toBe(true);
   });
 
-  it("does NOT flag ai-translate as a transformer", () => {
+  it("does NOT flag translate as a transformer", () => {
     const infos = buildToolInfos();
-    const ait = infos.find((t) => t.name === "ai-translate");
+    const ait = infos.find((t) => t.name === "translate");
     expect(ait).toBeDefined();
     expect(ait?.isSourceTransform).toBeFalsy();
   });

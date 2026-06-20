@@ -20,12 +20,12 @@ function tool(name: string, extra: Partial<ToolInfo> = {}): [string, ToolInfo] {
 }
 
 const tools = new Map<string, ToolInfo>([
-  // Translators: produce a committed target. ai-translate additionally sends
+  // Translators: produce a committed target. translate additionally sends
   // source to a remote provider (egress) unless configured with a local one.
   tool("pseudo-translate", {
     produces: [{ type: "target", side: "target" }],
   }),
-  tool("ai-translate", {
+  tool("translate", {
     produces: [{ type: "target", side: "target" }],
     side_effects: ["remote-source-egress"],
   }),
@@ -63,7 +63,7 @@ const tools = new Map<string, ToolInfo>([
   tool("segmentation", {
     produces: [{ type: "segmentation", side: "source" }],
   }),
-  tool("qa-check", {
+  tool("qa", {
     consumes: [{ type: "target", side: "target" }],
     produces: [{ type: "qa", side: "target" }],
   }),
@@ -93,7 +93,7 @@ describe("computePlacement — transformer-after-target", () => {
 
   it("allows unredact after a translation (it produces the target port itself)", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "unredact" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "unredact" }],
     };
     expect(computePlacement(spec, tools)).toEqual([]);
   });
@@ -237,9 +237,9 @@ describe("computePlacement — unknown tools and grouping", () => {
 
   it("placementByStep groups diagnostics by step index", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }, { tool: "redact" }],
+      steps: [{ tool: "translate" }, { tool: "redact" }],
     };
-    // redact after ai-translate violates BOTH rules: targets exist upstream and
+    // redact after translate violates BOTH rules: targets exist upstream and
     // the source already egressed.
     const diags = computePlacement(spec, tools);
     expect(diags.map((d) => d.rule).sort()).toEqual([
@@ -261,25 +261,20 @@ describe("conversion — ordered steps round-trip (no stage)", () => {
     const original: FlowSpec = {
       steps: [
         { tool: "redact", config: { mode: "placeholder" } },
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
+        { tool: "translate" },
+        { tool: "qa" },
         { tool: "unredact" },
       ],
     };
     const { nodes } = stepsToGraph(original);
     const result = graphToSteps(nodes);
-    expect(result.steps.map((s) => s.tool)).toEqual([
-      "redact",
-      "ai-translate",
-      "qa-check",
-      "unredact",
-    ]);
+    expect(result.steps.map((s) => s.tool)).toEqual(["redact", "translate", "qa", "unredact"]);
     expect(result.steps[0].config).toEqual({ mode: "placeholder" });
   });
 
   it("threads stepIndex (and never a stage) onto node data, in declaration order", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "redact" }, { tool: "case-transform" }, { tool: "ai-translate" }],
+      steps: [{ tool: "redact" }, { tool: "case-transform" }, { tool: "translate" }],
     };
     const { nodes, edges } = stepsToGraph(spec, tools);
     expect(nodes.map((n) => n.id)).toEqual(["tool-0", "tool-1", "tool-2"]);
@@ -295,7 +290,7 @@ describe("conversion — ordered steps round-trip (no stage)", () => {
   });
 
   it("passes isSourceTransform (transformer flag) through to node data", () => {
-    const spec: FlowSpec = { steps: [{ tool: "redact" }, { tool: "ai-translate" }] };
+    const spec: FlowSpec = { steps: [{ tool: "redact" }, { tool: "translate" }] };
     const { nodes } = stepsToGraph(spec, tools);
     expect(nodes[0].data.isSourceTransform).toBe(true);
     expect(nodes[1].data.isSourceTransform).toBeUndefined();
@@ -303,12 +298,12 @@ describe("conversion — ordered steps round-trip (no stage)", () => {
 
   it("multiple round-trip passes are stable", () => {
     const original: FlowSpec = {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     };
     const pass1 = graphToSteps(stepsToGraph(original).nodes);
     const pass2 = graphToSteps(stepsToGraph(pass1).nodes);
     expect(pass2).toEqual(pass1);
-    expect(pass1.steps.map((s) => s.tool)).toEqual(["redact", "ai-translate", "qa-check"]);
+    expect(pass1.steps.map((s) => s.tool)).toEqual(["redact", "translate", "qa"]);
   });
 
   it("round-trips an empty flow", () => {

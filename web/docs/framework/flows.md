@@ -67,11 +67,11 @@ steps:
     label: Apply TM matches
     config:
       threshold: 0.7
-  - tool: ai-translate
+  - tool: translate
     label: Translate the rest
     config:
       provider: anthropic
-  - tool: qa-check
+  - tool: qa
     label: Quality checks
 ```
 
@@ -80,7 +80,7 @@ tool's output channel feeds the next tool's input channel. A flow carries only
 its steps — *where content comes from and goes to* is a binding decided when you
 run it, not part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
 
-A [check](/framework/checks) such as `qa-check` is just a read-only step: it
+A [check](/framework/checks) such as `qa` is just a read-only step: it
 attaches findings to each block as annotations rather than rewriting content, so
 it typically sits last and a CI gate reads its result.
 
@@ -93,7 +93,7 @@ steps:
     config: { copySource: true }
   - parallel:
       - tool: word-count
-      - tool: qa-check
+      - tool: qa
       - tool: chars-listing
 ```
 
@@ -107,8 +107,8 @@ else:
 ```yaml
 steps:
   - tool: redact          # rewrites the source in place
-  - tool: ai-translate    # translates the redacted source
-  - tool: qa-check
+  - tool: translate       # translates the redacted source
+  - tool: qa
 ```
 
 A transformer does not edit the block directly: it is a read-only **edit
@@ -204,7 +204,7 @@ command:
 
 ```bash
 # Run a composed flow (two or more tools) on a file
-kapi run ai-translate-qa -i app.xliff --target-lang fr
+kapi run translate-qa -i app.xliff --target-lang fr
 
 # List the composed flows available in this build
 kapi flows

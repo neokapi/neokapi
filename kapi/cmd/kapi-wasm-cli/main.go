@@ -32,8 +32,8 @@ func main() {
 	// enumerates tools/formats) sees them. InitRegistries is idempotent.
 	app.InitRegistries()
 
-	// Register the demo MT translate tool so `mt-translate` is enumerated by
-	// NewToolCommands(). The AI tools (ai-translate, ai-qa, brand-voice-check,
+	// Register the demo MT translate tool so `translate` is enumerated by
+	// NewToolCommands(). The AI tools (translate, qa, brand-voice-check,
 	// …) are already registered by InitRegistries; the demo provider is forced
 	// for them per command run via forceDemoProviders (see buildRoot).
 	registerDemoMT(app.ToolReg)

@@ -379,8 +379,8 @@ func (a *App) ListTools() []ToolInfo {
 	// AI tools (not in tool registry, managed separately). Categories use the
 	// canonical vocabulary so the editor colors them consistently.
 	aiTools := []ToolInfo{
-		{Name: "ai-translate", Description: "Translate content using AI/LLM", Category: schema.CategoryTranslation},
-		{Name: "ai-qa", Description: "Quality check translations using AI", Category: schema.CategoryQuality},
+		{Name: "translate", Description: "Translate content with an LLM or MT provider", Category: schema.CategoryTranslation},
+		{Name: "qa", Description: "Quality check translations (rule-based, or AI with --provider)", Category: schema.CategoryQuality},
 		{Name: "ai-terminology", Description: "Extract terminology using AI", Category: schema.CategoryAnalysis},
 		{Name: "ai-review", Description: "Review translations using AI", Category: schema.CategoryQuality},
 	}

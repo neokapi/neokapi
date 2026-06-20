@@ -30,17 +30,17 @@ plugins:
 flows:
   translate:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
           model: <provider-model-id>
 
   translate-and-qa:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
-      - tool: qa-check
+      - tool: qa
 
   pseudo:
     steps:
@@ -266,7 +266,7 @@ Each flow contains an ordered list of steps. See [Flow Steps Format](/contribute
 flows:
   my-flow:
     steps:
-      - tool: ai-translate # tool name (required)
+      - tool: translate # tool name (required)
         config: # tool-specific config (optional)
           provider: anthropic
         label: "Translate" # display label (optional)
@@ -279,8 +279,10 @@ flows:
   parallel-qa:
     steps:
       - parallel:
-          - tool: qa-check
-          - tool: ai-qa
+          - tool: qa
+          - tool: qa
+            config:
+              provider: anthropic
 ```
 
 ## Key Properties
@@ -300,7 +302,7 @@ kapi run translate -p translation.kapi
 kapi run translate -p translation.kapi --target-lang de --provider openai
 
 # One-shot mode still works without a project
-kapi ai-translate -i file.json --target-lang fr
+kapi translate -i file.json --target-lang fr
 ```
 
 ## Using with Kapi Desktop

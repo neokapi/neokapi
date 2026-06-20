@@ -148,7 +148,7 @@ describe("specFromTrace", () => {
       nodes: [
         { id: "reader", type: "reader", name: "json", label: "JSON Reader" },
         { id: "pseudo", type: "tool", name: "pseudo-translate", label: "Pseudo-Translate" },
-        { id: "qa", type: "bridge-tool", name: "qa-check" },
+        { id: "qa", type: "bridge-tool", name: "qa" },
         { id: "writer", type: "writer", name: "json", label: "JSON Writer" },
       ],
       events: [],
@@ -159,7 +159,7 @@ describe("specFromTrace", () => {
     const spec = specFromTrace(trace as any);
     expect(spec.steps).toEqual([
       { tool: "pseudo-translate", label: "Pseudo-Translate" },
-      { tool: "qa-check" },
+      { tool: "qa" },
     ]);
   });
 });

@@ -13,5 +13,5 @@ export default meta;
 type Story = StoryObj;
 export const NativeConfig: Story = {
   name: "Configuration",
-  render: () => <ToolConfig schemaName="qa-check" source="builtIn" />,
+  render: () => <ToolConfig schemaName="qa" source="builtIn" />,
 };

@@ -1060,7 +1060,7 @@ async function bowrainDesktopFlowsWalk(c: WalkCtx): Promise<void> {
   });
   // Open a multi-step flow to reveal its visual pipeline.
   await beatEls("open", ['[data-testid="flow-builder"]'], async () => {
-    const f = page.getByTestId("flow-item-ai-translate-qa");
+    const f = page.getByTestId("flow-item-translate-qa");
     if (await f.count()) await humanClick(page, f);
     await page.waitForTimeout(2400);
   });

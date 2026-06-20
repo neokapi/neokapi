@@ -6,7 +6,7 @@ import { buildRecipe } from "../FlowBuilderRunner";
 describe("projectScopeLines", () => {
   it("covers the defaults block including project presets, and stops at flows", () => {
     const recipe = buildRecipe(
-      { steps: [{ tool: "redact" }, { tool: "ai-translate" }] },
+      { steps: [{ tool: "redact" }, { tool: "translate" }] },
       { redact: { detectors: ["rules"] } },
     );
     const lines = recipe.split("\n");

@@ -899,8 +899,8 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	}
 
 	// Inject the project's bound brand voice profile so built-in flows
-	// (e.g. ai-translate-qa) run on-brand when executed inside a project.
-	// ai-translate reads config["profile"]; tools that don't recognise it
+	// (e.g. translate-qa) run on-brand when executed inside a project.
+	// translate reads config["profile"]; tools that don't recognise it
 	// ignore the key.
 	if a.projectBindings != nil && a.projectBindings.profile != nil {
 		config["profile"] = a.projectBindings.profile
@@ -1587,7 +1587,7 @@ func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, c
 		config = next
 	}
 
-	// Brand voice → translate steps (ai-translate / its "translate" alias).
+	// Brand voice → translate steps (translate / its "translate" alias).
 	if b.profile != nil && isTranslateTool(toolName, s) {
 		if _, ok := config["profile"]; !ok {
 			clone()
@@ -1620,21 +1620,13 @@ func mergeToolPreset(preset, config map[string]any) map[string]any {
 	return merged
 }
 
-// isTranslateTool reports whether a step's tool is the AI translate tool,
-// which accepts a brand voice profile via config["profile"].
+// isTranslateTool reports whether a step's tool is the translate tool, which
+// accepts a brand voice profile via config["profile"].
 func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
-	if toolName == "ai-translate" {
+	if toolName == "translate" {
 		return true
 	}
-	if s != nil && s.ToolMeta != nil {
-		if s.ToolMeta.ID == "ai-translate" {
-			return true
-		}
-		if slices.Contains(s.ToolMeta.Aliases, "translate") && s.ToolMeta.ID == "ai-translate" {
-			return true
-		}
-	}
-	return false
+	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "translate"
 }
 
 // startStepProgress starts a 200ms ticker that renders a single-line pipeline
@@ -1643,7 +1635,7 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 //
 // Output format:
 //
-//	[2.3s] ● ai-translate [47/120] → ○ qa-check [32/120] → ◌ term-enforce
+//	[2.3s] ● translate [47/120] → ○ qa [32/120] → ◌ term-enforce
 func startStepProgress(w io.Writer, metrics *flow.PipelineMetrics) func() {
 	start := time.Now()
 	ticker := time.NewTicker(200 * time.Millisecond)

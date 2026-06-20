@@ -7,7 +7,7 @@ describe("FlowPage", () => {
     render(
       <FlowPage
         flowName="translate"
-        flow={{ steps: [{ tool: "ai-translate" }] }}
+        flow={{ steps: [{ tool: "translate" }] }}
         onChange={vi.fn()}
         onRun={vi.fn()}
       />,

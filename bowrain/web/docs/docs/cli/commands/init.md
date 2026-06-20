@@ -64,7 +64,7 @@ kapi init --server https://bowrain.cloud --project abc123
 6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
 
 After initialization, the directory becomes a Bowrain project. You can run `kapi status`,
-`kapi ai-translate`, `kapi run <flow>`, and other commands from anywhere within the project tree.
+`kapi translate`, `kapi run <flow>`, and other commands from anywhere within the project tree.
 
 ## Options
 
@@ -125,7 +125,7 @@ server:
 
 # Hooks: flows to run at lifecycle points (schema only — not yet executed; see /cli/flows/hooks)
 hooks:
-  pre-push: [qa-check, term-enforce]
+  pre-push: [qa, term-enforce]
   post-pull: [segmentation]
 ```
 
@@ -180,5 +180,5 @@ After initialization:
 
 1. **Edit content collections** in `<dir-name>.kapi` to match your file structure
 2. **Create flows** in `.kapi/flows/` for your translation workflows
-3. **Run tools and flows**: `kapi tools`, `kapi flows`, `kapi ai-translate`, `kapi run <flow-name>`
+3. **Run tools and flows**: `kapi tools`, `kapi flows`, `kapi translate`, `kapi run <flow-name>`
 4. **Connect to server**: `kapi pull` and `kapi push` (if `server:` block is set)

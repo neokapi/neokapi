@@ -78,7 +78,7 @@ whichever capability-typed handler is set (and other Part types to their
 `Handle*Fn`), and passes unhandled Part types through unchanged. Concrete tools
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
 stream — batching, 1→N fan-out, cross-block state (e.g. the batch collector, the
-concurrent ai-translate path) — overrides `Process` directly; it may reuse a
+concurrent translate path) — overrides `Process` directly; it may reuse a
 typed handler over a held block via `tool.NewBlockView`/`NewTargetView`.
 
 ### SessionTool extension
@@ -195,7 +195,7 @@ type ToolMeta struct {
 ```
 
 For example `tm-leverage` optionally consumes source segmentation and produces
-`tm-match`, `alt-translation` and `target`; `qa-check` requires a `target` and
+`tm-match`, `alt-translation` and `target`; `qa` requires a `target` and
 produces `qa`. The flow loader uses these contracts for data-flow validation —
 a flow whose tool needs a port that no upstream tool or the source binding
 supplies is rejected at build ([AD-026](026-flow-io-binding.md)).
@@ -214,7 +214,7 @@ const (
     Monolingual LocaleCardinality = "monolingual"
 
     // Bilingual — operates on exactly two locales, provided as a pair.
-    // Examples: ai-translate (source→target), qa-check (source vs target).
+    // Examples: translate (source→target), qa (source vs target).
     Bilingual LocaleCardinality = "bilingual"
 
     // Multilingual — operates on N locales simultaneously.
@@ -356,11 +356,11 @@ Examples:
 | ------------------ | --------------------------------------------- | -------------------------------------- |
 | word-count         | `[word-count(mono)]`                          | `[[en]]`                               |
 | pseudo-translate   | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                          |
-| translate          | `[ai-translate(bi)]`                          | `[[en, de], [en, fr], [en, ja], ...]`  |
-| translate+qa       | `[ai-translate(bi), qa-check(bi)]`            | `[[en, de], [en, fr], ...]`            |
+| translate          | `[translate(bi)]`                             | `[[en, de], [en, fr], [en, ja], ...]`  |
+| translate+qa       | `[translate(bi), qa(bi)]`                     | `[[en, de], [en, fr], ...]`            |
 | compare de vs fr   | `[comparison(bi)]` with config `[de, fr]`     | `[[de, fr]]`                           |
 | cross-locale QA    | `[consistency-check(multi)]`                  | `[[en, de, fr, ja, nb, ar]]`           |
-| translate + pseudo | `[ai-translate(bi), pseudo(bi, default:qps)]` | `[[en, de], [en, fr], ..., [en, qps]]` |
+| translate + pseudo | `[translate(bi), pseudo(bi, default:qps)]`    | `[[en, de], [en, fr], ..., [en, qps]]` |
 
 Mixed flows resolve to the union of all needed passes.
 
@@ -463,9 +463,9 @@ Tools communicate through annotations on Blocks. A typical pipeline:
     { label: "ai-entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
-    { label: "ai-translate", role: "translate" },
+    { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
-    { label: "qa-check", role: "qa" },
+    { label: "qa", role: "qa" },
     { label: "sink", role: "io" },
   ]}
 />
@@ -473,9 +473,9 @@ Tools communicate through annotations on Blocks. A typical pipeline:
 - `ai-entity-extract` adds `EntityAnnotation` with named entities.
 - `term-lookup` adds `TermAnnotation` with matched terminology.
 - `tm-leverage` reads entity annotations for generalized matching, adds `AltTranslation`.
-- `ai-translate` reads term and entity annotations for context-aware translation.
+- `translate` reads term and entity annotations for context-aware translation.
 - `term-enforce` validates terminology consistency in targets.
-- `qa-check` validates translation quality.
+- `qa` validates translation quality.
 
 Each tool reads the annotations it cares about and adds its own, keeping
 tools loosely coupled through a shared data model rather than direct
@@ -519,7 +519,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `word-count`             | Count words per block                                                                   |
 | `char-count`             | Count characters per block                                                              |
 | `segment-count`          | Count source and target segments in blocks                                              |
-| `qa-check`               | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
+| `qa`                     | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
 | `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
 | `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
 | `brand-vocab-check`      | Check target text against brand vocabulary / preferred-term rules                       |
@@ -566,8 +566,8 @@ interface and work identically in flows.
 
 | Tool                | Description                                                        |
 | ------------------- | ------------------------------------------------------------------ |
-| `ai-translate`      | Translate blocks using an LLM provider (batch + concurrent)        |
-| `ai-qa`             | Check translation quality using an LLM provider                    |
+| `translate`         | Translate blocks using an LLM (or MT) provider (batch + concurrent) |
+| `qa --provider`     | Check translation quality using an LLM provider                    |
 | `ai-review`         | Review translations with explanations using an LLM                 |
 | `ai-terminology`    | Extract terminology from blocks using an LLM                       |
 | `ai-entity-extract` | Extract named entities and term candidates using AI + optional NER |
@@ -611,10 +611,10 @@ spec:
     - tool: tm-leverage
       config:
         fuzzyThreshold: 75
-    - tool: ai-translate
+    - tool: translate
       config:
         provider: anthropic
-    - tool: qa-check
+    - tool: qa
     - parallel:
         - tool: word-count
         - tool: char-count
@@ -653,11 +653,11 @@ wrong writes unrepresentable.
 | `Translate(TargetView)` | source read-only | target content (+ the above) |
 | `Transform` (edit producer) | source + target read-only | an edit plan the framework applies to source |
 
-- **Analysis / annotation** tools (qa-check, word-count, term-lookup,
+- **Analysis / annotation** tools (qa, word-count, term-lookup,
   entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
   source/target setter, so they *cannot* mutate content — they emit overlays,
   annotations, and properties.
-- **Translation** tools (ai-translate, the MT tools, tm-leverage,
+- **Translation** tools (translate, the MT tools, tm-leverage,
   create-target) set `Translate` and write `Block.Targets`; source stays
   read-only.
 - **Transformers** (redaction, normalization, case/encoding conversion) are the

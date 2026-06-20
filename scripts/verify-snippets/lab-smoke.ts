@@ -98,7 +98,7 @@ ok("recipe trace tool node is named (not tool-N)", rtrace.nodes?.some((n: any) =
 ok("recipe trace has part snapshots", Object.keys(rtrace.parts ?? {}).length > 0, `parts=${Object.keys(rtrace.parts ?? {}).length}`);
 
 // ── 4. AI flow runs offline via the demo provider (FlowBuilder / ai pipelines) ─
-// A credential-requiring tool (ai-translate) inside a recipe flow must be
+// A credential-requiring tool (translate) inside a recipe flow must be
 // coerced to the deterministic demo provider — otherwise it hits the real
 // network (api.anthropic.com), which is unreachable in the browser/Node.
 const AI_RECIPE = `version: v1
@@ -108,14 +108,14 @@ defaults:
 flows:
   lab:
     steps:
-      - tool: ai-translate
+      - tool: translate
 `;
 mem.vol.writeFile("/project/ai.kapi", enc.encode(AI_RECIPE));
 const aicode: number = await (globalThis as any).kapiRun([
   "run", "lab", "-p", "/project/ai.kapi", "-i", "/project/sample.json",
   "-o", "/project/out-ai.json", "--target-lang", "fr", "--trace", "/project/aitrace.json",
 ]);
-ok("ai-translate flow runs offline (demo provider) exits 0", aicode === 0, `code=${aicode}`);
+ok("translate flow runs offline (demo provider) exits 0", aicode === 0, `code=${aicode}`);
 const aitrace = JSON.parse(dec.decode(mem.vol.readFile("/project/aitrace.json")));
 ok("ai flow trace has part snapshots", Object.keys(aitrace.parts ?? {}).length > 0, `parts=${Object.keys(aitrace.parts ?? {}).length}`);
 

@@ -37,10 +37,10 @@ const sampleSchemas: Record<string, ComponentSchema> = {
       },
     },
   },
-  "qa-check": {
+  qa: {
     title: "QA Check",
     type: "object",
-    toolMeta: { id: "qa-check", category: "validate" },
+    toolMeta: { id: "qa", category: "validate" },
     "ui:groups": [
       {
         id: "checks",
@@ -146,7 +146,7 @@ const sampleDocs: Record<string, ToolDoc> = {
       },
     ],
   },
-  "qa-check": {
+  qa: {
     displayName: "Quality Check",
     overview:
       "Runs rule-based quality assurance checks on translations. Detects whitespace mismatches, missing translations, broken inline codes, and pattern inconsistencies between source and target.",
@@ -214,7 +214,7 @@ type Story = StoryObj<typeof FlowEditor>;
 
 export const SingleStep: Story = {
   args: {
-    flow: { steps: [{ tool: "ai-translate" }] },
+    flow: { steps: [{ tool: "translate" }] },
     tools,
   },
 };
@@ -228,7 +228,7 @@ export const InterchangeSource: Story = {
   name: "Binding: Interchange → Files",
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
       // Wire-format string locators: `xliff` parses to an interchange binding;
       // `file` is the default, so the sink is simply omitted.
       source: "xliff",
@@ -241,7 +241,7 @@ export const StoreToStore: Story = {
   name: "Binding: Store → Store",
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }],
+      steps: [{ tool: "translate" }],
       source: "store",
       sink: "store",
     },
@@ -253,7 +253,7 @@ export const NoSinkBinding: Story = {
   name: "Binding: Files → None (annotate in place)",
   args: {
     flow: {
-      steps: [{ tool: "qa-check" }],
+      steps: [{ tool: "qa" }],
       // Files is the default source (omitted); sink `none` = annotate in place.
       sink: "none",
     },
@@ -264,7 +264,7 @@ export const NoSinkBinding: Story = {
 export const MultiStep: Story = {
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     tools,
   },
@@ -279,7 +279,7 @@ export const ParallelRoute: Story = {
   name: "Parallel route (compose + edit live)",
   render: (args) => {
     const [flow, setFlow] = useState<FlowSpec>({
-      steps: [{ tool: "ai-translate" }, { tool: "", parallel: [] }, { tool: "word-count" }],
+      steps: [{ tool: "translate" }, { tool: "", parallel: [] }, { tool: "word-count" }],
     });
     return <FlowEditor {...args} flow={flow} onChange={setFlow} />;
   },
@@ -293,7 +293,7 @@ export const LessonFocus: Story = {
   name: "Lesson focus (focusRequest highlight)",
   args: {
     flow: {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     },
     tools,
     focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
@@ -307,7 +307,7 @@ export const LessonCallout: Story = {
   name: "Lesson callout (lessonPanel overlay)",
   args: {
     flow: {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     },
     tools,
     focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
@@ -337,7 +337,7 @@ export const EndpointInspectors: Story = {
   name: "Endpoint inspectors (Inspect satellites)",
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     tools,
     renderEndpointPanel: (role: "source" | "sink") => (
@@ -355,9 +355,9 @@ export const FullPipeline: Story = {
     flow: {
       steps: [
         { tool: "tm-leverage" },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<" } },
-        { tool: "qa-check" },
+        { tool: "qa" },
         { tool: "word-count" },
       ],
     },
@@ -386,9 +386,9 @@ export const RunMetadataMultiRow: Story = {
     flow: {
       steps: [
         { tool: "tm-leverage" },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "pseudo-translate" },
-        { tool: "qa-check" },
+        { tool: "qa" },
         { tool: "word-count" },
       ],
     },
@@ -415,7 +415,7 @@ export const RunMetadataMultiRow: Story = {
  * IO-contract showcase: every node shows its typed reads → writes chips, edges
  * carry the data type flowing across them, and the legend (top-right) decodes
  * the family colors. segmentation produces a segments overlay that tm-leverage
- * optionally consumes; translate writes target; term-check / qa-check read
+ * optionally consumes; translate writes target; term-check / qa read
  * target and write findings.
  */
 export const IoContractShowcase: Story = {
@@ -425,9 +425,9 @@ export const IoContractShowcase: Story = {
       steps: [
         { tool: "segmentation" },
         { tool: "tm-leverage" },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "term-check" },
-        { tool: "qa-check" },
+        { tool: "qa" },
       ],
     },
     tools,
@@ -458,7 +458,7 @@ export const EmptyWithTemplates: Story = {
 export const ReadOnly: Story = {
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     tools,
     readOnly: true,
@@ -471,7 +471,7 @@ export const WithConfiguration: Story = {
     flow: {
       steps: [
         { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<", expansionPercent: 40 } },
-        { tool: "qa-check", config: { checkLeadingWhitespace: false } },
+        { tool: "qa", config: { checkLeadingWhitespace: false } },
         { tool: "search-replace", config: { search: "foo", replace: "bar", regEx: false } },
       ],
     },
@@ -483,11 +483,11 @@ export const ParallelBranches: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "ai-translate", label: "Translate" },
+        { tool: "translate", label: "Translate" },
         {
           tool: "",
           parallel: [
-            { tool: "qa-check", label: "Quality Check" },
+            { tool: "qa", label: "Quality Check" },
             { tool: "brand-vocab-check", label: "Brand Check" },
           ],
         },
@@ -506,7 +506,7 @@ export const ThreeWayParallel: Story = {
         {
           tool: "",
           parallel: [
-            { tool: "qa-check", label: "QA" },
+            { tool: "qa", label: "QA" },
             { tool: "brand-vocab-check", label: "Brand" },
             { tool: "entity-extract", label: "Entities" },
           ],
@@ -532,12 +532,12 @@ export const ManyBranchParallel: Story = {
         {
           tool: "",
           parallel: [
-            { tool: "qa-check", label: "Quality" },
+            { tool: "qa", label: "Quality" },
             { tool: "brand-vocab-check", label: "Brand" },
             { tool: "entity-extract", label: "Entities" },
             { tool: "term-check", label: "Terminology" },
             { tool: "word-count", label: "Word Count" },
-            { tool: "ai-translate", label: "Back-translate" },
+            { tool: "translate", label: "Back-translate" },
           ],
         },
       ],
@@ -551,8 +551,8 @@ export const ParallelizationSuggestion: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
+        { tool: "translate" },
+        { tool: "qa" },
         { tool: "brand-vocab-check" },
         { tool: "word-count" },
       ],
@@ -565,17 +565,12 @@ export const WithPortVisualization: Story = {
   name: "With Port Visualization",
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "word-count" }],
     },
     tools: tools.map((t) => ({
       ...t,
-      inputs:
-        t.name === "ai-translate"
-          ? ["block"]
-          : t.name === "qa-check"
-            ? ["block"]
-            : ["block", "data"],
-      outputs: t.name === "ai-translate" ? ["block"] : t.name === "qa-check" ? ["block"] : ["data"],
+      inputs: t.name === "translate" ? ["block"] : t.name === "qa" ? ["block"] : ["block", "data"],
+      outputs: t.name === "translate" ? ["block"] : t.name === "qa" ? ["block"] : ["data"],
     })),
   },
 };
@@ -584,7 +579,7 @@ export const WithTraceData: Story = {
   name: "With Trace (Completed)",
   args: {
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "word-count" }],
     },
     tools,
     readOnly: true,
@@ -606,8 +601,8 @@ export const WithTraceData: Story = {
     trace: {
       name: "translate-qa",
       nodes: [
-        { id: "tool-0", type: "tool", name: "ai-translate" },
-        { id: "tool-1", type: "tool", name: "qa-check" },
+        { id: "tool-0", type: "tool", name: "translate" },
+        { id: "tool-1", type: "tool", name: "qa" },
         { id: "tool-2", type: "tool", name: "word-count" },
       ],
       events: [],
@@ -743,18 +738,16 @@ const transformerAwareTools: ToolInfo[] = [
     tags: ["ai-powered"],
   },
   // Ordinary tools from the shared fixture, with the remote-egress effect on
-  // ai-translate so the placement stories exercise the egress rule.
+  // translate so the placement stories exercise the egress rule.
   ...(toolsData as ToolInfo[])
     .filter((t) =>
-      ["ai-translate", "qa-check", "word-count", "pseudo-translate", "tm-leverage"].includes(
-        t.name,
-      ),
+      ["translate", "qa", "word-count", "pseudo-translate", "tm-leverage"].includes(t.name),
     )
-    .map((t) => (t.name === "ai-translate" ? { ...t, side_effects: ["remote-source-egress"] } : t)),
+    .map((t) => (t.name === "translate" ? { ...t, side_effects: ["remote-source-egress"] } : t)),
 ];
 
 /**
- * Secure translate as ordered steps: redact → ai-translate → unredact. redact
+ * Secure translate as ordered steps: redact → translate → unredact. redact
  * runs before the remote provider sees the source; unredact restores the
  * originals last. No placement diagnostics fire — this is the safe ordering.
  */
@@ -764,7 +757,7 @@ export const SecureTranslate: Story = {
     flow: {
       steps: [
         { tool: "redact", config: { mode: "placeholder" } },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "unredact" },
       ],
     },
@@ -785,8 +778,8 @@ export const LeadingTransformers: Story = {
       steps: [
         { tool: "source-normalise" },
         { tool: "redact" },
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
+        { tool: "translate" },
+        { tool: "qa" },
         { tool: "word-count" },
       ],
     },
@@ -801,7 +794,7 @@ export const LeadingTransformers: Story = {
  *  - redact sits AFTER the remote NER without entity-driven config →
  *    "unsafe placement" (transformer-after-remote-egress): the source leaks
  *    to the cloud before redaction applies.
- *  - case-transform sits AFTER ai-translate, which produces targets →
+ *  - case-transform sits AFTER translate, which produces targets →
  *    "unsafe placement" (transformer-after-target): rewriting the source
  *    orphans the targets anchored to it.
  *
@@ -814,7 +807,7 @@ export const PlacementDiagnostics: Story = {
       steps: [
         { tool: "ai-entity-extract" },
         { tool: "redact" },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "case-transform" },
       ],
     },
@@ -837,7 +830,7 @@ export const EntityDrivenRedaction: Story = {
       steps: [
         { tool: "ai-entity-extract" },
         { tool: "redact", config: { detectors: ["entities"] } },
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "unredact" },
       ],
     },
@@ -855,7 +848,7 @@ export const TransformersReadOnly: Story = {
   name: "Transformers (read-only)",
   args: {
     flow: {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     },
     tools: transformerAwareTools,
     readOnly: true,
@@ -875,7 +868,7 @@ export const RunReview: Story = {
   name: "Run Review (trace on the designed flow)",
   args: {
     flow: {
-      steps: [{ tool: "redact", config: { detectors: ["entities"] } }, { tool: "ai-translate" }],
+      steps: [{ tool: "redact", config: { detectors: ["entities"] } }, { tool: "translate" }],
     },
     tools: transformerAwareTools,
     onGetSchema: getSchema,
@@ -885,7 +878,7 @@ export const RunReview: Story = {
       nodes: [
         { id: "reader", type: "reader", name: "read" },
         { id: "tool-1", type: "tool", name: "redact" },
-        { id: "tool-2", type: "tool", name: "ai-translate" },
+        { id: "tool-2", type: "tool", name: "translate" },
         { id: "writer", type: "writer", name: "write" },
       ],
       events: [
@@ -981,7 +974,7 @@ export const ProjectPresets: Story = {
     flow: {
       steps: [
         { tool: "redact", config: { placeholder: "[HIDDEN:{category}]" } },
-        { tool: "ai-translate" },
+        { tool: "translate" },
       ],
     },
     tools: transformerAwareTools,
@@ -993,7 +986,7 @@ export const ProjectPresets: Story = {
         placeholder: "[REDACTED:{category}]",
         rules: [{ term: "Acme Corp", category: "org" }],
       },
-      "ai-translate": { provider: "ollama" },
+      translate: { provider: "ollama" },
     },
   },
 };

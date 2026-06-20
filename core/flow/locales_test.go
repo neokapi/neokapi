@@ -27,8 +27,8 @@ func TestResolveFlowLocales_MonolingualOnly(t *testing.T) {
 }
 
 func TestResolveFlowLocales_BilingualNoDefault(t *testing.T) {
-	spec := &StepsSpec{Steps: []FlowStep{{Tool: "ai-translate"}}}
-	infos := toolMap(registry.ToolInfo{Name: "ai-translate", Cardinality: schema.Bilingual})
+	spec := &StepsSpec{Steps: []FlowStep{{Tool: "translate"}}}
+	infos := toolMap(registry.ToolInfo{Name: "translate", Cardinality: schema.Bilingual})
 
 	result := ResolveFlowLocales(spec, infos, "en-US", projectTargets)
 	assert.Len(t, result, 3)
@@ -50,11 +50,11 @@ func TestResolveFlowLocales_BilingualWithDefault(t *testing.T) {
 
 func TestResolveFlowLocales_MixedBilingualDefaultAndNoDefault(t *testing.T) {
 	spec := &StepsSpec{Steps: []FlowStep{
-		{Tool: "ai-translate"},
+		{Tool: "translate"},
 		{Tool: "pseudo-translate"},
 	}}
 	infos := toolMap(
-		registry.ToolInfo{Name: "ai-translate", Cardinality: schema.Bilingual},
+		registry.ToolInfo{Name: "translate", Cardinality: schema.Bilingual},
 		registry.ToolInfo{Name: "pseudo-translate", Cardinality: schema.Bilingual, DefaultLocale: "qps"},
 	)
 
@@ -77,14 +77,14 @@ func TestResolveFlowLocales_Multilingual(t *testing.T) {
 }
 
 func TestResolveFlowLocales_MonoAndBilingual(t *testing.T) {
-	// word-count (mono) + qa-check (bilingual) → iterate project targets.
+	// word-count (mono) + qa (bilingual) → iterate project targets.
 	spec := &StepsSpec{Steps: []FlowStep{
 		{Tool: "word-count"},
-		{Tool: "qa-check"},
+		{Tool: "qa"},
 	}}
 	infos := toolMap(
 		registry.ToolInfo{Name: "word-count", Cardinality: schema.Monolingual},
-		registry.ToolInfo{Name: "qa-check", Cardinality: schema.Bilingual},
+		registry.ToolInfo{Name: "qa", Cardinality: schema.Bilingual},
 	)
 
 	result := ResolveFlowLocales(spec, infos, "en-US", projectTargets)
@@ -94,12 +94,12 @@ func TestResolveFlowLocales_MonoAndBilingual(t *testing.T) {
 func TestResolveFlowLocales_ParallelSteps(t *testing.T) {
 	spec := &StepsSpec{Steps: []FlowStep{
 		{Parallel: []FlowStep{
-			{Tool: "ai-translate"},
+			{Tool: "translate"},
 			{Tool: "pseudo-translate"},
 		}},
 	}}
 	infos := toolMap(
-		registry.ToolInfo{Name: "ai-translate", Cardinality: schema.Bilingual},
+		registry.ToolInfo{Name: "translate", Cardinality: schema.Bilingual},
 		registry.ToolInfo{Name: "pseudo-translate", Cardinality: schema.Bilingual, DefaultLocale: "qps"},
 	)
 

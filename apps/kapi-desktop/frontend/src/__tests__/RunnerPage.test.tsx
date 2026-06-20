@@ -12,7 +12,7 @@ describe("RunnerPage", () => {
     tabID: "test-tab",
     flowName: "translate",
     flow: {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     onClose: vi.fn(),
   };
@@ -24,8 +24,8 @@ describe("RunnerPage", () => {
 
   it("shows pipeline steps", () => {
     renderWithProviders(<RunnerPage {...defaultProps} />);
-    expect(screen.getByText("ai-translate")).toBeInTheDocument();
-    expect(screen.getByText("qa-check")).toBeInTheDocument();
+    expect(screen.getByText("translate")).toBeInTheDocument();
+    expect(screen.getByText("qa")).toBeInTheDocument();
   });
 
   it("shows input file selector", () => {

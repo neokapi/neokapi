@@ -12,7 +12,7 @@ keywords: [metadata i18n, Go surfaces, localization, format metadata, tool schem
 
 The frontend packages ([AD-014](014-kapi-desktop.md)) are localized
 through the KLF pipeline: extract translatable blocks from source, run
-them through `kapi pseudo-translate` / `kapi ai-translate`, and compile
+them through `kapi pseudo-translate` / `kapi translate`, and compile
 per-locale runtime catalogs. The Go backends serving those frontends emit
 a metadata surface (tool / format / plugin `displayName`, `description`,
 parameter `title` / `description` / enum labels / group labels) that also
@@ -158,10 +158,10 @@ is silent, not an error.
 `Scope` is the dot-separated full key path of the value in the
 canonical metadata document:
 
-- `tools.ai-translate.displayName`
+- `tools.translate.displayName`
 - `formats.html.displayName`
-- `tools.ai-translate.properties.provider.title`
-- `tools.ai-translate.groups.provider.label`
+- `tools.translate.properties.provider.title`
+- `tools.translate.groups.provider.label`
 
 The MO file stores this string as `msgctxt`; the English source is
 `msgid`; the translation is `msgstr`. Homonyms ("Description" across

@@ -47,12 +47,8 @@ const OVERLAY_STYLES: Record<string, OverlayStyle> = {
     className: "bg-pink-500/20 text-pink-700 dark:text-pink-300",
     label: "Brand",
   },
-  // Rule-based QA findings (double spaces, doubled words, …).
+  // Rule-based and LLM-judged QA findings (double spaces, doubled words, …).
   qa: { className: "bg-amber-500/25 text-amber-700 dark:text-amber-300", label: "QA" },
-  "qa-check": {
-    className: "bg-amber-500/25 text-amber-700 dark:text-amber-300",
-    label: "QA check",
-  },
   // Other model overlay types (not currently produced, but kept stable).
   entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
   entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
@@ -78,7 +74,7 @@ const DEFAULT_STYLE: OverlayStyle = {
  * resolves to the brand accent; everything else resolves on its overlay type.
  */
 function effectiveKey(type: string, span?: OverlaySpan): string {
-  if ((type === "qa" || type === "qa-check") && span?.props?.category === BRAND_CATEGORY) {
+  if (type === "qa" && span?.props?.category === BRAND_CATEGORY) {
     return BRAND_CATEGORY;
   }
   return type;
@@ -124,7 +120,6 @@ const TOOLTIP_PROPS: Record<string, string[]> = {
   terms: ["target", "domain"],
   [BRAND_CATEGORY]: ["replacement", "message"],
   qa: ["message"],
-  "qa-check": ["message"],
 };
 
 /** Build the tooltip line for an overlay span (type + the useful prop). */

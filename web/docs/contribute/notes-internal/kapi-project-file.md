@@ -183,28 +183,28 @@ The `.kapi` file references AI providers by type (e.g., `provider: anthropic`), 
 
 ```bash
 # One-shot (no project)
-kapi ai-translate -i file.json --target-lang fr
+kapi translate -i file.json --target-lang fr
 
 # With project file: run a built-in flow with project defaults
-kapi run ai-translate-qa -p translation.kapi --target-lang de
+kapi run translate-qa -p translation.kapi --target-lang de
 
 # Or run a flow defined in the recipe's flows: map (here named "translate")
 kapi run translate -p translation.kapi
 ```
 
-Built-in flows are `ai-translate`, `ai-translate-qa`, `pseudo-translate`,
-`qa-check`, `tm-leverage`, and `secure-translate` (see
+Built-in flows are `translate`, `translate-qa`, `pseudo-translate`,
+`qa`, `tm-leverage`, and `secure-translate` (see
 `core/flow.BuiltInFlows`). A recipe's `flows:` map can add new flows and
-override the single-tool built-ins (`ai-translate`, `pseudo-translate`,
-`qa-check`, `tm-leverage`). It cannot override the composed built-ins
-(`ai-translate-qa`, `secure-translate`) when invoked via `-p`: `runWithProject`
+override the single-tool built-ins (`translate`, `pseudo-translate`,
+`qa`, `tm-leverage`). It cannot override the composed built-ins
+(`translate-qa`, `secure-translate`) when invoked via `-p`: `runWithProject`
 (`cli/run.go`) dispatches those to the built-in pipeline before consulting
 `proj.GetFlow`.
 
 With `-p`:
 
 - The flow name is matched against the built-in composed flows first (currently
-  `ai-translate-qa` and `secure-translate` — the `BuiltInFlows` entries with 2+
+  `translate-qa` and `secure-translate` — the `BuiltInFlows` entries with 2+
   tool nodes); if it is not one of those, it is looked up in the project's
   `flows` map (and finally the plugin fallback)
 - `defaults.source_language` and `defaults.target_languages[0]` provide
@@ -279,7 +279,7 @@ requires:
 flows:
   translate:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
           model: claude-sonnet-4-20250514
@@ -289,10 +289,10 @@ flows:
       - tool: tm-leverage
         config:
           fuzzyThreshold: 75
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
-      - tool: qa-check
+      - tool: qa
 
   pseudo:
     steps:

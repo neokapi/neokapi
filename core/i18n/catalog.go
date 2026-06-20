@@ -8,7 +8,7 @@ import (
 
 // Scope is the gettext msgctxt for a translatable metadata string. It's
 // the dot-separated full key path of the value in the canonical metadata
-// JSON (e.g. "tools.ai-translate.displayName",
+// JSON (e.g. "tools.translate.displayName",
 // "formats.okf_html.displayName"). Using the full path means homonym
 // source text ("Description") across tools/formats/plugins resolves
 // unambiguously. The dot separator matches what the JSON filter emits

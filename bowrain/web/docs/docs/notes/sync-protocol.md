@@ -51,7 +51,7 @@ server:
 
 # Hooks: flows that run automatically at lifecycle points.
 hooks:
-  pre-push: [qa-check, term-enforce]
+  pre-push: [qa, term-enforce]
   post-pull: [update-stats]
 
 # Flow definitions (inline; or in .kapi/flows/<name>.yaml).

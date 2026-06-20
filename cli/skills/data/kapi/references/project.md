@@ -86,6 +86,6 @@ and you read the `pass` field; drop `--no-fail` in CI, where the non-zero exit b
 the build. Read the findings, fix them, and run it again — loop until it passes. This is the
 gate that makes the result trustworthy regardless of how you produced it.
 
-For unattended runs (CI, no assistant), `kapi ai-translate` / `kapi run ai-translate-qa`
+For unattended runs (CI, no assistant), `kapi translate` / `kapi run translate-qa`
 call a configured provider instead — the project's brand voice and glossary still apply,
 and `kapi verify` is the same gate in the pipeline.

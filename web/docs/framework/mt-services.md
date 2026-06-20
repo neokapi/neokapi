@@ -21,15 +21,16 @@ neokapi integrates with external machine translation (MT) services as an alterna
 
 ## Configuration
 
-Each MT service is exposed as its own `<provider>-translate` tool, so the
-provider is fixed by the tool you run — `deepl-translate` uses DeepL,
-`google-translate` uses Google, and so on. Non-secret options (region, project,
-formality) are set as step config in a flow definition, which is safe to commit:
+Each MT service is reached through the single `translate` tool by selecting it
+with `--provider` — `--provider deepl` uses DeepL, `--provider google` uses
+Google, and so on. Non-secret options (region, project, formality) are set as
+step config in a flow definition, which is safe to commit:
 
 ```yaml
 steps:
-  - tool: microsoft-translate
+  - tool: translate
     config:
+      provider: microsoft
       region: westus2
 ```
 
@@ -42,7 +43,7 @@ same way as for [AI translation](/framework/ai-translation#supplying-the-api-key
 
    ```bash
    kapi credentials add my-deepl --provider deepl --api-key …
-   kapi deepl-translate -i input.html --target-lang fr --credential my-deepl
+   kapi translate -i input.html --target-lang fr --provider deepl --credential my-deepl
    ```
 
 2. **Inline flag** — `--api-key …` for a one-off run.
@@ -69,24 +70,29 @@ the generated [Tool Reference](/tools).
 
 ## Usage
 
-Each MT service is exposed as its own [tool](/framework/tools), named
-`<provider>-translate` — `deepl-translate`, `google-translate`,
-`microsoft-translate`, `modernmt-translate`, `mymemory-translate`. They compose
-into [flows](/framework/flows) like any other stage. A typical production flow
-chains TM leverage, an MT pass, and AI refinement:
+Each MT service is selected through the single [`translate`](/framework/tools)
+tool by setting `--provider` (`deepl`, `google`, `microsoft`, `modernmt`,
+`mymemory`). It composes into [flows](/framework/flows) like any other stage. A
+typical production flow chains TM leverage, an MT pass, and AI refinement:
 
 ```yaml
 steps:
   - tool: tm-leverage
-  - tool: deepl-translate
+  - tool: translate
+    config:
+      provider: deepl
   - tool: ai-review
-  - tool: qa-check
+  - tool: qa
 ```
 
-Switching providers is a configuration change — replace `deepl-translate` with
-`google-translate` (or `ai-translate`) and the rest of the flow is unchanged.
+Switching providers is a configuration change — replace `--provider deepl` with
+`--provider google` (or an LLM provider such as `--provider anthropic`) and the
+rest of the flow is unchanged.
 
 ## Comparison with AI Translation
+
+MT engines and LLM providers are both values of `--provider` on the one
+`translate` command; the choice is a trade-off rather than a different command:
 
 | Feature       | MT Services           | AI Translation      |
 | ------------- | --------------------- | ------------------- |

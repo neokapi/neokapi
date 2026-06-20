@@ -133,7 +133,7 @@ formats differ in whether they preserve inline structure on write:
 ### CLI and recipe surface
 
 - `kapi run secure-translate -i <file> --target-lang <l>` — the in-process flow
-  `reader → redact → ai-translate → unredact → writer`.
+  `reader → redact → translate → unredact → writer`.
 - `kapi run redact-pii -i <file>` — the built-in NER flow: `ai-entity-extract`
   (detect entities) → `redact` (configured for person/org/location/date). The
   placement pass (AD-006) keeps `redact` ahead of any remote-egress step.

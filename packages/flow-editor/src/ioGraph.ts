@@ -1,6 +1,6 @@
 // Requirement analysis: for each step, which non-optional consumed ports does
 // nothing upstream produce? Those are unmet requirements the editor flags on the
-// node (and explains in the config panel) — e.g. a qa-check that needs a
+// node (and explains in the config panel) — e.g. a qa that needs a
 // committed target but sits before any translation tool.
 //
 // The flow is linear: steps run in order. A parallel group's branches all see

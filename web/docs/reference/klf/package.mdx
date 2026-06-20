@@ -119,7 +119,7 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
 
   ```bash
   kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
-  kapi ai-translate work.klz --target-lang fr                # transform (cache)
+  kapi translate work.klz --target-lang fr                # transform (cache)
   kapi info  work.klz                                         # dirty?
   kapi pack  work.klz                                         # eject for sharing
   kapi merge work.klz -o l10n/                                # emit → l10n/<lang>/<name>

@@ -71,12 +71,12 @@ export function Platform() {
             </div>
             <div>
               {" "}
-              - <span className="text-neutral-300">ai-translate</span>{" "}
+              - <span className="text-neutral-300">translate</span>{" "}
               <span className="text-neutral-600"># translate new blocks</span>
             </div>
             <div>
               {" "}
-              - <span className="text-neutral-300">qa-check</span>{" "}
+              - <span className="text-neutral-300">qa</span>{" "}
               <span className="text-neutral-600"># run quality checks</span>
             </div>
             <div>

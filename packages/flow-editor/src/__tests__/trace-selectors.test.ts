@@ -12,7 +12,7 @@ import {
 } from "../traceSelectors";
 import type { FlowTrace, PartSnapshot } from "../traceTypes";
 
-// A trace the engine would produce for the 2-step flow [redact, ai-translate]:
+// A trace the engine would produce for the 2-step flow [redact, translate]:
 // reader/writer nodes bracket the tool nodes, parts snapshot after each tool.
 function sampleTrace(): FlowTrace {
   return {
@@ -20,7 +20,7 @@ function sampleTrace(): FlowTrace {
     nodes: [
       { id: "reader", type: "reader", name: "read" },
       { id: "tool-1", type: "tool", name: "redact" },
-      { id: "tool-2", type: "tool", name: "ai-translate" },
+      { id: "tool-2", type: "tool", name: "translate" },
       { id: "writer", type: "writer", name: "write" },
     ],
     events: [
@@ -74,7 +74,7 @@ function sampleTrace(): FlowTrace {
   };
 }
 
-const STEPS = [{ tool: "redact" }, { tool: "ai-translate" }];
+const STEPS = [{ tool: "redact" }, { tool: "translate" }];
 
 describe("stepToolCounts", () => {
   it("counts 1 per plain step and the branch count for parallel groups", () => {

@@ -32,13 +32,13 @@ const tools: ToolInfo[] = [
     category: "transform",
   },
   {
-    name: "ai-translate",
+    name: "translate",
     display_name: "AI Translate",
     description: "Translate content using an AI/LLM provider.",
     category: "translate",
   },
   {
-    name: "ai-qa",
+    name: "qa",
     display_name: "AI QA",
     description: "Quality-check translations using AI.",
     category: "validate",
@@ -75,12 +75,12 @@ type Story = StoryObj<typeof FlowEditor>;
 
 const secureTranslate: FlowSpec = {
   description: "Redact, AI-translate, then restore originals locally.",
-  steps: [{ tool: "redact" }, { tool: "ai-translate" }, { tool: "unredact" }],
+  steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "unredact" }],
 };
 
 const aiTranslateQa: FlowSpec = {
   description: "Translate with AI then run a QA check.",
-  steps: [{ tool: "ai-translate" }, { tool: "ai-qa" }],
+  steps: [{ tool: "translate" }, { tool: "qa" }],
 };
 
 export const SecureTranslate: Story = {

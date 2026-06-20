@@ -136,10 +136,10 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: kapi ai-translate
+        run: kapi translate
 
       - name: Run QA checks
-        run: kapi qa-check
+        run: kapi qa
 ```
 
 ## Example: Server Sync on Push to Main
@@ -197,7 +197,7 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: kapi ai-translate
+        run: kapi translate
 
       - name: Commit translations
         run: |

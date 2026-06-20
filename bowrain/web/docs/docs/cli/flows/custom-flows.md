@@ -28,14 +28,14 @@ steps:
 
 ### Simple AI Translation
 
-`.kapi/flows/ai-translate-simple.yaml`:
+`.kapi/flows/translate-simple.yaml`:
 
 ```yaml
-name: ai-translate-simple
+name: translate-simple
 description: Basic AI translation without extras
 
 steps:
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4.5
@@ -62,7 +62,7 @@ steps:
       provider: sievepen
 
   # 3. Translate untranslated blocks with AI
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4.5
@@ -76,7 +76,7 @@ steps:
       fail_on_violation: true
 
   # 5. Run quality checks
-  - tool: qa-check
+  - tool: qa
     config:
       rules:
         - whitespace
@@ -95,17 +95,17 @@ name: multi-mt
 description: Try DeepL, fall back to Google, finally use AI
 
 steps:
-  - tool: mt-translate
+  - tool: translate
     config:
       provider: deepl
       skip_translated: true
 
-  - tool: mt-translate
+  - tool: translate
     config:
       provider: google
       skip_translated: true
 
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: anthropic
       skip_translated: true
@@ -120,7 +120,7 @@ name: qa-only
 description: Quality assurance checks without translation
 
 steps:
-  - tool: qa-check
+  - tool: qa
     config:
       rules:
         - whitespace
@@ -131,7 +131,7 @@ steps:
 
   - tool: term-enforce
 
-  - tool: ai-qa
+  - tool: qa
     config:
       provider: anthropic
       model: claude-sonnet-4.5
@@ -148,7 +148,7 @@ Each tool has its own configuration options. Common patterns:
 ### AI Translation Tools
 
 ```yaml
-- tool: ai-translate
+- tool: translate
   config:
     provider: anthropic | openai | ollama
     model: claude-sonnet-4.5 | gpt-4o | llama3:70b
@@ -159,7 +159,7 @@ Each tool has its own configuration options. Common patterns:
 ### MT Translation Tools
 
 ```yaml
-- tool: mt-translate
+- tool: translate
   config:
     provider: deepl | google | microsoft | modernmt | mymemory
     api_key: ${DEEPL_API_KEY} # Environment variable
@@ -180,7 +180,7 @@ Each tool has its own configuration options. Common patterns:
 ### QA Check
 
 ```yaml
-- tool: qa-check
+- tool: qa
   config:
     rules:
       - whitespace # Leading/trailing/double spaces
@@ -211,7 +211,7 @@ Each tool has its own configuration options. Common patterns:
 Use environment variables in flow configs:
 
 ```yaml
-- tool: ai-translate
+- tool: translate
   config:
     provider: anthropic
     api_key: ${ANTHROPIC_API_KEY} # From environment

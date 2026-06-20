@@ -676,8 +676,8 @@ t.Annotate = func(v tool.BlockView) error {
 A translation tool (writes target):
 
 ```go
-// ai-translate — sets Translate because it writes Block.Targets; source is read-only.
-t := &tool.BaseTool{ToolName: "ai-translate"}
+// translate — sets Translate because it writes Block.Targets; source is read-only.
+t := &tool.BaseTool{ToolName: "translate"}
 t.Translate = func(v tool.TargetView) error {
     translated, err := llm.Translate(ctx, v.SourceText(), targetLocale)
     if err != nil {

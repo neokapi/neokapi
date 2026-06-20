@@ -24,7 +24,7 @@ const AVAILABLE_TRACES = [
   {
     name: "AI Translate (Parallel)",
     description: "Parallel block processing with 3 concurrent workers",
-    path: "/data/traces/ai-translate-parallel.json",
+    path: "/data/traces/translate-parallel.json",
   },
   {
     name: "Translate + QA (Parallel)",

@@ -39,13 +39,10 @@ export const WithContent: Story = {
       },
       flows: {
         translate: {
-          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
+          steps: [{ tool: "translate", config: { provider: "anthropic" } }],
         },
         "translate-and-qa": {
-          steps: [
-            { tool: "ai-translate", config: { provider: "anthropic" } },
-            { tool: "qa-check" },
-          ],
+          steps: [{ tool: "translate", config: { provider: "anthropic" } }, { tool: "qa" }],
         },
       },
     },
@@ -76,8 +73,8 @@ export const WithFlowsOnly: Story = {
         target_languages: ["fr-FR"],
       },
       flows: {
-        "qa-check": {
-          steps: [{ tool: "qa-check" }],
+        qa: {
+          steps: [{ tool: "qa" }],
         },
         pseudo: {
           steps: [{ tool: "pseudo-translate", config: { expansion_rate: 1.3 } }],

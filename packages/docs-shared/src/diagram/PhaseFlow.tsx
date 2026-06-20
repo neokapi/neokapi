@@ -11,7 +11,7 @@ import "./diagram.css";
       <PhaseFlow nodes={[
         { label: "Your source code" },
         { label: "i18n/", sub: "KLF archive", edge: "kapi-react extract",
-          loop: ["kapi ai-translate / pseudo / qa", "accumulate locales in place"] },
+          loop: ["kapi translate / pseudo / qa", "accumulate locales in place"] },
         { label: "public/translations/{locale}.json", edge: "kapi-react compile" },
       ]} />
 

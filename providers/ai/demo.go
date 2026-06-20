@@ -71,7 +71,7 @@ func (p *DemoProvider) Translate(_ context.Context, req TranslateRequest) (*Tran
 }
 
 // Chat returns a deterministic demo reply. When the message looks like a
-// translation instruction (the shape ai-translate emits for single blocks and
+// translation instruction (the shape translate emits for single blocks and
 // inline-code blocks) the trailing text is translated; otherwise a short,
 // clearly-labeled stub reply is returned.
 func (p *DemoProvider) Chat(_ context.Context, messages []Message) (*ChatResponse, error) {
@@ -86,7 +86,7 @@ func (p *DemoProvider) Chat(_ context.Context, messages []Message) (*ChatRespons
 }
 
 // ChatStructured returns JSON conforming to the requested schema. The batch
-// translation schema (emitted by ai-translate) is honoured by parsing the
+// translation schema (emitted by translate) is honoured by parsing the
 // numbered prompt and translating each segment. All other schemas get a
 // neutral, schema-valid response (empty arrays / zero values) so that QA and
 // brand-voice tools run without fabricating findings.
@@ -278,7 +278,7 @@ func matchCase(src, repl string) string {
 	return repl
 }
 
-// segmentRe matches the numbered segments ai-translate emits in its batch
+// segmentRe matches the numbered segments translate emits in its batch
 // prompt: lines of the form "[N] text".
 var segmentRe = regexp.MustCompile(`(?m)^\[(\d+)\]\s?(.*)$`)
 
@@ -315,7 +315,7 @@ func demoBatchTranslations(prompt string) string {
 }
 
 // targetRe extracts the "to <locale>" target hint from the prompts that
-// ai-translate constructs (e.g. "Translate ... from en to fr-FR.").
+// translate constructs (e.g. "Translate ... from en to fr-FR.").
 var targetRe = regexp.MustCompile(`(?i)\bto\s+([A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)?)`)
 
 // targetFromPrompt best-effort extracts the target locale from a translation
@@ -331,7 +331,7 @@ func targetFromPrompt(prompt string) model.LocaleID {
 // returns a short labeled stub for anything else.
 func demoChatReply(prompt string) string {
 	target := targetFromPrompt(prompt)
-	// ai-translate's single-block prompt ends with "Text: <source>"; the
+	// translate's single-block prompt ends with "Text: <source>"; the
 	// inline-codes prompt puts the source on the final non-empty line.
 	if idx := strings.LastIndex(prompt, "Text: "); idx >= 0 {
 		return demoTranslate(strings.TrimSpace(prompt[idx+len("Text: "):]), target)

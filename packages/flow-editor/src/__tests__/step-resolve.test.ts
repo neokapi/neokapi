@@ -30,7 +30,7 @@ function dataFor(nodes: RFNode[], id: string): NodeStepData {
 describe("stepsToGraph carries step identity on node data", () => {
   it("threads stepIndex onto sequential main nodes", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+      steps: [{ tool: "translate" }, { tool: "translate" }, { tool: "qa" }],
     };
     const { nodes } = stepsToGraph(spec);
     // Three tool nodes: tool-0, tool-1, tool-2 in declaration order.
@@ -41,7 +41,7 @@ describe("stepsToGraph carries step identity on node data", () => {
 
   it("threads stepIndex onto leading transformer steps like any other step", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "redact" }, { tool: "redact" }, { tool: "ai-translate" }],
+      steps: [{ tool: "redact" }, { tool: "redact" }, { tool: "translate" }],
     };
     const { nodes } = stepsToGraph(spec);
     expect(dataFor(nodes, "tool-0").stepIndex).toBe(0);
@@ -52,7 +52,7 @@ describe("stepsToGraph carries step identity on node data", () => {
   it("emits one parallel group node carrying its branches; a branch location is its stepIndex + branchIndex", () => {
     const spec: FlowSpec = {
       steps: [
-        { tool: "ai-translate" },
+        { tool: "translate" },
         { tool: "", parallel: [{ tool: "qa-a" }, { tool: "qa-b" }, { tool: "qa-c" }] },
       ],
     };
@@ -99,8 +99,8 @@ describe("resolveStepLocation", () => {
 describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () => {
   const spec: FlowSpec = {
     steps: [
-      { tool: "ai-translate", config: { targetLang: "fr" } },
-      { tool: "ai-translate", config: { targetLang: "de" } },
+      { tool: "translate", config: { targetLang: "fr" } },
+      { tool: "translate", config: { targetLang: "de" } },
     ],
   };
 
@@ -138,7 +138,7 @@ describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () =
         { tool: "extract" },
         {
           tool: "",
-          parallel: [{ tool: "ai-translate" }, { tool: "ai-translate" }, { tool: "qa" }],
+          parallel: [{ tool: "translate" }, { tool: "translate" }, { tool: "qa" }],
         },
       ],
     };
@@ -151,7 +151,7 @@ describe("selecting the 2nd duplicate-tool node hits the right step (#10)", () =
     expect(updated.steps).toHaveLength(2);
     expect(updated.steps[0].tool).toBe("extract");
     expect(updated.steps[1].parallel).toHaveLength(2);
-    expect(updated.steps[1].parallel!.map((p) => p.tool)).toEqual(["ai-translate", "qa"]);
+    expect(updated.steps[1].parallel!.map((p) => p.tool)).toEqual(["translate", "qa"]);
   });
 
   it("collapses a parallel group to a plain step when one branch remains", () => {
@@ -173,8 +173,8 @@ describe("config edits to a parallel branch persist to the branch (#11)", () => 
       {
         tool: "",
         parallel: [
-          { tool: "ai-translate", config: { targetLang: "fr" } },
-          { tool: "mt-translate", config: { targetLang: "de" } },
+          { tool: "translate", config: { targetLang: "fr" } },
+          { tool: "translate", config: { targetLang: "de" } },
         ],
       },
     ],
@@ -211,7 +211,7 @@ describe("transformer steps resolve like any other ordered step", () => {
       steps: [
         { tool: "redact", config: { mode: "a" } },
         { tool: "redact", config: { mode: "b" } },
-        { tool: "ai-translate" },
+        { tool: "translate" },
       ],
     };
     const { nodes } = stepsToGraph(spec);
@@ -224,11 +224,11 @@ describe("transformer steps resolve like any other ordered step", () => {
 
   it("removing a leading transformer removes just that step", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "redact" }, { tool: "ai-translate" }],
+      steps: [{ tool: "redact" }, { tool: "translate" }],
     };
     const { nodes } = stepsToGraph(spec);
     const loc = resolveStepLocation(dataFor(nodes, "tool-0"))!;
     const updated = removeStepAtLocation(spec, loc);
-    expect(updated.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
+    expect(updated.steps.map((s) => s.tool)).toEqual(["translate"]);
   });
 });

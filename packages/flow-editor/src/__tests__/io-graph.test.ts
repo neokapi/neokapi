@@ -4,18 +4,18 @@ import type { FlowSpec, ToolInfo } from "../types";
 
 const tools = new Map<string, ToolInfo>([
   [
-    "ai-translate",
+    "translate",
     {
-      name: "ai-translate",
+      name: "translate",
       description: "",
       category: "translation",
       produces: [{ type: "target", side: "target" }],
     },
   ],
   [
-    "qa-check",
+    "qa",
     {
-      name: "qa-check",
+      name: "qa",
       description: "",
       category: "quality",
       consumes: [{ type: "target", side: "target" }],
@@ -46,16 +46,16 @@ const tools = new Map<string, ToolInfo>([
 
 describe("computeUnmet", () => {
   it("flags a required target consume when nothing upstream produces target", () => {
-    const spec: FlowSpec = { steps: [{ tool: "qa-check" }] };
+    const spec: FlowSpec = { steps: [{ tool: "qa" }] };
     const { steps } = computeUnmet(spec, tools);
     expect(steps[0]).toEqual(["target@target"]);
   });
 
   it("is satisfied when a translation precedes the consumer", () => {
-    const spec: FlowSpec = { steps: [{ tool: "ai-translate" }, { tool: "qa-check" }] };
+    const spec: FlowSpec = { steps: [{ tool: "translate" }, { tool: "qa" }] };
     const { steps } = computeUnmet(spec, tools);
-    expect(steps[0]).toEqual([]); // ai-translate has no required consumes
-    expect(steps[1]).toEqual([]); // qa-check's target is now produced upstream
+    expect(steps[0]).toEqual([]); // translate has no required consumes
+    expect(steps[1]).toEqual([]); // qa's target is now produced upstream
   });
 
   it("never flags optional consumes", () => {
@@ -71,9 +71,9 @@ describe("computeUnmet", () => {
   });
 
   it("evaluates parallel branches against the shared upstream", () => {
-    // qa-check inside a parallel group, with no translation upstream → unmet.
+    // qa inside a parallel group, with no translation upstream → unmet.
     const spec: FlowSpec = {
-      steps: [{ tool: "", parallel: [{ tool: "qa-check" }, { tool: "segmentation" }] }],
+      steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "segmentation" }] }],
     };
     const { steps } = computeUnmet(spec, tools);
     expect(steps[0]).toEqual(["target@target"]);
@@ -82,8 +82,8 @@ describe("computeUnmet", () => {
   it("a parallel group's produces are available to the steps after it", () => {
     const spec: FlowSpec = {
       steps: [
-        { tool: "", parallel: [{ tool: "ai-translate" }, { tool: "segmentation" }] },
-        { tool: "qa-check" },
+        { tool: "", parallel: [{ tool: "translate" }, { tool: "segmentation" }] },
+        { tool: "qa" },
       ],
     };
     const { steps } = computeUnmet(spec, tools);
@@ -100,16 +100,16 @@ describe("slotContext", () => {
   });
 
   it("accumulates ports produced by steps before the slot", () => {
-    const spec: FlowSpec = { steps: [{ tool: "ai-translate" }, { tool: "qa-check" }] };
+    const spec: FlowSpec = { steps: [{ tool: "translate" }, { tool: "qa" }] };
     // Before step 0: only source. Before step 1: source + target.
     expect(slotContext(spec, tools, 0).has.has("target@target")).toBe(false);
     expect(slotContext(spec, tools, 1).has.has("target@target")).toBe(true);
-    // Appending at the end sees everything, incl. qa-check's output.
+    // Appending at the end sees everything, incl. qa's output.
     expect(slotContext(spec, tools, 2).has.has("qa@target")).toBe(true);
   });
 
   it("dedupes available ports and clamps the slot to the flow length", () => {
-    const spec: FlowSpec = { steps: [{ tool: "ai-translate" }, { tool: "tm-leverage" }] };
+    const spec: FlowSpec = { steps: [{ tool: "translate" }, { tool: "tm-leverage" }] };
     // Both produce target@target — listed once.
     const ctx = slotContext(spec, tools, 99);
     const targets = ctx.available.filter((p) => p.type === "target");
@@ -118,7 +118,7 @@ describe("slotContext", () => {
 
   it("makes a parallel route's branch produces visible to later slots", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "", parallel: [{ tool: "ai-translate" }] }, { tool: "qa-check" }],
+      steps: [{ tool: "", parallel: [{ tool: "translate" }] }, { tool: "qa" }],
     };
     expect(slotContext(spec, tools, 1).has.has("target@target")).toBe(true);
   });
@@ -126,15 +126,15 @@ describe("slotContext", () => {
 
 describe("toolFit", () => {
   it("marks a tool ready when its required inputs are available", () => {
-    const ctx = slotContext({ steps: [{ tool: "ai-translate" }] }, tools, 1);
-    const fit = toolFit(tools.get("qa-check")!, ctx);
+    const ctx = slotContext({ steps: [{ tool: "translate" }] }, tools, 1);
+    const fit = toolFit(tools.get("qa")!, ctx);
     expect(fit.ready).toBe(true);
     expect(fit.unmet).toEqual([]);
   });
 
   it("reports unmet required inputs at the head of a flow", () => {
     const ctx = slotContext({ steps: [] }, tools, 0);
-    const fit = toolFit(tools.get("qa-check")!, ctx);
+    const fit = toolFit(tools.get("qa")!, ctx);
     expect(fit.ready).toBe(false);
     expect(fit.unmet.map((p) => p.type)).toEqual(["target"]);
   });

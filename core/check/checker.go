@@ -22,7 +22,7 @@ type Checker interface {
 // at the end of their handler so every producer surfaces findings the same way.
 // Pass WithWordCount(v.WordCount()) to length-normalize.
 //
-// Multiple checkers run on one block (qa-check, dnt-check, placeholder-check,
+// Multiple checkers run on one block (qa, dnt-check, placeholder-check,
 // terminology, …), so findings ACCUMULATE: any findings already written by an
 // earlier checker are preserved, the new findings are appended, and the score is
 // recomputed over the union. A checker that finds nothing leaves the block's

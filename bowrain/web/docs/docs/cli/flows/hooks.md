@@ -25,7 +25,7 @@ a lifecycle trigger to a list of flow names:
 ```yaml
 hooks:
   pre-push:
-    - qa-check # block the push if QA fails
+    - qa # block the push if QA fails
   post-pull:
     - segmentation # post-process freshly pulled source
 ```

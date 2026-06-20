@@ -81,8 +81,8 @@ tool is not a flow: a lone tool is invoked directly as a tool command, and
 carrying the four things a flat list of tool names cannot:
 
 - **Configuration** — a flow pins each tool's settings, so it is a *configured*
-  recipe (`tm-leverage{fuzzy:75}` → `ai-translate{provider:anthropic}` →
-  `qa-check`), not merely an ordered set of tool names.
+  recipe (`tm-leverage{fuzzy:75}` → `translate{provider:anthropic}` →
+  `qa`), not merely an ordered set of tool names.
 - **Topology** — a flow is a DAG. `parallel:` fan-out, `tee`, and `batch` are
   graph shapes a sequence cannot express.
 - **Identity and reuse** — a flow has a name and a source (built-in, user,
@@ -112,7 +112,7 @@ a small, separate **binding** vocabulary, resolved from invocation context:
 | `none` | — | discard (observation/metrics only) |
 
 The defining property: **a flow definition is identical across bindings.** The
-same `ai-translate-qa` flow runs in the file CLI, against a `.klz` workspace, and
+same `translate-qa` flow runs in the file CLI, against a `.klz` workspace, and
 against a project — only the binding differs.
 
 Each binding also advertises the **ports** it provides ([AD-002](002-content-model.md),
@@ -121,7 +121,7 @@ only; a bilingual interchange source adds a committed `target`, segmentation
 and alignment; the content store adds every persisted stand-off layer. The flow
 loader uses this to validate the contract end to end — a flow whose first tool
 needs a port the source cannot supply, with no upstream tool to produce it, is rejected
-at build (`FlowDefinition.ValidateDataFlow`). So `qa-check` (which requires a
+at build (`FlowDefinition.ValidateDataFlow`). So `qa` (which requires a
 `target`) is valid against a bilingual source or after a translate step, but
 rejected against a plain monolingual `file` source on its own.
 
@@ -145,8 +145,8 @@ spec:
   sink: store         # process-only: commit overlays, emit nothing
   steps:
     - tool: tm-leverage
-    - tool: ai-translate
-    - tool: qa-check
+    - tool: translate
+    - tool: qa
 ```
 
 ### 3. Sink is optional → process-only runs
@@ -185,7 +185,7 @@ ordering. At the binding level their two uses are distinct:
   [AD-020](020-redaction.md)) bracket a single run and may vary per run or
   provider. They are part of the **run's** source/sink wiring: the `Start`
   redacts the source binding, the `End` restores in the sink binding. The
-  built-in `secure-translate` flow (redact · ai-translate · unredact) is exactly
+  built-in `secure-translate` flow (redact · translate · unredact) is exactly
   this `Start(redact) → {translate} → End(unredact)` shape.
 
 A transform that is genuinely both (idempotent *and* recoverable) may be declared
@@ -221,7 +221,7 @@ kapi run translate -i a.json                     # file(a.json)    → store    
 kapi run translate -i work.klz                   # store(work.klz) → store        (.klz transformed in place)
 kapi run translate -i work.klz --pack            # store(work.klz) → store, then ejected to the .klz
 kapi run translate -i store: -o xliff:hand.xliff # store           → interchange(hand.xliff)
-kapi run qa-check  -i a.json -o none             # file(a.json)    → none         (analysis; report only)
+kapi run qa  -i a.json -o none             # file(a.json)    → none         (analysis; report only)
 kapi extract src/*.json -o work.klz              # file(glob)      → store(work.klz)
 kapi merge -o l10n/{lang}/{name}.{ext}           # store           → file(template)
 ```
@@ -242,8 +242,8 @@ over an existing workspace may declare `source: store`.
 spec:
   steps:
     - tool: tm-leverage
-    - tool: ai-translate
-    - tool: qa-check
+    - tool: translate
+    - tool: qa
 ```
 
 ```yaml
@@ -251,7 +251,7 @@ spec:
 spec:
   sink: none
   steps:
-    - tool: qa-check
+    - tool: qa
 ```
 
 A flow's only binding is intrinsic intent, so there is no per-flow output path to

@@ -152,8 +152,8 @@ updates a target locale on each block in place:
 kapi pseudo-translate i18n/ --target-lang qps
 
 # Real translations — each call accumulates a target locale:
-kapi ai-translate i18n/ --target-lang fr
-kapi ai-translate i18n/ --target-lang de
+kapi translate i18n/ --target-lang fr
+kapi translate i18n/ --target-lang de
 
 # Or hand off to your TMS / translators → they update block.targets
 # in each .klf. Commit the directory and you're done.

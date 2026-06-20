@@ -92,7 +92,7 @@ func TestIsSourceTransformProbe(t *testing.T) {
 	}
 
 	// Not source transforms: annotators and target-writers.
-	for _, name := range []string{"word-count", "qa-check", "create-target", "pseudo-translate"} {
+	for _, name := range []string{"word-count", "qa", "create-target", "pseudo-translate"} {
 		info, ok := byName[name]
 		if !ok {
 			continue

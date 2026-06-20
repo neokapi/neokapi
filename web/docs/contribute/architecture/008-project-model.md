@@ -125,18 +125,18 @@ plugins:
 flows:
   translate:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
-      - tool: qa-check
+      - tool: qa
 
   full-pipeline:
     steps:
       - tool: tm-leverage
         config:
           fuzzy_threshold: 75
-      - tool: ai-translate
-      - tool: qa-check
+      - tool: translate
+      - tool: qa
 
 defaults:
   source_language: en-US
@@ -553,7 +553,7 @@ flag or through `kapi init`:
 ```bash
 kapi init                                     # scaffold {name}.kapi + .kapi/
 kapi run translate -p my-app.kapi             # run a declared flow
-kapi ai-translate -p my-app.kapi              # tool runs against the project
+kapi translate -p my-app.kapi                 # tool runs against the project
 kapi pseudo-translate file.json            # tool runs ad-hoc, no project
 ```
 

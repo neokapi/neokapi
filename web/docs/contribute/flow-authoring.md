@@ -34,7 +34,7 @@ produces no document sets `sink: none`), and never a path:
 ```yaml
 sink: none        # only when intrinsic; otherwise omit and let the run decide
 steps:
-  - tool: qa-check
+  - tool: qa
 ```
 
 At the CLI the binding comes from `-i` / `-o` (a plain path is detected, a
@@ -72,7 +72,7 @@ steps:
           replace: ""
       target: true
 
-  - tool: qa-check
+  - tool: qa
     config:
       targetLocale: fr
 ```
@@ -95,7 +95,7 @@ steps:
         label: Count words
         config:
           targetLocale: fr
-      - tool: qa-check
+      - tool: qa
         label: Quality checks
         config:
           targetLocale: fr
@@ -123,7 +123,7 @@ steps:
       detectors: [rules]
       rulesPath: redaction-rules.yaml
 
-  - tool: ai-translate
+  - tool: translate
     config:
       targetLocale: fr
 ```
@@ -180,13 +180,13 @@ steps:
       targetLocale: fr
       fuzzyThreshold: 75
 
-  - tool: ai-translate
+  - tool: translate
     label: Translate remaining
     config:
       targetLocale: fr
       provider: anthropic
 
-  - tool: qa-check
+  - tool: qa
     label: Quality checks
     config:
       targetLocale: fr
@@ -211,7 +211,7 @@ steps:
         config:
           targetLocale: qps-ploc
           maxChars: 200
-      - tool: qa-check
+      - tool: qa
         config:
           targetLocale: qps-ploc
 ```
@@ -244,7 +244,7 @@ steps:
 
 ```bash
 # Run a built-in composed flow
-kapi run ai-translate-qa -i input.xliff --target-lang fr
+kapi run translate-qa -i input.xliff --target-lang fr
 
 # Run a flow defined in a .kapi project file
 kapi run my-flow -p myproject.kapi -i input.json
@@ -263,7 +263,7 @@ spec := &flow.StepsSpec{
             "targetLocale": "fr",
             "expansionPercent": 30,
         }},
-        {Tool: "qa-check", Config: map[string]any{
+        {Tool: "qa", Config: map[string]any{
             "targetLocale": "fr",
         }},
     },

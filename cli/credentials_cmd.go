@@ -81,7 +81,7 @@ func (a *App) newCredentialsAddCmd() *cobra.Command {
 		Long: `Save an AI provider credential to the OS keychain.
 
 The credential name is used to reference it in flows and tool commands:
-  kapi ai-translate --credential my-openai -i file.json --target-lang fr
+  kapi translate --credential my-openai -i file.json --target-lang fr
 
 If only one credential is saved, tools will auto-detect it without --credential.`,
 		Args: cobra.ExactArgs(1),

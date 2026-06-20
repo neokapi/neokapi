@@ -20,7 +20,7 @@ Kapi runs the **same commands** two ways — the only difference is whether stat
 | | **Ad-hoc** | **Project (`.kapi`)** |
 | --- | --- | --- |
 | **State** | loose files · nothing saved | a `.kapi` recipe + `.kapi/` store |
-| **Typical commands** | `kapi ai-translate app.json`<br />`kapi run flow -i a.json -o b.json`<br />`kapi extract src/*.json -o work.klz` | `kapi init · add · ls`<br />`kapi extract / run / merge` |
+| **Typical commands** | `kapi translate app.json`<br />`kapi run flow -i a.json -o b.json`<br />`kapi extract src/*.json -o work.klz` | `kapi init · add · ls`<br />`kapi extract / run / merge` |
 | **What persists** | nothing | the store accumulates TM + overlays |
 | **Discovery** | you name the files | found automatically, walking up the tree like git |
 | **Best for** | one-offs, scripting, CI | a repo you localize repeatedly |
@@ -43,8 +43,8 @@ resolved when you run it:
   stages={[
     { label: "source", sub: "binding", role: "io" },
     { label: "tm-leverage", role: "translate" },
-    { label: "ai-translate", role: "translate" },
-    { label: "qa-check", role: "qa" },
+    { label: "translate", role: "translate" },
+    { label: "qa", role: "qa" },
     { label: "sink", sub: "binding", role: "io" },
   ]}
 />
@@ -66,10 +66,10 @@ Run `kapi run <flow> --explain` any time to print the resolved `source → sink`
 without executing:
 
 ```bash
-kapi run ai-translate-qa -i app.json -o app.fr.json --explain
-#   → flow ai-translate-qa: file(app.json) → file(app.fr.json)
-kapi run ai-translate-qa -i app.json --explain          # inside a project
-#   → flow ai-translate-qa: file(app.json) → store
+kapi run translate-qa -i app.json -o app.fr.json --explain
+#   → flow translate-qa: file(app.json) → file(app.fr.json)
+kapi run translate-qa -i app.json --explain          # inside a project
+#   → flow translate-qa: file(app.json) → store
 ```
 
 ## Ad-hoc: loose files
@@ -77,11 +77,11 @@ kapi run ai-translate-qa -i app.json --explain          # inside a project
 ```bash
 # One tool on one file
 kapi pseudo-translate app.json --target-lang qps         # → app_qps.json
-kapi ai-translate -i app.xliff --target-lang fr -o fr.xliff
-kapi qa-check app.xliff -o none --report qa.json         # checks only, no output
+kapi translate -i app.xliff --target-lang fr -o fr.xliff
+kapi qa app.xliff -o none --report qa.json         # checks only, no output
 
 # A composed flow
-kapi run ai-translate-qa -i app.json -o app.fr.json --target-lang fr
+kapi run translate-qa -i app.json -o app.fr.json --target-lang fr
 ```
 
 ## Project: two loops, both ending at `merge`
@@ -124,7 +124,7 @@ kapi merge -i out/                          # apply back onto sources, absorb in
 />
 
 ```bash
-kapi run ai-translate -i src/app.json --target-lang fr   # file → store (no file written)
+kapi run translate -i src/app.json --target-lang fr   # file → store (no file written)
 kapi merge                                               # store → localized files
 ```
 
@@ -157,7 +157,7 @@ toolsets. The guidance:
 | A repo you localize repeatedly (accumulating TM) | **project** (`add` / `extract` / `run`→store / `merge`) |
 | To move work between machines/people | **`.klz` parcel** (`pack` or `extract --format klz`) → `merge`/`unpack` |
 
-**Coherent mixes:** a tool run *inside* a project (`kapi ai-translate src/app.json`)
+**Coherent mixes:** a tool run *inside* a project (`kapi translate src/app.json`)
 still picks up the project's defaults and TM while working on a single file; the
 same flow runs ad-hoc or process-only with no change; a `.klz` made in a project
 is consumed ad-hoc by a reviewer and `merge`d back.

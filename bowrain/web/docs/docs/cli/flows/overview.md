@@ -34,10 +34,10 @@ kapi ships a small set of composed flows you can run by name:
 
 | Flow               | Description                                                       |
 | ------------------ | ----------------------------------------------------------------- |
-| `ai-translate`     | Translate with an AI/LLM provider                                 |
-| `ai-translate-qa`  | AI translation followed by quality checks                         |
+| `translate`     | Translate with an AI/LLM provider                                 |
+| `translate-qa`  | AI translation followed by quality checks                         |
 | `pseudo-translate` | Generate pseudo-translations for UI testing                       |
-| `qa-check`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
+| `qa`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
 | `tm-leverage`      | Pre-fill translations from translation memory                     |
 | `segmentation`     | Split source text into sentence segments                          |
 
@@ -54,10 +54,10 @@ Run a flow:
 
 ```bash
 # Standalone (no project)
-kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
 # In a project, against the recipe's content collections
-kapi run ai-translate-qa
+kapi run translate-qa
 ```
 
 ## Custom flows
@@ -73,7 +73,7 @@ description: AI translation with quality checks and terminology enforcement
 steps:
   - tool: term-lookup
 
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4.5
@@ -83,7 +83,7 @@ steps:
     config:
       required: true
 
-  - tool: qa-check
+  - tool: qa
     config:
       rules:
         - whitespace

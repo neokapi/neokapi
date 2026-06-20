@@ -21,7 +21,7 @@ const src = (type: string): IOPort => ({ type, side: "source" });
 
 describe("port connection validation", () => {
   it("source producing a consumed port is compatible", () => {
-    // translate produces target@target; qa-check consumes target@target.
+    // translate produces target@target; qa consumes target@target.
     expect(isPortConnectionValid([tgt("target")], [tgt("target")])).toBe(true);
   });
 

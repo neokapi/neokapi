@@ -42,7 +42,7 @@ func (a *App) resolveFallbackRunE(opts RunCmdOptions) func(cmd *cobra.Command, f
 
 // NewRunCmd creates the "run" command for executing composed flows.
 //
-//	kapi run ai-translate-qa -i file.xliff --target-lang fr
+//	kapi run translate-qa -i file.xliff --target-lang fr
 //	kapi run my-custom-flow -p project.kapi
 func (a *App) NewRunCmd(opts RunCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
@@ -51,17 +51,17 @@ func (a *App) NewRunCmd(opts RunCmdOptions) *cobra.Command {
 		Long: `Run a composed flow that chains multiple tools together.
 
 Flows are multi-tool pipelines. For single-tool operations, use the
-tool directly (e.g. "kapi ai-translate" instead of "kapi run ai-translate").
+tool directly (e.g. "kapi translate" instead of "kapi run translate").
 
 Built-in flows:
-  ai-translate-qa    Translate + quality check using AI/LLM
+  translate-qa    Translate + quality check using AI/LLM
 
 Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.
 
 Use -p to run a flow from a .kapi project file:
   kapi run translate -p myproject.kapi`,
-		Example: `  kapi run ai-translate-qa -i app.xliff --target-lang fr
-  kapi run ai-translate-qa -i messages.json --target-lang de`,
+		Example: `  kapi run translate-qa -i app.xliff --target-lang fr
+  kapi run translate-qa -i messages.json --target-lang de`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flowName := args[0]

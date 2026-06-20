@@ -60,13 +60,8 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "redaction",
     label: "Redaction",
     description:
-      "Protect sensitive content before it reaches a model: redact replaces matched spans with placeholders and vaults the originals (watch the redaction.secret annotation appear), ai-translate works on the protected text, and unredact restores the originals into the translation.",
-    steps: [
-      { tool: "redact" },
-      { tool: "ai-translate" },
-      { tool: "qa-check" },
-      { tool: "unredact" },
-    ],
+      "Protect sensitive content before it reaches a model: redact replaces matched spans with placeholders and vaults the originals (watch the redaction.secret annotation appear), translate works on the protected text, and unredact restores the originals into the translation.",
+    steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }, { tool: "unredact" }],
     // The redaction rules live at PROJECT level: every flow in this project
     // redacts the same names. The step stays bare — select it to see the
     // inherited preset in the config panel.
@@ -123,7 +118,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
         tool: "redact",
         config: { detectors: ["entities"], entityTypes: ["person", "org", "location"] },
       },
-      { tool: "ai-translate" },
+      { tool: "translate" },
       { tool: "unredact" },
     ],
     sampleId: "support-reply",
@@ -159,7 +154,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     label: "Segmentation",
     description:
       "Sentence segmentation is a stand-off overlay, not a structural split: the segmentation step attaches sentence spans over the source (open the run inspector to see them), and later steps work per segment without the text ever being cut apart.",
-    steps: [{ tool: "segmentation" }, { tool: "ai-translate" }, { tool: "qa-check" }],
+    steps: [{ tool: "segmentation" }, { tool: "translate" }, { tool: "qa" }],
     sampleId: "support-reply",
     walkthrough: [
       {
@@ -176,7 +171,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "Later steps work per segment: ai-translate wrote the target sentence by sentence, guided by those spans.",
+          "Later steps work per segment: translate wrote the target sentence by sentence, guided by those spans.",
         select: "tool-1",
         mode: "inspect",
       },
@@ -186,12 +181,12 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "annotations",
     label: "Content model & annotations",
     description:
-      "Tools communicate through stand-off state on the block: segmentation adds sentence spans, term-check and qa-check attach qa findings, ai-translate writes the target. Step through the run and click each node to watch the block accumulate overlays and annotations.",
+      "Tools communicate through stand-off state on the block: segmentation adds sentence spans, term-check and qa attach qa findings, translate writes the target. Step through the run and click each node to watch the block accumulate overlays and annotations.",
     steps: [
       { tool: "segmentation" },
-      { tool: "ai-translate" },
+      { tool: "translate" },
       { tool: "term-check" },
-      { tool: "qa-check" },
+      { tool: "qa" },
     ],
     sampleId: "support-reply",
     walkthrough: [
@@ -212,14 +207,13 @@ export const LAB_SCENARIOS: LabScenario[] = [
         mode: "inspect",
       },
       {
-        prose:
-          "ai-translate wrote the fr target — a first-class, locale-keyed record on the block.",
+        prose: "translate wrote the fr target — a first-class, locale-keyed record on the block.",
         select: "tool-1",
         mode: "inspect",
       },
       {
         prose:
-          "term-check and qa-check attach findings without touching text or target — open each and read the +overlay / +annotation delta chips.",
+          "term-check and qa attach findings without touching text or target — open each and read the +overlay / +annotation delta chips.",
         // The prose invites the learner to open the panels themselves; the
         // step only points at the node.
         select: "tool-2",
@@ -259,7 +253,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     label: "Project & recipe",
     description:
       "The canvas is a view over a .kapi recipe — the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
-    steps: [{ tool: "segmentation" }, { tool: "redact" }, { tool: "ai-translate" }],
+    steps: [{ tool: "segmentation" }, { tool: "redact" }, { tool: "translate" }],
     presets: {
       redact: {
         detectors: ["rules"],
@@ -359,8 +353,8 @@ export const LAB_SCENARIOS: LabScenario[] = [
           ],
         },
       },
-      { tool: "ai-translate" },
-      { tool: "qa-check" },
+      { tool: "translate" },
+      { tool: "qa" },
     ],
     sampleId: "support-reply",
   },

@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 test("should display flow list with built-in flows", async ({ page }) => {
   const list = page.getByTestId("flow-list");
   await expect(list).toBeVisible();
-  await expect(page.getByTestId("flow-item-ai-translate")).toBeVisible();
+  await expect(page.getByTestId("flow-item-translate")).toBeVisible();
   await expect(page.getByTestId("flow-item-pseudo-translate")).toBeVisible();
 });
 
@@ -33,7 +33,7 @@ test("should show empty state when no flow is selected", async ({ page }) => {
 });
 
 test("should display flow builder when a flow is selected", async ({ page }) => {
-  await page.getByTestId("flow-item-ai-translate").click();
+  await page.getByTestId("flow-item-translate").click();
   const toolbar = page.getByTestId("flow-toolbar");
   await expect(toolbar).toBeVisible();
 
@@ -46,7 +46,7 @@ test("should display flow builder when a flow is selected", async ({ page }) => 
 });
 
 test("should mark built-in flows as read-only", async ({ page }) => {
-  await page.getByTestId("flow-item-ai-translate").click();
+  await page.getByTestId("flow-item-translate").click();
 
   // Name input should be disabled for built-in flows
   const nameInput = page.getByTestId("flow-name-input");
@@ -58,11 +58,11 @@ test("should mark built-in flows as read-only", async ({ page }) => {
 });
 
 test("should render the flow's tool node in the canvas", async ({ page }) => {
-  await page.getByTestId("flow-item-ai-translate").click();
+  await page.getByTestId("flow-item-translate").click();
 
   const editor = page.getByTestId("flow-editor");
   await expect(editor).toBeVisible();
-  // The ai-translate step renders as a tool node labelled "AI Translate",
+  // The translate step renders as a tool node labelled "AI Translate",
   // flanked by the Input (reader) and Output (writer) nodes.
   await expect(editor.getByText("Input", { exact: true })).toBeVisible();
   await expect(editor.getByText("Output", { exact: true })).toBeVisible();
@@ -112,12 +112,12 @@ test("should add a tool to a new flow from the palette", async ({ page }) => {
   // Dismiss the template library to reveal the tool palette + canvas.
   await page.getByRole("button", { name: /empty canvas/i }).click();
 
-  // Add the ai-translate tool from the palette (rendered as a button by name).
-  await page.getByRole("button", { name: "ai-translate", exact: true }).click();
+  // Add the translate tool from the palette (rendered as a button by name).
+  await page.getByRole("button", { name: "translate", exact: true }).click();
 
   // The new tool node appears in the canvas.
   const editor = page.getByTestId("flow-editor");
-  await expect(editor.getByText("ai-translate").first()).toBeVisible();
+  await expect(editor.getByText("translate").first()).toBeVisible();
 });
 
 test("should save a custom flow", async ({ page }) => {
@@ -134,7 +134,7 @@ test("should save a custom flow", async ({ page }) => {
 
 test("should navigate between flows", async ({ page }) => {
   // Select first flow
-  await page.getByTestId("flow-item-ai-translate").click();
+  await page.getByTestId("flow-item-translate").click();
   await expect(page.getByTestId("flow-name-input")).toHaveValue("AI Translate");
 
   // Select second flow

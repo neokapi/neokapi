@@ -7,7 +7,7 @@ import type { ToolInfo, PluginDocs } from "../types/api";
 
 const sampleTools: ToolInfo[] = [
   {
-    name: "ai-translate",
+    name: "translate",
     description: "Translate content using AI/LLM",
     category: "translate",
     has_schema: false,
@@ -81,7 +81,7 @@ describe("ToolRunnerPage", () => {
 
   it("renders all tools in sidebar", () => {
     renderPage({ tools: sampleTools });
-    expect(screen.getByText("ai-translate")).toBeInTheDocument();
+    expect(screen.getByText("translate")).toBeInTheDocument();
     expect(screen.getByText("pseudo-translate")).toBeInTheDocument();
     expect(screen.getByText("word-count")).toBeInTheDocument();
   });
@@ -98,7 +98,7 @@ describe("ToolRunnerPage", () => {
     renderPage({ tools: sampleTools });
     // Click "Translation" category
     await userEvent.click(screen.getByText(/Translation \(1\)/));
-    expect(screen.getByText("ai-translate")).toBeInTheDocument();
+    expect(screen.getByText("translate")).toBeInTheDocument();
     expect(screen.queryByText("pseudo-translate")).not.toBeInTheDocument();
     expect(screen.queryByText("word-count")).not.toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe("ToolRunnerPage", () => {
     renderPage({ tools: sampleTools });
     await userEvent.type(screen.getByPlaceholderText("Search tools..."), "pseudo");
     expect(screen.getByText("pseudo-translate")).toBeInTheDocument();
-    expect(screen.queryByText("ai-translate")).not.toBeInTheDocument();
+    expect(screen.queryByText("translate")).not.toBeInTheDocument();
   });
 
   it("shows tool detail when tool clicked", async () => {
@@ -120,7 +120,7 @@ describe("ToolRunnerPage", () => {
 
   it("shows tool tags and requirements in detail view", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.click(screen.getByText("ai-translate"));
+    await userEvent.click(screen.getByText("translate"));
     // Tags appear in both sidebar (truncated) and detail. Use getAllByText.
     const tags = screen.getAllByText("ai-powered");
     expect(tags.length).toBeGreaterThanOrEqual(1);
@@ -131,7 +131,7 @@ describe("ToolRunnerPage", () => {
 
   it("shows Run tab by default in detail", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.click(screen.getByText("ai-translate"));
+    await userEvent.click(screen.getByText("translate"));
     expect(screen.getByText("Select files...")).toBeInTheDocument();
     expect(screen.getByText("Target Language")).toBeInTheDocument();
   });
@@ -154,14 +154,14 @@ describe("ToolRunnerPage", () => {
 
   it("keeps the Run button disabled even when a target language is provided", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.click(screen.getByText("ai-translate"));
+    await userEvent.click(screen.getByText("translate"));
 
     // The target-language field is itself disabled, and the Run button stays
     // disabled — there is no working execution path to enable.
     const targetLang = screen.getByPlaceholderText("e.g. fr-FR");
     expect(targetLang).toBeDisabled();
 
-    const runButton = screen.getByText(/Run ai-translate/).closest("button");
+    const runButton = screen.getByText(/Run translate/).closest("button");
     expect(runButton).toBeDisabled();
   });
 

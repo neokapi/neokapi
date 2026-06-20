@@ -268,7 +268,7 @@ func brandOverlay(runs []model.Run, source string) *model.Overlay {
 }
 
 // qaOverlay builds an OverlayQA over the source runs from source-only QA
-// heuristics that don't need a target (the streaming qa-check needs a committed
+// heuristics that don't need a target (the streaming qa needs a committed
 // target, which a freshly-parsed source document has none of). Today it flags
 // double spaces and consecutive doubled words. Returns nil when the source is
 // clean.

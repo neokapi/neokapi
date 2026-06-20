@@ -85,7 +85,7 @@ const transformerTools: ToolInfo[] = [
   },
   // Ordinary (non-transformer) tools
   {
-    name: "ai-translate",
+    name: "translate",
     display_name: "AI Translate",
     description: "Translate content using AI/LLM",
     category: "translate",
@@ -93,7 +93,7 @@ const transformerTools: ToolInfo[] = [
     tags: ["ai-powered", "translation"],
   },
   {
-    name: "qa-check",
+    name: "qa",
     display_name: "QA Check",
     description: "Run rule-based quality checks",
     category: "validate",

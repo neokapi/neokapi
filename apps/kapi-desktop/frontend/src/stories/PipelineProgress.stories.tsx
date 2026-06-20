@@ -19,12 +19,12 @@ const meta: Meta<typeof PipelineProgress> = {
 export default meta;
 type Story = StoryObj<typeof PipelineProgress>;
 
-const twoSteps = [{ tool: "ai-translate" }, { tool: "qa-check" }];
+const twoSteps = [{ tool: "translate" }, { tool: "qa" }];
 
 const fourSteps = [
   { tool: "tm-leverage" },
-  { tool: "ai-translate" },
-  { tool: "qa-check" },
+  { tool: "translate" },
+  { tool: "qa" },
   { tool: "term-enforce" },
 ];
 
@@ -56,8 +56,8 @@ export const FirstStepActive: Story = {
     runState: "running",
     snapshots: [
       { name: "tm-leverage", parts_in: 47, parts_out: 32 },
-      { name: "ai-translate", parts_in: 0, parts_out: 0 },
-      { name: "qa-check", parts_in: 0, parts_out: 0 },
+      { name: "translate", parts_in: 0, parts_out: 0 },
+      { name: "qa", parts_in: 0, parts_out: 0 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
     ],
   },
@@ -70,8 +70,8 @@ export const MidPipeline: Story = {
     runState: "running",
     snapshots: [
       { name: "tm-leverage", parts_in: 120, parts_out: 120 },
-      { name: "ai-translate", parts_in: 120, parts_out: 87 },
-      { name: "qa-check", parts_in: 87, parts_out: 52 },
+      { name: "translate", parts_in: 120, parts_out: 87 },
+      { name: "qa", parts_in: 87, parts_out: 52 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
     ],
   },
@@ -83,8 +83,8 @@ export const NearComplete: Story = {
     steps: twoSteps,
     runState: "running",
     snapshots: [
-      { name: "ai-translate", parts_in: 120, parts_out: 120 },
-      { name: "qa-check", parts_in: 120, parts_out: 118 },
+      { name: "translate", parts_in: 120, parts_out: 120 },
+      { name: "qa", parts_in: 120, parts_out: 118 },
     ],
   },
 };
@@ -96,8 +96,8 @@ export const Complete: Story = {
     runState: "complete",
     snapshots: [
       { name: "tm-leverage", parts_in: 120, parts_out: 120 },
-      { name: "ai-translate", parts_in: 120, parts_out: 120 },
-      { name: "qa-check", parts_in: 120, parts_out: 120 },
+      { name: "translate", parts_in: 120, parts_out: 120 },
+      { name: "qa", parts_in: 120, parts_out: 120 },
       { name: "term-enforce", parts_in: 120, parts_out: 120 },
     ],
   },
@@ -110,8 +110,8 @@ export const Error: Story = {
     runState: "error",
     snapshots: [
       { name: "tm-leverage", parts_in: 120, parts_out: 120 },
-      { name: "ai-translate", parts_in: 45, parts_out: 12 },
-      { name: "qa-check", parts_in: 0, parts_out: 0 },
+      { name: "translate", parts_in: 45, parts_out: 12 },
+      { name: "qa", parts_in: 0, parts_out: 0 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
     ],
   },
@@ -123,8 +123,8 @@ export const Canceled: Story = {
     steps: twoSteps,
     runState: "canceled",
     snapshots: [
-      { name: "ai-translate", parts_in: 60, parts_out: 33 },
-      { name: "qa-check", parts_in: 0, parts_out: 0 },
+      { name: "translate", parts_in: 60, parts_out: 33 },
+      { name: "qa", parts_in: 0, parts_out: 0 },
     ],
   },
 };
@@ -144,8 +144,8 @@ export const LongPipeline: Story = {
     steps: [
       { tool: "tm-leverage" },
       { tool: "term-lookup" },
-      { tool: "ai-translate" },
-      { tool: "qa-check" },
+      { tool: "translate" },
+      { tool: "qa" },
       { tool: "term-enforce" },
       { tool: "tm-update" },
     ],
@@ -153,8 +153,8 @@ export const LongPipeline: Story = {
     snapshots: [
       { name: "tm-leverage", parts_in: 200, parts_out: 200 },
       { name: "term-lookup", parts_in: 200, parts_out: 200 },
-      { name: "ai-translate", parts_in: 200, parts_out: 143 },
-      { name: "qa-check", parts_in: 143, parts_out: 98 },
+      { name: "translate", parts_in: 200, parts_out: 143 },
+      { name: "qa", parts_in: 143, parts_out: 98 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
       { name: "tm-update", parts_in: 0, parts_out: 0 },
     ],

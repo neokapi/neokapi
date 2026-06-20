@@ -71,54 +71,6 @@
         }
       }
     },
-    "ai-qa": {
-      "displayName": "AI QA Check",
-      "description": "Check translation quality using an LLM provider",
-      "category": "quality",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "checks": {
-          "title": "Quality Checks",
-          "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "ai-review": {
       "displayName": "AI Review",
       "description": "Review translations with scoring using an LLM provider",
@@ -203,62 +155,6 @@
               "label": "OpenAI"
             }
           }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "ai-translate": {
-      "displayName": "AI Translate",
-      "description": "Translate content using an LLM provider",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "batchConcurrency": {
-          "title": "Batch Concurrency",
-          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
-        },
-        "batchSize": {
-          "title": "Batch Size",
-          "description": "Number of blocks per LLM call"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        },
-        "skipMatched": {
-          "title": "Skip Matched",
-          "description": "Skip blocks that already have a target translation"
         }
       },
       "groups": {
@@ -402,38 +298,6 @@
         }
       }
     },
-    "deepl-translate": {
-      "displayName": "DeepL Translate",
-      "description": "Translate content using DeepL",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the MT provider"
-        },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
-        },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "diff-leverage": {
       "displayName": "Diff Leverage",
       "category": "translation",
@@ -451,38 +315,6 @@
     "encoding-detect": {
       "displayName": "Encoding Detect",
       "category": "analysis"
-    },
-    "google-translate": {
-      "displayName": "Google Translate Translate",
-      "description": "Translate content using Google Translate",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the MT provider"
-        },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
-        },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
     },
     "inconsistency-check": {
       "displayName": "Inconsistency Check",
@@ -623,102 +455,6 @@
         }
       }
     },
-    "microsoft-translate": {
-      "displayName": "Microsoft Translator Translate",
-      "description": "Translate content using Microsoft Translator",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the MT provider"
-        },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
-        },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "modernmt-translate": {
-      "displayName": "ModernMT Translate",
-      "description": "Translate content using ModernMT",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the MT provider"
-        },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
-        },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "mymemory-translate": {
-      "displayName": "MyMemory Translate",
-      "description": "Translate content using MyMemory",
-      "category": "translation",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the MT provider"
-        },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
-        },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "pattern-check": {
       "displayName": "Pattern Check",
       "category": "quality"
@@ -741,13 +477,18 @@
         }
       }
     },
-    "qa-check": {
-      "displayName": "QA Check",
+    "qa": {
+      "displayName": "Quality Check",
+      "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
       "category": "quality",
       "properties": {
         "absoluteMaxCharLength": {
           "title": "Absolute Maximum Characters",
           "description": "Maximum number of characters allowed in any target segment"
+        },
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
         },
         "checkAbsoluteMaxCharLength": {
           "title": "Check Absolute Maximum Length",
@@ -809,6 +550,10 @@
           "title": "Check Trailing Whitespace",
           "description": "Check for trailing whitespace mismatches between source and target"
         },
+        "checks": {
+          "title": "Quality Checks",
+          "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
+        },
         "doubledWordExceptions": {
           "title": "Doubled Word Exceptions",
           "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
@@ -836,6 +581,34 @@
         "minCharLengthBreak": {
           "title": "Short/Long Threshold (Min)",
           "description": "Character count above which text is considered long for the minimum length check"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "LLM provider for AI-judged QA (omit for rule-based checks)",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
         },
         "strictCodeOrder": {
           "title": "Enforce Strict Code Order",
@@ -865,6 +638,9 @@
         },
         "patterns": {
           "label": "Patterns"
+        },
+        "provider": {
+          "label": "Provider"
         }
       }
     },
@@ -1092,6 +868,93 @@
         "tmxPath": {
           "title": "TMX Output Path",
           "description": "File path for the generated TMX document"
+        }
+      }
+    },
+    "translate": {
+      "displayName": "Translate",
+      "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "batchConcurrency": {
+          "title": "Batch Concurrency",
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        "batchSize": {
+          "title": "Batch Size",
+          "description": "Number of blocks per LLM call"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Account email for higher rate limits (mymemory)"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "projectId": {
+          "title": "Project ID",
+          "description": "Google Cloud project ID (google)"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "deepl": {
+              "label": "DeepL"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "google": {
+              "label": "Google Translate"
+            },
+            "microsoft": {
+              "label": "Microsoft Translator"
+            },
+            "modernmt": {
+              "label": "ModernMT"
+            },
+            "mymemory": {
+              "label": "MyMemory"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "region": {
+          "title": "Region",
+          "description": "Azure region (microsoft)"
+        },
+        "skipMatched": {
+          "title": "Skip Matched",
+          "description": "Skip blocks that already have a target translation"
+        },
+        "subscriptionKey": {
+          "title": "Subscription Key",
+          "description": "Azure subscription key (microsoft)"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
         }
       }
     },

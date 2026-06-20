@@ -2,7 +2,7 @@
 // i18n pipeline reads via the standard JSON filter. The generated
 // document is object-keyed (not array-keyed) so block names produced by
 // the JSON filter with useKeyAsName + useFullKeyPath are stable scope
-// identifiers — "tools/ai-translate/displayName" stays put even when a
+// identifiers — "tools/translate/displayName" stays put even when a
 // new tool is added. That stability is what makes msgctxt lookup from
 // (toolID, field) work in the runtime Translator.
 //
@@ -21,14 +21,13 @@ import (
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	fschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
-	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
 )
 
 // Entry is a single translatable surface in the generated document.
 // Maps 1:1 to object keys on the tools / formats / plugins object —
-// the entry's parent object key (e.g. "ai-translate") is the owner ID.
+// the entry's parent object key (e.g. "translate") is the owner ID.
 type Entry struct {
 	DisplayName string                       `json:"displayName,omitempty"`
 	Description string                       `json:"description,omitempty"`
@@ -65,7 +64,7 @@ type OptionEntry struct {
 // Document is the top-level i18n source document. Keyed by domain (tools,
 // formats, plugins), then by owner ID. The JSON filter with
 // useKeyAsName + useFullKeyPath + useLeadingSlashOnKeyPath = true
-// produces block names like "/tools/ai-translate/displayName", which
+// produces block names like "/tools/translate/displayName", which
 // match the Scope values used by the runtime Translator.
 type Document struct {
 	Tools   map[string]Entry `json:"tools,omitempty"`
@@ -81,7 +80,6 @@ func Generate(outDir string) error {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 	aitools.RegisterAll(toolReg)
-	mttools.RegisterAll(toolReg)
 
 	formatReg := registry.NewFormatRegistry()
 	schemaReg := fschema.NewSchemaRegistry()

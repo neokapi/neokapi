@@ -1,17 +1,17 @@
 ---
 id: kapi-terminology-qa
-title: "Enforce terminology with kapi termbase + qa-check"
+title: "Enforce terminology with kapi termbase + qa"
 sidebar_label: "Terminology QA"
 description: "Import a glossary, look up terms, and flag terminology drift in translated files before they ship."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Enforce terminology with kapi termbase + qa-check
+# Enforce terminology with kapi termbase + qa
 
 > Generated from [`walkthroughs/kapi-terminology-qa.md`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-terminology-qa.md). Do not edit by hand — change the prompt and regenerate.
 
-A glossary makes terminology consistent across your translations and across locales. `kapi termbase` ingests CSVs, exposes lookup/search, and feeds into `kapi qa-check` to flag terminology drift in target files before they ship.
+A glossary makes terminology consistent across your translations and across locales. `kapi termbase` ingests CSVs, exposes lookup/search, and feeds into `kapi qa` to flag terminology drift in target files before they ship.
 
 ## Scene 1 — termbase-qa
 
@@ -22,7 +22,7 @@ A glossary makes terminology consistent across your translations and across loca
   }}
 />
 
-Import a CSV glossary into a named termbase, inspect stats, look up a specific term, search for related ones, then run `kapi pseudo-translate` followed by `kapi qa-check --termbase ...` to see violations flagged in the output.
+Import a CSV glossary into a named termbase, inspect stats, look up a specific term, search for related ones, then run `kapi pseudo-translate` followed by `kapi qa --termbase ...` to see violations flagged in the output.
 
 ## Next
 

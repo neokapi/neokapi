@@ -158,7 +158,7 @@ Stand-off overlays ([AD-002](002-content-model.md)) become color-coded,
 tooltipped marks via `preview/overlayHighlight.ts`. The accent is a function of
 the overlay type **and** the span's props, not the type alone:
 
-- **`effectiveKey(type, span)`** resolves the accent key: a `qa` (or `qa-check`)
+- **`effectiveKey(type, span)`** resolves the accent key: a `qa`
   overlay whose `span.props.category` is `"brand-vocabulary"` resolves to the
   `brand-vocabulary` key (a brand violation, pink); every other overlay resolves
   on its type. `overlayStyle` looks the effective key up in **`OVERLAY_STYLES`**

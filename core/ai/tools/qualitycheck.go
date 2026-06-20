@@ -32,30 +32,11 @@ type AIQAConfig struct {
 	Checks       []string       `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
-// AIQASchema returns the auto-generated schema for the AI QA tool.
-func AIQASchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{
-		ID:                    "ai-qa",
-		Category:              schema.CategoryQuality,
-		DisplayName:           "AI QA Check",
-		Description:           "Check translation quality using an LLM provider",
-		Tags:                  []string{"ai-powered"},
-		WritesOutput:          true,
-		DefaultParallelBlocks: 5,
-		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
-		Cardinality:           schema.Bilingual,
-		Produces:              []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
-	})
-	injectProviderOptions(s)
-	return s
-}
-
 // NewAIQAFromConfig creates an AI QA tool from a config map.
 func NewAIQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg AIQAConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("ai-qa config: %w", err)
+		return nil, fmt.Errorf("qa config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -78,7 +59,7 @@ func NewAIQACheckTool(p aiprovider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
 		targetLocale: cfg.TargetLocale,
 		checks:       cfg.Checks,
 	}
-	t.ToolName = "ai-qa"
+	t.ToolName = "qa"
 	t.ToolDescription = "Checks translation quality using AI/LLM"
 	t.Annotate = t.annotate
 	return t
@@ -140,7 +121,7 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 		aiprovider.TextMessage("user", prompt),
 	}, qaSchema())
 	if err != nil {
-		return fmt.Errorf("ai-qa: %w", err)
+		return fmt.Errorf("qa: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -166,7 +147,7 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 			Suggestion: iss.Suggestion,
 		})
 	}
-	check.Annotate(v, "ai-qa", findings)
+	check.Annotate(v, "qa", findings)
 	v.SetProperty("qa-provider", string(t.provider.Name()))
 	v.SetProperty("qa-checks", strings.Join(t.checks, ","))
 

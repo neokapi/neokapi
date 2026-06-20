@@ -30,7 +30,7 @@ func TestResolveCredentials_NoRequirement(t *testing.T) {
 	store := newTestStore(t)
 	config := map[string]any{"batchSize": 50}
 
-	result, err := ResolveCredentials(store, "ai-translate", []string{"target-language"}, config)
+	result, err := ResolveCredentials(store, "translate", []string{"target-language"}, config)
 	require.NoError(t, err)
 	assert.Equal(t, config, result, "should return unchanged when no credentials requirement")
 }
@@ -43,7 +43,7 @@ func TestResolveCredentials_ExplicitAPIKey(t *testing.T) {
 		"apiKey":   "sk-explicit",
 	}
 
-	result, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err)
 	assert.Equal(t, "sk-explicit", result["apiKey"], "explicit apiKey should win")
 }
@@ -59,7 +59,7 @@ func TestResolveCredentials_ByName(t *testing.T) {
 	// Can't test SetAPIKey without a real keychain, so test the error path.
 	config := map[string]any{"credential": "my-openai"}
 
-	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	// Will fail because no keychain available in test, but should resolve the config first.
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "keychain")
@@ -72,7 +72,7 @@ func TestResolveCredentials_NotFound(t *testing.T) {
 	store := newTestStore(t)
 	config := map[string]any{"credential": "nonexistent"}
 
-	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -95,7 +95,7 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 
 	config := map[string]any{"provider": "openai"}
 
-	_, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple credentials")
 }
@@ -106,7 +106,7 @@ func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
 	for _, provider := range []string{"gemma", "ollama", "demo"} {
 		t.Run(provider, func(t *testing.T) {
 			config := map[string]any{"provider": provider}
-			got, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+			got, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 			require.NoError(t, err, "keyless local provider must not require a credential")
 			assert.Equal(t, provider, got["provider"])
 			_, hasKey := got["apiKey"]
