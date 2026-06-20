@@ -28,6 +28,11 @@ const LazyVision = React.lazy(async () => {
   return { default: mod.VisionExplorer };
 });
 
+const LazyMultimodalShowcase = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.MultimodalShowcase };
+});
+
 // Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
 // `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
 const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
@@ -126,6 +131,23 @@ export function VisionExplorer(props: VisionExplorerProps): React.ReactElement {
       {() => (
         <Suspense fallback={<Loading />}>
           <LazyVision {...props} />
+        </Suspense>
+      )}
+    </BrowserOnly>
+  );
+}
+
+export interface MultimodalShowcaseProps {
+  initialChapter?: number;
+  className?: string;
+}
+
+export function MultimodalShowcase(props: MultimodalShowcaseProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => (
+        <Suspense fallback={<Loading />}>
+          <LazyMultimodalShowcase {...props} />
         </Suspense>
       )}
     </BrowserOnly>

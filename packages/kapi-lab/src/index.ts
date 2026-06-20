@@ -24,6 +24,8 @@ export { default as PdfExplorer } from "./PdfExplorer";
 export type { PdfExplorerProps, PdfSampleSpec } from "./PdfExplorer";
 export { default as VisionExplorer } from "./VisionExplorer";
 export type { VisionExplorerProps, VisionSampleSpec } from "./VisionExplorer";
+export { default as MultimodalShowcase } from "./MultimodalShowcase";
+export type { MultimodalShowcaseProps } from "./MultimodalShowcase";
 export { default as PipelineExplorer } from "./PipelineExplorer";
 export type { PipelineExplorerProps } from "./PipelineExplorer";
 export { default as ToolLab } from "./ToolLab";
