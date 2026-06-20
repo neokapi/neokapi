@@ -48,7 +48,7 @@ const cdnWasmVersion = process.env.DOCS_CDN_VERSION ?? "dev";
 // override like onnxruntime-web. When the CDN is enabled we rewrite that asset's
 // URL to R2 at build time (cdnIcuWasm plugin); pin the package version so the R2
 // path is immutable and cache-busts on an icu bump. Publish the file with
-// `make publish-cdn-icu` (folded into `make seed-cdn`).
+// `make publish-cdn-icu`.
 const icuVersion = (() => {
   // `icu`'s package.json `exports` only declares the "import" entry, so
   // require.resolve("icu") throws ERR_PACKAGE_PATH_NOT_EXPORTED. Read the
@@ -64,6 +64,20 @@ const icuVersion = (() => {
     }
   }
   return "0";
+})();
+
+// Vision Lab ONNX model-set version. Pinned in the committed web/models.version
+// so bumping it is a reviewable PR diff: that PR's preview then loads the models
+// from /kapi/models/vision/<version>/ on the CDN (publish the set there once
+// with `make publish-cdn-vision-models`). $DOCS_VISION_MODELS_VERSION overrides
+// it for ad-hoc builds. Falls back to "v1" if the file is somehow unreadable.
+const cdnModelsVersion = (() => {
+  if (process.env.DOCS_VISION_MODELS_VERSION) return process.env.DOCS_VISION_MODELS_VERSION;
+  try {
+    return fs.readFileSync(path.join(__dirname, "models.version"), "utf8").trim() || "v1";
+  } catch {
+    return "v1";
+  }
 })();
 
 const config: Config = {
@@ -93,6 +107,7 @@ const config: Config = {
     cdnBaseUrl,
     cdnSitePrefix: "kapi",
     cdnWasmVersion,
+    cdnModelsVersion,
   },
 
   markdown: {

@@ -28,12 +28,13 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # CDN_URL is the R2 origin to serve videos from (DOCS_CDN_URL repo variable).
-    # Empty → videos stay same-origin (the default). Set on a push → videos load
-    # from the CDN (published to R2 from the desktop) and aren't staged here. PR
-    # previews always stay same-origin.
+    # CDN_URL is the R2 origin to serve videos AND screenshots from (DOCS_CDN_URL
+    # repo variable). ON for push and same-repo PRs: ThemedVideo/ThemedImage
+    # reference them by URL, so nothing is staged into the artifact and PR
+    # previews (served from R2) stay tiny. FORK PRs keep it empty (no publish
+    # secret, no deployed preview) and build same-origin.
     env:
-      CDN_URL: ${{ github.event_name != 'pull_request' && vars.DOCS_CDN_URL || '' }}
+      CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: voidzero-dev/setup-vp@v1
@@ -45,33 +46,13 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # All bowrain docs videos — the CLI demos (bowrain-cli/) and the framed
-      # walkthrough videos (bowrain-web/ + bowrain-desktop/) — are produced by the
-      # harness on a desktop against a real running stack, which CI cannot
-      # reproduce, and published to the bowrain-docs-assets release (make
-      # publish-bowrain-docs-assets). CI never records; it stages the assets here,
-      # mirroring docs-kapi.yml.
-      # Images are always staged (small, served same-origin). Videos are staged
-      # only when NOT serving from the CDN; with the CDN on they're published to
-      # R2 from the desktop (make publish-cdn-bowrain-videos), not bundled here.
-      - name: Stage bowrain videos + images from bowrain-docs-assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CDN_URL: ${{ env.CDN_URL }}
-        run: |
-          mkdir -p bowrain/web/docs/static/video
-          if gh release download bowrain-docs-assets -p bowrain-docs-assets.tar.gz -D /tmp/bda 2>/dev/null; then
-            tar xzf /tmp/bda/bowrain-docs-assets.tar.gz -C /tmp/bda
-            [ -d /tmp/bda/img ] && { mkdir -p bowrain/web/docs/static/img; cp -R /tmp/bda/img/. bowrain/web/docs/static/img/; }
-            if [ -z "$CDN_URL" ]; then
-              [ -d /tmp/bda/video ] && cp -R /tmp/bda/video/. bowrain/web/docs/static/video/
-              echo "Staged bowrain videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
-            else
-              echo "CDN enabled — videos served from R2; images staged only"
-            fi
-          else
-            echo "::warning::bowrain-docs-assets release unavailable; videos/images will be missing"
-          fi
+      # Bowrain docs videos AND screenshots — produced by the harness on a desktop
+      # against a real running stack, which CI cannot reproduce — are served from
+      # the CDN (R2) for push and same-repo PRs: ThemedVideo / ThemedImage
+      # reference them by URL, nothing is staged into the artifact. The
+      # bowrain-docs-assets release is retired; publish from the desktop with
+      # `make publish-cdn-bowrain-videos` and `make publish-cdn-bowrain-images`.
+      # Fork PRs (CDN off) build without them and never deploy a preview.
 
       # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
       # workspace, by design — see PR #425); install it on its own.

@@ -20,6 +20,13 @@ export interface CdnConfig {
   sitePrefix: string;
   /** Cache-busting path segment for per-build assets (the wasm engine), e.g. a git sha. */
   version: string;
+  /**
+   * Version segment for the Vision Lab ONNX model set, e.g. "v1" — pinned in
+   * web/models.version and committed, so bumping it is a reviewable diff and the
+   * PR's preview loads /kapi/models/vision/<modelsVersion>/. Unlike `version`
+   * (per-build wasm), the model set changes rarely and independently of the sha.
+   */
+  modelsVersion: string;
 }
 
 /** The subset of Docusaurus's siteConfig this module reads. */
@@ -38,6 +45,7 @@ export function readCdnConfig(siteConfig: SiteConfigLike): CdnConfig {
     base: str(cf.cdnBaseUrl).replace(/\/+$/, ""),
     sitePrefix: str(cf.cdnSitePrefix),
     version: str(cf.cdnWasmVersion) || "dev",
+    modelsVersion: str(cf.cdnModelsVersion) || "v1",
   };
 }
 

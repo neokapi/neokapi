@@ -28,7 +28,10 @@ export default function VisionLabPage(): React.ReactElement {
   //
   // When a CDN origin is configured (cdnBaseUrl customField, from $DOCS_CDN_URL)
   // the models are served (CORS-enabled, whole — no GitHub-Pages size split) from
-  // the CDN instead, bypassing the same-origin staging and per-locale dedup.
+  // the CDN instead, bypassing the same-origin staging and per-locale dedup. The
+  // CDN path is versioned (/models/vision/<modelsVersion>/, pinned in
+  // web/models.version) so a PR can point at a different model set by bumping
+  // that file — its preview then loads the matching set.
   const { i18n, siteConfig } = useDocusaurusContext();
   const cdn = readCdnConfig(siteConfig);
   const localizedModels = useBaseUrl("/models/vision");
@@ -36,7 +39,9 @@ export default function VisionLabPage(): React.ReactElement {
     i18n.currentLocale === i18n.defaultLocale
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
-  const modelBase = cdnEnabled(cdn) ? cdnHref(cdn, "/models/vision") : sameOriginBase;
+  const modelBase = cdnEnabled(cdn)
+    ? cdnHref(cdn, `/models/vision/${cdn.modelsVersion}`)
+    : sameOriginBase;
   return (
     <Layout
       title="Vision Lab"

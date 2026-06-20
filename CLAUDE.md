@@ -407,10 +407,20 @@ Videos are produced by the **harness** (`harness/`): each demo is an authored `d
 ```bash
 make harness-videos-staged        # full pass: stack up → seed → record → narrate → package (light + dark)
 make harness-videos               # render the kapi demo videos from existing captures
-make publish-docs-assets          # publish web/static/{img,video} → docs-assets release (merges, never drops)
-make publish-bowrain-docs-assets  # publish bowrain/web/docs/static/{img,video} → bowrain-docs-assets release
-make fetch-docs-assets            # download already-built assets from the docs-assets release
+make publish-cdn-all              # publish all desktop-produced assets (videos, images, models) → R2 CDN
+make publish-cdn-videos           # just the kapi videos → R2 (kapi/video/)
+make publish-cdn-bowrain-videos   # just the bowrain videos → R2 (bowrain/video/)
+make publish-cdn-images           # kapi images/screenshots → R2 (kapi/img/)
+make publish-cdn-bowrain-images   # bowrain images/screenshots → R2 (bowrain/img/)
 ```
+
+Assets are **not stored in git and not in GitHub releases** — they live only on
+the Cloudflare R2 CDN (served at `$DOCS_CDN_URL`) and are referenced by URL via
+`ThemedVideo` / `ThemedImage` / the Vision Lab. The sites build with
+`DOCS_CDN_URL` set for push and same-repo PRs; PR previews are served from R2
+too, so they stay tiny. The Vision Lab model set is versioned by the committed
+`web/models.version` (bump it + `make publish-cdn-vision-models` to ship a new
+set). See `web/docs/contribute/notes-internal/cdn-assets.md`.
 
 See `harness/` (and its Makefile) for the phased seed → record → narrate → package pipeline; bring the stack up once and re-render freely.
 

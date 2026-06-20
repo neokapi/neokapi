@@ -34,9 +34,9 @@ cd "$(dirname "$0")/.."
 
 FAMILY="${1:-}"
 case "$FAMILY" in
-  wasm | vision-models | video-kapi | video-bowrain | icu) ;;
+  wasm | vision-models | video-kapi | video-bowrain | icu | images-kapi | images-bowrain) ;;
   *)
-    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain|icu>" >&2
+    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain|icu|images-kapi|images-bowrain>" >&2
     exit 2
     ;;
 esac
@@ -53,6 +53,9 @@ S3=(aws s3 --endpoint-url "$R2_ENDPOINT")
 IMMUTABLE="public, max-age=31536000, immutable"
 VIDEO_CACHE="public, max-age=86400"
 VERSION="${R2_VERSION:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
+# Vision model-set version (path segment under kapi/models/vision/). Pinned in
+# web/models.version; overridable via env for ad-hoc publishes.
+MODELS_VERSION="${DOCS_VISION_MODELS_VERSION:-$(cat web/models.version 2>/dev/null || echo v1)}"
 
 case "$FAMILY" in
   wasm)
@@ -86,15 +89,15 @@ case "$FAMILY" in
       gh release download vision-models-v1 -p "$f" -O "$TMP/$f" 2>/dev/null \
         || curl -sSfL -o "$TMP/$f" "$REL/$f"
     done
-    DST="s3://$R2_BUCKET/kapi/models/vision"
-    echo "→ syncing models → $DST (immutable)…"
+    DST="s3://$R2_BUCKET/kapi/models/vision/$MODELS_VERSION"
+    echo "→ syncing models → $DST (immutable, version $MODELS_VERSION)…"
     "${S3[@]}" sync "$TMP" "$DST" --cache-control "$IMMUTABLE"
     echo "✓ vision models published (whole, no split) → $DST"
     ;;
 
   video-kapi)
     SRC="web/static/video"
-    [ -d "$SRC" ] || { echo "error: $SRC missing — run 'make fetch-docs-assets' or render via harness"; exit 1; }
+    [ -d "$SRC" ] || { echo "error: $SRC missing — render via harness (make harness-videos)"; exit 1; }
     DST="s3://$R2_BUCKET/kapi/video"
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
@@ -103,7 +106,7 @@ case "$FAMILY" in
 
   video-bowrain)
     SRC="bowrain/web/docs/static/video"
-    [ -d "$SRC" ] || { echo "error: $SRC missing — run 'make fetch-bowrain-docs-assets' or render via harness"; exit 1; }
+    [ -d "$SRC" ] || { echo "error: $SRC missing — render via harness (make harness-videos-staged)"; exit 1; }
     DST="s3://$R2_BUCKET/bowrain/video"
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
@@ -126,5 +129,27 @@ case "$FAMILY" in
     "${S3[@]}" cp "$SRC" "$DST/icu_capi.wasm" \
       --cache-control "$IMMUTABLE" --content-type "application/wasm"
     echo "✓ icu4x wasm published → $DST/icu_capi.wasm"
+    ;;
+
+  # Screenshots (ThemedImage) are large and release-only (gitignored), so they
+  # live on the CDN like videos rather than in git or the Pages artifact. Synced
+  # whole; ThemedImage references them by URL when the CDN is on. The committed
+  # small images a site references same-origin are a harmless superset here.
+  images-kapi)
+    SRC="web/static/img"
+    [ -d "$SRC" ] || { echo "error: $SRC missing"; exit 1; }
+    DST="s3://$R2_BUCKET/kapi/img"
+    echo "→ syncing $SRC → ${DST}…"
+    "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
+    echo "✓ kapi images published → $DST"
+    ;;
+
+  images-bowrain)
+    SRC="bowrain/web/docs/static/img"
+    [ -d "$SRC" ] || { echo "error: $SRC missing"; exit 1; }
+    DST="s3://$R2_BUCKET/bowrain/img"
+    echo "→ syncing $SRC → ${DST}…"
+    "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
+    echo "✓ bowrain images published → $DST"
     ;;
 esac

@@ -58,14 +58,15 @@ jobs:
   build:
     needs: build-wasm
     runs-on: ubuntu-latest
-    # CDN_URL is the R2 origin to serve large assets from (the DOCS_CDN_URL repo
-    # variable). Empty → assets stay same-origin (the default; the steps below
-    # stage wasm/models/videos into the artifact exactly as before). On a push
-    # with the variable set, the wasm is synced to R2 and dropped from the
-    # artifact, and the site is built pointing at the CDN. PR previews always
-    # stay same-origin to avoid R2 churn and secret dependence.
+    # CDN_URL is the R2 origin to serve large assets (wasm, vision models,
+    # videos) from (the DOCS_CDN_URL repo variable). Empty → assets stay
+    # same-origin. It is now ON for push AND same-repo PRs: previews are served
+    # from R2 (not committed to git), so referencing the shared assets from the
+    # CDN keeps each preview tiny — only the PR's own wasm is published (by sha).
+    # FORK PRs keep it empty: they can't read the R2 publish secret and never get
+    # a deployed preview anyway, so they build same-origin (assets simply absent).
     env:
-      CDN_URL: ${{ github.event_name != 'pull_request' && vars.DOCS_CDN_URL || '' }}
+      CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -101,37 +102,13 @@ jobs:
           vp check --no-fmt
           vp test -- --run
 
-      # All docs videos are produced by the harness on the desktop (make
-      # harness-videos / harness-videos-staged) and published to the docs-assets
-      # release (make publish-docs-assets). CI never records; it stages them here.
-      - name: Stage docs videos from docs-assets
-        # Skipped when serving from the CDN — videos are published to R2 from the
-        # desktop (make publish-cdn-videos), not staged into the artifact.
-        if: ${{ env.CDN_URL == '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p web/static/video
-          if gh release download docs-assets -p docs-assets.tar.gz -D /tmp/da 2>/dev/null; then
-            tar xzf /tmp/da/docs-assets.tar.gz -C /tmp/da
-            [ -d /tmp/da/video ] && cp -R /tmp/da/video/. web/static/video/
-            echo "Staged docs videos: $(find web/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
-          else
-            echo "::warning::docs-assets release unavailable; docs videos will be missing"
-          fi
-
-      # The Vision Lab fetches its OCR models from the same origin (GitHub release
-      # URLs are CORS-blocked for browser fetch). Stage them into web/static so the
-      # built site serves them. OCR models only — the ~132 MB layout model exceeds
-      # the GitHub Pages file limit (external CORS host is a follow-up).
-      - name: Stage Vision Lab OCR models
-        # Skipped when serving from the CDN — the whole models (OCR + the ~132 MB
-        # layout model, no split) are published to R2 from the desktop
-        # (make publish-cdn-vision-models).
-        if: ${{ env.CDN_URL == '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: make fetch-vision-models
+      # Videos and vision models are served from the CDN (R2) for push and
+      # same-repo PRs — referenced by URL, never staged into the artifact. The
+      # docs-assets release is retired: videos are published to R2 from the
+      # desktop (make publish-cdn-videos), vision models via
+      # make publish-cdn-vision-models (from the pinned vision-models-v1 release).
+      # Local dev / fork builds (CDN off) stage same-origin on demand with
+      # `make fetch-vision-models`; fork PRs never deploy a preview.
 
       - name: Download playground wasm
         uses: actions/download-artifact@v8

@@ -102,34 +102,42 @@ pre-trained artifacts pinned in the `vision-models-v1` GitHub release (the
 publish target just re-uploads them to R2 — rerun only when that release
 changes), and the videos are produced on the desktop by the harness:
 
-### Seeding R2 with what exists today
+### Publishing assets to R2
 
-The videos and models already live in GitHub release artifacts, so no
-desktop-produced source is needed to seed R2 — pull from the releases and sync,
-from any machine with `gh` + the `aws` CLI + the `R2_*` env vars:
+R2 is the **single source of truth** for these assets — the `docs-assets` /
+`bowrain-docs-assets` GitHub releases are retired. Publish from the desktop,
+where the harness renders the videos/screenshots and `make fetch-vision-models`
+stages the model set (the vision models themselves are still pinned in the
+`vision-models-v1` release — the publish target just re-uploads them to R2).
+Needs `gh` + the `aws` CLI + the `R2_*` env vars:
 
 ```bash
-make seed-cdn   # fetch kapi+bowrain videos/images (docs-assets, bowrain-docs-assets)
-                # + models (vision-models-v1) from the releases, then sync each to R2
+make publish-cdn-all   # videos + images + vision models, kapi & bowrain → R2
 ```
 
-**Order matters:** run `seed-cdn` (or the individual targets below) **before**
-setting the `DOCS_CDN_URL` repo variable. Once the variable is set, CI stops
-staging videos/models into the artifact, so the deployed site expects them on the
-CDN — seed first or the live site 404s them. (WASM is the exception: CI builds
-and publishes it in the same run that flips to the CDN, so it never needs
-pre-seeding.)
+**Order matters:** publish (or run the individual targets below) **before**
+setting the `DOCS_CDN_URL` repo variable. Once the variable is set, CI builds
+the sites pointing at the CDN (for push and same-repo PRs), so the deployed and
+preview sites expect the assets on R2 — publish first or they 404. (WASM is the
+exception: CI builds and publishes it, versioned by sha, in the same run.)
 
 ### Individual targets
 
 ```bash
-# one-time / when assets change (needs the R2_* env vars above + aws CLI):
-make publish-cdn-vision-models     # whole ONNX models → kapi/models/vision/
+# when assets change (needs the R2_* env vars above + aws CLI):
+make publish-cdn-vision-models     # ONNX models → kapi/models/vision/<web/models.version>/
 make publish-cdn-icu               # ICU4X seg wasm   → kapi/icu/<ver>/icu_capi.wasm
-make publish-cdn-videos            # web/static/video → kapi/video/  (run fetch-docs-assets first)
-make publish-cdn-bowrain-videos    # bowrain videos   → bowrain/video/ (run fetch-bowrain-docs-assets first)
+make publish-cdn-videos            # web/static/video → kapi/video/
+make publish-cdn-bowrain-videos    # bowrain videos  → bowrain/video/
+make publish-cdn-images            # web/static/img  → kapi/img/
+make publish-cdn-bowrain-images    # bowrain images  → bowrain/img/
 make publish-cdn-wasm              # optional manual wasm push (CI does this in deploy)
 ```
+
+The vision model set is **versioned**: `kapi/models/vision/<version>/`, with the
+version pinned in the committed `web/models.version`. To ship a new model set,
+publish it under a new version and bump that file — a PR doing so previews the
+new models automatically (the Vision Lab reads the version from the build).
 
 All of these call `scripts/publish-cdn-assets.sh <family>`, which sets the right
 `Content-Type` and `Cache-Control` per family. The pre-gzipped `kapi-cli.wasm.gz`

@@ -1153,48 +1153,25 @@ pulse-build pulse-dev pulse-check:
 logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 	@bash scripts/generate-neokapi-logo.sh
 
-fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrough engine fully covers)
-	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
-	@mkdir -p web/static
-	@tar xzf /tmp/docs-assets.tar.gz -C web/static
-	@rm -f /tmp/docs-assets.tar.gz
-	@du -sh web/static/img web/static/video 2>/dev/null || true
-
-publish-docs-assets: ## Publish web/static/{img,video} to the docs-assets release (merges, never drops)
-	@bash scripts/publish-docs-assets.sh
-
-# Bowrain's framed walkthrough videos (harness-rendered bowrain-web/ +
-# bowrain-desktop/) are recorded on the desktop against a real running stack and
-# live under bowrain/web/docs/static/video/ (gitignored). They ship via their own
-# bowrain-docs-assets release — symmetric with kapi's docs-assets — staged by
-# docs-bowrain.yml.
-fetch-bowrain-docs-assets: ## Download bowrain docs assets from the bowrain-docs-assets release
-	@gh release download bowrain-docs-assets --pattern 'bowrain-docs-assets.tar.gz' --dir /tmp --clobber
-	@mkdir -p bowrain/web/docs/static
-	@tar xzf /tmp/bowrain-docs-assets.tar.gz -C bowrain/web/docs/static
-	@rm -f /tmp/bowrain-docs-assets.tar.gz
-	@du -sh bowrain/web/docs/static/img bowrain/web/docs/static/video 2>/dev/null || true
-
-publish-bowrain-docs-assets: ## Publish bowrain/web/docs/static/{img,video} to the bowrain-docs-assets release (merges, never drops)
-	@bash scripts/publish-bowrain-docs-assets.sh
-
 # ── CDN (Cloudflare R2) asset publishing ────────────────────────────────────
-# Offload the large immutable docs assets (wasm engine, ONNX vision models,
-# walkthrough videos) to the R2 bucket served at $DOCS_CDN_URL, so the GitHub
-# Pages artifact stays small and deploys fast. Inert until the sites are built
-# with DOCS_CDN_URL set (CI does this when the DOCS_CDN_URL repo variable is
-# configured). Auth via env: R2_BUCKET, R2_ENDPOINT, AWS_ACCESS_KEY_ID,
-# AWS_SECRET_ACCESS_KEY. See web/docs/contribute/notes-internal/cdn-assets.md.
-# wasm is also published by CI on each build. The others are published out-of-band:
-# vision-models are re-uploaded from the pinned vision-models-v1 release (rerun
-# only when it changes); videos are produced on the desktop by the harness.
+# The large, desktop-produced docs assets (wasm engine, ONNX vision models,
+# walkthrough videos, and screenshots) live ONLY on the R2 bucket served at
+# $DOCS_CDN_URL — referenced by URL (ThemedVideo/ThemedImage, the Vision Lab),
+# never committed to git or staged into the Pages artifact / PR-preview bundle.
+# The GitHub docs-assets / bowrain-docs-assets releases are retired; these
+# targets are the single publish path. Auth via env: R2_BUCKET, R2_ENDPOINT,
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY. See
+# web/docs/contribute/notes-internal/cdn-assets.md.
+# wasm is also published by CI on each docs build (versioned by sha). The rest
+# are published from the desktop where the harness produces them; the vision
+# model set is pulled from the pinned vision-models-v1 release.
 publish-cdn-wasm: web-wasm-demo web-wasm-cli web-pdfium-wasm ## Build + sync the playground wasm → R2 (kapi/wasm/<version>/)
 	@bash scripts/publish-cdn-assets.sh wasm
 
-publish-cdn-vision-models: ## Sync the whole Vision Lab ONNX models → R2 (kapi/models/vision/)
+publish-cdn-vision-models: ## Sync the Vision Lab ONNX models → R2 (kapi/models/vision/<web/models.version>/)
 	@bash scripts/publish-cdn-assets.sh vision-models
 
-publish-cdn-videos: ## Sync kapi walkthrough videos → R2 (kapi/video/)
+publish-cdn-videos: ## Sync kapi walkthrough videos (web/static/video) → R2 (kapi/video/)
 	@bash scripts/publish-cdn-assets.sh video-kapi
 
 publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → R2 (bowrain/video/)
@@ -1203,14 +1180,18 @@ publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → R2 (bowrain/v
 publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → R2 (kapi/icu/<ver>/)
 	@bash scripts/publish-cdn-assets.sh icu
 
-# One-shot seed: publish everything that exists TODAY straight from the release
-# artifacts to R2 — no desktop-produced source needed. Fetches the kapi + bowrain
-# videos/images from their docs-assets releases and the models from
-# vision-models-v1, plus the ICU4X wasm, then syncs each to R2. Run this BEFORE
-# setting the DOCS_CDN_URL repo variable, so the assets are in place when the site
-# flips to the CDN. (wasm is published by CI on the next docs build; no seed needed.)
-seed-cdn: fetch-docs-assets publish-cdn-videos fetch-bowrain-docs-assets publish-cdn-bowrain-videos publish-cdn-vision-models publish-cdn-icu ## Seed R2 with today's videos + models + icu from the GitHub releases
-	@echo "✓ R2 seeded from release artifacts — safe to set the DOCS_CDN_URL repo variable now."
+publish-cdn-images: ## Sync kapi docs images/screenshots (web/static/img) → R2 (kapi/img/)
+	@bash scripts/publish-cdn-assets.sh images-kapi
+
+publish-cdn-bowrain-images: ## Sync bowrain docs images/screenshots → R2 (bowrain/img/)
+	@bash scripts/publish-cdn-assets.sh images-bowrain
+
+# Publish every CDN asset from the local desktop working copy (where the harness
+# renders videos/screenshots and fetch-vision-models stages the models). Run
+# after re-recording so the live + preview sites pick up the new assets. (wasm is
+# published by CI on the next docs build; not included here.)
+publish-cdn-all: publish-cdn-videos publish-cdn-bowrain-videos publish-cdn-images publish-cdn-bowrain-images publish-cdn-vision-models publish-cdn-icu ## Publish all desktop-produced assets → R2
+	@echo "✓ all CDN assets published to R2."
 
 # Tier B format corpora (docs/internals/format-maturity.md §2.5): one
 # corpus-<id>.tar.gz asset per format on the lexically-latest format-corpus-vN
@@ -1423,7 +1404,7 @@ BOWRAIN_DOCS_BASE    := /web/bowrain/docs/
 landing-build: ## Build the bowrain landing page with its production base URL → bowrain/web/landing/dist
 	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build
 
-docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (run fetch-docs-assets first to stage videos) → web/build
+docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (set DOCS_CDN_URL so videos/models/images resolve from R2) → web/build
 	cd web && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
@@ -1433,7 +1414,7 @@ bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the prod
 publish-landing: landing-build ## Build + deploy the bowrain landing page to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)
 	@bash scripts/publish-pages.sh bowrain-landing
 
-publish-website: fetch-docs-assets docs-build-prod fetch-bowrain-docs-assets bowrain-docs-build-prod ## Build + deploy the kapi & bowrain docs sites to neokapi.github.io
+publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the kapi & bowrain docs sites to neokapi.github.io (set DOCS_CDN_URL so assets resolve from R2)
 	@bash scripts/publish-pages.sh neokapi-docs bowrain-docs
 
 # ── Tools ────────────────────────────────────────────────────────────────────
@@ -1548,9 +1529,10 @@ help: ## Show this help
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-run bench-run-full bench-stress \
-        logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
+        logo harness-deps harness-videos \
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
-        fetch-bowrain-docs-assets publish-bowrain-docs-assets \
+        publish-cdn-wasm publish-cdn-vision-models publish-cdn-videos publish-cdn-bowrain-videos \
+        publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
