@@ -655,6 +655,36 @@
   transition: background 0.12s ease;
 }
 
+/* Centered Run gate shown until the reader starts the terminal (no boot on load). */
+.kapi-pg-start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--ifm-color-primary, #2e8555);
+  color: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease;
+}
+
+.kapi-pg-start-btn:hover {
+  background: var(--ifm-color-primary-dark, #29784c);
+  transform: translateY(-1px);
+}
+
+.kapi-pg-start-btn:focus-visible {
+  outline: 2px solid var(--ifm-color-primary, #2e8555);
+  outline-offset: 2px;
+}
+
 .kapi-pg-run-btn:hover {
   background: var(--ifm-color-primary-dark, #29784c);
 }

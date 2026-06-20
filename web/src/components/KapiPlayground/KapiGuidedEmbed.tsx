@@ -197,8 +197,10 @@ const LazyGuidedModal = React.lazy(async () => {
                   wasmUrl={pg.wasmUrl}
                   seed={config.seed}
                   files={config.files}
-                  // Stage the session warm but idle — the first command is at
-                  // the prompt; the reader drives the steps from the rail.
+                  // Only mounted after the reader clicks "Run it now", so boot on
+                  // mount; stage the session warm but idle — the first command is
+                  // at the prompt; the reader drives the steps from the rail.
+                  bootOnMount
                   cmd={config.steps[0]?.command}
                   autoRun={false}
                   showToolbar={false}
