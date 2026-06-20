@@ -28,3 +28,10 @@ func ommlToMathEquiv(raw string) (equiv, disp string) {
 	}
 	return "$" + latex + "$", latex
 }
+
+// ommlNorTexts returns the natural-language (<m:nor/>) prose spans embedded in an
+// OMML equation, in document order — e.g. "where", "otherwise", units. Empty for
+// pure math typography.
+func ommlNorTexts(raw string) []string {
+	return xmath.NorTexts([]byte(raw))
+}
