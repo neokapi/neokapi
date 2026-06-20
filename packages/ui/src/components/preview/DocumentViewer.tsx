@@ -38,15 +38,7 @@ export interface DocumentViewerProps {
   /** Original file bytes, enabling the Download tab/button (optional). */
   bytes?: Uint8Array | null;
   /** Tab shown first (default "preview"). */
-  defaultTab?:
-    | "preview"
-    | "structure"
-    | "layout"
-    | "media"
-    | "blocks"
-    | "raw"
-    | "stats"
-    | "download";
+  defaultTab?: "preview" | "structure" | "layout" | "media" | "blocks" | "raw" | "stats";
   /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
   changedIds?: ReadonlySet<string>;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
@@ -239,11 +231,11 @@ export default function DocumentViewer({
               </Badge>
             )}
           </TabsTrigger>
-          {/* Raw + Download need the file bytes — shown on the web/wasm path,
-              hidden on desktop where the local file is the source of truth. */}
+          {/* Raw needs the file bytes — shown on the web/wasm path, hidden on
+              desktop where the local file is the source of truth. (Downloading is
+              the single header button above, not a duplicate tab.) */}
           {bytes && <TabsTrigger value="raw">Raw</TabsTrigger>}
           <TabsTrigger value="stats">Stats</TabsTrigger>
-          {bytes && <TabsTrigger value="download">Download</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="preview" className="pt-3">
@@ -334,20 +326,6 @@ export default function DocumentViewer({
             ))}
           </dl>
         </TabsContent>
-
-        {/* Download (only when bytes are present) */}
-        {bytes && (
-          <TabsContent value="download" className="pt-3">
-            <div className="flex flex-col items-start gap-2">
-              <p className="text-sm text-muted-foreground">
-                {filename} · {formatBytes(bytes.length)}
-              </p>
-              <Button variant="default" size="sm" onClick={() => downloadBytes(filename, bytes)}>
-                <Download /> Download {ft.label}
-              </Button>
-            </div>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );
