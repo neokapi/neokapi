@@ -170,6 +170,13 @@ const (
 	KeyFormatsPriorities = "formats.priorities"
 	KeyLanguage          = "language"
 	KeyUpdateChannel     = "update.channel"
+	// KeyAIProvider / KeyAIModel are the default AI provider and model used by AI
+	// tools (ai-translate, ai-qa, brand-voice-check, …) and flows when no
+	// --provider/--model flag or recipe default is given. Set e.g. to "gemma" to
+	// run locally by default. An explicit flag, inline config, or project recipe
+	// default still wins.
+	KeyAIProvider = "ai.provider"
+	KeyAIModel    = "ai.model"
 )
 
 // Registries returns the configured list of plugin registries.

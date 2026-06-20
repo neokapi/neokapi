@@ -87,6 +87,23 @@
           "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
           "short": "Generate shell completion script"
         },
+        "config": {
+          "example": "  kapi config set ai.provider gemma\n  kapi config set ai.model gemma-4-e2b\n  kapi config get ai.provider\n  kapi config list",
+          "get": {
+            "short": "Print a single config value"
+          },
+          "list": {
+            "short": "List all configured values"
+          },
+          "long": "Read and write kapi's app configuration (the global config file, typically ~/.config/kapi/kapi.yaml).\n\nCommon keys:\n  ai.provider   default AI provider for ai-translate / ai-qa / brand-voice-check / flows\n                (e.g. `gemma` to default to the free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.",
+          "path": {
+            "short": "Print the global config file path"
+          },
+          "set": {
+            "short": "Set a config value (persists to the global config file)"
+          },
+          "short": "Get or set kapi configuration"
+        },
         "convert": {
           "short": "Convert files between formats (use kconv)"
         },
