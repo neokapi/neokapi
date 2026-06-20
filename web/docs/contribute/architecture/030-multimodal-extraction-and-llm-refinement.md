@@ -154,9 +154,11 @@ Control flow:
    unsure`.
 4. **Call** — the explicitly-configured provider (capability-checked).
 5. **Rewrite** — emit an `EditPlan` rewriting the Block source; set its source
-   `Origin` engine to `llm:<provider>`; add a `qa` finding
-   ([AD-002](002-content-model.md)) marking the unit for review when the LLM output
-   diverges sharply from the Tier-1/Tier-2 guess or returns the refusal token.
+   `Origin` to the **`llm-refined`** kind ([AD-002](002-content-model.md)) — engine
+   `llm:<provider>`, with the prior recognizer's engine kept in `reference` so the
+   refinement is queryable without losing the original provenance — and add a `qa`
+   finding marking the unit for review when the LLM output diverges sharply from
+   the Tier-1/Tier-2 guess or returns the refusal token.
 
 `media-refine` is a **source-`Transform`** ([AD-006](006-tool-system.md)): it
 rewrites source, so it runs in a flow's leading **source-transform stage** — the
@@ -180,6 +182,11 @@ they came from. The path depends on how the text lives in the asset:
   registered), so audio/video cues extract → translate → merge back into a
   localized track the source platform ingests. For raw audio/video, ASR produces
   the cues and the **`timing` anchor** is the hand-off into the timed-text writer.
+  Registered built-in flows compose this end to end — `audio-to-subtitles`,
+  `video-to-subtitles`, and `image-ocr-translate`. Video extraction emits *both*
+  speech cues and geometry-anchored frame OCR, so `video-to-subtitles` runs a
+  **`subtitle-filter`** step first: it keeps only timing-anchored, non-geometry
+  Blocks, so on-screen text never leaks into the spoken-subtitle track.
 - **Embedded text layer with a skeleton.** PDF text layers and tagged formats
   re-apply targets through the format's writer (the skeleton mechanism, AD-029).
 - **Baked into pixels or waveform.** OCR text burned into an image, or speech in
@@ -191,8 +198,11 @@ they came from. The path depends on how the text lives in the asset:
 **Replace the asset.** Independently, the whole file is a localizable `Media`
 asset: the **target-asset variant model** (AD-029 — `IsBinaryAssetFormat`,
 `ResolveAssetVariants`) pairs a source image/audio/video with per-locale files and
-treats a localized variant on disk as authoritative. This is medium-agnostic —
-audio and video swap wholesale exactly as images do.
+treats a localized variant on disk as authoritative. This is medium-agnostic:
+`IsBinaryAssetFormat` covers image, audio, and video, each with a passthrough
+writer that emits the supplied per-locale bytes — audio and video swap wholesale
+exactly as images do. The engine never *synthesizes* localized media (no TTS, no
+re-encode); a replacement is a file the user or a connector provides.
 
 The modes compose on one asset: a video's subtitle track round-trips as text while
 the file itself stays replaceable; an image carries localized OCR/alt-text Blocks
@@ -210,10 +220,16 @@ and is swappable.
   already handles embedded content (HTML-in-JSON → child Layer,
   [AD-002](002-content-model.md)). It writes no transcription code of its own — it
   composes `kapi-asr` + `kapi-vision`.
-- **Labs** extend the same way: the in-browser Vision Lab is the image instance of
-  the pattern; an Audio Lab is its direct analog (transformers.js runs a Whisper
-  `automatic-speech-recognition` pipeline in-browser, as the Vision Lab runs OCR
-  and TrOCR).
+- **Labs** extend the same way, the same engines as the plugins with only the
+  runtime differing (WebAssembly, not native). The in-browser Vision Lab is the
+  image instance of the pattern; the **Audio Lab** is its direct analog
+  (transformers.js runs a Whisper `automatic-speech-recognition` pipeline
+  in-browser, as the Vision Lab runs OCR and TrOCR); the **Video Lab** composes
+  both — `ffmpeg.wasm` demuxes the clip into an audio track (→ Whisper) and sampled
+  frames (→ PP-OCRv5), the browser instance of the demux-format reader above. A
+  pre-recorded **Multimodal Showcase** plays the whole story over canned data, so
+  it needs no model download. The browser bridges live in `@neokapi/kapi-playground`
+  (`asrBridge`, `avBridge`, `visionBridge`).
 
 ### Faithfulness and guards
 

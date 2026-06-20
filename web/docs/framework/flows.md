@@ -232,10 +232,12 @@ look-alikes:
 
 The framework ships a set of built-in flows covering common workflows —
 AI translation, AI translation with a quality pass, pseudo-translation for
-layout testing, TM leverage, rule-based QA, and a redact-translate-restore flow
-for [sensitive content](/framework/redaction). Rather than maintain a list here,
-run `kapi flows` or see the [Command Reference](/commands), both generated from
-the live flow set.
+layout testing, TM leverage, rule-based QA, a redact-translate-restore flow
+for [sensitive content](/framework/redaction), and media-to-subtitles flows that
+turn audio and video into translated subtitle tracks (see
+[Localize audio &amp; video](/kapi/recipes/localize-media)). Rather than maintain a
+list here, run `kapi flows` or see the [Command Reference](/commands), both
+generated from the live flow set.
 
 ## Related reading
 

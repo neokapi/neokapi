@@ -37,6 +37,15 @@ A project's content is the set of files it translates. Glob patterns are grouped
   }}
 />
 
+Opening a file previews it the way the engine parses it: a **Preview** of the
+rendered document with the source ↔ target toggle, a **Blocks** list, and —
+where the format carries them — a **Structure** view (roles, reading order) and a
+**Layout** view (page-scaled bounding boxes). For media, a **Media** tab renders
+the asset itself: an image with its OCR boxes overlaid, or an audio/video player
+with the recognized cues as a synced subtitle track and on-screen frame text
+shown at its timecode. Opening an image, audio, or video file offers to install
+the engine plugin it needs (kapi-vision / kapi-asr / kapi-av) on first use.
+
 ### Compose flows
 
 A project's flows are the pipelines it runs over its content — a plain AI translation, a translation followed by quality checks, a pseudo-translation for testing. Each flow is a named sequence of steps, saved alongside the project and shared through version control. Open one to see and edit its pipeline.

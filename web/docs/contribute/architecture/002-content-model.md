@@ -107,7 +107,14 @@ Resource types:
 - **Block** — translatable content: a source run sequence and per-locale
   target run sequences, plus optional stand-off overlays.
 - **Data** — non-translatable structure (skeleton, metadata).
-- **Media** — binary content (images, embedded files).
+- **Media** — binary content (images, embedded files). A `Media` is a binary
+  **reference**, never inlined bytes: resolution precedence is `BlobKey` (a
+  content-addressed key in the `BlobStore`) `>` `URI` (an external/CDN reference)
+  `>` `Data` (inline, for small pipeline-internal assets only). A large raster or
+  media track therefore never streams through the Part channel or the gRPC plugin
+  boundary; a single helper at the consuming boundary (a writer, a provider call)
+  materializes the bytes. This is the one binary idiom across the content model,
+  path-based plugin I/O, and AI provider parts ([AD-011](011-ai-providers.md)).
 
 `PartResult{Part, Error}` carries both content and errors on the same
 channel, letting tools decide how to handle errors (skip, retry, fail)
@@ -161,8 +168,9 @@ type Target struct {
     Runs   []Run
     Status TargetStatus // draft | translated | reviewed | signed-off
     Origin Origin       // how the content was produced: human | tm | mt | ai |
-                        // ocr | asr, plus engine, confidence, reference — the same
-                        // record a recognized *source* carries (see Anchoring)
+                        // ocr | asr | llm-refined, plus engine, confidence,
+                        // reference — the same record a recognized *source*
+                        // carries (see Anchoring)
     Score  float64
 }
 ```
