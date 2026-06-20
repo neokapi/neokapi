@@ -1,0 +1,15 @@
+{
+  "name": "neokapi-pr-previews",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Cloudflare Worker that serves neokapi PR previews from R2 (previews/ prefix).",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "wrangler": "^4.0.0"
+  }
+}

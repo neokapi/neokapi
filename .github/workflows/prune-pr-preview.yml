@@ -1,11 +1,13 @@
 name: Prune PR Preview
 
 # When a PR closes (merged or not), its preview under /web/prs/<N>/ and
-# /storybook/prs/<N>/ on the neokapi.github.io org pages repo is dead weight.
-# Previews were never pruned, so they accumulated to tens of thousands of files
-# and slowed the GitHub Pages build (and widened the pages-deploy push race).
-# This job removes the closed PR's preview directories. Previews are ephemeral
-# and regenerate on the next push to an open PR, so this is always safe.
+# /storybook/prs/<N>/ is dead weight. Previews now live in Cloudflare R2 (under
+# the previews/ prefix, served by the neokapi-pr-previews Worker), not in the
+# neokapi.github.io git repo, so teardown is an R2 delete — instant, and it
+# actually reclaims the storage (the old git prune only removed files from the
+# tip; every binary stayed in history forever and bloated the repo to GB).
+#
+# This also reclaims the per-PR Actions caches the closed PR's CI runs created.
 
 on:
   pull_request:
@@ -20,68 +22,37 @@ permissions:
   contents: read
 
 concurrency:
-  # Share the pages-deploy branch; never cancel an in-flight publish. Cross-source
-  # pushes race on main and are handled by the rebase-retry loop below.
-  group: pages-deploy-prune-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  group: prune-pr-preview-${{ github.event.pull_request.number || github.event.inputs.pr }}
   cancel-in-progress: false
 
 jobs:
-  prune:
+  prune-preview:
+    name: Prune R2 preview
     runs-on: ubuntu-latest
+    # Fork PRs never got a preview (the deploy needs the R2 secret); only run
+    # for same-repo PRs and manual dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     env:
-      PAGES_REPO: github.com:neokapi/neokapi.github.io.git
       PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
     steps:
-      - name: Set up SSH for org pages repo
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+      - uses: actions/checkout@v6
+      - name: Validate PR number
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          # Pin GitHub's published ed25519 host key instead of trusting a runtime
-          # ssh-keyscan (which is itself MITM-able). Verified, not skipped.
-          # https://docs.github.com/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
-          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GkZH" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Prune preview for the closed PR
-        env:
-          GIT_SSH_COMMAND: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes
-        run: |
-          set -euo pipefail
-          # PR comes from github.event (an integer for pull_request) or a manual
-          # workflow_dispatch input (untrusted). Hard-validate it is purely numeric
-          # before it ever reaches a path/rm — no traversal, no shell injection.
+          # PR comes from github.event (an integer for pull_request) or an
+          # untrusted manual workflow_dispatch input; hard-validate it is purely
+          # numeric before it reaches a path/rm.
           case "$PR" in
             ''|*[!0-9]*) echo "::error::PR must be a number, got: '$PR'"; exit 1 ;;
           esac
-          # Depth 50 (not 1) so the rebase-retry below has a merge base, matching
-          # pages-deploy.yml. A shallow depth-1 clone cannot rebase onto main.
-          git clone --depth 50 "git@${PAGES_REPO}" pages
-          cd pages
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          rm -rf "web/prs/${PR}" "storybook/prs/${PR}"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "::notice::no preview for PR #${PR}; nothing to prune"
-            exit 0
-          fi
-          git commit -m "chore(pages): prune preview for closed PR #${PR}"
-
-          for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
-              echo "::notice::pruned preview for PR #${PR}"
-              exit 0
-            fi
-            echo "push rejected (attempt ${attempt}); rebasing onto latest main…"
-            git fetch origin main
-            git rebase origin/main || { echo "::error::pages rebase hit a conflict"; exit 1; }
-          done
-          echo "::error::pages push failed after retries"
-          exit 1
+      - name: Remove preview from R2
+        env:
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: bash scripts/prune-pr-preview.sh "$PR"
 
   # Reclaim the Actions caches a closed PR's CI runs created. PR runs are scoped
   # to refs/pull/<N>/merge; once the PR is closed those build/test caches are

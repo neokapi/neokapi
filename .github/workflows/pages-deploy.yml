@@ -1,21 +1,28 @@
 name: Pages Deploy
 
-# Combines artifacts from multiple build sources into a single deployment
-# to the neokapi.github.io org pages repo, under a path-based layout:
+# Combines artifacts from multiple build sources into deployments under a
+# path-based layout. PRODUCTION goes to the neokapi.github.io org Pages repo;
+# PR PREVIEWS go to Cloudflare R2 (served by the neokapi-pr-previews Worker),
+# NOT into git:
 #
-#   /                        kapi/framework Docusaurus site (production, SITE ROOT)
-#   /web/bowrain/            bowrain-web Vite app (production)
-#   /web/bowrain/docs/       bowrain Docusaurus site (production)
-#   /storybook/kapi/         kapi storybook (production)
-#   /storybook/bowrain/      bowrain storybook (production)
-#   /web/prs/{N}/...         PR previews
-#   /storybook/prs/{N}/...   PR previews
+#   PRODUCTION (committed to neokapi.github.io)
+#     /                        kapi/framework Docusaurus site (SITE ROOT)
+#     /web/bowrain/            bowrain-web Vite app
+#     /web/bowrain/docs/       bowrain Docusaurus site
+#     /storybook/kapi/         kapi storybook
+#     /storybook/bowrain/      bowrain storybook
 #
-# The neokapi Docusaurus site is the product landing page AND the docs; it owns
-# the SITE ROOT (/) directly (a separate Vite landing app was retired and
-# folded into the docs home). It is laid down at the repo root, preserving the
-# path-mounted sub-apps (web/, storybook/). bowrain still has a Vite landing at
-# /web/bowrain/ with its Docusaurus docs one level deeper at /web/bowrain/docs/.
+#   PR PREVIEWS (synced to R2 previews/ prefix, served at $DOCS_PREVIEW_URL)
+#     /web/prs/{N}/...         site/app previews
+#     /storybook/prs/{N}/...   storybook previews
+#
+# Why previews moved off git: every preview deploy committed the full wasm
+# (~73 MB) + vision model (~132 MB) + video payload into the Pages repo, which
+# grew to multiple GB of history that prune-on-close could not reclaim (it only
+# removed files from the tip). R2 has no per-file size limit, an `rm` actually
+# frees the storage, and the baked absolute base URLs (/web/prs/<N>/…) resolve
+# unchanged from the preview host root — so no build changes are needed.
+# See deploy/preview-worker/README.md and scripts/publish-pr-preview.sh.
 #
 # Artifact names this workflow looks for:
 #   kapi-site, bowrain-site           — Docusaurus build outputs
@@ -43,8 +50,9 @@ concurrency:
   # so a queued bowrain-docs deploy gets silently dropped when a kapi-docs deploy
   # queues behind a running one. Per-source groups mean different sources never
   # cancel each other; same-source builds still serialize. cancel-in-progress is
-  # false so an in-flight publish always finishes. Cross-source deploys may run
-  # concurrently and race on the shared branch — the push step rebase-retries.
+  # false so an in-flight publish always finishes. Cross-source production
+  # deploys may run concurrently and race on the shared branch — the push step
+  # rebase-retries. PR previews write disjoint R2 prefixes and never race.
   group: pages-deploy-${{ github.event.workflow_run.name || github.event_name }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
 
@@ -55,31 +63,6 @@ jobs:
     env:
       PAGES_REPO: github.com:neokapi/neokapi.github.io.git
     steps:
-      - name: Set up SSH for org pages repo
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
-
-      - name: Clone neokapi.github.io
-        run: |
-          # Depth 50 (not 1) so the push step can rebase onto a concurrent
-          # deploy's commit: a shallow depth-1 clone has no merge base, so the
-          # rebase-retry below would fail. 50 covers any realistic race window.
-          git clone --depth 50 "git@${PAGES_REPO}" pages
-          cd pages
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Initialize tree skeleton if missing
-        run: |
-          mkdir -p pages/web/neokapi pages/web/bowrain pages/web/prs
-          mkdir -p pages/storybook/kapi pages/storybook/bowrain pages/storybook/prs
-
       - name: Determine target paths (production vs PR preview)
         id: target
         env:
@@ -139,6 +122,39 @@ jobs:
               echo "is_pr=false"
             } >> "$GITHUB_OUTPUT"
           fi
+
+      # ---- PRODUCTION ONLY: clone the org Pages repo so disjoint sibling
+      # subtrees are preserved across a partial (single-source) deploy. PR
+      # previews don't clone — they write only their own subtree to R2.
+      - name: Set up SSH for org pages repo
+        if: ${{ steps.target.outputs.is_pr == 'false' && steps.target.outputs.skip != 'true' }}
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
+
+      - name: Clone neokapi.github.io
+        if: ${{ steps.target.outputs.is_pr == 'false' && steps.target.outputs.skip != 'true' }}
+        run: |
+          # Depth 50 (not 1) so the push step can rebase onto a concurrent
+          # deploy's commit: a shallow depth-1 clone has no merge base, so the
+          # rebase-retry below would fail. 50 covers any realistic race window.
+          git clone --depth 50 "git@${PAGES_REPO}" pages
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Both production (into the clone) and PR previews (into a fresh dir) slot
+      # artifacts under pages/<dest>; this just guarantees the dirs exist.
+      - name: Initialize tree skeleton
+        if: ${{ steps.target.outputs.skip != 'true' }}
+        run: |
+          mkdir -p pages/web/bowrain pages/web/prs
+          mkdir -p pages/storybook/kapi pages/storybook/bowrain pages/storybook/prs
 
       # Discover which artifacts the triggering run actually produced, so the
       # per-slot downloads below only run for present artifacts — no more scary
@@ -301,11 +317,9 @@ jobs:
           mkdir -p "pages/${DEST}"
           cp -r artifacts/bowrain-storybook/* "pages/${DEST}/"
 
-      - name: Commit and push
-        if: ${{ steps.target.outputs.skip != 'true' }}
-        env:
-          IS_PR: ${{ steps.target.outputs.is_pr }}
-          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+      # ---- PRODUCTION publish: commit + push to the org Pages repo.
+      - name: Commit and push (production)
+        if: ${{ steps.target.outputs.is_pr == 'false' && steps.target.outputs.skip != 'true' }}
         working-directory: pages
         run: |
           git add -A
@@ -313,11 +327,7 @@ jobs:
             echo "No changes to deploy"
             exit 0
           fi
-          if [ "$IS_PR" = "true" ]; then
-            git commit -m "deploy: PR #${PR_NUMBER} preview"
-          else
-            git commit -m "deploy: production sites"
-          fi
+          git commit -m "deploy: production sites"
           # Cross-source deploys (kapi docs / bowrain docs / storybook / web) run
           # in separate concurrency groups and can race on this shared branch.
           # Each writes a disjoint subtree, so rebasing our single commit onto a
@@ -342,20 +352,36 @@ jobs:
             sleep $((attempt * 3))
           done
 
+      # ---- PR PREVIEW publish: sync the PR's own subtree to the R2 previews
+      # prefix. No git, no per-file size limit, served by neokapi-pr-previews.
+      - name: Publish PR preview to R2
+        if: ${{ steps.target.outputs.is_pr == 'true' && steps.target.outputs.skip != 'true' }}
+        env:
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+        run: bash scripts/publish-pr-preview.sh "${PR_NUMBER}" pages
+
       - name: Comment PR preview link
-        if: ${{ steps.target.outputs.is_pr == 'true' }}
+        if: ${{ steps.target.outputs.is_pr == 'true' && steps.target.outputs.skip != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          # The neokapi-pr-previews Worker origin (repo variable), e.g.
+          # https://preview.bowrain.cloud — see deploy/preview-worker/README.md.
+          PREVIEW_URL: ${{ vars.DOCS_PREVIEW_URL }}
         run: |
+          BASE="${PREVIEW_URL:-https://preview.bowrain.cloud}"
           MARKER="<!-- pr-preview-links -->"
           BODY="${MARKER}
-          📚 Preview deployed:
-          - neokapi site: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/docs/
-          - bowrain landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/
-          - bowrain docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/docs/
-          - kapi storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/kapi/
-          - bowrain storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/bowrain/"
+          📚 Preview deployed (served from Cloudflare R2, not committed to git):
+          - neokapi site: ${BASE}/web/prs/${PR_NUMBER}/neokapi/docs/
+          - bowrain landing: ${BASE}/web/prs/${PR_NUMBER}/bowrain/
+          - bowrain docs: ${BASE}/web/prs/${PR_NUMBER}/bowrain/docs/
+          - kapi storybook: ${BASE}/storybook/prs/${PR_NUMBER}/kapi/
+          - bowrain storybook: ${BASE}/storybook/prs/${PR_NUMBER}/bowrain/"
           # Reuse a single sticky comment: find the previous preview comment by
           # its hidden marker and edit it in place; create one only if none exists.
           COMMENT_ID=$(gh api \
