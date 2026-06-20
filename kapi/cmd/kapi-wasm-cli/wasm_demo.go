@@ -77,7 +77,7 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 		// (drop only any stray key) so the demo coercion below does not override
 		// it. The model downloads on demand on the page, so this is opt-in — the
 		// default stays the keyless demo provider.
-		if prov, _ := config["provider"].(string); prov == string(aiprovider.Gemma) {
+		if prov, _ := config["provider"].(string); prov == string(gemmaProviderID) {
 			delete(config, "apiKey")
 			return config, nil
 		}

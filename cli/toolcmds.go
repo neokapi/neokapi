@@ -262,16 +262,23 @@ func (a *App) NewToolCommands() []*cobra.Command {
 							}
 						}
 					}
+					// Drop the flag/schema default provider+model when the user did
+					// NOT explicitly set them, so a configured default can take
+					// effect (project recipe defaults, then the app-config
+					// ai.provider/ai.model applied by the registry preprocessor).
+					// Without this, the flag's "anthropic" default would always sit
+					// in the config and mask the configured default. When nothing is
+					// configured, AI tools still fall back to their schema default
+					// downstream, so behavior is unchanged for the no-config case.
+					if f := cmd.Flags().Lookup("provider"); f != nil && !cmd.Flags().Changed("provider") {
+						delete(config, "provider")
+					}
+					if f := cmd.Flags().Lookup("model"); f != nil && !cmd.Flags().Changed("model") {
+						delete(config, "model")
+					}
 					credName, _ := cmd.Flags().GetString("credential")
 					if credName != "" {
 						config["credential"] = credName
-						// When a named credential is given and --provider was not
-						// explicitly set by the user, drop the schema default so
-						// ResolveCredentials can inject the credential's own
-						// provider_type (fixes #637).
-						if !cmd.Flags().Changed("provider") {
-							delete(config, "provider")
-						}
 					}
 					if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 						config["onProgress"] = aiProgressWriter(os.Stderr)

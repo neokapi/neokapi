@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T12:34:19Z",
+  "generatedAt": "2026-06-20T15:13:41Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -120,7 +120,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -258,7 +258,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -394,7 +394,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -524,7 +524,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -671,7 +671,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -1433,7 +1433,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },
@@ -3209,7 +3209,7 @@
         },
         {
           "name": "provider",
-          "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
+          "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
           "default": "anthropic",
           "type": "string"
         },

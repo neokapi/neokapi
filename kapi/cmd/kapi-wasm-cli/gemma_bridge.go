@@ -41,9 +41,14 @@ import (
 // on the JS promise lets the event loop continue (no deadlock).
 const gemmaJSFunc = "kapiGemmaGenerate"
 
+// gemmaProviderID is the AI-provider id the in-browser host registers — the same
+// "gemma" id the native cli host uses, kept out of the framework (providers/ai
+// stays model-agnostic).
+const gemmaProviderID aiprovider.ProviderID = "gemma"
+
 func init() {
 	aiprovider.RegisterProvider(
-		aiprovider.ProviderInfo{Name: aiprovider.Gemma, Label: "Gemma (local, in-browser)"},
+		aiprovider.ProviderInfo{Name: gemmaProviderID, Label: "Gemma (local, in-browser)", Local: true},
 		func(cfg aiprovider.Config) aiprovider.LLMProvider { return newGemmaBrowserProvider(cfg) },
 	)
 }
@@ -59,7 +64,7 @@ func newGemmaBrowserProvider(cfg aiprovider.Config) *gemmaBrowserProvider {
 	return &gemmaBrowserProvider{cfg: cfg}
 }
 
-func (p *gemmaBrowserProvider) Name() aiprovider.ProviderID { return aiprovider.Gemma }
+func (p *gemmaBrowserProvider) Name() aiprovider.ProviderID { return gemmaProviderID }
 
 func (p *gemmaBrowserProvider) InputModalities() []aiprovider.Modality {
 	return []aiprovider.Modality{aiprovider.ModalityImage, aiprovider.ModalityAudio}

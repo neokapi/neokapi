@@ -37,7 +37,7 @@ func withFake(t *fakeLLMTransport, cfg aiprovider.Config) *llmProvider {
 
 func TestGemmaProviderIdentity(t *testing.T) {
 	p := newLLMProvider(aiprovider.Config{})
-	assert.Equal(t, aiprovider.Gemma, p.Name())
+	assert.Equal(t, gemmaProviderID, p.Name())
 	assert.Equal(t, defaultGemmaModel, p.cfg.Model, "default model filled in")
 	mods := p.InputModalities()
 	assert.Contains(t, mods, aiprovider.ModalityImage)
@@ -46,8 +46,8 @@ func TestGemmaProviderIdentity(t *testing.T) {
 
 func TestGemmaRegisteredAsLocalProvider(t *testing.T) {
 	// The init() registration makes Gemma selectable, and it must be local.
-	assert.Contains(t, aiprovider.ProviderNames(), string(aiprovider.Gemma))
-	assert.True(t, aiprovider.IsLocalProvider(aiprovider.Gemma))
+	assert.Contains(t, aiprovider.ProviderNames(), string(gemmaProviderID))
+	assert.True(t, aiprovider.IsLocalProvider(gemmaProviderID))
 }
 
 func TestGemmaChat(t *testing.T) {

@@ -218,32 +218,27 @@ const (
 	Gemini      ProviderID = "gemini"
 	AzureOpenAI ProviderID = "azureopenai"
 	Ollama      ProviderID = "ollama"
-	// Gemma is the local, on-device Gemma 4 provider backed by the kapi-llm
-	// plugin (in-process ONNX). It needs no API key and keeps content on the
-	// machine — a free, private alternative to the paid cloud providers. The
-	// provider implementation and factory live in the cli module (it drives the
-	// plugin subprocess); the id is declared here so it is a known local
-	// provider for flow side-effect analysis.
-	Gemma ProviderID = "gemma"
 	// Demo is a deterministic, offline provider that returns illustrative
 	// (not real-model) output. Used by the browser playground so AI commands
 	// run with no API keys. See demo.go.
 	Demo ProviderID = "demo"
 )
 
-// IsLocalProvider reports whether the provider keeps content on the machine:
-// Ollama and Gemma serve local models and Demo is offline, while the cloud
-// providers (Anthropic, OpenAI, Gemini, Azure OpenAI — and any unknown provider,
-// which is assumed remote fail-closed) send content to a remote endpoint. The
-// flow placement pass uses this to refine a tool's remote-source-egress side
-// effect from its configuration (AD-006).
+// IsLocalProvider reports whether a registered provider keeps content on the
+// machine (no remote egress). It is a registration property — a provider sets
+// ProviderInfo.Local at RegisterProvider time — not a hardcoded list, so the
+// framework needs no knowledge of specific local backends. Plugin-registered
+// providers (e.g. the cli's "gemma", driven by the kapi-llm plugin) declare
+// themselves local the same way the built-in Ollama/Demo do. An unregistered or
+// non-local provider returns false (cloud, fail-closed). The flow placement pass
+// uses this to refine a tool's remote-source-egress side effect (AD-006).
 func IsLocalProvider(id ProviderID) bool {
-	switch id {
-	case Ollama, Gemma, Demo:
-		return true
-	default:
-		return false
+	for _, reg := range globalProviders {
+		if reg.Info.Name == id || slices.Contains(reg.Aliases, id) {
+			return reg.Info.Local
+		}
 	}
+	return false
 }
 
 // ProviderFactory creates an LLMProvider from a Config.
@@ -255,6 +250,10 @@ type ProviderInfo struct {
 	Name ProviderID
 	// Label is the human-readable display name (e.g. "Anthropic").
 	Label string
+	// Local reports that the provider runs on-device with no remote egress and
+	// needs no API key (Ollama, Demo, and plugin providers like Gemma). Drives
+	// IsLocalProvider and the keyless credential/UX paths.
+	Local bool
 }
 
 // providerRegistration bundles a factory with metadata.
@@ -277,9 +276,9 @@ func init() {
 	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI"},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
-	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama"},
+	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama", Local: true},
 		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)"},
+	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)", Local: true},
 		func(cfg Config) LLMProvider { return NewDemoProvider(cfg) })
 }
 

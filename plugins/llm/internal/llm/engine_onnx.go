@@ -64,6 +64,9 @@ type onnxEngine struct {
 type loadedModel struct {
 	tk  *tokenizers.Tokenizer
 	cfg modelConfig
+	// family selects the chat-template assembly (see buildPromptIDs). Other
+	// pipeline stages (embed, decode loop, KV cache, sampling) are family-agnostic.
+	family string
 
 	embed   *ort.DynamicAdvancedSession
 	decoder *ort.DynamicAdvancedSession
@@ -198,7 +201,11 @@ func (e *onnxEngine) get(name string) (*loadedModel, error) {
 		return nil, fmt.Errorf("llm: load tokenizer: %w", err)
 	}
 
-	m := &loadedModel{tk: tk, cfg: cfg, runMu: &sync.Mutex{}}
+	family := "gemma"
+	if spec, ok := model.Lookup(name); ok && spec.Family != "" {
+		family = spec.Family
+	}
+	m := &loadedModel{tk: tk, cfg: cfg, family: family, runMu: &sync.Mutex{}}
 	if err := m.openEmbed(paths.Embed); err != nil {
 		m.destroy()
 		return nil, err

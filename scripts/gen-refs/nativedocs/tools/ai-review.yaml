@@ -17,7 +17,7 @@ parameters:
     description: The LLM provider backend to use.
     help: |
       Selects which model backend performs the review.
-    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
   apiKey:
     description: API key for the AI provider.
     help: |

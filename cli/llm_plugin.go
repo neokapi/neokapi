@@ -37,9 +37,14 @@ import (
 // This file is excluded from the js/wasm build (//go:build !js): the browser
 // build cannot spawn a subprocess and gets a transformers.js-backed Gemma
 // provider instead.
+// gemmaProviderID is the AI-provider id this host registers. It lives here, not
+// in the framework: providers/ai stays model-agnostic, and the cli (which owns
+// the kapi-llm plugin subprocess) declares the concrete local provider.
+const gemmaProviderID aiprovider.ProviderID = "gemma"
+
 func init() {
 	aiprovider.RegisterProvider(
-		aiprovider.ProviderInfo{Name: aiprovider.Gemma, Label: "Gemma (local)"},
+		aiprovider.ProviderInfo{Name: gemmaProviderID, Label: "Gemma (local)", Local: true},
 		func(cfg aiprovider.Config) aiprovider.LLMProvider { return newLLMProvider(cfg) },
 	)
 }
@@ -117,7 +122,7 @@ func newLLMProvider(cfg aiprovider.Config) *llmProvider {
 	return &llmProvider{cfg: cfg}
 }
 
-func (p *llmProvider) Name() aiprovider.ProviderID { return aiprovider.Gemma }
+func (p *llmProvider) Name() aiprovider.ProviderID { return gemmaProviderID }
 
 // InputModalities advertises image and audio: the engine runs Gemma 4's vision
 // and audio encoders. (Video needs frame extraction and is not accepted here.)

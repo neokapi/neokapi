@@ -19,6 +19,8 @@ import { useError } from "./ErrorBanner";
 interface ProviderTypeOption {
   name: string;
   label: string;
+  /** On-device providers (Ollama, Gemma, Demo) need no API key. */
+  local?: boolean;
 }
 
 export interface CredentialsPageProps {
@@ -220,18 +222,25 @@ export function CredentialsPage({
                   placeholder="claude-sonnet-4-5-20241022"
                 />
               </div>
-              <div>
-                <Label htmlFor="cred-apikey" className="mb-1 block text-xs text-muted-foreground">
-                  API Key
-                </Label>
-                <Input
-                  id="cred-apikey"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                />
-              </div>
+              {providerTypes.find((t) => t.name === editing.provider_type)?.local ? (
+                <div>
+                  <Label className="mb-1 block text-xs text-muted-foreground">API Key</Label>
+                  <Badge variant="secondary">{t("Runs on-device — no API key needed")}</Badge>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="cred-apikey" className="mb-1 block text-xs text-muted-foreground">
+                    API Key
+                  </Label>
+                  <Input
+                    id="cred-apikey"
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-..."
+                  />
+                </div>
+              )}
             </div>
             <div className="mt-3 flex gap-2">
               <Button
