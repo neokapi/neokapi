@@ -48,8 +48,10 @@ const ONE_F16 = 0x3c00; // 1.0 in IEEE-754 half precision
 // ---------------------------------------------------------------------------
 
 interface Tokenizer {
-  encode(text: string, pair: unknown, opts: { add_special_tokens: boolean }): number[];
-  model: { vocab: Array<[string, number]> | Record<number, string> };
+  // transformers.js v4: options is the SECOND arg ({ text_pair, add_special_tokens }).
+  encode(text: string, opts?: { add_special_tokens?: boolean }): number[];
+  // tokenize() returns the subword pieces (▁-prefixed) parallel to encode()'s ids.
+  tokenize(text: string, opts?: { add_special_tokens?: boolean }): string[];
 }
 
 interface Loaded {
@@ -145,15 +147,6 @@ interface TokenSpan {
   end: number; // code-point index, exclusive
 }
 
-function idToPiece(tk: Tokenizer, id: number): string {
-  const v = tk.model.vocab as unknown;
-  if (Array.isArray(v)) {
-    const entry = v[id];
-    return Array.isArray(entry) ? entry[0] : String(entry ?? "");
-  }
-  return (v as Record<number, string>)[id] ?? "";
-}
-
 // tokenizeWithOffsets returns the content token ids (no special tokens) and a
 // parallel array of code-point spans into `text`. Offsets are reconstructed from
 // the SentencePiece pieces: a leading `▁` (U+2581) marks a word start (a space in
@@ -161,13 +154,15 @@ function idToPiece(tk: Tokenizer, id: number): string {
 // The match is tolerant (it skips a source char on a normalization mismatch) so
 // offsets stay monotonic even when XLM-R's normalizer diverges from the raw text.
 function tokenizeWithOffsets(tk: Tokenizer, text: string): { ids: number[]; spans: TokenSpan[] } {
-  const ids = tk.encode(text, null, { add_special_tokens: false });
+  // ids feed the model; pieces (parallel, same order) drive offset reconstruction.
+  const ids = tk.encode(text, { add_special_tokens: false });
+  const pieces = tk.tokenize(text, { add_special_tokens: false });
   const cps = Array.from(text);
   const isSpace = (s: string) => /\s/.test(s);
   const spans: TokenSpan[] = [];
   let pos = 0;
-  for (const id of ids) {
-    let piece = idToPiece(tk, id);
+  for (let i = 0; i < ids.length; i++) {
+    let piece = pieces[i] ?? "";
     const wordStart = piece.startsWith("▁");
     if (wordStart) piece = piece.slice(1);
     // A word-initial piece follows whitespace in the source; consume it.
