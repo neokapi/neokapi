@@ -20,7 +20,7 @@ export default function ConversionLabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>Conversion Lab</h1>
           <p className={styles.lede}>
-            Pick a document and a target format: the <Link to="/reference/formats">native reader</Link>{" "}
+            Pick a document and a target format: the <Link to="/reference">native reader</Link>{" "}
             parses it into the content model (roles, runs, tables, geometry), and a{" "}
             <strong>generative writer</strong> re-serializes that model — so structure and inline
             styling survive the hop. Toggle between the <strong>Rendered</strong> page and the{" "}
