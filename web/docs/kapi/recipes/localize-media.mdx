@@ -3,7 +3,7 @@ id: localize-media
 title: "Localize audio & video"
 sidebar_label: "Localize audio & video"
 sidebar_position: 8
-description: "Turn speech and on-screen text into translated subtitle tracks, round-trip OCR'd image text, or swap a whole media file per locale — with the kapi-asr, kapi-av, and kapi-vision plugins."
+description: "Turn speech and on-screen text into translated subtitle tracks, translate the text in an image, or swap a whole media file per locale."
 hide_table_of_contents: true
 ---
 
@@ -11,39 +11,34 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Localize audio & video
 
-kapi localizes a media asset two independent ways, and an asset can use both:
+There are two ways to localize a media file, and you can use both on the same one:
 
-- **Translate the extracted content** — the speech in audio, the spoken track and
-  on-screen text in video, the text OCR'd from an image. The recognized text
-  translates and round-trips into a text-carrying artifact (a subtitle track, an
-  alt-text sidecar).
-- **Replace the whole asset** — the file itself is the deliverable: you supply a
-  per-locale version and the project treats it as authoritative.
+- **Translate the text inside it** — the speech in audio, the dialogue and
+  on-screen text in video, the words in an image. kapi recognizes the text,
+  translates it, and gives you back a subtitle file or a translated caption.
+- **Replace the whole file** — when the file itself is the deliverable, supply a
+  translated version per language and kapi uses it as the localized asset.
 
-The recognition runs locally through plugins, mirrored exactly by the
-[in-browser labs](/lab/audio). This is the architecture in
-[AD-030](/contribute/architecture/030-multimodal-extraction-and-llm-refinement).
+Recognition runs on your machine. To try it with no install, use the
+[in-browser labs](/lab/audio).
 
-## Install the engine plugins
+## Install the engines
 
-The readers are built in, but the recognition/demux engines ship as plugins.
-Install only what a format needs:
+The recognizers install as plugins — add only what you need:
 
 ```bash
-kapi plugin install asr      # speech recognition (audio + the video speech track)
-kapi plugin install av       # video demux (audio track + sampled frames)
-kapi plugin install vision   # image / frame OCR
+kapi plugin install asr      # speech recognition (audio, and a video's dialogue)
+kapi plugin install av       # video support
+kapi plugin install vision   # reading text from images and video frames
 ```
 
-They are also available from Homebrew (`brew install neokapi/tap/kapi-asr`,
-`kapi-av`, `kapi-vision`). Without the engine a media file still opens — as an
-opaque, replaceable `Media` asset — so the *replace-asset* path needs no plugin.
+They are also on Homebrew (`brew install neokapi/tap/kapi-asr`, `kapi-av`,
+`kapi-vision`). The replace-the-file path below needs none of them.
 
 ## Audio → subtitles
 
-`kapi-asr` transcribes the speech into timing-anchored cues; `ai-translate` fills
-the target; the subtitle writer (chosen by the output extension) emits a localized
-`.vtt`/`.srt`/`.ttml`:
+Transcribe the speech, translate it, and write a subtitle file — the output
+format follows the extension you give (`.vtt`, `.srt`, or `.ttml`):
 
 ```bash
 kapi run audio-to-subtitles -i talk.m4a -o talk.fr.vtt --target-lang fr
@@ -51,17 +46,15 @@ kapi run audio-to-subtitles -i talk.m4a -o talk.fr.vtt --target-lang fr
 
 ## Video → subtitles
 
-Video extraction yields *two* streams — the spoken track and on-screen frame
-text. `video-to-subtitles` runs a `subtitle-filter` step first so only the
-timing-anchored speech reaches the subtitle track; on-screen text (geometry
-anchored) is dropped from the spoken subtitles:
+A video has both spoken dialogue and text shown on screen. `video-to-subtitles`
+subtitles **only the dialogue**, so on-screen titles and captions don't end up in
+your subtitle file:
 
 <PipelineDiagram
   stages={[
-    { label: "Demux + ASR", sub: "kapi-av · kapi-asr", role: "io" },
-    { label: "subtitle-filter", sub: "drop frame OCR", role: "tool" },
-    { label: "ai-translate", role: "translate" },
-    { label: "Write VTT/SRT", role: "io" },
+    { label: "Transcribe", sub: "the dialogue", role: "io" },
+    { label: "Translate", role: "translate" },
+    { label: "Subtitle file", role: "io" },
   ]}
 />
 
@@ -69,35 +62,28 @@ anchored) is dropped from the spoken subtitles:
 kapi run video-to-subtitles -i clip.mp4 -o clip.fr.vtt --target-lang fr
 ```
 
-When neither `kapi-av` nor `kapi-asr` is installed the video opens as an opaque
-`Media` asset instead of erroring — ready for the replace-asset path below.
-
 ## Image text → translated
 
-`kapi-vision` OCRs the image into geometry-anchored blocks; `ai-translate`
-translates them; the image writer round-trips the localized caption to an
-`<image>.alt.txt` sidecar (the pixels are not re-rendered):
+Read the text in an image, translate it, and write the localized caption to a
+companion `<image>.alt.txt` file (the picture itself is not redrawn):
 
 ```bash
 kapi run image-ocr-translate -i banner.png --target-lang fr
 ```
 
-Low-confidence lines can be re-read by a configurable multimodal LLM with the
-`media-refine` tool — see
-[AD-030](/contribute/architecture/030-multimodal-extraction-and-llm-refinement).
+When recognition is uncertain, you can have an AI model re-read the unclear parts
+for a cleaner result — point it at the provider you already use for translation.
 
-## Replace the whole asset
+## Replace the whole file
 
-When the deliverable is the file itself, pair the source with a per-locale variant
-and the project treats it as authoritative — medium-agnostic across image, audio,
-and video. In a [`.kapi` project](/kapi/modes) the variant lives beside the source
-on the locale path (for example `assets/fr/promo.mp4`); `kapi pull`/`kapi push`
-and the writer carry that file through unchanged. The engine never *synthesizes*
-localized media (no TTS, no re-encode) — a replacement is a file you or a
-connector provide.
+When the deliverable is the file itself, give kapi a translated version per
+language and it uses that as the localized asset — the same for images, audio,
+and video. In a [`.kapi` project](/kapi/modes) the translated file lives beside
+the source on the language path (for example `assets/fr/promo.mp4`); `kapi pull`
+and `kapi push` carry it through unchanged. kapi does not generate localized media
+for you (no text-to-speech, no re-encoding) — you provide the translated file.
 
 ## Related
 
-- [In-browser labs](/lab/audio) — run the same engines client-side (no install).
-- [Flows](/framework/flows) and the generated [Command Reference](/commands).
-- [AD-030: Multimodal extraction](/contribute/architecture/030-multimodal-extraction-and-llm-refinement).
+- [In-browser labs](/lab/audio) — try the same thing client-side, with nothing to install.
+- The [Command Reference](/commands) for every flow and flag.

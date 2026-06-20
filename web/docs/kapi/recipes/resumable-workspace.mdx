@@ -4,7 +4,7 @@ title: "Work in a .klz workspace"
 sidebar_label: "Workspace (.klz)"
 sidebar_position: 6
 description: "A .klz is a single-file, serverless localization workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config (locales, output layout) travels with the file."
-keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff, AD-025]
+keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff]
 ---
 
 # Work in a `.klz` workspace
@@ -12,10 +12,9 @@ keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff,
 A `.klz` is a **single-file, serverless** carrier — the portable equivalent of a
 `.kapi` project's working state. It is a *parcel*, not the place you normally
 work: the day-to-day working model is the ambient
-[`.kapi` project](/contribute/architecture/008-project-model). This recipe is the
-serverless convenience where there is no project — you open a `.klz` into a
-working cache, run tools against it, and pack it back. The bindings are the same
-ones any flow uses ([AD-026](/contribute/architecture/026-flow-io-binding)):
+[`.kapi` project](/kapi/modes). This recipe is the serverless convenience where
+there is no project — you open a `.klz` into a working cache, run tools against
+it, and pack it back. The bindings are the same ones any flow uses:
 
 | Step | Binding | Verb |
 |---|---|---|
@@ -163,5 +162,3 @@ import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
 
 - [The KLF family & `.klz` package](/reference/klf/package) — the package format
   and its working-state members.
-- [AD-025: KLF Family and the `.klz` Package](/contribute/architecture/025-klf-package) — the design and the
-  content-derived-progress decision.

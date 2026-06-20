@@ -59,9 +59,6 @@ review. For a recipient on a third-party CAT tool, `kapi extract` emits **XLIFF
 out and come back through the same `extract` / `merge` verbs. See
 [KLF vs XLIFF](/reference/klf/vs-xliff).
 
-For architectural context and design decisions see [AD-017: Bilingual
-Format Interop](/contribute/architecture/017-bilingual-format-interop).
-
 <ThemedVideo
   sources={{
     light: "/video/kapi/bilingual-workflow-light.webm",
@@ -327,15 +324,9 @@ and the project is the system of record. It is also why merge needs the
 same project the extract ran in — the skeleton and manifest that make the
 round-trip byte-exact live there, not in the file the translator returns.
 
-## Deeper reading
+## Related
 
-- [AD-017: Bilingual Format Interop](/contribute/architecture/017-bilingual-format-interop)
-  — full design rationale, six-boundary framing, conflict policy table
-- [AD-009: Translation Memory](/contribute/architecture/009-translation-memory) —
-  matching tiers, TM schema, `LookupSegment` for sentence-level
-  leverage
-- [AD-008: Project Model](/contribute/architecture/008-project-model) —
-  the extraction-batch bookkeeping and `merge.conflict_policy` recipe
-  shape
-- [AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — command tree and
-  auto-discovery semantics
+- [KLF vs XLIFF](/reference/klf/vs-xliff) — when to use each interchange format.
+- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — leverage existing
+  translations before sending anything out.
+- [Kapi CLI](/kapi/cli) — the full command reference.
