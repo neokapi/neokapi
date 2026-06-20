@@ -3,10 +3,12 @@ import { roleStyle } from "@neokapi/ui-primitives/preview";
 import {
   ocr,
   layout,
+  rgbaToDataURL,
   type OCRResult,
   type OCROptions,
   type LayoutResult,
 } from "@neokapi/kapi-playground/visionBridge";
+import { runGemmaImageOCR, type GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
 
 export interface VisionSampleSpec {
   url: string;
@@ -79,12 +81,25 @@ export default function VisionExplorer({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
+  // OCR-engine comparison: run Gemma 4 (generative VLM, in-browser via WebGPU)
+  // on the same image and show its transcription + latency next to PP-OCRv5's.
+  const [ocrMs, setOcrMs] = useState<number | null>(null);
+  const [gemma, setGemma] = useState<{ text: string; ms: number } | null>(null);
+  const [gemmaBusy, setGemmaBusy] = useState(false);
+  const [gemmaProgress, setGemmaProgress] = useState<GemmaProgress | null>(null);
+  const [gemmaErr, setGemmaErr] = useState<string | null>(null);
+
   const runOCR = useCallback(
     async (r: Raster) => {
       setBusy("ocr");
       setErr(null);
+      setGemma(null); // a new image invalidates the previous comparison
+      setGemmaErr(null);
       try {
-        setOcrRes(await ocr(r, modelBase, { handwriting, hwThreshold, llm, llmThreshold }));
+        const t0 = performance.now();
+        const res = await ocr(r, modelBase, { handwriting, hwThreshold, llm, llmThreshold });
+        setOcrMs(performance.now() - t0);
+        setOcrRes(res);
       } catch (e) {
         setErr(`OCR failed: ${(e as Error).message}`);
       } finally {
@@ -93,6 +108,30 @@ export default function VisionExplorer({
     },
     [modelBase, handwriting, hwThreshold, llm, llmThreshold],
   );
+
+  // OCR prompt for the generative comparison: faithful transcription only.
+  const GEMMA_OCR_PROMPT =
+    "Transcribe all text in this image exactly as it appears, preserving line breaks and reading order. Output only the transcribed text, with no commentary.";
+
+  const runGemmaCompare = useCallback(async () => {
+    if (!raster) return;
+    setGemmaBusy(true);
+    setGemmaErr(null);
+    setGemma(null);
+    setGemmaProgress(null);
+    try {
+      const url = rgbaToDataURL(raster);
+      const t0 = performance.now();
+      const res = await runGemmaImageOCR(url, GEMMA_OCR_PROMPT, {
+        onProgress: (p) => setGemmaProgress(p),
+      });
+      setGemma({ text: res.text, ms: performance.now() - t0 });
+    } catch (e) {
+      setGemmaErr((e as Error).message);
+    } finally {
+      setGemmaBusy(false);
+    }
+  }, [raster]);
 
   // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle):
   // overrides win over the current render-time state.
@@ -387,6 +426,21 @@ export default function VisionExplorer({
         >
           Detect layout (~132 MB)
         </button>
+        <button
+          onClick={() => void runGemmaCompare()}
+          disabled={!raster || gemmaBusy}
+          title="Run Google Gemma 4 (a generative vision-language model) on the same image and compare its transcription with the PP-OCRv5 pipeline. Downloads the model (multi-GB) on first use; requires WebGPU."
+          style={{
+            padding: "0.35rem 0.7rem",
+            borderRadius: 6,
+            border: "1px solid var(--ifm-color-emphasis-300)",
+            background: gemma ? "var(--ifm-color-primary)" : "transparent",
+            color: gemma ? "#fff" : "inherit",
+            cursor: raster && !gemmaBusy ? "pointer" : "not-allowed",
+          }}
+        >
+          {gemmaBusy ? "Running Gemma…" : "Compare with Gemma 4"}
+        </button>
       </div>
 
       {busy === "ocr" && (
@@ -409,6 +463,82 @@ export default function VisionExplorer({
         </p>
       )}
       {err && <p style={{ color: "var(--ifm-color-danger)" }}>{err}</p>}
+
+      {(gemmaBusy || gemma || gemmaErr) && (
+        <div
+          style={{
+            border: "1px solid var(--ifm-color-emphasis-300)",
+            borderRadius: 8,
+            padding: "0.75rem 1rem",
+            margin: "0.5rem 0",
+          }}
+        >
+          <strong>OCR engine comparison</strong>
+          {gemmaBusy && (
+            <p style={{ fontStyle: "italic", margin: "0.4rem 0 0" }}>
+              {gemmaProgress?.status === "downloading"
+                ? `Downloading Gemma 4 model… ${
+                    gemmaProgress.progress != null ? Math.round(gemmaProgress.progress) + "%" : ""
+                  }`
+                : "Running Gemma 4 on the image…"}
+            </p>
+          )}
+          {gemmaErr && (
+            <p style={{ color: "var(--ifm-color-danger)", margin: "0.4rem 0 0" }}>
+              Gemma: {gemmaErr}
+            </p>
+          )}
+          {(gemma || ocrRes) && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
+                marginTop: "0.6rem",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                  PP-OCRv5 (ML pipeline)
+                  {ocrMs != null && (
+                    <span style={{ fontWeight: 400, color: "var(--ifm-color-emphasis-600)" }}>
+                      {" "}
+                      · {Math.round(ocrMs)} ms · {ocrRes?.lines.length ?? 0} lines
+                    </span>
+                  )}
+                </div>
+                <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", marginTop: "0.4rem" }}>
+                  {(ocrRes?.lines ?? []).map((l) => l.text).join("\n") || "—"}
+                </pre>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                  Gemma 4 (generative VLM)
+                  {gemma && (
+                    <span style={{ fontWeight: 400, color: "var(--ifm-color-emphasis-600)" }}>
+                      {" "}
+                      · {Math.round(gemma.ms)} ms
+                    </span>
+                  )}
+                </div>
+                <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", marginTop: "0.4rem" }}>
+                  {gemma ? gemma.text || "(empty)" : "—"}
+                </pre>
+              </div>
+            </div>
+          )}
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--ifm-color-emphasis-600)",
+              margin: "0.5rem 0 0",
+            }}
+          >
+            PP-OCRv5 detects + recognizes text regions (with boxes and per-line confidence); Gemma 4
+            reads the whole image and transcribes generatively. Both run locally in your browser.
+          </p>
+        </div>
+      )}
 
       <div
         style={{
