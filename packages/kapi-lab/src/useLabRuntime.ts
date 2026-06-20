@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Import from the light /runtime subpath (not the package index) so we don't
 // pull xterm / the modal into explorer bundles — explorers never show a terminal.
-import { bootKapiRuntime, onBootProgress } from "@neokapi/kapi-playground/runtime";
+import { onBootProgress } from "@neokapi/kapi-playground/runtime";
+// Boot is routed through the shared plugin manager so the navbar status widget
+// and every lab reflect the same engine state (one store, many views).
+import { configurePlugins, bootEngine } from "@neokapi/kapi-playground/plugins";
 import type {
   AnnotateOptions,
   BootProgress,
@@ -38,10 +41,27 @@ export interface TraceOutcome {
 
 const noop = () => {};
 
+export interface UseLabRuntimeOptions {
+  /**
+   * Boot the engine immediately on mount. Labs that gate work behind an explicit
+   * Run pass `false` and call {@link LabRuntime.boot} from the Run action, so
+   * nothing is fetched on page load. Defaults to `true` for back-compat.
+   */
+  autoBoot?: boolean;
+}
+
 export interface LabRuntime {
   status: LabStatus;
   error: string | null;
   ready: boolean;
+  /** True once boot has been requested (engine booting or ready). */
+  booting: boolean;
+  /**
+   * Start the engine boot if it hasn't begun. Idempotent and safe to call from a
+   * Run handler. Routed through the shared plugin manager so the navbar widget
+   * reflects the same boot.
+   */
+  boot: () => void;
   /** Engine download progress while booting (bytes of the ~13 MB module); null
    *  before the download starts and after the engine is up. */
   bootProgress: BootProgress | null;
@@ -98,11 +118,23 @@ function serialized<T>(fn: () => Promise<T>): Promise<T> {
 
 // useLabRuntime boots (or reuses) the kapi WASM and exposes the structured lab
 // calls. Booting is lazy and client-only — call it from a <BrowserOnly> subtree.
-export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
+export function useLabRuntime(
+  assets: LabRuntimeAssets | null,
+  opts: UseLabRuntimeOptions = {},
+): LabRuntime {
+  const autoBoot = opts.autoBoot ?? true;
   const [status, setStatus] = useState<LabStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
   const runtimeRef = useRef<KapiRuntime | null>(null);
+  const bootStartedRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Key the boot on the URL *strings*, not the `assets` object identity — a
   // caller that returns a fresh config object every render would otherwise re-run
@@ -110,29 +142,41 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
   // pegs the tab ("Maximum update depth"). The strings are stable.
   const wasmExecUrl = assets?.wasmExecUrl;
   const wasmUrl = assets?.wasmUrl;
+
+  // Configure the shared plugin manager with the asset URLs as soon as we have
+  // them (idempotent). This does NOT boot — it just lets the navbar widget and
+  // any plugin ensure() reach the same engine. Boot stays gated behind boot().
   useEffect(() => {
-    if (!wasmExecUrl || !wasmUrl) return;
-    let cancelled = false;
+    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl });
+  }, [wasmExecUrl, wasmUrl]);
+
+  const boot = useCallback(() => {
+    if (!wasmExecUrl || !wasmUrl || bootStartedRef.current) return;
+    bootStartedRef.current = true;
     setStatus("booting");
     const offProgress = onBootProgress((p) => {
-      if (!cancelled) setBootProgress(p.done ? null : p);
+      if (mountedRef.current) setBootProgress(p.done ? null : p);
     });
-    bootKapiRuntime(wasmExecUrl, wasmUrl)
-      .then((rt) => {
-        if (cancelled) return;
-        runtimeRef.current = rt;
-        setStatus("ready");
+    configurePlugins({ wasmExecUrl, wasmUrl });
+    bootEngine()
+      .then((rt: unknown) => {
+        runtimeRef.current = rt as KapiRuntime;
+        if (mountedRef.current) setStatus("ready");
       })
-      .catch((e) => {
-        if (cancelled) return;
+      .catch((e: unknown) => {
+        bootStartedRef.current = false; // allow a retry
+        if (!mountedRef.current) return;
         setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
-      });
-    return () => {
-      cancelled = true;
-      offProgress();
-    };
+      })
+      .finally(() => offProgress());
   }, [wasmExecUrl, wasmUrl]);
+
+  // When autoBoot is set (the default, for back-compat), boot as soon as the
+  // asset URLs are known. Labs opting into explicit Run pass autoBoot={false}.
+  useEffect(() => {
+    if (autoBoot) boot();
+  }, [autoBoot, boot]);
 
   const mkdir = useCallback((path: string): void => {
     const rt = runtimeRef.current;
@@ -273,6 +317,8 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
       status,
       error,
       ready: status === "ready",
+      booting: status === "booting",
+      boot,
       bootProgress,
       mkdir,
       writeFile,
@@ -290,6 +336,7 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     [
       status,
       error,
+      boot,
       bootProgress,
       mkdir,
       writeFile,
