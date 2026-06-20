@@ -10,13 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "commands": [
-      {
-        "name": "check-ml",
-        "short": "ML checker self-check",
-        "long": "List the embedding models the checker supports and whether they are installed. The model is acquired explicitly with `kapi-check pull`; the host check engine drives the plugin over the stdin/stdout protocol (kapi-check serve)."
-      }
-    ]
+    "selfcheck": true
   },
   "metadata": {
     "check": {

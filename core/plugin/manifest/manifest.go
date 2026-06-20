@@ -130,6 +130,15 @@ type Capabilities struct {
 	// flags on the built-in command and, after it runs, dispatches the
 	// plugin's handler when the contribution is engaged.
 	CommandContributions []CommandContribution `json:"command_contributions,omitempty"`
+
+	// SelfCheck indicates the plugin implements the standard `<binary> doctor`
+	// self-check that `kapi plugins doctor` invokes. Plugins that bundle native
+	// binaries, models, or in-process engines set this so doctor can confirm
+	// those runtime dependencies resolve; plugins without runtime dependencies
+	// omit it (doctor still verifies their binary presence and version). This
+	// replaces the per-plugin self-check verbs that used to clutter the
+	// top-level command surface.
+	SelfCheck bool `json:"selfcheck,omitempty"`
 }
 
 // CommandContribution declares a plugin hook into a built-in kapi command.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +39,7 @@ func (a *App) NewPluginCmd() *cobra.Command {
 	cmd.AddCommand(a.newPluginUpdateIndexCmd())
 	cmd.AddCommand(a.newPluginRebuildCacheCmd())
 	cmd.AddCommand(a.newPluginVerifyCmd())
+	cmd.AddCommand(a.newPluginDoctorCmd())
 	return cmd
 }
 
@@ -387,6 +389,172 @@ func (a *App) newPluginVerifyCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// newPluginDoctorCmd implements `kapi plugins doctor [name]`.
+//
+// Doctor is the single, consistent health surface for installed plugins. It
+// replaces the per-plugin self-check verbs (the old `kapi av`, `kapi asr`,
+// `kapi vision`, …) that each plugin used to mint as a top-level command. For
+// every plugin it confirms the binary is present and its reported version
+// matches the manifest, then — for plugins that declare a self-check
+// (capabilities.selfcheck) — runs the plugin's own `<binary> doctor`
+// diagnostics, which confirm bundled binaries, models, or engines resolve at
+// runtime.
+//
+// With no argument it checks every installed plugin and prints a one-line
+// status each. With a name it prints a detailed report including the plugin's
+// full self-check output. Exits non-zero if any checked plugin is unhealthy.
+func (a *App) newPluginDoctorCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "doctor [name]",
+		Short: "Run health/self-checks on installed plugins",
+		Long: `Check the health of installed plugins.
+
+For each plugin, doctor verifies the binary is present and its reported
+version matches the manifest, then — for plugins that provide a
+self-check — runs the plugin's own diagnostics (e.g. confirming bundled
+binaries, models, or engines resolve at runtime).
+
+With no argument, doctor checks every installed plugin and prints a
+one-line status each. Pass a plugin name for a detailed report including
+the plugin's full self-check output. Exits non-zero if any checked
+plugin is unhealthy.
+
+Examples:
+  kapi plugins doctor
+  kapi plugins doctor av`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a.InitPluginHost()
+			if a.PluginHost == nil {
+				return errors.New("plugin host is not initialized")
+			}
+
+			var targets []*pluginhost.Plugin
+			if len(args) == 1 {
+				p := a.PluginHost.Plugin(args[0])
+				if p == nil {
+					return fmt.Errorf("plugin %q is not installed", args[0])
+				}
+				targets = []*pluginhost.Plugin{p}
+			} else {
+				targets = a.PluginHost.Plugins()
+			}
+
+			if len(targets) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
+				return nil
+			}
+
+			verbose := len(args) == 1
+			unhealthy := 0
+			for _, p := range targets {
+				res := diagnosePlugin(cmd.Context(), p)
+				if !res.healthy {
+					unhealthy++
+				}
+				if verbose {
+					writeDoctorReport(cmd.OutOrStdout(), p, res)
+				} else {
+					mark := "✓"
+					if !res.healthy {
+						mark = "✗"
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "%s %-20s %-10s %s\n", mark, p.Name(), p.Version(), res.summary)
+				}
+			}
+
+			if unhealthy > 0 {
+				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)))
+			}
+			return nil
+		},
+	}
+}
+
+// doctorResult is the outcome of diagnosing a single plugin.
+type doctorResult struct {
+	healthy bool
+	summary string   // one-line status detail
+	checks  []string // per-check lines for the verbose report
+	output  string   // captured self-check stdout/stderr (verbose only)
+}
+
+// diagnosePlugin runs the baseline + self-check diagnostics for one plugin:
+//  1. the binary file exists and is a regular file,
+//  2. `<binary> version` reports a version matching the manifest,
+//  3. if the manifest declares a self-check, `<binary> doctor` exits 0.
+func diagnosePlugin(ctx context.Context, p *pluginhost.Plugin) doctorResult {
+	res := doctorResult{healthy: true}
+
+	if st, err := os.Stat(p.BinaryPath); err != nil || st.IsDir() {
+		res.healthy = false
+		res.summary = "binary missing: " + p.BinaryPath
+		res.checks = append(res.checks, "✗ binary present ("+p.BinaryPath+")")
+		return res
+	}
+	res.checks = append(res.checks, "✓ binary present")
+
+	// The version probe is an integrity hint, not a health gate: it runs across
+	// every installed plugin — including third-party ones whose `version`
+	// subcommand may print extra text or be absent — so a mismatch is surfaced
+	// as a warning, never as "unhealthy". Unhealthy is reserved for a missing
+	// binary or a failing declared self-check.
+	out, err := runVersionProbe(ctx, p.BinaryPath)
+	actual := strings.TrimSpace(string(out))
+	switch {
+	case err != nil:
+		res.checks = append(res.checks, fmt.Sprintf("⚠ version probe failed: %v", err))
+	case actual != p.Manifest.Version:
+		res.checks = append(res.checks, fmt.Sprintf("⚠ version probe %q ≠ manifest %q", actual, p.Manifest.Version))
+	default:
+		res.checks = append(res.checks, "✓ version matches manifest ("+actual+")")
+	}
+
+	if !p.Manifest.Capabilities.SelfCheck {
+		res.checks = append(res.checks, "– no self-check")
+		res.summary = "ok (no self-check)"
+		return res
+	}
+
+	scOut, scErr := runSelfCheckProbe(ctx, p.BinaryPath)
+	res.output = strings.TrimRight(string(scOut), "\n")
+	if scErr != nil {
+		res.healthy = false
+		res.checks = append(res.checks, fmt.Sprintf("✗ self-check failed: %v", scErr))
+		res.summary = "self-check failed"
+		return res
+	}
+	res.checks = append(res.checks, "✓ self-check passed")
+	res.summary = "healthy"
+	return res
+}
+
+// writeDoctorReport prints the detailed per-plugin diagnostic report.
+func writeDoctorReport(w io.Writer, p *pluginhost.Plugin, res doctorResult) {
+	status := "healthy"
+	if !res.healthy {
+		status = "UNHEALTHY"
+	}
+	fmt.Fprintf(w, "%s %s — %s\n", p.Name(), p.Version(), status)
+	fmt.Fprintf(w, "  binary: %s\n", p.BinaryPath)
+	for _, c := range res.checks {
+		fmt.Fprintf(w, "  %s\n", c)
+	}
+	if res.output != "" {
+		fmt.Fprintln(w, "  self-check output:")
+		for _, line := range strings.Split(res.output, "\n") {
+			fmt.Fprintf(w, "    %s\n", line)
+		}
+	}
+}
+
+// runSelfCheckProbe runs the plugin's standard `<binary> doctor` self-check,
+// capturing stdout+stderr. A non-nil error means the self-check exited non-zero
+// (or the binary could not be run).
+func runSelfCheckProbe(ctx context.Context, binPath string) ([]byte, error) {
+	return exec.CommandContext(ctx, binPath, "doctor").CombinedOutput()
 }
 
 // parsePluginRef splits "name@^1.0" → ("name", "^1.0").

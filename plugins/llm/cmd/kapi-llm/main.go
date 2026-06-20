@@ -11,8 +11,8 @@
 //
 //	kapi-llm serve     start the stdin/stdout protocol loop (default)
 //	kapi-llm version   print the plugin version
-//	kapi-llm command   manifest Mode-A entry; "command llm" runs a one-shot
-//	                   self-check (constructs the engine, lists models)
+//	kapi-llm doctor    self-check: construct the engine and list supported models
+//	                   (the standard self-check that `kapi plugins doctor` runs)
 package main
 
 import (
@@ -35,10 +35,10 @@ func main() {
 		os.Exit(runServe())
 	case "version":
 		fmt.Println(version.Version)
-	case "command":
-		os.Exit(runCommand(os.Args[2:]))
+	case "doctor":
+		os.Exit(runDoctor())
 	default:
-		fmt.Fprintf(os.Stderr, "kapi-llm: unknown subcommand %q (want serve|version|command)\n", sub)
+		fmt.Fprintf(os.Stderr, "kapi-llm: unknown subcommand %q (want serve|version|doctor)\n", sub)
 		os.Exit(2)
 	}
 }
@@ -140,14 +140,9 @@ func modalities(engine llm.Engine) []string {
 	return engine.Modalities()
 }
 
-// runCommand implements the manifest Mode-A `command` entry. The single command
-// "llm" performs an in-process self-check: it confirms the engine constructs and
-// prints the supported models.
-func runCommand(args []string) int {
-	if len(args) == 0 || args[0] != "llm" {
-		fmt.Fprintln(os.Stderr, "kapi-llm: usage: kapi-llm command llm")
-		return 2
-	}
+// runDoctor is the standard self-check: it confirms the in-process engine
+// constructs and prints the supported models. `kapi plugins doctor` runs this.
+func runDoctor() int {
 	engine, err := llm.NewEngine(nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapi-llm: engine init failed: %v\n", err)

@@ -10,13 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "commands": [
-      {
-        "name": "sat",
-        "short": "SaT ML segmenter self-check",
-        "long": "Construct the in-process SaT engine and list the supported models. The host `sat` segment engine drives the plugin over the stdin/stdout segmentation protocol (kapi-sat serve); this command is for interactive verification."
-      }
-    ]
+    "selfcheck": true
   },
   "metadata": {
     "segment": {

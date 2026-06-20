@@ -13,7 +13,8 @@
 //
 //	kapi-vision serve     start the stdin/stdout protocol loop (default)
 //	kapi-vision version   print the plugin version
-//	kapi-vision command   manifest Mode-A entry; "command vision" self-checks
+//	kapi-vision doctor    self-check: construct the engine and list model assets
+//	                      (the standard self-check that `kapi plugins doctor` runs)
 package main
 
 import (
@@ -36,10 +37,10 @@ func main() {
 		os.Exit(runServe())
 	case "version":
 		fmt.Println(version.Version)
-	case "command":
-		os.Exit(runCommand(os.Args[2:]))
+	case "doctor":
+		os.Exit(runDoctor())
 	default:
-		fmt.Fprintf(os.Stderr, "kapi-vision: unknown subcommand %q (want serve|version|command)\n", sub)
+		fmt.Fprintf(os.Stderr, "kapi-vision: unknown subcommand %q (want serve|version|doctor)\n", sub)
 		os.Exit(2)
 	}
 }
@@ -118,13 +119,9 @@ func modelInfos(engine ocr.Engine) []visionproto.ModelInfo {
 	return out
 }
 
-// runCommand implements the manifest Mode-A `command` entry: an in-process
-// self-check that confirms the engine constructs and lists the model assets.
-func runCommand(args []string) int {
-	if len(args) == 0 || args[0] != "vision" {
-		fmt.Fprintln(os.Stderr, "kapi-vision: usage: kapi-vision command vision")
-		return 2
-	}
+// runDoctor is the standard self-check: it confirms the in-process vision
+// engine constructs and lists the model assets. `kapi plugins doctor` runs this.
+func runDoctor() int {
 	engine, err := ocr.NewEngine(nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapi-vision: engine init failed: %v\n", err)

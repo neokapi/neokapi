@@ -10,13 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "commands": [
-      {
-        "name": "av",
-        "short": "ffmpeg/ffprobe bundle self-check",
-        "long": "Print the kapi-av version and the bundled ffmpeg/ffprobe paths. The host's in-process video demux (core/av) discovers this plugin's directory and uses the bundled binaries; this plugin runs no daemon."
-      }
-    ]
+    "selfcheck": true
   },
   "metadata": {
     "av": {
