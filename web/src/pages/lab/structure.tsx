@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { PdfExplorer } from "@site/src/components/Lab";
 import styles from "./pdf.module.css";
@@ -23,21 +22,18 @@ export default function StructureLabPage(): React.ReactElement {
   return (
     <Layout
       title="Structure & Layout Lab"
-      description="See how the kapi engine recovers a document's structure and page geometry in your browser — PDF text and per-block layout extracted via PDFium (WebAssembly), shown as Layout, Structure, and Blocks. Nothing is mocked."
+      description="A PDF is just ink on a page until something recovers its reading order, its outline, and the place of every block. Drop one in and watch neokapi reconstruct its structure — privately, in your browser."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>Structure &amp; Layout</h1>
           <p className={styles.lede}>
             A document is more than its words — it has a reading order, an outline, and a place for
-            every block on the page. Drop in a PDF and the <Link to="/lab">Core Framework</Link>{" "}
-            engine, compiled to WebAssembly, recovers all three right here in your browser. Text and
-            per-block geometry come from <strong>PDFium</strong> (also WebAssembly), the same engine
-            the native <code>kapi-pdfium</code> plugin uses on the desktop. Switch to{" "}
-            <strong>Layout</strong> to see each block in its place on the page,{" "}
-            <strong>Structure</strong> for the outline, and <strong>Blocks</strong> for the
-            extracted content. Press Run to load the engine and the <code>pdfium</code> plugin —
-            nothing is fetched until you do.
+            every block on the page. Drop in a PDF and neokapi recovers all three, right here in
+            your browser. Switch to <strong>Layout</strong> to see each block in its place on the
+            page, <strong>Structure</strong> for the outline, and <strong>Blocks</strong> for the
+            extracted content — so you can see exactly what it found and where. Nothing is fetched
+            until you press Run.
           </p>
         </div>
         <PdfExplorer samples={samples} />

@@ -16,7 +16,7 @@ export default function LabPage(): React.ReactElement {
   return (
     <Layout
       title="Lab"
-      description="Learn the neokapi architecture by running it — one flow workspace whose guided lessons teach the content model, pipeline, tools, formats, projects and concurrency on the real engine, in your browser."
+      description="See how neokapi reads a document, breaks it into translatable pieces, and runs a localization flow over it — step by step, on real files, right in your browser. No install."
       noFooter
       wrapperClassName="lab-app-wrapper"
     >
@@ -24,8 +24,9 @@ export default function LabPage(): React.ReactElement {
         <header className={styles.appHeader}>
           <h1 className={styles.appTitle}>neokapi Lab</h1>
           <p className={styles.appLede}>
-            Pick a lesson and its walkthrough drives the workspace — the real engine, compiled to
-            WebAssembly, runs your flow in the browser. Nothing is mocked.
+            Pick a lesson and follow along as neokapi reads a file, breaks it into translatable
+            pieces, and runs a flow over it — live, in your browser. It&rsquo;s the real engine, so
+            what you build here is what you&rsquo;d get on your own files.
           </p>
         </header>
         <div className={styles.appWorkspace}>

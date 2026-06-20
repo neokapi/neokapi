@@ -42,21 +42,17 @@ export default function MediaLabPage(): React.ReactElement {
   return (
     <Layout
       title="Audio & Video Lab"
-      description="Run the multimodal localization pipeline in your browser — Whisper speech recognition for audio, and ffmpeg.wasm demux + Whisper + PP-OCRv5 for video. The same engines the native plugins run; nothing is mocked."
+      description="Turn what people say and what appears on screen into time-stamped, translatable captions — ready to subtitle a clip in another language. Runs privately on your device; nothing is uploaded."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>Audio &amp; Video</h1>
           <p className={styles.lede}>
-            Localize what people <em>say</em> and what appears <em>on screen</em>. The{" "}
-            <strong>Audio</strong> tab runs real <strong>Whisper</strong> speech recognition (via{" "}
-            <strong>onnxruntime-web</strong>, the same model family the native <code>kapi-asr</code>{" "}
-            plugin runs through whisper.cpp), turning speech into timing-anchored subtitle cues. The{" "}
-            <strong>Video</strong> tab runs the whole pipeline: <strong>ffmpeg.wasm</strong> (
-            <code>kapi-av</code>) demuxes the clip, Whisper transcribes the speech, and{" "}
-            <strong>PP-OCRv5</strong> (<code>kapi-vision</code>) reads the on-screen frame text.
-            Only the runtime differs from the desktop plugins; nothing is mocked. Each tab loads its
-            model on first run — nothing is fetched until you press play.
+            Localize what people <em>say</em> and what appears <em>on screen</em>. Add an audio or
+            video file and neokapi turns the speech — and any on-screen text — into time-stamped
+            captions you can review, translate, and play back in sync. It runs entirely on your
+            device, so nothing is uploaded, and each tab only fetches what it needs the first time
+            you press play.
           </p>
         </div>
 

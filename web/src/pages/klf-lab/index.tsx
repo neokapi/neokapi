@@ -14,17 +14,17 @@ export default function KlfLabPage(): React.ReactElement {
   return (
     <Layout
       title="KLF Lab"
-      description="Edit a Kapi Localization Format document in the browser and watch the real engine parse, canonicalize, render, validate, and resolve annotations against it."
+      description="Kapi's localization format keeps a document's text, its structure, and its translations together in one file. Edit one here and watch neokapi check and render it live."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>KLF Lab</h1>
           <p className={styles.lede}>
-            Edit a <Link to="/reference/klf/spec">.klf</Link> document below and watch the real{" "}
-            <code>core/klf</code> engine — compiled to WebAssembly — work on it live: it
-            canonicalizes the bytes, renders each block to its preview, validates the run structure,
-            and resolves a companion <code>.klfl</code> annotation overlay anchor by anchor. Nothing
-            is mocked; this is the same engine the <Link to="/playground-cli">kapi CLI</Link> runs.
+            The <Link to="/reference/klf/spec">Kapi Localization Format</Link> keeps a
+            document&rsquo;s text, its structure, and its translations together in one file. Edit
+            one below and watch neokapi work on it live — rendering each piece as it&rsquo;ll
+            appear, checking that the formatting is well-formed, and flagging anything that
+            doesn&rsquo;t add up — so you can see how your content holds together as you change it.
           </p>
         </div>
 
