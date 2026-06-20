@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import { SegmentationLab } from "@site/src/components/Lab";
 import styles from "./segmentation.module.css";
 
@@ -14,21 +13,19 @@ export default function SegmentationLabPage(): React.ReactElement {
   return (
     <Layout
       title="Segmentation Lab"
-      description="Compare every neokapi segmentation engine — SRX rules, the UAX-29 / Intl.Segmenter Unicode baselines, the native Hybrid, and the learned SaT and LLM segmenters — on your own text, in the browser."
+      description="Before text can be translated well it has to be split into sentences correctly — knowing that “Dr.” or “$3.50” isn't a sentence break. Compare how neokapi's segmentation methods handle the tricky cases on your own text, in your browser."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>Segmentation Lab</h1>
           <p className={styles.lede}>
-            neokapi treats segmentation as a stand-off overlay on the{" "}
-            <Link to="/framework/architecture">content model</Link>: the same source, segmented into
-            sentences by whichever engine you choose. Compare the pure-Go <strong>SRX</strong>{" "}
-            rules, the <strong>UAX-29</strong> Unicode baseline (ICU4X) and the browser&apos;s
-            built-in <strong>Intl.Segmenter</strong>, the native <strong>Hybrid</strong> (ICU4X base
-            refined by SRX exceptions), and the learned <strong>SaT</strong> and{" "}
-            <strong>Gemma</strong> segmenters — the same engine names the CLI and flow editor use.
-            Bring your own text and watch how each treats abbreviations, decimals, quotes, and
-            scripts without spaces.
+            Before anything gets translated, text has to be broken into sentences — and getting that
+            right (that &ldquo;Dr.&rdquo; or &ldquo;$3.50&rdquo; isn&rsquo;t the end of one) is what
+            makes translations and translation-memory matches reliable. neokapi offers several ways
+            to do it, from fast rule-based splitting to a learned model and a local LLM. Bring your
+            own text and watch how each handles abbreviations, decimals, quotes, and languages
+            written without spaces — the very same engines you can pick in the CLI and the flow
+            editor.
           </p>
         </div>
         <SegmentationLab />
