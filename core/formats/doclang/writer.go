@@ -239,8 +239,21 @@ func (w *Writer) flushTableCaption(b *strings.Builder) {
 	w.tableCaption = nil
 }
 
+// typeToRole bridges a few common Block.Type values to a normalized role, so a
+// source format that records a kind on Block.Type but does not set the
+// SemanticRole standoff layer still projects to the right DocLang element.
+var typeToRole = map[string]string{
+	"code-block": model.RoleCode,
+	"code":       model.RoleCode,
+	"codeblock":  model.RoleCode,
+	"pre":        model.RoleCode,
+}
+
 func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 	role := blk.SemanticRole()
+	if role == "" {
+		role = typeToRole[blk.Type]
+	}
 
 	// A <table>/<index> may contain only element-head content + OTSL cell
 	// tokens — never a body <text>/<heading>. A caption block is buffered and
@@ -298,8 +311,17 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 // element_head order: <label> (code language), <thread> (continuation), <layer>,
 // then the 4-value <location> block (geometry).
 func (w *Writer) writeHead(b *strings.Builder, blk *model.Block) {
-	if lang := blk.CodeLanguage(); lang != "" {
-		fmt.Fprintf(b, "<label value=%q/>", lang)
+	// Code language → recommended Linguist <label> (DocLang Recommendations), for
+	// code blocks only. Read the canonical convention first, then the
+	// markdown-local "language" key.
+	if blk.SemanticRole() == model.RoleCode || typeToRole[blk.Type] == model.RoleCode {
+		lang := blk.CodeLanguage()
+		if lang == "" {
+			lang = blk.Properties["language"]
+		}
+		if lang != "" {
+			fmt.Fprintf(b, "<label value=%q/>", lang)
+		}
 	}
 	if id := w.threadOf[blk.ID]; id > 0 {
 		fmt.Fprintf(b, "<thread thread_id=\"%d\"/>", id)

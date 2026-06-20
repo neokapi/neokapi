@@ -563,6 +563,7 @@ var htmlRoleMap = map[string]string{
 	"caption":   model.RoleCaption,
 	"title":     model.RoleTitle,
 	"paragraph": model.RoleParagraph,
+	"pre":       model.RoleCode,
 }
 
 // applyStructuralRole sets a block's normalized SemanticRole from its HTML
@@ -593,8 +594,38 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 		if strings.ToLower(n.Data) == "th" {
 			role = model.RoleTableHeader
 		}
+	case model.RoleCode:
+		// A code block's language rides on a child <code class="language-xxx">
+		// (the de-facto convention) — capture it for the structure layer so
+		// cross-format export emits the recommended language label.
+		if lang := codeLanguageFromPre(n); lang != "" {
+			block.SetCodeLanguage(lang)
+		}
 	}
 	block.SetSemanticRole(role, level)
+}
+
+// codeLanguageFromPre returns the language key declared on a <pre>'s descendant
+// <code class="language-xxx"> / <code class="lang-xxx"> (the highlight.js /
+// markdown-rendered convention), or "".
+func codeLanguageFromPre(pre *html.Node) string {
+	for c := pre.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode && strings.ToLower(c.Data) == "code" {
+			for _, a := range c.Attr {
+				if strings.ToLower(a.Key) != "class" {
+					continue
+				}
+				for _, cls := range strings.Fields(a.Val) {
+					for _, pfx := range []string{"language-", "lang-"} {
+						if strings.HasPrefix(cls, pfx) {
+							return cls[len(pfx):]
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // applyStructureFacets derives a block's plane (layout layer) and visibility

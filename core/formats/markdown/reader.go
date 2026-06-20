@@ -1727,8 +1727,13 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		block := model.NewBlock(blockID, content)
 		block.Name = fmt.Sprintf("code%d", r.blockCounter)
 		block.Type = "code-block"
+		// Normalized structure layer (WS1) so cross-format export (e.g. DocLang
+		// <code> + the recommended Linguist language <label>) carries the role
+		// and language, not just the markdown-local skeleton fence.
+		block.SetSemanticRole(model.RoleCode, 0)
 		if lang != "" {
 			block.Properties["language"] = lang
+			block.SetCodeLanguage(lang)
 		}
 
 		r.skelEmitGap(fenceStart)
@@ -1821,6 +1826,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		block := model.NewBlock(blockID, blockContent)
 		block.Name = fmt.Sprintf("code%d", r.blockCounter)
 		block.Type = "code-block"
+		block.SetSemanticRole(model.RoleCode, 0) // WS1 role (indented code has no language)
 
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)
